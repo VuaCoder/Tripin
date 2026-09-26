@@ -1,0 +1,25 @@
+# Node
+node_modules/
+dist/
+build/
+.next/
+out/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+coverage/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+*.pem
+
+# Env
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
