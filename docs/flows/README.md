@@ -1,3 +1,19 @@
-# Flows Documentation
+# Flows
 
-This directory will eventually contain documentation on core business flows (e.g., authentication, custom tour booking, payment processing), possibly with sequence diagrams or state machines.
+The high-level system flows include:
+
+- Authentication
+- Login
+- Google Login
+- OTP Verification
+- Tour Discovery
+- Booking
+- Payment
+- E-ticket
+- Review
+- Conversation
+- AI Chat
+- Agency Tour Management
+- Guide Assignment
+- Moderation
+- Super Admin Administration

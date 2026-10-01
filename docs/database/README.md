@@ -1,3 +1,7 @@
-# Database Documentation
+# Database Architecture
 
-This directory will eventually contain documentation regarding the database, including schema definitions, relationships, indexing strategies, and database evolution notes.
+- PostgreSQL is the primary database.
+- Prisma is the ORM.
+- `prisma/schema.prisma` is the single source of truth for the database schema definition.
+- Prisma Migrations will be used.
+- Business models will be implemented incrementally in the schema.
