@@ -1,5 +1,7 @@
 import { logger } from '../utils/logger';
+import { authService } from '../modules/auth';
 import { bookingsService } from '../modules/bookings';
+import { notificationsService } from '../modules/notifications';
 import { paymentsService } from '../modules/payments';
 import { subscriptionsService } from '../modules/subscriptions';
 
@@ -11,6 +13,9 @@ export interface MaintenanceTask {
 }
 
 const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
+/** In-app notifications are kept for six months. */
+const NOTIFICATION_RETENTION_DAYS = 180;
 
 /** Every time-driven rule of the platform, in one place. */
 export function defaultTasks(): MaintenanceTask[] {
@@ -23,6 +28,9 @@ export function defaultTasks(): MaintenanceTask[] {
     { name: 'payments.retryUnfulfilled', intervalMs: MINUTE, run: () => paymentsService.retryUnfulfilled() },
     { name: 'subscriptions.expireEnded', intervalMs: 5 * MINUTE, run: () => subscriptionsService.expireEndedSubscriptions() },
     { name: 'subscriptions.cancelAbandoned', intervalMs: 5 * MINUTE, run: () => subscriptionsService.cancelAbandonedSubscriptions() },
+    // PostgreSQL has no TTL indexes: expired one-time codes / refresh tokens and old notifications are deleted here.
+    { name: 'auth.purgeExpired', intervalMs: HOUR, run: () => authService.purgeExpiredCredentials() },
+    { name: 'notifications.purgeOld', intervalMs: 6 * HOUR, run: () => notificationsService.purgeOlderThan(NOTIFICATION_RETENTION_DAYS) },
   ];
 }
 

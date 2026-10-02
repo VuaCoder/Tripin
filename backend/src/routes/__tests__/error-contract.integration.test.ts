@@ -1,16 +1,9 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { Types } from 'mongoose';
 import request from 'supertest';
 import type { Response } from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../../app';
-import { BookingModel } from '../../modules/bookings/bookings.model';
-import { OtpModel } from '../../modules/auth/otp.model';
-import { PromotionModel } from '../../modules/promotions/promotions.model';
-import { SupportTicketModel } from '../../modules/support/support.model';
-import { TourModel } from '../../modules/tours/tours.model';
-import { WishlistItemModel } from '../../modules/wishlists/wishlists.model';
 import {
   PASSWORD,
   bearer,
@@ -23,7 +16,10 @@ import {
   resetDatabase,
   startDatabase,
   stopDatabase,
+  loadTour,
 } from '../../test/integration';
+import { prisma } from '../../config/database';
+import { randomUUID } from 'node:crypto';
 
 // Every documented error code is provoked over HTTP, on a real database, and must come back with the documented status.
 const app = createApp();
@@ -46,7 +42,7 @@ function expectError(res: Response, code: string): void {
 
 // Codes that cannot be provoked deterministically in a test; each is covered where noted.
 const COVERED_ELSEWHERE: Record<string, string> = {
-  CONFLICT: 'global handler for Mongo duplicate keys (parallel creation tests)',
+  CONFLICT: 'global handler for unique-constraint violations (parallel creation tests)',
   CONCURRENT_UPDATE: 'needs a lost compare-and-set: service tests with fake repositories',
   RATE_LIMITED: 'limiters are disabled under test; middleware is trivial',
   INTERNAL_ERROR: 'security.integration.test.ts (500 envelope)',
@@ -106,9 +102,9 @@ describe('error contract over HTTP', () => {
     const wrong = real === '000000' ? '111111' : '000000';
     expectError(await verify(wrong), 'OTP_INVALID');
     expectError(await request(app).post('/api/v1/auth/register').send({ email: fresh, password: PASSWORD, fullName: 'Otp Tester' }), 'OTP_RESEND_TOO_SOON');
-    await OtpModel.collection.updateMany({}, { $set: { expiresAt: new Date(Date.now() - 1000) } });
+    await prisma.otp.updateMany({ where: {}, data: { expiresAt: new Date(Date.now() - 1000) } });
     expectError(await verify(real), 'OTP_EXPIRED');
-    await OtpModel.collection.updateMany({}, { $set: { expiresAt: new Date(Date.now() + 600_000), attempts: 50 } });
+    await prisma.otp.updateMany({ where: {}, data: { expiresAt: new Date(Date.now() + 600_000), attempts: 50 } });
     expectError(await verify(wrong), 'OTP_TOO_MANY_ATTEMPTS');
 
     // Unverified account, banned account.
@@ -148,21 +144,21 @@ describe('error contract over HTTP', () => {
     expect(first.status).toBe(201);
 
     // Sold seats protect the departure and the tour.
-    const date = (await TourModel.findById(tourId))!.departures[0]!.date.toISOString();
+    const date = (await loadTour(tourId))!.departures[0]!.date.toISOString();
     const dep = { id: departureId, date, isOpen: true };
     expectError(await request(app).put(`/api/v1/agency/tours/${tourId}/availability`).set(bearer(agency.token)).send({ departures: [{ ...dep, capacity: 1 }] }), 'CAPACITY_BELOW_BOOKED');
     expectError(await request(app).put(`/api/v1/agency/tours/${tourId}/availability`).set(bearer(agency.token)).send({ departures: [] }), 'DEPARTURE_HAS_BOOKINGS');
     expectError(await request(app).delete(`/api/v1/agency/tours/${tourId}`).set(bearer(agency.token)), 'TOUR_HAS_BOOKINGS');
 
     // A tour in review is locked.
-    const locked = await TourModel.create({ agencyId: agency.id, title: 'In review', destination: 'Hue', durationDays: 1, basePrice: 1, status: 'PENDING_REVIEW' });
+    const locked = await prisma.tour.create({ data: { agencyId: agency.id, title: 'In review', destination: 'Hue', durationDays: 1, basePrice: 1, status: 'PENDING_REVIEW' } });
     expectError(await request(app).patch(`/api/v1/agency/tours/${locked.id}`).set(bearer(agency.token)).send({ title: 'Changed title' }), 'TOUR_LOCKED');
 
     // Seats and departures.
     expectError(await book(50), 'NOT_ENOUGH_SEATS');
-    await TourModel.updateOne({ _id: tourId }, { $set: { 'departures.0.isOpen': false } });
+    await prisma.tourDeparture.updateMany({ where: { tourId }, data: { isOpen: false } });
     expectError(await book(1), 'DEPARTURE_UNAVAILABLE');
-    await TourModel.updateOne({ _id: tourId }, { $set: { 'departures.0.isOpen': true } });
+    await prisma.tourDeparture.updateMany({ where: { tourId }, data: { isOpen: true } });
 
     // Promotions.
     const promo = (body: object) =>
@@ -181,7 +177,7 @@ describe('error contract over HTTP', () => {
     await promo({ code: 'OFF1' }).then((r) => request(app).patch(`/api/v1/agency/promotions/${r.body.data.id}`).set(bearer(agency.token)).send({ isActive: false }));
     expectError(await withCode('OFF1'), 'PROMOTION_INACTIVE');
     await promo({ code: 'OLD1' });
-    await PromotionModel.collection.updateOne({ code: 'OLD1' }, { $set: { endsAt: new Date(Date.now() - 1000) } });
+    await prisma.promotion.updateMany({ where: { code: 'OLD1' }, data: { endsAt: new Date(Date.now() - 1000) } });
     expectError(await withCode('OLD1'), 'PROMOTION_EXPIRED');
     await promo({ code: 'BIG1', minOrderAmount: 90_000_000 });
     expectError(await withCode('BIG1'), 'PROMOTION_MIN_ORDER');
@@ -206,7 +202,7 @@ describe('error contract over HTTP', () => {
     await request(app).post(`/api/v1/bookings/${cancelled}/cancel`).set(bearer(traveler.token)).send({});
     expectError(await checkout(cancelled), 'BOOKING_NOT_PAYABLE');
     const stale = await create();
-    await BookingModel.collection.updateOne({ _id: new Types.ObjectId(stale) }, { $set: { paymentExpiresAt: new Date(Date.now() - 1000) } });
+    await prisma.booking.updateMany({ where: { id: stale }, data: { paymentExpiresAt: new Date(Date.now() - 1000) } });
     expectError(await checkout(stale), 'BOOKING_PAYMENT_EXPIRED');
 
     // An order with nothing to pay cannot be booked online.
@@ -219,12 +215,12 @@ describe('error contract over HTTP', () => {
     // Cancelling a paid trip that is too close to departure (policy window 10 days, departure in 3 days).
     await request(app).put('/api/v1/admin/policies/cancellation').set(bearer(admin.token)).send({ title: 'Cancellation', content: 'Strict', params: { cancellationWindowHours: 240 } });
     const paid = await create();
-    await BookingModel.collection.updateOne({ _id: new Types.ObjectId(paid) }, { $set: { status: 'CONFIRMED', isPaid: true }, $unset: { paymentExpiresAt: 1 } });
+    await prisma.booking.updateMany({ where: { id: paid }, data: { status: 'CONFIRMED', isPaid: true, paymentExpiresAt: null } });
     expectError(await request(app).post(`/api/v1/bookings/${paid}/cancel`).set(bearer(traveler.token)).send({}), 'CANCELLATION_WINDOW_PASSED');
 
     // Reviews.
     expectError(await request(app).post('/api/v1/reviews').set(bearer(traveler.token)).send({ bookingId: paid, rating: 5, comment: 'Wonderful trip indeed' }), 'BOOKING_NOT_COMPLETED');
-    await BookingModel.collection.updateOne({ _id: new Types.ObjectId(paid) }, { $set: { status: 'COMPLETED' } });
+    await prisma.booking.updateMany({ where: { id: paid }, data: { status: 'COMPLETED' } });
     expect((await request(app).post('/api/v1/reviews').set(bearer(traveler.token)).send({ bookingId: paid, rating: 5, comment: 'Wonderful trip indeed' })).status).toBe(201);
     expectError(await request(app).post('/api/v1/reviews').set(bearer(traveler.token)).send({ bookingId: paid, rating: 4, comment: 'Wonderful trip indeed' }), 'REVIEW_EXISTS');
 
@@ -237,28 +233,27 @@ describe('error contract over HTTP', () => {
     const ticket = await request(app).post('/api/v1/support/tickets').set(bearer(traveler.token)).send({ subject: 'Cannot open ticket', category: 'OTHER', message: 'The link does not open.' });
     const id = ticket.body.data.id;
     const reply = () => request(app).post(`/api/v1/support/tickets/${id}/messages`).set(bearer(traveler.token)).send({ text: 'Any news?' });
-    const filler = Array.from({ length: 200 }, (_, i) => ({ authorId: new Types.ObjectId(traveler.id), authorKind: 'USER', text: `m${i}`, createdAt: new Date() }));
-    await SupportTicketModel.collection.updateOne({ _id: new Types.ObjectId(id) }, { $set: { messages: filler, messageCount: 200 } });
+    await prisma.supportTicketMessage.createMany({ data: Array.from({ length: 200 }, (_, i) => ({ ticketId: id, authorId: traveler.id, authorKind: 'USER', text: `m${i}` })) });
+    await prisma.supportTicket.updateMany({ where: { id: id }, data: { messageCount: 200 } });
     expectError(await reply(), 'TICKET_FULL');
     await request(app).post(`/api/v1/support/tickets/${id}/close`).set(bearer(traveler.token));
     expectError(await reply(), 'TICKET_CLOSED');
 
     // Wishlist limit.
-    await WishlistItemModel.insertMany(Array.from({ length: 200 }, () => ({ userId: traveler.id, tourId: new Types.ObjectId() })));
+    await prisma.wishlistItem.createMany({ data: Array.from({ length: 200 }, () => ({ userId: traveler.id, tourId: randomUUID() })) });
     expectError(await request(app).post(`/api/v1/wishlist/${tourId}`).set(bearer(traveler.token)), 'WISHLIST_FULL');
   });
 
   it('AI conversation limit', async () => {
     const { aiService } = await import('../../modules/ai');
-    const { AiConversationModel } = await import('../../modules/ai/ai.model');
     await resetDatabase();
     const traveler = await createUser('TRAVELER', 'ai@example.com');
-    const conversation = await AiConversationModel.create({
+    const conversation = await prisma.aiConversation.create({ data: {
       userId: traveler.id,
       title: 'Full',
-      messages: Array.from({ length: 100 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: `m${i}`, createdAt: new Date() })),
+      messages: { create: Array.from({ length: 100 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: `m${i}`, createdAt: new Date() })) },
       messageCount: 100,
-    });
+    } });
     (aiService as unknown as { provider: unknown }).provider = { name: 'fake', enabled: true, generate: async () => ({ text: 'ok' }) };
     expectError(await request(app).post('/api/v1/ai/chat').set(bearer(traveler.token)).send({ conversationId: conversation.id, message: 'one more' }), 'AI_CONVERSATION_FULL');
   });

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { AGENCY_VERIFICATION_STATUS, TOUR_STATUS } from '@travel-platform/constants';
-import { idParamsSchema, objectIdSchema } from '../../utils/object-id';
+import { idParamsSchema, idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 import { REPORT_CATEGORY, REPORT_STATUS, REPORT_TARGET } from '../reports';
 import { REVIEW_STATUS } from '../reviews';
@@ -15,7 +15,7 @@ export const idParams = idParamsSchema;
 export const listToursQuery = paginationQuerySchema.extend({
   status: z.enum(values(TOUR_STATUS)).optional(),
   q: z.string().trim().min(1).max(100).optional(),
-  agencyId: objectIdSchema.optional(),
+  agencyId: idSchema.optional(),
 });
 export const validateTourBody = z
   .object({ approve: z.boolean(), reason: reason.optional() })
@@ -35,7 +35,7 @@ export const verifyAgencyBody = z
 // ---- reviews
 export const listReviewsQuery = paginationQuerySchema.extend({
   status: z.enum(values(REVIEW_STATUS)).optional(),
-  tourId: objectIdSchema.optional(),
+  tourId: idSchema.optional(),
 });
 export const moderateReviewBody = z
   .object({ hide: z.boolean(), reason: reason.optional() })

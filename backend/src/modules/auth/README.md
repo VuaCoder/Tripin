@@ -33,7 +33,7 @@ forgot password only — they cannot self-register, see DECISIONS D-4). External
 | `auth.types.ts` | Inputs, `Session`, `LoginResult` |
 | `index.ts` | Public API (`authRouter`, `authService`, `verifyAccessToken`) |
 | `__tests__/auth.service.test.ts` | Service tests with fake repositories |
-| `__tests__/auth.integration.test.ts`, `auth.flows.integration.test.ts` | Real-MongoDB tests: sessions, OTP, refresh rotation, 2FA, reset, logout, Google (fake verifier), pre-hijacking |
+| `__tests__/auth.integration.test.ts`, `auth.flows.integration.test.ts` | Real-PostgreSQL tests: sessions, OTP, refresh rotation, 2FA, reset, logout, Google (fake verifier), pre-hijacking |
 
 ## API (base `/api/v1/auth`)
 All bodies are JSON. Success envelope `{ success: true, data }`. All endpoints except `/refresh`, `/logout` and
@@ -71,8 +71,8 @@ User status: `PENDING_VERIFICATION -> ACTIVE` (OTP) ; `ACTIVE <-> BANNED` (owned
 This module only performs `PENDING_VERIFICATION -> ACTIVE`.
 
 ## Data model
-* `Otp` – `userId, purpose, codeHash, attempts, issuedAt, expiresAt`. Unique `(userId, purpose)`; TTL index on `expiresAt`.
-* `RefreshToken` – `userId, tokenHash (unique), family, expiresAt, revokedAt, ip, userAgent`. TTL index on `expiresAt`;
+* `Otp` – `userId, purpose, codeHash, attempts, issuedAt, expiresAt`. Unique `(userId, purpose)`; index on `expiresAt`. Expired rows are deleted by the `auth.purgeExpired` job (PostgreSQL has no TTL index).
+* `RefreshToken` – `userId, tokenHash (unique), family, expiresAt, revokedAt, ip, userAgent`. Index on `expiresAt` (same purge job);
   index on `family` (family revocation) and `userId` (revoke all).
 * Users live in the `users` module.
 
@@ -91,7 +91,7 @@ Sends OTP emails (console provider when `SMTP_HOST` is empty — the code is the
 `pnpm --filter backend test` — `auth.service.test.ts` (login success/failure/ban/unverified/2FA, register, refresh rotation +
 reuse detection, forgot password) and `src/app.test.ts` (HTTP envelope, validation, 401).
 `__tests__/auth.flows.integration.test.ts` adds 2FA login, code purposes, resend cooldown, forgot/reset with session revocation, banned/unverified accounts, logout idempotency, Google login with a fake verifier (linking, concurrency, pre-hijacking) and registration rules.
-`__tests__/auth.integration.test.ts` runs the real app on a real MongoDB (`mongodb-memory-server`, first run downloads a `mongod` binary):
+`__tests__/auth.integration.test.ts` runs the real app on a real PostgreSQL (an embedded server started once by `src/test/global-setup.ts`, no Docker needed):
 register -> OTP -> session, single-use OTP and lock-out, refresh rotation + reuse revokes the family, parallel refresh yields one session, a ban applies on the next request.
 
 ## Security notes

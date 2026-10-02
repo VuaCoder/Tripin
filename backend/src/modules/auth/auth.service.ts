@@ -8,13 +8,14 @@ import {
   type OtpPurpose,
   type PersistedRole,
 } from '@travel-platform/constants';
+import { isUniqueViolation } from '../../config/database';
 import { googleIdentityVerifier, type GoogleIdentityVerifier } from '../../integrations/google';
 import { mailProvider, type MailProvider } from '../../integrations/mail';
 import { AppError, ERROR_CODES } from '../../utils/app-error';
 import { logger } from '../../utils/logger';
 import { assertTransition } from '../../utils/state-machine';
 import { USER_STATUS_TRANSITIONS, toPrivateUserDto, usersRepository, type PrivateUserDto, type UsersRepository } from '../users';
-import type { UserDocument } from '../users/users.model';
+import type { UserRecord } from '../users/users.repository';
 import { buildOtpMail } from './auth.mail';
 import { AUTH_POLICY } from './auth.policy';
 import { generateRefreshToken, hashRefreshToken, signAccessToken } from './auth.tokens';
@@ -28,7 +29,7 @@ export interface AuthDeps {
     'findByEmail' | 'findByEmailWithPassword' | 'findByIdWithPassword' | 'findByGoogleId' | 'findById' | 'create' | 'updateById' | 'updateStatusIf'
   >;
   refreshTokens: RefreshTokenRepository;
-  otp: Pick<OtpService, 'issue' | 'verify'>;
+  otp: Pick<OtpService, 'issue' | 'verify' | 'purgeExpired'>;
   mail: MailProvider;
   google: GoogleIdentityVerifier;
 }
@@ -57,7 +58,7 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(input.password, AUTH_POLICY.BCRYPT_ROUNDS);
     const existing = await users.findByEmail(input.email);
 
-    let user: UserDocument;
+    let user: UserRecord;
     if (existing) {
       // Only an unverified, password-based account may be re-registered (lets users fix a typo / get a new code).
       if (existing.status !== USER_STATUS.PENDING_VERIFICATION) {
@@ -144,11 +145,12 @@ export class AuthService {
         const wasUnverified = sameEmail.status === USER_STATUS.PENDING_VERIFICATION;
         const linked =
           (await this.deps.users.updateById(sameEmail.id, {
-            $set: { googleId: identity.googleId, emailVerifiedAt: sameEmail.emailVerifiedAt ?? new Date() },
+            googleId: identity.googleId,
+            emailVerifiedAt: sameEmail.emailVerifiedAt ?? new Date(),
             // An unverified registration may have been made by SOMEONE ELSE with this address (pre-hijacking): the
             // password they chose must not survive the real owner proving the address through Google.
-            ...(wasUnverified ? { $unset: { passwordHash: 1 } } : {}),
-          } as never)) ?? sameEmail;
+            ...(wasUnverified ? { passwordHash: null } : {}),
+          })) ?? sameEmail;
         user = wasUnverified ? await this.activatePending(linked) : linked;
       } else {
         const role = input.role ?? ROLES.TRAVELER;
@@ -168,7 +170,7 @@ export class AuthService {
           });
         } catch (error) {
           // Two first logins at the same moment: the other request created the account, use it.
-          if ((error as { code?: number }).code !== 11000) throw error;
+          if (!isUniqueViolation(error)) throw error;
           const existing = (await this.deps.users.findByGoogleId(identity.googleId)) ?? (await this.deps.users.findByEmail(identity.email));
           if (!existing) throw error;
           user = existing;
@@ -218,7 +220,7 @@ export class AuthService {
 
     if (stored.revokedAt) {
       await this.deps.refreshTokens.revokeFamily(stored.family);
-      logger.warn(`Refresh token reuse detected for user ${String(stored.userId)}`);
+      logger.warn(`Refresh token reuse detected for user ${stored.userId}`);
       throw AppError.unauthenticated('Invalid refresh token', ERROR_CODES.TOKEN_INVALID);
     }
     if (stored.expiresAt.getTime() <= Date.now()) {
@@ -231,7 +233,7 @@ export class AuthService {
       throw AppError.unauthenticated('Invalid refresh token', ERROR_CODES.TOKEN_INVALID);
     }
 
-    const user = await this.deps.users.findById(String(stored.userId));
+    const user = await this.deps.users.findById(stored.userId);
     if (!user || user.status !== USER_STATUS.ACTIVE) {
       await this.deps.refreshTokens.revokeFamily(stored.family);
       throw AppError.unauthenticated('Account is not active', ERROR_CODES.TOKEN_INVALID);
@@ -261,16 +263,23 @@ export class AuthService {
     return toPrivateUserDto(updated ?? user);
   }
 
+  /** Housekeeping (periodic job): drops expired one-time codes and refresh tokens. Returns the number removed. */
+  async purgeExpiredCredentials(now = new Date()): Promise<number> {
+    const [codes, tokens] = await Promise.all([this.deps.otp.purgeExpired(now), this.deps.refreshTokens.deleteExpired(now)]);
+    return codes + tokens;
+  }
+
   // ----------------------------------------------------------------- Helpers
 
   /**
    * PENDING_VERIFICATION -> ACTIVE as a compare-and-set on the status we read. If a moderator banned the account in the
    * meantime the update does not apply and the ban wins (it must never be overwritten by a late activation).
    */
-  private async activatePending(user: UserDocument): Promise<UserDocument> {
+  private async activatePending(user: UserRecord): Promise<UserRecord> {
     assertTransition(USER_STATUS_TRANSITIONS, user.status as typeof USER_STATUS.PENDING_VERIFICATION, USER_STATUS.ACTIVE, 'Account');
     const updated = await this.deps.users.updateStatusIf(user.id, USER_STATUS.PENDING_VERIFICATION, {
-      $set: { status: USER_STATUS.ACTIVE, emailVerifiedAt: new Date() },
+      status: USER_STATUS.ACTIVE,
+      emailVerifiedAt: new Date(),
     });
     if (updated) return updated;
     const current = await this.deps.users.findById(user.id);
@@ -281,7 +290,7 @@ export class AuthService {
   }
 
   /** "Validate credentials" use case. Same error for unknown email and wrong password. */
-  private async validateCredentials(input: LoginInput): Promise<UserDocument> {
+  private async validateCredentials(input: LoginInput): Promise<UserRecord> {
     const user = await this.deps.users.findByEmailWithPassword(input.email);
     const matches = await bcrypt.compare(input.password, user?.passwordHash ?? DUMMY_HASH);
     if (!user || !user.passwordHash || !matches) {
@@ -290,10 +299,10 @@ export class AuthService {
     return user;
   }
 
-  private async createSession(user: UserDocument, context: RequestContext, family?: string): Promise<Session> {
+  private async createSession(user: UserRecord, context: RequestContext, family?: string): Promise<Session> {
     const refresh = generateRefreshToken();
     await this.deps.refreshTokens.create({
-      userId: user._id,
+      userId: user.id,
       tokenHash: refresh.hash,
       family: family ?? randomUUID(),
       expiresAt: refresh.expiresAt,
@@ -310,14 +319,14 @@ export class AuthService {
     };
   }
 
-  private async sendOtp(user: UserDocument, purpose: OtpPurpose): Promise<{ expiresInSeconds: number }> {
+  private async sendOtp(user: UserRecord, purpose: OtpPurpose): Promise<{ expiresInSeconds: number }> {
     const { code, expiresInSeconds } = await this.deps.otp.issue(user.id, purpose);
     await this.deps.mail.send(buildOtpMail(user.email, purpose, code));
     return { expiresInSeconds };
   }
 
   /** Like sendOtp but swallows the "resend too soon" case (used where the HTTP answer must stay generic). */
-  private async trySendOtp(user: UserDocument, purpose: OtpPurpose): Promise<void> {
+  private async trySendOtp(user: UserRecord, purpose: OtpPurpose): Promise<void> {
     try {
       await this.sendOtp(user, purpose);
     } catch (error) {

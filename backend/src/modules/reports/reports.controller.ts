@@ -2,7 +2,7 @@ import type { RequestHandler } from 'express';
 import { userActor } from '../../middlewares/authorize';
 import { validated } from '../../middlewares/validate';
 import { sendCreated, sendOk, sendPaginated } from '../../utils/api-response';
-import type { IdParams } from '../../utils/object-id';
+import type { IdParams } from '../../utils/id';
 import { reportsService, type ReportsService } from './reports.service';
 import type { ReportStatus, ReportTarget, ReportCategory } from './reports.types';
 import type { CreateReportBody, ListReportsQueryInput, RespondBody } from './reports.validation';

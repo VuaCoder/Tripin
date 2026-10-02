@@ -1,7 +1,7 @@
-import type { CategoryDocument } from './categories.model';
+import type { CategoryRecord } from './categories.repository';
 import type { CategoryDto } from './categories.types';
 
-export function toCategoryDto(category: CategoryDocument): CategoryDto {
+export function toCategoryDto(category: CategoryRecord): CategoryDto {
   return {
     id: category.id,
     name: category.name,

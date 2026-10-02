@@ -90,7 +90,13 @@ Sao chép file mẫu và điền thông tin thực tế của bạn (đặc bi�
 ```bash
 cp .env.example .env
 ```
-*Lưu ý: Bạn cần tạo một cơ sở dữ liệu PostgreSQL trống trước, sau đó điền chuỗi kết nối vào biến `DATABASE_URL` trong file `.env`.*
+*Lưu ý: Bạn cần một cơ sở dữ liệu PostgreSQL. Cách nhanh nhất là chạy `docker compose up -d` (dùng file `docker-compose.yml` ở thư mục gốc, khớp sẵn với `DATABASE_URL` trong `.env.example`), hoặc tự tạo CSDL trống rồi điền chuỗi kết nối vào `DATABASE_URL`.*
+
+Sau đó áp dụng cấu trúc bảng (migrations):
+```bash
+pnpm --filter backend db:deploy
+```
+*Khi sửa `prisma/schema.prisma`, dùng `pnpm --filter backend db:migrate` để tạo migration mới. Chi tiết: `docs/database/README.md`.*
 
 ### 5. Chạy dự án
 Mở 2 terminal tại thư mục gốc để chạy song song Frontend và Backend.

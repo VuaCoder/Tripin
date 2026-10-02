@@ -3,7 +3,7 @@ import type { AgencyVerificationStatus, TourStatus } from '@travel-platform/cons
 import { userActor } from '../../middlewares/authorize';
 import { validated } from '../../middlewares/validate';
 import { sendOk, sendPaginated } from '../../utils/api-response';
-import type { IdParams } from '../../utils/object-id';
+import type { IdParams } from '../../utils/id';
 import type { ReportCategory, ReportStatus, ReportTarget } from '../reports';
 import type { ReviewStatus } from '../reviews';
 import type { TicketCategory, TicketStatus } from '../support';

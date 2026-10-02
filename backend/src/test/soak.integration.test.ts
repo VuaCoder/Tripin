@@ -9,14 +9,10 @@ vi.hoisted(() => {
 
 import { createApp } from '../app';
 import { bookingsService } from '../modules/bookings';
-import { BookingModel } from '../modules/bookings/bookings.model';
-import { ETicketModel } from '../modules/e-tickets/e-tickets.model';
-import { NotificationModel } from '../modules/notifications/notifications.model';
 import { paymentsService } from '../modules/payments';
-import { PaymentModel } from '../modules/payments/payments.model';
-import { PromotionModel } from '../modules/promotions/promotions.model';
-import { TourModel } from '../modules/tours/tours.model';
 import { bearer, createApprovedTour, createUser, resetDatabase, signedPayosWebhook, startDatabase, stopDatabase, stubPayosApi } from './integration';
+import { prisma } from '../config/database';
+import { loadTour } from './integration';
 
 // A randomised, parallel mixed workload on a real database. Whatever interleaving happened, the books must balance.
 const app = createApp();
@@ -75,8 +71,8 @@ describe('mixed-workload soak (real database)', () => {
 
     const rounds = 12;
     for (let round = 0; round < rounds; round += 1) {
-      const bookings = await BookingModel.find().lean();
-      const payments = await PaymentModel.find().lean();
+      const bookings = await prisma.booking.findMany();
+      const payments = await prisma.payment.findMany();
       const ops: Promise<unknown>[] = [];
 
       // New bookings (some with promotions), some retried with a fixed request id.
@@ -99,31 +95,31 @@ describe('mixed-workload soak (real database)', () => {
 
       // Cancellations (the same booking may be cancelled twice in parallel).
       for (const booking of bookings.filter((b) => b.status === 'PENDING' || b.status === 'CONFIRMED').filter(() => random() < 0.25)) {
-        const owner = byId.get(String(booking.travelerId))!;
+        const owner = byId.get(booking.travelerId)!;
         for (let k = 0; k < between(1, 2); k += 1) {
-          ops.push(track('cancel', Promise.resolve(request(app).post(`/api/v1/bookings/${booking._id}/cancel`).set(bearer(owner.token)).send({}))));
+          ops.push(track('cancel', Promise.resolve(request(app).post(`/api/v1/bookings/${booking.id}/cancel`).set(bearer(owner.token)).send({}))));
         }
       }
 
       // Checkouts (double click possible), then webhooks (replayed) for payments that exist.
       for (const booking of bookings.filter((b) => b.status === 'PENDING').filter(() => random() < 0.6)) {
-        const owner = byId.get(String(booking.travelerId))!;
+        const owner = byId.get(booking.travelerId)!;
         for (let k = 0; k < between(1, 2); k += 1) {
-          ops.push(track('checkout', Promise.resolve(request(app).post(`/api/v1/payments/bookings/${booking._id}/checkout`).set(bearer(owner.token)))));
+          ops.push(track('checkout', Promise.resolve(request(app).post(`/api/v1/payments/bookings/${booking.id}/checkout`).set(bearer(owner.token)))));
         }
       }
       for (const payment of payments.filter((p) => p.status === 'PENDING').filter(() => random() < 0.6)) {
         for (let k = 0; k < between(1, 3); k += 1) {
-          ops.push(track('webhook', Promise.resolve(request(app).post('/api/v1/payments/webhooks/payos').send(signedPayosWebhook(payment.providerOrderCode, payment.amount)))));
+          ops.push(track('webhook', Promise.resolve(request(app).post('/api/v1/payments/webhooks/payos').send(signedPayosWebhook(Number(payment.providerOrderCode), payment.amount)))));
         }
       }
 
       // Time-driven rules: force some bookings past their payment window / end date, then run the sweeps concurrently.
       for (const booking of bookings.filter((b) => b.status === 'PENDING').filter(() => random() < 0.15)) {
-        await BookingModel.collection.updateOne({ _id: booking._id }, { $set: { paymentExpiresAt: new Date(Date.now() - 1000) } });
+        await prisma.booking.updateMany({ where: { id: booking.id }, data: { paymentExpiresAt: new Date(Date.now() - 1000) } });
       }
       for (const booking of bookings.filter((b) => b.status === 'CONFIRMED').filter(() => random() < 0.15)) {
-        await BookingModel.collection.updateOne({ _id: booking._id }, { $set: { endDate: new Date(Date.now() - 1000) } });
+        await prisma.booking.updateMany({ where: { id: booking.id }, data: { endDate: new Date(Date.now() - 1000) } });
       }
       if (random() < 0.7) ops.push(bookingsService.expirePendingBookings());
       if (random() < 0.5) ops.push(bookingsService.completeFinishedBookings());
@@ -131,7 +127,7 @@ describe('mixed-workload soak (real database)', () => {
       if (random() < 0.3) ops.push(paymentsService.expireStalePayments());
       // The agency raises capacity while all this happens.
       if (random() < 0.3) {
-        const date = (await TourModel.findById(tourId))!.departures[0]!.date.toISOString();
+        const date = (await loadTour(tourId))!.departures[0]!.date.toISOString();
         ops.push(track('availability', Promise.resolve(request(app).put(`/api/v1/agency/tours/${tourId}/availability`).set(bearer(agency.token)).send({ departures: [{ id: departureId, date, capacity: 40 + round, isOpen: true }] }))));
       }
 
@@ -147,9 +143,9 @@ describe('mixed-workload soak (real database)', () => {
     expect(serverErrors).toEqual([]);
 
     // ---- the books must balance ----
-    const bookings = await BookingModel.find().lean();
-    const payments = await PaymentModel.find().lean();
-    const tour = (await TourModel.findById(tourId))!;
+    const bookings = await prisma.booking.findMany();
+    const payments = await prisma.payment.findMany();
+    const tour = (await loadTour(tourId))!;
     const dep = tour.departures[0]!;
     expect(bookings.length).toBeGreaterThan(20); // the soak actually did something
     const statuses = new Set(bookings.map((b) => b.status));
@@ -163,17 +159,17 @@ describe('mixed-workload soak (real database)', () => {
     expect(dep.remaining).toBeLessThanOrEqual(dep.capacity);
 
     // 2. Promotions: the counter equals the number of live bookings carrying the code, and respects the limit.
-    for (const promotion of await PromotionModel.find()) {
-      const live = bookings.filter((b) => b.status !== 'CANCELLED' && b.promotion && String(b.promotion.promotionId) === promotion.id).length;
+    for (const promotion of await prisma.promotion.findMany()) {
+      const live = bookings.filter((b) => b.status !== 'CANCELLED' && b.promotionId === promotion.id).length;
       expect(promotion.usedCount, `promotion ${promotion.code}`).toBe(live);
       if (promotion.usageLimit != null) expect(promotion.usedCount).toBeLessThanOrEqual(promotion.usageLimit);
     }
 
     // 3. Payments <-> bookings.
     const paymentsByBooking = new Map<string, typeof payments>();
-    for (const payment of payments) paymentsByBooking.set(String(payment.referenceId), [...(paymentsByBooking.get(String(payment.referenceId)) ?? []), payment]);
+    for (const payment of payments) paymentsByBooking.set(payment.referenceId, [...(paymentsByBooking.get(payment.referenceId) ?? []), payment]);
     for (const booking of bookings) {
-      const mine = paymentsByBooking.get(String(booking._id)) ?? [];
+      const mine = paymentsByBooking.get(booking.id) ?? [];
       const paid = mine.filter((p) => p.status === 'PAID');
       expect(mine.filter((p) => p.status === 'PENDING').length, `open payments of ${booking.bookingCode}`).toBeLessThanOrEqual(1);
       if (booking.status === 'CONFIRMED' || booking.status === 'COMPLETED') {
@@ -189,15 +185,15 @@ describe('mixed-workload soak (real database)', () => {
     }
 
     // 4. Tickets: at most one per booking, and one for every booking that was ever confirmed.
-    const tickets = await ETicketModel.find().lean();
+    const tickets = await prisma.eTicket.findMany();
     const perBooking = new Map<string, number>();
-    for (const ticket of tickets) perBooking.set(String(ticket.bookingId), (perBooking.get(String(ticket.bookingId)) ?? 0) + 1);
+    for (const ticket of tickets) perBooking.set(ticket.bookingId, (perBooking.get(ticket.bookingId) ?? 0) + 1);
     expect([...perBooking.values()].every((n) => n === 1)).toBe(true);
-    for (const booking of bookings.filter((b) => b.confirmedAt)) expect(perBooking.get(String(booking._id)), `ticket of ${booking.bookingCode}`).toBe(1);
-    for (const booking of bookings.filter((b) => !b.confirmedAt && !b.isPaid)) expect(perBooking.get(String(booking._id)), `no ticket for unpaid ${booking.bookingCode}`).toBeUndefined();
+    for (const booking of bookings.filter((b) => b.confirmedAt)) expect(perBooking.get(booking.id), `ticket of ${booking.bookingCode}`).toBe(1);
+    for (const booking of bookings.filter((b) => !b.confirmedAt && !b.isPaid)) expect(perBooking.get(booking.id), `no ticket for unpaid ${booking.bookingCode}`).toBeUndefined();
 
     // 5. Notifications: exactly one "payment received" per fulfilled payment.
     const fulfilled = payments.filter((p) => p.fulfilledAt).length;
-    expect(await NotificationModel.countDocuments({ type: 'PAYMENT_SUCCEEDED' })).toBe(fulfilled);
+    expect(await prisma.notification.count({ where: { type: 'PAYMENT_SUCCEEDED' } })).toBe(fulfilled);
   }, 180_000);
 });

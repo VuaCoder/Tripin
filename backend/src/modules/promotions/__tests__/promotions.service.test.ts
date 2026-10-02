@@ -37,9 +37,9 @@ function make(seed: P[] = [], tourAgency = 'a1') {
     }),
     findById: vi.fn(async (id: string) => db.find((p) => p.id === id) ?? null),
     findByCode: vi.fn(async (code: string) => db.find((p) => p.code === code.toUpperCase()) ?? null),
-    updateById: vi.fn(async (id: string, update: { $set: P }) => {
+    updateById: vi.fn(async (id: string, patch: P) => {
       const doc = db.find((p) => p.id === id);
-      if (doc) Object.assign(doc, update.$set);
+      if (doc) Object.assign(doc, patch);
       return doc ?? null;
     }),
     list: vi.fn(async () => ({ items: db, total: db.length })),
@@ -64,12 +64,12 @@ const input = {
 
 describe('computeDiscount', () => {
   it('floors PERCENT discounts to whole VND and applies the cap', () => {
-    expect(computeDiscount({ discountType: 'PERCENT', discountValue: 10, maxDiscountAmount: undefined }, 1_234_567)).toBe(123_456);
+    expect(computeDiscount({ discountType: 'PERCENT', discountValue: 10, maxDiscountAmount: null }, 1_234_567)).toBe(123_456);
     expect(computeDiscount({ discountType: 'PERCENT', discountValue: 50, maxDiscountAmount: 100_000 }, 1_000_000)).toBe(100_000);
   });
 
   it('never exceeds the order for FIXED discounts', () => {
-    expect(computeDiscount({ discountType: 'FIXED', discountValue: 500_000, maxDiscountAmount: undefined }, 300_000)).toBe(300_000);
+    expect(computeDiscount({ discountType: 'FIXED', discountValue: 500_000, maxDiscountAmount: null }, 300_000)).toBe(300_000);
   });
 });
 
@@ -95,7 +95,7 @@ describe('create / update', () => {
   it('creates an agency promotion owned by the caller; no audit for agency scope', async () => {
     const { service, repo, audit } = make();
     await service.createForAgency(agency, input);
-    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ scope: 'AGENCY', ownerId: 'a1', createdBy: 'a1' }));
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ scope: 'AGENCY', ownerId: 'a1', createdById: 'a1' }));
     expect(audit.record).not.toHaveBeenCalled();
   });
 

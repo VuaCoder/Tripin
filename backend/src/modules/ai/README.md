@@ -54,7 +54,7 @@ None.
 Outbound HTTPS call to the configured vendor.
 
 ## Testing
-`__tests__/ai.integration.test.ts` – real MongoDB with a fake model injected into the service: off by default (503, nothing stored), history and fixed system prompt only (no tools), conversations private to the owner (a stranger's attempt never reaches the model), a failing model leaves nothing behind, replies/injections are stored and returned as plain text and never change business data, input limits, reply cap, context window, conversation cap under parallel requests, role gating.
+`__tests__/ai.integration.test.ts` – real PostgreSQL with a fake model injected into the service: off by default (503, nothing stored), history and fixed system prompt only (no tools), conversations private to the owner (a stranger's attempt never reaches the model), a failing model leaves nothing behind, replies/injections are stored and returned as plain text and never change business data, input limits, reply cap, context window, conversation cap under parallel requests, role gating.
 `__tests__/ai.service.test.ts` – prompt/context building, atomic storage, failure atomicity, disabled mode, ownership, size limits, and both providers (request shape, text joining, error mapping).
 
 ## Not implemented / follow-ups

@@ -8,14 +8,11 @@ vi.hoisted(() => {
 });
 
 import { createApp } from '../../app';
-import { BookingModel } from '../../modules/bookings/bookings.model';
-import { PaymentModel } from '../../modules/payments/payments.model';
-import { PromotionModel } from '../../modules/promotions/promotions.model';
-import { TourModel } from '../../modules/tours/tours.model';
 import { defaultTasks } from '../maintenance';
-import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase } from '../../test/integration';
+import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase, loadTour } from '../../test/integration';
+import { prisma } from '../../config/database';
 
-// Real Express app + real MongoDB: the time-driven rules, run exactly as the scheduler runs them.
+// Real Express app + real PostgreSQL: the time-driven rules, run exactly as the scheduler runs them.
 const app = createApp();
 const task = (name: string) => defaultTasks().find((t) => t.name === name)!;
 
@@ -74,52 +71,54 @@ describe('maintenance jobs (integration)', () => {
       .set(bearer(traveler.token))
       .send({ tourId: tour.tourId, departureId: tour.departureId, participants: 3, contact, promotionCode: 'SAVE10' });
     expect(booked.status).toBe(201);
-    const remaining = async () => (await TourModel.findById(tour.tourId))!.departures[0]!.remaining;
+    const remaining = async () => (await loadTour(tour.tourId))!.departures[0]!.remaining;
     expect(await remaining()).toBe(7);
 
     // Not due yet: nothing happens.
     expect(await task('bookings.expirePending').run()).toBe(0);
 
-    await BookingModel.updateOne({ _id: booked.body.data.id }, { $set: { paymentExpiresAt: new Date(Date.now() - 1000) } });
+    await prisma.booking.updateMany({ where: { id: booked.body.data.id }, data: { paymentExpiresAt: new Date(Date.now() - 1000) } });
     const runs = await Promise.all([1, 2, 3].map(() => task('bookings.expirePending').run() as Promise<number>));
     expect(runs.reduce((a, b) => a + b, 0)).toBe(1);
 
-    const booking = (await BookingModel.findById(booked.body.data.id))!;
+    const booking = (await prisma.booking.findUnique({ where: { id: booked.body.data.id } }))!;
     expect(booking.status).toBe('CANCELLED');
     expect(booking.cancelReason).toBe('PAYMENT_EXPIRED');
     expect(await remaining()).toBe(10);
-    expect((await PromotionModel.findOne({ code: 'SAVE10' }))!.usedCount).toBe(0);
+    expect((await prisma.promotion.findFirst({ where: { code: 'SAVE10' } }))!.usedCount).toBe(0);
   });
 
   it('a payment link past its expiry is closed after asking the gateway; a payment the gateway says is PAID is settled instead', async () => {
     const { traveler, bookingId } = await pendingBooking();
     await request(app).post(`/api/v1/payments/bookings/${bookingId}/checkout`).set(bearer(traveler.token));
-    await PaymentModel.updateOne({}, { $set: { expiresAt: new Date(Date.now() - 1000) } });
+    await prisma.payment.updateMany({ where: {}, data: { expiresAt: new Date(Date.now() - 1000) } });
 
     // The gateway still says PENDING: the sweep expires the payment.
     expect(await task('payments.expireStale').run()).toBe(1);
-    expect((await PaymentModel.findOne())!.status).toBe('EXPIRED');
+    expect((await prisma.payment.findFirst())!.status).toBe('EXPIRED');
     expect(await task('payments.expireStale').run()).toBe(0);
   });
 
   it('a missed webhook is recovered by the sweep: the gateway reports PAID, so the booking is confirmed once', async () => {
     const { traveler, bookingId } = await pendingBooking();
     await request(app).post(`/api/v1/payments/bookings/${bookingId}/checkout`).set(bearer(traveler.token));
-    const payment = (await PaymentModel.findOne())!;
-    await PaymentModel.updateOne({}, { $set: { expiresAt: new Date(Date.now() - 1000) } });
+    const payment = (await prisma.payment.findFirst())!;
+    await prisma.payment.updateMany({ where: {}, data: { expiresAt: new Date(Date.now() - 1000) } });
     remoteStatus = { status: 'PAID', amountPaid: payment.amount };
 
     await Promise.all([task('payments.expireStale').run(), task('payments.expireStale').run()]);
-    expect((await PaymentModel.findById(payment.id))!.status).toBe('PAID');
-    expect((await BookingModel.findById(bookingId))!.status).toBe('CONFIRMED');
+    expect((await prisma.payment.findUnique({ where: { id: payment.id } }))!.status).toBe('PAID');
+    expect((await prisma.booking.findUnique({ where: { id: bookingId } }))!.status).toBe('CONFIRMED');
     expect(await task('payments.retryUnfulfilled').run()).toBe(0); // already fulfilled by the sweep
   });
 
   it('every scheduled task runs cleanly on an empty database, concurrently and repeatedly', async () => {
     const tasks = defaultTasks();
     expect(tasks.map((t) => t.name).sort()).toEqual([
+      'auth.purgeExpired',
       'bookings.completeFinished',
       'bookings.expirePending',
+      'notifications.purgeOld',
       'payments.expireStale',
       'payments.retryUnfulfilled',
       'subscriptions.cancelAbandoned',

@@ -1,30 +1,35 @@
+import { nullIfNotFound, prisma } from '../../config/database';
+import type { ETicket } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
-import { ETicketModel, type ETicketAttributes, type ETicketDocument } from './e-tickets.model';
 import type { ETicketStatus } from './e-tickets.types';
 
+export type ETicketRecord = ETicket;
+
+export type NewETicket = Omit<ETicket, 'id' | 'status' | 'cancelledAt' | 'usedAt' | 'createdAt' | 'updatedAt'> & Partial<Pick<ETicket, 'status'>>;
+
 export class ETicketsRepository {
-  create(data: Partial<ETicketAttributes>): Promise<ETicketDocument> {
-    return ETicketModel.create(data);
+  create(data: NewETicket): Promise<ETicketRecord> {
+    return prisma.eTicket.create({ data });
   }
 
-  findById(id: string): Promise<ETicketDocument | null> {
-    return ETicketModel.findById(id).exec();
+  findById(id: string): Promise<ETicketRecord | null> {
+    return prisma.eTicket.findUnique({ where: { id } });
   }
 
-  findByBookingId(bookingId: string): Promise<ETicketDocument | null> {
-    return ETicketModel.findOne({ bookingId }).exec();
+  findByBookingId(bookingId: string): Promise<ETicketRecord | null> {
+    return prisma.eTicket.findUnique({ where: { bookingId } });
   }
 
   /** Compare-and-set on the status; null when the ticket is not in the expected status (or does not exist). */
-  transitionByBooking(bookingId: string, expected: ETicketStatus, next: ETicketStatus): Promise<ETicketDocument | null> {
+  transitionByBooking(bookingId: string, expected: ETicketStatus, next: ETicketStatus): Promise<ETicketRecord | null> {
     const stamp = next === 'CANCELLED' ? { cancelledAt: new Date() } : next === 'USED' ? { usedAt: new Date() } : {};
-    return ETicketModel.findOneAndUpdate({ bookingId, status: expected }, { $set: { status: next, ...stamp } }, { returnDocument: 'after' }).exec();
+    return prisma.eTicket.update({ where: { bookingId, status: expected }, data: { status: next, ...stamp } }).catch(nullIfNotFound);
   }
 
   async listByTraveler(travelerId: string, page: PageRequest) {
     const [items, total] = await Promise.all([
-      ETicketModel.find({ travelerId }).sort({ issuedAt: -1, _id: -1 }).skip(toSkip(page)).limit(page.limit).exec(),
-      ETicketModel.countDocuments({ travelerId }).exec(),
+      prisma.eTicket.findMany({ where: { travelerId }, orderBy: [{ issuedAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit }),
+      prisma.eTicket.count({ where: { travelerId } }),
     ]);
     return { items, total };
   }

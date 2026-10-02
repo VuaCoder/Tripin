@@ -39,7 +39,7 @@ Which `PERMISSIONS.*` guard which route; ownership rules enforced in the service
 Emails, notifications, audit records, realtime events triggered here.
 
 ## Testing
-How to run the tests of this module and what they cover: unit tests (fake repositories) and the `*.integration.test.ts` scenarios (real MongoDB) - races, ownership, permissions.
+How to run the tests of this module and what they cover: unit tests (fake repositories) and the `*.integration.test.ts` scenarios (real PostgreSQL) - races, ownership, permissions.
 
 ## Not implemented / follow-ups
 Honest list of gaps, assumptions (link to `docs/backend/DECISIONS.md` entries).

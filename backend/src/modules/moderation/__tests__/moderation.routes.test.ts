@@ -24,7 +24,7 @@ vi.mock('../moderation.service', () => {
 
 import { moderationRouter } from '../moderation.routes';
 
-const ID = '507f1f77bcf86cd799439011';
+const ID = '11111111-1111-4111-8111-111111111111';
 
 function app() {
   const server = express();

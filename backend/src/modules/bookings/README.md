@@ -56,7 +56,7 @@ payment is pending, cancellation rules, the agency's view of its bookings, and t
 Every change is a compare-and-set on the previous status.
 
 ## Data model
-`Booking` with traveler/agency/tour/departure refs, tour & date snapshots, money fields (integer VND), `promotion` snapshot, status flags. Indexes: `bookingCode` unique, `(travelerId, createdAt, _id)`, `(agencyId, status, createdAt, _id)`, `(agencyId, createdAt, _id)` (agency list without a status filter), `(tourId, departureId, status)`, `(status, confirmedAt)` (dashboard revenue by day/month), `(status, paymentExpiresAt)` and `(status, endDate)` for the jobs, partial unique `(travelerId, clientRequestId)` - the lookup repeats `$type: 'string'` in its filter, because MongoDB only uses a partial index when the query implies its condition.
+`Booking` with traveler/agency/tour/departure refs, tour & date snapshots, money fields (integer VND), `promotion` snapshot, status flags. Indexes: `bookingCode` unique, `(travelerId, createdAt, id)`, `(agencyId, status, createdAt, id)`, `(agencyId, createdAt, id)` (agency list without a status filter), `(tourId, departureId, status)`, `(status, confirmedAt)` (dashboard revenue by day/month), `(status, paymentExpiresAt)` and `(status, endDate)` for the jobs, unique `(travelerId, clientRequestId)` (rows without a request id do not clash: PostgreSQL treats NULLs as distinct), so the idempotency lookup is a plain unique-key read.
 
 ## Permissions
 `booking:create`, `booking:view-own`, `agency:bookings-view`. Ownership checks in the service.
@@ -70,9 +70,9 @@ Every change is a compare-and-set on the previous status.
 Notifications: BOOKING_CREATED / CONFIRMED / CANCELLED / COMPLETED. `bookingEvents` handlers never break the transition.
 
 ## Testing
-`__tests__/bookings.money.integration.test.ts` – real MongoDB: randomised bookings (odd prices, 0-100 % commission with 2 decimals, percent/capped/fixed/minimum-order promotions): everything is integer VND and non-negative, `total = subtotal - discount`, `commission = floor(total x bps / 10000)`, `commission + agency = total`, the payment charges exactly the booking total, free orders are refused.
+`__tests__/bookings.money.integration.test.ts` – real PostgreSQL: randomised bookings (odd prices, 0-100 % commission with 2 decimals, percent/capped/fixed/minimum-order promotions): everything is integer VND and non-negative, `total = subtotal - discount`, `commission = floor(total x bps / 10000)`, `commission + agency = total`, the payment charges exactly the booking total, free orders are refused.
 `__tests__/bookings.export.test.ts` (real PDF generation incl. Vietnamese text and pagination, ownership/cap of the list, HTTP permissions) and
-`__tests__/bookings.integration.test.ts` – real MongoDB: seat accounting never oversells under parallel requests, the same `clientRequestId` yields one booking, double cancel releases seats once, IDOR returns 404.
+`__tests__/bookings.integration.test.ts` – real PostgreSQL: seat accounting never oversells under parallel requests, the same `clientRequestId` yields one booking, double cancel releases seats once, IDOR returns 404.
 `__tests__/bookings.service.test.ts` – pricing and snapshots, promotion, compensation, idempotency, code collisions, ownership, cancellation rules, payment hooks, expiry and completion jobs, handler isolation.
 
 ## Not implemented / follow-ups

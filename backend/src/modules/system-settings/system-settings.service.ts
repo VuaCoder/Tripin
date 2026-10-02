@@ -1,7 +1,7 @@
 import type { PersistedRole } from '@travel-platform/constants';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
 import { systemSettingsRepository, type SystemSettingsRepository } from './system-settings.repository';
-import type { SystemSettingDocument } from './system-settings.model';
+import type { SystemSettingRecord } from './system-settings.repository';
 import {
   DEFAULT_COMMISSION_BPS,
   DEFAULT_POLICIES,
@@ -14,7 +14,7 @@ import {
 } from './system-settings.types';
 
 type Actor = { userId: string; role: PersistedRole };
-const updatedAtOf = (doc: SystemSettingDocument | null | undefined) =>
+const updatedAtOf = (doc: SystemSettingRecord | null | undefined) =>
   (doc as unknown as { updatedAt?: Date } | null | undefined)?.updatedAt?.toISOString();
 
 export class SystemSettingsService {
@@ -91,7 +91,7 @@ export class SystemSettingsService {
     return this.toDto(key, doc);
   }
 
-  private toDto(key: PolicyKey, doc: SystemSettingDocument | null | undefined): PolicyDto {
+  private toDto(key: PolicyKey, doc: SystemSettingRecord | null | undefined): PolicyDto {
     const defaults = DEFAULT_POLICIES[key];
     const stored = doc?.value as Partial<Pick<PolicyDto, 'title' | 'content' | 'params'>> | undefined;
     return {

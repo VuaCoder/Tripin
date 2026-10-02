@@ -1,12 +1,13 @@
 import { randomInt } from 'node:crypto';
 import { PAYMENT_PURPOSE, PAYMENT_STATUS, type PaymentPurpose, type PaymentStatus } from '@travel-platform/constants';
 import { env } from '../../config/env';
+import { isUniqueViolation } from '../../config/database';
 import { AppError } from '../../utils/app-error';
 import { logger } from '../../utils/logger';
 import { bookingsService, type BookingsService } from '../bookings';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
 import { toCheckoutDto, toPaymentDto, toPaymentFacts } from './payments.mapper';
-import type { PaymentDocument } from './payments.model';
+import type { PaymentRecord } from './payments.repository';
 import { paymentEvents } from './payments.events';
 import { paymentsRepository, type PaymentsRepository } from './payments.repository';
 import {
@@ -67,7 +68,7 @@ export class PaymentsService {
       // (wait for it) or an expired payment that the sweep has not closed yet is in the way (close it).
       const blocking = await this.payments.findPending(input.purpose, input.referenceId);
       if (blocking && blocking.expiresAt.getTime() <= Date.now()) {
-        await this.payments.transition(blocking.id, [PAYMENT_STATUS.PENDING], { $set: { status: PAYMENT_STATUS.EXPIRED } });
+        await this.payments.transition(blocking.id, [PAYMENT_STATUS.PENDING], { status: PAYMENT_STATUS.EXPIRED });
       } else {
         await new Promise((resolve) => setTimeout(resolve, PAYMENT_POLICY.CHECKOUT_RETRY_DELAY_MS));
       }
@@ -75,7 +76,7 @@ export class PaymentsService {
     throw AppError.conflict('The payment is being prepared, please retry in a moment', 'PAYMENT_IN_PROGRESS');
   }
 
-  private async attachPaymentLink(payment: PaymentDocument, orderCode: number, input: CreateCheckoutInput): Promise<CheckoutDto> {
+  private async attachPaymentLink(payment: PaymentRecord, orderCode: number, input: CreateCheckoutInput): Promise<CheckoutDto> {
     try {
       const link = await this.provider.createPaymentLink({
         orderCode,
@@ -86,12 +87,14 @@ export class PaymentsService {
         expiresAt: input.expiresAt,
       });
       const updated = await this.payments.updateById(payment.id, {
-        $set: { providerPaymentLinkId: link.providerPaymentLinkId, checkoutUrl: link.checkoutUrl },
+        providerPaymentLinkId: link.providerPaymentLinkId,
+        checkoutUrl: link.checkoutUrl,
       });
       return toCheckoutDto(updated ?? payment);
     } catch (error) {
       await this.payments.transition(payment.id, [PAYMENT_STATUS.PENDING], {
-        $set: { status: PAYMENT_STATUS.FAILED, failureReason: 'PROVIDER_ERROR' },
+        status: PAYMENT_STATUS.FAILED,
+        failureReason: 'PROVIDER_ERROR',
       });
       throw error;
     }
@@ -101,14 +104,14 @@ export class PaymentsService {
    * Inserts the PENDING payment. Returns null when another open payment exists for the same reference; on the (very
    * unlikely) order-code collision with another process it picks a new code.
    */
-  private async createPendingPayment(input: CreateCheckoutInput): Promise<{ payment: PaymentDocument; orderCode: number } | null> {
+  private async createPendingPayment(input: CreateCheckoutInput): Promise<{ payment: PaymentRecord; orderCode: number } | null> {
     for (let attempt = 1; ; attempt += 1) {
       const orderCode = generateOrderCode();
       try {
         const payment = await this.payments.create({
           purpose: input.purpose,
-          userId: input.userId as never,
-          referenceId: input.referenceId as never,
+          userId: input.userId,
+          referenceId: input.referenceId,
           amount: input.amount,
           description: input.description.slice(0, PAYMENT_POLICY.MAX_DESCRIPTION_LENGTH),
           provider: this.provider.name,
@@ -117,9 +120,8 @@ export class PaymentsService {
         });
         return { payment, orderCode };
       } catch (error) {
-        const { code, keyPattern } = error as { code?: number; keyPattern?: Record<string, unknown> };
-        if (code !== 11000) throw error;
-        if (keyPattern && 'referenceId' in keyPattern) return null;
+        if (!isUniqueViolation(error)) throw error;
+        if (isUniqueViolation(error, 'referenceId')) return null;
         if (attempt >= 3) throw error;
       }
     }
@@ -165,7 +167,7 @@ export class PaymentsService {
 
     if (event.amount !== payment.amount) {
       logger.error(`Webhook amount mismatch for payment ${payment.id}: expected ${payment.amount}, got ${event.amount}`);
-      await this.payments.updateById(payment.id, { $set: { failureReason: 'AMOUNT_MISMATCH' } });
+      await this.payments.updateById(payment.id, { failureReason: 'AMOUNT_MISMATCH' });
       return { handled: false };
     }
 
@@ -188,7 +190,7 @@ export class PaymentsService {
       try {
         const synced = await this.syncWithProvider(payment);
         if (synced && synced.status !== PAYMENT_STATUS.PENDING) continue;
-        if (await this.payments.transition(payment.id, [PAYMENT_STATUS.PENDING], { $set: { status: PAYMENT_STATUS.EXPIRED } })) {
+        if (await this.payments.transition(payment.id, [PAYMENT_STATUS.PENDING], { status: PAYMENT_STATUS.EXPIRED })) {
           expired += 1;
         }
       } catch (error) {
@@ -210,14 +212,14 @@ export class PaymentsService {
 
   // ================================================================ helpers
 
-  private async requireOwned(userId: string, id: string): Promise<PaymentDocument> {
+  private async requireOwned(userId: string, id: string): Promise<PaymentRecord> {
     const payment = await this.payments.findById(id);
-    if (!payment || String(payment.userId) !== userId) throw AppError.notFound('Payment not found');
+    if (!payment || payment.userId !== userId) throw AppError.notFound('Payment not found');
     return payment;
   }
 
   /** Asks the gateway for the truth and applies it. Returns the updated payment, or null if the gateway is unavailable. */
-  private async syncWithProvider(payment: PaymentDocument): Promise<PaymentDocument | null> {
+  private async syncWithProvider(payment: PaymentRecord): Promise<PaymentRecord | null> {
     try {
       const remote = await this.provider.getPaymentStatus(payment.providerOrderCode);
       if (remote.state === 'PAID' && remote.amountPaid >= payment.amount) {
@@ -226,7 +228,7 @@ export class PaymentsService {
       if (remote.state === 'CANCELLED' || remote.state === 'EXPIRED') {
         const next: PaymentStatus = remote.state === 'CANCELLED' ? PAYMENT_STATUS.CANCELLED : PAYMENT_STATUS.EXPIRED;
         assertTransition(PAYMENT_TRANSITIONS, payment.status as PaymentStatus, next, 'Payment');
-        return (await this.payments.transition(payment.id, [PAYMENT_STATUS.PENDING], { $set: { status: next } })) ?? payment;
+        return (await this.payments.transition(payment.id, [PAYMENT_STATUS.PENDING], { status: next })) ?? payment;
       }
       return payment;
     } catch (error) {
@@ -236,14 +238,14 @@ export class PaymentsService {
   }
 
   /** PENDING / EXPIRED / CANCELLED / FAILED -> PAID (first caller wins), then fulfil once. Always safe to call again. */
-  private async settlePaid(payment: PaymentDocument, reference?: string): Promise<PaymentDocument> {
+  private async settlePaid(payment: PaymentRecord, reference?: string): Promise<PaymentRecord> {
     let current = payment;
     if (payment.status !== PAYMENT_STATUS.PAID) {
       assertTransition(PAYMENT_TRANSITIONS, payment.status as PaymentStatus, PAYMENT_STATUS.PAID, 'Payment');
       const paid = await this.payments.transition(
         payment.id,
         [PAYMENT_STATUS.PENDING, PAYMENT_STATUS.EXPIRED, PAYMENT_STATUS.CANCELLED, PAYMENT_STATUS.FAILED],
-        { $set: { status: PAYMENT_STATUS.PAID, paidAt: new Date(), ...(reference ? { providerReference: reference } : {}) }, $unset: { failureReason: 1 } },
+        { status: PAYMENT_STATUS.PAID, paidAt: new Date(), ...(reference ? { providerReference: reference } : {}), failureReason: null },
       );
       // null = a concurrent webhook already settled it; fall through and let fulfil() be the single gate.
       current = paid ?? (await this.payments.findById(payment.id)) ?? payment;
@@ -253,7 +255,7 @@ export class PaymentsService {
   }
 
   /** Applies the business effect exactly once (`fulfilledAt` is the gate). Never throws: failures are retried by the job. */
-  private async fulfil(payment: PaymentDocument): Promise<boolean> {
+  private async fulfil(payment: PaymentRecord): Promise<boolean> {
     if (payment.fulfilledAt) return false;
     const facts = toPaymentFacts(payment);
     try {

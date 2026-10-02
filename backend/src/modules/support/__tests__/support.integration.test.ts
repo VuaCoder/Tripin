@@ -1,10 +1,10 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../../app';
-import { SupportTicketModel } from '../support.model';
 import { bearer, createUser, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
+import { prisma } from '../../../config/database';
 
-// Real Express app + real MongoDB: the support ticket conversation between a user and moderators.
+// Real Express app + real PostgreSQL: the support ticket conversation between a user and moderators.
 const app = createApp();
 
 beforeAll(startDatabase, 120_000);
@@ -42,7 +42,7 @@ describe('support (integration)', () => {
     expect((await request(app).get('/api/v1/moderation/support-tickets').set(bearer(traveler.token))).status).toBe(403);
     const queue = await request(app).get('/api/v1/moderation/support-tickets').set(bearer(moderator.token));
     expect(queue.body.data.map((t: { id: string }) => t.id)).toEqual([id]);
-    expect((await open(traveler.token, { bookingId: '64b000000000000000000009' })).status).toBe(404); // foreign booking
+    expect((await open(traveler.token, { bookingId: '99999999-9999-4999-8999-999999999999' })).status).toBe(404); // foreign booking
   });
 
   it('staff reply moves the ticket forward, the first answering moderator is the assignee, the user is notified', async () => {
@@ -51,9 +51,9 @@ describe('support (integration)', () => {
 
     expect((await staffReply(moderator.token, id, { text: 'Looking into it now.' })).status).toBe(200);
     expect((await staffReply(moderator2.token, id, { text: 'I also checked the logs.' })).status).toBe(200);
-    const stored = (await SupportTicketModel.findById(id))!;
+    const stored = (await prisma.supportTicket.findUnique({ where: { id: id } }))!;
     expect(stored.status).toBe('IN_PROGRESS');
-    expect(String(stored.assignedTo)).toBe(moderator.id);
+    expect(stored.assignedToId).toBe(moderator.id);
     expect(stored.messageCount).toBe(3);
 
     const notices = await request(app).get('/api/v1/notifications').set(bearer(traveler.token));
@@ -67,7 +67,7 @@ describe('support (integration)', () => {
       Array.from({ length: 6 }, (_, i) => request(app).post(`/api/v1/support/tickets/${id}/messages`).set(bearer(traveler.token)).send({ text: `Update number ${i}` })),
     );
     expect(results.map((r) => r.status)).toEqual(results.map(() => 201));
-    const stored = (await SupportTicketModel.findById(id))!;
+    const stored = (await prisma.supportTicket.findUnique({ where: { id: id }, include: { messages: true } }))!;
     expect(stored.messages).toHaveLength(7);
     expect(stored.messageCount).toBe(7);
   });
@@ -80,7 +80,7 @@ describe('support (integration)', () => {
     expect((await staffReply(moderator.token, id, { text: 'One more thing.' })).status).toBe(409); // staff cannot write on a RESOLVED ticket
     const reopened = await request(app).post(`/api/v1/support/tickets/${id}/messages`).set(bearer(traveler.token)).send({ text: 'Still broken, sorry.' });
     expect(reopened.status).toBe(201);
-    expect((await SupportTicketModel.findById(id))!.status).toBe('IN_PROGRESS');
+    expect((await prisma.supportTicket.findUnique({ where: { id: id } }))!.status).toBe('IN_PROGRESS');
 
     const closes = await Promise.all([1, 2, 3].map(() => request(app).post(`/api/v1/support/tickets/${id}/close`).set(bearer(traveler.token))));
     expect(closes.filter((r) => r.status === 200)).toHaveLength(1);

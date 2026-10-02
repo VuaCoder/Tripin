@@ -54,9 +54,9 @@ function makeDeps(user: FakeUser | null) {
         if (store.user) Object.assign(store.user, update);
         return store.user;
       }),
-      updateStatusIf: vi.fn(async (_id: string, expected: string, update: { $set: Record<string, unknown> }) => {
+      updateStatusIf: vi.fn(async (_id: string, expected: string, update: Record<string, unknown>) => {
         if (!store.user || store.user.status !== expected) return null;
-        Object.assign(store.user, update.$set);
+        Object.assign(store.user, update);
         return store.user;
       }),
     },

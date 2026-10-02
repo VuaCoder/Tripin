@@ -1,63 +1,126 @@
-import type { QueryFilter, SortOrder, UpdateQuery } from 'mongoose';
+import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
+import type { Report } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
-import { ReportModel, type ReportAttributes, type ReportDocument } from './reports.model';
 import { REPORT_STATUS, type ListModerationReportsQuery, type ReportStatus, type ReportTarget } from './reports.types';
-
-type Filter = QueryFilter<ReportAttributes>;
 
 export const openReportKey = (reporterId: string, targetType: ReportTarget, targetId: string) => `${reporterId}:${targetType}:${targetId}`;
 
+export interface AgencyResponse {
+  text: string;
+  respondedAt: Date;
+  by: string;
+}
+
+export interface Resolution {
+  decision: 'RESOLVED' | 'REJECTED';
+  note: string;
+  by: string;
+  resolvedAt: Date;
+}
+
+type FlattenedColumns =
+  | 'agencyResponseText' | 'agencyResponseAt' | 'agencyResponseById'
+  | 'resolutionDecision' | 'resolutionNote' | 'resolutionById' | 'resolvedAt';
+
+/** A stored report; the agency's answer and the moderator's decision are exposed as nested objects. */
+export type ReportRecord = Omit<Report, FlattenedColumns> & { agencyResponse?: AgencyResponse; resolution?: Resolution };
+
+export type NewReport = Pick<Report, 'reporterId' | 'targetType' | 'targetId' | 'category' | 'description'> &
+  Partial<Pick<Report, 'bookingId' | 'agencyId' | 'tourId' | 'openKey'>>;
+
+/** Changes to a report; `openKey: null` releases the one-open-report-per-target guard. */
+export interface ReportPatch {
+  status?: ReportStatus;
+  openKey?: string | null;
+  agencyResponse?: AgencyResponse;
+  resolution?: Resolution;
+}
+
+function toRecord(row: Report): ReportRecord {
+  const { agencyResponseText, agencyResponseAt, agencyResponseById, resolutionDecision, resolutionNote, resolutionById, resolvedAt, ...rest } = row;
+  return {
+    ...rest,
+    agencyResponse:
+      agencyResponseText && agencyResponseAt && agencyResponseById
+        ? { text: agencyResponseText, respondedAt: agencyResponseAt, by: agencyResponseById }
+        : undefined,
+    resolution:
+      resolutionDecision && resolutionNote && resolutionById && resolvedAt
+        ? { decision: resolutionDecision as Resolution['decision'], note: resolutionNote, by: resolutionById, resolvedAt }
+        : undefined,
+  };
+}
+
+function toData(patch: ReportPatch): Prisma.ReportUncheckedUpdateInput {
+  const { agencyResponse, resolution, ...scalars } = patch;
+  return {
+    ...scalars,
+    ...(agencyResponse
+      ? { agencyResponseText: agencyResponse.text, agencyResponseAt: agencyResponse.respondedAt, agencyResponseById: agencyResponse.by }
+      : {}),
+    ...(resolution
+      ? { resolutionDecision: resolution.decision, resolutionNote: resolution.note, resolutionById: resolution.by, resolvedAt: resolution.resolvedAt }
+      : {}),
+  };
+}
+
+const NEWEST_FIRST: Prisma.ReportOrderByWithRelationInput[] = [{ createdAt: 'desc' }, { id: 'desc' }];
+
 export class ReportsRepository {
-  create(data: Partial<ReportAttributes>): Promise<ReportDocument> {
-    return ReportModel.create(data);
+  async create(data: NewReport): Promise<ReportRecord> {
+    return toRecord(await prisma.report.create({ data }));
   }
 
-  findById(id: string): Promise<ReportDocument | null> {
-    return ReportModel.findById(id).exec();
+  async findById(id: string): Promise<ReportRecord | null> {
+    const row = await prisma.report.findUnique({ where: { id } });
+    return row ? toRecord(row) : null;
   }
 
-  findOpenDuplicate(reporterId: string, targetType: ReportTarget, targetId: string): Promise<ReportDocument | null> {
-    return ReportModel.findOne({ openKey: openReportKey(reporterId, targetType, targetId) }).exec();
+  async findOpenDuplicate(reporterId: string, targetType: ReportTarget, targetId: string): Promise<ReportRecord | null> {
+    const row = await prisma.report.findUnique({ where: { openKey: openReportKey(reporterId, targetType, targetId) } });
+    return row ? toRecord(row) : null;
   }
 
   /** Compare-and-set on status so an agency answer and a moderator decision cannot overwrite each other. */
-  transition(id: string, expected: readonly ReportStatus[], update: UpdateQuery<ReportAttributes>): Promise<ReportDocument | null> {
-    return ReportModel.findOneAndUpdate({ _id: id, status: { $in: expected } }, update, { returnDocument: 'after' }).exec();
+  async transition(id: string, expected: readonly ReportStatus[], patch: ReportPatch): Promise<ReportRecord | null> {
+    const row = await prisma.report.update({ where: { id, status: { in: [...expected] } }, data: toData(patch) }).catch(nullIfNotFound);
+    return row ? toRecord(row) : null;
   }
 
   listByReporter(reporterId: string, status: ReportStatus | undefined, page: PageRequest) {
-    return this.paginate({ reporterId, ...(status ? { status } : {}) }, { createdAt: -1, _id: -1 }, page);
+    return this.paginate({ reporterId, ...(status ? { status } : {}) }, NEWEST_FIRST, page);
   }
 
   listByAgency(agencyId: string, status: ReportStatus | undefined, page: PageRequest) {
-    return this.paginate({ agencyId, ...(status ? { status } : {}) }, { createdAt: -1, _id: -1 }, page);
+    return this.paginate({ agencyId, ...(status ? { status } : {}) }, NEWEST_FIRST, page);
   }
 
   listForModeration(query: ListModerationReportsQuery) {
-    const filter: Filter = {};
-    if (query.status) filter.status = query.status;
-    if (query.targetType) filter.targetType = query.targetType;
-    if (query.category) filter.category = query.category;
+    const where: Prisma.ReportWhereInput = {};
+    if (query.status) where.status = query.status;
+    if (query.targetType) where.targetType = query.targetType;
+    if (query.category) where.category = query.category;
     // Open items first (oldest first = FIFO queue), otherwise newest first.
-    const sort: Record<string, SortOrder> = query.status === 'OPEN' || query.status === 'AGENCY_RESPONDED' ? { createdAt: 1, _id: 1 } : { createdAt: -1, _id: -1 };
-    return this.paginate(filter, sort, query);
+    const fifo = query.status === 'OPEN' || query.status === 'AGENCY_RESPONDED';
+    return this.paginate(where, fifo ? [{ createdAt: 'asc' }, { id: 'asc' }] : NEWEST_FIRST, query);
   }
 
   /** Reports routed to an agency that it has not answered yet. */
   countOpenForAgency(agencyId: string): Promise<number> {
-    return ReportModel.countDocuments({ agencyId, status: REPORT_STATUS.OPEN }).exec();
+    return prisma.report.count({ where: { agencyId, status: REPORT_STATUS.OPEN } });
   }
 
-  countByStatus(): Promise<{ _id: ReportStatus; count: number }[]> {
-    return ReportModel.aggregate<{ _id: ReportStatus; count: number }>([{ $group: { _id: '$status', count: { $sum: 1 } } }]).exec();
+  async countByStatus(): Promise<{ status: ReportStatus; count: number }[]> {
+    const rows = await prisma.report.groupBy({ by: ['status'], _count: { _all: true } });
+    return rows.map((row) => ({ status: row.status, count: row._count._all }));
   }
 
-  private async paginate(filter: Filter, sort: Record<string, SortOrder>, page: PageRequest) {
-    const [items, total] = await Promise.all([
-      ReportModel.find(filter).sort(sort).skip(toSkip(page)).limit(page.limit).exec(),
-      ReportModel.countDocuments(filter).exec(),
+  private async paginate(where: Prisma.ReportWhereInput, orderBy: Prisma.ReportOrderByWithRelationInput[], page: PageRequest) {
+    const [rows, total] = await Promise.all([
+      prisma.report.findMany({ where, orderBy, skip: toSkip(page), take: page.limit }),
+      prisma.report.count({ where }),
     ]);
-    return { items, total };
+    return { items: rows.map(toRecord), total };
   }
 }
 

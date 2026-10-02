@@ -1,8 +1,6 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../../app';
-import { BookingModel } from '../../bookings/bookings.model';
-import { TourModel } from '../tours.model';
 import {
   bearer,
   createCategory,
@@ -11,9 +9,11 @@ import {
   resetDatabase,
   startDatabase,
   stopDatabase,
+  loadTour,
 } from '../../../test/integration';
+import { prisma } from '../../../config/database';
 
-// Real Express app + real MongoDB: tour lifecycle over HTTP (agency -> moderator -> public) and inventory consistency.
+// Real Express app + real PostgreSQL: tour lifecycle over HTTP (agency -> moderator -> public) and inventory consistency.
 const app = createApp();
 
 beforeAll(startDatabase, 120_000);
@@ -52,7 +52,7 @@ async function approvedTour(a: Awaited<ReturnType<typeof actors>>, capacity = 5)
   expect((await request(app).post(`/api/v1/agency/tours/${tourId}/submit`).set(bearer(a.agency.token))).status).toBe(202);
   const decision = await request(app).post(`/api/v1/moderation/tours/${tourId}/validate`).set(bearer(a.moderator.token)).send({ approve: true });
   expect(decision.status).toBe(200);
-  const departureId = String((await TourModel.findById(tourId))!.departures[0]!._id);
+  const departureId = String((await loadTour(tourId))!.departures[0]!.id);
   return { tourId, departureId };
 }
 
@@ -86,7 +86,7 @@ describe('tours (integration)', () => {
 
     // Material edit of an APPROVED tour: back to review, gone from the public list.
     expect((await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(a.agency.token)).send({ title: 'Ha Long Bay 3D2N' })).status).toBe(200);
-    expect((await TourModel.findById(tourId))!.status).toBe('PENDING_REVIEW');
+    expect((await loadTour(tourId))!.status).toBe('PENDING_REVIEW');
     expect((await request(app).get(`/api/v1/tours/${tourId}`)).status).toBe(404);
   });
 
@@ -169,7 +169,7 @@ describe('tours (integration)', () => {
     expect((await book(a.traveler.token, tourId, departureId, 3)).status).toBe(201);
 
     const edit = (departures: object[]) => setDepartures(a.agency.token, tourId, departures);
-    const same = { id: departureId, date: (await TourModel.findById(tourId))!.departures[0]!.date.toISOString(), isOpen: true };
+    const same = { id: departureId, date: (await loadTour(tourId))!.departures[0]!.date.toISOString(), isOpen: true };
 
     const tooSmall = await edit([{ ...same, capacity: 2 }]);
     expect(tooSmall.status).toBe(409);
@@ -179,7 +179,7 @@ describe('tours (integration)', () => {
     expect((await edit([{ ...same, date: inDays(40), capacity: 5 }])).status).toBe(409); // moving it
 
     expect((await edit([{ ...same, capacity: 8 }])).status).toBe(200);
-    const stored = (await TourModel.findById(tourId))!.departures[0]!;
+    const stored = (await loadTour(tourId))!.departures[0]!;
     expect(stored.capacity).toBe(8);
     expect(stored.remaining).toBe(5); // 8 - 3 sold
   });
@@ -189,16 +189,16 @@ describe('tours (integration)', () => {
     const { tourId, departureId } = await approvedTour(a, 10);
     const buyers = await Promise.all(Array.from({ length: 8 }, (_, i) => createUser('TRAVELER', `b${i}@example.com`)));
 
-    const storedDate = (await TourModel.findById(tourId))!.departures[0]!.date.toISOString();
+    const storedDate = (await loadTour(tourId))!.departures[0]!.date.toISOString();
     const edits = Array.from({ length: 4 }, (_, i) =>
       setDepartures(a.agency.token, tourId, [{ id: departureId, date: storedDate, capacity: 12 + i, isOpen: true }]),
     );
     const results = await Promise.all([...buyers.map((b) => book(b.token, tourId, departureId, 1)), ...edits]);
     expect(results.every((r) => r.status < 500)).toBe(true);
 
-    const tour = (await TourModel.findById(tourId))!;
+    const tour = (await loadTour(tourId))!;
     const dep = tour.departures[0]!;
-    const sold = (await BookingModel.find({ tourId })).reduce((sum, b) => sum + b.participants, 0);
+    const sold = (await prisma.booking.findMany({ where: { tourId } })).reduce((sum, b) => sum + b.participants, 0);
     expect(sold).toBe(buyers.length);
     // The invariant that matters: free seats = capacity - sold, whatever the interleaving was.
     expect(dep.remaining).toBe(dep.capacity - sold);
@@ -209,13 +209,13 @@ describe('tours (integration)', () => {
     const a = await actors();
     const empty = await draftTour(a.agency.token, a.categoryId);
     expect((await request(app).delete(`/api/v1/agency/tours/${empty}`).set(bearer(a.agency.token))).status).toBe(204);
-    expect((await TourModel.findById(empty))!.status).toBe('ARCHIVED');
+    expect((await loadTour(empty))!.status).toBe('ARCHIVED');
 
     const { tourId, departureId } = await approvedTour(a);
     await book(a.traveler.token, tourId, departureId, 1);
     const blocked = await request(app).delete(`/api/v1/agency/tours/${tourId}`).set(bearer(a.agency.token));
     expect(blocked.status).toBe(409);
-    expect((await TourModel.findById(tourId))!.status).toBe('APPROVED');
+    expect((await loadTour(tourId))!.status).toBe('APPROVED');
   });
 
   it('guide assignment: only an active guide, only that guide answers, only once', async () => {
@@ -236,7 +236,7 @@ describe('tours (integration)', () => {
 
     const results = await Promise.all([answer(guide.token, true), answer(guide.token, false)]);
     expect(results.filter((r) => r.status === 200)).toHaveLength(1);
-    expect((await TourModel.findById(tourId))!.guide!.status).not.toBe('PENDING');
+    expect((await loadTour(tourId))!.guideAssignment!.status).not.toBe('PENDING');
 
     const mine = await request(app).get('/api/v1/guide/tours').set(bearer(guide.token));
     expect(mine.body.data.map((t: { id: string }) => t.id)).toEqual([tourId]);

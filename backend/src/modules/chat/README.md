@@ -36,7 +36,7 @@ Unknown conversations **and** conversations of other people answer 404.
 ## Business rules
 1. Only TRAVELER ↔ TOUR_GUIDE (D-13); changing that means editing `chat.policy.ts` only. Agencies and staff are refused (403).
 2. One conversation per traveler/guide pair (unique index), optionally remembering the tour it started from.
-3. Messages are stored in MongoDB (plain text, trimmed, ≤ 2000); clients must render them as text, not HTML.
+3. Messages are stored in PostgreSQL (plain text, trimmed, ≤ 2000); clients must render them as text, not HTML.
 4. Sending bumps the recipient's unread counter atomically; an in-app notification (`CHAT_MESSAGE`) is created only when the recipient had nothing unread, to avoid notification floods.
 5. A failing realtime publisher never fails the send (the message is already stored).
 6. Banned/inactive accounts cannot authenticate over HTTP or the socket handshake (same `resolveUserActor`).
@@ -59,8 +59,8 @@ None.
 Socket events above; notification `CHAT_MESSAGE`.
 
 ## Testing
-`__tests__/chat.realtime.integration.test.ts` (the whole stack: HTTP + Socket.IO + real services + MongoDB + real tokens: fan-out to counterpart and the sender's other devices only, foreign conversations leak nothing, typing/read, live notifications reach only their owner, handshake refuses missing/garbage/banned, a ban or demotion or expired token stops an ALREADY OPEN socket on its next event and closes it, per-socket flood limit) and
-`__tests__/chat.integration.test.ts` (real MongoDB, REST: one conversation when both sides start at once, participants only, newest-first cursor pagination, unread counters with 10 parallel sends, banned users cut off) and
+`__tests__/chat.realtime.integration.test.ts` (the whole stack: HTTP + Socket.IO + real services + PostgreSQL + real tokens: fan-out to counterpart and the sender's other devices only, foreign conversations leak nothing, typing/read, live notifications reach only their owner, handshake refuses missing/garbage/banned, a ban or demotion or expired token stops an ALREADY OPEN socket on its next event and closes it, per-socket flood limit) and
+`__tests__/chat.integration.test.ts` (real PostgreSQL, REST: one conversation when both sides start at once, participants only, newest-first cursor pagination, unread counters with 10 parallel sends, banned users cut off) and
 `__tests__/chat.service.test.ts` (policy, idempotent start, participation, unread/notification logic, publisher isolation) and
 `__tests__/chat.gateway.test.ts` (real Socket.IO server + client: auth, delegation with the authenticated user, validation, permission, fan-out to the right user, typing, rate limit).
 

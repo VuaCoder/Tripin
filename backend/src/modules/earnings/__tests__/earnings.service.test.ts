@@ -68,7 +68,7 @@ describe('recordForBooking', () => {
     const raced = make(acceptedTour);
     raced.repo.create.mockImplementationOnce(async () => {
       raced.db.push({ id: 'winner', bookingId: 'b1', bookingCode: 'x', tourId: 't1', tourTitle: 'x', amount: 1, earnedAt: new Date() });
-      throw Object.assign(new Error('E11000'), { code: 11000 });
+      throw Object.assign(new Error('E11000'), { code: 'P2002' });
     });
     expect((await raced.service.recordForBooking(booking))?.id).toBe('winner');
     expect(raced.notifications.notify).not.toHaveBeenCalled();

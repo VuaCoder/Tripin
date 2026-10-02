@@ -24,7 +24,8 @@ function make(seed: T[] = []) {
   const db = [...seed];
   const repo = {
     create: vi.fn(async (data: T) => {
-      const doc = ticket({ ...data, id: `k${db.length + 1}`, status: 'OPEN' });
+      const { message, ...rest } = data as T;
+      const doc = ticket({ ...rest, id: `k${db.length + 1}`, status: 'OPEN', messageCount: 1, messages: [{ ...message, createdAt: new Date() }] });
       db.push(doc);
       return doc;
     }),
@@ -59,7 +60,7 @@ describe('createTicket', () => {
   it('opens a ticket with the first message from the user', async () => {
     const { service, repo } = make();
     const dto = await service.createTicket('u1', input);
-    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u1', messageCount: 1 }));
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u1', message: expect.objectContaining({ text: 'Where is my refund please?' }) }));
     expect(dto).toMatchObject({ status: 'OPEN', messageCount: 1, messages: [{ author: 'YOU', text: 'Where is my refund please?' }] });
   });
 
@@ -120,10 +121,10 @@ describe('staff handling', () => {
   });
 
   it('keeps the original assignee on later replies and can resolve in the same step', async () => {
-    const { service, db } = make([ticket({ status: 'IN_PROGRESS', assignedTo: 'm0' })]);
+    const { service, db } = make([ticket({ status: 'IN_PROGRESS', assignedToId: 'm0' })]);
     const dto = await service.replyAsStaff(moderator, 'k1', { text: 'Refund sent.', resolve: true });
     expect(dto.status).toBe('RESOLVED');
-    expect(db[0]!.assignedTo).toBe('m0');
+    expect(db[0]!.assignedToId).toBe('m0');
   });
 
   it('cannot reply on resolved or closed tickets, nor on unknown ones', async () => {

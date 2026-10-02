@@ -6,9 +6,8 @@ import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
 import { categoriesService, type CategoriesService } from '../categories';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
 import { usersService, type UsersService } from '../users';
-import type { TourDocument } from './tours.model';
 import { departurePrice, isBookable } from './tours.mapper';
-import { toursRepository, type ToursRepository } from './tours.repository';
+import { toursRepository, type DepartureChange, type TourPatch, type TourRecord, type ToursRepository } from './tours.repository';
 import {
   AGENCY_EDITABLE_STATUSES,
   GUIDE_ASSIGNMENT_TRANSITIONS,
@@ -28,7 +27,7 @@ type Actor = { userId: string; role: PersistedRole };
 type Repo = Pick<
   ToursRepository,
   | 'create' | 'insertMany' | 'findById' | 'updateIfStatus' | 'answerGuideAssignment' | 'listByAgency' | 'listByGuide'
-  | 'listForModeration' | 'reserveSeats' | 'releaseSeats' | 'replaceDeparturesIfVersion' | 'setRatingStats' | 'countByStatus'
+  | 'listForModeration' | 'reserveSeats' | 'releaseSeats' | 'applyDepartures' | 'setRatingStats' | 'countByStatus'
 >;
 
 const ENTITY = 'Tour';
@@ -52,7 +51,7 @@ export class ToursService {
   /** Use case "Create tour" — always starts as DRAFT. */
   async createTour(agencyId: string, input: TourContentInput): Promise<TourManageDto> {
     await this.categories.assertActiveIds(input.categoryIds);
-    const created = await this.tours.create({ ...input, agencyId: agencyId as never, categoryIds: input.categoryIds as never });
+    const created = await this.tours.create({ ...input, agencyId });
     return this.views.manage(created);
   }
 
@@ -60,7 +59,7 @@ export class ToursService {
   async importTours(agencyId: string, inputs: TourContentInput[]): Promise<{ created: number; tours: TourManageDto[] }> {
     await this.categories.assertActiveIds(inputs.flatMap((input) => input.categoryIds));
     const created = await this.tours.insertMany(
-      inputs.map((input) => ({ ...input, agencyId: agencyId as never, categoryIds: input.categoryIds as never })),
+      inputs.map((input) => ({ ...input, agencyId })),
     );
     return { created: created.length, tours: await this.views.manageMany(created) };
   }
@@ -85,7 +84,7 @@ export class ToursService {
     if (input.durationDays !== undefined && tour.itinerary.some((day) => day.day > input.durationDays!)) {
       throw AppError.badRequest('durationDays is shorter than the configured itinerary', undefined, 'ITINERARY_EXCEEDS_DURATION');
     }
-    return this.applyContentChange(tour, { $set: { ...input } });
+    return this.applyContentChange(tour, { ...input });
   }
 
   /** Use case "Delete tour": archives it (soft delete). Refused while future departures have booked seats. */
@@ -96,7 +95,7 @@ export class ToursService {
     if (hasUpcomingBookings) {
       throw AppError.conflict('This tour has booked upcoming departures; close them instead of deleting', 'TOUR_HAS_BOOKINGS');
     }
-    const updated = await this.tours.updateIfStatus(id, [tour.status as TourStatus], { $set: { status: TOUR_STATUS.ARCHIVED } });
+    const updated = await this.tours.updateIfStatus(id, [tour.status as TourStatus], { status: TOUR_STATUS.ARCHIVED });
     if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
   }
 
@@ -108,19 +107,26 @@ export class ToursService {
     const tour = await this.requireOwned(agencyId, id);
     if (tour.status === TOUR_STATUS.ARCHIVED) throw AppError.notFound('Tour not found');
 
-    const existing = new Map(tour.departures.map((d) => [String(d._id), d]));
+    const existing = new Map(tour.departures.map((d) => [d.id, d]));
     const keptIds = new Set(inputs.map((d) => d.id).filter(Boolean));
+    const changes: DepartureChange[] = [];
     for (const [departureId, departure] of existing) {
-      if (!keptIds.has(departureId) && departure.remaining < departure.capacity) {
+      if (keptIds.has(departureId)) continue;
+      if (departure.remaining < departure.capacity) {
         throw AppError.conflict('A departure with booked seats cannot be removed; close it instead', 'DEPARTURE_HAS_BOOKINGS');
       }
+      changes.push({ kind: 'delete', id: departureId });
     }
 
     const now = Date.now();
-    const next = inputs.map((input) => {
+    for (const input of inputs) {
       if (!input.id) {
         if (input.date.getTime() <= now) throw AppError.badRequest('New departures must be in the future');
-        return { date: input.date, capacity: input.capacity, remaining: input.capacity, priceOverride: input.priceOverride, isOpen: input.isOpen };
+        changes.push({
+          kind: 'create',
+          data: { date: input.date, capacity: input.capacity, remaining: input.capacity, priceOverride: input.priceOverride ?? null, isOpen: input.isOpen },
+        });
+        continue;
       }
       const current = existing.get(input.id);
       if (!current) throw AppError.badRequest(`Unknown departure id ${input.id}`);
@@ -128,23 +134,27 @@ export class ToursService {
       if (input.capacity < booked) {
         throw AppError.conflict(`Capacity cannot be below the ${booked} seats already booked`, 'CAPACITY_BELOW_BOOKED');
       }
-      if (booked > 0 && input.date.getTime() !== current.date.getTime()) {
+      const moved = input.date.getTime() !== current.date.getTime();
+      if (booked > 0 && moved) {
         throw AppError.conflict('The date of a departure with booked seats cannot change', 'DEPARTURE_HAS_BOOKINGS');
       }
-      if (booked === 0 && input.date.getTime() !== current.date.getTime() && input.date.getTime() <= now) {
+      if (booked === 0 && moved && input.date.getTime() <= now) {
         throw AppError.badRequest('Departures must be in the future');
       }
-      return {
-        _id: current._id,
-        date: input.date,
+      changes.push({
+        kind: 'update',
+        id: current.id,
+        expectedCapacity: current.capacity,
+        expectedRemaining: current.remaining,
         capacity: input.capacity,
-        remaining: input.capacity - booked,
-        priceOverride: input.priceOverride,
+        date: input.date,
+        priceOverride: input.priceOverride ?? null,
         isOpen: input.isOpen,
-      };
-    });
+        lockSeats: moved,
+      });
+    }
 
-    const updated = await this.tours.replaceDeparturesIfVersion(id, tour.__v ?? 0, next);
+    const updated = await this.tours.applyDepartures(id, changes);
     if (!updated) throw AppError.conflict('Seats changed while saving, please retry', 'CONCURRENT_UPDATE');
     return this.views.manage(updated);
   }
@@ -159,7 +169,7 @@ export class ToursService {
     const itinerary = [...days]
       .sort((a, b) => a.day - b.day)
       .map((day) => ({ day: day.day, title: day.title, description: day.description, activities: day.activities ?? [] }));
-    return this.applyContentChange(tour, { $set: { itinerary } });
+    return this.applyContentChange(tour, { itinerary });
   }
 
   /** Use case "Assign guide to tour". `guideId: null` removes the assignment. A new assignment starts PENDING. */
@@ -167,14 +177,22 @@ export class ToursService {
     const tour = await this.requireOwned(agencyId, id);
     if (tour.status === TOUR_STATUS.ARCHIVED) throw AppError.notFound('Tour not found');
 
-    let update;
+    let patch: TourPatch;
     if (input.guideId === null) {
-      update = { $unset: { guide: 1 } };
+      patch = { guide: null };
     } else {
       await this.users.assertActiveWithRole(input.guideId, ROLES.TOUR_GUIDE);
-      update = { $set: { guide: { guideId: input.guideId, feePerBooking: input.feePerBooking ?? 0, status: GUIDE_ASSIGNMENT_STATUS.PENDING } } };
+      patch = {
+        guide: {
+          guideId: input.guideId,
+          feePerBooking: input.feePerBooking ?? 0,
+          status: GUIDE_ASSIGNMENT_STATUS.PENDING,
+          respondedAt: null,
+          note: null,
+        },
+      };
     }
-    const updated = await this.tours.updateIfStatus(id, [tour.status as TourStatus], update as never);
+    const updated = await this.tours.updateIfStatus(id, [tour.status as TourStatus], patch);
     if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
     if (input.guideId !== null) {
       await this.notifications.notify(input.guideId, {
@@ -198,8 +216,9 @@ export class ToursService {
       throw AppError.badRequest('Add at least one open future departure before submitting', undefined, 'NO_OPEN_DEPARTURE');
     }
     const updated = await this.tours.updateIfStatus(id, [tour.status as TourStatus], {
-      $set: { status: TOUR_STATUS.PENDING_REVIEW, submittedAt: new Date() },
-      $unset: { statusReason: 1 },
+      status: TOUR_STATUS.PENDING_REVIEW,
+      submittedAt: new Date(),
+      statusReason: null,
     });
     if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
     return this.views.manage(updated);
@@ -216,17 +235,19 @@ export class ToursService {
   /** Use case "Verify assigned tours": the guide accepts or declines their own PENDING assignment. */
   async answerAssignment(guideId: string, tourId: string, answer: { accept: boolean; note?: string }): Promise<GuideTourDto> {
     const tour = await this.tours.findById(tourId);
-    if (!tour || tour.guide?.guideId?.toString() !== guideId || tour.status === TOUR_STATUS.ARCHIVED) {
+    if (!tour || tour.guide?.guideId !== guideId || tour.status === TOUR_STATUS.ARCHIVED) {
       throw AppError.notFound('Assigned tour not found');
     }
     const next = answer.accept ? GUIDE_ASSIGNMENT_STATUS.ACCEPTED : GUIDE_ASSIGNMENT_STATUS.DECLINED;
     assertTransition(GUIDE_ASSIGNMENT_TRANSITIONS, tour.guide.status as 'PENDING', next, 'Guide assignment');
 
     const updated = await this.tours.answerGuideAssignment(tourId, guideId, {
-      $set: { 'guide.status': next, 'guide.respondedAt': new Date(), ...(answer.note ? { 'guide.note': answer.note } : {}) },
+      status: next,
+      respondedAt: new Date(),
+      ...(answer.note ? { note: answer.note } : {}),
     });
     if (!updated) throw AppError.conflict('The assignment changed, please retry', 'CONCURRENT_UPDATE');
-    await this.notifications.notify(String(tour.agencyId), {
+    await this.notifications.notify(tour.agencyId, {
       type: NOTIFICATION_TYPE.GUIDE_ASSIGNMENT_ANSWERED,
       title: answer.accept ? 'Guide accepted the assignment' : 'Guide declined the assignment',
       body: `The guide ${answer.accept ? 'accepted' : 'declined'} "${tour.title}".${answer.note ? ` Note: ${answer.note}` : ''}`,
@@ -258,9 +279,11 @@ export class ToursService {
     const next = decision.approve ? TOUR_STATUS.APPROVED : TOUR_STATUS.REJECTED;
     assertTransition(TOUR_TRANSITIONS, tour.status as TourStatus, next, ENTITY);
     const updated = await this.tours.updateIfStatus(id, [TOUR_STATUS.PENDING_REVIEW], {
-      $set: { status: next, reviewedAt: new Date(), reviewedBy: actor.userId, ...(decision.approve ? {} : { statusReason: decision.reason }) },
-      ...(decision.approve ? { $unset: { statusReason: 1 } } : {}),
-    } as never);
+      status: next,
+      reviewedAt: new Date(),
+      reviewedById: actor.userId,
+      statusReason: decision.approve ? null : decision.reason,
+    });
     if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
 
     await this.audit.record({
@@ -272,7 +295,7 @@ export class ToursService {
       metadata: { approved: decision.approve, reason: decision.reason },
     });
     await this.notifications.notify(
-      String(tour.agencyId),
+      tour.agencyId,
       {
         type: decision.approve ? NOTIFICATION_TYPE.TOUR_APPROVED : NOTIFICATION_TYPE.TOUR_REJECTED,
         title: decision.approve ? 'Your tour was approved' : 'Your tour was rejected',
@@ -291,7 +314,10 @@ export class ToursService {
     assertTransition(TOUR_TRANSITIONS, tour.status as TourStatus, TOUR_STATUS.SUSPENDED, ENTITY);
 
     const updated = await this.tours.updateIfStatus(id, [TOUR_STATUS.APPROVED], {
-      $set: { status: TOUR_STATUS.SUSPENDED, reviewedAt: new Date(), reviewedBy: actor.userId, statusReason: reason },
+      status: TOUR_STATUS.SUSPENDED,
+      reviewedAt: new Date(),
+      reviewedById: actor.userId,
+      statusReason: reason,
     });
     if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
 
@@ -304,7 +330,7 @@ export class ToursService {
       metadata: { reason },
     });
     await this.notifications.notify(
-      String(tour.agencyId),
+      tour.agencyId,
       {
         type: NOTIFICATION_TYPE.TOUR_SUSPENDED,
         title: 'Your tour was suspended',
@@ -322,12 +348,12 @@ export class ToursService {
   async getBookableDeparture(tourId: string, departureId: string): Promise<BookableDeparture> {
     const tour = await this.tours.findById(tourId);
     if (!tour || tour.status !== TOUR_STATUS.APPROVED) throw AppError.notFound('Tour not found');
-    const departure = tour.departures.find((d) => String(d._id) === departureId);
+    const departure = tour.departures.find((d) => d.id === departureId);
     if (!departure) throw AppError.notFound('Departure not found');
     if (!isBookable(departure)) throw AppError.conflict('This departure is closed or sold out', 'DEPARTURE_UNAVAILABLE');
     return {
       tourId: tour.id,
-      agencyId: String(tour.agencyId),
+      agencyId: tour.agencyId,
       title: tour.title,
       durationDays: tour.durationDays,
       departureId,
@@ -335,7 +361,7 @@ export class ToursService {
       unitPrice: departurePrice(tour, departure),
       remaining: departure.remaining,
       guide: tour.guide
-        ? { guideId: String(tour.guide.guideId), feePerBooking: tour.guide.feePerBooking, status: tour.guide.status as never }
+        ? { guideId: tour.guide.guideId, feePerBooking: tour.guide.feePerBooking, status: tour.guide.status as never }
         : undefined,
     };
   }
@@ -354,7 +380,7 @@ export class ToursService {
   /** Tours per status (one agency, or the whole platform) for dashboards. */
   async countByStatus(agencyId?: string): Promise<Record<string, number>> {
     const rows = await this.tours.countByStatus(agencyId);
-    return Object.fromEntries(rows.map((row) => [row._id, row.count]));
+    return Object.fromEntries(rows.map((row) => [row.status, row.count]));
   }
 
   /** Called by `reviews` after the visible reviews of a tour changed. */
@@ -370,10 +396,10 @@ export class ToursService {
     if (!tour) return null;
     return {
       id: tour.id,
-      agencyId: String(tour.agencyId),
+      agencyId: tour.agencyId,
       title: tour.title,
       status: tour.status as TourStatus,
-      guideId: tour.guide?.status === GUIDE_ASSIGNMENT_STATUS.ACCEPTED ? String(tour.guide.guideId) : undefined,
+      guideId: tour.guide?.status === GUIDE_ASSIGNMENT_STATUS.ACCEPTED ? tour.guide.guideId : undefined,
       guideFee: tour.guide?.status === GUIDE_ASSIGNMENT_STATUS.ACCEPTED ? tour.guide.feePerBooking : undefined,
     };
   }
@@ -381,29 +407,29 @@ export class ToursService {
   // ================================================================ helpers
 
   /** 404 (never 403) when the tour is not the agency's own, so ids of other agencies are not revealed. */
-  private async requireOwned(agencyId: string, id: string): Promise<TourDocument> {
+  private async requireOwned(agencyId: string, id: string): Promise<TourRecord> {
     const tour = await this.tours.findById(id);
-    if (!tour || String(tour.agencyId) !== agencyId || tour.status === TOUR_STATUS.ARCHIVED) {
+    if (!tour || tour.agencyId !== agencyId || tour.status === TOUR_STATUS.ARCHIVED) {
       throw AppError.notFound('Tour not found');
     }
     return tour;
   }
 
-  private assertAgencyEditable(tour: TourDocument): void {
+  private assertAgencyEditable(tour: TourRecord): void {
     if (!AGENCY_EDITABLE_STATUSES.includes(tour.status as TourStatus)) {
       throw AppError.conflict(`A tour in status ${tour.status} cannot be edited`, 'TOUR_LOCKED');
     }
   }
 
   /** Applies a content update; an APPROVED tour re-enters review (compare-and-set on the status we read). */
-  private async applyContentChange(tour: TourDocument, update: { $set: Record<string, unknown> }): Promise<TourManageDto> {
+  private async applyContentChange(tour: TourRecord, change: TourPatch): Promise<TourManageDto> {
     const current = tour.status as TourStatus;
-    let $set = update.$set;
+    let patch = change;
     if (current === TOUR_STATUS.APPROVED) {
       assertTransition(TOUR_TRANSITIONS, current, TOUR_STATUS.PENDING_REVIEW, ENTITY);
-      $set = { ...$set, status: TOUR_STATUS.PENDING_REVIEW, submittedAt: new Date() };
+      patch = { ...patch, status: TOUR_STATUS.PENDING_REVIEW, submittedAt: new Date() };
     }
-    const updated = await this.tours.updateIfStatus(tour.id, [current], { $set } as never);
+    const updated = await this.tours.updateIfStatus(tour.id, [current], patch);
     if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
     return this.views.manage(updated);
   }

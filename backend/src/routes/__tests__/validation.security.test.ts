@@ -9,7 +9,6 @@ import { loginBody, registerBody } from '../../modules/auth/auth.validation';
 import { assignAccessBody, updateProfileBody } from '../../modules/users/users.validation';
 import { createBookingBody } from '../../modules/bookings/bookings.validation';
 import { searchToursQuery } from '../../modules/tours/tours.validation';
-import { containsRegex, escapeRegex } from '../../utils/regex';
 
 const modulesDir = path.resolve(process.cwd(), 'src/modules');
 const validationFiles = readdirSync(modulesDir, { withFileTypes: true })
@@ -27,7 +26,7 @@ describe('validation schemas are bounded (source scan)', () => {
       readFileSync(file, 'utf-8')
         .split('\n')
         .forEach((line, index) => {
-          if (/z\.string\(\)/.test(line) && !/\.(max|length|regex|email)\(|objectIdSchema|z\.email|z\.url/.test(line) && !/const (text|trimmed) =/.test(line)) {
+          if (/z\.string\(\)/.test(line) && !/\.(max|length|regex|email)\(|idSchema|z\.email|z\.url/.test(line) && !/const (text|trimmed) =/.test(line)) {
             offenders.push(`${path.basename(file)}:${index + 1}: ${line.trim()}`);
           }
           if (/z\.array\(/.test(line) && !/\.max\(/.test(line)) offenders.push(`${path.basename(file)}:${index + 1}: ${line.trim()}`);
@@ -85,20 +84,11 @@ describe('operator injection and mass assignment', () => {
   });
 
   it('a booking request carries ids and head-count only: any price field is rejected', () => {
-    const ok = { tourId: '507f1f77bcf86cd799439011', departureId: '507f1f77bcf86cd799439012', participants: 2, contact: { fullName: 'Ann Lee', phone: '0123456789' } };
+    const ok = { tourId: '11111111-1111-4111-8111-111111111111', departureId: '22222222-2222-4222-8222-222222222222', participants: 2, contact: { fullName: 'Ann Lee', phone: '0123456789' } };
     expect(createBookingBody.safeParse(ok).success).toBe(true);
     expect(createBookingBody.safeParse({ ...ok, totalAmount: 1 }).success).toBe(false);
     expect(createBookingBody.safeParse({ ...ok, unitPrice: 1 }).success).toBe(false);
     expect(createBookingBody.safeParse({ ...ok, status: 'CONFIRMED' }).success).toBe(false);
     expect(createBookingBody.safeParse({ ...ok, participants: 51 }).success).toBe(false);
-  });
-});
-
-describe('text search is regex-safe', () => {
-  it('escapes metacharacters so user text is matched literally', () => {
-    expect(escapeRegex('a.b*c(d)[e]{f}|g\\h$^+?')).toBe('a\\.b\\*c\\(d\\)\\[e\\]\\{f\\}\\|g\\\\h\\$\\^\\+\\?');
-    const pattern = containsRegex('(a+)+$');
-    expect(pattern.test('xx(a+)+$yy')).toBe(true);
-    expect(pattern.test('aaaaaaaaaaaaaaaaaaaaaaaa!')).toBe(false); // no catastrophic backtracking, no regex semantics
   });
 });

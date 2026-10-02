@@ -1,12 +1,10 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../../app';
-import { BookingModel } from '../../bookings/bookings.model';
-import { TourModel } from '../../tours/tours.model';
-import { PromotionModel } from '../promotions.model';
-import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
+import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase, loadTour } from '../../../test/integration';
+import { prisma } from '../../../config/database';
 
-// Real Express app + real MongoDB: promotion redemption must be exact under parallel bookings.
+// Real Express app + real PostgreSQL: promotion redemption must be exact under parallel bookings.
 const app = createApp();
 
 beforeAll(startDatabase, 120_000);
@@ -67,10 +65,10 @@ describe('promotions (integration)', () => {
     expect(refused.every((r) => r.body.error.code === 'PROMOTION_EXHAUSTED')).toBe(true);
     expect(ok.every((r) => r.body.data.discountAmount === 100_000 && r.body.data.totalAmount === 900_000)).toBe(true);
 
-    expect((await PromotionModel.findOne({ code: 'SUMMER10' }))!.usedCount).toBe(2);
-    expect(await BookingModel.countDocuments()).toBe(2);
+    expect((await prisma.promotion.findFirst({ where: { code: 'SUMMER10' } }))!.usedCount).toBe(2);
+    expect(await prisma.booking.count()).toBe(2);
     // The four refused attempts reserved seats first; compensation must have returned them.
-    expect((await TourModel.findById(tourId))!.departures[0]!.remaining).toBe(8);
+    expect((await loadTour(tourId))!.departures[0]!.remaining).toBe(8);
   });
 
   it('cancelling a booking releases the redemption exactly once', async () => {
@@ -86,7 +84,7 @@ describe('promotions (integration)', () => {
       [1, 2, 3].map(() => request(app).post(`/api/v1/bookings/${first.body.data.id}/cancel`).set(bearer(traveler.token)).send({})),
     );
     expect(cancels.filter((r) => r.status === 200)).toHaveLength(1);
-    expect((await PromotionModel.findOne({ code: 'SUMMER10' }))!.usedCount).toBe(0);
+    expect((await prisma.promotion.findFirst({ where: { code: 'SUMMER10' } }))!.usedCount).toBe(0);
 
     expect((await book(traveler.token, tourId, departureId, { promotionCode: 'SUMMER10' })).status).toBe(201);
   });
@@ -126,7 +124,7 @@ describe('promotions (integration)', () => {
       expect(preview.status).toBe(200);
       expect(preview.body.data.discountAmount).toBe(100_000);
     }
-    expect((await PromotionModel.findOne({ code: 'SUMMER10' }))!.usedCount).toBe(0);
+    expect((await prisma.promotion.findFirst({ where: { code: 'SUMMER10' } }))!.usedCount).toBe(0);
 
     const tampered = await book(traveler.token, tourId, departureId, { promotionCode: 'SUMMER10', discountAmount: 999_999 });
     expect(tampered.status).toBe(400);
@@ -147,6 +145,6 @@ describe('promotions (integration)', () => {
     expect(inactive.body.error.code).toBe('PROMOTION_INACTIVE');
     const unknown = await book(traveler.token, tourId, departureId, { promotionCode: 'NOPE123' });
     expect(unknown.status).toBe(404);
-    expect((await TourModel.findById(tourId))!.departures[0]!.remaining).toBe(10);
+    expect((await loadTour(tourId))!.departures[0]!.remaining).toBe(10);
   });
 });

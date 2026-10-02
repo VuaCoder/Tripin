@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { objectIdSchema } from '../../utils/object-id';
+import { idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 
 export const createReviewBody = z
   .object({
-    bookingId: objectIdSchema,
+    bookingId: idSchema,
     rating: z.number().int().min(1).max(5),
     comment: z.string().trim().min(10, 'Please write at least 10 characters').max(2000),
   })
@@ -12,8 +12,8 @@ export const createReviewBody = z
 
 export const listPublicReviewsQuery = paginationQuerySchema
   .extend({
-    tourId: objectIdSchema.optional(),
-    agencyId: objectIdSchema.optional(),
+    tourId: idSchema.optional(),
+    agencyId: idSchema.optional(),
     sort: z.enum(['newest', 'rating_desc', 'rating_asc']).default('newest'),
   })
   .refine((q) => Boolean(q.tourId) !== Boolean(q.agencyId), { message: 'Provide exactly one of tourId or agencyId', path: ['tourId'] });

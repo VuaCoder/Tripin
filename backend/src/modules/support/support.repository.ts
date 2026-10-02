@@ -1,75 +1,93 @@
-import type { QueryFilter, SortOrder, UpdateQuery } from 'mongoose';
+import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
+import type { SupportTicket, SupportTicketMessage } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
-import { SupportTicketModel, type SupportTicketAttributes, type SupportTicketDocument } from './support.model';
 import { SUPPORT_LIMITS, type ListModerationTicketsQuery, type TicketStatus } from './support.types';
 
-type Filter = QueryFilter<SupportTicketAttributes>;
-const LIST_PROJECTION = { messages: 0 };
+export type TicketMessageRecord = SupportTicketMessage;
+
+/** A stored ticket. `messages` is loaded by `findById`/`appendMessage` and left empty in list results. */
+export type SupportTicketRecord = SupportTicket & { messages: TicketMessageRecord[] };
+
+export type NewTicketMessage = { authorId: string; authorKind: 'USER' | 'STAFF'; text: string };
+
+export type NewTicket = Pick<SupportTicket, 'userId' | 'subject' | 'category'> & Partial<Pick<SupportTicket, 'bookingId'>> & { message: NewTicketMessage };
+
+const withMessages = { messages: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } } satisfies Prisma.SupportTicketInclude;
 
 export class SupportRepository {
-  create(data: Partial<SupportTicketAttributes>): Promise<SupportTicketDocument> {
-    return SupportTicketModel.create(data);
+  /** Creates the ticket together with its first message. */
+  create(data: NewTicket): Promise<SupportTicketRecord> {
+    const { message, ...ticket } = data;
+    return prisma.supportTicket.create({
+      data: { ...ticket, messageCount: 1, messages: { create: message } },
+      include: withMessages,
+    });
   }
 
-  findById(id: string): Promise<SupportTicketDocument | null> {
-    return SupportTicketModel.findById(id).exec();
+  findById(id: string): Promise<SupportTicketRecord | null> {
+    return prisma.supportTicket.findUnique({ where: { id }, include: withMessages });
   }
 
   /**
    * Appends a message only while the ticket is in one of the expected statuses and below the size cap (atomic), and
    * moves it to `nextStatus`. Returns null when the guard failed (status changed concurrently, ticket full or closed).
    */
-  appendMessage(
+  async appendMessage(
     id: string,
     expected: readonly TicketStatus[],
-    message: { authorId: string; authorKind: 'USER' | 'STAFF'; text: string },
+    message: NewTicketMessage,
     nextStatus: TicketStatus,
-    extra: UpdateQuery<SupportTicketAttributes>['$set'] = {},
-  ): Promise<SupportTicketDocument | null> {
-    const now = new Date();
-    return SupportTicketModel.findOneAndUpdate(
-      { _id: id, status: { $in: expected }, [`messages.${SUPPORT_LIMITS.MAX_MESSAGES_PER_TICKET - 1}`]: { $exists: false } },
-      {
-        $push: { messages: { ...message, createdAt: now } },
-        $inc: { messageCount: 1 },
-        $set: { status: nextStatus, lastMessageAt: now, ...extra },
-      },
-      { returnDocument: 'after' },
-    ).exec();
+    extra: Partial<Pick<SupportTicket, 'assignedToId'>> = {},
+  ): Promise<SupportTicketRecord | null> {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        await tx.supportTicket.update({
+          where: { id, status: { in: [...expected] }, messageCount: { lt: SUPPORT_LIMITS.MAX_MESSAGES_PER_TICKET } },
+          data: { status: nextStatus, lastMessageAt: new Date(), messageCount: { increment: 1 }, ...extra },
+        });
+        await tx.supportTicketMessage.create({ data: { ticketId: id, ...message } });
+        return tx.supportTicket.findUniqueOrThrow({ where: { id }, include: withMessages });
+      });
+    } catch (error) {
+      return nullIfNotFound(error);
+    }
   }
 
   /** Compare-and-set status change (no message). */
-  transition(id: string, expected: readonly TicketStatus[], next: TicketStatus): Promise<SupportTicketDocument | null> {
-    return SupportTicketModel.findOneAndUpdate(
-      { _id: id, status: { $in: expected } },
-      { $set: { status: next, ...(next === 'CLOSED' ? { closedAt: new Date() } : {}) } },
-      { returnDocument: 'after' },
-    ).exec();
+  transition(id: string, expected: readonly TicketStatus[], next: TicketStatus): Promise<SupportTicketRecord | null> {
+    return prisma.supportTicket
+      .update({
+        where: { id, status: { in: [...expected] } },
+        data: { status: next, ...(next === 'CLOSED' ? { closedAt: new Date() } : {}) },
+        include: withMessages,
+      })
+      .catch(nullIfNotFound);
   }
 
   listByUser(userId: string, status: TicketStatus | undefined, page: PageRequest) {
-    return this.paginate({ userId, ...(status ? { status } : {}) }, { lastMessageAt: -1, _id: -1 }, page);
+    return this.paginate({ userId, ...(status ? { status } : {}) }, [{ lastMessageAt: 'desc' }, { id: 'desc' }], page);
   }
 
   listForModeration(query: ListModerationTicketsQuery) {
-    const filter: Filter = {};
-    if (query.status) filter.status = query.status;
-    if (query.category) filter.category = query.category;
+    const where: Prisma.SupportTicketWhereInput = {};
+    if (query.status) where.status = query.status;
+    if (query.category) where.category = query.category;
     // Waiting tickets first-come-first-served; finished ones newest first.
     const waiting = !query.status || query.status === 'OPEN' || query.status === 'IN_PROGRESS';
-    return this.paginate(filter, waiting ? { createdAt: 1, _id: 1 } : { lastMessageAt: -1, _id: -1 }, query);
+    return this.paginate(where, waiting ? [{ createdAt: 'asc' }, { id: 'asc' }] : [{ lastMessageAt: 'desc' }, { id: 'desc' }], query);
   }
 
-  countByStatus(): Promise<{ _id: TicketStatus; count: number }[]> {
-    return SupportTicketModel.aggregate<{ _id: TicketStatus; count: number }>([{ $group: { _id: '$status', count: { $sum: 1 } } }]).exec();
+  async countByStatus(): Promise<{ status: TicketStatus; count: number }[]> {
+    const rows = await prisma.supportTicket.groupBy({ by: ['status'], _count: { _all: true } });
+    return rows.map((row) => ({ status: row.status, count: row._count._all }));
   }
 
-  private async paginate(filter: Filter, sort: Record<string, SortOrder>, page: PageRequest) {
-    const [items, total] = await Promise.all([
-      SupportTicketModel.find(filter, LIST_PROJECTION).sort(sort).skip(toSkip(page)).limit(page.limit).exec() as unknown as Promise<SupportTicketDocument[]>,
-      SupportTicketModel.countDocuments(filter).exec(),
+  private async paginate(where: Prisma.SupportTicketWhereInput, orderBy: Prisma.SupportTicketOrderByWithRelationInput[], page: PageRequest) {
+    const [rows, total] = await Promise.all([
+      prisma.supportTicket.findMany({ where, orderBy, skip: toSkip(page), take: page.limit }),
+      prisma.supportTicket.count({ where }),
     ]);
-    return { items, total };
+    return { items: rows.map((row): SupportTicketRecord => ({ ...row, messages: [] })), total };
   }
 }
 

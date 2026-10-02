@@ -1,0 +1,723 @@
+// Single source of truth for the database schema (PostgreSQL). Migrations live in prisma/migrations.
+// Enum values mirror `@travel-platform/constants` and the module `*.types.ts` files; the test
+// `backend/src/scripts/__tests__/prisma-enums-in-sync.test.ts` fails if they drift apart.
+// Money is stored as whole VND (Int). Ids are UUIDs.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../backend/src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────────── Models ─────────────────────────────
+
+model User {
+  id               String     @id @default(uuid()) @db.Uuid
+  email            String     @unique
+  passwordHash     String?
+  fullName         String
+  phone            String?
+  avatarUrl        String?
+  role             Role       @default(TRAVELER)
+  extraPermissions String[]   @default([])
+  status           UserStatus @default(PENDING_VERIFICATION)
+  emailVerifiedAt  DateTime?
+  googleId         String?    @unique
+  twoFactorEnabled Boolean    @default(false)
+  lastLoginAt      DateTime?
+  bannedAt         DateTime?
+  bannedById       String?    @db.Uuid
+  banReason        String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  agencyProfile AgencyProfile?
+  guideProfile  GuideProfile?
+  bannedBy      User?          @relation("UserBannedBy", fields: [bannedById], references: [id], onDelete: SetNull)
+  bannedUsers   User[]         @relation("UserBannedBy")
+
+  @@index([role, status, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}
+
+model AgencyProfile {
+  userId             String                   @id @db.Uuid
+  companyName        String?
+  description        String?
+  address            String?
+  website            String?
+  licenseNumber      String?
+  verificationStatus AgencyVerificationStatus @default(UNVERIFIED)
+  verifiedAt         DateTime?
+  verifiedById       String?                  @db.Uuid
+  verificationNote   String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([verificationStatus])
+}
+
+model GuideProfile {
+  userId          String   @id @db.Uuid
+  bio             String?
+  languages       String[] @default([])
+  specialties     String[] @default([])
+  experienceYears Int?
+  licenseNumber   String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Otp {
+  id        String     @id @default(uuid()) @db.Uuid
+  userId    String     @db.Uuid
+  purpose   OtpPurpose
+  codeHash  String
+  attempts  Int        @default(0)
+  issuedAt  DateTime
+  expiresAt DateTime
+
+  @@unique([userId, purpose])
+  @@index([expiresAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  family    String
+  expiresAt DateTime
+  revokedAt DateTime?
+  ip        String?
+  userAgent String?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([family])
+  @@index([expiresAt])
+}
+
+model Category {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String   @unique
+  description String?
+  /// "Deleting" a category deactivates it so existing tours keep a valid reference.
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tours Tour[]
+
+  @@index([isActive, sortOrder, name])
+}
+
+model Tour {
+  id           String     @id @default(uuid()) @db.Uuid
+  agencyId     String     @db.Uuid
+  title        String
+  summary      String?
+  description  String?
+  destination  String
+  durationDays Int
+  basePrice    Int
+  maxGroupSize Int?
+  images       String[]   @default([])
+  inclusions   String[]   @default([])
+  exclusions   String[]   @default([])
+  /// [{ day, title, description?, activities[] }]
+  itinerary    Json       @default("[]")
+  status       TourStatus @default(DRAFT)
+  submittedAt  DateTime?
+  reviewedAt   DateTime?
+  reviewedById String?    @db.Uuid
+  statusReason String?
+  ratingAvg    Float      @default(0)
+  ratingCount  Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  categories      Category[]
+  departures      TourDeparture[]
+  guideAssignment TourGuideAssignment?
+
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, basePrice, id])
+  @@index([status, ratingAvg(sort: Desc), ratingCount(sort: Desc), id(sort: Desc)])
+  @@index([status, submittedAt(sort: Desc), id(sort: Desc)])
+  @@index([agencyId, status, updatedAt(sort: Desc)])
+}
+
+model TourDeparture {
+  id            String   @id @default(uuid()) @db.Uuid
+  tourId        String   @db.Uuid
+  date          DateTime
+  capacity      Int
+  remaining     Int
+  priceOverride Int?
+  isOpen        Boolean  @default(true)
+
+  tour Tour @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  @@index([tourId])
+  @@index([date])
+}
+
+model TourGuideAssignment {
+  tourId        String                @id @db.Uuid
+  guideId       String                @db.Uuid
+  feePerBooking Int
+  status        GuideAssignmentStatus @default(PENDING)
+  respondedAt   DateTime?
+  note          String?
+
+  tour Tour @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  @@index([guideId])
+}
+
+model Booking {
+  id          String @id @default(uuid()) @db.Uuid
+  bookingCode String @unique
+  travelerId  String @db.Uuid
+  agencyId    String @db.Uuid
+  tourId      String @db.Uuid
+  departureId String @db.Uuid
+
+  tourTitle     String
+  departureDate DateTime
+  endDate       DateTime
+
+  participants Int
+  contactName  String
+  contactPhone String
+  notes        String?
+
+  unitPrice        Int
+  subtotal         Int
+  /// Snapshot of the applied promotion (all null when none was applied).
+  promotionId      String?         @db.Uuid
+  promotionCode    String?
+  promotionScope   PromotionScope?
+  discountAmount   Int             @default(0)
+  totalAmount      Int
+  commissionBps    Int
+  commissionAmount Int
+  agencyAmount     Int
+
+  status           BookingStatus        @default(PENDING)
+  isPaid           Boolean              @default(false)
+  refundRequired   Boolean              @default(false)
+  paymentExpiresAt DateTime?
+  confirmedAt      DateTime?
+  completedAt      DateTime?
+  cancelledAt      DateTime?
+  cancelReason     BookingCancelReason?
+  cancelNote       String?
+
+  clientRequestId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([travelerId, clientRequestId])
+  @@index([travelerId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([agencyId, status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([agencyId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([tourId, departureId, status])
+  @@index([status, confirmedAt(sort: Desc)])
+  @@index([status, paymentExpiresAt])
+  @@index([status, endDate])
+}
+
+model Payment {
+  id                    String         @id @default(uuid()) @db.Uuid
+  purpose               PaymentPurpose
+  userId                String         @db.Uuid
+  /// Booking or Subscription id depending on `purpose` (polymorphic, hence no foreign key).
+  referenceId           String         @db.Uuid
+  amount                Int
+  currency              String         @default("VND")
+  description           String
+  provider              String
+  providerOrderCode     BigInt         @unique
+  providerPaymentLinkId String?
+  checkoutUrl           String?
+  providerReference     String?
+  status                PaymentStatus  @default(PENDING)
+  expiresAt             DateTime
+  paidAt                DateTime?
+  failureReason         String?
+  fulfilledAt           DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  // Also in the migration SQL: UNIQUE (purpose, "referenceId") WHERE status = 'PENDING' (one live checkout per target).
+  @@index([purpose, referenceId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, expiresAt])
+  @@index([status, fulfilledAt])
+}
+
+model ETicket {
+  id            String        @id @default(uuid()) @db.Uuid
+  bookingId     String        @unique @db.Uuid
+  bookingCode   String
+  code          String        @unique
+  travelerId    String        @db.Uuid
+  agencyId      String        @db.Uuid
+  tourId        String        @db.Uuid
+  tourTitle     String
+  departureDate DateTime
+  participants  Int
+  holderName    String
+  status        ETicketStatus @default(VALID)
+  issuedAt      DateTime
+  cancelledAt   DateTime?
+  usedAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([travelerId, issuedAt(sort: Desc), id(sort: Desc)])
+}
+
+model Earning {
+  id          String   @id @default(uuid()) @db.Uuid
+  guideId     String   @db.Uuid
+  bookingId   String   @unique @db.Uuid
+  bookingCode String
+  tourId      String   @db.Uuid
+  tourTitle   String
+  agencyId    String   @db.Uuid
+  amount      Int
+  earnedAt    DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([guideId, earnedAt(sort: Desc), id(sort: Desc)])
+}
+
+model Review {
+  id            String       @id @default(uuid()) @db.Uuid
+  bookingId     String       @unique @db.Uuid
+  tourId        String       @db.Uuid
+  tourTitle     String
+  agencyId      String       @db.Uuid
+  travelerId    String       @db.Uuid
+  rating        Int
+  comment       String
+  status        ReviewStatus @default(VISIBLE)
+  hiddenReason  String?
+  moderatedById String?      @db.Uuid
+  moderatedAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([tourId, status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([tourId, status, rating(sort: Desc)])
+  @@index([agencyId, status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([travelerId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+}
+
+model Report {
+  id                 String         @id @default(uuid()) @db.Uuid
+  reporterId         String         @db.Uuid
+  targetType         ReportTarget
+  /// Tour, user or review id depending on `targetType` (polymorphic, no foreign key).
+  targetId           String         @db.Uuid
+  category           ReportCategory
+  description        String
+  bookingId          String?        @db.Uuid
+  agencyId           String?        @db.Uuid
+  tourId             String?        @db.Uuid
+  status             ReportStatus   @default(OPEN)
+  /// Uniqueness guard: at most one open report per reporter+target (null once closed).
+  openKey            String?        @unique
+  agencyResponseText String?
+  agencyResponseAt   DateTime?
+  agencyResponseById String?        @db.Uuid
+  resolutionDecision ReportStatus?
+  resolutionNote     String?
+  resolutionById     String?        @db.Uuid
+  resolvedAt         DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([reporterId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([agencyId, status, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+}
+
+model Promotion {
+  id                String         @id @default(uuid()) @db.Uuid
+  scope             PromotionScope
+  ownerId           String?        @db.Uuid
+  code              String         @unique
+  title             String
+  description       String?
+  discountType      DiscountType
+  discountValue     Int
+  maxDiscountAmount Int?
+  minOrderAmount    Int            @default(0)
+  startsAt          DateTime
+  endsAt            DateTime
+  usageLimit        Int?
+  usedCount         Int            @default(0)
+  isActive          Boolean        @default(true)
+  createdById       String         @db.Uuid
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([scope, ownerId, createdAt(sort: Desc)])
+}
+
+model SubscriptionPlan {
+  id           String   @id @default(uuid()) @db.Uuid
+  code         String   @unique
+  name         String
+  description  String?
+  price        Int
+  durationDays Int
+  benefits     String[] @default([])
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@index([isActive, sortOrder])
+}
+
+model Subscription {
+  id           String             @id @default(uuid()) @db.Uuid
+  userId       String             @db.Uuid
+  planId       String             @db.Uuid
+  planCode     String
+  planName     String
+  price        Int
+  durationDays Int
+  status       SubscriptionStatus @default(PENDING_PAYMENT)
+  startsAt     DateTime?
+  endsAt       DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  plan SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  // Also in the migration SQL: UNIQUE ("userId", "planId") WHERE status = 'PENDING_PAYMENT'.
+  @@index([userId, status, endsAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, endsAt])
+  @@index([status, createdAt])
+}
+
+model SupportTicket {
+  id            String         @id @default(uuid()) @db.Uuid
+  userId        String         @db.Uuid
+  subject       String
+  category      TicketCategory
+  bookingId     String?        @db.Uuid
+  status        TicketStatus   @default(OPEN)
+  assignedToId  String?        @db.Uuid
+  messageCount  Int            @default(0)
+  lastMessageAt DateTime       @default(now())
+  closedAt      DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  messages SupportTicketMessage[]
+
+  @@index([userId, lastMessageAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@index([category, status, createdAt])
+}
+
+model SupportTicketMessage {
+  id         String   @id @default(uuid()) @db.Uuid
+  ticketId   String   @db.Uuid
+  authorId   String   @db.Uuid
+  /// USER | STAFF
+  authorKind String
+  text       String
+  createdAt  DateTime @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  type      NotificationType
+  title     String
+  body      String
+  /// Free-form string map (e.g. { bookingId, tourId }).
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([userId, readAt, createdAt(sort: Desc)])
+  @@index([createdAt])
+}
+
+model Conversation {
+  id                  String    @id @default(uuid()) @db.Uuid
+  travelerId          String    @db.Uuid
+  guideId             String    @db.Uuid
+  tourId              String?   @db.Uuid
+  lastMessageText     String?
+  lastMessageSenderId String?   @db.Uuid
+  lastMessageSentAt   DateTime?
+  unreadTraveler      Int       @default(0)
+  unreadGuide         Int       @default(0)
+  lastActivityAt      DateTime  @default(now())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  messages Message[]
+
+  @@unique([travelerId, guideId])
+  @@index([travelerId, lastActivityAt(sort: Desc), id(sort: Desc)])
+  @@index([guideId, lastActivityAt(sort: Desc), id(sort: Desc)])
+}
+
+model Message {
+  id             String    @id @default(uuid()) @db.Uuid
+  conversationId String    @db.Uuid
+  senderId       String    @db.Uuid
+  text           String
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt(sort: Desc), id(sort: Desc)])
+}
+
+model AiConversation {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  title        String
+  messageCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  messages AiMessage[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+}
+
+model AiMessage {
+  id             String   @id @default(uuid()) @db.Uuid
+  conversationId String   @db.Uuid
+  /// user | assistant
+  role           String
+  content        String
+  createdAt      DateTime @default(now())
+
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String   @db.Uuid
+  actorRole  Role
+  action     String
+  targetType String
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@index([actorId, createdAt(sort: Desc)])
+  @@index([targetType, targetId, createdAt(sort: Desc)])
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  value       Json
+  updatedById String?  @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WishlistItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tourId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  @@unique([userId, tourId])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum Role {
+  TRAVELER
+  AGENCY
+  TOUR_GUIDE
+  MODERATOR
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  BANNED
+}
+
+enum OtpPurpose {
+  REGISTER
+  LOGIN_2FA
+  FORGOT_PASSWORD
+}
+
+enum AgencyVerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum TourStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  SUSPENDED
+  ARCHIVED
+}
+
+enum GuideAssignmentStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum BookingCancelReason {
+  TRAVELER_REQUEST
+  PAYMENT_EXPIRED
+}
+
+enum PaymentPurpose {
+  BOOKING
+  SUBSCRIPTION
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  CANCELLED
+  EXPIRED
+  FAILED
+}
+
+enum PromotionScope {
+  AGENCY
+  PLATFORM
+}
+
+enum DiscountType {
+  PERCENT
+  FIXED
+}
+
+enum ETicketStatus {
+  VALID
+  USED
+  CANCELLED
+}
+
+enum NotificationType {
+  TOUR_APPROVED
+  TOUR_REJECTED
+  TOUR_SUSPENDED
+  GUIDE_ASSIGNED
+  GUIDE_ASSIGNMENT_ANSWERED
+  AGENCY_VERIFICATION_DECIDED
+  BOOKING_CREATED
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  BOOKING_COMPLETED
+  PAYMENT_SUCCEEDED
+  PAYMENT_FAILED
+  ETICKET_ISSUED
+  REVIEW_RECEIVED
+  REVIEW_MODERATED
+  REPORT_UPDATED
+  REPORT_RESOLVED
+  COMPLAINT_RECEIVED
+  SUPPORT_REPLIED
+  CHAT_MESSAGE
+  SUBSCRIPTION_ACTIVATED
+  EARNING_RECORDED
+}
+
+enum ReportTarget {
+  TOUR
+  USER
+  REVIEW
+}
+
+enum ReportCategory {
+  MISLEADING_INFO
+  SAFETY
+  SERVICE_QUALITY
+  PAYMENT_OR_REFUND
+  INAPPROPRIATE_CONTENT
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  AGENCY_RESPONDED
+  RESOLVED
+  REJECTED
+}
+
+enum ReviewStatus {
+  VISIBLE
+  HIDDEN
+}
+
+enum SubscriptionStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketCategory {
+  BOOKING
+  PAYMENT
+  ACCOUNT
+  TOUR
+  OTHER
+}

@@ -31,8 +31,8 @@ export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
     return;
   }
 
-  // Mongo duplicate key that slipped past the service-level checks
-  if (error?.code === 11000) {
+  // Unique-constraint violation (Prisma P2002) that slipped past the service-level checks
+  if (error?.code === 'P2002') {
     res.status(409).json({
       success: false,
       error: { code: ERROR_CODES.CONFLICT, message: 'Resource already exists' },

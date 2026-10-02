@@ -5,7 +5,7 @@ import { assertTransition } from '../../utils/state-machine';
 import { bookingsService, type BookingsService } from '../bookings';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
 import { toModerationTicketDto, toTicketDto, toTicketSummary } from './support.mapper';
-import type { SupportTicketDocument } from './support.model';
+import type { SupportTicketRecord } from './support.repository';
 import { supportRepository, type SupportRepository } from './support.repository';
 import {
   SUPPORT_LIMITS,
@@ -42,13 +42,11 @@ export class SupportService {
       if (!booking || booking.travelerId !== userId) throw AppError.notFound('Booking not found');
     }
     const ticket = await this.tickets.create({
-      userId: userId as never,
+      userId,
       subject: input.subject,
       category: input.category,
-      ...(input.bookingId ? { bookingId: input.bookingId as never } : {}),
-      messages: [{ authorId: userId, authorKind: 'USER', text: input.message, createdAt: new Date() }] as never,
-      messageCount: 1,
-      lastMessageAt: new Date(),
+      ...(input.bookingId ? { bookingId: input.bookingId } : {}),
+      message: { authorId: userId, authorKind: 'USER', text: input.message },
     });
     return toTicketDto(ticket);
   }
@@ -116,12 +114,12 @@ export class SupportService {
       [ticket.status as TicketStatus],
       { authorId: actor.userId, authorKind: 'STAFF', text: input.text },
       next,
-      ticket.assignedTo ? {} : { assignedTo: actor.userId },
+      ticket.assignedToId ? {} : { assignedToId: actor.userId },
     );
     if (!updated) throw this.appendFailure(ticket);
 
     await this.notifications.notify(
-      String(ticket.userId),
+      ticket.userId,
       {
         type: NOTIFICATION_TYPE.SUPPORT_REPLIED,
         title: input.resolve ? 'Your support ticket was resolved' : 'Support replied to your ticket',
@@ -141,7 +139,7 @@ export class SupportService {
     const updated = await this.tickets.transition(id, [ticket.status as TicketStatus], next);
     if (!updated) throw AppError.conflict('The ticket changed, please retry', 'CONCURRENT_UPDATE');
     if (next === TICKET_STATUS.RESOLVED) {
-      await this.notifications.notify(String(ticket.userId), {
+      await this.notifications.notify(ticket.userId, {
         type: NOTIFICATION_TYPE.SUPPORT_REPLIED,
         title: 'Your support ticket was resolved',
         body: `Re: ${ticket.subject}`,
@@ -154,18 +152,18 @@ export class SupportService {
   /** Tickets per status (dashboards). */
   async countByStatus(): Promise<Record<string, number>> {
     const rows = await this.tickets.countByStatus();
-    return Object.fromEntries(rows.map((row) => [row._id, row.count]));
+    return Object.fromEntries(rows.map((row) => [row.status, row.count]));
   }
 
   // =============================================================== helpers
 
-  private async requireOwned(userId: string, id: string): Promise<SupportTicketDocument> {
+  private async requireOwned(userId: string, id: string): Promise<SupportTicketRecord> {
     const ticket = await this.tickets.findById(id);
-    if (!ticket || String(ticket.userId) !== userId) throw AppError.notFound('Ticket not found');
+    if (!ticket || ticket.userId !== userId) throw AppError.notFound('Ticket not found');
     return ticket;
   }
 
-  private appendFailure(ticket: SupportTicketDocument): AppError {
+  private appendFailure(ticket: SupportTicketRecord): AppError {
     return ticket.messageCount >= SUPPORT_LIMITS.MAX_MESSAGES_PER_TICKET
       ? AppError.conflict('This ticket has reached its message limit, please open a new one', 'TICKET_FULL')
       : AppError.conflict('The ticket changed, please retry', 'CONCURRENT_UPDATE');

@@ -2,14 +2,10 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PERMISSIONS } from '@travel-platform/constants';
 import { createApp } from '../../../app';
-import { AuditLogModel } from '../../audit/audit.model';
-import { BookingModel } from '../../bookings/bookings.model';
-import { CategoryModel } from '../../categories/categories.model';
-import { SystemSettingModel } from '../../system-settings/system-settings.model';
-import { UserModel } from '../users.model';
 import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
+import { prisma } from '../../../config/database';
 
-// Real Express app + real MongoDB: everything the Super admin configures (accounts, categories, commission, policies).
+// Real Express app + real PostgreSQL: everything the Super admin configures (accounts, categories, commission, policies).
 const app = createApp();
 
 beforeAll(startDatabase, 120_000);
@@ -55,9 +51,9 @@ describe('admin: users and access', () => {
     const promoted = await access(admin.token, traveler.id, { role: 'AGENCY' });
     expect(promoted.status).toBe(200);
     expect((await request(app).get('/api/v1/agency/tours').set(bearer(traveler.token))).status).toBe(200);
-    expect((await UserModel.findById(traveler.id))!.agencyProfile!.verificationStatus).toBe('UNVERIFIED');
+    expect((await prisma.user.findUnique({ where: { id: traveler.id }, include: { agencyProfile: true } }))!.agencyProfile!.verificationStatus).toBe('UNVERIFIED');
 
-    expect(await AuditLogModel.countDocuments({ action: 'user.access_assigned' })).toBe(3);
+    expect(await prisma.auditLog.count({ where: { action: 'user.access_assigned' } })).toBe(3);
   });
 
   it('refuses nonsense: unknown permissions, empty bodies, own account, unknown users, and non-admins', async () => {
@@ -70,10 +66,10 @@ describe('admin: users and access', () => {
     expect((await access(admin.token, traveler.id, { role: 'GUEST' })).status).toBe(400); // GUEST is never persisted
     expect((await access(admin.token, traveler.id, { role: 'TRAVELER', isAdmin: true })).status).toBe(400);
     expect((await access(admin.token, admin.id, { role: 'TRAVELER' })).status).toBe(403);
-    expect((await access(admin.token, '64b000000000000000000009', { role: 'AGENCY' })).status).toBe(404);
+    expect((await access(admin.token, '99999999-9999-4999-8999-999999999999', { role: 'AGENCY' })).status).toBe(404);
     expect((await access(moderator.token, traveler.id, { role: 'MODERATOR' })).status).toBe(403);
     expect((await access(traveler.token, traveler.id, { role: 'SUPER_ADMIN' })).status).toBe(403);
-    expect((await UserModel.findById(traveler.id))!.role).toBe('TRAVELER');
+    expect((await prisma.user.findUnique({ where: { id: traveler.id } }))!.role).toBe('TRAVELER');
   });
 
   it('the platform can never be left without a Super admin, even when two admins demote each other at once', async () => {
@@ -83,13 +79,13 @@ describe('admin: users and access', () => {
     const results = await Promise.all([access(first.token, second.id, { role: 'MODERATOR' }), access(second.token, first.id, { role: 'MODERATOR' })]);
     // 403 is legitimate too: once the first demotion lands, the second caller is no longer a Super admin.
     expect(results.every((r) => [200, 403, 409].includes(r.status))).toBe(true);
-    expect(await UserModel.countDocuments({ role: 'SUPER_ADMIN', status: 'ACTIVE' })).toBeGreaterThanOrEqual(1);
+    expect(await prisma.user.count({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE' } })).toBeGreaterThanOrEqual(1);
 
     // Sequentially, the very last one is protected.
-    const remaining = (await UserModel.findOne({ role: 'SUPER_ADMIN' }))!;
-    const other = (await UserModel.findOne({ _id: { $ne: remaining.id } }))!;
-    await UserModel.updateOne({ _id: other.id }, { $set: { role: 'SUPER_ADMIN' } });
-    await UserModel.updateOne({ _id: other.id }, { $set: { role: 'MODERATOR' } });
+    const remaining = (await prisma.user.findFirst({ where: { role: 'SUPER_ADMIN' } }))!;
+    const other = (await prisma.user.findFirst({ where: { id: { not: remaining.id } } }))!;
+    await prisma.user.updateMany({ where: { id: other.id }, data: { role: 'SUPER_ADMIN' } });
+    await prisma.user.updateMany({ where: { id: other.id }, data: { role: 'MODERATOR' } });
     const sole = await access(first.token, remaining.id, { role: 'TRAVELER' });
     expect([403, 409]).toContain(sole.status);
   });
@@ -118,11 +114,11 @@ describe('admin: categories', () => {
     // "Delete" deactivates, so tours keep a valid reference; the admin list still shows it.
     expect((await request(app).delete(`/api/v1/admin/categories/${beach.body.data.id}`).set(bearer(admin.token))).status).toBeLessThan(300);
     expect(await publicNames()).toEqual(['Mountain']);
-    expect(await CategoryModel.countDocuments()).toBe(2);
+    expect(await prisma.category.count()).toBe(2);
     expect((await request(app).get('/api/v1/admin/categories').set(bearer(admin.token))).body.data).toHaveLength(2);
     expect((await request(app).patch(`/api/v1/admin/categories/${beach.body.data.id}`).set(bearer(admin.token)).send({ isActive: true })).status).toBe(200);
     expect(await publicNames()).toEqual(['Mountain', 'Sea & Beach']);
-    expect(await AuditLogModel.countDocuments({ action: { $regex: '^category\\.' } })).toBeGreaterThanOrEqual(4);
+    expect(await prisma.auditLog.count({ where: { action: { startsWith: 'category.' } } })).toBeGreaterThanOrEqual(4);
   });
 
   it('two admins creating the same category at once produce one category', async () => {
@@ -132,7 +128,7 @@ describe('admin: categories', () => {
     );
     expect(results.filter((r) => r.status === 201)).toHaveLength(1);
     expect(results.filter((r) => r.status === 409)).toHaveLength(3);
-    expect(await CategoryModel.countDocuments()).toBe(1);
+    expect(await prisma.category.count()).toBe(1);
   });
 });
 
@@ -163,12 +159,12 @@ describe('admin: commission and policies', () => {
     expect((await setRate(12.5)).status).toBe(200);
     const newBooking = (await book()).body.data.id;
 
-    expect((await BookingModel.findById(oldBooking))!.commissionBps).toBe(1000);
-    const fresh = (await BookingModel.findById(newBooking))!;
+    expect((await prisma.booking.findUnique({ where: { id: oldBooking } }))!.commissionBps).toBe(1000);
+    const fresh = (await prisma.booking.findUnique({ where: { id: newBooking } }))!;
     expect(fresh.commissionBps).toBe(1250);
     expect(fresh.commissionAmount).toBe(125_000);
     expect(fresh.agencyAmount).toBe(875_000);
-    expect(await AuditLogModel.countDocuments({ action: 'settings.commission_updated' })).toBe(2);
+    expect(await prisma.auditLog.count({ where: { action: 'settings.commission_updated' } })).toBe(2);
   });
 
   it('policies are public to read, admin-only to write, limited to the known keys, and audited', async () => {
@@ -188,8 +184,8 @@ describe('admin: commission and policies', () => {
     expect((await put('terms', { title: 'Terms', content: 'x'.repeat(60_000) })).status).toBe(400);
     expect((await put('terms', { title: 'Terms', content: 'ok', params: { 'bad key!': 1 } })).status).toBe(400);
     expect((await request(app).get('/api/v1/policies/nope')).status).toBe(400);
-    expect(await SystemSettingModel.countDocuments()).toBe(1);
-    expect(await AuditLogModel.countDocuments({ action: 'settings.policy_updated' })).toBe(1);
+    expect(await prisma.systemSetting.count()).toBe(1);
+    expect(await prisma.auditLog.count({ where: { action: 'settings.policy_updated' } })).toBe(1);
   });
 
   it('a cancellation window set by the admin is what the booking rules use', async () => {
@@ -205,7 +201,7 @@ describe('admin: commission and policies', () => {
       .post('/api/v1/bookings')
       .set(bearer(traveler.token))
       .send({ tourId, departureId, participants: 1, contact: { fullName: 'Nguyen Van A', phone: '0901234567' } });
-    await BookingModel.updateOne({ _id: booking.body.data.id }, { $set: { status: 'CONFIRMED', isPaid: true }, $unset: { paymentExpiresAt: 1 } });
+    await prisma.booking.updateMany({ where: { id: booking.body.data.id }, data: { status: 'CONFIRMED', isPaid: true, paymentExpiresAt: null } });
 
     const cancel = await request(app).post(`/api/v1/bookings/${booking.body.data.id}/cancel`).set(bearer(traveler.token)).send({});
     expect(cancel.status).toBe(409); // departure is 3 days away, the window is 10 days

@@ -1,19 +1,18 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import net from 'node:net';
-import os from 'node:os';
 import path from 'node:path';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../app';
+import { databaseUrl, startDatabase, stopDatabase } from '../../test/integration';
 
 // The production artefact: `tsup` bundle started with plain `node`, exactly like `pnpm --filter backend start`.
-// Built into a temp folder so the developer's own dist/ is never touched.
+// Built into a throw-away folder INSIDE backend/ (never the developer's own dist/): the bundle resolves its external
+// packages (express, @prisma/client...) from the nearest node_modules, exactly as dist/server.js does in production.
 const apiRoot = process.cwd(); // vitest runs with cwd = backend
 const tsupCli = path.join(apiRoot, 'node_modules/tsup/dist/cli-default.js');
 let outDir = '';
-let mongo: MongoMemoryServer;
 let server: ChildProcess | undefined;
 let output = '';
 
@@ -43,15 +42,15 @@ async function waitForHealth(port: number, timeoutMs: number): Promise<Response>
 }
 
 beforeAll(async () => {
-  outDir = mkdtempSync(path.join(os.tmpdir(), 'tripri-build-'));
+  outDir = mkdtempSync(path.join(apiRoot, '.tmp-build-smoke-'));
   const build = spawnSync(process.execPath, [tsupCli, '--out-dir', outDir], { cwd: apiRoot, encoding: 'utf-8' });
   if (build.status !== 0) throw new Error(`tsup failed:\n${build.stdout}\n${build.stderr}`);
-  mongo = await MongoMemoryServer.create();
+  await startDatabase();
 }, 180_000);
 
 afterAll(async () => {
   if (server && !server.killed) server.kill('SIGKILL');
-  await mongo?.stop();
+  await stopDatabase();
   if (outDir) rmSync(outDir, { recursive: true, force: true });
 });
 
@@ -60,7 +59,7 @@ describe('production build (integration)', () => {
     const files = readdirSync(outDir);
     expect(files).toContain('server.js');
     const bundle = readFileSync(path.join(outDir, 'server.js'), 'utf-8');
-    expect(bundle).not.toContain('@travel-platform/constants'); // bundled in, not required at runtime
+    expect(bundle).not.toMatch(/require\(["']@travel-platform\/constants["']\)/); // bundled in, not required at runtime
     expect(bundle).not.toMatch(/hunter2|test-access-secret|BEGIN (RSA )?PRIVATE KEY/);
     expect(existsSync(path.join(outDir, 'server.js.map'))).toBe(true);
   });
@@ -73,7 +72,7 @@ describe('production build (integration)', () => {
         ...process.env,
         NODE_ENV: 'production',
         PORT: String(port),
-        MONGODB_URI: `${mongo.getUri()}tripri_build`,
+        DATABASE_URL: databaseUrl!,
         JWT_ACCESS_SECRET: 'build-smoke-access-secret-0123456789abcdef',
         JWT_REFRESH_SECRET: 'build-smoke-refresh-secret-0123456789abcdef',
         CLIENT_URL: 'http://localhost:3000',
@@ -88,7 +87,7 @@ describe('production build (integration)', () => {
     expect(health.status).toBe(200);
     expect(await health.json()).toMatchObject({ success: true, data: { status: 'ok' } });
 
-    // A request that needs the database proves the connection and the bundled models work.
+    // A request that needs the database proves the connection and the bundled Prisma client work.
     const register = await fetch(`http://127.0.0.1:${port}/api/v1/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -113,7 +112,7 @@ describe('production build (integration)', () => {
     const run = (env: Record<string, string>) =>
       spawnSync(process.execPath, [path.join(outDir, 'server.js')], {
         cwd: outDir,
-        env: { ...process.env, NODE_ENV: 'production', MONGODB_URI: mongo.getUri(), ...env },
+        env: { ...process.env, NODE_ENV: 'production', DATABASE_URL: databaseUrl!, ...env },
         encoding: 'utf-8',
         timeout: 20_000,
       });
@@ -131,7 +130,7 @@ describe('placeholder modules (carts, custom tours)', () => {
   it('contain only their README and expose no route', async () => {
     for (const name of ['carts', 'custom-tours']) {
       const dir = path.join(apiRoot, 'src/modules', name);
-      expect(readdirSync(dir)).toEqual(['README.md']);
+      expect(readdirSync(dir).filter((file) => file !== '.gitkeep')).toEqual(['README.md']);
     }
     const app = createApp();
     for (const url of ['/api/v1/carts', '/api/v1/custom-tours', '/api/v1/cart']) {

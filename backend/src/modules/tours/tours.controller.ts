@@ -3,7 +3,7 @@ import type { TourStatus } from '@travel-platform/constants';
 import { userActor } from '../../middlewares/authorize';
 import { validated } from '../../middlewares/validate';
 import { sendCreated, sendNoContent, sendOk, sendPaginated } from '../../utils/api-response';
-import type { IdParams } from '../../utils/object-id';
+import type { IdParams } from '../../utils/id';
 import { pageQueryOf } from './tours.query';
 import { toursDiscoveryService, type ToursDiscoveryService } from './tours-discovery.service';
 import { toursService, type ToursService } from './tours.service';

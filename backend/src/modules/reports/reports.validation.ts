@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { idParamsSchema, objectIdSchema } from '../../utils/object-id';
+import { idParamsSchema, idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 import { REPORT_CATEGORY, REPORT_STATUS, REPORT_TARGET } from './reports.types';
 
@@ -8,10 +8,10 @@ const status = z.enum(Object.values(REPORT_STATUS) as [string, ...string[]]);
 export const createReportBody = z
   .object({
     targetType: z.enum(Object.values(REPORT_TARGET) as [string, ...string[]]),
-    targetId: objectIdSchema,
+    targetId: idSchema,
     category: z.enum(Object.values(REPORT_CATEGORY) as [string, ...string[]]),
     description: z.string().trim().min(10, 'Please describe the problem (at least 10 characters)').max(2000),
-    bookingId: objectIdSchema.optional(),
+    bookingId: idSchema.optional(),
   })
   .strict();
 

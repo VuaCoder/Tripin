@@ -52,7 +52,7 @@ Indexes: `(tourId, status, createdAt)` and `(tourId, status, rating)` for the pu
 Notifications `REVIEW_RECEIVED`, `REVIEW_MODERATED`; audit `review.moderated`; tour rating fields updated.
 
 ## Testing
-`__tests__/reviews.integration.test.ts` – real MongoDB (also covers earnings): review only after the real completion job, one review per booking under 5 parallel requests, author masking, hide/restore recomputes the rating, 8 simultaneous reviews give an exact `ratingCount/ratingAvg`, guide earned once per booking (4 parallel job runs), no earning without an accepted guide, earnings are private.
+`__tests__/reviews.integration.test.ts` – real PostgreSQL (also covers earnings): review only after the real completion job, one review per booking under 5 parallel requests, author masking, hide/restore recomputes the rating, 8 simultaneous reviews give an exact `ratingCount/ratingAvg`, guide earned once per booking (4 parallel job runs), no earning without an accepted guide, earnings are private.
 `__tests__/reviews.service.test.ts` – eligibility (owner, completed, once, race), masking, rating refresh, moderation transitions/audit/notification.
 
 ## Not implemented / follow-ups

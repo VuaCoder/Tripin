@@ -1,17 +1,17 @@
 import { BOOKING_STATUS, type BookingCancelReason, type BookingStatus, type PromotionScope } from '@travel-platform/constants';
-import type { BookingDocument } from './bookings.model';
+import type { BookingRecord } from './bookings.repository';
 import type { AgencyBookingDto, BookingDto, BookingFacts } from './bookings.types';
 
 const iso = (date?: Date | null) => date?.toISOString();
-const createdAtOf = (booking: BookingDocument) => (booking as unknown as { createdAt: Date }).createdAt.toISOString();
+const createdAtOf = (booking: BookingRecord) => booking.createdAt.toISOString();
 
-export function toBookingDto(booking: BookingDocument): BookingDto {
+export function toBookingDto(booking: BookingRecord): BookingDto {
   return {
     id: booking.id,
     bookingCode: booking.bookingCode,
     status: booking.status as BookingStatus,
-    tour: { id: String(booking.tourId), title: booking.tourTitle },
-    departureId: String(booking.departureId),
+    tour: { id: booking.tourId, title: booking.tourTitle },
+    departureId: booking.departureId,
     departureDate: booking.departureDate.toISOString(),
     endDate: booking.endDate.toISOString(),
     participants: booking.participants,
@@ -36,14 +36,14 @@ export function toBookingDto(booking: BookingDocument): BookingDto {
 }
 
 /** Traveler contact details are shared with the agency only once the booking is paid (CONFIRMED / COMPLETED). */
-export function toAgencyBookingDto(booking: BookingDocument): AgencyBookingDto {
+export function toAgencyBookingDto(booking: BookingRecord): AgencyBookingDto {
   const shareContact = booking.status === BOOKING_STATUS.CONFIRMED || booking.status === BOOKING_STATUS.COMPLETED;
   return {
     id: booking.id,
     bookingCode: booking.bookingCode,
     status: booking.status as BookingStatus,
-    tour: { id: String(booking.tourId), title: booking.tourTitle },
-    departureId: String(booking.departureId),
+    tour: { id: booking.tourId, title: booking.tourTitle },
+    departureId: booking.departureId,
     departureDate: booking.departureDate.toISOString(),
     participants: booking.participants,
     totalAmount: booking.totalAmount,
@@ -58,16 +58,16 @@ export function toAgencyBookingDto(booking: BookingDocument): AgencyBookingDto {
   };
 }
 
-export function toBookingFacts(booking: BookingDocument): BookingFacts {
+export function toBookingFacts(booking: BookingRecord): BookingFacts {
   return {
     id: booking.id,
     bookingCode: booking.bookingCode,
     status: booking.status as BookingStatus,
-    travelerId: String(booking.travelerId),
-    agencyId: String(booking.agencyId),
-    tourId: String(booking.tourId),
+    travelerId: booking.travelerId,
+    agencyId: booking.agencyId,
+    tourId: booking.tourId,
     tourTitle: booking.tourTitle,
-    departureId: String(booking.departureId),
+    departureId: booking.departureId,
     departureDate: booking.departureDate,
     participants: booking.participants,
     contactName: booking.contact.fullName,

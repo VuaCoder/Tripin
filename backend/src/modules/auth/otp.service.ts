@@ -10,7 +10,7 @@ import { otpRepository, type OtpRepository } from './otp.repository';
  * The plain code is returned to the caller only so it can be emailed; it is never stored or logged.
  */
 export class OtpService {
-  constructor(private readonly otps: Pick<OtpRepository, 'findLive' | 'upsert' | 'registerAttempt' | 'consume'> = otpRepository) {}
+  constructor(private readonly otps: Pick<OtpRepository, 'findLive' | 'upsert' | 'registerAttempt' | 'consume' | 'deleteExpired'> = otpRepository) {}
 
   private hash(userId: string, purpose: OtpPurpose, code: string): string {
     return hmacSha256(env.JWT_ACCESS_SECRET, `${userId}:${purpose}:${code}`);
@@ -49,6 +49,11 @@ export class OtpService {
     }
     const consumed = await this.otps.consume(live.id);
     if (!consumed) throw AppError.badRequest('Invalid or expired code', undefined, ERROR_CODES.OTP_INVALID);
+  }
+
+  /** Removes expired codes; returns how many were deleted. */
+  purgeExpired(now = new Date()): Promise<number> {
+    return this.otps.deleteExpired(now);
   }
 }
 

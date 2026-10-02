@@ -13,7 +13,7 @@ const routes = listRoutes().filter((route) => route.method !== 'OPTIONS' && rout
 beforeAll(startDatabase, 120_000);
 afterAll(stopDatabase);
 
-const KNOWN_UNKNOWN_ID = '64b0000000000000000000aa';
+const KNOWN_UNKNOWN_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
 const BODIES: unknown[] = [
   undefined,

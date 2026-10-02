@@ -80,7 +80,7 @@ describe('startConversation', () => {
     const { service, repo } = make();
     repo.findByPair.mockResolvedValueOnce(null as never);
     repo.createConversation.mockImplementationOnce(async () => {
-      throw Object.assign(new Error('E11000'), { code: 11000 });
+      throw Object.assign(new Error('E11000'), { code: 'P2002' });
     });
     repo.findByPair.mockResolvedValueOnce(conv() as never);
     await expect(service.startConversation(traveler, { participantId: 'g1' })).resolves.toMatchObject({ id: 'c1' });

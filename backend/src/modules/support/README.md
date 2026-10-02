@@ -50,7 +50,7 @@ Indexes: `(userId, lastMessageAt)`, `(status, createdAt)`, `(createdAt)` (queue 
 Notification + email `SUPPORT_REPLIED`.
 
 ## Testing
-`__tests__/support.integration.test.ts` – real MongoDB: ownership 404s, first answering moderator becomes assignee, 6 parallel messages all kept with a consistent counter, RESOLVED reopens on user message, CLOSED is final and closes once.
+`__tests__/support.integration.test.ts` – real PostgreSQL: ownership 404s, first answering moderator becomes assignee, 6 parallel messages all kept with a consistent counter, RESOLVED reopens on user message, CLOSED is final and closes once.
 `__tests__/support.service.test.ts` – creation, ownership, viewer-specific authorship, reopen/close rules, cap, staff replies/assignment, state machine.
 
 ## Not implemented / follow-ups

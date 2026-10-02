@@ -1,7 +1,7 @@
-import type { ReviewDocument } from './reviews.model';
+import type { ReviewRecord } from './reviews.repository';
 import type { ModerationReviewDto, MyReviewDto, PublicReviewDto, ReviewStatus } from './reviews.types';
 
-const createdAtOf = (review: ReviewDocument) => (review as unknown as { createdAt: Date }).createdAt.toISOString();
+const createdAtOf = (review: ReviewRecord) => review.createdAt.toISOString();
 
 /** "Nguyen Van An" -> "Nguyen A." — enough for trust, not enough to identify someone. */
 export function maskName(fullName: string | undefined): string {
@@ -11,22 +11,22 @@ export function maskName(fullName: string | undefined): string {
   return `${parts[0]} ${parts[parts.length - 1]![0]!.toUpperCase()}.`;
 }
 
-export function toPublicReviewDto(review: ReviewDocument, author?: { fullName: string; avatarUrl?: string }): PublicReviewDto {
+export function toPublicReviewDto(review: ReviewRecord, author?: { fullName: string; avatarUrl?: string }): PublicReviewDto {
   return {
     id: review.id,
     rating: review.rating,
     comment: review.comment,
-    tourId: String(review.tourId),
+    tourId: review.tourId,
     author: { name: maskName(author?.fullName), avatarUrl: author?.avatarUrl },
     createdAt: createdAtOf(review),
   };
 }
 
-export function toMyReviewDto(review: ReviewDocument): MyReviewDto {
+export function toMyReviewDto(review: ReviewRecord): MyReviewDto {
   return {
     id: review.id,
-    bookingId: String(review.bookingId),
-    tourId: String(review.tourId),
+    bookingId: review.bookingId,
+    tourId: review.tourId,
     tourTitle: review.tourTitle,
     rating: review.rating,
     comment: review.comment,
@@ -36,12 +36,12 @@ export function toMyReviewDto(review: ReviewDocument): MyReviewDto {
   };
 }
 
-export function toModerationReviewDto(review: ReviewDocument): ModerationReviewDto {
+export function toModerationReviewDto(review: ReviewRecord): ModerationReviewDto {
   return {
     ...toMyReviewDto(review),
-    travelerId: String(review.travelerId),
-    agencyId: String(review.agencyId),
+    travelerId: review.travelerId,
+    agencyId: review.agencyId,
     moderatedAt: review.moderatedAt?.toISOString(),
-    moderatedBy: review.moderatedBy ? String(review.moderatedBy) : undefined,
+    moderatedBy: review.moderatedById ?? undefined,
   };
 }

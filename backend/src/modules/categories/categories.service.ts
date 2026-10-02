@@ -45,7 +45,7 @@ export class CategoriesService {
       if (clash && clash.id !== id) throw AppError.conflict('A category with this name already exists', 'CATEGORY_EXISTS');
       patch.slug = slug;
     }
-    const updated = await this.categories.updateById(id, { $set: patch });
+    const updated = await this.categories.updateById(id, patch);
     await this.record(actor, AUDIT_ACTIONS.CATEGORY_UPDATED, id, { changes: Object.keys(input) });
     return toCategoryDto(updated ?? current);
   }
@@ -54,7 +54,7 @@ export class CategoriesService {
   async deactivate(actor: Actor, id: string): Promise<void> {
     const current = await this.requireCategory(id);
     if (!current.isActive) return;
-    await this.categories.updateById(id, { $set: { isActive: false } });
+    await this.categories.updateById(id, { isActive: false });
     await this.record(actor, AUDIT_ACTIONS.CATEGORY_DELETED, id, { name: current.name });
   }
 

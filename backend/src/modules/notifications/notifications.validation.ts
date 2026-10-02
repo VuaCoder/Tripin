@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { idParamsSchema } from '../../utils/object-id';
+import { idParamsSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 
 export const listNotificationsQuery = paginationQuerySchema.extend({

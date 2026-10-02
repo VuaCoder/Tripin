@@ -1,3 +1,4 @@
+import { isUniqueViolation } from '../../config/database';
 import { BOOKING_STATUS, type PersistedRole } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
 import { buildPage, type Page } from '../../utils/pagination';
@@ -8,7 +9,7 @@ import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } fr
 import { toursService, type ToursService } from '../tours';
 import { usersService, type UsersService } from '../users';
 import { toModerationReviewDto, toMyReviewDto, toPublicReviewDto } from './reviews.mapper';
-import type { ReviewDocument } from './reviews.model';
+import type { ReviewRecord } from './reviews.repository';
 import { reviewsRepository, type ReviewsRepository } from './reviews.repository';
 import {
   REVIEW_STATUS,
@@ -53,19 +54,19 @@ export class ReviewsService {
       throw AppError.conflict('You already reviewed this booking', 'REVIEW_EXISTS');
     }
 
-    let review: ReviewDocument;
+    let review: ReviewRecord;
     try {
       review = await this.reviews.create({
-        bookingId: booking.id as never,
-        tourId: booking.tourId as never,
+        bookingId: booking.id,
+        tourId: booking.tourId,
         tourTitle: booking.tourTitle,
-        agencyId: booking.agencyId as never,
-        travelerId: travelerId as never,
+        agencyId: booking.agencyId,
+        travelerId: travelerId,
         rating: input.rating,
         comment: input.comment,
       });
     } catch (error) {
-      if ((error as { code?: number }).code === 11000) {
+      if (isUniqueViolation(error)) {
         throw AppError.conflict('You already reviewed this booking', 'REVIEW_EXISTS');
       }
       throw error;
@@ -92,9 +93,9 @@ export class ReviewsService {
   /** Use case "View public review" (Guest): VISIBLE reviews of a tour or an agency; the author is masked. */
   async listPublic(query: ListPublicReviewsQuery): Promise<Page<PublicReviewDto>> {
     const { items, total } = await this.reviews.listPublic(query);
-    const authors = await this.users.getSummaries(items.map((review) => String(review.travelerId)));
+    const authors = await this.users.getSummaries(items.map((review) => review.travelerId));
     return buildPage(
-      items.map((review) => toPublicReviewDto(review, authors.get(String(review.travelerId)))),
+      items.map((review) => toPublicReviewDto(review, authors.get(review.travelerId))),
       total,
       query,
     );
@@ -104,7 +105,7 @@ export class ReviewsService {
   async getFacts(reviewId: string): Promise<{ id: string; tourId: string; agencyId: string; travelerId: string; status: ReviewStatus } | null> {
     const review = await this.reviews.findById(reviewId);
     return review
-      ? { id: review.id, tourId: String(review.tourId), agencyId: String(review.agencyId), travelerId: String(review.travelerId), status: review.status as ReviewStatus }
+      ? { id: review.id, tourId: review.tourId, agencyId: review.agencyId, travelerId: review.travelerId, status: review.status as ReviewStatus }
       : null;
   }
 
@@ -126,12 +127,14 @@ export class ReviewsService {
     assertTransition(REVIEW_TRANSITIONS, review.status as ReviewStatus, next, 'Review');
 
     const updated = await this.reviews.transition(reviewId, review.status as ReviewStatus, {
-      $set: { status: next, moderatedBy: actor.userId, moderatedAt: new Date(), ...(decision.hide ? { hiddenReason: decision.reason } : {}) },
-      ...(decision.hide ? {} : { $unset: { hiddenReason: 1 } }),
-    } as never);
+      status: next,
+      moderatedById: actor.userId,
+      moderatedAt: new Date(),
+      hiddenReason: decision.hide ? decision.reason : null,
+    });
     if (!updated) throw AppError.conflict('The review was modified, please retry', 'CONCURRENT_UPDATE');
 
-    await this.refreshTourRating(String(review.tourId));
+    await this.refreshTourRating(review.tourId);
     await this.audit.record({
       actorId: actor.userId,
       actorRole: actor.role,
@@ -140,7 +143,7 @@ export class ReviewsService {
       targetId: reviewId,
       metadata: { hidden: decision.hide, reason: decision.reason },
     });
-    await this.notifications.notify(String(review.travelerId), {
+    await this.notifications.notify(review.travelerId, {
       type: NOTIFICATION_TYPE.REVIEW_MODERATED,
       title: decision.hide ? 'Your review was hidden' : 'Your review was restored',
       body: decision.hide ? `Your review of "${review.tourTitle}" was hidden: ${decision.reason}` : `Your review of "${review.tourTitle}" is visible again.`,
@@ -152,7 +155,7 @@ export class ReviewsService {
   /** Reviews per status (dashboards). */
   async countByStatus(): Promise<Record<string, number>> {
     const rows = await this.reviews.countByStatus();
-    return Object.fromEntries(rows.map((row) => [row._id, row.count]));
+    return Object.fromEntries(rows.map((row) => [row.status, row.count]));
   }
 
   // ============================================================ helpers

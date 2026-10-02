@@ -8,11 +8,10 @@ vi.hoisted(() => {
 });
 
 import { createApp } from '../../../app';
-import { PaymentModel } from '../../payments/payments.model';
-import { BookingModel } from '../bookings.model';
-import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase, stubPayosApi } from '../../../test/integration';
+import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase, stubPayosApi, loadTour } from '../../../test/integration';
+import { prisma } from '../../../config/database';
 
-// Real Express app + real MongoDB: whatever the inputs, the money stored on a booking adds up, in whole VND, never negative.
+// Real Express app + real PostgreSQL: whatever the inputs, the money stored on a booking adds up, in whole VND, never negative.
 const app = createApp();
 
 beforeAll(startDatabase, 120_000);
@@ -76,7 +75,7 @@ describe('money invariants (integration)', () => {
         if (res.status === 409 && ['PROMOTION_MIN_ORDER'].includes(res.body.error?.code)) continue; // legitimately refused
         expect(res.status, `seed round ${round}/${i}: ${JSON.stringify(res.body)}`).toBe(201);
 
-        const b = (await BookingModel.findById(res.body.data.id))!;
+        const b = (await prisma.booking.findUnique({ where: { id: res.body.data.id } }))!;
         const label = `price ${price} x ${participants} code ${code} rate ${ratePercent}%`;
         for (const field of [b.unitPrice, b.subtotal, b.discountAmount, b.totalAmount, b.commissionAmount, b.agencyAmount, b.commissionBps]) {
           expect(Number.isInteger(field), label).toBe(true);
@@ -89,7 +88,7 @@ describe('money invariants (integration)', () => {
         expect(b.commissionBps, label).toBe(Math.round(ratePercent * 100));
         expect(b.commissionAmount, label).toBe(Math.floor((b.totalAmount * b.commissionBps) / 10_000));
         expect(b.commissionAmount + b.agencyAmount, label).toBe(b.totalAmount);
-        if (b.promotion) expect(b.promotion.discountAmount, label).toBe(b.discountAmount);
+        if (b.promotionCode) expect(b.discountAmount, label).toBeGreaterThan(0);
         else expect(b.discountAmount, label).toBe(0);
         // The DTO shows the same numbers the database holds.
         expect(res.body.data.totalAmount, label).toBe(b.totalAmount);
@@ -113,7 +112,7 @@ describe('money invariants (integration)', () => {
 
     const checkout = await request(app).post(`/api/v1/payments/bookings/${booked.body.data.id}/checkout`).set(bearer(traveler.token)).send({ amount: 1 });
     expect(checkout.status).toBe(201);
-    expect((await PaymentModel.findOne())!.amount).toBe(total);
+    expect((await prisma.payment.findFirst())!.amount).toBe(total);
   });
 
   it('an order that would be free cannot be booked online (nothing to pay): seats and redemption stay untouched', async () => {
@@ -130,12 +129,10 @@ describe('money invariants (integration)', () => {
       expect(res.status).toBe(409);
       expect(res.body.error.code).toBe('BOOKING_AMOUNT_TOO_LOW');
     }
-    expect(await BookingModel.countDocuments()).toBe(0);
-    const { TourModel } = await import('../../tours/tours.model');
-    const { PromotionModel } = await import('../../promotions/promotions.model');
-    expect((await TourModel.findById(paid.tourId))!.departures[0]!.remaining).toBe(10);
-    expect((await TourModel.findById(free.tourId))!.departures[0]!.remaining).toBe(10);
-    expect(await PromotionModel.find().then((rows) => rows.map((p) => p.usedCount))).toEqual([0, 0]);
+    expect(await prisma.booking.count()).toBe(0);
+    expect((await loadTour(paid.tourId))!.departures[0]!.remaining).toBe(10);
+    expect((await loadTour(free.tourId))!.departures[0]!.remaining).toBe(10);
+    expect(await prisma.promotion.findMany().then((rows) => rows.map((p) => p.usedCount))).toEqual([0, 0]);
 
     // A huge but not total discount still works and leaves a payable (and checkout-able) booking.
     await promotion(agency.token, 'FIX999K', { discountType: 'FIXED', discountValue: 999_999 });

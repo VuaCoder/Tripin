@@ -19,13 +19,14 @@ function makeUser(overrides: Record<string, unknown> = {}) {
 
 type FakeUser = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-/** Applies a Mongo-style `$set` (supports dotted paths such as `agencyProfile.verificationStatus`). */
-function applySet(user: FakeUser, $set: Record<string, unknown> = {}) {
-  for (const [path, value] of Object.entries($set)) {
-    const keys = path.split('.');
-    let node = user;
-    for (const key of keys.slice(0, -1)) node = node[key] ??= {};
-    node[keys[keys.length - 1]!] = value;
+/** Applies a repository patch; nested role profiles are merged into the existing profile. */
+function applyPatch(user: FakeUser, patch: Record<string, unknown> = {}) {
+  for (const [key, value] of Object.entries(patch)) {
+    if ((key === 'agencyProfile' || key === 'guideProfile') && value && typeof value === 'object') {
+      user[key] = { ...(user[key] ?? {}), ...(value as object) };
+    } else {
+      user[key] = value;
+    }
   }
 }
 
@@ -34,21 +35,21 @@ function makeService(initial: Record<string, FakeUser>) {
   const repo = {
     findById: vi.fn(async (id: string) => db[id] ?? null),
     findManyByIds: vi.fn(async (ids: string[]) => ids.map((id) => db[id]).filter(Boolean)),
-    updateById: vi.fn(async (id: string, update: { $set?: Record<string, unknown> }) => {
+    updateById: vi.fn(async (id: string, patch: Record<string, unknown>) => {
       const user = db[id];
-      if (user) applySet(user, update.$set);
+      if (user) applyPatch(user, patch);
       return user ?? null;
     }),
-    updateStatusIf: vi.fn(async (id: string, expected: string, update: { $set?: Record<string, unknown> }) => {
+    updateStatusIf: vi.fn(async (id: string, expected: string, patch: Record<string, unknown>) => {
       const user = db[id];
       if (!user || user.status !== expected) return null;
-      applySet(user, update.$set);
+      applyPatch(user, patch);
       return user;
     }),
-    updateAgencyVerificationIf: vi.fn(async (id: string, expected: string, update: { $set?: Record<string, unknown> }) => {
+    updateAgencyVerificationIf: vi.fn(async (id: string, expected: string, patch: Record<string, unknown>) => {
       const user = db[id];
       if (!user || user.agencyProfile?.verificationStatus !== expected) return null;
-      applySet(user, update.$set);
+      applyPatch(user, patch);
       return user;
     }),
     count: vi.fn(async () => 1),
@@ -67,11 +68,10 @@ describe('UsersService profile', () => {
     await expect(service.updateMe('u1', { agencyProfile: { companyName: 'X Co' } })).rejects.toMatchObject({ statusCode: 403 });
   });
 
-  it('updates only allowed fields using dotted $set paths', async () => {
+  it('updates only allowed fields, nesting the role profile', async () => {
     const { service, repo } = makeService({ u1: makeUser({ role: ROLES.AGENCY }) });
     await service.updateMe('u1', { fullName: 'New Name', agencyProfile: { companyName: 'Sun Travel' } });
-    const update = repo.updateById.mock.calls[0]![1] as { $set: Record<string, unknown> };
-    expect(update.$set).toEqual({ fullName: 'New Name', 'agencyProfile.companyName': 'Sun Travel' });
+    expect(repo.updateById.mock.calls[0]![1]).toEqual({ fullName: 'New Name', agencyProfile: { companyName: 'Sun Travel' } });
   });
 
   it('never exposes email or phone in the public guide profile', async () => {

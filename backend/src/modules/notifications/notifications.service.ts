@@ -19,7 +19,7 @@ export class NotificationsService {
   constructor(
     private readonly notifications: Pick<
       NotificationsRepository,
-      'create' | 'insertMany' | 'findOwned' | 'list' | 'countUnread' | 'markRead' | 'markAllRead'
+      'create' | 'insertMany' | 'findOwned' | 'list' | 'countUnread' | 'markRead' | 'markAllRead' | 'deleteCreatedBefore'
     > = notificationsRepository,
     private readonly users: Pick<UsersService, 'getContact'> = usersService,
     private readonly mail: MailProvider = mailProvider,
@@ -40,15 +40,20 @@ export class NotificationsService {
     try {
       const { data, ...rest } = input;
       const created = await this.notifications.create({
-        userId: userId as never,
+        userId,
         ...rest,
-        data: data ? new Map(Object.entries(data)) : undefined,
+        data,
       });
       this.publish(userId, toNotificationDto(created));
       if (options.email) await this.sendEmail(userId, input);
     } catch (error) {
       logger.error(`Notification failed (${input.type})`, { message: (error as Error).message });
     }
+  }
+
+  /** Retention (periodic job): deletes notifications older than `retentionDays`. Returns how many were removed. */
+  purgeOlderThan(retentionDays: number, now = new Date()): Promise<number> {
+    return this.notifications.deleteCreatedBefore(new Date(now.getTime() - retentionDays * 86_400_000));
   }
 
   /** Same content to several users (de-duplicated). Never throws. */

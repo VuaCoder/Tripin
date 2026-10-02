@@ -1,15 +1,15 @@
 import { AGENCY_VERIFICATION_STATUS, isPermission, resolvePermissions, type Role } from '@travel-platform/constants';
-import type { UserDocument } from './users.model';
+import type { UserRecord } from './users.repository';
 import type { PrivateUserDto, PublicAgencyDto, PublicGuideDto } from './users.types';
 
 /** Effective permissions of a stored user (role defaults + extras granted by SUPER_ADMIN). */
-export function permissionsOf(user: Pick<UserDocument, 'role' | 'extraPermissions'>) {
+export function permissionsOf(user: Pick<UserRecord, 'role' | 'extraPermissions'>) {
   return resolvePermissions(user.role as Role, (user.extraPermissions ?? []).filter(isPermission));
 }
 
 const iso = (date?: Date | null) => date?.toISOString();
 
-export function toPrivateUserDto(user: UserDocument): PrivateUserDto {
+export function toPrivateUserDto(user: UserRecord): PrivateUserDto {
   const agency = user.agencyProfile;
   const guide = user.guideProfile;
   return {
@@ -24,7 +24,7 @@ export function toPrivateUserDto(user: UserDocument): PrivateUserDto {
     extraPermissions: (user.extraPermissions ?? []).filter(isPermission),
     twoFactorEnabled: user.twoFactorEnabled,
     emailVerifiedAt: iso(user.emailVerifiedAt),
-    createdAt: (user as unknown as { createdAt: Date }).createdAt.toISOString(),
+    createdAt: user.createdAt.toISOString(),
     bannedAt: iso(user.bannedAt),
     banReason: user.banReason ?? undefined,
     agencyProfile: agency
@@ -50,7 +50,7 @@ export function toPrivateUserDto(user: UserDocument): PrivateUserDto {
   };
 }
 
-export function toPublicGuideDto(user: UserDocument): PublicGuideDto {
+export function toPublicGuideDto(user: UserRecord): PublicGuideDto {
   const guide = user.guideProfile;
   return {
     id: user.id,
@@ -63,7 +63,7 @@ export function toPublicGuideDto(user: UserDocument): PublicGuideDto {
   };
 }
 
-export function toPublicAgencyDto(user: UserDocument): PublicAgencyDto {
+export function toPublicAgencyDto(user: UserRecord): PublicAgencyDto {
   const agency = user.agencyProfile;
   return {
     id: user.id,

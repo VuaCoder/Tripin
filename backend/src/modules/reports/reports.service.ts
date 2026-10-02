@@ -1,3 +1,4 @@
+import { isUniqueViolation } from '../../config/database';
 import { ROLES, type PersistedRole } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
 import { buildPage, type Page } from '../../utils/pagination';
@@ -9,7 +10,7 @@ import { reviewsService, type ReviewsService } from '../reviews';
 import { toursService, type ToursService } from '../tours';
 import { usersService, type UsersService } from '../users';
 import { toComplaintDto, toModerationReportDto, toMyReportDto } from './reports.mapper';
-import type { ReportDocument } from './reports.model';
+import type { ReportRecord } from './reports.repository';
 import { openReportKey, reportsRepository, type ReportsRepository } from './reports.repository';
 import {
   REPORT_STATUS,
@@ -57,22 +58,22 @@ export class ReportsService {
       throw AppError.conflict('You already have an open report about this', 'REPORT_ALREADY_OPEN');
     }
 
-    let report: ReportDocument;
+    let report: ReportRecord;
     try {
       report = await this.reports.create({
         openKey: openReportKey(reporterId, input.targetType, input.targetId),
-        reporterId: reporterId as never,
+        reporterId: reporterId,
         targetType: input.targetType,
-        targetId: input.targetId as never,
+        targetId: input.targetId,
         category: input.category,
         description: input.description,
-        ...(input.bookingId ? { bookingId: input.bookingId as never } : {}),
-        ...(routing.agencyId ? { agencyId: routing.agencyId as never } : {}),
-        ...(routing.tourId ? { tourId: routing.tourId as never } : {}),
+        ...(input.bookingId ? { bookingId: input.bookingId } : {}),
+        ...(routing.agencyId ? { agencyId: routing.agencyId } : {}),
+        ...(routing.tourId ? { tourId: routing.tourId } : {}),
       });
     } catch (error) {
       // Lost a race with an identical report filed at the same moment (unique index on `openKey`).
-      if ((error as { code?: number }).code === 11000) throw AppError.conflict('You already have an open report about this', 'REPORT_ALREADY_OPEN');
+      if (isUniqueViolation(error)) throw AppError.conflict('You already have an open report about this', 'REPORT_ALREADY_OPEN');
       throw error;
     }
 
@@ -94,7 +95,7 @@ export class ReportsService {
 
   async getMine(reporterId: string, id: string): Promise<MyReportDto> {
     const report = await this.reports.findById(id);
-    if (!report || String(report.reporterId) !== reporterId) throw AppError.notFound('Report not found');
+    if (!report || report.reporterId !== reporterId) throw AppError.notFound('Report not found');
     return toMyReportDto(report);
   }
 
@@ -103,14 +104,14 @@ export class ReportsService {
   /** Use case "Handle tour complaints" (list): reports routed to this agency. */
   async listComplaints(agencyId: string, query: ListReportsQuery): Promise<Page<ComplaintDto>> {
     const { items, total } = await this.reports.listByAgency(agencyId, query.status, query);
-    const people = await this.users.getSummaries(items.map((r) => String(r.reporterId)));
-    return buildPage(items.map((r) => toComplaintDto(r, people.get(String(r.reporterId))?.fullName)), total, query);
+    const people = await this.users.getSummaries(items.map((r) => r.reporterId));
+    return buildPage(items.map((r) => toComplaintDto(r, people.get(r.reporterId)?.fullName)), total, query);
   }
 
   async getComplaint(agencyId: string, id: string): Promise<ComplaintDto> {
     const report = await this.requireOfAgency(agencyId, id);
-    const people = await this.users.getSummaries([String(report.reporterId)]);
-    return toComplaintDto(report, people.get(String(report.reporterId))?.fullName);
+    const people = await this.users.getSummaries([report.reporterId]);
+    return toComplaintDto(report, people.get(report.reporterId)?.fullName);
   }
 
   /** Use case "Handle tour complaints": the agency answers once (OPEN -> AGENCY_RESPONDED); moderators decide afterwards. */
@@ -119,18 +120,19 @@ export class ReportsService {
     assertTransition(REPORT_TRANSITIONS, report.status as ReportStatus, REPORT_STATUS.AGENCY_RESPONDED, ENTITY);
 
     const updated = await this.reports.transition(id, [REPORT_STATUS.OPEN], {
-      $set: { status: REPORT_STATUS.AGENCY_RESPONDED, agencyResponse: { text, respondedAt: new Date(), by: agencyId } },
+      status: REPORT_STATUS.AGENCY_RESPONDED,
+      agencyResponse: { text, respondedAt: new Date(), by: agencyId },
     });
     if (!updated) throw AppError.conflict('The report changed, please retry', 'CONCURRENT_UPDATE');
 
-    await this.notifications.notify(String(report.reporterId), {
+    await this.notifications.notify(report.reporterId, {
       type: NOTIFICATION_TYPE.REPORT_UPDATED,
       title: 'The agency responded to your report',
       body: 'The agency answered your report. A moderator will review it.',
       data: { reportId: id },
     });
-    const people = await this.users.getSummaries([String(updated.reporterId)]);
-    return toComplaintDto(updated, people.get(String(updated.reporterId))?.fullName);
+    const people = await this.users.getSummaries([updated.reporterId]);
+    return toComplaintDto(updated, people.get(updated.reporterId)?.fullName);
   }
 
   // ============================================================== Moderation
@@ -155,8 +157,9 @@ export class ReportsService {
     assertTransition(REPORT_TRANSITIONS, report.status as ReportStatus, next, ENTITY);
 
     const updated = await this.reports.transition(id, [report.status as ReportStatus], {
-      $set: { status: next, resolution: { decision: next, note: decision.note, by: actor.userId, resolvedAt: new Date() } },
-      $unset: { openKey: 1 }, // a closed report no longer blocks a new one about the same target
+      status: next,
+      resolution: { decision: next, note: decision.note, by: actor.userId, resolvedAt: new Date() },
+      openKey: null, // a closed report no longer blocks a new one about the same target
     });
     if (!updated) throw AppError.conflict('The report changed, please retry', 'CONCURRENT_UPDATE');
 
@@ -170,9 +173,9 @@ export class ReportsService {
     });
     const outcome = next === REPORT_STATUS.RESOLVED ? 'was upheld' : 'was not upheld';
     const notice = { title: 'Your report was reviewed', body: `A moderator reviewed your report and it ${outcome}: ${decision.note}`, data: { reportId: id } };
-    await this.notifications.notify(String(report.reporterId), { type: NOTIFICATION_TYPE.REPORT_RESOLVED, ...notice }, { email: true });
+    await this.notifications.notify(report.reporterId, { type: NOTIFICATION_TYPE.REPORT_RESOLVED, ...notice }, { email: true });
     if (report.agencyId) {
-      await this.notifications.notify(String(report.agencyId), {
+      await this.notifications.notify(report.agencyId, {
         type: NOTIFICATION_TYPE.REPORT_UPDATED,
         title: 'A report about you was decided',
         body: `A moderator decided a report filed about you: ${next === REPORT_STATUS.RESOLVED ? 'upheld' : 'not upheld'}. ${decision.note}`,
@@ -185,7 +188,7 @@ export class ReportsService {
   /** Reports per status (dashboards). */
   async countByStatus(): Promise<Record<string, number>> {
     const rows = await this.reports.countByStatus();
-    return Object.fromEntries(rows.map((row) => [row._id, row.count]));
+    return Object.fromEntries(rows.map((row) => [row.status, row.count]));
   }
 
   /** Complaints of one agency still waiting for its answer. */
@@ -217,9 +220,9 @@ export class ReportsService {
   }
 
   /** 404 (never 403) when the report was not routed to this agency. */
-  private async requireOfAgency(agencyId: string, id: string): Promise<ReportDocument> {
+  private async requireOfAgency(agencyId: string, id: string): Promise<ReportRecord> {
     const report = await this.reports.findById(id);
-    if (!report || !report.agencyId || String(report.agencyId) !== agencyId) throw AppError.notFound('Report not found');
+    if (!report || !report.agencyId || report.agencyId !== agencyId) throw AppError.notFound('Report not found');
     return report;
   }
 }

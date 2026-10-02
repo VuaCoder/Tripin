@@ -1,46 +1,59 @@
-import type { QueryFilter } from 'mongoose';
+import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
+import type { Notification } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
-import { NotificationModel, type NotificationAttributes, type NotificationDocument } from './notifications.model';
+
+/** A stored notification; `data` is a free-form string map. */
+export type NotificationRecord = Omit<Notification, 'data'> & { data: Record<string, string> | null };
+
+export type NewNotification = Pick<Notification, 'userId' | 'type' | 'title' | 'body'> & { data?: Record<string, string> };
+
+function toRecord(row: Notification): NotificationRecord {
+  return { ...row, data: (row.data as Record<string, string> | null) ?? null };
+}
+
+const toRow = (data: NewNotification): Prisma.NotificationUncheckedCreateInput => ({ ...data, data: data.data });
 
 export class NotificationsRepository {
-  create(data: Partial<NotificationAttributes>): Promise<NotificationDocument> {
-    return NotificationModel.create(data);
+  async create(data: NewNotification): Promise<NotificationRecord> {
+    return toRecord(await prisma.notification.create({ data: toRow(data) }));
   }
 
-  insertMany(data: Partial<NotificationAttributes>[]): Promise<NotificationDocument[]> {
-    return NotificationModel.insertMany(data) as unknown as Promise<NotificationDocument[]>;
+  async insertMany(data: NewNotification[]): Promise<NotificationRecord[]> {
+    return (await prisma.notification.createManyAndReturn({ data: data.map(toRow) })).map(toRecord);
   }
 
   /** Scoped to the owner: another user's notification id is simply "not found". */
-  findOwned(id: string, userId: string): Promise<NotificationDocument | null> {
-    return NotificationModel.findOne({ _id: id, userId }).exec();
+  async findOwned(id: string, userId: string): Promise<NotificationRecord | null> {
+    const row = await prisma.notification.findFirst({ where: { id, userId } });
+    return row ? toRecord(row) : null;
   }
 
   async list(userId: string, unreadOnly: boolean, page: PageRequest) {
-    const filter: QueryFilter<NotificationAttributes> = { userId };
-    if (unreadOnly) filter.readAt = { $exists: false };
-    const [items, total] = await Promise.all([
-      NotificationModel.find(filter).sort({ createdAt: -1, _id: -1 }).skip(toSkip(page)).limit(page.limit).exec(),
-      NotificationModel.countDocuments(filter).exec(),
+    const where: Prisma.NotificationWhereInput = { userId, ...(unreadOnly ? { readAt: null } : {}) };
+    const [rows, total] = await Promise.all([
+      prisma.notification.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit }),
+      prisma.notification.count({ where }),
     ]);
-    return { items, total };
+    return { items: rows.map(toRecord), total };
   }
 
   countUnread(userId: string): Promise<number> {
-    return NotificationModel.countDocuments({ userId, readAt: { $exists: false } }).exec();
+    return prisma.notification.count({ where: { userId, readAt: null } });
   }
 
-  markRead(id: string, userId: string): Promise<NotificationDocument | null> {
-    return NotificationModel.findOneAndUpdate(
-      { _id: id, userId, readAt: { $exists: false } },
-      { $set: { readAt: new Date() } },
-      { returnDocument: 'after' },
-    ).exec();
+  async markRead(id: string, userId: string): Promise<NotificationRecord | null> {
+    const row = await prisma.notification.update({ where: { id, userId, readAt: null }, data: { readAt: new Date() } }).catch(nullIfNotFound);
+    return row ? toRecord(row) : null;
+  }
+
+  /** Notifications created before `before` (retention policy, applied by a periodic job). */
+  async deleteCreatedBefore(before: Date): Promise<number> {
+    return (await prisma.notification.deleteMany({ where: { createdAt: { lt: before } } })).count;
   }
 
   async markAllRead(userId: string): Promise<number> {
-    const result = await NotificationModel.updateMany({ userId, readAt: { $exists: false } }, { $set: { readAt: new Date() } }).exec();
-    return result.modifiedCount;
+    const result = await prisma.notification.updateMany({ where: { userId, readAt: null }, data: { readAt: new Date() } });
+    return result.count;
   }
 }
 

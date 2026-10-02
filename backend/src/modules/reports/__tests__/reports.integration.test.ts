@@ -1,11 +1,10 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../../app';
-import { AuditLogModel } from '../../audit/audit.model';
-import { ReportModel } from '../reports.model';
 import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
+import { prisma } from '../../../config/database';
 
-// Real Express app + real MongoDB: reporting a tour, the agency's single answer, and the moderator's final decision.
+// Real Express app + real PostgreSQL: reporting a tour, the agency's single answer, and the moderator's final decision.
 const app = createApp();
 
 beforeAll(startDatabase, 120_000);
@@ -33,12 +32,12 @@ describe('reports (integration)', () => {
     const res = await file(traveler.token, tourId);
     expect(res.status).toBe(201);
 
-    const stored = (await ReportModel.findById(res.body.data.id))!;
+    const stored = (await prisma.report.findUnique({ where: { id: res.body.data.id } }))!;
     expect(String(stored.agencyId)).toBe(agency.id);
     expect(String(stored.tourId)).toBe(tourId);
 
     expect((await file(traveler.token, tourId, { agencyId: agency.id })).status).toBe(400); // unknown field
-    expect((await file(traveler.token, '64b000000000000000000009')).status).toBe(404); // target must exist
+    expect((await file(traveler.token, '99999999-9999-4999-8999-999999999999')).status).toBe(404); // target must exist
     expect((await file(traveler.token, tourId, { description: 'short' })).status).toBe(400);
     expect((await request(app).post('/api/v1/reports').send({})).status).toBe(401);
   });
@@ -48,7 +47,7 @@ describe('reports (integration)', () => {
     const results = await Promise.all(Array.from({ length: 5 }, () => file(traveler.token, tourId)));
     expect(results.filter((r) => r.status === 201)).toHaveLength(1);
     expect(results.filter((r) => r.status === 409).every((r) => r.body.error.code === 'REPORT_ALREADY_OPEN')).toBe(true);
-    expect(await ReportModel.countDocuments()).toBe(1);
+    expect(await prisma.report.count()).toBe(1);
   });
 
   it('the reporter sees only their own reports; the agency sees only complaints about its tours', async () => {
@@ -87,7 +86,7 @@ describe('reports (integration)', () => {
       resolve(moderator.token, { decision: 'REJECTED', note: 'Not founded at all.' }),
     ]);
     expect(decisions.filter((r) => r.status === 200)).toHaveLength(1);
-    expect(await AuditLogModel.countDocuments({ action: 'report.resolved' })).toBe(1);
+    expect(await prisma.auditLog.count({ where: { action: 'report.resolved' } })).toBe(1);
 
     expect((await respond(agency.token)).status).toBe(409); // closed reports take no answers
     expect((await resolve(moderator.token, { decision: 'REJECTED', note: 'Changing my mind.' })).status).toBe(409);

@@ -52,7 +52,7 @@ Indexes: `(reporterId, createdAt, _id)`, unique sparse `(openKey)` (one open rep
 Notifications `COMPLAINT_RECEIVED`, `REPORT_UPDATED`, `REPORT_RESOLVED` (+ email); audit `report.resolved`.
 
 ## Testing
-`__tests__/reports.integration.test.ts` – real MongoDB: server-side routing, one open report under 5 parallel submissions, privacy of reporter/agency views, single agency answer and single moderator decision under races, closed reports stop blocking.
+`__tests__/reports.integration.test.ts` – real PostgreSQL: server-side routing, one open report under 5 parallel submissions, privacy of reporter/agency views, single agency answer and single moderator decision under races, closed reports stop blocking.
 `__tests__/reports.service.test.ts` – routing per target type, evidence ownership, duplicate rule, agency privacy/ownership, single answer, moderator decisions and notifications.
 
 ## Not implemented / follow-ups

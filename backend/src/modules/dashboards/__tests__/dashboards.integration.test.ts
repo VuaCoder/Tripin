@@ -1,18 +1,11 @@
-import { Types } from 'mongoose';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../../app';
-import { BookingModel } from '../../bookings/bookings.model';
-import { PaymentModel } from '../../payments/payments.model';
-import { ReportModel } from '../../reports/reports.model';
-import { ReviewModel } from '../../reviews/reviews.model';
-import { SubscriptionModel } from '../../subscriptions/subscriptions.model';
-import { SupportTicketModel } from '../../support/support.model';
-import { TourModel } from '../../tours/tours.model';
-import { UserModel } from '../../users/users.model';
 import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
+import { prisma } from '../../../config/database';
+import { randomUUID } from 'node:crypto';
 
-// Real Express app + real MongoDB: every dashboard number is compared with rows that this test inserted itself.
+// Real Express app + real PostgreSQL: every dashboard number is compared with rows that this test inserted itself.
 // (The dashboards cache their answer for 30 s, so each test builds its data first and reads each dashboard once.)
 const app = createApp();
 
@@ -21,7 +14,7 @@ afterAll(stopDatabase);
 beforeEach(resetDatabase);
 
 const DAY = 86_400_000;
-const oid = () => new Types.ObjectId();
+const oid = () => randomUUID();
 let sequence = 0;
 
 interface BookingSeed {
@@ -34,7 +27,7 @@ interface BookingSeed {
   confirmedDaysAgo?: number;
 }
 const seedBooking = (b: BookingSeed) =>
-  BookingModel.create({
+  prisma.booking.create({ data: {
     bookingCode: `TRP-TEST${String((sequence += 1)).padStart(4, '0')}`,
     travelerId: oid(),
     agencyId: b.agencyId,
@@ -44,7 +37,7 @@ const seedBooking = (b: BookingSeed) =>
     departureDate: new Date(Date.now() + 10 * DAY),
     endDate: new Date(Date.now() + 12 * DAY),
     participants: 1,
-    contact: { fullName: 'Nguyen Van A', phone: '0901234567' },
+    contactName: 'Nguyen Van A', contactPhone: '0901234567',
     unitPrice: b.total,
     subtotal: b.total,
     totalAmount: b.total,
@@ -54,10 +47,10 @@ const seedBooking = (b: BookingSeed) =>
     status: b.status,
     isPaid: b.status === 'CONFIRMED' || b.status === 'COMPLETED' || b.status === 'CANCELLED',
     ...(b.confirmedDaysAgo !== undefined ? { confirmedAt: new Date(Date.now() - b.confirmedDaysAgo * DAY) } : {}),
-  });
+  } });
 
 const seedReport = (agencyId: string, status: 'OPEN' | 'AGENCY_RESPONDED' | 'RESOLVED') =>
-  ReportModel.create({ reporterId: oid(), targetType: 'TOUR', targetId: oid(), category: 'OTHER', description: 'Something is wrong here.', agencyId, status });
+  prisma.report.create({ data: { reporterId: oid(), targetType: 'TOUR', targetId: oid(), category: 'OTHER', description: 'Something is wrong here.', agencyId, status } });
 
 const get = (path: string, token: string) => request(app).get(path).set(bearer(token));
 
@@ -67,8 +60,8 @@ describe('agency dashboard', () => {
     const rival = await createUser('AGENCY', 'rival@example.com');
     const t1 = await createApprovedTour(agency.id);
     const t2 = await createApprovedTour(agency.id);
-    await TourModel.create({ agencyId: agency.id, title: 'Draft one', destination: 'Hue', durationDays: 1, basePrice: 1, status: 'DRAFT' });
-    await TourModel.create({ agencyId: agency.id, title: 'Pending one', destination: 'Hue', durationDays: 1, basePrice: 1, status: 'PENDING_REVIEW' });
+    await prisma.tour.create({ data: { agencyId: agency.id, title: 'Draft one', destination: 'Hue', durationDays: 1, basePrice: 1, status: 'DRAFT' } });
+    await prisma.tour.create({ data: { agencyId: agency.id, title: 'Pending one', destination: 'Hue', durationDays: 1, basePrice: 1, status: 'PENDING_REVIEW' } });
     const rivalTour = await createApprovedTour(rival.id);
 
     const base = { agencyId: agency.id };
@@ -128,7 +121,7 @@ describe('moderation dashboard', () => {
     await createUser('AGENCY', 'pending2@example.com', { agencyProfile: { companyName: 'C', verificationStatus: 'PENDING' } });
     await createApprovedTour(agency.id);
     for (let i = 0; i < 3; i += 1) {
-      await TourModel.create({ agencyId: agency.id, title: `Waiting ${i}`, destination: 'Hue', durationDays: 1, basePrice: 1, status: 'PENDING_REVIEW' });
+      await prisma.tour.create({ data: { agencyId: agency.id, title: `Waiting ${i}`, destination: 'Hue', durationDays: 1, basePrice: 1, status: 'PENDING_REVIEW' } });
     }
 
     await seedReport(agency.id, 'OPEN');
@@ -137,14 +130,14 @@ describe('moderation dashboard', () => {
     await seedReport(agency.id, 'RESOLVED');
 
     const ticket = (status: string) =>
-      SupportTicketModel.create({ userId: oid(), subject: 'A question here', category: 'OTHER', status: status as never, messages: [], messageCount: 0 });
+      prisma.supportTicket.create({ data: { userId: oid(), subject: 'A question here', category: 'OTHER', status: status as never, messageCount: 0 } });
     await ticket('OPEN');
     await ticket('OPEN');
     await ticket('IN_PROGRESS');
     await ticket('CLOSED');
 
     const review = (status: 'VISIBLE' | 'HIDDEN') =>
-      ReviewModel.create({ bookingId: oid(), tourId: oid(), tourTitle: 'T', agencyId: agency.id, travelerId: oid(), rating: 4, comment: 'Quite good trip overall', status });
+      prisma.review.create({ data: { bookingId: oid(), tourId: oid(), tourTitle: 'T', agencyId: agency.id, travelerId: oid(), rating: 4, comment: 'Quite good trip overall', status } });
     await review('VISIBLE');
     await review('VISIBLE');
     await review('HIDDEN');
@@ -174,7 +167,7 @@ describe('admin dashboard', () => {
     const agencyA = await createUser('AGENCY', 'a@example.com');
     const agencyB = await createUser('AGENCY', 'b@example.com');
     const old = await createUser('TRAVELER', 'old@example.com');
-    await UserModel.collection.updateOne({ _id: new Types.ObjectId(old.id) }, { $set: { createdAt: new Date(Date.now() - 90 * DAY) } });
+    await prisma.user.updateMany({ where: { id: old.id }, data: { createdAt: new Date(Date.now() - 90 * DAY) } });
     await createUser('TRAVELER', 'banned@example.com', { status: 'BANNED' });
     await createUser('TOUR_GUIDE', 'guide@example.com');
 
@@ -188,14 +181,15 @@ describe('admin dashboard', () => {
 
     let order = 1_000;
     const pay = (purpose: 'SUBSCRIPTION' | 'BOOKING', status: string, amount: number) =>
-      PaymentModel.create({ purpose, userId: oid(), referenceId: oid(), amount, description: 'x', provider: 'PAYOS', providerOrderCode: (order += 1), status: status as never, expiresAt: new Date(Date.now() + DAY) });
+      prisma.payment.create({ data: { purpose, userId: oid(), referenceId: oid(), amount, description: 'x', provider: 'PAYOS', providerOrderCode: BigInt((order += 1)), status: status as never, expiresAt: new Date(Date.now() + DAY) } });
     await pay('SUBSCRIPTION', 'PAID', 199_000);
     await pay('SUBSCRIPTION', 'PAID', 99_000);
     await pay('SUBSCRIPTION', 'PENDING', 500_000); // unpaid money is not revenue
     await pay('BOOKING', 'PAID', 7_000_000); // booking payments are not subscription revenue
 
+    const planId = (await prisma.subscriptionPlan.create({ data: { code: 'P', name: 'P', price: 1, durationDays: 30 } })).id;
     const sub = (status: string, endsInDays: number) =>
-      SubscriptionModel.create({ userId: oid(), planId: oid(), planCode: 'P', planName: 'P', price: 1, durationDays: 30, status: status as never, startsAt: new Date(Date.now() - DAY), endsAt: new Date(Date.now() + endsInDays * DAY) });
+      prisma.subscription.create({ data: { userId: oid(), planId: planId, planCode: 'P', planName: 'P', price: 1, durationDays: 30, status: status as never, startsAt: new Date(Date.now() - DAY), endsAt: new Date(Date.now() + endsInDays * DAY) } });
     await sub('ACTIVE', 10);
     await sub('ACTIVE', 20);
     await sub('ACTIVE', -1); // ended but not yet swept: not "running"
@@ -204,9 +198,9 @@ describe('admin dashboard', () => {
     await seedReport(agencyA.id, 'OPEN');
     await seedReport(agencyA.id, 'AGENCY_RESPONDED');
     await seedReport(agencyA.id, 'RESOLVED');
-    await SupportTicketModel.create({ userId: oid(), subject: 'Ticket one', category: 'OTHER', status: 'OPEN', messages: [], messageCount: 0 });
-    await SupportTicketModel.create({ userId: oid(), subject: 'Ticket two', category: 'OTHER', status: 'IN_PROGRESS', messages: [], messageCount: 0 });
-    await SupportTicketModel.create({ userId: oid(), subject: 'Ticket three', category: 'OTHER', status: 'RESOLVED', messages: [], messageCount: 0 });
+    await prisma.supportTicket.create({ data: { userId: oid(), subject: 'Ticket one', category: 'OTHER', status: 'OPEN', messageCount: 0 } });
+    await prisma.supportTicket.create({ data: { userId: oid(), subject: 'Ticket two', category: 'OTHER', status: 'IN_PROGRESS', messageCount: 0 } });
+    await prisma.supportTicket.create({ data: { userId: oid(), subject: 'Ticket three', category: 'OTHER', status: 'RESOLVED', messageCount: 0 } });
 
     const res = await get('/api/v1/admin/dashboard', admin.token);
     expect(res.status).toBe(200);

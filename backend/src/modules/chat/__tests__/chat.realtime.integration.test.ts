@@ -5,11 +5,10 @@ import { io as connect, type Socket } from 'socket.io-client';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../../app';
 import { attachChatGateway } from '../chat.gateway';
-import { MessageModel } from '../chat.model';
-import { UserModel } from '../../users/users.model';
 import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
+import { prisma } from '../../../config/database';
 
-// The WHOLE stack: real HTTP + Socket.IO server, real services, real MongoDB, real access tokens.
+// The WHOLE stack: real HTTP + Socket.IO server, real services, real PostgreSQL, real access tokens.
 const app = createApp();
 let server: http.Server;
 let url: string;
@@ -103,21 +102,21 @@ describe('chat over sockets (real stack)', () => {
     const reply = await ack(travelerSocket, 'chat:send', { conversationId, text: 'Via socket' });
     expect(reply.ok).toBe(true);
     expect((await received).message.text).toBe('Via socket');
-    expect(await MessageModel.countDocuments({ conversationId })).toBe(1);
+    expect(await prisma.message.count({ where: { conversationId } })).toBe(1);
 
     const nothing = Promise.all([silent(guideSocket, 'chat:message'), silent(travelerSocket, 'chat:message')]);
     const refused = await ack(outsiderSocket, 'chat:send', { conversationId, text: 'Let me in' });
     expect(refused.ok).toBe(false);
     expect(refused.error.code).toBe('NOT_FOUND');
     expect(await nothing).toEqual([true, true]);
-    expect(await MessageModel.countDocuments({ conversationId })).toBe(1);
+    expect(await prisma.message.count({ where: { conversationId } })).toBe(1);
 
     // Payload validation and spoofing: the sender is always the authenticated user.
     expect((await ack(travelerSocket, 'chat:send', { conversationId, text: '' })).ok).toBe(false);
     expect((await ack(travelerSocket, 'chat:send', { conversationId, text: 'x'.repeat(5000) })).error.code).toBe('VALIDATION_ERROR');
     const spoof = await ack(travelerSocket, 'chat:send', { conversationId, text: 'Spoof', senderId: guide.id });
     expect(spoof.ok).toBe(false); // strict payload: no extra fields
-    const mine = await MessageModel.find({ conversationId }).lean();
+    const mine = await prisma.message.findMany({ where: { conversationId } });
     expect(mine.every((m) => String(m.senderId) === traveler.id)).toBe(true);
   });
 
@@ -168,7 +167,7 @@ describe('chat over sockets (real stack)', () => {
     const { traveler } = await conversation();
     await expect(ready(open())).rejects.toThrow();
     await expect(ready(open('garbage'))).rejects.toThrow();
-    await UserModel.updateOne({ _id: traveler.id }, { $set: { status: 'BANNED' } });
+    await prisma.user.updateMany({ where: { id: traveler.id }, data: { status: 'BANNED' } });
     await expect(ready(open(traveler.token))).rejects.toThrow(/ACCOUNT_BANNED/);
   });
 
@@ -179,13 +178,13 @@ describe('chat over sockets (real stack)', () => {
     await Promise.all([travelerSocket, guideSocket].map(ready));
     expect((await ack(travelerSocket, 'chat:send', { conversationId, text: 'before the ban' })).ok).toBe(true);
 
-    await UserModel.updateOne({ _id: traveler.id }, { $set: { status: 'BANNED' } });
+    await prisma.user.updateMany({ where: { id: traveler.id }, data: { status: 'BANNED' } });
     const silence = silent(guideSocket, 'chat:message');
     const afterBan = await ack(travelerSocket, 'chat:send', { conversationId, text: 'after the ban' });
     expect(afterBan.ok).toBe(false);
     expect(['ACCOUNT_BANNED', 'FORBIDDEN']).toContain(afterBan.error.code);
     expect(await silence).toBe(true);
-    expect(await MessageModel.countDocuments({ conversationId })).toBe(1);
+    expect(await prisma.message.count({ where: { conversationId } })).toBe(1);
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(travelerSocket.connected).toBe(false); // the dead session is closed, not just refused
   });
@@ -194,7 +193,7 @@ describe('chat over sockets (real stack)', () => {
     const { traveler, conversationId } = await conversation();
     const travelerSocket = open(traveler.token);
     await ready(travelerSocket);
-    await UserModel.updateOne({ _id: traveler.id }, { $set: { role: 'AGENCY' } });
+    await prisma.user.updateMany({ where: { id: traveler.id }, data: { role: 'AGENCY' } });
     const res = await ack(travelerSocket, 'chat:send', { conversationId, text: 'still a traveler?' });
     expect(res.ok).toBe(false);
   });

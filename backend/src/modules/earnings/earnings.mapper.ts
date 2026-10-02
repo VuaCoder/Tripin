@@ -1,12 +1,12 @@
-import type { EarningDocument } from './earnings.model';
+import type { EarningRecord } from './earnings.repository';
 import type { EarningDto } from './earnings.types';
 
-export function toEarningDto(earning: EarningDocument): EarningDto {
+export function toEarningDto(earning: EarningRecord): EarningDto {
   return {
     id: earning.id,
-    bookingId: String(earning.bookingId),
+    bookingId: earning.bookingId,
     bookingCode: earning.bookingCode,
-    tour: { id: String(earning.tourId), title: earning.tourTitle },
+    tour: { id: earning.tourId, title: earning.tourTitle },
     amount: earning.amount,
     earnedAt: earning.earnedAt.toISOString(),
   };

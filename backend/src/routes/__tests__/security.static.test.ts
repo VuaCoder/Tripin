@@ -43,7 +43,10 @@ describe('security source rules', () => {
   });
 
   it('credential columns are excluded from queries by default', () => {
-    expect(read(path.join(srcRoot, 'modules/users/users.model.ts'))).toMatch(/passwordHash:\s*\{[^}]*select:\s*false/);
+    // Every user lookup that is not an explicit `...WithPassword` one must omit the hash.
+    const repo = read(path.join(srcRoot, 'modules/users/users.repository.ts'));
+    expect(repo).toMatch(/const omitPassword = \{ passwordHash: true \}/);
+    expect((repo.match(/omit: omitPassword/g) ?? []).length).toBeGreaterThanOrEqual(8);
   });
 
   it('every JWT verification pins the algorithm and the issuer', () => {

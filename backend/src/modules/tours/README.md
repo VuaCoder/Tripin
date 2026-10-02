@@ -26,7 +26,7 @@ the moderation decisions (validate / suspend) invoked by the `moderation` module
 | File | Role |
 |---|---|
 | `tours.routes.ts` | 3 routers: `publicToursRouter`, `agencyToursRouter`, `guideToursRouter` |
-| `tours.validation.ts` | zod schemas (strict bodies, bounded query, ObjectId params) |
+| `tours.validation.ts` | zod schemas (strict bodies, bounded query, UUID params) |
 | `tours.controller.ts` | HTTP only |
 | `tours.service.ts` | Agency/guide/moderation rules, state machine, inventory API |
 | `tours-discovery.service.ts` | Public search + visibility rules for details |
@@ -81,7 +81,7 @@ Guide assignment: `PENDING → ACCEPTED | DECLINED`. Status changes use compare-
 
 ## Data model
 `Tour` with embedded `departures[{date,capacity,remaining,priceOverride,isOpen}]`, `itinerary[]`, `guide{guideId,feePerBooking,status,…}`,
-`categoryIds[]`, review stats `ratingAvg/ratingCount`. Indexes (all match a real query; the paginated ones end with `_id` because the sorts use `_id` as tie-breaker, so MongoDB reads them in order instead of sorting in memory): `(status,createdAt,_id)` default list,
+`categories` (many-to-many with `Category`), review stats `ratingAvg/ratingCount`. Indexes (all match a real query; the paginated ones end with `id` because the sorts use `id` as tie-breaker, so PostgreSQL reads them in order instead of sorting in memory): `(status,createdAt,_id)` default list,
 `(status,basePrice,_id)` price filter/sort (both directions), `(status,categoryIds)`, `(status,ratingAvg,ratingCount,_id)`, `(status,departures.date)`, `(status,submittedAt,_id)` moderator queue,
 `(agencyId,status,updatedAt)` agency list, `(guide.guideId,status)` guide list. Text search uses escaped regex (fine at this size; switch to Atlas Search when the catalogue grows).
 
@@ -97,7 +97,7 @@ Guide assignment: `PENDING → ACCEPTED | DECLINED`. Status changes use compare-
 Audit: `tour.validated`, `tour.suspended`. In-app notifications: moderation decision and suspension (to the agency), guide assignment (to the guide).
 
 ## Testing
-`__tests__/tours.integration.test.ts` – real MongoDB over HTTP: draft -> submit -> moderator decision -> public, locked/re-review edits, one winner among parallel decisions, suspended tours cannot be booked, ownership 404s, availability vs sold seats, seat accounting while bookings and availability edits race, delete guard, guide assignment answered once.
+`__tests__/tours.integration.test.ts` – real PostgreSQL over HTTP: draft -> submit -> moderator decision -> public, locked/re-review edits, one winner among parallel decisions, suspended tours cannot be booked, ownership 404s, availability vs sold seats, seat accounting while bookings and availability edits race, delete guard, guide assignment answered once.
 `__tests__/tours.service.test.ts` (ownership, locking, re-review, delete guard, availability invariants, submit rules, moderation, guide, inventory) and
 `__tests__/tours-discovery.service.test.ts` (visibility matrix by status/actor).
 

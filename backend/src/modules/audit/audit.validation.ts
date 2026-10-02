@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { paginationQuerySchema } from '../../utils/pagination';
-import { objectIdSchema } from '../../utils/object-id';
+import { idSchema } from '../../utils/id';
 import { AUDIT_ACTIONS } from './audit.types';
 
 export const listAuditQuery = paginationQuerySchema
   .extend({
-    actorId: objectIdSchema.optional(),
+    actorId: idSchema.optional(),
     action: z.enum(Object.values(AUDIT_ACTIONS) as [string, ...string[]]).optional(),
     targetType: z.string().trim().min(1).max(60).optional(),
     targetId: z.string().trim().min(1).max(60).optional(),

@@ -1,30 +1,34 @@
-import type { QueryFilter, UpdateQuery } from 'mongoose';
-import { CategoryModel, type CategoryAttributes, type CategoryDocument } from './categories.model';
+import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
+import type { Category } from '../../generated/prisma/client';
+
+export type CategoryRecord = Category;
 
 export class CategoriesRepository {
-  list(filter: { onlyActive: boolean }): Promise<CategoryDocument[]> {
-    const query: QueryFilter<CategoryAttributes> = filter.onlyActive ? { isActive: true } : {};
-    return CategoryModel.find(query).sort({ sortOrder: 1, name: 1 }).exec();
+  list(filter: { onlyActive: boolean }): Promise<CategoryRecord[]> {
+    return prisma.category.findMany({
+      where: filter.onlyActive ? { isActive: true } : {},
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    });
   }
 
-  findById(id: string): Promise<CategoryDocument | null> {
-    return CategoryModel.findById(id).exec();
+  findById(id: string): Promise<CategoryRecord | null> {
+    return prisma.category.findUnique({ where: { id } });
   }
 
-  findBySlug(slug: string): Promise<CategoryDocument | null> {
-    return CategoryModel.findOne({ slug }).exec();
+  findBySlug(slug: string): Promise<CategoryRecord | null> {
+    return prisma.category.findUnique({ where: { slug } });
   }
 
-  findManyByIds(ids: string[]): Promise<CategoryDocument[]> {
-    return CategoryModel.find({ _id: { $in: ids } }).exec();
+  findManyByIds(ids: string[]): Promise<CategoryRecord[]> {
+    return prisma.category.findMany({ where: { id: { in: ids } } });
   }
 
-  create(data: Partial<CategoryAttributes>): Promise<CategoryDocument> {
-    return CategoryModel.create(data);
+  create(data: Prisma.CategoryUncheckedCreateInput): Promise<CategoryRecord> {
+    return prisma.category.create({ data });
   }
 
-  updateById(id: string, update: UpdateQuery<CategoryAttributes>): Promise<CategoryDocument | null> {
-    return CategoryModel.findByIdAndUpdate(id, update, { returnDocument: 'after', runValidators: true }).exec();
+  updateById(id: string, patch: Prisma.CategoryUncheckedUpdateInput): Promise<CategoryRecord | null> {
+    return prisma.category.update({ where: { id }, data: patch }).catch(nullIfNotFound);
   }
 }
 

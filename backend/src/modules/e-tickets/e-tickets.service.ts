@@ -1,10 +1,11 @@
+import { isUniqueViolation } from '../../config/database';
 import { randomInt } from 'node:crypto';
 import { AppError } from '../../utils/app-error';
 import { buildPage, type Page } from '../../utils/pagination';
 import type { BookingFacts } from '../bookings';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
 import { toETicketDto } from './e-tickets.mapper';
-import type { ETicketDocument } from './e-tickets.model';
+import type { ETicketRecord } from './e-tickets.repository';
 import { eTicketsRepository, type ETicketsRepository } from './e-tickets.repository';
 import { ETICKET_POLICY, ETICKET_STATUS, type ETicketDto, type ListETicketsQuery } from './e-tickets.types';
 
@@ -76,21 +77,21 @@ export class ETicketsService {
   // ----------------------------------------------------- helpers
 
   /** 404 (never 403) for a missing ticket or somebody else's, so ticket ids are not enumerable. */
-  private assertOwner(travelerId: string, ticket: ETicketDocument | null): ETicketDocument {
-    if (!ticket || String(ticket.travelerId) !== travelerId) throw AppError.notFound('E-ticket not found');
+  private assertOwner(travelerId: string, ticket: ETicketRecord | null): ETicketRecord {
+    if (!ticket || ticket.travelerId !== travelerId) throw AppError.notFound('E-ticket not found');
     return ticket;
   }
 
-  private async createWithUniqueCode(booking: BookingFacts): Promise<{ doc: ETicketDocument; fresh: boolean }> {
+  private async createWithUniqueCode(booking: BookingFacts): Promise<{ doc: ETicketRecord; fresh: boolean }> {
     for (let attempt = 1; ; attempt += 1) {
       try {
         const doc = await this.tickets.create({
-          bookingId: booking.id as never,
+          bookingId: booking.id,
           bookingCode: booking.bookingCode,
           code: generateTicketCode(),
-          travelerId: booking.travelerId as never,
-          agencyId: booking.agencyId as never,
-          tourId: booking.tourId as never,
+          travelerId: booking.travelerId,
+          agencyId: booking.agencyId,
+          tourId: booking.tourId,
           tourTitle: booking.tourTitle,
           departureDate: booking.departureDate,
           participants: booking.participants,
@@ -99,9 +100,8 @@ export class ETicketsService {
         });
         return { doc, fresh: true };
       } catch (error) {
-        const e = error as { code?: number; keyPattern?: Record<string, unknown> };
-        if (e.code !== 11000) throw error;
-        if (e.keyPattern && 'bookingId' in e.keyPattern) {
+        if (!isUniqueViolation(error)) throw error;
+        if (isUniqueViolation(error, 'bookingId')) {
           // Two events raced: the other one created it.
           const existing = await this.tickets.findByBookingId(booking.id);
           if (existing) return { doc: existing, fresh: false };

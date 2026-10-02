@@ -1,10 +1,10 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../../app';
-import { ConversationModel, MessageModel } from '../chat.model';
 import { bearer, createUser, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
+import { prisma } from '../../../config/database';
 
-// Real Express app + real MongoDB: the REST side of the traveler <-> guide chat (the socket side has its own test).
+// Real Express app + real PostgreSQL: the REST side of the traveler <-> guide chat (the socket side has its own test).
 const app = createApp();
 
 beforeAll(startDatabase, 120_000);
@@ -38,7 +38,7 @@ describe('chat REST (integration)', () => {
     ]);
     expect(results.every((r) => r.status < 300)).toBe(true);
     expect(new Set(results.map((r) => r.body.data.id)).size).toBe(1);
-    expect(await ConversationModel.countDocuments()).toBe(1);
+    expect(await prisma.conversation.count()).toBe(1);
   });
 
   it('messages are visible only to the two participants, in order, with cursor pagination', async () => {
@@ -74,7 +74,7 @@ describe('chat REST (integration)', () => {
 
     const sends = await Promise.all(Array.from({ length: 10 }, (_, i) => send(traveler.token, id, `ping ${i}`)));
     expect(sends.every((r) => r.status === 201)).toBe(true);
-    expect(await MessageModel.countDocuments({ conversationId: id })).toBe(10);
+    expect(await prisma.message.count({ where: { conversationId: id } })).toBe(10);
 
     const guideView = await request(app).get('/api/v1/chat/conversations').set(bearer(guide.token));
     expect(guideView.body.data[0].unreadCount).toBe(10);

@@ -94,7 +94,7 @@ describe('route audit: who can call what', () => {
 });
 
 describe('route audit: input validation', () => {
-  it('validates every path parameter (ids are checked as ObjectIds before any query)', () => {
+  it('validates every path parameter (ids are checked as UUIDs before any query)', () => {
     expect(labels(routes.filter((r) => r.path.includes('/:') && !r.validates.params))).toEqual([]);
   });
 

@@ -1,3 +1,4 @@
+import { isUniqueViolation } from '../../config/database';
 import { buildPage, type Page } from '../../utils/pagination';
 import type { BookingFacts } from '../bookings';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
@@ -26,12 +27,12 @@ export class EarningsService {
 
     try {
       const created = await this.earnings.create({
-        guideId: tour.guideId as never,
-        bookingId: booking.id as never,
+        guideId: tour.guideId,
+        bookingId: booking.id,
         bookingCode: booking.bookingCode,
-        tourId: booking.tourId as never,
+        tourId: booking.tourId,
         tourTitle: booking.tourTitle,
-        agencyId: booking.agencyId as never,
+        agencyId: booking.agencyId,
         amount: tour.guideFee,
         earnedAt: new Date(),
       });
@@ -43,7 +44,7 @@ export class EarningsService {
       });
       return toEarningDto(created);
     } catch (error) {
-      if ((error as { code?: number }).code === 11000) {
+      if (isUniqueViolation(error)) {
         const raced = await this.earnings.findByBookingId(booking.id); // another event won the race
         return raced ? toEarningDto(raced) : null;
       }

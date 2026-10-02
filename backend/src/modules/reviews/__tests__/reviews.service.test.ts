@@ -29,8 +29,7 @@ function make(opts: { booking?: R | null; seed?: R[]; stats?: { avg: number; cou
     transition: vi.fn(async (id: string, expected: string, update: R) => {
       const doc = db.find((r) => r.id === id);
       if (!doc || doc.status !== expected) return null;
-      Object.assign(doc, update.$set);
-      for (const key of Object.keys(update.$unset ?? {})) delete doc[key];
+      Object.assign(doc, update);
       return doc;
     }),
     listPublic: vi.fn(async () => ({ items: db, total: db.length })),
@@ -71,7 +70,7 @@ describe('createReview', () => {
     const { service, repo } = make({ seed: [{ id: 'r1', bookingId: 'b1' }] });
     await expect(service.createReview('u1', input)).rejects.toMatchObject({ code: 'REVIEW_EXISTS' });
     const raced = make();
-    raced.repo.create.mockRejectedValueOnce(Object.assign(new Error('E11000'), { code: 11000 }) as never);
+    raced.repo.create.mockRejectedValueOnce(Object.assign(new Error('E11000'), { code: 'P2002' }) as never);
     await expect(raced.service.createReview('u1', input)).rejects.toMatchObject({ code: 'REVIEW_EXISTS' });
     expect(repo.create).not.toHaveBeenCalled();
   });
@@ -100,7 +99,7 @@ describe('moderation', () => {
   it('hides with a reason, recomputes the rating, audits and tells the author', async () => {
     const { service, db, tours, audit, notifications } = make({ seed: [stored()], stats: { avg: 4.5, count: 2 } });
     const dto = await service.moderate(moderator, 'r1', { hide: true, reason: 'Abusive language' });
-    expect(db[0]).toMatchObject({ status: 'HIDDEN', hiddenReason: 'Abusive language', moderatedBy: 'm1' });
+    expect(db[0]).toMatchObject({ status: 'HIDDEN', hiddenReason: 'Abusive language', moderatedById: 'm1' });
     expect(dto.status).toBe('HIDDEN');
     expect(tours.updateRatingStats).toHaveBeenCalledWith('t1', 4.5, 2);
     expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'review.moderated' }));
@@ -115,7 +114,7 @@ describe('moderation', () => {
     const { service, db } = make({ seed: [stored({ status: 'HIDDEN', hiddenReason: 'x' })] });
     await service.moderate(moderator, 'r1', { hide: false });
     expect(db[0]!.status).toBe('VISIBLE');
-    expect(db[0]!.hiddenReason).toBeUndefined();
+    expect(db[0]!.hiddenReason).toBeNull();
     await service.moderate(moderator, 'r1', { hide: true, reason: 'again please' });
     await expect(service.moderate(moderator, 'r1', { hide: true, reason: 'twice' })).rejects.toMatchObject({ code: 'INVALID_STATE_TRANSITION' });
   });

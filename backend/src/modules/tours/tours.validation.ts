@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { TOUR_STATUS } from '@travel-platform/constants';
-import { idParamsSchema, objectIdSchema } from '../../utils/object-id';
+import { idParamsSchema, idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 import { TOUR_LIMITS } from './tours.types';
 
@@ -16,7 +16,7 @@ const tourContentShape = {
   durationDays: z.number().int().min(1).max(365),
   basePrice: vnd,
   maxGroupSize: z.number().int().min(1).max(10_000).optional(),
-  categoryIds: z.array(objectIdSchema).min(1).max(10),
+  categoryIds: z.array(idSchema).min(1).max(10),
   images: z.array(z.url().max(500)).max(TOUR_LIMITS.MAX_IMAGES).optional(),
   inclusions: stringList(50, 300).optional(),
   exclusions: stringList(50, 300).optional(),
@@ -36,7 +36,7 @@ export const importToursBody = z
 
 const departureShape = z
   .object({
-    id: objectIdSchema.optional(),
+    id: idSchema.optional(),
     date: z.coerce.date(),
     capacity: z.number().int().min(1).max(10_000),
     priceOverride: vnd.optional(),
@@ -71,7 +71,7 @@ export const itineraryBody = z
   .refine((value) => new Set(value.days.map((d) => d.day)).size === value.days.length, { message: 'Duplicate day number', path: ['days'] });
 
 export const assignGuideBody = z
-  .object({ guideId: objectIdSchema.nullable(), feePerBooking: vnd.optional() })
+  .object({ guideId: idSchema.nullable(), feePerBooking: vnd.optional() })
   .strict()
   .refine((value) => value.guideId === null || value.feePerBooking !== undefined, {
     message: 'feePerBooking is required when assigning a guide',
@@ -81,12 +81,12 @@ export const assignGuideBody = z
 export const guideVerificationBody = z.object({ accept: z.boolean(), note: text(500).optional() }).strict();
 
 export const tourIdParams = idParamsSchema;
-export const guideTourParams = z.object({ tourId: objectIdSchema });
+export const guideTourParams = z.object({ tourId: idSchema });
 
 export const searchToursQuery = paginationQuerySchema
   .extend({
     q: z.string().trim().min(1).max(100).optional(),
-    categoryId: objectIdSchema.optional(),
+    categoryId: idSchema.optional(),
     destination: z.string().trim().min(1).max(120).optional(),
     minPrice: z.coerce.number().int().min(0).optional(),
     maxPrice: z.coerce.number().int().min(0).optional(),

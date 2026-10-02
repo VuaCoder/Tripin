@@ -63,13 +63,12 @@ function make(seed: B[] = [], opts: { commissionBps?: number; windowHours?: numb
     transition: vi.fn(async (id: string, expected: string[], update: B) => {
       const doc = db.find((b) => b.id === id);
       if (!doc || !expected.includes(doc.status)) return null;
-      Object.assign(doc, update.$set);
-      for (const key of Object.keys(update.$unset ?? {})) delete doc[key];
+      Object.assign(doc, update);
       return doc;
     }),
     updateById: vi.fn(async (id: string, update: B) => {
       const doc = db.find((b) => b.id === id);
-      if (doc) Object.assign(doc, update.$set);
+      if (doc) Object.assign(doc, update);
       return doc ?? null;
     }),
     listByTraveler: vi.fn(async () => ({ items: db, total: db.length })),
@@ -151,7 +150,7 @@ describe('createBooking', () => {
 
   it('retries on a booking-code collision', async () => {
     const { service, repo } = make();
-    repo.create.mockRejectedValueOnce(Object.assign(new Error('dup'), { code: 11000, keyPattern: { bookingCode: 1 } }) as never);
+    repo.create.mockRejectedValueOnce(Object.assign(new Error('dup'), { code: 'P2002', meta: { target: ['bookingCode'] } }) as never);
     await expect(service.createBooking('u1', input)).resolves.toMatchObject({ status: 'PENDING' });
     expect(repo.create).toHaveBeenCalledTimes(2);
   });
@@ -245,7 +244,7 @@ describe('payment hooks', () => {
     const { service, notifications, db } = make([booking()]);
     expect((await service.confirmPayment('b1')).outcome).toBe('CONFIRMED');
     expect(db[0]).toMatchObject({ status: 'CONFIRMED', isPaid: true });
-    expect(db[0]!.paymentExpiresAt).toBeUndefined();
+    expect(db[0]!.paymentExpiresAt).toBeNull();
     expect(notifications.notify).toHaveBeenCalledTimes(2);
     expect(handler).toHaveBeenCalledTimes(1);
 

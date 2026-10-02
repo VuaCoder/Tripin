@@ -36,3 +36,9 @@ lib/
 
 # Prisma
 # Do not ignore prisma schema and migrations, only ignore auto-generated client if customized
+
+# Prisma generated client
+backend/src/generated/
+
+# Throw-away output of the build smoke test
+backend/.tmp-build-smoke-*/

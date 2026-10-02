@@ -2,11 +2,10 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../../app';
 import { googleIdentityVerifier, type GoogleIdentity } from '../../../integrations/google';
-import { UserModel } from '../../users/users.model';
-import { RefreshTokenModel } from '../refresh-token.model';
 import { PASSWORD, bearer, captureMail, createUser, registerAndVerify, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
+import { prisma } from '../../../config/database';
 
-// Real Express app + real MongoDB: the less common authentication flows.
+// Real Express app + real PostgreSQL: the less common authentication flows.
 const app = createApp();
 const mail = captureMail();
 
@@ -26,7 +25,7 @@ describe('two-factor login', () => {
     expect(wrongPassword.status).toBe(401);
     expect((await request(app).patch('/api/v1/auth/two-factor').set(bearer(session.token)).send({ enabled: true })).status).toBe(401);
     const enable = await request(app).patch('/api/v1/auth/two-factor').set(bearer(session.token)).send({ enabled: true, password: PASSWORD });
-    expect(enable.status, JSON.stringify([enable.body, await UserModel.find({}, { email: 1, status: 1 }).lean(), await UserModel.collection.indexes()])).toBe(200);
+    expect(enable.status, JSON.stringify([enable.body, await prisma.user.findMany()])).toBe(200);
 
     const first = await login(email);
     expect(first.status).toBe(200);
@@ -100,13 +99,13 @@ describe('forgot and reset password', () => {
     expect((await request(app).post('/api/v1/auth/forgot-password').send({ email: 'banned@example.com' })).status).toBe(202);
     expect(mail.outbox.some((m) => m.to === 'banned@example.com')).toBe(false);
     expect((await request(app).post('/api/v1/auth/reset-password').send({ email: 'banned@example.com', code: '123456', newPassword: 'BrandNew123' })).status).toBe(400);
-    expect((await UserModel.findById(banned.id))!.status).toBe('BANNED');
+    expect((await prisma.user.findUnique({ where: { id: banned.id } }))!.status).toBe('BANNED');
 
     await request(app).post('/api/v1/auth/register').send({ email: 'pending@example.com', password: PASSWORD, fullName: 'Pending User' });
     expect((await request(app).post('/api/v1/auth/forgot-password').send({ email: 'pending@example.com' })).status).toBe(202);
     const reset = await request(app).post('/api/v1/auth/reset-password').send({ email: 'pending@example.com', code: mail.codeFor('pending@example.com'), newPassword: 'BrandNew123' });
     expect(reset.status).toBe(400); // the REGISTER code is not a reset code
-    expect((await UserModel.findOne({ email: 'pending@example.com' }))!.status).toBe('PENDING_VERIFICATION');
+    expect((await prisma.user.findFirst({ where: { email: 'pending@example.com' } }))!.status).toBe('PENDING_VERIFICATION');
   });
 });
 
@@ -121,7 +120,7 @@ describe('logout', () => {
     expect((await request(app).post('/api/v1/auth/logout').set('Cookie', newer)).status).toBeLessThan(300);
     expect((await request(app).post('/api/v1/auth/logout')).status).toBeLessThan(300);
     expect((await request(app).post('/api/v1/auth/refresh').set('Cookie', newer)).status).toBe(401);
-    expect(await RefreshTokenModel.countDocuments({ revokedAt: { $exists: false } })).toBe(0);
+    expect(await prisma.refreshToken.count({ where: { revokedAt: null } })).toBe(0);
   });
 });
 
@@ -146,7 +145,7 @@ describe('login with Google (fake Google verifier)', () => {
     expect(first.status).toBe(200);
     expect(first.body.data.user.role).toBe('TOUR_GUIDE');
     expect((await google()).status).toBe(200);
-    expect(await UserModel.countDocuments({ email: 'guser@example.com' })).toBe(1);
+    expect(await prisma.user.count({ where: { email: 'guser@example.com' } })).toBe(1);
 
     expect((await google('fake-id-token-0002', 'SUPER_ADMIN')).status).toBe(400);
     expect((await google('fake-id-token-0002', 'MODERATOR')).status).toBe(400);
@@ -156,7 +155,7 @@ describe('login with Google (fake Google verifier)', () => {
     asGoogle(identity({ googleId: 'g-race', email: 'race@example.com' }));
     const results = await Promise.all(Array.from({ length: 5 }, () => google()));
     expect(results.every((r) => r.status === 200)).toBe(true);
-    expect(await UserModel.countDocuments({ email: 'race@example.com' }), JSON.stringify(await UserModel.collection.indexes())).toBe(1);
+    expect(await prisma.user.count({ where: { email: 'race@example.com' } })).toBe(1);
   });
 
   it('refuses unverified Google emails, invalid credentials, banned accounts and a missing configuration', async () => {
@@ -168,7 +167,7 @@ describe('login with Google (fake Google verifier)', () => {
 
     asGoogle(identity({ googleId: 'g-banned', email: 'bannedg@example.com' }));
     expect((await google()).status).toBe(200);
-    await UserModel.updateOne({ email: 'bannedg@example.com' }, { $set: { status: 'BANNED' } });
+    await prisma.user.updateMany({ where: { email: 'bannedg@example.com' }, data: { status: 'BANNED' } });
     const banned = await google();
     expect(banned.status).toBe(403);
     expect(banned.body.error.code).toBe('ACCOUNT_BANNED');
@@ -183,9 +182,9 @@ describe('login with Google (fake Google verifier)', () => {
     asGoogle(identity({ googleId: 'g-link', email }));
     const res = await google();
     expect(res.status).toBe(200);
-    const user = (await UserModel.findOne({ email }))!;
+    const user = (await prisma.user.findFirst({ where: { email } }))!;
     expect(user.googleId).toBe('g-link');
-    expect(await UserModel.countDocuments({ email })).toBe(1);
+    expect(await prisma.user.count({ where: { email } })).toBe(1);
     expect((await login(email)).status).toBe(200); // the password keeps working for an account the owner verified
   });
 
@@ -198,7 +197,7 @@ describe('login with Google (fake Google verifier)', () => {
     // The victim later signs in with Google (a verified identity): the account becomes theirs.
     asGoogle(identity({ googleId: 'g-victim', email }));
     expect((await google()).status).toBe(200);
-    expect((await UserModel.findOne({ email }))!.status).toBe('ACTIVE');
+    expect((await prisma.user.findFirst({ where: { email } }))!.status).toBe('ACTIVE');
 
     // The attacker's password must not open the now-active account.
     const attacker = await login(email, 'AttackerPass123');
@@ -216,12 +215,12 @@ describe('registration rules', () => {
     expect((await register({ password: PASSWORD, role: 'MODERATOR' })).status).toBe(400);
     expect((await register({ password: PASSWORD, role: 'GUEST' })).status).toBe(400);
     expect((await register({ password: PASSWORD, status: 'ACTIVE', isAdmin: true })).status).toBeLessThan(500);
-    const stored = await UserModel.findOne({ email: 'rules@example.com' });
+    const stored = await prisma.user.findFirst({ where: { email: 'rules@example.com' } });
     if (stored) {
       expect(stored.status).toBe('PENDING_VERIFICATION');
       expect(stored.role).toBe('TRAVELER');
     }
     expect((await register({ password: PASSWORD, role: 'AGENCY', email: 'agency-reg@example.com' })).status).toBe(201);
-    expect((await UserModel.findOne({ email: 'agency-reg@example.com' }))!.agencyProfile!.verificationStatus).toBe('UNVERIFIED');
+    expect((await prisma.user.findFirst({ where: { email: 'agency-reg@example.com' }, include: { agencyProfile: true } }))!.agencyProfile!.verificationStatus).toBe('UNVERIFIED');
   });
 });

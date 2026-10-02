@@ -1,0 +1,21 @@
+# Local PostgreSQL for development and integration tests: `docker compose up -d`
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: travel-platform-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: travel_platform
+    ports:
+      - "5432:5432"
+    volumes:
+      - travel_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d travel_platform"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  travel_pg_data:

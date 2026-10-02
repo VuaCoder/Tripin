@@ -1,9 +1,9 @@
 import { DISCOUNT_TYPE, PROMOTION_SCOPE } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
-import type { PromotionDocument } from './promotions.model';
+import type { PromotionRecord } from './promotions.repository';
 
 type PromotionLike = Pick<
-  PromotionDocument,
+  PromotionRecord,
   | 'scope' | 'ownerId' | 'discountType' | 'discountValue' | 'maxDiscountAmount' | 'minOrderAmount'
   | 'startsAt' | 'endsAt' | 'usageLimit' | 'usedCount' | 'isActive'
 >;
@@ -35,7 +35,7 @@ export function assertApplicable(promotion: PromotionLike, ctx: { agencyId: stri
   if (!promotion.isActive) throw AppError.conflict('This promotion is not active', 'PROMOTION_INACTIVE');
   if (now < promotion.startsAt) throw AppError.conflict('This promotion has not started yet', 'PROMOTION_NOT_STARTED');
   if (now > promotion.endsAt) throw AppError.conflict('This promotion has expired', 'PROMOTION_EXPIRED');
-  if (promotion.scope === PROMOTION_SCOPE.AGENCY && String(promotion.ownerId) !== ctx.agencyId) {
+  if (promotion.scope === PROMOTION_SCOPE.AGENCY && promotion.ownerId !== ctx.agencyId) {
     throw AppError.conflict('This promotion does not apply to this tour', 'PROMOTION_NOT_APPLICABLE');
   }
   if (ctx.subtotal < (promotion.minOrderAmount ?? 0)) {

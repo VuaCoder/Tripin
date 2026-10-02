@@ -7,7 +7,6 @@ import { env } from '../../config/env';
 import { errorHandler } from '../../middlewares/error-handler';
 import { ConsoleMailProvider } from '../../integrations/mail';
 import { logger } from '../../utils/logger';
-import { UserModel } from '../../modules/users/users.model';
 import {
   PASSWORD,
   bearer,
@@ -18,8 +17,9 @@ import {
   startDatabase,
   stopDatabase,
 } from '../../test/integration';
+import { prisma } from '../../config/database';
 
-// Real Express app + real MongoDB: what an attacker (or a curious client) can learn or do through HTTP.
+// Real Express app + real PostgreSQL: what an attacker (or a curious client) can learn or do through HTTP.
 const app = createApp();
 const mail = captureMail();
 
@@ -71,10 +71,10 @@ describe('tokens and sessions', () => {
     const moderator = await createUser('MODERATOR', 'mod@example.com');
     expect((await request(app).get('/api/v1/moderation/tours').set(bearer(moderator.token))).status).toBe(200);
 
-    await UserModel.updateOne({ _id: moderator.id }, { $set: { role: 'TRAVELER' } });
+    await prisma.user.updateMany({ where: { id: moderator.id }, data: { role: 'TRAVELER' } });
     expect((await request(app).get('/api/v1/moderation/tours').set(bearer(moderator.token))).status).toBe(403);
 
-    await UserModel.deleteOne({ _id: moderator.id });
+    await prisma.user.deleteMany({ where: { id: moderator.id } });
     expect((await request(app).get('/api/v1/users/me').set(bearer(moderator.token))).status).toBe(401);
   });
 
@@ -125,12 +125,12 @@ describe('no information leaks', () => {
   it('internal errors, bad JSON and oversized bodies answer in the standard envelope without stack traces', async () => {
     const crashing = express();
     crashing.get('/boom', () => {
-      throw new Error('mongodb://admin:hunter2@db.internal:27017 refused the connection');
+      throw new Error('postgresql://admin:hunter2@db.internal:5432 refused the connection');
     });
     crashing.use(errorHandler);
     const boom = await request(crashing).get('/boom');
     expect(boom.status).toBe(500);
-    expect(JSON.stringify(boom.body)).not.toMatch(/hunter2|mongodb:|\.ts:|at \w+/);
+    expect(JSON.stringify(boom.body)).not.toMatch(/hunter2|postgresql:|\.ts:|at \w+/);
     expect(boom.body).toEqual({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } });
 
     const badJson = await request(app).post('/api/v1/auth/login').set('Content-Type', 'application/json').send('{"email": ');
@@ -175,7 +175,7 @@ describe('no information leaks', () => {
 describe('injection through HTTP (real database)', () => {
   it('operator objects in bodies and queries are rejected or treated as plain text, never executed', async () => {
     const victim = await createUser('TRAVELER', 'victim@example.com');
-    await UserModel.updateOne({ _id: victim.id }, { $set: { passwordHash: '$2b$04$abcdefghijklmnopqrstuuabcdefghijklmnopqrstuvwxyz0123' } });
+    await prisma.user.updateMany({ where: { id: victim.id }, data: { passwordHash: '$2b$04$abcdefghijklmnopqrstuuabcdefghijklmnopqrstuvwxyz0123' } });
 
     const attacks = [
       request(app).post('/api/v1/auth/login').send({ email: { $ne: null }, password: { $ne: null } }),

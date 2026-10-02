@@ -2,7 +2,7 @@ import type { Request, RequestHandler } from 'express';
 import { userActor } from '../../middlewares/authorize';
 import { validated } from '../../middlewares/validate';
 import { sendCreated, sendOk, sendPaginated } from '../../utils/api-response';
-import type { IdParams } from '../../utils/object-id';
+import type { IdParams } from '../../utils/id';
 import { promotionsService, type PromotionsService } from './promotions.service';
 import type {
   CreatePromotionBody,

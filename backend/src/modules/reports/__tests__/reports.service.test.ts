@@ -35,7 +35,7 @@ function make(seed: R[] = []) {
     transition: vi.fn(async (id: string, expected: string[], update: R) => {
       const doc = db.find((r) => r.id === id);
       if (!doc || !expected.includes(doc.status)) return null;
-      Object.assign(doc, update.$set);
+      Object.assign(doc, update);
       return doc;
     }),
     listByReporter: vi.fn(async () => ({ items: db, total: db.length })),

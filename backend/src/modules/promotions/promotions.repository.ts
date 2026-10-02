@@ -1,48 +1,59 @@
-import type { QueryFilter, UpdateQuery } from 'mongoose';
 import type { PromotionScope } from '@travel-platform/constants';
+import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
+import type { Promotion } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
-import { PromotionModel, type PromotionAttributes, type PromotionDocument } from './promotions.model';
+
+export type PromotionRecord = Promotion;
+
+export type NewPromotion = Pick<
+  Promotion,
+  'scope' | 'code' | 'title' | 'discountType' | 'discountValue' | 'startsAt' | 'endsAt' | 'createdById'
+> &
+  Partial<Pick<Promotion, 'ownerId' | 'description' | 'maxDiscountAmount' | 'minOrderAmount' | 'usageLimit' | 'isActive'>>;
+
+export type PromotionPatch = Partial<
+  Pick<Promotion, 'title' | 'description' | 'discountType' | 'discountValue' | 'maxDiscountAmount' | 'minOrderAmount' | 'startsAt' | 'endsAt' | 'usageLimit' | 'isActive'>
+>;
 
 export class PromotionsRepository {
-  create(data: Partial<PromotionAttributes>): Promise<PromotionDocument> {
-    return PromotionModel.create(data);
+  create(data: NewPromotion): Promise<PromotionRecord> {
+    return prisma.promotion.create({ data: { ...data, code: data.code.toUpperCase() } });
   }
 
-  findById(id: string): Promise<PromotionDocument | null> {
-    return PromotionModel.findById(id).exec();
+  findById(id: string): Promise<PromotionRecord | null> {
+    return prisma.promotion.findUnique({ where: { id } });
   }
 
-  findByCode(code: string): Promise<PromotionDocument | null> {
-    return PromotionModel.findOne({ code: code.toUpperCase() }).exec();
+  findByCode(code: string): Promise<PromotionRecord | null> {
+    return prisma.promotion.findUnique({ where: { code: code.toUpperCase() } });
   }
 
-  updateById(id: string, update: UpdateQuery<PromotionAttributes>): Promise<PromotionDocument | null> {
-    return PromotionModel.findByIdAndUpdate(id, update, { returnDocument: 'after', runValidators: true }).exec();
+  updateById(id: string, patch: PromotionPatch): Promise<PromotionRecord | null> {
+    return prisma.promotion.update({ where: { id }, data: patch }).catch(nullIfNotFound);
   }
 
   async list(filter: { scope: PromotionScope; ownerId?: string; isActive?: boolean }, page: PageRequest) {
-    const query: QueryFilter<PromotionAttributes> = { scope: filter.scope };
-    if (filter.ownerId) query.ownerId = filter.ownerId;
-    if (filter.isActive !== undefined) query.isActive = filter.isActive;
+    const where: Prisma.PromotionWhereInput = { scope: filter.scope };
+    if (filter.ownerId) where.ownerId = filter.ownerId;
+    if (filter.isActive !== undefined) where.isActive = filter.isActive;
     const [items, total] = await Promise.all([
-      PromotionModel.find(query).sort({ createdAt: -1, _id: -1 }).skip(toSkip(page)).limit(page.limit).exec(),
-      PromotionModel.countDocuments(query).exec(),
+      prisma.promotion.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit }),
+      prisma.promotion.count({ where }),
     ]);
     return { items, total };
   }
 
   /** Atomically takes one redemption; false when the limit is already reached (no over-redeeming under concurrency). */
   async consume(id: string): Promise<boolean> {
-    const result = await PromotionModel.updateOne(
-      { _id: id, isActive: true, $or: [{ usageLimit: { $exists: false } }, { usageLimit: null }, { $expr: { $lt: ['$usedCount', '$usageLimit'] } }] },
-      { $inc: { usedCount: 1 } },
-    ).exec();
-    return result.modifiedCount === 1;
+    const changed = await prisma.$executeRaw`
+      UPDATE "Promotion" SET "usedCount" = "usedCount" + 1
+      WHERE "id" = ${id}::uuid AND "isActive" AND ("usageLimit" IS NULL OR "usedCount" < "usageLimit")`;
+    return changed === 1;
   }
 
   /** Gives a redemption back (booking cancelled / payment expired). Never goes below 0. */
   async release(id: string): Promise<void> {
-    await PromotionModel.updateOne({ _id: id, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } }).exec();
+    await prisma.promotion.updateMany({ where: { id, usedCount: { gt: 0 } }, data: { usedCount: { decrement: 1 } } });
   }
 }
 

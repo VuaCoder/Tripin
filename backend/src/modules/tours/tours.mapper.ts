@@ -1,7 +1,7 @@
 import type { TourStatus } from '@travel-platform/constants';
 import type { CategoryDto } from '../categories';
 import type { UserSummary } from '../users';
-import type { TourDocument } from './tours.model';
+import type { TourRecord } from './tours.repository';
 import type {
   DepartureDto,
   GuideTourDto,
@@ -13,9 +13,9 @@ import type {
 
 const iso = (date?: Date | null) => date?.toISOString();
 
-type DepartureLike = TourDocument['departures'][number];
+type DepartureLike = TourRecord['departures'][number];
 
-export function departurePrice(tour: Pick<TourDocument, 'basePrice'>, departure: Pick<DepartureLike, 'priceOverride'>): number {
+export function departurePrice(tour: Pick<TourRecord, 'basePrice'>, departure: Pick<DepartureLike, 'priceOverride'>): number {
   return departure.priceOverride ?? tour.basePrice;
 }
 
@@ -24,14 +24,14 @@ export function isBookable(departure: Pick<DepartureLike, 'isOpen' | 'date' | 'r
   return departure.isOpen && departure.date.getTime() > now.getTime() && departure.remaining > 0;
 }
 
-export function nextDepartureDate(tour: Pick<TourDocument, 'departures'>): string | undefined {
+export function nextDepartureDate(tour: Pick<TourRecord, 'departures'>): string | undefined {
   const upcoming = tour.departures.filter((d) => isBookable(d)).sort((a, b) => a.date.getTime() - b.date.getTime());
   return iso(upcoming[0]?.date);
 }
 
-export function toDepartureDto(tour: Pick<TourDocument, 'basePrice'>, departure: DepartureLike): DepartureDto {
+export function toDepartureDto(tour: Pick<TourRecord, 'basePrice'>, departure: DepartureLike): DepartureDto {
   return {
-    id: String(departure._id),
+    id: departure.id,
     date: departure.date.toISOString(),
     capacity: departure.capacity,
     remaining: departure.remaining,
@@ -43,7 +43,7 @@ export function toDepartureDto(tour: Pick<TourDocument, 'basePrice'>, departure:
 const toAgencyDto = (summary?: UserSummary): TourAgencyDto | undefined =>
   summary ? { id: summary.id, name: summary.fullName, avatarUrl: summary.avatarUrl } : undefined;
 
-export function toTourListItemDto(tour: TourDocument, agency?: UserSummary): TourListItemDto {
+export function toTourListItemDto(tour: TourRecord, agency?: UserSummary): TourListItemDto {
   return {
     id: tour.id,
     title: tour.title,
@@ -52,7 +52,7 @@ export function toTourListItemDto(tour: TourDocument, agency?: UserSummary): Tou
     durationDays: tour.durationDays,
     basePrice: tour.basePrice,
     coverImage: tour.images[0],
-    categoryIds: tour.categoryIds.map(String),
+    categoryIds: tour.categoryIds,
     ratingAvg: tour.ratingAvg,
     ratingCount: tour.ratingCount,
     nextDepartureDate: nextDepartureDate(tour),
@@ -68,7 +68,7 @@ interface DetailContext {
   onlyBookable: boolean;
 }
 
-export function toTourDetailDto(tour: TourDocument, context: DetailContext): TourDetailDto {
+export function toTourDetailDto(tour: TourRecord, context: DetailContext): TourDetailDto {
   const departures = tour.departures.filter((d) => !context.onlyBookable || isBookable(d));
   return {
     ...toTourListItemDto(tour, context.agency),
@@ -86,7 +86,7 @@ export function toTourDetailDto(tour: TourDocument, context: DetailContext): Tou
   };
 }
 
-export function toTourManageDto(tour: TourDocument, context: Omit<DetailContext, 'onlyBookable'>): TourManageDto {
+export function toTourManageDto(tour: TourRecord, context: Omit<DetailContext, 'onlyBookable'>): TourManageDto {
   const assignment = tour.guide;
   return {
     ...toTourDetailDto(tour, { ...context, onlyBookable: false }),
@@ -94,11 +94,11 @@ export function toTourManageDto(tour: TourDocument, context: Omit<DetailContext,
     statusReason: tour.statusReason ?? undefined,
     submittedAt: iso(tour.submittedAt),
     reviewedAt: iso(tour.reviewedAt),
-    createdAt: (tour as unknown as { createdAt: Date }).createdAt.toISOString(),
-    updatedAt: (tour as unknown as { updatedAt: Date }).updatedAt.toISOString(),
+    createdAt: tour.createdAt.toISOString(),
+    updatedAt: tour.updatedAt.toISOString(),
     guideAssignment: assignment
       ? {
-          guideId: String(assignment.guideId),
+          guideId: assignment.guideId,
           feePerBooking: assignment.feePerBooking,
           status: assignment.status as NonNullable<TourManageDto['guideAssignment']>['status'],
           respondedAt: iso(assignment.respondedAt),
@@ -108,7 +108,7 @@ export function toTourManageDto(tour: TourDocument, context: Omit<DetailContext,
   };
 }
 
-export function toGuideTourDto(tour: TourDocument, agency?: UserSummary): GuideTourDto {
+export function toGuideTourDto(tour: TourRecord, agency?: UserSummary): GuideTourDto {
   const assignment = tour.guide!;
   return {
     id: tour.id,
@@ -116,7 +116,7 @@ export function toGuideTourDto(tour: TourDocument, agency?: UserSummary): GuideT
     destination: tour.destination,
     durationDays: tour.durationDays,
     tourStatus: tour.status as TourStatus,
-    agencyId: String(tour.agencyId),
+    agencyId: tour.agencyId,
     agency: toAgencyDto(agency),
     assignment: {
       feePerBooking: assignment.feePerBooking,

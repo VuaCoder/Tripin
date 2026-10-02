@@ -3,7 +3,7 @@ import type { BookingStatus } from '@travel-platform/constants';
 import { userActor } from '../../middlewares/authorize';
 import { validated } from '../../middlewares/validate';
 import { sendCreated, sendOk, sendPaginated } from '../../utils/api-response';
-import type { IdParams } from '../../utils/object-id';
+import type { IdParams } from '../../utils/id';
 import { renderCustomersPdf } from './bookings.export';
 import { bookingsService, type BookingsService } from './bookings.service';
 import type {

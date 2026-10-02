@@ -42,7 +42,7 @@ None.
 None.
 
 ## Testing
-`__tests__/dashboards.integration.test.ts` – real MongoDB: every number of the three dashboards is compared with rows inserted by the test (revenue counts only CONFIRMED + COMPLETED, a paid-then-cancelled booking is not income, the 30-day window, per-agency isolation, unpaid payments are not revenue, ended-but-unswept subscriptions are not "active", queue counts, role gating).
+`__tests__/dashboards.integration.test.ts` – real PostgreSQL: every number of the three dashboards is compared with rows inserted by the test (revenue counts only CONFIRMED + COMPLETED, a paid-then-cancelled booking is not income, the 30-day window, per-agency isolation, unpaid payments are not revenue, ended-but-unswept subscriptions are not "active", queue counts, role gating).
 `__tests__/dashboards.service.test.ts` (composition, agency scoping + cache isolation, zero defaults, TTL cache semantics) and
 `__tests__/dashboards.routes.test.ts` (who may open which dashboard; agency dashboard bound to the token).
 

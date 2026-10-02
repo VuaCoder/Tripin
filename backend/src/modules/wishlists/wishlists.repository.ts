@@ -1,35 +1,34 @@
+import { prisma } from '../../config/database';
+import type { WishlistItem } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
-import { WishlistItemModel, type WishlistItemDocument } from './wishlists.model';
+
+export type WishlistItemRecord = WishlistItem;
 
 export class WishlistsRepository {
   /** Inserts when missing. Returns `true` if a new row was created, `false` if it already existed. */
   async addIfAbsent(userId: string, tourId: string): Promise<boolean> {
-    const result = await WishlistItemModel.updateOne(
-      { userId, tourId },
-      { $setOnInsert: { userId, tourId, createdAt: new Date() } },
-      { upsert: true },
-    ).exec();
-    return result.upsertedCount === 1;
+    const result = await prisma.wishlistItem.createMany({ data: [{ userId, tourId }], skipDuplicates: true });
+    return result.count === 1;
   }
 
-  exists(userId: string, tourId: string): Promise<boolean> {
-    return WishlistItemModel.exists({ userId, tourId }).then(Boolean);
+  async exists(userId: string, tourId: string): Promise<boolean> {
+    return (await prisma.wishlistItem.count({ where: { userId, tourId } })) > 0;
   }
 
   count(userId: string): Promise<number> {
-    return WishlistItemModel.countDocuments({ userId }).exec();
+    return prisma.wishlistItem.count({ where: { userId } });
   }
 
   /** Returns true if something was deleted. */
   async remove(userId: string, tourId: string): Promise<boolean> {
-    const result = await WishlistItemModel.deleteOne({ userId, tourId }).exec();
-    return result.deletedCount === 1;
+    const result = await prisma.wishlistItem.deleteMany({ where: { userId, tourId } });
+    return result.count === 1;
   }
 
-  async list(userId: string, page: PageRequest): Promise<{ items: WishlistItemDocument[]; total: number }> {
+  async list(userId: string, page: PageRequest): Promise<{ items: WishlistItemRecord[]; total: number }> {
     const [items, total] = await Promise.all([
-      WishlistItemModel.find({ userId }).sort({ createdAt: -1, _id: -1 }).skip(toSkip(page)).limit(page.limit).exec(),
-      WishlistItemModel.countDocuments({ userId }).exec(),
+      prisma.wishlistItem.findMany({ where: { userId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit }),
+      prisma.wishlistItem.count({ where: { userId } }),
     ]);
     return { items, total };
   }

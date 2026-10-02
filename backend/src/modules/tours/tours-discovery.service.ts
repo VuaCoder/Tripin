@@ -37,7 +37,7 @@ export class ToursDiscoveryService {
 
     if (tour.status === TOUR_STATUS.APPROVED && actor.kind === 'guest') return this.views.publicDetail(tour);
 
-    const isOwner = actor.kind === 'user' && String(tour.agencyId) === actor.userId;
+    const isOwner = actor.kind === 'user' && tour.agencyId === actor.userId;
     const isStaff = actor.kind === 'user' && actor.permissions.includes(PERMISSIONS.TOUR_LIST_ALL);
     if (isStaff || (isOwner && tour.status !== TOUR_STATUS.ARCHIVED)) return this.views.manage(tour);
     if (tour.status === TOUR_STATUS.APPROVED) return this.views.publicDetail(tour);

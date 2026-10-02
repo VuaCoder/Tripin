@@ -4,7 +4,7 @@ import { AuditService } from '../audit.service';
 import { AUDIT_ACTIONS } from '../audit.types';
 
 const entry = {
-  actorId: '507f1f77bcf86cd799439011',
+  actorId: '11111111-1111-4111-8111-111111111111',
   actorRole: ROLES.MODERATOR,
   action: AUDIT_ACTIONS.USER_BANNED,
   targetType: 'user',

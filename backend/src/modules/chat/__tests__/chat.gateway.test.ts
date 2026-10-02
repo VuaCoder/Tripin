@@ -16,7 +16,7 @@ vi.mock('../../../middlewares/authenticate', () => ({
 
 import { attachChatGateway } from '../chat.gateway';
 
-const CONV = '507f1f77bcf86cd799439011';
+const CONV = '11111111-1111-4111-8111-111111111111';
 
 let server: http.Server;
 let url: string;

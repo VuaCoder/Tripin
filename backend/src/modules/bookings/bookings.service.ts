@@ -1,4 +1,5 @@
 import { BOOKING_CANCEL_REASON, BOOKING_STATUS, type BookingCancelReason, type BookingStatus } from '@travel-platform/constants';
+import { isUniqueViolation } from '../../config/database';
 import { AppError } from '../../utils/app-error';
 import { randomInt } from 'node:crypto';
 import { buildPage, type Page } from '../../utils/pagination';
@@ -11,8 +12,7 @@ import { toursService, type ToursService } from '../tours';
 import { bookingEvents } from './bookings.events';
 import { toAgencyBookingDto, toBookingDto, toBookingFacts } from './bookings.mapper';
 import { BOOKING_POLICY, BOOKING_TRANSITIONS } from './bookings.policy';
-import { bookingsRepository, type BookingsRepository } from './bookings.repository';
-import type { BookingDocument } from './bookings.model';
+import { bookingsRepository, type BookingRecord, type BookingsRepository, type NewBooking } from './bookings.repository';
 import { CUSTOMER_EXPORT_LIMIT, type CustomerRow } from './bookings.types';
 import type {
   AgencyBookingDto,
@@ -99,10 +99,10 @@ export class BookingsService {
       const commissionAmount = Math.floor((totalAmount * commissionBps) / 10_000);
 
       const created = await this.createWithUniqueCode({
-        travelerId: travelerId as never,
-        agencyId: departure.agencyId as never,
-        tourId: input.tourId as never,
-        departureId: input.departureId as never,
+        travelerId,
+        agencyId: departure.agencyId,
+        tourId: input.tourId,
+        departureId: input.departureId,
         tourTitle: departure.title,
         departureDate: departure.departureDate,
         endDate: new Date(departure.departureDate.getTime() + departure.durationDays * DAY_MS),
@@ -111,7 +111,7 @@ export class BookingsService {
         notes: input.notes,
         unitPrice: departure.unitPrice,
         subtotal,
-        promotion: applied ? { promotionId: applied.promotionId as never, code: applied.code, scope: applied.scope, discountAmount } : undefined,
+        promotion: applied ? { promotionId: applied.promotionId, code: applied.code, scope: applied.scope, discountAmount } : undefined,
         discountAmount,
         totalAmount,
         commissionBps,
@@ -172,7 +172,7 @@ export class BookingsService {
     const cancelled = await this.cancelInternal(booking, BOOKING_CANCEL_REASON.TRAVELER_REQUEST, [booking.status as BookingStatus], note);
     if (!cancelled) throw AppError.conflict('The booking changed, please retry', 'CONCURRENT_UPDATE');
 
-    await this.notifications.notify(String(booking.agencyId), {
+    await this.notifications.notify(booking.agencyId, {
       type: NOTIFICATION_TYPE.BOOKING_CANCELLED,
       title: 'A booking was cancelled',
       body: `Booking ${booking.bookingCode} for "${booking.tourTitle}" was cancelled by the traveler.`,
@@ -191,7 +191,7 @@ export class BookingsService {
 
   async getForAgency(agencyId: string, id: string): Promise<AgencyBookingDto> {
     const booking = await this.bookings.findById(id);
-    if (!booking || String(booking.agencyId) !== agencyId) throw AppError.notFound('Booking not found');
+    if (!booking || booking.agencyId !== agencyId) throw AppError.notFound('Booking not found');
     return toAgencyBookingDto(booking);
   }
 
@@ -227,13 +227,15 @@ export class BookingsService {
       return { outcome: 'ALREADY_CONFIRMED', booking: toBookingFacts(booking) };
     }
     if (booking.status === BOOKING_STATUS.CANCELLED) {
-      const flagged = await this.bookings.updateById(bookingId, { $set: { isPaid: true, refundRequired: true } });
+      const flagged = await this.bookings.updateById(bookingId, { isPaid: true, refundRequired: true });
       return { outcome: 'REFUND_REQUIRED', booking: toBookingFacts(flagged ?? booking) };
     }
 
     const confirmed = await this.bookings.transition(bookingId, [BOOKING_STATUS.PENDING], {
-      $set: { status: BOOKING_STATUS.CONFIRMED, isPaid: true, confirmedAt: new Date() },
-      $unset: { paymentExpiresAt: 1 },
+      status: BOOKING_STATUS.CONFIRMED,
+      isPaid: true,
+      confirmedAt: new Date(),
+      paymentExpiresAt: null,
     });
     if (!confirmed) return this.confirmPayment(bookingId); // state moved under us: re-evaluate once more
 
@@ -273,7 +275,7 @@ export class BookingsService {
         // Only a still-PENDING booking may expire: if the payment confirmed it a moment ago it must stay CONFIRMED.
         if (await this.cancelInternal(booking, BOOKING_CANCEL_REASON.PAYMENT_EXPIRED, [BOOKING_STATUS.PENDING])) {
           expired += 1;
-          await this.notifications.notify(String(booking.travelerId), {
+          await this.notifications.notify(booking.travelerId, {
             type: NOTIFICATION_TYPE.BOOKING_CANCELLED,
             title: 'Booking expired',
             body: `Booking ${booking.bookingCode} was cancelled because it was not paid in time.`,
@@ -294,7 +296,8 @@ export class BookingsService {
     for (const booking of due) {
       try {
         const done = await this.bookings.transition(booking.id, [BOOKING_STATUS.CONFIRMED], {
-          $set: { status: BOOKING_STATUS.COMPLETED, completedAt: new Date() },
+          status: BOOKING_STATUS.COMPLETED,
+          completedAt: new Date(),
         });
         if (!done) continue;
         completed += 1;
@@ -363,34 +366,32 @@ export class BookingsService {
   // ============================================================== helpers
 
   /** 404 (never 403) when the booking is not the traveler's own, so booking ids of others are not revealed. */
-  private async requireOwnedByTraveler(travelerId: string, id: string): Promise<BookingDocument> {
+  private async requireOwnedByTraveler(travelerId: string, id: string): Promise<BookingRecord> {
     const booking = await this.bookings.findById(id);
-    if (!booking || String(booking.travelerId) !== travelerId) throw AppError.notFound('Booking not found');
+    if (!booking || booking.travelerId !== travelerId) throw AppError.notFound('Booking not found');
     return booking;
   }
 
   /** CAS to CANCELLED, then give back seats and the promotion redemption. Null if someone else changed the booking. */
   private async cancelInternal(
-    booking: BookingDocument,
+    booking: BookingRecord,
     reason: BookingCancelReason,
     expected: readonly BookingStatus[],
     note?: string,
-  ): Promise<BookingDocument | null> {
+  ): Promise<BookingRecord | null> {
     const wasPaid = booking.isPaid;
     const cancelled = await this.bookings.transition(booking.id, expected, {
-      $set: {
-        status: BOOKING_STATUS.CANCELLED,
-        cancelledAt: new Date(),
-        cancelReason: reason,
-        ...(note ? { cancelNote: note } : {}),
-        ...(wasPaid ? { refundRequired: true } : {}),
-      },
-      $unset: { paymentExpiresAt: 1 },
+      status: BOOKING_STATUS.CANCELLED,
+      cancelledAt: new Date(),
+      cancelReason: reason,
+      ...(note ? { cancelNote: note } : {}),
+      ...(wasPaid ? { refundRequired: true } : {}),
+      paymentExpiresAt: null,
     });
     if (!cancelled) return null;
 
-    await this.tours.releaseSeats(String(booking.tourId), String(booking.departureId), booking.participants);
-    if (booking.promotion) await this.promotions.release(String(booking.promotion.promotionId));
+    await this.tours.releaseSeats(booking.tourId, booking.departureId, booking.participants);
+    if (booking.promotion) await this.promotions.release(booking.promotion.promotionId);
     await bookingEvents.emitCancelled(toBookingFacts(cancelled));
     return cancelled;
   }
@@ -404,10 +405,10 @@ export class BookingsService {
     }
   }
 
-  private async createWithUniqueCode(data: Record<string, unknown>): Promise<BookingDocument> {
+  private async createWithUniqueCode(data: Omit<NewBooking, 'bookingCode'>): Promise<BookingRecord> {
     for (let attempt = 1; ; attempt += 1) {
       try {
-        return await this.bookings.create({ ...data, bookingCode: generateBookingCode() } as never);
+        return await this.bookings.create({ ...data, bookingCode: generateBookingCode() });
       } catch (error) {
         if (!isDuplicateKey(error, 'bookingCode') || attempt >= BOOKING_POLICY.CODE_MAX_ATTEMPTS) throw error;
       }
@@ -421,9 +422,6 @@ export function generateBookingCode(): string {
   return `${CODE_PREFIX}-${body}`;
 }
 
-function isDuplicateKey(error: unknown, field: string): boolean {
-  const e = error as { code?: number; keyPattern?: Record<string, unknown> };
-  return e?.code === 11000 && Boolean(e.keyPattern && field in e.keyPattern);
-}
+const isDuplicateKey = isUniqueViolation;
 
 export const bookingsService = new BookingsService();

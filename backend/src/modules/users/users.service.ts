@@ -1,4 +1,3 @@
-import type { UpdateQuery } from 'mongoose';
 import {
   AGENCY_VERIFICATION_STATUS,
   ROLES,
@@ -10,9 +9,8 @@ import { AppError } from '../../utils/app-error';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
 import { buildPage, type Page } from '../../utils/pagination';
 import { assertTransition } from '../../utils/state-machine';
-import type { UserAttributes, UserDocument } from './users.model';
 import { toPrivateUserDto, toPublicAgencyDto, toPublicGuideDto } from './users.mapper';
-import { usersRepository, type UsersRepository } from './users.repository';
+import { usersRepository, type UserPatch, type UserRecord, type UsersRepository } from './users.repository';
 import {
   AGENCY_VERIFICATION_TRANSITIONS,
   USER_STATUS_TRANSITIONS,
@@ -62,19 +60,17 @@ export class UsersService {
       throw AppError.forbidden('Only tour guides can edit a guide profile');
     }
 
-    const $set: Record<string, unknown> = {};
-    if (input.fullName !== undefined) $set.fullName = input.fullName;
-    if (input.phone !== undefined) $set.phone = input.phone;
-    if (input.avatarUrl !== undefined) $set.avatarUrl = input.avatarUrl;
-    for (const [key, value] of Object.entries(input.agencyProfile ?? {})) {
-      if (value !== undefined) $set[`agencyProfile.${key}`] = value;
-    }
-    for (const [key, value] of Object.entries(input.guideProfile ?? {})) {
-      if (value !== undefined) $set[`guideProfile.${key}`] = value;
-    }
-    if (Object.keys($set).length === 0) return toPrivateUserDto(user);
+    const patch: UserPatch = {};
+    if (input.fullName !== undefined) patch.fullName = input.fullName;
+    if (input.phone !== undefined) patch.phone = input.phone;
+    if (input.avatarUrl !== undefined) patch.avatarUrl = input.avatarUrl;
+    const agencyFields = definedEntries(input.agencyProfile);
+    if (agencyFields) patch.agencyProfile = agencyFields;
+    const guideFields = definedEntries(input.guideProfile);
+    if (guideFields) patch.guideProfile = guideFields;
+    if (Object.keys(patch).length === 0) return toPrivateUserDto(user);
 
-    const updated = await this.users.updateById(userId, { $set } as UpdateQuery<UserAttributes>);
+    const updated = await this.users.updateById(userId, patch);
     return toPrivateUserDto(updated ?? user);
   }
 
@@ -91,9 +87,8 @@ export class UsersService {
     assertTransition(AGENCY_VERIFICATION_TRANSITIONS, current, AGENCY_VERIFICATION_STATUS.PENDING, 'Agency verification');
 
     const updated = await this.users.updateAgencyVerificationIf(userId, current, {
-      $set: { 'agencyProfile.verificationStatus': AGENCY_VERIFICATION_STATUS.PENDING },
-      $unset: { 'agencyProfile.verificationNote': 1 },
-    } as UpdateQuery<UserAttributes>);
+      agencyProfile: { verificationStatus: AGENCY_VERIFICATION_STATUS.PENDING, verificationNote: null },
+    });
     if (!updated) throw AppError.invalidTransition(current, AGENCY_VERIFICATION_STATUS.PENDING, 'Agency verification');
     return toPrivateUserDto(updated);
   }
@@ -141,31 +136,31 @@ export class UsersService {
     if (actorId === targetId) throw AppError.forbidden('You cannot change your own access');
     const target = await this.requireUser(targetId);
 
-    const $set: Record<string, unknown> = {};
+    const patch: UserPatch = {};
     if (input.role && input.role !== target.role) {
       if (target.role === ROLES.SUPER_ADMIN) {
         const superAdmins = await this.users.count({ role: ROLES.SUPER_ADMIN, status: USER_STATUS.ACTIVE });
         if (superAdmins <= 1) throw AppError.conflict('The last SUPER_ADMIN cannot be demoted', 'LAST_SUPER_ADMIN');
       }
-      $set.role = input.role;
+      patch.role = input.role;
       if (input.role === ROLES.AGENCY && !target.agencyProfile) {
-        $set.agencyProfile = { verificationStatus: AGENCY_VERIFICATION_STATUS.UNVERIFIED };
+        patch.agencyProfile = { verificationStatus: AGENCY_VERIFICATION_STATUS.UNVERIFIED };
       }
       if (input.role === ROLES.TOUR_GUIDE && !target.guideProfile) {
-        $set.guideProfile = { languages: [], specialties: [] };
+        patch.guideProfile = { languages: [], specialties: [] };
       }
     }
     if (input.extraPermissions) {
-      $set.extraPermissions = Array.from(new Set(input.extraPermissions.filter(isPermission)));
+      patch.extraPermissions = Array.from(new Set(input.extraPermissions.filter(isPermission)));
     }
-    if (Object.keys($set).length === 0) return toPrivateUserDto(target);
+    if (Object.keys(patch).length === 0) return toPrivateUserDto(target);
 
-    const updated = await this.users.updateById(targetId, { $set } as UpdateQuery<UserAttributes>);
+    const updated = await this.users.updateById(targetId, patch);
 
     // The check above can be outrun (two Super admins demoting each other at once). Verify AFTER writing and undo,
     // so the platform is never left without a Super admin.
-    if (target.role === ROLES.SUPER_ADMIN && $set.role && (await this.users.count({ role: ROLES.SUPER_ADMIN, status: USER_STATUS.ACTIVE })) === 0) {
-      await this.users.updateById(targetId, { $set: { role: ROLES.SUPER_ADMIN } } as UpdateQuery<UserAttributes>);
+    if (target.role === ROLES.SUPER_ADMIN && patch.role && (await this.users.count({ role: ROLES.SUPER_ADMIN, status: USER_STATUS.ACTIVE })) === 0) {
+      await this.users.updateById(targetId, { role: ROLES.SUPER_ADMIN });
       throw AppError.conflict('The last SUPER_ADMIN cannot be demoted', 'LAST_SUPER_ADMIN');
     }
     await this.audit.record({
@@ -176,8 +171,8 @@ export class UsersService {
       targetId,
       metadata: {
         fromRole: target.role,
-        toRole: $set.role ?? target.role,
-        extraPermissions: $set.extraPermissions ?? undefined,
+        toRole: patch.role ?? target.role,
+        extraPermissions: patch.extraPermissions ?? undefined,
       },
     });
     return toPrivateUserDto(updated ?? target);
@@ -196,8 +191,11 @@ export class UsersService {
     assertTransition(USER_STATUS_TRANSITIONS, target.status as keyof typeof USER_STATUS_TRANSITIONS, USER_STATUS.BANNED, 'Account');
 
     const updated = await this.users.updateStatusIf(targetId, USER_STATUS.ACTIVE, {
-      $set: { status: USER_STATUS.BANNED, bannedAt: new Date(), bannedBy: actor.userId, banReason: reason },
-    } as UpdateQuery<UserAttributes>);
+      status: USER_STATUS.BANNED,
+      bannedAt: new Date(),
+      bannedById: actor.userId,
+      banReason: reason,
+    });
     if (!updated) throw AppError.invalidTransition(target.status, USER_STATUS.BANNED, 'Account');
     await this.audit.record({
       actorId: actor.userId,
@@ -214,9 +212,11 @@ export class UsersService {
     const target = await this.requireUser(targetId);
     assertTransition(USER_STATUS_TRANSITIONS, target.status as keyof typeof USER_STATUS_TRANSITIONS, USER_STATUS.ACTIVE, 'Account');
     const updated = await this.users.updateStatusIf(targetId, USER_STATUS.BANNED, {
-      $set: { status: USER_STATUS.ACTIVE },
-      $unset: { bannedAt: 1, bannedBy: 1, banReason: 1 },
-    } as UpdateQuery<UserAttributes>);
+      status: USER_STATUS.ACTIVE,
+      bannedAt: null,
+      bannedById: null,
+      banReason: null,
+    });
     if (!updated) throw AppError.invalidTransition(target.status, USER_STATUS.ACTIVE, 'Account');
     await this.audit.record({
       actorId: actor.userId,
@@ -241,14 +241,14 @@ export class UsersService {
     const current = agency.agencyProfile.verificationStatus as keyof typeof AGENCY_VERIFICATION_TRANSITIONS;
     assertTransition(AGENCY_VERIFICATION_TRANSITIONS, current, next, 'Agency verification');
 
-    const update: UpdateQuery<UserAttributes> = {
-      $set: {
-        'agencyProfile.verificationStatus': next,
-        'agencyProfile.verifiedBy': moderator.userId,
-        'agencyProfile.verifiedAt': new Date(),
-        ...(decision.note ? { 'agencyProfile.verificationNote': decision.note } : {}),
+    const update: UserPatch = {
+      agencyProfile: {
+        verificationStatus: next,
+        verifiedById: moderator.userId,
+        verifiedAt: new Date(),
+        ...(decision.note ? { verificationNote: decision.note } : {}),
       },
-    } as UpdateQuery<UserAttributes>;
+    };
     const updated = await this.users.updateAgencyVerificationIf(agencyId, current, update);
     if (!updated) throw AppError.invalidTransition(current, next, 'Agency verification'); // another moderator decided first
     await this.audit.record({
@@ -318,7 +318,7 @@ export class UsersService {
   }
 
   /** Throws 404 unless the id is an ACTIVE user with the given role (e.g. before assigning a guide to a tour). */
-  async assertActiveWithRole(id: string, role: PersistedRole): Promise<UserDocument> {
+  async assertActiveWithRole(id: string, role: PersistedRole): Promise<UserRecord> {
     const user = await this.users.findById(id);
     if (!user || user.role !== role || user.status !== USER_STATUS.ACTIVE) {
       throw AppError.notFound(`${role} not found`);
@@ -326,7 +326,7 @@ export class UsersService {
     return user;
   }
 
-  private async requireUser(id: string): Promise<UserDocument> {
+  private async requireUser(id: string): Promise<UserRecord> {
     const user = await this.users.findById(id);
     if (!user) throw AppError.notFound('User not found');
     return user;
@@ -334,3 +334,9 @@ export class UsersService {
 }
 
 export const usersService = new UsersService();
+
+/** The fields of `value` that are not `undefined`, or `undefined` when there are none. */
+function definedEntries<T extends object>(value: T | undefined): Partial<T> | undefined {
+  const entries = Object.entries(value ?? {}).filter(([, v]) => v !== undefined);
+  return entries.length > 0 ? (Object.fromEntries(entries) as Partial<T>) : undefined;
+}

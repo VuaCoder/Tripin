@@ -1,11 +1,10 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../../app';
-import { UserModel } from '../../users/users.model';
-import { RefreshTokenModel } from '../refresh-token.model';
 import { PASSWORD, bearer, captureMail, registerAndVerify, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
+import { prisma } from '../../../config/database';
 
-// Real Express app + real MongoDB (mongodb-memory-server): register -> OTP -> session -> refresh rotation -> ban.
+// Real Express app + real PostgreSQL: register -> OTP -> session -> refresh rotation -> ban.
 const app = createApp();
 const mail = captureMail();
 
@@ -20,7 +19,7 @@ describe('auth (integration)', () => {
     const email = 'an@example.com';
     const session = await registerAndVerify(app, mail, email);
 
-    const stored = await UserModel.findOne({ email }).select('+passwordHash');
+    const stored = await prisma.user.findFirst({ where: { email } });
     expect(stored?.status).toBe('ACTIVE');
     expect(stored?.passwordHash).not.toBe(PASSWORD);
 
@@ -73,7 +72,7 @@ describe('auth (integration)', () => {
     // Replaying the old (revoked) token is theft evidence: it fails AND kills the newer token.
     expect((await request(app).post('/api/v1/auth/refresh').set('Cookie', first)).status).toBe(401);
     expect((await request(app).post('/api/v1/auth/refresh').set('Cookie', second)).status).toBe(401);
-    expect(await RefreshTokenModel.countDocuments({ revokedAt: { $exists: false } })).toBe(0);
+    expect(await prisma.refreshToken.count({ where: { revokedAt: null } })).toBe(0);
   });
 
   it('parallel refreshes with the same token yield exactly one session', async () => {
@@ -91,7 +90,7 @@ describe('auth (integration)', () => {
     const before = await request(app).patch('/api/v1/auth/two-factor').set(bearer(session.token)).send({ enabled: false, password: PASSWORD });
     expect(before.status).not.toBe(401);
 
-    await UserModel.updateOne({ email }, { $set: { status: 'BANNED' } });
+    await prisma.user.updateMany({ where: { email }, data: { status: 'BANNED' } });
     const after = await request(app).patch('/api/v1/auth/two-factor').set(bearer(session.token)).send({ enabled: false, password: PASSWORD });
     expect(after.status).toBe(403);
 

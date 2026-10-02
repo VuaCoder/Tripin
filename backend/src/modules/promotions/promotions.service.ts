@@ -3,7 +3,7 @@ import { AppError } from '../../utils/app-error';
 import { buildPage, type Page } from '../../utils/pagination';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
 import { toursService, type ToursService } from '../tours';
-import type { PromotionAttributes, PromotionDocument } from './promotions.model';
+import type { PromotionRecord } from './promotions.repository';
 import { toPromotionDto } from './promotions.mapper';
 import { assertApplicable, computeDiscount } from './promotions.policy';
 import { promotionsRepository, type PromotionsRepository } from './promotions.repository';
@@ -103,8 +103,8 @@ export class PromotionsService {
     const created = await this.promotions.create({
       ...input,
       scope,
-      ownerId: scope === PROMOTION_SCOPE.AGENCY ? (actor.userId as never) : undefined,
-      createdBy: actor.userId as never,
+      ownerId: scope === PROMOTION_SCOPE.AGENCY ? (actor.userId) : undefined,
+      createdById: actor.userId,
     });
     await this.auditPlatform(scope, actor, created.id, { change: 'created', code: created.code });
     return toPromotionDto(created);
@@ -123,13 +123,13 @@ export class PromotionsService {
       throw AppError.badRequest('maxDiscountAmount only applies to PERCENT promotions');
     }
     this.assertTerms(
-      current.discountType as never,
+      current.discountType,
       input.discountValue ?? current.discountValue,
       input.startsAt ?? current.startsAt,
       input.endsAt ?? current.endsAt,
     );
 
-    const updated = await this.promotions.updateById(id, { $set: { ...input } } as never);
+    const updated = await this.promotions.updateById(id, { ...input });
     await this.auditPlatform(scope, actor, id, { change: 'updated', fields: Object.keys(input) });
     return toPromotionDto(updated ?? current);
   }
@@ -143,15 +143,15 @@ export class PromotionsService {
   }
 
   /** 404 when the promotion is missing, of another scope, or (agency scope) owned by someone else. */
-  private async requireScoped(id: string, scope: PromotionScope, ownerId?: string): Promise<PromotionDocument> {
+  private async requireScoped(id: string, scope: PromotionScope, ownerId?: string): Promise<PromotionRecord> {
     const promotion = await this.promotions.findById(id);
-    if (!promotion || promotion.scope !== scope || (ownerId !== undefined && String(promotion.ownerId) !== ownerId)) {
+    if (!promotion || promotion.scope !== scope || (ownerId !== undefined && promotion.ownerId !== ownerId)) {
       throw AppError.notFound('Promotion not found');
     }
     return promotion;
   }
 
-  private async resolve(code: string, tourId: string): Promise<{ promotion: PromotionDocument; agencyId: string }> {
+  private async resolve(code: string, tourId: string): Promise<{ promotion: PromotionRecord; agencyId: string }> {
     const promotion = await this.promotions.findByCode(code);
     if (!promotion) throw AppError.notFound('Promotion code not found');
     const tour = await this.tours.getTourFacts(tourId);
@@ -159,14 +159,14 @@ export class PromotionsService {
     return { promotion, agencyId: tour.agencyId };
   }
 
-  private assertTerms(type: PromotionAttributes['discountType'], value: number, startsAt: Date, endsAt: Date): void {
+  private assertTerms(type: PromotionRecord['discountType'], value: number, startsAt: Date, endsAt: Date): void {
     if (endsAt.getTime() <= startsAt.getTime()) throw AppError.badRequest('endsAt must be after startsAt');
     if (type === DISCOUNT_TYPE.PERCENT && (value < 1 || value > 100)) {
       throw AppError.badRequest('A PERCENT discount must be between 1 and 100');
     }
   }
 
-  private toApplied(promotion: PromotionDocument, discountAmount: number, subtotal: number) {
+  private toApplied(promotion: PromotionRecord, discountAmount: number, subtotal: number) {
     return {
       promotionId: promotion.id,
       code: promotion.code,

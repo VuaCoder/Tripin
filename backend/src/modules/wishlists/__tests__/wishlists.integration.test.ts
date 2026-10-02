@@ -1,12 +1,10 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../../app';
-import { AuditLogModel } from '../../audit/audit.model';
-import { TourModel } from '../../tours/tours.model';
-import { WishlistItemModel } from '../wishlists.model';
-import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
+import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase, loadTour } from '../../../test/integration';
+import { prisma } from '../../../config/database';
 
-// Real Express app + real MongoDB: the traveler's saved tours, and the audit log that staff read.
+// Real Express app + real PostgreSQL: the traveler's saved tours, and the audit log that staff read.
 const app = createApp();
 
 beforeAll(startDatabase, 120_000);
@@ -28,7 +26,7 @@ describe('wishlists (integration)', () => {
 
     const results = await Promise.all(Array.from({ length: 6 }, () => add(traveler.token, tourId)));
     expect(results.every((r) => r.status < 300)).toBe(true);
-    expect(await WishlistItemModel.countDocuments()).toBe(1);
+    expect(await prisma.wishlistItem.count()).toBe(1);
 
     const mine = await request(app).get('/api/v1/wishlist').set(bearer(traveler.token));
     expect(mine.body.data).toHaveLength(1);
@@ -37,29 +35,29 @@ describe('wishlists (integration)', () => {
 
     // Somebody else removing "their" entry does not touch mine.
     expect((await request(app).delete(`/api/v1/wishlist/${tourId}`).set(bearer(other.token))).status).toBeLessThan(300);
-    expect(await WishlistItemModel.countDocuments()).toBe(1);
+    expect(await prisma.wishlistItem.count()).toBe(1);
 
     expect((await request(app).delete(`/api/v1/wishlist/${tourId}`).set(bearer(traveler.token))).status).toBeLessThan(300);
     expect((await request(app).delete(`/api/v1/wishlist/${tourId}`).set(bearer(traveler.token))).status).toBeLessThan(300);
-    expect(await WishlistItemModel.countDocuments()).toBe(0);
+    expect(await prisma.wishlistItem.count()).toBe(0);
   });
 
   it('only public tours can be saved; a tour that stops being public stays listed but flagged unavailable', async () => {
     const { traveler, tourId } = await setup();
-    const draft = await TourModel.create({ agencyId: (await TourModel.findById(tourId))!.agencyId, title: 'Draft tour', destination: 'Hue', durationDays: 1, basePrice: 1000, status: 'DRAFT' });
+    const draft = await prisma.tour.create({ data: { agencyId: (await loadTour(tourId))!.agencyId, title: 'Draft tour', destination: 'Hue', durationDays: 1, basePrice: 1000, status: 'DRAFT' } });
 
     expect((await add(traveler.token, draft.id)).status).toBe(404);
-    expect((await add(traveler.token, '64b000000000000000000009')).status).toBe(404);
+    expect((await add(traveler.token, '99999999-9999-4999-8999-999999999999')).status).toBe(404);
     expect((await add(traveler.token, 'nope')).status).toBe(400);
 
     expect((await add(traveler.token, tourId)).status).toBeLessThan(300);
-    await TourModel.updateOne({ _id: tourId }, { $set: { status: 'SUSPENDED' } });
+    await prisma.tour.updateMany({ where: { id: tourId }, data: { status: 'SUSPENDED' } });
     const list = await request(app).get('/api/v1/wishlist').set(bearer(traveler.token));
     expect(list.body.data[0].available).toBe(false);
     expect(list.body.data[0].tour).toBeUndefined();
     // ...and it can still be removed.
     expect((await request(app).delete(`/api/v1/wishlist/${tourId}`).set(bearer(traveler.token))).status).toBeLessThan(300);
-    expect(await WishlistItemModel.countDocuments()).toBe(0);
+    expect(await prisma.wishlistItem.count()).toBe(0);
   });
 
   it('needs the traveler permission', async () => {
@@ -100,6 +98,6 @@ describe('audit log (integration)', () => {
     expect((await logs('', moderator.token)).status).toBe(403);
     expect((await logs('', traveler.token)).status).toBe(403);
     expect((await request(app).delete('/api/v1/admin/audit-logs')).status).toBeGreaterThanOrEqual(401);
-    expect(await AuditLogModel.countDocuments()).toBe(3);
+    expect(await prisma.auditLog.count()).toBe(3);
   });
 });

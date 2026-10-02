@@ -1,4 +1,4 @@
-import type { SupportTicketDocument } from './support.model';
+import type { SupportTicketRecord } from './support.repository';
 import type {
   ModerationTicketDto,
   TicketCategory,
@@ -10,34 +10,34 @@ import type {
 
 type Viewer = 'owner' | 'staff';
 
-function toMessage(message: SupportTicketDocument['messages'][number], viewer: Viewer): TicketMessageDto {
+function toMessage(message: SupportTicketRecord['messages'][number], viewer: Viewer): TicketMessageDto {
   const staff = message.authorKind === 'STAFF';
   // The owner sees "YOU" / "SUPPORT" (no staff identity); staff see who wrote what as "USER" / "SUPPORT".
   const author: TicketMessageDto['author'] = viewer === 'owner' ? (staff ? 'SUPPORT' : 'YOU') : staff ? 'SUPPORT' : 'USER';
   return { author, text: message.text, createdAt: (message.createdAt ?? new Date()).toISOString() };
 }
 
-export function toTicketSummary(ticket: SupportTicketDocument): TicketSummaryDto {
+export function toTicketSummary(ticket: SupportTicketRecord): TicketSummaryDto {
   return {
     id: ticket.id,
     subject: ticket.subject,
     category: ticket.category as TicketCategory,
     status: ticket.status as TicketStatus,
-    bookingId: ticket.bookingId ? String(ticket.bookingId) : undefined,
+    bookingId: ticket.bookingId ? ticket.bookingId : undefined,
     messageCount: ticket.messageCount,
     lastMessageAt: ticket.lastMessageAt.toISOString(),
-    createdAt: (ticket as unknown as { createdAt: Date }).createdAt.toISOString(),
+    createdAt: ticket.createdAt.toISOString(),
   };
 }
 
-export function toTicketDto(ticket: SupportTicketDocument, viewer: Viewer = 'owner'): TicketDto {
+export function toTicketDto(ticket: SupportTicketRecord, viewer: Viewer = 'owner'): TicketDto {
   return { ...toTicketSummary(ticket), messages: ticket.messages.map((m) => toMessage(m, viewer)) };
 }
 
-export function toModerationTicketDto(ticket: SupportTicketDocument): ModerationTicketDto {
+export function toModerationTicketDto(ticket: SupportTicketRecord): ModerationTicketDto {
   return {
     ...toTicketDto(ticket, 'staff'),
-    userId: String(ticket.userId),
-    assignedTo: ticket.assignedTo ? String(ticket.assignedTo) : undefined,
+    userId: ticket.userId,
+    assignedTo: ticket.assignedToId ?? undefined,
   };
 }

@@ -8,12 +8,11 @@ vi.hoisted(() => {
 });
 
 import { createApp } from '../../../app';
-import { PaymentModel } from '../../payments/payments.model';
 import { subscriptionsService } from '..';
-import { PlanModel, SubscriptionModel } from '../subscriptions.model';
 import { bearer, createUser, resetDatabase, signedPayosWebhook, startDatabase, stopDatabase, stubPayosApi } from '../../../test/integration';
+import { prisma } from '../../../config/database';
 
-// Real Express app + real MongoDB; only the PayOS HTTP API is faked.
+// Real Express app + real PostgreSQL; only the PayOS HTTP API is faked.
 const app = createApp();
 
 beforeAll(startDatabase, 120_000);
@@ -25,12 +24,12 @@ beforeEach(async () => {
 
 const webhook = (body: unknown) => request(app).post('/api/v1/payments/webhooks/payos').send(body as object);
 const plan = (overrides: object = {}) =>
-  PlanModel.create({ code: 'PRO_30', name: 'Pro 30 days', price: 199_000, durationDays: 30, ...overrides });
+  prisma.subscriptionPlan.create({ data: { code: 'PRO_30', name: 'Pro 30 days', price: 199_000, durationDays: 30, ...overrides } });
 const subscribe = (token: string, planId: string) => request(app).post('/api/v1/subscriptions').set(bearer(token)).send({ planId });
 
 async function pay(paymentId: string) {
-  const payment = (await PaymentModel.findById(paymentId))!;
-  return webhook(signedPayosWebhook(payment.providerOrderCode, payment.amount));
+  const payment = (await prisma.payment.findUnique({ where: { id: paymentId } }))!;
+  return webhook(signedPayosWebhook(Number(payment.providerOrderCode), payment.amount));
 }
 
 describe('subscriptions (integration)', () => {
@@ -41,7 +40,7 @@ describe('subscriptions (integration)', () => {
     expect(list.status).toBe(200);
     expect(list.body.data.map((p: { code: string }) => p.code)).toEqual(['PRO_30']);
 
-    const created = await PlanModel.findOne({ code: 'PRO_30' });
+    const created = await prisma.subscriptionPlan.findFirst({ where: { code: 'PRO_30' } });
     const traveler = await createUser('TRAVELER', 'traveler@example.com');
     expect((await subscribe(traveler.token, created!.id)).status).toBe(403);
     expect((await request(app).post('/api/v1/subscriptions').send({ planId: created!.id })).status).toBe(401);
@@ -54,15 +53,15 @@ describe('subscriptions (integration)', () => {
     const res = await subscribe(guide.token, pro.id);
     expect(res.status).toBeLessThan(300);
     expect(res.body.data.subscription.status).toBe('PENDING_PAYMENT');
-    const payment = (await PaymentModel.findOne())!;
+    const payment = (await prisma.payment.findFirst())!;
     expect(payment.amount).toBe(199_000);
     expect((await request(app).get('/api/v1/subscriptions/me/current').set(bearer(guide.token))).body.data.active).toBe(false);
 
-    const body = signedPayosWebhook(payment.providerOrderCode, payment.amount);
+    const body = signedPayosWebhook(Number(payment.providerOrderCode), payment.amount);
     const replays = await Promise.all(Array.from({ length: 6 }, () => webhook(body)));
     expect(replays.every((r) => r.status === 200)).toBe(true);
 
-    const stored = await SubscriptionModel.find();
+    const stored = await prisma.subscription.findMany();
     expect(stored).toHaveLength(1);
     expect(stored[0]!.status).toBe('ACTIVE');
     const days = (stored[0]!.endsAt!.getTime() - stored[0]!.startsAt!.getTime()) / 86_400_000;
@@ -79,8 +78,8 @@ describe('subscriptions (integration)', () => {
 
     const results = await Promise.all(Array.from({ length: 5 }, () => subscribe(guide.token, pro.id)));
     expect(results.every((r) => r.status < 300)).toBe(true);
-    expect(await SubscriptionModel.countDocuments()).toBe(1);
-    expect(await PaymentModel.countDocuments()).toBe(1);
+    expect(await prisma.subscription.count()).toBe(1);
+    expect(await prisma.payment.count()).toBe(1);
   });
 
   it('renewals stack: a second paid plan starts when the first one ends', async () => {
@@ -88,15 +87,15 @@ describe('subscriptions (integration)', () => {
     const guide = await createUser('TOUR_GUIDE', 'guide@example.com');
 
     await subscribe(guide.token, pro.id);
-    await pay((await PaymentModel.findOne())!.id);
-    const first = (await SubscriptionModel.findOne({ status: 'ACTIVE' }))!;
+    await pay((await prisma.payment.findFirst())!.id);
+    const first = (await prisma.subscription.findFirst({ where: { status: 'ACTIVE' } }))!;
 
     await subscribe(guide.token, pro.id);
-    const second = (await PaymentModel.find().sort({ createdAt: -1 }))[0]!;
+    const second = (await prisma.payment.findMany({ orderBy: { createdAt: 'desc' } }))[0]!;
     expect(String(second.referenceId)).not.toBe(first.id);
     await pay(second.id);
 
-    const renewed = (await SubscriptionModel.findById(second.referenceId))!;
+    const renewed = (await prisma.subscription.findUnique({ where: { id: second.referenceId } }))!;
     expect(renewed.status).toBe('ACTIVE');
     expect(renewed.startsAt!.getTime()).toBe(first.endsAt!.getTime());
   });
@@ -106,22 +105,22 @@ describe('subscriptions (integration)', () => {
     const guide = await createUser('TOUR_GUIDE', 'guide@example.com');
 
     await subscribe(guide.token, pro.id);
-    const payment = (await PaymentModel.findOne())!;
+    const payment = (await prisma.payment.findFirst())!;
     // Abandoned: created long ago and never paid.
-    // createdAt is immutable in Mongoose, so go through the raw collection.
-    await SubscriptionModel.collection.updateOne({}, { $set: { createdAt: new Date(Date.now() - 24 * 3_600_000) } });
+    // Age the row directly: the pending subscription must look abandoned.
+    await prisma.subscription.updateMany({ where: {}, data: { createdAt: new Date(Date.now() - 24 * 3_600_000) } });
     expect(await subscriptionsService.cancelAbandonedSubscriptions()).toBe(1);
-    expect((await SubscriptionModel.findOne())!.status).toBe('CANCELLED');
+    expect((await prisma.subscription.findFirst())!.status).toBe('CANCELLED');
 
     // The money arrives anyway.
     expect((await pay(payment.id)).status).toBe(200);
-    expect((await SubscriptionModel.findOne())!.status).toBe('ACTIVE');
+    expect((await prisma.subscription.findFirst())!.status).toBe('ACTIVE');
 
     // Period over -> EXPIRED, exactly once.
-    await SubscriptionModel.updateOne({}, { $set: { endsAt: new Date(Date.now() - 1000) } });
+    await prisma.subscription.updateMany({ where: {}, data: { endsAt: new Date(Date.now() - 1000) } });
     expect(await subscriptionsService.expireEndedSubscriptions()).toBe(1);
     expect(await subscriptionsService.expireEndedSubscriptions()).toBe(0);
-    expect((await SubscriptionModel.findOne())!.status).toBe('EXPIRED');
+    expect((await prisma.subscription.findFirst())!.status).toBe('EXPIRED');
     expect(await subscriptionsService.hasActiveSubscription(guide.id)).toBe(false);
   });
 
@@ -133,7 +132,7 @@ describe('subscriptions (integration)', () => {
 
     const mine = await request(app).get('/api/v1/subscriptions/me').set(bearer(other.token));
     expect(mine.body.data).toHaveLength(0);
-    const payment = (await PaymentModel.findOne())!;
+    const payment = (await prisma.payment.findFirst())!;
     expect((await request(app).get(`/api/v1/payments/${payment.id}`).set(bearer(other.token))).status).toBe(404);
   });
 });

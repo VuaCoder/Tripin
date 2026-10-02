@@ -17,9 +17,9 @@ function make(seed: Array<{ id: string; name: string; slug: string; isActive: bo
       db.push(doc);
       return doc;
     }),
-    updateById: vi.fn(async (id: string, update: { $set: Record<string, unknown> }) => {
+    updateById: vi.fn(async (id: string, patch: Record<string, unknown>) => {
       const doc = db.find((c) => c.id === id);
-      if (doc) Object.assign(doc, update.$set);
+      if (doc) Object.assign(doc, patch);
       return doc ?? null;
     }),
   };

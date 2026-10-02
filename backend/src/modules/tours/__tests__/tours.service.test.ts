@@ -18,12 +18,11 @@ function makeTour(overrides: AnyTour = {}): AnyTour {
     categoryIds: ['c1'],
     itinerary: [],
     departures: [],
-    __v: 0,
     ...overrides,
   };
 }
 
-const departure = (over: AnyTour = {}) => ({ _id: 'd1', date: future(10), capacity: 10, remaining: 10, isOpen: true, ...over });
+const departure = (over: AnyTour = {}) => ({ id: 'd1', date: future(10), capacity: 10, remaining: 10, isOpen: true, ...over });
 
 function setup(tour: AnyTour | null) {
   const db: AnyTour | null = tour;
@@ -31,15 +30,17 @@ function setup(tour: AnyTour | null) {
     create: vi.fn(async (data: AnyTour) => ({ id: 'new', ...data })),
     insertMany: vi.fn(async (data: AnyTour[]) => data.map((d, i) => ({ id: `n${i}`, ...d }))),
     findById: vi.fn(async (id: string) => (db && db.id === id ? db : null)),
-    updateIfStatus: vi.fn(async (_id: string, expected: string[], update: AnyTour) => {
+    updateIfStatus: vi.fn(async (_id: string, expected: string[], patch: AnyTour) => {
       if (!db || !expected.includes(db.status)) return null;
-      Object.assign(db, update.$set ?? {});
-      if (update.$unset) for (const key of Object.keys(update.$unset)) delete db[key];
+      const { guide, ...rest } = patch;
+      Object.assign(db, rest);
+      if (guide === null) delete db.guide;
+      else if (guide) db.guide = guide;
       return db;
     }),
-    answerGuideAssignment: vi.fn(async (_id: string, _guide: string, update: AnyTour) => {
+    answerGuideAssignment: vi.fn(async (_id: string, _guide: string, answer: AnyTour) => {
       if (!db?.guide || db.guide.status !== GUIDE_ASSIGNMENT_STATUS.PENDING) return null;
-      db.guide = { ...db.guide, status: update.$set['guide.status'] };
+      db.guide = { ...db.guide, ...answer };
       return db;
     }),
     listByAgency: vi.fn(),
@@ -47,9 +48,17 @@ function setup(tour: AnyTour | null) {
     listForModeration: vi.fn(),
     reserveSeats: vi.fn(async () => true),
     releaseSeats: vi.fn(async () => undefined),
-    replaceDeparturesIfVersion: vi.fn(async (_id: string, _v: number, departures: AnyTour[]) => {
+    applyDepartures: vi.fn(async (_id: string, changes: AnyTour[]) => {
       if (!db) return null;
-      db.departures = departures;
+      for (const change of changes) {
+        if (change.kind === 'create') db.departures.push({ id: `new${db.departures.length}`, ...change.data });
+        else if (change.kind === 'delete') db.departures = db.departures.filter((d: AnyTour) => d.id !== change.id);
+        else {
+          const current = db.departures.find((d: AnyTour) => d.id === change.id);
+          current.remaining += change.capacity - current.capacity;
+          Object.assign(current, { capacity: change.capacity, date: change.date, priceOverride: change.priceOverride, isOpen: change.isOpen });
+        }
+      }
       return db;
     }),
   };
@@ -164,7 +173,7 @@ describe('availability', () => {
   it('adds a new departure with all seats free', async () => {
     const { service, repo } = setup(makeTour());
     await service.setAvailability('a1', 't1', [{ date: future(5), capacity: 20, isOpen: true }]);
-    expect(repo.replaceDeparturesIfVersion.mock.calls[0]![2][0]).toMatchObject({ capacity: 20, remaining: 20 });
+    expect(repo.applyDepartures.mock.calls[0]![1][0]).toMatchObject({ kind: 'create', data: { capacity: 20, remaining: 20 } });
   });
 
   it('rejects new departures in the past', async () => {
@@ -174,9 +183,11 @@ describe('availability', () => {
 
   it('keeps sold seats when capacity changes (remaining = capacity - booked)', async () => {
     const d = departure({ capacity: 10, remaining: 4 });
-    const { service, repo } = setup(makeTour({ departures: [d] }));
+    const { service, repo, db } = setup(makeTour({ departures: [d] }));
     await service.setAvailability('a1', 't1', [input({ date: d.date, capacity: 12 })]);
-    expect(repo.replaceDeparturesIfVersion.mock.calls[0]![2][0]).toMatchObject({ capacity: 12, remaining: 6 });
+    // The change is guarded by what was read (capacity 10, 4 left) and applied as a delta, never as an overwrite.
+    expect(repo.applyDepartures.mock.calls[0]![1][0]).toMatchObject({ kind: 'update', expectedCapacity: 10, expectedRemaining: 4, capacity: 12, lockSeats: false });
+    expect(db!.departures[0]).toMatchObject({ capacity: 12, remaining: 6 });
   });
 
   it('refuses capacity below the seats already sold', async () => {
@@ -200,7 +211,7 @@ describe('availability', () => {
 
   it('reports a concurrent seat change as 409 instead of overwriting', async () => {
     const { service, repo } = setup(makeTour({ departures: [departure()] }));
-    repo.replaceDeparturesIfVersion.mockResolvedValueOnce(null as never);
+    repo.applyDepartures.mockResolvedValueOnce(null as never);
     await expect(service.setAvailability('a1', 't1', [])).rejects.toMatchObject({ code: 'CONCURRENT_UPDATE' });
   });
 
@@ -289,7 +300,7 @@ describe('guide assignment', () => {
   });
 
   it('lets only the assigned guide answer, once', async () => {
-    const guide = { guideId: { toString: () => 'g1' }, feePerBooking: 1, status: GUIDE_ASSIGNMENT_STATUS.PENDING };
+    const guide = { guideId: 'g1', feePerBooking: 1, status: GUIDE_ASSIGNMENT_STATUS.PENDING };
     const { service } = setup(makeTour({ guide }));
     await expect(service.answerAssignment('g2', 't1', { accept: true })).rejects.toMatchObject({ statusCode: 404 });
     await service.answerAssignment('g1', 't1', { accept: true });

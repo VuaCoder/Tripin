@@ -1,3 +1,4 @@
+import { isUniqueViolation } from '../../config/database';
 import type { PersistedRole } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
 import { logger } from '../../utils/logger';
@@ -5,7 +6,7 @@ import { buildPage, type Page } from '../../utils/pagination';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
 import { usersService, type UsersService } from '../users';
 import { sideOf, toConversationDto, toMessageDto } from './chat.mapper';
-import type { ConversationDocument } from './chat.model';
+import type { ConversationRecord } from './chat.repository';
 import { assignSides, otherSide } from './chat.policy';
 import { chatRepository, type ChatRepository } from './chat.repository';
 import type {
@@ -55,12 +56,12 @@ export class ChatService {
     if (!conversation) {
       try {
         conversation = await this.chat.createConversation({
-          travelerId: travelerId as never,
-          guideId: guideId as never,
+          travelerId,
+          guideId,
           ...(input.tourId ? { tourId: input.tourId as never } : {}),
         });
       } catch (error) {
-        if ((error as { code?: number }).code !== 11000) throw error;
+        if (!isUniqueViolation(error)) throw error;
         conversation = await this.chat.findByPair(travelerId, guideId); // created concurrently by the other party
         if (!conversation) throw error;
       }
@@ -100,7 +101,7 @@ export class ChatService {
     const before = await this.chat.recordMessage(conversationId, recipient, {
       text: clean.slice(0, 200),
       senderId: userId,
-      sentAt: (message as unknown as { createdAt: Date }).createdAt,
+      sentAt: message.createdAt,
     });
 
     this.publish(recipientId, conversationId, toMessageDto(message, recipientId));
@@ -134,7 +135,7 @@ export class ChatService {
   // =============================================================== helpers
 
   /** 404 (never 403) for unknown conversations and for conversations the user is not part of. */
-  private async requireParticipation(userId: string, conversationId: string): Promise<{ conversation: ConversationDocument; side: ChatSide }> {
+  private async requireParticipation(userId: string, conversationId: string): Promise<{ conversation: ConversationRecord; side: ChatSide }> {
     const conversation = await this.chat.findConversation(conversationId);
     const side = conversation ? sideOf(conversation, userId) : null;
     if (!conversation || !side) throw AppError.notFound('Conversation not found');
@@ -147,7 +148,7 @@ export class ChatService {
     throw AppError.forbidden('Conversations are only possible between a traveler and a tour guide');
   }
 
-  private async toDto(conversation: ConversationDocument, userId: string): Promise<ConversationDto> {
+  private async toDto(conversation: ConversationRecord, userId: string): Promise<ConversationDto> {
     const side = sideOf(conversation, userId)!;
     const counterpartId = String(side === 'traveler' ? conversation.guideId : conversation.travelerId);
     const people = await this.users.getSummaries([counterpartId]);

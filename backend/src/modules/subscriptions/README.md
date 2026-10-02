@@ -50,7 +50,7 @@ subscription periods and their lifecycle; the money side is delegated to `paymen
 Notification + email `SUBSCRIPTION_ACTIVATED`; payment `PAYMENT_SUCCEEDED` comes from `payments`.
 
 ## Testing
-`__tests__/subscriptions.integration.test.ts` – real MongoDB + faked PayOS: subscribe -> signed webhook -> ACTIVE once (6 parallel replays), double click creates one subscription and one payment, renewals stack, abandoned/ended sweeps, late payment still activates, foreign payments are 404.
+`__tests__/subscriptions.integration.test.ts` – real PostgreSQL + faked PayOS: subscribe -> signed webhook -> ACTIVE once (6 parallel replays), double click creates one subscription and one payment, renewals stack, abandoned/ended sweeps, late payment still activates, foreign payments are 404.
 `__tests__/subscriptions.service.test.ts` – checkout from plan data, reuse, idempotent activation, stacking, late payment, failure signalling, expiry and abandonment jobs.
 
 ## Not implemented / follow-ups

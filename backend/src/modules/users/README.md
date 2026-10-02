@@ -68,8 +68,8 @@ checked in `moderation` routes, not here.
 Audit records (`auditService.record`): `user.access_assigned`, `user.banned`, `user.unbanned`, `agency.verification_decided`.
 
 ## Testing
-`__tests__/admin.integration.test.ts` – real MongoDB (also covers categories, commission, policies): account list filters + literal search, role/permission changes take effect on the next request, nonsense and non-admin requests refused, last-Super-admin race, categories CRUD + duplicate race, commission validation + booking snapshot, policies, cancellation window used by bookings.
-`__tests__/users.service.test.ts` – role gating, dotted `$set` building, public visibility, verification state machine,
+`__tests__/admin.integration.test.ts` – real PostgreSQL (also covers categories, commission, policies): account list filters + literal search, role/permission changes take effect on the next request, nonsense and non-admin requests refused, last-Super-admin race, categories CRUD + duplicate race, commission validation + booking snapshot, policies, cancellation window used by bookings.
+`__tests__/users.service.test.ts` – role gating, nested role-profile patches, public visibility, verification state machine,
 access guards, last-super-admin protection, ban rules.
 
 ## Not implemented / follow-ups

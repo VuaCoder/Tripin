@@ -29,7 +29,7 @@ There is deliberately no create/update/delete endpoint.
 2. `record()` swallows and logs write failures (`Audit write failed for <action>`): losing an audit row must not roll back or
    fail an already-completed business action.
 3. `metadata` must be small and non-sensitive (reasons, before/after values). Never tokens, passwords, OTPs, documents.
-4. Filters are validated: ids must be ObjectIds, `from <= to`, `action` must exist in `AUDIT_ACTIONS`.
+4. Filters are validated: ids must be UUIDs, `from <= to`, `action` must exist in `AUDIT_ACTIONS`.
 
 ## State machine
 None (immutable records).
@@ -51,11 +51,11 @@ None.
 
 ## Testing
 `__tests__/audit.coverage.integration.test.ts` – every action in `AUDIT_ACTIONS` is produced by exactly one entry per privileged mutation (commission, policies, categories, platform promotions, access, tour validate/suspend, agency verification, review moderation, report resolution, ban/unban); refused, invalid, no-op and agency-level requests write nothing; two moderators banning at once leave one entry; a test fails if a declared action is never exercised.
-`wishlists/__tests__/wishlists.integration.test.ts` (second describe) – real MongoDB: entries written by bans/commission/categories, every filter, validation, staff-only and read-only access.
+`wishlists/__tests__/wishlists.integration.test.ts` (second describe) – real PostgreSQL: entries written by bans/commission/categories, every filter, validation, staff-only and read-only access.
 `__tests__/audit.service.test.ts` – storage, failure isolation, pagination mapping. Wiring is asserted in the users tests.
 
 ## Not implemented / follow-ups
 * Moderator replies to support tickets and status changes of tickets are NOT audited (the ticket thread itself is the record); add an action to `AUDIT_ACTIONS` if the owner wants them in the log.
-* No retention/archival policy (TTL) – decide with the owner before enabling.
+* No retention/archival policy – decide with the owner before adding a purge job (like `notifications.purgeOld`).
 * Add a new action to `AUDIT_ACTIONS` only together with the code that records it (every declared action is wired).
 * IP / user-agent of the actor is not stored yet.

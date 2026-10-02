@@ -5,7 +5,7 @@ import { SubscriptionsService } from '../subscriptions.service';
 type S = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 const DAY = 24 * 60 * 60 * 1000;
-const plan = (over: S = {}) => ({ _id: 'p1', id: 'p1', code: 'GUIDE_MONTHLY', name: 'Monthly', price: 199_000, durationDays: 30, isActive: true, benefits: [], ...over });
+const plan = (over: S = {}) => ({ id: 'p1', code: 'GUIDE_MONTHLY', name: 'Monthly', price: 199_000, durationDays: 30, isActive: true, benefits: [], ...over });
 
 function sub(over: S = {}): S {
   return {
@@ -38,7 +38,7 @@ function make(opts: { plan?: S | null; seed?: S[] } = {}) {
     transition: vi.fn(async (id: string, expected: string[], update: S) => {
       const doc = db.find((s) => s.id === id);
       if (!doc || !expected.includes(doc.status)) return null;
-      Object.assign(doc, update.$set);
+      Object.assign(doc, update);
       return doc;
     }),
     listByUser: vi.fn(async () => ({ items: db, total: db.length })),

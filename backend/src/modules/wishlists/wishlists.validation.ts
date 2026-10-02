@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { objectIdSchema } from '../../utils/object-id';
+import { idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 
-export const wishlistTourParams = z.object({ tourId: objectIdSchema });
+export const wishlistTourParams = z.object({ tourId: idSchema });
 export const listWishlistQuery = paginationQuerySchema;
 
 export type WishlistTourParams = z.infer<typeof wishlistTourParams>;

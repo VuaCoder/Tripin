@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { PERMISSIONS, PERSISTED_ROLES, USER_STATUS } from '@travel-platform/constants';
-import { objectIdSchema, idParamsSchema } from '../../utils/object-id';
+import { idSchema, idParamsSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 
 const trimmed = (max: number) => z.string().trim().max(max);
@@ -44,7 +44,7 @@ export const listUsersQuery = paginationQuerySchema.extend({
   q: z.string().trim().min(1).max(100).optional(),
 });
 
-export const assignAccessParams = z.object({ id: objectIdSchema });
+export const assignAccessParams = z.object({ id: idSchema });
 
 export const assignAccessBody = z
   .object({

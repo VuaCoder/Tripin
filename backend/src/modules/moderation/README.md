@@ -51,7 +51,7 @@ Agency verification notification + email (`AGENCY_VERIFICATION_DECIDED`); everyt
 
 ## Testing
 `__tests__/moderation.service.test.ts` (delegation, verification notice, no notice on failure) and
-`__tests__/moderation.integration.test.ts` (real MongoDB: every route refuses guests/non-staff and admits moderators, agency verification has one winner among parallel decisions, ban takes effect on the next request, ban guards for self/staff/super admin) and
+`__tests__/moderation.integration.test.ts` (real PostgreSQL: every route refuses guests/non-staff and admits moderators, agency verification has one winner among parallel decisions, ban takes effect on the next request, ban guards for self/staff/super admin) and
 `__tests__/moderation.routes.test.ts` (authorization matrix over all 17 routes with the real role→permission table, plus validation failures).
 
 ## Not implemented / follow-ups

@@ -1,18 +1,17 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../../app';
-import { AuditLogModel } from '../../audit/audit.model';
-import { UserModel } from '../../users/users.model';
 import { bearer, createUser, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
+import { prisma } from '../../../config/database';
 
-// Real Express app + real MongoDB: who may moderate, agency verification, and bans that bite immediately.
+// Real Express app + real PostgreSQL: who may moderate, agency verification, and bans that bite immediately.
 const app = createApp();
 
 beforeAll(startDatabase, 120_000);
 afterAll(stopDatabase);
 beforeEach(resetDatabase);
 
-const someId = '64b000000000000000000001';
+const someId = '11111111-aaaa-4111-8111-111111111111';
 type Method = 'get' | 'post' | 'patch';
 const MODERATION_ROUTES: [Method, string, object?][] = [
   ['get', '/tours'],
@@ -80,9 +79,9 @@ describe('moderation (integration)', () => {
 
     const results = await Promise.all([verify({ approve: true }), verify({ approve: false, note: 'License unreadable' }), verify({ approve: true })]);
     expect(results.filter((r) => r.status === 200)).toHaveLength(1);
-    expect((await UserModel.findById(agency.id))!.agencyProfile!.verificationStatus).not.toBe('PENDING');
+    expect((await prisma.user.findUnique({ where: { id: agency.id }, include: { agencyProfile: true } }))!.agencyProfile!.verificationStatus).not.toBe('PENDING');
 
-    expect(await AuditLogModel.countDocuments({ action: 'agency.verification_decided' })).toBe(1);
+    expect(await prisma.auditLog.count({ where: { action: 'agency.verification_decided' } })).toBe(1);
   });
 
   it('a ban applies at once: old access token, login, refresh and chat sockets are all refused; unban restores access', async () => {
@@ -104,7 +103,7 @@ describe('moderation (integration)', () => {
     expect(unban.status).toBe(200);
     expect((await me()).status).toBe(200);
 
-    expect(await AuditLogModel.countDocuments({ action: { $in: ['user.banned', 'user.unbanned'] } })).toBe(2);
+    expect(await prisma.auditLog.count({ where: { action: { in: ['user.banned', 'user.unbanned'] } } })).toBe(2);
   });
 
   it('ban guards: not yourself, not a super admin, staff only by a super admin', async () => {
@@ -119,6 +118,6 @@ describe('moderation (integration)', () => {
     expect((await ban(admin.id, admin.token)).status).toBe(403);
     expect((await ban(otherModerator.id, moderator.token)).status).toBe(403);
     expect((await ban(otherModerator.id, admin.token)).status).toBe(200);
-    expect((await UserModel.findById(admin.id))!.status).toBe('ACTIVE');
+    expect((await prisma.user.findUnique({ where: { id: admin.id } }))!.status).toBe('ACTIVE');
   });
 });

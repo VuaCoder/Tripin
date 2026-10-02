@@ -31,13 +31,13 @@ export class WishlistsService {
   /** The traveler's saved tours, newest first. Tours that are no longer public are still listed, flagged `available:false`. */
   async list(userId: string, page: { page: number; limit: number }): Promise<Page<WishlistItemDto>> {
     const { items, total } = await this.items.list(userId, page);
-    const cards = await this.discovery.getPublicCards(items.map((item) => String(item.tourId)));
+    const cards = await this.discovery.getPublicCards(items.map((item) => item.tourId));
     const dtos = items.map((item): WishlistItemDto => {
-      const tourId = String(item.tourId);
+      const tourId = item.tourId;
       const tour = cards.get(tourId);
       return {
         tourId,
-        addedAt: (item as unknown as { createdAt: Date }).createdAt.toISOString(),
+        addedAt: item.createdAt.toISOString(),
         available: Boolean(tour),
         tour,
       };

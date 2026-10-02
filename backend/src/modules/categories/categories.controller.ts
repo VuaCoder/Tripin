@@ -2,7 +2,7 @@ import type { RequestHandler } from 'express';
 import { userActor } from '../../middlewares/authorize';
 import { validated } from '../../middlewares/validate';
 import { sendCreated, sendNoContent, sendOk } from '../../utils/api-response';
-import type { IdParams } from '../../utils/object-id';
+import type { IdParams } from '../../utils/id';
 import { categoriesService, type CategoriesService } from './categories.service';
 import type { CreateCategoryBody, UpdateCategoryBody } from './categories.validation';
 

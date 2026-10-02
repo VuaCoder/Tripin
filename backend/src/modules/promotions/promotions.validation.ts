@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { DISCOUNT_TYPE } from '@travel-platform/constants';
-import { idParamsSchema, objectIdSchema } from '../../utils/object-id';
+import { idParamsSchema, idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 
 const vnd = z.number().int().min(1).max(100_000_000_000);
@@ -50,7 +50,7 @@ export const listPromotionsQuery = paginationQuerySchema.extend({
 
 export const previewQuery = z.object({
   code,
-  tourId: objectIdSchema,
+  tourId: idSchema,
   subtotal: z.coerce.number().int().min(1).max(100_000_000_000),
 });
 

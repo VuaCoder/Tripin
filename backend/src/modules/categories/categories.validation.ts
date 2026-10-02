@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { idParamsSchema } from '../../utils/object-id';
+import { idParamsSchema } from '../../utils/id';
 
 const name = z.string().trim().min(2).max(80);
 const description = z.string().trim().max(1000);

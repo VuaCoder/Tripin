@@ -1,15 +1,12 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../../app';
-import { ReviewModel } from '../../reviews/reviews.model';
-import { ReportModel } from '../../reports/reports.model';
-import { AuditLogModel } from '../audit.model';
 import { AUDIT_ACTIONS } from '../audit.types';
 import { bearer, createApprovedTour, createCategory, createUser, createVerifiedAgency, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
-import { Types } from 'mongoose';
-import { TourModel } from '../../tours/tours.model';
+import { prisma } from '../../../config/database';
+import { randomUUID } from 'node:crypto';
 
-// Real Express app + real MongoDB: every privileged mutation leaves EXACTLY ONE audit entry, refused or no-op ones leave none.
+// Real Express app + real PostgreSQL: every privileged mutation leaves EXACTLY ONE audit entry, refused or no-op ones leave none.
 const app = createApp();
 
 beforeAll(startDatabase, 120_000);
@@ -17,7 +14,7 @@ afterAll(stopDatabase);
 beforeEach(resetDatabase);
 
 const day = 86_400_000;
-const oid = () => new Types.ObjectId();
+const oid = () => randomUUID();
 
 interface Actors {
   admin: Awaited<ReturnType<typeof createUser>>;
@@ -36,10 +33,10 @@ async function actors(): Promise<Actors> {
 
 /** Runs `act`, which must change the audit log by exactly one entry of `action` written by `actor`. */
 async function expectOneAudit(action: string, actorId: string, act: () => Promise<{ status: number }>, targetId?: string) {
-  const before = await AuditLogModel.countDocuments();
+  const before = await prisma.auditLog.count();
   const res = await act();
   expect(res.status, `${action} request`).toBeLessThan(300);
-  const entries = await AuditLogModel.find().sort({ createdAt: 1 }).skip(before);
+  const entries = await prisma.auditLog.findMany({ orderBy: { createdAt: 'asc' }, skip: before });
   expect(entries, `${action} must add exactly one entry`).toHaveLength(1);
   expect(entries[0]!.action).toBe(action);
   expect(String(entries[0]!.actorId)).toBe(actorId);
@@ -50,10 +47,10 @@ async function expectOneAudit(action: string, actorId: string, act: () => Promis
 }
 
 async function expectNoAudit(act: () => Promise<{ status: number }>, expectedStatus?: (status: number) => boolean) {
-  const before = await AuditLogModel.countDocuments();
+  const before = await prisma.auditLog.count();
   const res = await act();
   if (expectedStatus) expect(expectedStatus(res.status), `status ${res.status}`).toBe(true);
-  expect(await AuditLogModel.countDocuments()).toBe(before);
+  expect(await prisma.auditLog.count()).toBe(before);
 }
 
 describe('audit coverage (integration)', () => {
@@ -99,10 +96,10 @@ describe('audit coverage (integration)', () => {
 
     // Tour: approve, then suspend; another tour rejected.
     const { tourId } = await createApprovedTour(a.agency.id);
-    await TourModel.updateOne({ _id: tourId }, { $set: { status: 'PENDING_REVIEW' } });
+    await prisma.tour.updateMany({ where: { id: tourId }, data: { status: 'PENDING_REVIEW' } });
     await expectOneAudit(AUDIT_ACTIONS.TOUR_VALIDATED, a.moderator.id, () => asMod(request(app).post(`/api/v1/moderation/tours/${tourId}/validate`)).send({ approve: true }), tourId);
     await expectOneAudit(AUDIT_ACTIONS.TOUR_SUSPENDED, a.moderator.id, () => asMod(request(app).post(`/api/v1/moderation/tours/${tourId}/suspend`)).send({ reason: 'Safety complaint' }), tourId);
-    const second = await TourModel.create({ agencyId: a.agency.id, title: 'Second tour', destination: 'Hue', durationDays: 1, basePrice: 1, categoryIds: [categoryId], status: 'PENDING_REVIEW' });
+    const second = await prisma.tour.create({ data: { agencyId: a.agency.id, title: 'Second tour', destination: 'Hue', durationDays: 1, basePrice: 1, categories: { connect: [categoryId].map((id) => ({ id })) }, status: 'PENDING_REVIEW' } });
     await expectOneAudit(AUDIT_ACTIONS.TOUR_VALIDATED, a.moderator.id, () => asMod(request(app).post(`/api/v1/moderation/tours/${second.id}/validate`)).send({ approve: false, reason: 'Photos are missing' }), second.id);
 
     // Agency verification.
@@ -110,12 +107,12 @@ describe('audit coverage (integration)', () => {
     await expectOneAudit(AUDIT_ACTIONS.AGENCY_VERIFICATION_DECIDED, a.moderator.id, () => asMod(request(app).post(`/api/v1/moderation/agencies/${pending.id}/verify`)).send({ approve: true }), pending.id);
 
     // Review hide and restore.
-    const review = await ReviewModel.create({ bookingId: oid(), tourId: oid(), tourTitle: 'T', agencyId: a.agency.id, travelerId: a.traveler.id, rating: 3, comment: 'It was an average trip.' });
+    const review = await prisma.review.create({ data: { bookingId: oid(), tourId: oid(), tourTitle: 'T', agencyId: a.agency.id, travelerId: a.traveler.id, rating: 3, comment: 'It was an average trip.' } });
     await expectOneAudit(AUDIT_ACTIONS.REVIEW_MODERATED, a.moderator.id, () => asMod(request(app).post(`/api/v1/moderation/reviews/${review.id}/moderate`)).send({ hide: true, reason: 'Offensive language' }), review.id);
     await expectOneAudit(AUDIT_ACTIONS.REVIEW_MODERATED, a.moderator.id, () => asMod(request(app).post(`/api/v1/moderation/reviews/${review.id}/moderate`)).send({ hide: false }), review.id);
 
     // Report decision.
-    const report = await ReportModel.create({ reporterId: a.traveler.id, targetType: 'TOUR', targetId: oid(), category: 'OTHER', description: 'Something is wrong here.', agencyId: a.agency.id, status: 'OPEN' });
+    const report = await prisma.report.create({ data: { reporterId: a.traveler.id, targetType: 'TOUR', targetId: oid(), category: 'OTHER', description: 'Something is wrong here.', agencyId: a.agency.id, status: 'OPEN' } });
     await expectOneAudit(AUDIT_ACTIONS.REPORT_RESOLVED, a.moderator.id, () => asMod(request(app).post(`/api/v1/moderation/reports/${report.id}/resolve`)).send({ decision: 'RESOLVED', note: 'Upheld after review.' }), report.id);
 
     // Ban and unban.
@@ -153,7 +150,7 @@ describe('audit coverage (integration)', () => {
       request(app).post(`/api/v1/moderation/users/${victim.id}/ban`).set(bearer(second.token)).send({ reason: 'Spam accounts' }),
     ]);
     expect(results.filter((r) => r.status === 200)).toHaveLength(1);
-    expect(await AuditLogModel.countDocuments({ action: AUDIT_ACTIONS.USER_BANNED, targetId: victim.id })).toBe(1);
+    expect(await prisma.auditLog.count({ where: { action: AUDIT_ACTIONS.USER_BANNED, targetId: victim.id } })).toBe(1);
   });
 
   it('every action declared in AUDIT_ACTIONS is exercised by this file', () => {

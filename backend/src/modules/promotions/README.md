@@ -54,7 +54,7 @@ None; availability is `isActive` plus the `startsAt..endsAt` window.
 Audit for platform changes. No emails.
 
 ## Testing
-`__tests__/promotions.integration.test.ts` – real MongoDB: `usageLimit` is exact under parallel bookings (refused bookings give their seats back), cancel releases the redemption once, agency promotions do not leak to other agencies, preview consumes nothing, expired/inactive/not-started codes get precise errors.
+`__tests__/promotions.integration.test.ts` – real PostgreSQL: `usageLimit` is exact under parallel bookings (refused bookings give their seats back), cancel releases the redemption once, agency promotions do not leak to other agencies, preview consumes nothing, expired/inactive/not-started codes get precise errors.
 `__tests__/promotions.service.test.ts` – discount math, every inapplicability reason, scope/ownership, immutability rules, redeem race, release.
 
 ## Not implemented / follow-ups

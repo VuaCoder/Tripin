@@ -83,7 +83,7 @@ describe('issueForBooking', () => {
     const { service, repo, notifications } = make();
     const winner = stored();
     repo.findByBookingId.mockResolvedValueOnce(null as never).mockResolvedValue(winner as never);
-    repo.create.mockRejectedValueOnce(Object.assign(new Error('E11000'), { code: 11000, keyPattern: { bookingId: 1 } }) as never);
+    repo.create.mockRejectedValueOnce(Object.assign(new Error('E11000'), { code: 'P2002', meta: { target: ['bookingId'] } }) as never);
     const dto = await service.issueForBooking(booking);
     expect(dto.id).toBe('e1');
     expect(notifications.notify).not.toHaveBeenCalled();
@@ -91,7 +91,7 @@ describe('issueForBooking', () => {
 
   it('retries a ticket-code collision with a new code', async () => {
     const { service, repo } = make();
-    repo.create.mockRejectedValueOnce(Object.assign(new Error('E11000'), { code: 11000, keyPattern: { code: 1 } }) as never);
+    repo.create.mockRejectedValueOnce(Object.assign(new Error('E11000'), { code: 'P2002', meta: { target: ['code'] } }) as never);
     await expect(service.issueForBooking(booking)).resolves.toMatchObject({ status: 'VALID' });
     expect(repo.create).toHaveBeenCalledTimes(2);
   });

@@ -32,15 +32,15 @@ There is no create endpoint: notifications are produced only by server-side even
 2. `notify()` and `notifyMany()` never throw – a notification failure is logged, not propagated, so it cannot break the business action.
 3. Email is opt-in per call (`{ email: true }`), sent to the account's registered address only while the account is ACTIVE.
 4. `data` carries small id references (e.g. `{ tourId }`) for deep links – no personal data.
-5. Notifications expire automatically after 180 days (TTL index).
+5. Notifications are deleted after 180 days by the `notifications.purgeOld` job (PostgreSQL has no TTL index).
 6. The realtime layer registers `setPublisher(fn)` (chat module, B14) to push each new notification over Socket.IO; publisher errors are ignored.
 
 ## State machine
 `unread → read` only (`readAt`).
 
 ## Data model
-`Notification { userId, type, title, body, data (Map<string,string>), readAt?, createdAt }`. Indexes: `(userId, createdAt desc)` list,
-`(userId, readAt, createdAt)` unread filter/counter, TTL on `createdAt`.
+`Notification { userId, type, title, body, data (JSON string map), readAt?, createdAt }`. Indexes: `(userId, createdAt desc, id desc)` list,
+`(userId, readAt, createdAt)` unread filter/counter, `(createdAt)` for the retention job.
 
 ## Permissions
 `requireAuth` only; ownership by `userId` in every query.

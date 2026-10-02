@@ -2,7 +2,7 @@ import type { RequestHandler } from 'express';
 import { userActor } from '../../middlewares/authorize';
 import { validated } from '../../middlewares/validate';
 import { sendOk, sendPaginated } from '../../utils/api-response';
-import type { IdParams } from '../../utils/object-id';
+import type { IdParams } from '../../utils/id';
 import { aiService, type AiService } from './ai.service';
 import type { ChatBody, ListAiConversationsQueryInput } from './ai.validation';
 

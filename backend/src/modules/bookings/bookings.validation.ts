@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { BOOKING_STATUS } from '@travel-platform/constants';
-import { idParamsSchema, objectIdSchema } from '../../utils/object-id';
+import { idParamsSchema, idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 import { BOOKING_POLICY } from './bookings.policy';
 
@@ -9,8 +9,8 @@ const status = z.enum(Object.values(BOOKING_STATUS) as [string, ...string[]]);
 
 export const createBookingBody = z
   .object({
-    tourId: objectIdSchema,
-    departureId: objectIdSchema,
+    tourId: idSchema,
+    departureId: idSchema,
     participants: z.number().int().min(1).max(BOOKING_POLICY.MAX_PARTICIPANTS),
     contact: z.object({ fullName: z.string().trim().min(2).max(120), phone }).strict(),
     notes: z.string().trim().max(500).optional(),
@@ -27,7 +27,7 @@ export const listBookingsQuery = paginationQuerySchema.extend({ status: status.o
 export const listAgencyBookingsQuery = paginationQuerySchema
   .extend({
     status: status.optional(),
-    tourId: objectIdSchema.optional(),
+    tourId: idSchema.optional(),
     departureFrom: z.coerce.date().optional(),
     departureTo: z.coerce.date().optional(),
   })
@@ -37,7 +37,7 @@ export const listAgencyBookingsQuery = paginationQuerySchema
   });
 
 export const bookingIdParams = idParamsSchema;
-export const customersExportQuery = z.object({ departureId: objectIdSchema.optional() });
+export const customersExportQuery = z.object({ departureId: idSchema.optional() });
 
 export type CustomersExportQueryInput = z.infer<typeof customersExportQuery>;
 export type CreateBookingBody = z.infer<typeof createBookingBody>;

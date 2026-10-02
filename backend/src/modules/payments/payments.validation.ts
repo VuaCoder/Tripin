@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { idParamsSchema, objectIdSchema } from '../../utils/object-id';
+import { idParamsSchema, idSchema } from '../../utils/id';
 
-export const bookingParams = z.object({ bookingId: objectIdSchema });
+export const bookingParams = z.object({ bookingId: idSchema });
 export const paymentIdParams = idParamsSchema;
 
 export type BookingParams = z.infer<typeof bookingParams>;

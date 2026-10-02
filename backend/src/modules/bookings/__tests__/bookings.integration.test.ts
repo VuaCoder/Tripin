@@ -1,11 +1,10 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../../app';
-import { TourModel } from '../../tours/tours.model';
-import { BookingModel } from '../bookings.model';
-import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
+import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase, loadTour } from '../../../test/integration';
+import { prisma } from '../../../config/database';
 
-// Real Express app + real MongoDB: seat accounting, idempotent creation and ownership under concurrency.
+// Real Express app + real PostgreSQL: seat accounting, idempotent creation and ownership under concurrency.
 const app = createApp();
 
 beforeAll(startDatabase, 120_000);
@@ -16,7 +15,7 @@ const contact = { fullName: 'Nguyen Van A', phone: '0901234567' };
 const book = (token: string, tourId: string, departureId: string, participants = 1, extra: object = {}) =>
   request(app).post('/api/v1/bookings').set(bearer(token)).send({ tourId, departureId, participants, contact, ...extra });
 
-const remainingOf = async (tourId: string) => (await TourModel.findById(tourId))!.departures[0]!.remaining;
+const remainingOf = async (tourId: string) => (await loadTour(tourId))!.departures[0]!.remaining;
 
 async function setup(capacity = 10) {
   const agency = await createUser('AGENCY', 'agency@example.com');
@@ -34,7 +33,7 @@ describe('bookings (integration)', () => {
     expect(res.body.data).toMatchObject({ status: 'PENDING', participants: 3, unitPrice: 1_000_000, subtotal: 3_000_000 });
     expect(await remainingOf(tourId)).toBe(7);
 
-    const stored = await BookingModel.findById(res.body.data.id);
+    const stored = await prisma.booking.findUnique({ where: { id: res.body.data.id } });
     expect(stored!.commissionAmount + stored!.agencyAmount).toBe(stored!.totalAmount);
   });
 
@@ -49,7 +48,7 @@ describe('bookings (integration)', () => {
     // Once the last seat is gone the departure counts as sold out, before that it is 'not enough seats'.
     expect(results.filter((r) => r.status === 409).every((r) => ['NOT_ENOUGH_SEATS', 'DEPARTURE_UNAVAILABLE'].includes(r.body.error.code))).toBe(true);
     expect(await remainingOf(tourId)).toBe(0);
-    expect(await BookingModel.countDocuments()).toBe(3);
+    expect(await prisma.booking.count()).toBe(3);
   });
 
   it('the same clientRequestId creates one booking and reserves seats once, even when sent in parallel', async () => {
@@ -60,7 +59,7 @@ describe('bookings (integration)', () => {
     );
     expect(results.map((r) => r.status + JSON.stringify(r.body).slice(0, 160))).toEqual(results.map(() => expect.stringMatching(/^201/)));
     expect(new Set(results.map((r) => r.body.data.id)).size).toBe(1);
-    expect(await BookingModel.countDocuments()).toBe(1);
+    expect(await prisma.booking.count()).toBe(1);
     expect(await remainingOf(tourId)).toBe(8);
   });
 
@@ -74,7 +73,7 @@ describe('bookings (integration)', () => {
     );
     expect(cancels.filter((r) => r.status === 200)).toHaveLength(1);
     expect(await remainingOf(tourId)).toBe(10);
-    expect((await BookingModel.findById(created.body.data.id))!.status).toBe('CANCELLED');
+    expect((await prisma.booking.findUnique({ where: { id: created.body.data.id } }))!.status).toBe('CANCELLED');
   });
 
   it("hides other travelers' bookings (404) and rejects roles without the permission", async () => {

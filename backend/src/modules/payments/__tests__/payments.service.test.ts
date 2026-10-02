@@ -40,14 +40,13 @@ function make(seed: P[] = [], providerOverrides: P = {}) {
     findPending: vi.fn(async (purpose: string, ref: string) => db.find((p) => p.purpose === purpose && p.referenceId === ref && p.status === 'PENDING') ?? null),
     updateById: vi.fn(async (id: string, update: P) => {
       const doc = db.find((p) => p.id === id);
-      if (doc) Object.assign(doc, update.$set);
+      if (doc) Object.assign(doc, update);
       return doc ?? null;
     }),
     transition: vi.fn(async (id: string, expected: string[], update: P) => {
       const doc = db.find((p) => p.id === id);
       if (!doc || !expected.includes(doc.status)) return null;
-      Object.assign(doc, update.$set);
-      for (const key of Object.keys(update.$unset ?? {})) delete doc[key];
+      Object.assign(doc, update);
       return doc;
     }),
     markFulfilled: vi.fn(async (id: string) => {
@@ -96,7 +95,7 @@ describe('checkout', () => {
 
   it('picks a new order code when the unique index reports a collision with another process', async () => {
     const { service, repo } = make();
-    repo.create.mockRejectedValueOnce(Object.assign(new Error('E11000'), { code: 11000 }) as never);
+    repo.create.mockRejectedValueOnce(Object.assign(new Error('E11000'), { code: 'P2002' }) as never);
     await expect(service.createBookingCheckout('u1', 'b1')).resolves.toMatchObject({ amount: 2_000_000 });
     expect(repo.create).toHaveBeenCalledTimes(2);
     expect(repo.create.mock.calls[0]![0].providerOrderCode).not.toBe(repo.create.mock.calls[1]![0].providerOrderCode);

@@ -59,7 +59,7 @@ Notification `PAYMENT_SUCCEEDED`; booking confirmation (which emails/notifies an
 
 ## Testing
 `__tests__/payos.provider.test.ts` – signature verification (tampering, wrong key, malformed), request signing, gateway failure mapping.
-`__tests__/payments.integration.test.ts` – real MongoDB with a faked PayOS HTTP API: signed webhook confirms the booking and issues exactly one e-ticket/notification even with 7 parallel replays; tampered/unsigned/wrong-amount/unknown-order webhooks change nothing; cancelled-booking payment is flagged for refund; retry job fulfils once.
+`__tests__/payments.integration.test.ts` – real PostgreSQL with a faked PayOS HTTP API: signed webhook confirms the booking and issues exactly one e-ticket/notification even with 7 parallel replays; tampered/unsigned/wrong-amount/unknown-order webhooks change nothing; cancelled-booking payment is flagged for refund; retry job fulfils once.
 `__tests__/payments.service.test.ts` (also: polling `GET /payments/:id` asks the gateway at most once per 5 s per payment) – amount source, link reuse, idempotent/concurrent webhooks, amount mismatch, late payment, retry of failed fulfilment, reconciliation, expiry.
 
 ## Not implemented / follow-ups

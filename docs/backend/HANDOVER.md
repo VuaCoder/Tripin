@@ -14,7 +14,7 @@ Written from the code, `PROGRESS.md` and `DECISIONS.md`; nothing here is a new c
 | Feature modules | 21 working (`auth users audit system-settings categories tours promotions wishlists notifications bookings payments e-tickets reviews subscriptions earnings chat ai reports support moderation dashboards`) + 2 README-only placeholders (`carts`, `custom-tours`, not in the use-case diagram, D-56) |
 | Endpoints | 119 under `/api/v1` (+ Socket.IO on the same port for chat and live notifications) — list: `docs/api/ENDPOINTS.md` (generated), errors: `docs/api/ERRORS.md` |
 | Use cases | All use cases of the diagram are `done` in `docs/backend/USE_CASE_MAP.md` (Guest, Traveler, Agency, Tour guide, Moderator, Super admin) |
-| Code / tests | ~12.5 k lines of source, ~7.7 k lines of tests; 590 tests in 63 files (27 of the files run against a real MongoDB) |
+| Code / tests | ~12.5 k lines of source, ~7.7 k lines of tests; 590 tests in 63 files (27 of the files run against a real PostgreSQL) |
 | Structure | `modules/<feature>/{routes,validation,controller,service,repository,model,mapper,types}.ts + index.ts + README.md + __tests__/` — rules in `docs/backend/ARCHITECTURE.md` |
 | Git | **Nothing was committed or pushed** (D-23). `git status` shows ~280 changed/new files for you to review |
 
@@ -22,12 +22,14 @@ Written from the code, `PROGRESS.md` and `DECISIONS.md`; nothing here is a new c
 
 ```bash
 pnpm install
-cp .env.example .env           # minimum: MONGODB_URI, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET (>= 32 chars in production, different from each other)
+cp .env.example .env           # minimum: DATABASE_URL, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET (>= 32 chars in production, different from each other)
+docker compose up -d           # local PostgreSQL (or point DATABASE_URL at any PostgreSQL)
+pnpm --filter backend db:deploy    # apply prisma/migrations
 pnpm --filter backend seed         # needs SEED_ADMIN_EMAIL + SEED_ADMIN_PASSWORD in .env for the first Super admin; idempotent
 pnpm --filter backend dev          # http://localhost:3001/api/v1/health
 pnpm --filter backend typecheck
-pnpm --filter backend test         # unit + integration, ~50 s (first run downloads a ~780 MB mongod, cached afterwards)
-pnpm --filter backend test:unit    # no database binary needed (439 tests)
+pnpm --filter backend test         # unit + integration (an embedded PostgreSQL is started by the test run itself, no Docker)
+pnpm --filter backend test:unit    # no database needed
 pnpm --filter backend build && pnpm --filter backend start
 pnpm --filter backend docs:routes  # regenerate docs/api/ENDPOINTS.md after changing a route (a test fails if you forget)
 ```
@@ -79,11 +81,11 @@ two test files sharing one database; every file now has a database of its own (D
 * **Background jobs** run inside the API process (`src/jobs/maintenance.ts`): booking expiry/completion, payment expiry and
   retry, subscription expiry. They are compare-and-set sweeps, safe on several nodes, but each node repeats the work;
   set `JOBS_ENABLED=false` on nodes that should not run them (D-58).
-* **No MongoDB transactions** are used; every multi-step rule is a compare-and-set or verified after writing
-  (D-61, D-66, D-72). A replica set is *not* required, but if you adopt transactions later, the places are listed in those decisions.
-* Indexes are created by Mongoose at start-up (`autoIndex`). On an existing large database build them deliberately, in the background, before deploying (D-62, D-71).
+* Multi-step rules are compare-and-set updates or verified after writing (D-61, D-66, D-72); a few use a short PostgreSQL transaction
+  (tour departure edits, support/AI message append, tour update with guide removal). Rule of thumb: no transaction is held across a call to another module.
+* The schema is created and changed ONLY by `prisma/migrations` (`pnpm --filter backend db:deploy` before starting a new version). Two indexes are partial and live in the migration SQL, not in `schema.prisma`: one open payment per target and one pending subscription per user+plan (D-80).
 * The dashboards cache their answers for 30 s per process (D-53).
-* CI needs the `mongod` binary cache for `pnpm test` (or use `pnpm test:unit`) (D-63).
+* CI needs nothing but Node: the integration tests start an embedded PostgreSQL (D-63, D-80).
 * Refresh tokens: HttpOnly cookie scoped to `/api/v1/auth`; with `COOKIE_SAME_SITE=none` the cookie becomes `Secure`.
 * Per-IP rate limits are on auth, report/ticket creation, chat messages, AI chat and the webhook; behind a proxy `trust proxy` is set to 1 in production only.
 

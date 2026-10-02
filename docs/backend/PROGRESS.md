@@ -148,3 +148,11 @@ USE_CASE_MAP status updated.
 - 2026-10-02 06:22 R1 HANDOVER read-through — every decision id, path and pnpm script it names exists; 119 endpoints / 21+2 modules confirmed; file counts refreshed.
 - 2026-10-02 06:23 R2 static review of payments/bookings/auth/chat gateway — one finding: unthrottled gateway reconciliation on payment polling (request-storm risk against PayOS) -> throttled to 1 per 5 s per payment, unit-tested; D-79. Only the payments/subscriptions test files were re-run (memory), unit suite 440 expected green.
 - 2026-10-02 07:03 Loop stopped: local time is past 07:00 and no unchecked item remains. Final state: typecheck clean, last complete full run 590/590, database-free suite 440/440, nothing committed.
+
+### Round 7 (database migration)
+- [x] M1 `prisma/schema.prisma` for all entities + init migration (partial unique indexes added in SQL) + generated client (`backend/src/generated`, git-ignored, `postinstall`)
+- [x] M2 Repositories of the 18 modules rewritten on Prisma; services pass plain patches instead of Mongo operators
+- [x] M3 Test infrastructure: embedded PostgreSQL (`src/test/global-setup.ts`), database per test file, `unit` / `integration` vitest projects
+- [x] M4 Query-plan audit rewritten on `EXPLAIN`, retention jobs replace TTL indexes, enum sync test, wildcard-safe search
+
+- 2026-10-02 10:30 M1-M4 database migration — MongoDB/Mongoose replaced by PostgreSQL/Prisma (D-80); typecheck clean, full suite green (unit + integration incl. soak and production-bundle smoke test).

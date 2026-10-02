@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { idParamsSchema, objectIdSchema } from '../../utils/object-id';
+import { idParamsSchema, idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 import { SUPPORT_LIMITS, TICKET_CATEGORY, TICKET_STATUS } from './support.types';
 
@@ -12,7 +12,7 @@ export const createTicketBody = z
     subject: z.string().trim().min(5).max(200),
     category,
     message: text.min(10),
-    bookingId: objectIdSchema.optional(),
+    bookingId: idSchema.optional(),
   })
   .strict();
 

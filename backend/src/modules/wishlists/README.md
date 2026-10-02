@@ -47,7 +47,7 @@ None.
 None.
 
 ## Testing
-`__tests__/wishlists.integration.test.ts` – real MongoDB: parallel add yields one row, idempotent remove, privacy, only public tours can be saved, suspended tours stay listed as unavailable, permission checks.
+`__tests__/wishlists.integration.test.ts` – real PostgreSQL: parallel add yields one row, idempotent remove, privacy, only public tours can be saved, suspended tours stay listed as unavailable, permission checks.
 `__tests__/wishlists.service.test.ts` – idempotency, visibility by tour status, limit, unavailable entries, user scoping.
 
 ## Not implemented / follow-ups

@@ -1,3 +1,4 @@
+import { isUniqueViolation } from '../../config/database';
 import { PAYMENT_PURPOSE } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
 import { logger } from '../../utils/logger';
@@ -6,7 +7,7 @@ import { assertTransition } from '../../utils/state-machine';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
 import { paymentsService, type PaymentFacts, type PaymentsService } from '../payments';
 import { toPlanDto, toSubscriptionDto } from './subscriptions.mapper';
-import type { PlanDocument, SubscriptionDocument } from './subscriptions.model';
+import type { PlanRecord, SubscriptionRecord } from './subscriptions.repository';
 import { subscriptionsRepository, type SubscriptionsRepository } from './subscriptions.repository';
 import {
   SUBSCRIPTION_POLICY,
@@ -60,19 +61,19 @@ export class SubscriptionsService {
   }
 
   /** Unique partial index: of two parallel calls one insert fails and that caller takes the winner's subscription. */
-  private async createPending(userId: string, plan: PlanDocument): Promise<SubscriptionDocument> {
+  private async createPending(userId: string, plan: PlanRecord): Promise<SubscriptionRecord> {
     try {
       return await this.subscriptions.create({
-        userId: userId as never,
-        planId: plan._id,
+        userId,
+        planId: plan.id,
         planCode: plan.code,
         planName: plan.name,
         price: plan.price,
         durationDays: plan.durationDays,
       });
     } catch (error) {
-      if ((error as { code?: number }).code !== 11000) throw error;
-      const existing = await this.subscriptions.findPending(userId, String(plan._id));
+      if (!isUniqueViolation(error)) throw error;
+      const existing = await this.subscriptions.findPending(userId, plan.id);
       if (!existing) throw error;
       return existing;
     }
@@ -107,7 +108,7 @@ export class SubscriptionsService {
    */
   async activateFromPayment(payment: PaymentFacts): Promise<void> {
     const subscription = await this.subscriptions.findById(payment.referenceId);
-    if (!subscription || String(subscription.userId) !== payment.userId) {
+    if (!subscription || subscription.userId !== payment.userId) {
       throw new Error(`Subscription ${payment.referenceId} not found for payment ${payment.id}`);
     }
     if (subscription.status === SUBSCRIPTION_STATUS.ACTIVE || subscription.status === SUBSCRIPTION_STATUS.EXPIRED) return;
@@ -121,7 +122,7 @@ export class SubscriptionsService {
     const activated = await this.subscriptions.transition(
       subscription.id,
       [SUBSCRIPTION_STATUS.PENDING_PAYMENT, SUBSCRIPTION_STATUS.CANCELLED],
-      { $set: { status: SUBSCRIPTION_STATUS.ACTIVE, startsAt, endsAt } },
+      { status: SUBSCRIPTION_STATUS.ACTIVE, startsAt, endsAt },
     );
     if (!activated) return; // a concurrent delivery already activated it
 
@@ -144,7 +145,7 @@ export class SubscriptionsService {
     const due = await this.subscriptions.findEnded(now, SUBSCRIPTION_POLICY.MAINTENANCE_BATCH);
     let expired = 0;
     for (const subscription of due) {
-      if (await this.subscriptions.transition(subscription.id, [SUBSCRIPTION_STATUS.ACTIVE], { $set: { status: SUBSCRIPTION_STATUS.EXPIRED } })) {
+      if (await this.subscriptions.transition(subscription.id, [SUBSCRIPTION_STATUS.ACTIVE], { status: SUBSCRIPTION_STATUS.EXPIRED })) {
         expired += 1;
       }
     }
@@ -158,7 +159,7 @@ export class SubscriptionsService {
     let cancelled = 0;
     for (const subscription of stale) {
       try {
-        if (await this.subscriptions.transition(subscription.id, [SUBSCRIPTION_STATUS.PENDING_PAYMENT], { $set: { status: SUBSCRIPTION_STATUS.CANCELLED } })) {
+        if (await this.subscriptions.transition(subscription.id, [SUBSCRIPTION_STATUS.PENDING_PAYMENT], { status: SUBSCRIPTION_STATUS.CANCELLED })) {
           cancelled += 1;
         }
       } catch (error) {
@@ -169,5 +170,5 @@ export class SubscriptionsService {
   }
 }
 
-export type { SubscriptionDocument };
+export type { SubscriptionRecord };
 export const subscriptionsService = new SubscriptionsService();

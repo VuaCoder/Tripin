@@ -2,7 +2,7 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from './app';
 
-// HTTP-level smoke tests that need no database (GUEST requests never hit MongoDB).
+// HTTP-level smoke tests that need no database (GUEST requests never hit the database).
 const app = createApp();
 
 describe('app', () => {
