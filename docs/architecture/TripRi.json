@@ -1,0 +1,2131 @@
+{
+  "version": "31.6.1",
+  "pages": [
+    {
+      "id": "m3acOO9xKtm0eWNOpm0b",
+      "name": "ALL",
+      "cells": [
+        {
+          "id": "1",
+          "type": "layer"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-1",
+          "type": "node",
+          "parent": "1",
+          "label": "Guests",
+          "html": "<font style=\"font-size: 32px;\">Guests</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-2",
+          "type": "node",
+          "parent": "1",
+          "label": "Search tours",
+          "html": "<font style=\"font-size: 39px;\">Search tours</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-3",
+          "type": "node",
+          "parent": "1",
+          "label": "View public tour guide profile",
+          "html": "<font style=\"font-size: 39px;\">View public tour guide profile</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-4",
+          "type": "node",
+          "parent": "1",
+          "label": "View public agency profile",
+          "html": "<span style=\"font-size: 39px;\">View public agency profile</span>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-5",
+          "type": "node",
+          "parent": "1",
+          "label": "View tours list",
+          "html": "<span style=\"font-size: 39px;\">View tours list</span>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-6",
+          "type": "node",
+          "parent": "1",
+          "label": "View public review",
+          "html": "<span style=\"font-size: 40px;\">View public review</span>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-7",
+          "type": "node",
+          "parent": "1",
+          "label": "Update profile informations",
+          "html": "<font style=\"font-size: 39px;\">Update profile informations</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-8",
+          "type": "node",
+          "parent": "1",
+          "label": "View profile",
+          "html": "<font style=\"font-size: 39px;\">View profile</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-10",
+          "type": "node",
+          "parent": "1",
+          "label": "View tour details",
+          "html": "<font style=\"font-size: 39px;\">View tour details</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-11",
+          "type": "node",
+          "parent": "1",
+          "label": "Filter tours",
+          "html": "<font style=\"font-size: 39px;\">Filter tours</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-12",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-2",
+          "target": "f8VeIoXZLUVYXpdNJFFw-1"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-13",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-1",
+          "target": "f8VeIoXZLUVYXpdNJFFw-11"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-14",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-1",
+          "target": "f8VeIoXZLUVYXpdNJFFw-10"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-15",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-1",
+          "target": "f8VeIoXZLUVYXpdNJFFw-4"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-16",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-1",
+          "target": "f8VeIoXZLUVYXpdNJFFw-3"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-17",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-6",
+          "target": "f8VeIoXZLUVYXpdNJFFw-1"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-18",
+          "type": "node",
+          "parent": "1",
+          "label": "Traveler",
+          "html": "<font style=\"font-size: 32px;\">Traveler</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-20",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-18",
+          "target": "f8VeIoXZLUVYXpdNJFFw-1"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-22",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-18",
+          "target": "f8VeIoXZLUVYXpdNJFFw-8"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-23",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-18",
+          "target": "f8VeIoXZLUVYXpdNJFFw-7"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-24",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-125",
+          "target": "f8VeIoXZLUVYXpdNJFFw-18"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-25",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-126",
+          "target": "f8VeIoXZLUVYXpdNJFFw-18"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-26",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-127",
+          "target": "f8VeIoXZLUVYXpdNJFFw-18"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-27",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-9",
+          "target": "f8VeIoXZLUVYXpdNJFFw-18"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-28",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-19",
+          "target": "f8VeIoXZLUVYXpdNJFFw-18"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-30",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-106",
+          "target": "f8VeIoXZLUVYXpdNJFFw-18"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-31",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-1",
+          "target": "f8VeIoXZLUVYXpdNJFFw-5"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-104",
+          "type": "node",
+          "parent": "1",
+          "label": "TRIPRI - TOUR PLATFORM",
+          "html": "<font style=\"font-size: 100px;\">TRIPRI - TOUR PLATFORM</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-105",
+          "type": "node",
+          "parent": "f8VeIoXZLUVYXpdNJFFw-104",
+          "label": "Chat with AI",
+          "html": "<font style=\"font-size: 39px;\">Chat with AI</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-106",
+          "type": "node",
+          "parent": "f8VeIoXZLUVYXpdNJFFw-104",
+          "label": "Send report",
+          "html": "<font style=\"font-size: 39px;\">Send report</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-123",
+          "type": "node",
+          "parent": "f8VeIoXZLUVYXpdNJFFw-104",
+          "label": "Send ticket",
+          "html": "<font style=\"font-size: 39px;\">Send ticket</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-125",
+          "type": "node",
+          "parent": "f8VeIoXZLUVYXpdNJFFw-104",
+          "label": "Add wishlist",
+          "html": "<font style=\"font-size: 39px;\">Add wishlist</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-126",
+          "type": "node",
+          "parent": "f8VeIoXZLUVYXpdNJFFw-104",
+          "label": "Remove tour from wishlist",
+          "html": "<font style=\"font-size: 39px;\">Remove tour from wishlist</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-127",
+          "type": "node",
+          "parent": "f8VeIoXZLUVYXpdNJFFw-104",
+          "label": "Write a review",
+          "html": "<span style=\"font-size: 39px;\">Write a review</span>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-128",
+          "type": "node",
+          "parent": "f8VeIoXZLUVYXpdNJFFw-104",
+          "label": "Book tour",
+          "html": "<font style=\"font-size: 39px;\">Book tour</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-9",
+          "type": "node",
+          "parent": "f8VeIoXZLUVYXpdNJFFw-104",
+          "label": "Receive E-ticket",
+          "html": "<font style=\"font-size: 39px;\">Receive E-ticket</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-19",
+          "type": "node",
+          "parent": "f8VeIoXZLUVYXpdNJFFw-104",
+          "label": "Make payment",
+          "html": "<span style=\"font-size: 39px;\">Make payment</span>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-21",
+          "type": "edge",
+          "parent": "f8VeIoXZLUVYXpdNJFFw-104",
+          "source": "f8VeIoXZLUVYXpdNJFFw-9",
+          "target": "f8VeIoXZLUVYXpdNJFFw-19",
+          "label": "<<include>>",
+          "html": "<span style=\"font-size: 39px;\">&lt;&lt;include&gt;&gt;</span>"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-12",
+          "type": "node",
+          "parent": "f8VeIoXZLUVYXpdNJFFw-104",
+          "label": "Forgot password",
+          "html": "<span style=\"font-size: 40px;\">Forgot password</span>"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-17",
+          "type": "node",
+          "parent": "f8VeIoXZLUVYXpdNJFFw-104",
+          "label": "Login with Google",
+          "html": "<font style=\"font-size: 40px;\">Login with Google&nbsp;</font>"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-16",
+          "type": "node",
+          "parent": "f8VeIoXZLUVYXpdNJFFw-104",
+          "label": "Authenticate via OAuth",
+          "html": "<font style=\"font-size: 40px;\">Authenticate via OAuth</font>"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-10",
+          "type": "node",
+          "parent": "f8VeIoXZLUVYXpdNJFFw-104",
+          "label": "Log out",
+          "html": "<font style=\"font-size: 40px;\">Log out</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-129",
+          "type": "node",
+          "parent": "1",
+          "label": "AI Agent",
+          "html": "<font style=\"font-size: 36px;\">AI Agent</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-130",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-18",
+          "target": "-LCWo8zMASfsfnAiztsy-1"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-131",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-105",
+          "target": "f8VeIoXZLUVYXpdNJFFw-18"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-132",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-105",
+          "target": "f8VeIoXZLUVYXpdNJFFw-129"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-133",
+          "type": "node",
+          "parent": "1",
+          "label": "Payment Gateway",
+          "html": "<font style=\"font-size: 36px;\">Payment Gateway</font>"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-134",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-19",
+          "target": "f8VeIoXZLUVYXpdNJFFw-133"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-144",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-123",
+          "target": "f8VeIoXZLUVYXpdNJFFw-18"
+        },
+        {
+          "id": "f8VeIoXZLUVYXpdNJFFw-145",
+          "type": "edge",
+          "parent": "1",
+          "source": "f8VeIoXZLUVYXpdNJFFw-128",
+          "target": "f8VeIoXZLUVYXpdNJFFw-18"
+        },
+        {
+          "id": "-LCWo8zMASfsfnAiztsy-1",
+          "type": "node",
+          "parent": "1",
+          "label": "Make a conservation",
+          "html": "<font style=\"font-size: 40px;\">Make a conservation</font>"
+        },
+        {
+          "id": "-LCWo8zMASfsfnAiztsy-2",
+          "type": "node",
+          "parent": "1",
+          "label": "Tour guide",
+          "html": "<font style=\"font-size: 32px;\">Tour guide</font>"
+        },
+        {
+          "id": "-LCWo8zMASfsfnAiztsy-3",
+          "type": "edge",
+          "parent": "1",
+          "source": "-LCWo8zMASfsfnAiztsy-1",
+          "target": "-LCWo8zMASfsfnAiztsy-2"
+        },
+        {
+          "id": "-LCWo8zMASfsfnAiztsy-4",
+          "type": "edge",
+          "parent": "1",
+          "source": "-LCWo8zMASfsfnAiztsy-12",
+          "target": "-LCWo8zMASfsfnAiztsy-2"
+        },
+        {
+          "id": "-LCWo8zMASfsfnAiztsy-5",
+          "type": "edge",
+          "parent": "1",
+          "source": "-LCWo8zMASfsfnAiztsy-13",
+          "target": "-LCWo8zMASfsfnAiztsy-2"
+        },
+        {
+          "id": "-LCWo8zMASfsfnAiztsy-6",
+          "type": "edge",
+          "parent": "1",
+          "source": "-LCWo8zMASfsfnAiztsy-10",
+          "target": "-LCWo8zMASfsfnAiztsy-2"
+        },
+        {
+          "id": "-LCWo8zMASfsfnAiztsy-7",
+          "type": "edge",
+          "parent": "1",
+          "source": "-LCWo8zMASfsfnAiztsy-11",
+          "target": "-LCWo8zMASfsfnAiztsy-2"
+        },
+        {
+          "id": "-LCWo8zMASfsfnAiztsy-8",
+          "type": "edge",
+          "parent": "1",
+          "source": "-LCWo8zMASfsfnAiztsy-14",
+          "target": "-LCWo8zMASfsfnAiztsy-2"
+        },
+        {
+          "id": "-LCWo8zMASfsfnAiztsy-9",
+          "type": "edge",
+          "parent": "1",
+          "source": "-LCWo8zMASfsfnAiztsy-15",
+          "target": "-LCWo8zMASfsfnAiztsy-2"
+        },
+        {
+          "id": "-LCWo8zMASfsfnAiztsy-10",
+          "type": "node",
+          "parent": "1",
+          "label": "View Profile",
+          "html": "<font style=\"font-size: 40px;\">View Profile</font>"
+        },
+        {
+          "id": "-LCWo8zMASfsfnAiztsy-11",
+          "type": "node",
+          "parent": "1",
+          "label": "Update Profile",
+          "html": "<font style=\"font-size: 40px;\">Update Profile</font>"
+        },
+        {
+          "id": "-LCWo8zMASfsfnAiztsy-12",
+          "type": "node",
+          "parent": "1",
+          "label": "View assigned tours",
+          "html": "<font style=\"font-size: 40px;\">View assigned tours</font>"
+        },
+        {
+          "id": "-LCWo8zMASfsfnAiztsy-13",
+          "type": "node",
+          "parent": "1",
+          "label": "Verify assigned tours",
+          "html": "<span style=\"font-family: sans-serif; text-align: start; text-wrap-mode: nowrap; background-color: rgb(255, 255, 255);\"><font style=\"font-size: 38px;\">Verify assigned tours</font></span>"
+        },
+        {
+          "id": "-LCWo8zMASfsfnAiztsy-14",
+          "type": "node",
+          "parent": "1",
+          "label": "Subcribe to plan",
+          "html": "<font style=\"font-size: 40px;\">Subcribe to plan</font>"
+        },
+        {
+          "id": "-LCWo8zMASfsfnAiztsy-15",
+          "type": "node",
+          "parent": "1",
+          "label": "View earnings",
+          "html": "<font style=\"font-size: 40px;\">View earnings</font>"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-1",
+          "type": "node",
+          "parent": "1",
+          "label": "Agency",
+          "html": "<font style=\"font-size: 32px;\">Agency</font>"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-2",
+          "type": "edge",
+          "parent": "1",
+          "source": "jQ1tyLX1OrzX4N8OtrVs-12",
+          "target": "jQ1tyLX1OrzX4N8OtrVs-1"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-3",
+          "type": "edge",
+          "parent": "1",
+          "source": "jQ1tyLX1OrzX4N8OtrVs-13",
+          "target": "jQ1tyLX1OrzX4N8OtrVs-1"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-4",
+          "type": "edge",
+          "parent": "1",
+          "source": "jQ1tyLX1OrzX4N8OtrVs-14",
+          "target": "jQ1tyLX1OrzX4N8OtrVs-1"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-5",
+          "type": "edge",
+          "parent": "1",
+          "source": "jQ1tyLX1OrzX4N8OtrVs-15",
+          "target": "jQ1tyLX1OrzX4N8OtrVs-1"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-6",
+          "type": "edge",
+          "parent": "1",
+          "source": "jQ1tyLX1OrzX4N8OtrVs-16",
+          "target": "jQ1tyLX1OrzX4N8OtrVs-1"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-7",
+          "type": "edge",
+          "parent": "1",
+          "source": "jQ1tyLX1OrzX4N8OtrVs-18",
+          "target": "jQ1tyLX1OrzX4N8OtrVs-1"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-8",
+          "type": "edge",
+          "parent": "1",
+          "source": "jQ1tyLX1OrzX4N8OtrVs-19",
+          "target": "jQ1tyLX1OrzX4N8OtrVs-1"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-9",
+          "type": "edge",
+          "parent": "1",
+          "source": "jQ1tyLX1OrzX4N8OtrVs-20",
+          "target": "jQ1tyLX1OrzX4N8OtrVs-1"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-10",
+          "type": "edge",
+          "parent": "1",
+          "source": "jQ1tyLX1OrzX4N8OtrVs-21",
+          "target": "jQ1tyLX1OrzX4N8OtrVs-1"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-11",
+          "type": "edge",
+          "parent": "1",
+          "source": "jQ1tyLX1OrzX4N8OtrVs-17",
+          "target": "jQ1tyLX1OrzX4N8OtrVs-1"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-12",
+          "type": "node",
+          "parent": "1",
+          "label": "Create tour",
+          "html": "<font style=\"font-size: 39px;\">Create tour</font>"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-13",
+          "type": "node",
+          "parent": "1",
+          "label": "Edit tour",
+          "html": "<font style=\"font-size: 39px;\">Edit tour</font>"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-14",
+          "type": "node",
+          "parent": "1",
+          "label": "Delete tour",
+          "html": "<font style=\"font-size: 39px;\">Delete tour</font>"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-15",
+          "type": "node",
+          "parent": "1",
+          "label": "Upload tours",
+          "html": "<font style=\"font-size: 39px;\">Upload tours</font>"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-16",
+          "type": "node",
+          "parent": "1",
+          "label": "Assign guide to tour",
+          "html": "<span style=\"font-size: 39px;\">Assign guide to tour</span>"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-17",
+          "type": "node",
+          "parent": "1",
+          "label": "Upload promotions",
+          "html": "<font style=\"font-size: 39px;\">Upload promotions</font>"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-18",
+          "type": "node",
+          "parent": "1",
+          "label": "Set tour availability",
+          "html": "<span style=\"font-size: 39px;\">Set tour availability</span>"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-19",
+          "type": "node",
+          "parent": "1",
+          "label": "View dashboard",
+          "html": "<font style=\"font-size: 39px;\">View dashboard</font>"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-20",
+          "type": "node",
+          "parent": "1",
+          "label": "View bookings status",
+          "html": "<font style=\"font-size: 39px;\">View bookings status</font>"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-21",
+          "type": "node",
+          "parent": "1",
+          "label": "Config itinerary",
+          "html": "<font style=\"font-size: 39px;\">Config itinerary</font>"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-22",
+          "type": "node",
+          "parent": "1",
+          "label": "Export customer PDF",
+          "html": "<span style=\"font-size: 39px;\">Export customer PDF</span>"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-23",
+          "type": "node",
+          "parent": "1",
+          "label": "Handle tour complaints",
+          "html": "<font style=\"font-size: 39px;\">Handle tour complaints</font>"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-24",
+          "type": "edge",
+          "parent": "1",
+          "source": "jQ1tyLX1OrzX4N8OtrVs-22",
+          "target": "jQ1tyLX1OrzX4N8OtrVs-1"
+        },
+        {
+          "id": "jQ1tyLX1OrzX4N8OtrVs-25",
+          "type": "edge",
+          "parent": "1",
+          "source": "jQ1tyLX1OrzX4N8OtrVs-23",
+          "target": "jQ1tyLX1OrzX4N8OtrVs-1"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-1",
+          "type": "node",
+          "parent": "1",
+          "label": "Moderator",
+          "html": "<font style=\"font-size: 36px;\">Moderator</font>"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-2",
+          "type": "edge",
+          "parent": "1",
+          "source": "IUcABl9pyS1gbTAVm0Z3-1",
+          "target": "IUcABl9pyS1gbTAVm0Z3-8"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-3",
+          "type": "edge",
+          "parent": "1",
+          "source": "IUcABl9pyS1gbTAVm0Z3-1",
+          "target": "IUcABl9pyS1gbTAVm0Z3-9"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-4",
+          "type": "edge",
+          "parent": "1",
+          "source": "IUcABl9pyS1gbTAVm0Z3-1",
+          "target": "IUcABl9pyS1gbTAVm0Z3-11"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-5",
+          "type": "edge",
+          "parent": "1",
+          "source": "IUcABl9pyS1gbTAVm0Z3-1",
+          "target": "IUcABl9pyS1gbTAVm0Z3-13"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-6",
+          "type": "edge",
+          "parent": "1",
+          "source": "IUcABl9pyS1gbTAVm0Z3-12",
+          "target": "IUcABl9pyS1gbTAVm0Z3-1"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-7",
+          "type": "edge",
+          "parent": "1",
+          "source": "IUcABl9pyS1gbTAVm0Z3-1",
+          "target": "IUcABl9pyS1gbTAVm0Z3-10"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-8",
+          "type": "node",
+          "parent": "1",
+          "label": "Validate tour",
+          "html": "<span style=\"font-size: 40px;\">Validate tour</span>"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-9",
+          "type": "node",
+          "parent": "1",
+          "label": "Resolve disputes",
+          "html": "<span style=\"font-size: 40px;\">Resolve disputes</span>"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-10",
+          "type": "node",
+          "parent": "1",
+          "label": "Handle complaints",
+          "html": "<span style=\"font-size: 40px;\">Handle complaints</span>"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-11",
+          "type": "node",
+          "parent": "1",
+          "label": "View tour lists",
+          "html": "<span style=\"font-size: 40px;\">View tour lists</span>"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-12",
+          "type": "node",
+          "parent": "1",
+          "label": "Suspend tours",
+          "html": "<span style=\"font-size: 40px;\">Suspend tours</span>"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-13",
+          "type": "node",
+          "parent": "1",
+          "label": "View moderation dashboard",
+          "html": "<span style=\"font-size: 40px;\">View moderation dashboard</span>"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-14",
+          "type": "node",
+          "parent": "1",
+          "label": "Verify Agency Profile",
+          "html": "<span style=\"font-size: 40px;\">Verify Agency Profile</span>"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-15",
+          "type": "node",
+          "parent": "1",
+          "label": "Moderate reviews",
+          "html": "<span style=\"font-size: 40px;\">Moderate reviews</span>"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-16",
+          "type": "node",
+          "parent": "1",
+          "label": "Ban violating account",
+          "html": "<span style=\"font-size: 40px;\">Ban violating account</span>"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-17",
+          "type": "edge",
+          "parent": "1",
+          "source": "IUcABl9pyS1gbTAVm0Z3-14",
+          "target": "IUcABl9pyS1gbTAVm0Z3-1"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-18",
+          "type": "edge",
+          "parent": "1",
+          "source": "IUcABl9pyS1gbTAVm0Z3-15",
+          "target": "IUcABl9pyS1gbTAVm0Z3-1"
+        },
+        {
+          "id": "IUcABl9pyS1gbTAVm0Z3-19",
+          "type": "edge",
+          "parent": "1",
+          "source": "IUcABl9pyS1gbTAVm0Z3-16",
+          "target": "IUcABl9pyS1gbTAVm0Z3-1"
+        },
+        {
+          "id": "iM-IMz0EBxunPJ8eu7c2-1",
+          "type": "node",
+          "parent": "1",
+          "label": "Super Admin",
+          "html": "<font style=\"font-size: 36px;\">Super Admin</font>"
+        },
+        {
+          "id": "iM-IMz0EBxunPJ8eu7c2-2",
+          "type": "edge",
+          "parent": "1",
+          "source": "iM-IMz0EBxunPJ8eu7c2-7",
+          "target": "iM-IMz0EBxunPJ8eu7c2-1"
+        },
+        {
+          "id": "iM-IMz0EBxunPJ8eu7c2-3",
+          "type": "edge",
+          "parent": "1",
+          "source": "iM-IMz0EBxunPJ8eu7c2-8",
+          "target": "iM-IMz0EBxunPJ8eu7c2-1"
+        },
+        {
+          "id": "iM-IMz0EBxunPJ8eu7c2-4",
+          "type": "edge",
+          "parent": "1",
+          "source": "iM-IMz0EBxunPJ8eu7c2-9",
+          "target": "iM-IMz0EBxunPJ8eu7c2-1"
+        },
+        {
+          "id": "iM-IMz0EBxunPJ8eu7c2-5",
+          "type": "edge",
+          "parent": "1",
+          "source": "iM-IMz0EBxunPJ8eu7c2-6",
+          "target": "iM-IMz0EBxunPJ8eu7c2-1"
+        },
+        {
+          "id": "iM-IMz0EBxunPJ8eu7c2-6",
+          "type": "node",
+          "parent": "1",
+          "label": "Set platform commission rates",
+          "html": "<span style=\"font-size: 40px;\">Set platform commission rates</span>"
+        },
+        {
+          "id": "iM-IMz0EBxunPJ8eu7c2-7",
+          "type": "node",
+          "parent": "1",
+          "label": "View detailed dashboards",
+          "html": "<span style=\"font-size: 40px;\">View detailed dashboards</span>"
+        },
+        {
+          "id": "iM-IMz0EBxunPJ8eu7c2-8",
+          "type": "node",
+          "parent": "1",
+          "label": "Config platform promotions",
+          "html": "<span style=\"font-size: 40px;\">Config platform promotions</span>"
+        },
+        {
+          "id": "iM-IMz0EBxunPJ8eu7c2-9",
+          "type": "node",
+          "parent": "1",
+          "label": "Assign User Permissions",
+          "html": "<span style=\"font-size: 40px;\">Assign User Permissions</span>"
+        },
+        {
+          "id": "iM-IMz0EBxunPJ8eu7c2-10",
+          "type": "node",
+          "parent": "1",
+          "label": "Config Tour Categories",
+          "html": "<span style=\"font-size: 40px;\">Config Tour Categories</span>"
+        },
+        {
+          "id": "iM-IMz0EBxunPJ8eu7c2-11",
+          "type": "node",
+          "parent": "1",
+          "label": "Configure System Policies",
+          "html": "<span style=\"font-size: 40px;\">Configure System Policies</span>"
+        },
+        {
+          "id": "iM-IMz0EBxunPJ8eu7c2-12",
+          "type": "edge",
+          "parent": "1",
+          "source": "iM-IMz0EBxunPJ8eu7c2-10",
+          "target": "iM-IMz0EBxunPJ8eu7c2-1"
+        },
+        {
+          "id": "iM-IMz0EBxunPJ8eu7c2-13",
+          "type": "edge",
+          "parent": "1",
+          "source": "iM-IMz0EBxunPJ8eu7c2-11",
+          "target": "iM-IMz0EBxunPJ8eu7c2-1"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-1",
+          "type": "node",
+          "parent": "1",
+          "label": "Google OAuth System",
+          "html": "<font style=\"font-size: 36px;\">Google OAuth System</font>"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-2",
+          "type": "node",
+          "parent": "1",
+          "label": "Guest, Traveler, Agency, \nTour guide, Moderator, Super Admin",
+          "html": "<font style=\"font-size: 36px;\">Guest, Traveler, Agency,&nbsp;</font><div><font style=\"font-size: 36px;\">Tour guide, Moderator, Super Admin</font></div>"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-3",
+          "type": "edge",
+          "parent": "1",
+          "source": "Rch3a00LQlmxfEvdM_0_-2",
+          "target": "Rch3a00LQlmxfEvdM_0_-19"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-4",
+          "type": "edge",
+          "parent": "1",
+          "source": "Rch3a00LQlmxfEvdM_0_-2",
+          "target": "Rch3a00LQlmxfEvdM_0_-11"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-5",
+          "type": "edge",
+          "parent": "1",
+          "source": "Rch3a00LQlmxfEvdM_0_-12",
+          "target": "Rch3a00LQlmxfEvdM_0_-2"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-6",
+          "type": "edge",
+          "parent": "1",
+          "source": "Rch3a00LQlmxfEvdM_0_-2",
+          "target": "Rch3a00LQlmxfEvdM_0_-10"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-7",
+          "type": "edge",
+          "parent": "1",
+          "source": "Rch3a00LQlmxfEvdM_0_-16",
+          "target": "Rch3a00LQlmxfEvdM_0_-1"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-8",
+          "type": "node",
+          "parent": "1",
+          "label": "Email OTP",
+          "html": "<font style=\"font-size: 36px;\">Email OTP</font>"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-9",
+          "type": "edge",
+          "parent": "1",
+          "source": "Rch3a00LQlmxfEvdM_0_-14",
+          "target": "Rch3a00LQlmxfEvdM_0_-8"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-13",
+          "type": "node",
+          "parent": "1",
+          "label": "Validate credentials",
+          "html": "<font style=\"font-size: 40px;\">Validate credentials</font>"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-14",
+          "type": "node",
+          "parent": "1",
+          "label": "Verify OTP",
+          "html": "<font style=\"font-size: 40px;\">Verify OTP</font>"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-15",
+          "type": "edge",
+          "parent": "1",
+          "source": "Rch3a00LQlmxfEvdM_0_-14",
+          "target": "Rch3a00LQlmxfEvdM_0_-13",
+          "label": "<<extend>>",
+          "html": "<span style=\"font-size: 39px;\">&lt;&lt;extend&gt;&gt;</span>"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-18",
+          "type": "edge",
+          "parent": "1",
+          "source": "Rch3a00LQlmxfEvdM_0_-11",
+          "target": "Rch3a00LQlmxfEvdM_0_-16",
+          "label": "<<include>>",
+          "html": "<span style=\"font-size: 39px;\">&lt;&lt;include&gt;&gt;</span>"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-19",
+          "type": "node",
+          "parent": "1",
+          "label": "Login",
+          "html": "<font style=\"font-size: 40px;\">Login</font>"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-20",
+          "type": "edge",
+          "parent": "1",
+          "source": "Rch3a00LQlmxfEvdM_0_-19",
+          "target": "Rch3a00LQlmxfEvdM_0_-17"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-21",
+          "type": "edge",
+          "parent": "1",
+          "source": "Rch3a00LQlmxfEvdM_0_-19",
+          "target": "Rch3a00LQlmxfEvdM_0_-13",
+          "label": "<<include>>",
+          "html": "<span style=\"font-size: 39px;\">&lt;&lt;include&gt;&gt;</span>"
+        },
+        {
+          "id": "Rch3a00LQlmxfEvdM_0_-11",
+          "type": "node",
+          "parent": "1",
+          "label": "Register",
+          "html": "<font style=\"font-size: 40px;\">Register&nbsp;</font>"
+        }
+      ]
+    },
+    {
+      "id": "ZKdSw851qEYHu_qdsU25",
+      "name": "Authentication",
+      "cells": [
+        {
+          "id": "1",
+          "type": "layer"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-2",
+          "type": "node",
+          "parent": "1",
+          "label": "Google OAuth System",
+          "html": "<font style=\"font-size: 36px;\">Google OAuth System</font>"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-18",
+          "type": "node",
+          "parent": "1",
+          "label": "Guest, Traveler, Agency, \nTour guide",
+          "html": "<font style=\"font-size: 36px;\">Guest, Traveler, Agency,&nbsp;</font><div><font style=\"font-size: 36px;\">Tour guide</font></div>"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-19",
+          "type": "edge",
+          "parent": "1",
+          "source": "8o2VPVxhCSiwx0nD71EJ-18",
+          "target": "8o2VPVxhCSiwx0nD71EJ-3"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-20",
+          "type": "edge",
+          "parent": "1",
+          "source": "8o2VPVxhCSiwx0nD71EJ-18",
+          "target": "8o2VPVxhCSiwx0nD71EJ-4"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-21",
+          "type": "edge",
+          "parent": "1",
+          "source": "8o2VPVxhCSiwx0nD71EJ-8",
+          "target": "8o2VPVxhCSiwx0nD71EJ-18"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-23",
+          "type": "edge",
+          "parent": "1",
+          "source": "8o2VPVxhCSiwx0nD71EJ-18",
+          "target": "8o2VPVxhCSiwx0nD71EJ-5"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-24",
+          "type": "edge",
+          "parent": "1",
+          "source": "8o2VPVxhCSiwx0nD71EJ-16",
+          "target": "8o2VPVxhCSiwx0nD71EJ-2"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-25",
+          "type": "node",
+          "parent": "1",
+          "label": "Email OTP",
+          "html": "<font style=\"font-size: 36px;\">Email OTP</font>"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-26",
+          "type": "edge",
+          "parent": "1",
+          "source": "8o2VPVxhCSiwx0nD71EJ-14",
+          "target": "8o2VPVxhCSiwx0nD71EJ-25"
+        },
+        {
+          "id": "IwwCv9amOKKRNcz9BQgz-1",
+          "type": "node",
+          "parent": "1",
+          "label": "TRIPRI - TOUR PLATFORM",
+          "html": "<font style=\"font-size: 100px;\">TRIPRI - TOUR PLATFORM</font>"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-5",
+          "type": "node",
+          "parent": "IwwCv9amOKKRNcz9BQgz-1",
+          "label": "Log out",
+          "html": "<font style=\"font-size: 40px;\">Log out</font>"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-4",
+          "type": "node",
+          "parent": "IwwCv9amOKKRNcz9BQgz-1",
+          "label": "Register",
+          "html": "<font style=\"font-size: 40px;\">Register&nbsp;</font>"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-8",
+          "type": "node",
+          "parent": "IwwCv9amOKKRNcz9BQgz-1",
+          "label": "Forgot password",
+          "html": "<span style=\"font-size: 40px;\">Forgot password</span>"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-10",
+          "type": "node",
+          "parent": "IwwCv9amOKKRNcz9BQgz-1",
+          "label": "Validate credentials",
+          "html": "<font style=\"font-size: 40px;\">Validate credentials</font>"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-14",
+          "type": "node",
+          "parent": "IwwCv9amOKKRNcz9BQgz-1",
+          "label": "Verify OTP",
+          "html": "<font style=\"font-size: 40px;\">Verify OTP</font>"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-15",
+          "type": "edge",
+          "parent": "IwwCv9amOKKRNcz9BQgz-1",
+          "source": "8o2VPVxhCSiwx0nD71EJ-14",
+          "target": "8o2VPVxhCSiwx0nD71EJ-10",
+          "label": "<<extend>>",
+          "html": "<span style=\"font-size: 39px;\">&lt;&lt;extend&gt;&gt;</span>"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-16",
+          "type": "node",
+          "parent": "IwwCv9amOKKRNcz9BQgz-1",
+          "label": "Authenticate via OAuth",
+          "html": "<font style=\"font-size: 40px;\">Authenticate via OAuth</font>"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-9",
+          "type": "node",
+          "parent": "IwwCv9amOKKRNcz9BQgz-1",
+          "label": "Login with Google",
+          "html": "<font style=\"font-size: 40px;\">Login with Google&nbsp;</font>"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-17",
+          "type": "edge",
+          "parent": "IwwCv9amOKKRNcz9BQgz-1",
+          "source": "8o2VPVxhCSiwx0nD71EJ-9",
+          "target": "8o2VPVxhCSiwx0nD71EJ-16",
+          "label": "<<include>>",
+          "html": "<span style=\"font-size: 39px;\">&lt;&lt;include&gt;&gt;</span>"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-3",
+          "type": "node",
+          "parent": "IwwCv9amOKKRNcz9BQgz-1",
+          "label": "Login",
+          "html": "<font style=\"font-size: 40px;\">Login</font>"
+        },
+        {
+          "id": "8o2VPVxhCSiwx0nD71EJ-11",
+          "type": "edge",
+          "parent": "IwwCv9amOKKRNcz9BQgz-1",
+          "source": "8o2VPVxhCSiwx0nD71EJ-3",
+          "target": "8o2VPVxhCSiwx0nD71EJ-9"
+        },
+        {
+          "id": "-N2Hqu6_uOj9GysvcAKh-2",
+          "type": "edge",
+          "parent": "IwwCv9amOKKRNcz9BQgz-1",
+          "source": "8o2VPVxhCSiwx0nD71EJ-3",
+          "target": "8o2VPVxhCSiwx0nD71EJ-10",
+          "label": "<<include>>",
+          "html": "<span style=\"font-size: 39px;\">&lt;&lt;include&gt;&gt;</span>"
+        },
+        {
+          "id": "brLl95Nk3OMCj91tt3ZW-1",
+          "type": "node",
+          "parent": "1",
+          "label": "Moderator, Super Admin",
+          "html": "<span style=\"font-size: 36px;\">Moderator, Super Admin</span>"
+        },
+        {
+          "id": "brLl95Nk3OMCj91tt3ZW-2",
+          "type": "edge",
+          "parent": "1",
+          "source": "brLl95Nk3OMCj91tt3ZW-1",
+          "target": "8o2VPVxhCSiwx0nD71EJ-3"
+        },
+        {
+          "id": "brLl95Nk3OMCj91tt3ZW-3",
+          "type": "edge",
+          "parent": "1",
+          "source": "brLl95Nk3OMCj91tt3ZW-1",
+          "target": "8o2VPVxhCSiwx0nD71EJ-8"
+        },
+        {
+          "id": "brLl95Nk3OMCj91tt3ZW-4",
+          "type": "edge",
+          "parent": "1",
+          "source": "8o2VPVxhCSiwx0nD71EJ-5",
+          "target": "brLl95Nk3OMCj91tt3ZW-1"
+        }
+      ]
+    },
+    {
+      "id": "yR0Jv-iAmewftPUopfhX",
+      "name": "Guest",
+      "cells": [
+        {
+          "id": "1",
+          "type": "layer"
+        },
+        {
+          "id": "Tkm2d0kz6VnRniS0UIlM-1",
+          "type": "node",
+          "parent": "1",
+          "label": "Guests",
+          "html": "<font style=\"font-size: 32px;\">Guests</font>"
+        },
+        {
+          "id": "Tkm2d0kz6VnRniS0UIlM-2",
+          "type": "node",
+          "parent": "1",
+          "label": "Search tours",
+          "html": "<font style=\"font-size: 39px;\">Search tours</font>"
+        },
+        {
+          "id": "Tkm2d0kz6VnRniS0UIlM-3",
+          "type": "node",
+          "parent": "1",
+          "label": "View public tour guide profile",
+          "html": "<font style=\"font-size: 39px;\">View public tour guide profile</font>"
+        },
+        {
+          "id": "Tkm2d0kz6VnRniS0UIlM-4",
+          "type": "node",
+          "parent": "1",
+          "label": "View public agency profile",
+          "html": "<span style=\"font-size: 39px;\">View public agency profile</span>"
+        },
+        {
+          "id": "Tkm2d0kz6VnRniS0UIlM-6",
+          "type": "node",
+          "parent": "1",
+          "label": "View public review",
+          "html": "<span style=\"font-size: 40px;\">View public review</span>"
+        },
+        {
+          "id": "Tkm2d0kz6VnRniS0UIlM-7",
+          "type": "node",
+          "parent": "1",
+          "label": "View tour details",
+          "html": "<font style=\"font-size: 39px;\">View tour details</font>"
+        },
+        {
+          "id": "Tkm2d0kz6VnRniS0UIlM-8",
+          "type": "node",
+          "parent": "1",
+          "label": "Filter tours",
+          "html": "<font style=\"font-size: 39px;\">Filter tours</font>"
+        },
+        {
+          "id": "Tkm2d0kz6VnRniS0UIlM-9",
+          "type": "edge",
+          "parent": "1",
+          "source": "Tkm2d0kz6VnRniS0UIlM-2",
+          "target": "Tkm2d0kz6VnRniS0UIlM-1"
+        },
+        {
+          "id": "Tkm2d0kz6VnRniS0UIlM-10",
+          "type": "edge",
+          "parent": "1",
+          "source": "Tkm2d0kz6VnRniS0UIlM-1",
+          "target": "Tkm2d0kz6VnRniS0UIlM-8"
+        },
+        {
+          "id": "Tkm2d0kz6VnRniS0UIlM-11",
+          "type": "edge",
+          "parent": "1",
+          "source": "Tkm2d0kz6VnRniS0UIlM-1",
+          "target": "Tkm2d0kz6VnRniS0UIlM-7"
+        },
+        {
+          "id": "Tkm2d0kz6VnRniS0UIlM-12",
+          "type": "edge",
+          "parent": "1",
+          "source": "Tkm2d0kz6VnRniS0UIlM-1",
+          "target": "Tkm2d0kz6VnRniS0UIlM-4"
+        },
+        {
+          "id": "Tkm2d0kz6VnRniS0UIlM-13",
+          "type": "edge",
+          "parent": "1",
+          "source": "Tkm2d0kz6VnRniS0UIlM-1",
+          "target": "Tkm2d0kz6VnRniS0UIlM-3"
+        },
+        {
+          "id": "Tkm2d0kz6VnRniS0UIlM-14",
+          "type": "edge",
+          "parent": "1",
+          "source": "Tkm2d0kz6VnRniS0UIlM-6",
+          "target": "Tkm2d0kz6VnRniS0UIlM-1"
+        },
+        {
+          "id": "Tkm2d0kz6VnRniS0UIlM-15",
+          "type": "edge",
+          "parent": "1",
+          "source": "Tkm2d0kz6VnRniS0UIlM-1",
+          "target": "eszPIB1s7wJdzqTsICO3-1"
+        },
+        {
+          "id": "-lnwUC3dRvg8NBqRxux_-1",
+          "type": "node",
+          "parent": "1",
+          "label": "TRIPRI - TOUR PLATFORM",
+          "html": "<font style=\"font-size: 100px;\">TRIPRI - TOUR PLATFORM</font>"
+        },
+        {
+          "id": "eszPIB1s7wJdzqTsICO3-1",
+          "type": "node",
+          "parent": "-lnwUC3dRvg8NBqRxux_-1",
+          "label": "View tours list",
+          "html": "<font style=\"font-size: 39px;\">View tours list</font>"
+        }
+      ]
+    },
+    {
+      "id": "xqwRa0PcUlmyo9jz8uXb",
+      "name": "Traveler",
+      "cells": [
+        {
+          "id": "1",
+          "type": "layer"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-3",
+          "type": "node",
+          "parent": "1",
+          "label": "Update profile informations",
+          "html": "<font style=\"font-size: 39px;\">Update profile informations</font>"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-8",
+          "type": "node",
+          "parent": "1",
+          "label": "View profile",
+          "html": "<font style=\"font-size: 39px;\">View profile</font>"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-12",
+          "type": "node",
+          "parent": "1",
+          "label": "Traveler",
+          "html": "<font style=\"font-size: 32px;\">Traveler</font>"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-13",
+          "type": "node",
+          "parent": "1",
+          "label": "Make payment",
+          "html": "<span style=\"font-size: 39px;\">Make payment</span>"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-15",
+          "type": "edge",
+          "parent": "1",
+          "source": "8eVrFMAervIoZc47Afxm-9",
+          "target": "8eVrFMAervIoZc47Afxm-13",
+          "label": "<<include>>",
+          "html": "<span style=\"font-size: 39px;\">&lt;&lt;include&gt;&gt;</span>"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-16",
+          "type": "edge",
+          "parent": "1",
+          "source": "8eVrFMAervIoZc47Afxm-12",
+          "target": "8eVrFMAervIoZc47Afxm-8"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-17",
+          "type": "edge",
+          "parent": "1",
+          "source": "8eVrFMAervIoZc47Afxm-12",
+          "target": "8eVrFMAervIoZc47Afxm-3"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-21",
+          "type": "edge",
+          "parent": "1",
+          "source": "8eVrFMAervIoZc47Afxm-12",
+          "target": "8eVrFMAervIoZc47Afxm-6"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-23",
+          "type": "edge",
+          "parent": "1",
+          "source": "8eVrFMAervIoZc47Afxm-2",
+          "target": "8eVrFMAervIoZc47Afxm-12"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-24",
+          "type": "edge",
+          "parent": "1",
+          "source": "8eVrFMAervIoZc47Afxm-5",
+          "target": "8eVrFMAervIoZc47Afxm-12"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-25",
+          "type": "edge",
+          "parent": "1",
+          "source": "8eVrFMAervIoZc47Afxm-30",
+          "target": "8eVrFMAervIoZc47Afxm-12"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-26",
+          "type": "edge",
+          "parent": "1",
+          "source": "8eVrFMAervIoZc47Afxm-9",
+          "target": "8eVrFMAervIoZc47Afxm-12"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-28",
+          "type": "edge",
+          "parent": "1",
+          "source": "8eVrFMAervIoZc47Afxm-13",
+          "target": "8eVrFMAervIoZc47Afxm-12"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-31",
+          "type": "edge",
+          "parent": "1",
+          "source": "8eVrFMAervIoZc47Afxm-34",
+          "target": "8eVrFMAervIoZc47Afxm-12"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-38",
+          "type": "edge",
+          "parent": "1",
+          "source": "8eVrFMAervIoZc47Afxm-33",
+          "target": "8eVrFMAervIoZc47Afxm-12"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-40",
+          "type": "node",
+          "parent": "1",
+          "label": "Payment Gateway",
+          "html": "<font style=\"font-size: 36px;\">Payment Gateway</font>"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-41",
+          "type": "edge",
+          "parent": "1",
+          "source": "8eVrFMAervIoZc47Afxm-13",
+          "target": "8eVrFMAervIoZc47Afxm-40"
+        },
+        {
+          "id": "s-Lok3mN0eoMsfrfwogJ-1",
+          "type": "node",
+          "parent": "1",
+          "label": "TRIPRI - TOUR PLATFORM",
+          "html": "<font style=\"font-size: 100px;\">TRIPRI - TOUR PLATFORM</font>"
+        },
+        {
+          "id": "8LvjRdP735lp6WPYFtBr-1",
+          "type": "node",
+          "parent": "s-Lok3mN0eoMsfrfwogJ-1",
+          "label": "Send ticket",
+          "html": "<font style=\"font-size: 39px;\">Send ticket</font>"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-6",
+          "type": "node",
+          "parent": "s-Lok3mN0eoMsfrfwogJ-1",
+          "label": "View reviews",
+          "html": "<font style=\"font-size: 39px;\">View reviews</font>"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-2",
+          "type": "node",
+          "parent": "s-Lok3mN0eoMsfrfwogJ-1",
+          "label": "Add wishlist",
+          "html": "<font style=\"font-size: 39px;\">Add wishlist</font>"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-5",
+          "type": "node",
+          "parent": "s-Lok3mN0eoMsfrfwogJ-1",
+          "label": "Remove tour from wishlist",
+          "html": "<font style=\"font-size: 39px;\">Remove tour from wishlist</font>"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-30",
+          "type": "node",
+          "parent": "s-Lok3mN0eoMsfrfwogJ-1",
+          "label": "Write a review",
+          "html": "<span style=\"font-size: 39px;\">Write a review</span>"
+        },
+        {
+          "id": "cEpy4Q4HE5ZoRXNNVCTa-1",
+          "type": "node",
+          "parent": "s-Lok3mN0eoMsfrfwogJ-1",
+          "label": "Book tour",
+          "html": "<font style=\"font-size: 39px;\">Book tour</font>"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-9",
+          "type": "node",
+          "parent": "s-Lok3mN0eoMsfrfwogJ-1",
+          "label": "Receive E-ticket",
+          "html": "<font style=\"font-size: 39px;\">Receive E-ticket</font>"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-34",
+          "type": "node",
+          "parent": "s-Lok3mN0eoMsfrfwogJ-1",
+          "label": "Send report",
+          "html": "<font style=\"font-size: 39px;\">Send report</font>"
+        },
+        {
+          "id": "8eVrFMAervIoZc47Afxm-33",
+          "type": "node",
+          "parent": "s-Lok3mN0eoMsfrfwogJ-1",
+          "label": "Chat with AI",
+          "html": "<font style=\"font-size: 39px;\">Chat with AI</font>"
+        },
+        {
+          "id": "x74eReqL-J6rW8XiUECA-1",
+          "type": "node",
+          "parent": "s-Lok3mN0eoMsfrfwogJ-1",
+          "label": "Make a conservation",
+          "html": "<font style=\"font-size: 39px;\">Make a conservation</font>"
+        },
+        {
+          "id": "8LvjRdP735lp6WPYFtBr-2",
+          "type": "edge",
+          "parent": "1",
+          "source": "8LvjRdP735lp6WPYFtBr-1",
+          "target": "8eVrFMAervIoZc47Afxm-12"
+        },
+        {
+          "id": "cEpy4Q4HE5ZoRXNNVCTa-2",
+          "type": "edge",
+          "parent": "1",
+          "source": "cEpy4Q4HE5ZoRXNNVCTa-1",
+          "target": "8eVrFMAervIoZc47Afxm-12"
+        },
+        {
+          "id": "aKYse3Bur-0_2hevAXgV-1",
+          "type": "node",
+          "parent": "1",
+          "label": "AI Agent",
+          "html": "<font style=\"font-size: 36px;\">AI Agent</font>"
+        },
+        {
+          "id": "aKYse3Bur-0_2hevAXgV-2",
+          "type": "edge",
+          "parent": "1",
+          "source": "8eVrFMAervIoZc47Afxm-33",
+          "target": "aKYse3Bur-0_2hevAXgV-1"
+        },
+        {
+          "id": "x74eReqL-J6rW8XiUECA-2",
+          "type": "edge",
+          "parent": "1",
+          "source": "8eVrFMAervIoZc47Afxm-12",
+          "target": "x74eReqL-J6rW8XiUECA-1"
+        }
+      ]
+    },
+    {
+      "id": "IM5MrMwfPhQFyFtdENLE",
+      "name": "Agency",
+      "cells": [
+        {
+          "id": "1",
+          "type": "layer"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-1",
+          "type": "node",
+          "parent": "1",
+          "label": "Agency",
+          "html": "<font style=\"font-size: 32px;\">Agency</font>"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-12",
+          "type": "edge",
+          "parent": "1",
+          "source": "MVlB3tNTSXXpKaAgFiPq-3",
+          "target": "MVlB3tNTSXXpKaAgFiPq-1"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-13",
+          "type": "edge",
+          "parent": "1",
+          "source": "MVlB3tNTSXXpKaAgFiPq-4",
+          "target": "MVlB3tNTSXXpKaAgFiPq-1"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-14",
+          "type": "edge",
+          "parent": "1",
+          "source": "MVlB3tNTSXXpKaAgFiPq-2",
+          "target": "MVlB3tNTSXXpKaAgFiPq-1"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-15",
+          "type": "edge",
+          "parent": "1",
+          "source": "MVlB3tNTSXXpKaAgFiPq-8",
+          "target": "MVlB3tNTSXXpKaAgFiPq-1"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-16",
+          "type": "edge",
+          "parent": "1",
+          "source": "MVlB3tNTSXXpKaAgFiPq-6",
+          "target": "MVlB3tNTSXXpKaAgFiPq-1"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-17",
+          "type": "edge",
+          "parent": "1",
+          "source": "MVlB3tNTSXXpKaAgFiPq-11",
+          "target": "MVlB3tNTSXXpKaAgFiPq-1"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-18",
+          "type": "edge",
+          "parent": "1",
+          "source": "MVlB3tNTSXXpKaAgFiPq-9",
+          "target": "MVlB3tNTSXXpKaAgFiPq-1"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-19",
+          "type": "edge",
+          "parent": "1",
+          "source": "MVlB3tNTSXXpKaAgFiPq-7",
+          "target": "MVlB3tNTSXXpKaAgFiPq-1"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-20",
+          "type": "edge",
+          "parent": "1",
+          "source": "MVlB3tNTSXXpKaAgFiPq-10",
+          "target": "MVlB3tNTSXXpKaAgFiPq-1"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-21",
+          "type": "edge",
+          "parent": "1",
+          "source": "MVlB3tNTSXXpKaAgFiPq-5",
+          "target": "MVlB3tNTSXXpKaAgFiPq-1"
+        },
+        {
+          "id": "e_OIPesWGo2KSlCnqryJ-1",
+          "type": "node",
+          "parent": "1",
+          "label": "TRIPRI - TOUR PLATFORM",
+          "html": "<font style=\"font-size: 100px;\">TRIPRI - TOUR PLATFORM</font>"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-3",
+          "type": "node",
+          "parent": "e_OIPesWGo2KSlCnqryJ-1",
+          "label": "Create tour",
+          "html": "<font style=\"font-size: 39px;\">Create tour</font>"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-4",
+          "type": "node",
+          "parent": "e_OIPesWGo2KSlCnqryJ-1",
+          "label": "Edit tour",
+          "html": "<font style=\"font-size: 39px;\">Edit tour</font>"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-2",
+          "type": "node",
+          "parent": "e_OIPesWGo2KSlCnqryJ-1",
+          "label": "Delete tour",
+          "html": "<font style=\"font-size: 39px;\">Delete tour</font>"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-8",
+          "type": "node",
+          "parent": "e_OIPesWGo2KSlCnqryJ-1",
+          "label": "Upload tours",
+          "html": "<font style=\"font-size: 39px;\">Upload tours</font>"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-6",
+          "type": "node",
+          "parent": "e_OIPesWGo2KSlCnqryJ-1",
+          "label": "Assign guide to tour",
+          "html": "<span style=\"font-size: 39px;\">Assign guide to tour</span>"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-5",
+          "type": "node",
+          "parent": "e_OIPesWGo2KSlCnqryJ-1",
+          "label": "Upload promotions",
+          "html": "<font style=\"font-size: 39px;\">Upload promotions</font>"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-11",
+          "type": "node",
+          "parent": "e_OIPesWGo2KSlCnqryJ-1",
+          "label": "Set tour availability",
+          "html": "<span style=\"font-size: 39px;\">Set tour availability</span>"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-9",
+          "type": "node",
+          "parent": "e_OIPesWGo2KSlCnqryJ-1",
+          "label": "View dashboard",
+          "html": "<font style=\"font-size: 39px;\">View dashboard</font>"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-7",
+          "type": "node",
+          "parent": "e_OIPesWGo2KSlCnqryJ-1",
+          "label": "View bookings status",
+          "html": "<font style=\"font-size: 39px;\">View bookings status</font>"
+        },
+        {
+          "id": "MVlB3tNTSXXpKaAgFiPq-10",
+          "type": "node",
+          "parent": "e_OIPesWGo2KSlCnqryJ-1",
+          "label": "Config itinerary",
+          "html": "<font style=\"font-size: 39px;\">Config itinerary</font>"
+        },
+        {
+          "id": "fFvNV5DQ0DcV5OdI0Rxs-1",
+          "type": "node",
+          "parent": "e_OIPesWGo2KSlCnqryJ-1",
+          "label": "Export customer PDF",
+          "html": "<span style=\"font-size: 39px;\">Export customer PDF</span>"
+        },
+        {
+          "id": "GKI0f3PjfgRv1KPi3qEo-1",
+          "type": "node",
+          "parent": "e_OIPesWGo2KSlCnqryJ-1",
+          "label": "Handle tour complaints",
+          "html": "<font style=\"font-size: 39px;\">Handle tour complaints</font>"
+        },
+        {
+          "id": "fFvNV5DQ0DcV5OdI0Rxs-2",
+          "type": "edge",
+          "parent": "1",
+          "source": "fFvNV5DQ0DcV5OdI0Rxs-1",
+          "target": "MVlB3tNTSXXpKaAgFiPq-1"
+        },
+        {
+          "id": "GKI0f3PjfgRv1KPi3qEo-2",
+          "type": "edge",
+          "parent": "1",
+          "source": "GKI0f3PjfgRv1KPi3qEo-1",
+          "target": "MVlB3tNTSXXpKaAgFiPq-1"
+        }
+      ]
+    },
+    {
+      "id": "6hzPOmd4FvgE9ULpFdVo",
+      "name": "Tour guide",
+      "cells": [
+        {
+          "id": "1",
+          "type": "layer"
+        },
+        {
+          "id": "lh5BTYinBDewAjrB1uQW-5",
+          "type": "node",
+          "parent": "1",
+          "label": "Make a conservation",
+          "html": "<font style=\"font-size: 40px;\">Make a conservation</font>"
+        },
+        {
+          "id": "lh5BTYinBDewAjrB1uQW-8",
+          "type": "node",
+          "parent": "1",
+          "label": "Tour guide",
+          "html": "<font style=\"font-size: 32px;\">Tour guide</font>"
+        },
+        {
+          "id": "lh5BTYinBDewAjrB1uQW-10",
+          "type": "edge",
+          "parent": "1",
+          "source": "lh5BTYinBDewAjrB1uQW-5",
+          "target": "lh5BTYinBDewAjrB1uQW-8"
+        },
+        {
+          "id": "lh5BTYinBDewAjrB1uQW-11",
+          "type": "edge",
+          "parent": "1",
+          "source": "lh5BTYinBDewAjrB1uQW-1",
+          "target": "lh5BTYinBDewAjrB1uQW-8"
+        },
+        {
+          "id": "lh5BTYinBDewAjrB1uQW-12",
+          "type": "edge",
+          "parent": "1",
+          "source": "lh5BTYinBDewAjrB1uQW-4",
+          "target": "lh5BTYinBDewAjrB1uQW-8"
+        },
+        {
+          "id": "lh5BTYinBDewAjrB1uQW-13",
+          "type": "edge",
+          "parent": "1",
+          "source": "lh5BTYinBDewAjrB1uQW-2",
+          "target": "lh5BTYinBDewAjrB1uQW-8"
+        },
+        {
+          "id": "lh5BTYinBDewAjrB1uQW-14",
+          "type": "edge",
+          "parent": "1",
+          "source": "lh5BTYinBDewAjrB1uQW-6",
+          "target": "lh5BTYinBDewAjrB1uQW-8"
+        },
+        {
+          "id": "lh5BTYinBDewAjrB1uQW-16",
+          "type": "edge",
+          "parent": "1",
+          "source": "lh5BTYinBDewAjrB1uQW-7",
+          "target": "lh5BTYinBDewAjrB1uQW-8"
+        },
+        {
+          "id": "lh5BTYinBDewAjrB1uQW-17",
+          "type": "edge",
+          "parent": "1",
+          "source": "lh5BTYinBDewAjrB1uQW-9",
+          "target": "lh5BTYinBDewAjrB1uQW-8"
+        },
+        {
+          "id": "Vm6JTPLED5i615BKLI6y-1",
+          "type": "node",
+          "parent": "1",
+          "label": "TRIPRI - TOUR PLATFORM",
+          "html": "<font style=\"font-size: 100px;\">TRIPRI - TOUR PLATFORM</font>"
+        },
+        {
+          "id": "lh5BTYinBDewAjrB1uQW-2",
+          "type": "node",
+          "parent": "Vm6JTPLED5i615BKLI6y-1",
+          "label": "View Profile",
+          "html": "<font style=\"font-size: 40px;\">View Profile</font>"
+        },
+        {
+          "id": "lh5BTYinBDewAjrB1uQW-6",
+          "type": "node",
+          "parent": "Vm6JTPLED5i615BKLI6y-1",
+          "label": "Update Profile",
+          "html": "<font style=\"font-size: 40px;\">Update Profile</font>"
+        },
+        {
+          "id": "lh5BTYinBDewAjrB1uQW-1",
+          "type": "node",
+          "parent": "Vm6JTPLED5i615BKLI6y-1",
+          "label": "View assigned tours",
+          "html": "<font style=\"font-size: 40px;\">View assigned tours</font>"
+        },
+        {
+          "id": "lh5BTYinBDewAjrB1uQW-4",
+          "type": "node",
+          "parent": "Vm6JTPLED5i615BKLI6y-1",
+          "label": "Verify assigned tours",
+          "html": "<span style=\"font-family: sans-serif; text-align: start; text-wrap-mode: nowrap; background-color: rgb(255, 255, 255);\"><font style=\"font-size: 38px;\">Verify assigned tours</font></span>"
+        },
+        {
+          "id": "lh5BTYinBDewAjrB1uQW-7",
+          "type": "node",
+          "parent": "Vm6JTPLED5i615BKLI6y-1",
+          "label": "Subcribe to plan",
+          "html": "<font style=\"font-size: 40px;\">Subcribe to plan</font>"
+        },
+        {
+          "id": "lh5BTYinBDewAjrB1uQW-9",
+          "type": "node",
+          "parent": "Vm6JTPLED5i615BKLI6y-1",
+          "label": "View earnings",
+          "html": "<font style=\"font-size: 40px;\">View earnings</font>"
+        }
+      ]
+    },
+    {
+      "id": "jHudHxkHMEuOwHHlQY3C",
+      "name": "Moderator",
+      "cells": [
+        {
+          "id": "1",
+          "type": "layer"
+        },
+        {
+          "id": "b4PWS4WZExU9jel6-wx6-1",
+          "type": "node",
+          "parent": "1",
+          "label": "Moderator",
+          "html": "<font style=\"font-size: 36px;\">Moderator</font>"
+        },
+        {
+          "id": "b4PWS4WZExU9jel6-wx6-7",
+          "type": "edge",
+          "parent": "1",
+          "source": "b4PWS4WZExU9jel6-wx6-1",
+          "target": "b4PWS4WZExU9jel6-wx6-18"
+        },
+        {
+          "id": "b4PWS4WZExU9jel6-wx6-8",
+          "type": "edge",
+          "parent": "1",
+          "source": "b4PWS4WZExU9jel6-wx6-1",
+          "target": "b4PWS4WZExU9jel6-wx6-3"
+        },
+        {
+          "id": "b4PWS4WZExU9jel6-wx6-9",
+          "type": "edge",
+          "parent": "1",
+          "source": "b4PWS4WZExU9jel6-wx6-1",
+          "target": "b4PWS4WZExU9jel6-wx6-5"
+        },
+        {
+          "id": "b4PWS4WZExU9jel6-wx6-10",
+          "type": "edge",
+          "parent": "1",
+          "source": "b4PWS4WZExU9jel6-wx6-1",
+          "target": "b4PWS4WZExU9jel6-wx6-4"
+        },
+        {
+          "id": "b4PWS4WZExU9jel6-wx6-14",
+          "type": "edge",
+          "parent": "1",
+          "source": "b4PWS4WZExU9jel6-wx6-13",
+          "target": "b4PWS4WZExU9jel6-wx6-1"
+        },
+        {
+          "id": "b4PWS4WZExU9jel6-wx6-15",
+          "type": "edge",
+          "parent": "1",
+          "source": "b4PWS4WZExU9jel6-wx6-1",
+          "target": "b4PWS4WZExU9jel6-wx6-11"
+        },
+        {
+          "id": "tSWH_A8-sxeMPHHMvjDN-1",
+          "type": "node",
+          "parent": "1",
+          "label": "TRIPRI - TOUR PLATFORM",
+          "html": "<font style=\"font-size: 100px;\">TRIPRI - TOUR PLATFORM</font>"
+        },
+        {
+          "id": "b4PWS4WZExU9jel6-wx6-18",
+          "type": "node",
+          "parent": "tSWH_A8-sxeMPHHMvjDN-1",
+          "label": "Validate tour",
+          "html": "<span style=\"font-size: 40px;\">Validate tour</span>"
+        },
+        {
+          "id": "b4PWS4WZExU9jel6-wx6-3",
+          "type": "node",
+          "parent": "tSWH_A8-sxeMPHHMvjDN-1",
+          "label": "Resolve disputes",
+          "html": "<span style=\"font-size: 40px;\">Resolve disputes</span>"
+        },
+        {
+          "id": "b4PWS4WZExU9jel6-wx6-11",
+          "type": "node",
+          "parent": "tSWH_A8-sxeMPHHMvjDN-1",
+          "label": "Handle complaints",
+          "html": "<span style=\"font-size: 40px;\">Handle complaints</span>"
+        },
+        {
+          "id": "b4PWS4WZExU9jel6-wx6-5",
+          "type": "node",
+          "parent": "tSWH_A8-sxeMPHHMvjDN-1",
+          "label": "View tour lists",
+          "html": "<span style=\"font-size: 40px;\">View tour lists</span>"
+        },
+        {
+          "id": "b4PWS4WZExU9jel6-wx6-13",
+          "type": "node",
+          "parent": "tSWH_A8-sxeMPHHMvjDN-1",
+          "label": "Suspend tours",
+          "html": "<span style=\"font-size: 40px;\">Suspend tours</span>"
+        },
+        {
+          "id": "b4PWS4WZExU9jel6-wx6-4",
+          "type": "node",
+          "parent": "tSWH_A8-sxeMPHHMvjDN-1",
+          "label": "View moderation dashboard",
+          "html": "<span style=\"font-size: 40px;\">View moderation dashboard</span>"
+        },
+        {
+          "id": "KN-GwgbeBu-REcNpepXc-1",
+          "type": "node",
+          "parent": "tSWH_A8-sxeMPHHMvjDN-1",
+          "label": "Verify Agency Profile",
+          "html": "<span style=\"font-size: 40px;\">Verify Agency Profile</span>"
+        },
+        {
+          "id": "KN-GwgbeBu-REcNpepXc-2",
+          "type": "node",
+          "parent": "tSWH_A8-sxeMPHHMvjDN-1",
+          "label": "Moderate reviews",
+          "html": "<span style=\"font-size: 40px;\">Moderate reviews</span>"
+        },
+        {
+          "id": "o17u33Yflgh7OCeb6ks2-1",
+          "type": "node",
+          "parent": "tSWH_A8-sxeMPHHMvjDN-1",
+          "label": "Ban violating account",
+          "html": "<span style=\"font-size: 40px;\">Ban violating account</span>"
+        },
+        {
+          "id": "KN-GwgbeBu-REcNpepXc-3",
+          "type": "edge",
+          "parent": "1",
+          "source": "KN-GwgbeBu-REcNpepXc-1",
+          "target": "b4PWS4WZExU9jel6-wx6-1"
+        },
+        {
+          "id": "KN-GwgbeBu-REcNpepXc-4",
+          "type": "edge",
+          "parent": "1",
+          "source": "KN-GwgbeBu-REcNpepXc-2",
+          "target": "b4PWS4WZExU9jel6-wx6-1"
+        },
+        {
+          "id": "eLCsDL7AruRkOwSRI29C-1",
+          "type": "edge",
+          "parent": "1",
+          "source": "o17u33Yflgh7OCeb6ks2-1",
+          "target": "b4PWS4WZExU9jel6-wx6-1"
+        }
+      ]
+    },
+    {
+      "id": "tCDTpH88XB2hCj_aTCKo",
+      "name": "Super admin",
+      "cells": [
+        {
+          "id": "1",
+          "type": "layer"
+        },
+        {
+          "id": "x_FyGxo1rAowlx9OjWwg-1",
+          "type": "node",
+          "parent": "1",
+          "label": "Super Admin",
+          "html": "<font style=\"font-size: 36px;\">Super Admin</font>"
+        },
+        {
+          "id": "x_FyGxo1rAowlx9OjWwg-10",
+          "type": "edge",
+          "parent": "1",
+          "source": "x_FyGxo1rAowlx9OjWwg-6",
+          "target": "x_FyGxo1rAowlx9OjWwg-1"
+        },
+        {
+          "id": "x_FyGxo1rAowlx9OjWwg-11",
+          "type": "edge",
+          "parent": "1",
+          "source": "x_FyGxo1rAowlx9OjWwg-5",
+          "target": "x_FyGxo1rAowlx9OjWwg-1"
+        },
+        {
+          "id": "x_FyGxo1rAowlx9OjWwg-14",
+          "type": "edge",
+          "parent": "1",
+          "source": "x_FyGxo1rAowlx9OjWwg-2",
+          "target": "x_FyGxo1rAowlx9OjWwg-1"
+        },
+        {
+          "id": "x_FyGxo1rAowlx9OjWwg-15",
+          "type": "edge",
+          "parent": "1",
+          "source": "MKHg9YWGGlxPX1d1e6pt-2",
+          "target": "x_FyGxo1rAowlx9OjWwg-1"
+        },
+        {
+          "id": "c-1R9x_pJ_S_EU-x0mO9-1",
+          "type": "node",
+          "parent": "1",
+          "label": "TRIPRI - TOUR PLATFORM",
+          "html": "<font style=\"font-size: 100px;\">TRIPRI - TOUR PLATFORM</font>"
+        },
+        {
+          "id": "MKHg9YWGGlxPX1d1e6pt-2",
+          "type": "node",
+          "parent": "c-1R9x_pJ_S_EU-x0mO9-1",
+          "label": "Set platform commission rates",
+          "html": "<span style=\"font-size: 40px;\">Set platform commission rates</span>"
+        },
+        {
+          "id": "x_FyGxo1rAowlx9OjWwg-6",
+          "type": "node",
+          "parent": "c-1R9x_pJ_S_EU-x0mO9-1",
+          "label": "View detailed dashboards",
+          "html": "<span style=\"font-size: 40px;\">View detailed dashboards</span>"
+        },
+        {
+          "id": "x_FyGxo1rAowlx9OjWwg-5",
+          "type": "node",
+          "parent": "c-1R9x_pJ_S_EU-x0mO9-1",
+          "label": "Config platform promotions",
+          "html": "<span style=\"font-size: 40px;\">Config platform promotions</span>"
+        },
+        {
+          "id": "x_FyGxo1rAowlx9OjWwg-2",
+          "type": "node",
+          "parent": "c-1R9x_pJ_S_EU-x0mO9-1",
+          "label": "Assign User Permissions",
+          "html": "<span style=\"font-size: 40px;\">Assign User Permissions</span>"
+        },
+        {
+          "id": "imIYawole1Cc0NA-Am19-1",
+          "type": "node",
+          "parent": "c-1R9x_pJ_S_EU-x0mO9-1",
+          "label": "Config Tour Categories",
+          "html": "<span style=\"font-size: 40px;\">Config Tour Categories</span>"
+        },
+        {
+          "id": "imIYawole1Cc0NA-Am19-3",
+          "type": "node",
+          "parent": "c-1R9x_pJ_S_EU-x0mO9-1",
+          "label": "Configure System Policies",
+          "html": "<span style=\"font-size: 40px;\">Configure System Policies</span>"
+        },
+        {
+          "id": "imIYawole1Cc0NA-Am19-2",
+          "type": "edge",
+          "parent": "1",
+          "source": "imIYawole1Cc0NA-Am19-1",
+          "target": "x_FyGxo1rAowlx9OjWwg-1"
+        },
+        {
+          "id": "imIYawole1Cc0NA-Am19-4",
+          "type": "edge",
+          "parent": "1",
+          "source": "imIYawole1Cc0NA-Am19-3",
+          "target": "x_FyGxo1rAowlx9OjWwg-1"
+        }
+      ]
+    }
+  ]
+}

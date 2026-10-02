@@ -4,7 +4,10 @@
   "private": true,
   "scripts": {
     "dev:frontend": "pnpm --filter frontend dev",
-    "dev:backend": "pnpm --filter backend dev"
+    "dev:backend": "pnpm --filter backend dev",
+    "build:backend": "pnpm --filter backend build",
+    "typecheck:backend": "pnpm --filter backend typecheck",
+    "test:backend": "pnpm --filter backend test"
   },
   "devDependencies": {}
 }
