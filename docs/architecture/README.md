@@ -15,5 +15,7 @@ Frontend and Backend are strictly separated applications.
 ## Layered MVC
 The backend enforces Layered MVC. Requests traverse through: Controller -> Service -> Repository -> Prisma ORM -> PostgreSQL.
 
-## Domain-first Organization
-Backend modules are grouped by domains (e.g., Auth, Tours, Wishlist, Bookings), keeping responsibilities isolated.
+## Related Documents
+- [Frontend Design System (DESIGN.md)](../frontend/DESIGN.md)
+- [Backend Architecture (ARCHITECTURE.md)](../backend/ARCHITECTURE.md)
+- [API Endpoints](../api/ENDPOINTS.md)
