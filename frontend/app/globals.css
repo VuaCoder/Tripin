@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+}
+
+.brand-wordmark {
+  font-family: 'Plus Jakarta Sans', 'Be Vietnam Pro', sans-serif;
+}
+
+/* Subtle wooden texture and warm sunlight ambient matching image reference */
+.bg-desk-travel {
+  background-color: #F8F5F0;
+  background-image: 
+    radial-gradient(at 10% 20%, rgba(8, 126, 139, 0.08) 0px, transparent 50%),
+    radial-gradient(at 90% 80%, rgba(245, 166, 35, 0.1) 0px, transparent 55%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(243, 238, 228, 0.85) 100%);
+}
+
+.card-glassmorphism {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 20px 50px -12px rgba(0, 63, 70, 0.15), 0 4px 16px -1px rgba(0, 0, 0, 0.04);
+}
+
+@keyframes sunGlow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.45;
+  }
+}
+
+@keyframes floatBalloon {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(2deg);
+  }
+}
+
+@keyframes driftBalloon {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+  }
+  50% {
+    transform: translateY(-18px) translateX(8px);
+  }
+}
+
+.animate-sun-glow {
+  animation: sunGlow 8s ease-in-out infinite;
+}
+
+.animate-float-balloon {
+  animation: floatBalloon 6s ease-in-out infinite;
+}
+
+.animate-drift-balloon {
+  animation: driftBalloon 9s ease-in-out infinite;
+}

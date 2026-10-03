@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TRIPRI - Tour Platform",
-  description: "Online tour booking platform",
+  title: "Tripri - Du lịch theo cách của bạn",
+  description: "Nền tảng đặt phòng, vé xe, tour & trải nghiệm bản địa toàn diện tại Việt Nam.",
 };
 
 export default function RootLayout({
@@ -11,8 +12,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="vi">
+      <body className="min-h-screen text-slate-800 antialiased">
         {children}
       </body>
     </html>
