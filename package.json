@@ -9,5 +9,8 @@
     "typecheck:backend": "pnpm --filter backend typecheck",
     "test:backend": "pnpm --filter backend test"
   },
-  "devDependencies": {}
+  "dependencies": {
+    "@neon/config": "^1.8.3",
+    "@neon/env": "^1.5.0"
+  }
 }

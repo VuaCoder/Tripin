@@ -42,3 +42,4 @@ backend/src/generated/
 
 # Throw-away output of the build smoke test
 backend/.tmp-build-smoke-*/
+.neon

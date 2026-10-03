@@ -17,7 +17,9 @@ TRIPRI/
 │   ├── shared-validation/ # Các schema xác thực (validation) dùng chung
 │   └── constants/         # Các hằng số (constants)
 ├── prisma/          # Cấu hình CSDL PostgreSQL (Schema, Migrations, Seeding)
+├── .agents/skills/  # Cấu hình Agent Skills (Neon skills, workflow automation)
 ├── docs/            # Tài liệu dự án chi tiết (Architecture, Flows, Use-cases, Database)
+├── neon.ts          # Cấu hình Neon Infrastructure-as-Code (Services, Branching)
 ├── .env.example     # File mẫu chứa các biến môi trường cần thiết
 └── pnpm-workspace.yaml # File cấu hình workspace của pnpm
 ```
@@ -25,7 +27,8 @@ TRIPRI/
 ### Chi tiết các thành phần chính:
 - **`frontend/`**: Giao diện người dùng. Được chia theo tính năng (feature-based) và các thành phần có thể tái sử dụng (components). Sử dụng App Router của Next.js.
 - **`backend/`**: Xử lý logic nghiệp vụ. Được cấu trúc theo mô hình **Layered MVC** và **Domain-first** (tổ chức module theo từng nghiệp vụ như auth, tours, bookings,...).
-- **`prisma/`**: Là nơi duy nhất định nghĩa cấu trúc dữ liệu (`schema.prisma`) và quản lý các lịch sử thay đổi (migrations) của CSDL PostgreSQL.
+- **`prisma/`**: Nơi duy nhất định nghĩa cấu trúc dữ liệu (`schema.prisma`) và quản lý các lịch sử thay đổi (migrations) của CSDL PostgreSQL.
+- **`neon.ts`**: Tệp cấu hình phân nhánh (branching) và dịch vụ đám mây của Neon (Lakebase Postgres, Auth, Functions, Object Storage, AI Gateway).
 
 ---
 
@@ -42,8 +45,9 @@ TRIPRI/
 - **Architecture**: Layered MVC (Route -> Middleware -> Controller -> Service -> Repository)
 - **Real-time**: Socket.IO
 
-### Cơ sở dữ liệu (Database):
-- **Database**: PostgreSQL (Không sử dụng MongoDB)
+### Cơ sở dữ liệu & Cloud Backend:
+- **Database Engine**: PostgreSQL (Lakebase Postgres)
+- **Cloud Database Platform**: [Neon](https://neon.tech) (Serverless Postgres, Instant Branching, Scale-to-zero)
 - **ORM**: Prisma
 
 ### Hệ thống / Khác:
@@ -69,9 +73,9 @@ Hệ thống phục vụ các vai trò sau:
 
 ### 1. Yêu cầu hệ thống
 - **Git**
-- **Node.js** (Phiên bản LTS - khuyến nghị v18 trở lên)
+- **Node.js** (Phiên bản LTS - khuyến nghị v20 trở lên)
 - **pnpm** (Cài đặt qua npm: `npm install -g pnpm`)
-- **PostgreSQL** (Đã cài đặt và đang chạy trên máy của bạn)
+- **Neon CLI** (Khuyến nghị: `npm install -g neon@latest`) hoặc **Docker** (nếu chạy Postgres cục bộ)
 
 ### 2. Tải mã nguồn về máy
 ```bash
@@ -81,25 +85,53 @@ cd travel-platform
 
 ### 3. Cài đặt thư viện (Dependencies)
 ```bash
-# Ở thư mục gốc (root) của dự án, chạy lệnh:
+# Ở thư mục gốc (root) của dự án:
 pnpm install
 ```
 
-### 4. Thiết lập biến môi trường
-Sao chép file mẫu và điền thông tin thực tế của bạn (đặc biệt là URL kết nối tới PostgreSQL):
-```bash
-cp .env.example .env
-```
-*Lưu ý: Bạn cần một cơ sở dữ liệu PostgreSQL. Cách nhanh nhất là chạy `docker compose up -d` (dùng file `docker-compose.yml` ở thư mục gốc, khớp sẵn với `DATABASE_URL` trong `.env.example`), hoặc tự tạo CSDL trống rồi điền chuỗi kết nối vào `DATABASE_URL`.*
+### 4. Thiết lập Cơ sở dữ liệu & Biến môi trường
 
-Sau đó áp dụng cấu trúc bảng (migrations):
+Bạn có thể chọn 1 trong 2 cách thiết lập Database bên dưới:
+
+#### 👉 Cách 1: Sử dụng Neon Cloud Postgres (Khuyến nghị)
+1. Đăng nhập vào Neon CLI:
+   ```bash
+   neon login
+   ```
+2. Liên kết với project Neon của dự án:
+   ```bash
+   neon link --project-id super-darkness-97500515 --branch production -y
+   ```
+   *Lệnh này sẽ tạo file `.neon` và tự động kéo các biến môi trường (`DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `NEON_BRANCH`) vào `.env.local`.*
+
+3. Sao chép các cấu hình bổ sung từ `.env.example` vào `.env` nếu cần:
+   ```bash
+   cp .env.example .env
+   ```
+
+#### 👉 Cách 2: Sử dụng Docker PostgreSQL cục bộ
+1. Chạy container PostgreSQL:
+   ```bash
+   docker compose up -d
+   ```
+2. Sao chép file `.env.example` thành `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+---
+
+### 5. Đồng bộ cấu trúc Database (Prisma Migrations)
+Sau khi có chuỗi kết nối `DATABASE_URL`, tiến hành áp dụng migrations:
 ```bash
 pnpm --filter backend db:deploy
 ```
-*Khi sửa `prisma/schema.prisma`, dùng `pnpm --filter backend db:migrate` để tạo migration mới. Chi tiết: `docs/database/README.md`.*
+*Khi chỉnh sửa `prisma/schema.prisma`, dùng `pnpm --filter backend db:migrate` để tạo migration mới. Xem chi tiết tại `docs/database/README.md`.*
 
-### 5. Chạy dự án
-Mở 2 terminal tại thư mục gốc để chạy song song Frontend và Backend.
+---
+
+### 6. Chạy dự án
+Mở 2 terminal tại thư mục gốc để chạy song song Frontend và Backend:
 
 **Chạy Frontend:**
 ```bash
@@ -111,18 +143,46 @@ pnpm run dev:frontend
 ```bash
 pnpm run dev:backend
 ```
-👉 Backend sẽ chạy ở cổng được cấu hình (mặc định thường là 3001). Route kiểm tra tình trạng: `GET /health`.
+👉 Backend sẽ chạy ở cổng được cấu hình (mặc định: 3001). Kiểm tra health-check: `GET http://localhost:3001/health`.
+
+---
+
+## ⚡ Làm việc với Neon (Neon Workflows)
+
+Dự án đã được tích hợp đầy đủ công cụ của **Neon**:
+
+- **Kiểm tra trạng thái branch**:
+  ```bash
+  neon status
+  ```
+- **Tạo nhánh database riêng cho feature mới (Branch-First Dev)**:
+  ```bash
+  neon checkout dev-feature-name --create
+  ```
+  *(Nhánh mới sẽ được tạo ngay lập tức dưới dạng copy-on-write từ nhánh hiện tại và tự động kéo chuỗi kết nối vào môi trường làm việc).*
+- **Đồng bộ / Triển khai cấu hình `neon.ts`**:
+  ```bash
+  neon deploy
+  ```
+- **Kéo lại biến môi trường mới nhất**:
+  ```bash
+  neon env pull
+  ```
+- **Cấu hình MCP Server cho AI Agent**:
+  ```bash
+  neon mcp -y
+  ```
 
 ---
 
 ## ⚠️ Các Lưu ý Quan trọng dành cho Team (AI Rules & Guidelines)
 
-Khi tham gia phát triển, xin hãy tuân thủ nghiêm ngặt các nguyên tắc sau đây để giữ cho source code sạch và dễ bảo trì:
+Khi tham gia phát triển, xin hãy tuân thủ nghiêm ngặt các nguyên tắc sau đây:
 
 1. **Tuân thủ Kiến trúc có sẵn**: Luôn giữ backend theo cấu trúc *Domain-first* (Mọi Controller, Service, Route liên quan đến nhau phải nằm chung trong `src/modules/{domain}/`). KHÔNG tạo các thư mục global như `controllers/` hay `services/` dùng chung cho toàn dự án.
 2. **Nguyên tắc "Minimal Change"**: Chỉ chỉnh sửa/thêm những phần liên quan trực tiếp đến Task bạn đang làm. Không tự ý refactor những module không liên quan.
 3. **Database & Prisma**: PostgreSQL và Prisma là nguồn duy nhất quản lý CSDL. TUYỆT ĐỐI không sử dụng hay cài đặt MongoDB/Mongoose.
 4. **Không tùy tiện thêm thư viện (Dependencies)**: Kiểm tra kĩ xem thư viện đang cần đã có sẵn chưa. Chỉ cài đặt thư viện mới khi thực sự cần thiết và phải được thống nhất chung.
-5. **Không lộ Secret Keys**: **KHÔNG BAO GIỜ** đẩy (commit) các thông tin nhạy cảm như JWT Secret, PayOS keys, Database URL lên GitHub. Luôn để trong `.env`.
+5. **Không lộ Secret Keys**: **KHÔNG BAO GIỜ** đẩy (commit) các thông tin nhạy cảm như JWT Secret, PayOS keys, Database URL lên GitHub. Luôn để trong `.env` / `.env.local`.
 6. **Bảo mật Xác thực**: Phân quyền (Authorization) bắt buộc phải được xử lý ở Backend. Frontend chỉ ẩn/hiện UI để tối ưu trải nghiệm, không đóng vai trò bảo mật chính.
 7. **Luôn tham khảo Thư mục `docs/`**: Các tài liệu thiết kế Use-case, Flow, Architecture đã được định nghĩa chuẩn xác trong thư mục `docs/`. Hãy đọc chúng trước khi bắt đầu code tính năng mới.
