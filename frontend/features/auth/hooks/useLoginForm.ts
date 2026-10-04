@@ -75,11 +75,6 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    // Tích hợp Google OAuth Client ID Token
-    console.log('Initiating Google Login...');
-  };
-
   return {
     formData,
     showPassword,
@@ -88,6 +83,5 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
     togglePasswordVisibility,
     handleInputChange,
     handleSubmit,
-    handleGoogleLogin,
   };
 }

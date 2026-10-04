@@ -5,6 +5,7 @@ export * from './AuthShowcase';
 export * from './BackButton';
 export * from './AuthContainer';
 export * from './LoginForm';
+export * from './GoogleLoginButton';
 export * from './LoginCard';
 export * from './LoginPage';
 export * from './RegisterForm';
