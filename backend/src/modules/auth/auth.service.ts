@@ -67,6 +67,7 @@ export class AuthService {
       const updated = await users.updateById(existing.id, {
         passwordHash,
         fullName: input.fullName,
+        phone: input.phone,
         role: input.role,
       });
       user = updated ?? existing;
@@ -75,6 +76,7 @@ export class AuthService {
         email: input.email,
         passwordHash,
         fullName: input.fullName,
+        phone: input.phone,
         role: input.role,
         status: USER_STATUS.PENDING_VERIFICATION,
         ...(input.role === ROLES.AGENCY
@@ -127,6 +129,16 @@ export class AuthService {
         ? await this.activatePending(user)
         : user;
     return this.createSession(active, context);
+  }
+
+  /** Use case "Resend OTP": issues and mails a new verification code. */
+  async resendOtp(input: { email: string; purpose: OtpPurpose }): Promise<{ expiresInSeconds: number }> {
+    const user = await this.deps.users.findByEmail(input.email);
+    if (!user) throw AppError.badRequest('Invalid or expired request');
+    if (user.status === USER_STATUS.BANNED) {
+      throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
+    }
+    return this.sendOtp(user, input.purpose);
   }
 
   /** Use cases "Login with Google" + "Authenticate via OAuth" (Google OAuth System actor). */

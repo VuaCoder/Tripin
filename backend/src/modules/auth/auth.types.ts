@@ -10,6 +10,7 @@ export interface RegisterInput {
   email: string;
   password: string;
   fullName: string;
+  phone?: string;
   role: SelfRegistrationRole;
 }
 

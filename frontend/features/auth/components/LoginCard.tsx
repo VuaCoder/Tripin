@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { LoginForm } from './LoginForm';
 import { LoginResultData } from '../types';
 
@@ -10,30 +11,49 @@ interface LoginCardProps {
 }
 
 export const LoginCard: React.FC<LoginCardProps> = ({ onSuccess, onError }) => {
+  const router = useRouter();
+
   return (
-    <div className="lg:col-span-5 flex justify-center order-2 lg:order-1" data-purpose="auth-container">
-      <div className="w-full max-w-[400px] rounded-[38px] px-7 sm:px-9 py-8 sm:py-10 flex flex-col items-center border shadow-2xl relative bg-white border-white">
-        {/* Subtle top mobile speaker notch indicator for faithful aesthetic */}
-        <div className="w-16 h-1 bg-slate-200 rounded-full mb-6" />
+    <div className="w-full max-w-[420px] rounded-[38px] px-7 sm:px-9 py-7 sm:py-9 flex flex-col items-center border shadow-2xl relative bg-white border-white animate-fadeIn" data-purpose="auth-container">
+      {/* Subtle top mobile speaker notch indicator */}
+      <div className="w-16 h-1 bg-slate-200 rounded-full mb-4" />
 
-        {/* Tripri Mobile Card Header Logo Icon */}
-        <div className="flex flex-col items-center mb-5">
-          <img
-            alt="Tripri - Du lịch theo cách của bạn"
-            className="h-20 w-auto object-contain mx-auto mb-4"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBvgyrWOQJ_Pboo1MmnwXZli0jTh-C8sZAQbCs8MzFn_vgUnw_kluvF-Hql74XSvzuRjZEUidQy4HIox8FchlHXBop2MvKSBXZIU_1G19ykGDeRDpvNF7qGOz0jtqNON33xfk2l9fOVcZM9BLqI3mxg4oze3578r5T_EnK3J22_Y6yg1lJRT95VKZNmiEL7LBDdbV8Sfn0Dcg9UNzZb4nyso89EM-ouGte5ojp4HDZdeAwZviAMHlLqoB32buuHttnr4imYhkjQe8aHLDU"
-          />
-          {/* Carousel dots */}
-          <div className="flex items-center gap-1.5 mt-1" data-purpose="carousel-dots">
-            <span className="w-1.5 h-1.5 rounded-full bg-brand-teal" />
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-          </div>
-        </div>
-
-        {/* Form authentication */}
-        <LoginForm onSuccess={onSuccess} onError={onError} />
+      {/* Tripri Header Logo */}
+      <div className="flex flex-col items-center mb-4 text-center">
+        <img
+          alt="Tripri - Du lịch theo cách của bạn"
+          className="h-16 w-auto object-contain mx-auto mb-2"
+          src="https://lh3.googleusercontent.com/aida-public/AB6AXuBvgyrWOQJ_Pboo1MmnwXZli0jTh-C8sZAQbCs8MzFn_vgUnw_kluvF-Hql74XSvzuRjZEUidQy4HIox8FchlHXBop2MvKSBXZIU_1G19ykGDeRDpvNF7qGOz0jtqNON33xfk2l9fOVcZM9BLqI3mxg4oze3578r5T_EnK3J22_Y6yg1lJRT95VKZNmiEL7LBDdbV8Sfn0Dcg9UNzZb4nyso89EM-ouGte5ojp4HDZdeAwZviAMHlLqoB32buuHttnr4imYhkjQe8aHLDU"
+        />
+        <h2 className="text-xl font-bold text-slate-800 tracking-tight">Đăng nhập</h2>
       </div>
+
+      {/* Quick Auth Mode Switcher with Sliding Pill Effect */}
+      <div className="w-full bg-slate-100/80 p-1.5 rounded-2xl flex items-center mb-5 border border-slate-200/60 relative" data-purpose="auth-mode-switcher">
+        <div
+          className="absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white rounded-xl shadow-md transition-all duration-300 ease-out left-1.5"
+        />
+        <button
+          type="button"
+          className="relative z-10 flex-1 py-2 text-center text-sm font-bold text-brand-teal transition-colors duration-200 cursor-default"
+        >
+          Đăng nhập
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push('/register', { scroll: false })}
+          className="relative z-10 flex-1 py-2 text-center text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors duration-200 cursor-pointer"
+        >
+          Đăng ký
+        </button>
+      </div>
+
+      {/* Form authentication */}
+      <LoginForm
+        onSuccess={onSuccess}
+        onError={onError}
+        onSwitchToRegister={() => router.push('/register', { scroll: false })}
+      />
     </div>
   );
 };

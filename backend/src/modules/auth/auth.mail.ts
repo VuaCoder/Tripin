@@ -18,6 +18,6 @@ const INTRO: Record<OtpPurpose, string> = {
 export function buildOtpMail(to: string, purpose: OtpPurpose, code: string): MailMessage {
   const text =
     `${INTRO[purpose]}: ${code}\n\n` +
-    `The code expires in ${AUTH_POLICY.OTP_TTL_MINUTES} minutes. If you did not request it, ignore this email.`;
+    `The code expires in ${AUTH_POLICY.OTP_TTL_MINUTES} minute. If you did not request it, ignore this email.`;
   return { to, subject: SUBJECT[purpose], text };
 }

@@ -7,7 +7,7 @@ import { BackButton } from './BackButton';
 import { AuthContainer } from './AuthContainer';
 import { LoginResultData, RegisterResultData } from '../types';
 
-export const LoginPage: React.FC = () => {
+export const RegisterPage: React.FC = () => {
   const router = useRouter();
 
   const handleLoginSuccess = (data: LoginResultData) => {
@@ -52,7 +52,7 @@ export const LoginPage: React.FC = () => {
       {/* Main Centered Auth Container */}
       <main className="w-full flex items-center justify-center relative z-10 my-auto">
         <AuthContainer
-          initialMode="login"
+          initialMode="register"
           onLoginSuccess={handleLoginSuccess}
           onRegisterSuccess={handleRegisterSuccess}
         />

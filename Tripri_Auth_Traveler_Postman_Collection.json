@@ -1,0 +1,142 @@
+{
+	"info": {
+		"_postman_id": "a5e9b8f2-1234-4b56-8970-tripri-auth-collection",
+		"name": "Tripri - Traveler Auth & OTP Collection",
+		"description": "Postman Collection dùng để test luồng Đăng ký tài khoản Traveler (Register as Traveler) và Xác thực mã OTP (Verify OTP) của dự án Tripri.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3001",
+			"type": "string"
+		},
+		{
+			"key": "testEmail",
+			"value": "traveler.test@example.com",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. Register as Traveler (Đăng ký tài khoản)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fullName\": \"Nguyễn Văn Traveler\",\n  \"email\": \"{{testEmail}}\",\n  \"phone\": \"0912345678\",\n  \"password\": \"Password123\",\n  \"role\": \"TRAVELER\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/register",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"register"
+					]
+				},
+				"description": "Tạo tài khoản Traveler mới. Tài khoản sẽ ở trạng thái PENDING_VERIFICATION và gửi mã OTP 6 chữ số tới Email."
+			},
+			"response": []
+		},
+		{
+			"name": "2. Verify OTP (Xác thực mã OTP)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"code\": \"123456\",\n  \"purpose\": \"REGISTER\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/verify-otp",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"verify-otp"
+					]
+				},
+				"description": "Xác thực mã OTP 6 chữ số (hạn 60s). Nếu mã đúng, trạng thái chuyển sang ACTIVE và trả về JWT Access Token."
+			},
+			"response": []
+		},
+		{
+			"name": "3. Resend OTP (Gửi lại mã OTP)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"purpose\": \"REGISTER\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/resend-otp",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"resend-otp"
+					]
+				},
+				"description": "Yêu cầu cấp lại mã OTP mới trong trường hợp mã cũ bị hết hạn (>60s)."
+			},
+			"response": []
+		},
+		{
+			"name": "4. Login (Đăng nhập sau khi kích hoạt)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"Password123\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/login",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"login"
+					]
+				},
+				"description": "Đăng nhập hệ thống bằng tài khoản đã được xác thực OTP thành công."
+			},
+			"response": []
+		}
+	]
+}

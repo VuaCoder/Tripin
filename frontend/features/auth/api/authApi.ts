@@ -5,7 +5,7 @@ import {
   GoogleAuthPayload,
 } from '../types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
 export const authApi = {
   /**
@@ -27,6 +27,37 @@ export const authApi = {
     const data = await res.json();
     if (!res.ok) {
       throw new Error(data.error?.message || 'Đăng nhập không thành công');
+    }
+    return data;
+  },
+
+  /**
+   * Đăng ký tài khoản (Traveler / Agency / Tour guide)
+   */
+  async register(values: {
+    fullName: string;
+    email: string;
+    phone: string;
+    password: string;
+    role?: 'TRAVELER' | 'AGENCY' | 'TOUR_GUIDE';
+  }): Promise<AuthApiResponse<{ email: string; otpExpiresInSeconds: number }>> {
+    const res = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        fullName: values.fullName,
+        email: values.email,
+        phone: values.phone,
+        password: values.password,
+        role: values.role || 'TRAVELER',
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error?.message || 'Đăng ký tài khoản thất bại');
     }
     return data;
   },
@@ -70,5 +101,77 @@ export const authApi = {
       credentials: 'include',
     });
     return res.json();
+  },
+
+  /**
+   * Xác thực mã OTP
+   */
+  async verifyOtp(payload: { email: string; code: string; purpose: string }): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error?.message || 'Xác thực OTP thất bại');
+    }
+    return data;
+  },
+
+  /**
+   * Gửi lại mã OTP
+   */
+  async resendOtp(payload: { email: string; purpose: string }): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/auth/resend-otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error?.message || 'Gửi lại OTP thất bại');
+    }
+    return data;
+  },
+
+  /**
+   * Quên mật khẩu - Gửi mã OTP khôi phục về Email
+   */
+  async forgotPassword(payload: { email: string }): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error?.message || 'Gửi yêu cầu đặt lại mật khẩu thất bại');
+    }
+    return data;
+  },
+
+  /**
+   * Đặt lại mật khẩu mới bằng mã OTP
+   */
+  async resetPassword(payload: { email: string; code: string; newPassword: string }): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error?.message || 'Đặt lại mật khẩu thất bại');
+    }
+    return data;
   },
 };

@@ -11,6 +11,7 @@ import {
   resetPasswordBody,
   twoFactorBody,
   verifyOtpBody,
+  resendOtpBody,
 } from './auth.validation';
 
 /** Mounted at /api/v1/auth */
@@ -19,6 +20,7 @@ export const authRouter = Router();
 authRouter.post('/register', authRateLimiter, validate({ body: registerBody }), authController.register);
 authRouter.post('/login', authRateLimiter, validate({ body: loginBody }), authController.login);
 authRouter.post('/verify-otp', authRateLimiter, validate({ body: verifyOtpBody }), authController.verifyOtp);
+authRouter.post('/resend-otp', authRateLimiter, validate({ body: resendOtpBody }), authController.resendOtp);
 authRouter.post('/google', authRateLimiter, validate({ body: googleLoginBody }), authController.loginWithGoogle);
 authRouter.post('/forgot-password', authRateLimiter, validate({ body: forgotPasswordBody }), authController.forgotPassword);
 authRouter.post('/reset-password', authRateLimiter, validate({ body: resetPasswordBody }), authController.resetPassword);

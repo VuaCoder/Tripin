@@ -13,6 +13,7 @@ import type {
   ResetPasswordBody,
   TwoFactorBody,
   VerifyOtpBody,
+  ResendOtpBody,
 } from './auth.validation';
 
 const contextOf = (req: Request) => ({ ip: req.ip, userAgent: req.get('user-agent') });
@@ -42,6 +43,12 @@ export class AuthController {
     const session = await this.service.verifyOtp(body, contextOf(req));
     setRefreshCookie(res, session);
     sendOk(res, toSessionResponse(session));
+  };
+
+  resendOtp: RequestHandler = async (req, res) => {
+    const { body } = validated<ResendOtpBody>(req);
+    const result = await this.service.resendOtp(body);
+    sendOk(res, { ...result, message: 'Verification code resent successfully' });
   };
 
   loginWithGoogle: RequestHandler = async (req, res) => {
