@@ -5,7 +5,7 @@ export const AUTH_POLICY = {
   /** bcrypt only hashes the first 72 bytes. */
   PASSWORD_MAX_LENGTH: 72,
   OTP_LENGTH: 6,
-  OTP_TTL_MINUTES: 1,
+  OTP_TTL_MINUTES: 10,
   OTP_MAX_ATTEMPTS: 5,
   OTP_RESEND_COOLDOWN_SECONDS: 60,
   REFRESH_COOKIE_NAME: 'refresh_token',
