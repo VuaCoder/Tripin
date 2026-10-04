@@ -27,20 +27,11 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
 
   return (
     <form className="w-full flex flex-col space-y-3.5 animate-fadeInScale" onSubmit={handleSubmit} data-purpose="register-form">
-      {/* General Error Alert - Floating Top-Right Toast */}
+      {/* General Error Alert - Inline Banner */}
       {errors.general && (
-        <div className="fixed top-6 right-6 z-50 max-w-sm w-[calc(100vw-3rem)] sm:w-96 p-4 bg-white/95 backdrop-blur-xl border-l-4 border-red-500 rounded-2xl shadow-2xl flex items-start gap-3 text-slate-800 border border-slate-100/80 animate-slide-in-right">
-          <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 shrink-0 mt-0.5">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-vietnam text-xs font-bold text-red-600 uppercase tracking-wide">Thông báo lỗi</p>
-            <p className="font-vietnam text-xs text-slate-700 font-medium mt-0.5 leading-relaxed">{errors.general}</p>
-          </div>
+        <div className="p-3 bg-red-50 border border-red-200/80 rounded-xl text-xs text-red-700 font-medium flex items-center gap-2.5">
+          <span className="material-symbols-outlined text-base text-red-500 shrink-0">error</span>
+          <span className="flex-1">{errors.general}</span>
         </div>
       )}
 
