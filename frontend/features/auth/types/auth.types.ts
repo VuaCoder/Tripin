@@ -15,6 +15,20 @@ export interface LoginFormValues {
   rememberMe?: boolean;
 }
 
+export interface RegisterFormValues {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
+  role?: 'TRAVELER' | 'AGENCY' | 'TOUR_GUIDE';
+}
+
+export interface RegisterResultData {
+  email: string;
+  otpExpiresInSeconds: number;
+}
+
 export interface LoginSuccessData {
   twoFactorRequired: false;
   accessToken: string;

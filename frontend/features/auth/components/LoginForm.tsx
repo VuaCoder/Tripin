@@ -8,9 +8,10 @@ import { LoginResultData } from '../types';
 interface LoginFormProps {
   onSuccess?: (data: LoginResultData) => void;
   onError?: (errorMessage: string) => void;
+  onSwitchToRegister?: () => void;
 }
 
-export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
+export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError, onSwitchToRegister }) => {
   const {
     formData,
     showPassword,
@@ -23,23 +24,28 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
   } = useLoginForm({ onSuccess, onError });
 
   return (
-    <form className="w-full flex flex-col space-y-3.5" onSubmit={handleSubmit} data-purpose="login-form">
-      {/* General Error Alert */}
+    <form className="w-full flex flex-col space-y-3.5 animate-fadeInScale" onSubmit={handleSubmit} data-purpose="login-form">
+      {/* General Error Alert - Floating Top-Right Toast */}
       {errors.general && (
-        <div className="p-3 text-xs rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center gap-2 animate-fadeIn">
-          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <span>{errors.general}</span>
+        <div className="fixed top-6 right-6 z-50 max-w-sm w-[calc(100vw-3rem)] sm:w-96 p-4 bg-white/95 backdrop-blur-xl border-l-4 border-red-500 rounded-2xl shadow-2xl flex items-start gap-3 text-slate-800 border border-slate-100/80 animate-slide-in-right">
+          <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 shrink-0 mt-0.5">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-vietnam text-xs font-bold text-red-600 uppercase tracking-wide">Thông báo lỗi</p>
+            <p className="font-vietnam text-xs text-slate-700 font-medium mt-0.5 leading-relaxed">{errors.general}</p>
+          </div>
         </div>
       )}
 
-      {/* Account Input */}
+      {/* Account Input (Separate Label with Red Asterisk) */}
       <div>
-        <label className="sr-only" htmlFor="user-credential">
-          Email hoặc số điện thoại
+        <label htmlFor="user-credential" className="block text-xs font-semibold text-slate-700 mb-1.5 pl-0.5">
+          Email hoặc số điện thoại <span className="text-red-500 font-bold">*</span>
         </label>
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -55,7 +61,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
             required
             value={formData.credential}
             onChange={handleInputChange}
-            placeholder="Email hoặc số điện thoại"
+            placeholder="Nhập email hoặc số điện thoại"
             className={`w-full pl-10 pr-4 py-2.5 border rounded-xl text-sm transition-all duration-200 outline-none text-slate-800 placeholder-slate-400 bg-white ${
               errors.credential
                 ? 'border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100'
@@ -68,10 +74,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
         )}
       </div>
 
-      {/* Password Input with Toggle */}
+      {/* Password Input with Toggle (Separate Label with Red Asterisk) */}
       <div>
-        <label className="sr-only" htmlFor="user-password">
-          Mật khẩu
+        <label htmlFor="user-password" className="block text-xs font-semibold text-slate-700 mb-1.5 pl-0.5">
+          Mật khẩu <span className="text-red-500 font-bold">*</span>
         </label>
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -87,7 +93,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
             required
             value={formData.password}
             onChange={handleInputChange}
-            placeholder="Mật khẩu"
+            onCopy={(e) => e.preventDefault()}
+            onCut={(e) => e.preventDefault()}
+            placeholder="Nhập mật khẩu"
             className={`w-full pl-10 pr-10 py-2.5 border rounded-xl text-sm transition-all duration-200 outline-none text-slate-800 placeholder-slate-400 bg-white ${
               errors.password
                 ? 'border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100'
@@ -119,7 +127,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
         )}
       </div>
 
-      {/* Primary Action Button: 'Log in' */}
+      {/* Primary Action Button: 'Đăng nhập' */}
       <button
         type="submit"
         disabled={isLoading}
@@ -134,11 +142,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
             <span>Đang đăng nhập...</span>
           </>
         ) : (
-          <span>Log in</span>
+          <span>Đăng nhập</span>
         )}
       </button>
 
-      {/* Secondary Action Button: 'Continue with Google' */}
+      {/* Secondary Action Button: 'Đăng nhập bằng Google' */}
       <button
         type="button"
         onClick={handleGoogleLogin}
@@ -150,25 +158,35 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
           <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
           <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
         </svg>
-        <span>Continue with Google</span>
+        <span>Đăng nhập bằng Google</span>
       </button>
 
-      {/* Links: 'Forget password?' & Sign up */}
-      <div className="mt-4 flex flex-col items-center text-xs space-y-2">
+      {/* Links: 'Quên mật khẩu?' & Sign up */}
+      <div className="mt-3 flex flex-col items-center text-xs space-y-2">
         <Link
           href="/forgot-password"
           className="text-slate-500 hover:text-brand-teal transition-colors font-medium"
         >
-          Forget password?
+          Quên mật khẩu?
         </Link>
         <div className="text-slate-400 pt-1">
           Chưa có tài khoản?{' '}
-          <Link
-            href="/register"
-            className="text-brand-tealLight hover:text-brand-teal font-semibold transition-colors underline decoration-dotted"
-          >
-            Đăng ký ngay
-          </Link>
+          {onSwitchToRegister ? (
+            <button
+              type="button"
+              onClick={onSwitchToRegister}
+              className="text-brand-tealLight hover:text-brand-teal font-semibold transition-colors underline decoration-dotted"
+            >
+              Đăng ký ngay
+            </button>
+          ) : (
+            <Link
+              href="/register"
+              className="text-brand-tealLight hover:text-brand-teal font-semibold transition-colors underline decoration-dotted"
+            >
+              Đăng ký ngay
+            </Link>
+          )}
         </div>
       </div>
     </form>

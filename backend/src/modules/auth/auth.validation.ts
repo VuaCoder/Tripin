@@ -17,6 +17,7 @@ export const registerBody = z.object({
   email,
   password: passwordSchema,
   fullName: z.string().trim().min(2).max(120),
+  phone: z.string().trim().max(30).optional(),
   role: z.enum(SELF_REGISTRATION_ROLES).default('TRAVELER'),
 });
 
@@ -51,6 +52,11 @@ export const twoFactorBody = z.object({
   password: z.string().max(AUTH_POLICY.PASSWORD_MAX_LENGTH).optional(),
 });
 
+export const resendOtpBody = z.object({
+  email,
+  purpose: z.enum([OTP_PURPOSE.REGISTER, OTP_PURPOSE.LOGIN_2FA, OTP_PURPOSE.FORGOT_PASSWORD]),
+});
+
 export type RegisterBody = z.infer<typeof registerBody>;
 export type LoginBody = z.infer<typeof loginBody>;
 export type VerifyOtpBody = z.infer<typeof verifyOtpBody>;
@@ -58,3 +64,4 @@ export type GoogleLoginBody = z.infer<typeof googleLoginBody>;
 export type ForgotPasswordBody = z.infer<typeof forgotPasswordBody>;
 export type ResetPasswordBody = z.infer<typeof resetPasswordBody>;
 export type TwoFactorBody = z.infer<typeof twoFactorBody>;
+export type ResendOtpBody = z.infer<typeof resendOtpBody>;

@@ -33,22 +33,22 @@ export class OtpService {
   /** Throws unless `code` is the live OTP. A successful verification consumes the OTP (single use). */
   async verify(userId: string, purpose: OtpPurpose, code: string): Promise<void> {
     const live = await this.otps.findLive(userId, purpose);
-    if (!live) throw AppError.badRequest('Invalid or expired code', undefined, ERROR_CODES.OTP_INVALID);
+    if (!live) throw AppError.badRequest('Mã xác thực không tồn tại hoặc đã hết hạn', undefined, ERROR_CODES.OTP_EXPIRED);
     if (live.expiresAt.getTime() <= Date.now()) {
-      throw AppError.badRequest('The code has expired', undefined, ERROR_CODES.OTP_EXPIRED);
+      throw AppError.badRequest('Mã xác thực đã hết hạn', undefined, ERROR_CODES.OTP_EXPIRED);
     }
 
     // Count the attempt first (atomic) so parallel guesses cannot exceed the limit.
     const counted = await this.otps.registerAttempt(live.id);
-    if (!counted) throw AppError.badRequest('Invalid or expired code', undefined, ERROR_CODES.OTP_INVALID);
+    if (!counted) throw AppError.badRequest('Mã xác thực đã hết hạn', undefined, ERROR_CODES.OTP_EXPIRED);
     if (counted.attempts > AUTH_POLICY.OTP_MAX_ATTEMPTS) {
-      throw AppError.tooManyRequests('Too many wrong attempts, request a new code', ERROR_CODES.OTP_TOO_MANY_ATTEMPTS);
+      throw AppError.tooManyRequests('Đã nhập sai quá số lần quy định. Vui lòng lấy mã mới.', ERROR_CODES.OTP_TOO_MANY_ATTEMPTS);
     }
     if (!safeEqual(counted.codeHash, this.hash(userId, purpose, code))) {
-      throw AppError.badRequest('Invalid or expired code', undefined, ERROR_CODES.OTP_INVALID);
+      throw AppError.badRequest('Mã xác thực không chính xác', undefined, ERROR_CODES.OTP_INVALID);
     }
     const consumed = await this.otps.consume(live.id);
-    if (!consumed) throw AppError.badRequest('Invalid or expired code', undefined, ERROR_CODES.OTP_INVALID);
+    if (!consumed) throw AppError.badRequest('Mã xác thực đã được sử dụng hoặc không hợp lệ', undefined, ERROR_CODES.OTP_INVALID);
   }
 
   /** Removes expired codes; returns how many were deleted. */
