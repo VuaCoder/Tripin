@@ -36,7 +36,7 @@ ${message.text}` : `${header} (body not logged)`);
 function createMailProvider(): MailProvider {
   if (env.SMTP_HOST) return new SmtpMailProvider();
   if (isProduction) logger.warn('SMTP_HOST is not configured: emails (OTP, notifications) will NOT be delivered');
-  return new ConsoleMailProvider();
+  return new ConsoleMailProvider(true);
 }
 
 export const mailProvider: MailProvider = createMailProvider();

@@ -230,12 +230,7 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
             {/* OTP Verification Form Card */}
             <div className="backdrop-blur-2xl bg-white/95 rounded-[32px] p-6 lg:p-8 shadow-2xl flex flex-col justify-between border border-white/80">
               <div>
-                {/* Header (Clean, Removed Step Badge) */}
-                <div className="pb-3 border-b border-slate-100">
-                  <span className="font-vietnam text-sm font-semibold text-slate-600">Mã xác thực email</span>
-                </div>
-
-                <div className="pt-4 lg:pt-6 flex flex-col items-center text-center mb-6">
+                <div className="pt-2 sm:pt-4 flex flex-col items-center text-center mb-6">
                   <h1 className="font-vietnam text-2xl lg:text-3xl text-slate-900 font-extrabold tracking-tight">Xác thực mã OTP</h1>
                   <p className="font-vietnam text-xs sm:text-sm text-slate-500 mt-1 max-w-md">
                     Chúng tôi đã gửi mã xác thực bảo mật gồm 6 chữ số đến tài khoản của bạn
@@ -290,7 +285,7 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
                     <button
                       type="submit"
                       disabled={isSubmitting || isSuccess}
-                      className="mt-5 w-full bg-brand-teal hover:bg-brand-tealLight disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-vietnam font-bold py-3 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 transform active:scale-[0.99] flex items-center justify-center gap-2 group cursor-pointer"
+                      className="mt-5 w-full bg-brand-teal hover:bg-brand-tealLight disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-vietnam font-bold py-3.5 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 transform active:scale-[0.99] flex items-center justify-center gap-2 group cursor-pointer"
                     >
                       {isSubmitting ? (
                         <>
@@ -302,7 +297,7 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
                         </>
                       ) : (
                         <>
-                          <span>Xác nhận &amp; Bắt đầu hành trình</span>
+                          <span>Xác thực OTP</span>
                           <span className="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
                         </>
                       )}
@@ -332,20 +327,6 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
                     </button>
                   </div>
                 </form>
-              </div>
-
-              {/* Support Links */}
-              <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
-                <p className="font-vietnam text-xs text-slate-500">Chưa nhận được mã qua Email?</p>
-                <div className="flex items-center justify-center gap-4 font-vietnam text-xs font-semibold">
-                  <button className="text-slate-600 hover:text-brand-teal transition-colors flex items-center gap-1 focus:outline-none" type="button">
-                    <span className="material-symbols-outlined text-sm">call</span> Gọi thoại
-                  </button>
-                  <span className="text-slate-300">•</span>
-                  <button className="text-brand-teal hover:underline flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">support_agent</span> Hỗ trợ 24/7
-                  </button>
-                </div>
               </div>
             </div>
 
