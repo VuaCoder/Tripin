@@ -13,7 +13,8 @@ interface VerifyOtpPageProps {
 export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = 'REGISTER' }) => {
   const router = useRouter();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [timeLeft, setTimeLeft] = useState(600); // 10 minutes OTP TTL
+  const [resendCooldown, setResendCooldown] = useState(60); // 1 minute resend cooldown
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const [resendToast, setResendToast] = useState(false);
@@ -25,6 +26,7 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
   }, []);
@@ -130,7 +132,8 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
         email: email || '',
         purpose: purpose
       }));
-      setTimeLeft(60);
+      setTimeLeft(600);
+      setResendCooldown(60);
       setResendToast(true);
       setTimeout(() => setResendToast(false), 3500);
       setOtp(['', '', '', '', '', '']);
@@ -146,7 +149,7 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `0${mins}:${secs < 10 ? '0' : ''}${secs}s`;
+    return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}s`;
   };
 
   return (
@@ -230,12 +233,7 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
             {/* OTP Verification Form Card */}
             <div className="backdrop-blur-2xl bg-white/95 rounded-[32px] p-6 lg:p-8 shadow-2xl flex flex-col justify-between border border-white/80">
               <div>
-                {/* Header (Clean, Removed Step Badge) */}
-                <div className="pb-3 border-b border-slate-100">
-                  <span className="font-vietnam text-sm font-semibold text-slate-600">Mã xác thực email</span>
-                </div>
-
-                <div className="pt-4 lg:pt-6 flex flex-col items-center text-center mb-6">
+                <div className="pt-2 sm:pt-4 flex flex-col items-center text-center mb-6">
                   <h1 className="font-vietnam text-2xl lg:text-3xl text-slate-900 font-extrabold tracking-tight">Xác thực mã OTP</h1>
                   <p className="font-vietnam text-xs sm:text-sm text-slate-500 mt-1 max-w-md">
                     Chúng tôi đã gửi mã xác thực bảo mật gồm 6 chữ số đến tài khoản của bạn
@@ -275,22 +273,11 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
                       ))}
                     </div>
 
-                    {/* Timer */}
-                    <div className="mt-4 flex items-center justify-between font-vietnam text-xs sm:text-sm">
-                      <span className="text-slate-500 flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-sm text-brand-teal">schedule</span>
-                        Mã có hiệu lực trong:
-                      </span>
-                      <span className={`font-bold font-mono px-2.5 py-0.5 rounded-lg ${timeLeft > 0 ? 'text-brand-teal bg-slate-100' : 'text-red-600 bg-red-50'}`}>
-                        {formatTime(timeLeft)}
-                      </span>
-                    </div>
-
                     {/* Submit Button with Loading State */}
                     <button
                       type="submit"
                       disabled={isSubmitting || isSuccess}
-                      className="mt-5 w-full bg-brand-teal hover:bg-brand-tealLight disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-vietnam font-bold py-3 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 transform active:scale-[0.99] flex items-center justify-center gap-2 group cursor-pointer"
+                      className="mt-6 w-full bg-brand-teal hover:bg-brand-tealLight disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-vietnam font-bold py-3.5 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 transform active:scale-[0.99] flex items-center justify-center gap-2 group cursor-pointer"
                     >
                       {isSubmitting ? (
                         <>
@@ -302,50 +289,47 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
                         </>
                       ) : (
                         <>
-                          <span>Xác nhận &amp; Bắt đầu hành trình</span>
+                          <span>Xác thực OTP</span>
                           <span className="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
                         </>
                       )}
                     </button>
                     
-                    {/* Resend OTP Button with Loading State */}
-                    <button
-                      type="button"
-                      onClick={handleResend}
-                      disabled={isResending || timeLeft > 0}
-                      className="mt-3 w-full py-2.5 px-6 rounded-2xl border border-slate-200 hover:border-brand-teal text-slate-700 hover:text-brand-teal disabled:opacity-50 disabled:cursor-not-allowed bg-white font-vietnam font-semibold text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 group cursor-pointer"
-                    >
-                      {isResending ? (
-                        <>
-                          <svg className="animate-spin h-4 w-4 text-brand-teal" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                          <span>Đang gửi mã mới...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="material-symbols-outlined text-[18px] group-hover:-rotate-180 transition-transform duration-500 text-brand-teal">replay</span>
-                          <span>Chưa nhận được mã? Gửi lại mã</span>
-                        </>
-                      )}
-                    </button>
+                    {/* Resend OTP Row (Left: Text & 60s Countdown, Right: Resend Button) */}
+                    <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between gap-3 font-vietnam text-xs sm:text-sm">
+                      <div className="text-slate-500 font-medium flex items-center gap-1.5">
+                        <span>Mã không được gửi tới?</span>
+                        {resendCooldown > 0 && (
+                          <span className="font-bold text-brand-teal font-mono bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-md">
+                            {resendCooldown}s
+                          </span>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleResend}
+                        disabled={isResending || resendCooldown > 0}
+                        className="py-2 px-4 rounded-xl border border-slate-200 hover:border-brand-teal text-slate-700 hover:text-brand-teal disabled:opacity-40 disabled:cursor-not-allowed bg-white font-vietnam font-semibold text-xs transition-all duration-200 flex items-center gap-1.5 shrink-0 cursor-pointer"
+                      >
+                        {isResending ? (
+                          <>
+                            <svg className="animate-spin h-3.5 w-3.5 text-brand-teal" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            <span>Đang gửi...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="material-symbols-outlined text-base text-brand-teal">replay</span>
+                            <span>Gửi lại mã</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </form>
-              </div>
-
-              {/* Support Links */}
-              <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
-                <p className="font-vietnam text-xs text-slate-500">Chưa nhận được mã qua Email?</p>
-                <div className="flex items-center justify-center gap-4 font-vietnam text-xs font-semibold">
-                  <button className="text-slate-600 hover:text-brand-teal transition-colors flex items-center gap-1 focus:outline-none" type="button">
-                    <span className="material-symbols-outlined text-sm">call</span> Gọi thoại
-                  </button>
-                  <span className="text-slate-300">•</span>
-                  <button className="text-brand-teal hover:underline flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">support_agent</span> Hỗ trợ 24/7
-                  </button>
-                </div>
               </div>
             </div>
 

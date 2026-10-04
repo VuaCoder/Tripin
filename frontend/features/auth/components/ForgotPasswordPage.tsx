@@ -43,26 +43,7 @@ export const ForgotPasswordPage: React.FC = () => {
       <AuthBackground />
       <BackButton onClick={() => router.back()} />
 
-      {/* Floating Top-Right Notification Toast */}
-      {errorMsg && (
-        <div className="fixed top-6 right-6 z-50 max-w-sm w-[calc(100vw-3rem)] sm:w-96 p-4 bg-white/95 backdrop-blur-xl border-l-4 border-red-500 rounded-2xl shadow-2xl flex items-start gap-3 text-slate-800 border border-slate-100/80 animate-slide-in-right">
-          <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 shrink-0 mt-0.5">
-            <span className="material-symbols-outlined text-lg leading-none">error</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-vietnam text-xs font-bold text-red-600 uppercase tracking-wide">Thông báo lỗi</p>
-            <p className="font-vietnam text-xs text-slate-700 font-medium mt-0.5 leading-relaxed">{errorMsg}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setErrorMsg(null)}
-            className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors shrink-0"
-            aria-label="Đóng thông báo"
-          >
-            <span className="material-symbols-outlined text-base leading-none">close</span>
-          </button>
-        </div>
-      )}
+
 
       <main className="w-full max-w-lg mx-auto relative z-10 my-auto">
         <div className="flex flex-col w-full items-center justify-center relative">
@@ -87,6 +68,12 @@ export const ForgotPasswordPage: React.FC = () => {
                 </div>
 
                 <form className="w-full space-y-4" onSubmit={handleSubmit}>
+                  {errorMsg && (
+                    <div className="p-3 bg-red-50 border border-red-200/80 rounded-xl text-xs text-red-700 font-medium flex items-center gap-2.5">
+                      <span className="material-symbols-outlined text-base text-red-500 shrink-0">error</span>
+                      <span className="flex-1">{errorMsg}</span>
+                    </div>
+                  )}
                   <div>
                     <label htmlFor="user-forgot-email" className="block text-xs font-semibold text-slate-700 mb-1.5 pl-0.5">
                       Địa chỉ email <span className="text-red-500 font-bold">*</span>
