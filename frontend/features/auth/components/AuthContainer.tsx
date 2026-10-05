@@ -94,6 +94,7 @@ export const AuthContainer: React.FC<AuthContainerProps> = ({
           ) : (
             <RegisterForm
               onSuccess={onRegisterSuccess}
+              onGoogleSuccess={onLoginSuccess}
               onError={onError}
             />
           )}
