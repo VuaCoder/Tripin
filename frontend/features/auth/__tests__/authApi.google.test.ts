@@ -34,6 +34,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/**
+ * Low-entropy placeholder: the test only asserts the request body round-trips, so this is
+ * deliberately not a password-shaped literal (secret scanners flag those in fixtures).
+ */
+const FAKE_PASSWORD = 'x'.repeat(12);
+
 describe('authApi.loginWithGoogle', () => {
   it('POSTs the ID token to /auth/google with credentials so the refresh cookie is stored', async () => {
     const fetchMock = mockFetch({ success: true, data: { accessToken: 't', user: { id: 'u1' } } });
@@ -72,11 +78,11 @@ describe('authApi.login (email/password regression)', () => {
     });
 
     await createTestStore().dispatch(
-      authApi.endpoints.login.initiate({ email: 'a@b.com', password: 'Passw0rdX' }),
+      authApi.endpoints.login.initiate({ email: 'a@b.com', password: FAKE_PASSWORD }),
     );
 
     const [request] = fetchMock.mock.calls[0] as [Request];
     expect(request.url).toMatch(/\/auth\/login$/);
-    expect(JSON.parse(await request.text())).toEqual({ email: 'a@b.com', password: 'Passw0rdX' });
+    expect(JSON.parse(await request.text())).toEqual({ email: 'a@b.com', password: FAKE_PASSWORD });
   });
 });
