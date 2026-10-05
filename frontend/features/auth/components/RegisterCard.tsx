@@ -21,9 +21,9 @@ export const RegisterCard: React.FC<RegisterCardProps> = ({ onSuccess, onError }
       {/* Tripri Header Logo */}
       <div className="flex flex-col items-center mb-4 text-center">
         <img
-          alt="Tripri - Du lịch theo cách của bạn"
-          className="h-16 w-auto object-contain mx-auto mb-2"
-          src="https://lh3.googleusercontent.com/aida-public/AB6AXuBvgyrWOQJ_Pboo1MmnwXZli0jTh-C8sZAQbCs8MzFn_vgUnw_kluvF-Hql74XSvzuRjZEUidQy4HIox8FchlHXBop2MvKSBXZIU_1G19ykGDeRDpvNF7qGOz0jtqNON33xfk2l9fOVcZM9BLqI3mxg4oze3578r5T_EnK3J22_Y6yg1lJRT95VKZNmiEL7LBDdbV8Sfn0Dcg9UNzZb4nyso89EM-ouGte5ojp4HDZdeAwZviAMHlLqoB32buuHttnr4imYhkjQe8aHLDU"
+          src="/images/tripri-logo.png"
+          alt="Tripri Logo"
+          className="h-14 w-auto object-contain drop-shadow-md mb-2"
         />
         <h2 className="text-xl font-bold text-slate-800 tracking-tight">Đăng ký</h2>
       </div>

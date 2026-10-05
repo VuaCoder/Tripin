@@ -14,8 +14,6 @@ export const BackButton: React.FC<BackButtonProps> = ({ fallbackUrl = '/', onCli
   const handleBack = () => {
     if (onClick) {
       onClick();
-    } else if (typeof window !== 'undefined' && window.history.length > 2) {
-      router.back();
     } else {
       router.push(fallbackUrl);
     }

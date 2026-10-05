@@ -1,9 +1,10 @@
-'use client';
+"use client";
 
-import { useState, ChangeEvent, FormEvent } from 'react';
-import { validateCredential, validatePassword } from '../utils/validation';
-import { authApi } from '../api/authApi';
-import { LoginFormValues, LoginResultData } from '../types';
+import { useState, useEffect, ChangeEvent, FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { validateCredential, validatePassword } from "../utils/validation";
+import { authApi } from "../api/authApi";
+import { LoginFormValues, LoginResultData } from "../types";
 
 interface UseLoginFormProps {
   onSuccess?: (data: LoginResultData) => void;
@@ -11,15 +12,29 @@ interface UseLoginFormProps {
 }
 
 export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [formData, setFormData] = useState<LoginFormValues>({
-    credential: '',
-    password: '',
+    credential: "",
+    password: "",
     rememberMe: false,
   });
 
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ credential?: string; password?: string; general?: string }>({});
+  const [errors, setErrors] = useState<{
+    credential?: string;
+    password?: string;
+    general?: string;
+  }>({});
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const emailParam = searchParams.get("email");
+    if (emailParam) {
+      setFormData((prev) => ({ ...prev, credential: emailParam }));
+    }
+  }, [searchParams]);
 
   const togglePasswordVisibility = () => {
     setShowPassword((prev) => !prev);
@@ -29,7 +44,7 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === "checkbox" ? checked : value,
     }));
 
     // Clear validation error when user types
@@ -67,7 +82,19 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
         onSuccess?.(response.data);
       }
     } catch (err: any) {
-      const message = err.message || 'Đăng nhập không thành công. Vui lòng thử lại.';
+      const message =
+        err.message || "Đăng nhập không thành công. Vui lòng thử lại.";
+      if (
+        message.toLowerCase().includes("verify") ||
+        message.toLowerCase().includes("xác thực") ||
+        message.toLowerCase().includes("xác nhận") ||
+        err.code === "ACCOUNT_NOT_VERIFIED"
+      ) {
+        router.push(
+          `/verify-otp?email=${encodeURIComponent(formData.credential)}&purpose=REGISTER`,
+        );
+        return;
+      }
       setErrors((prev) => ({ ...prev, general: message }));
       onError?.(message);
     } finally {
@@ -83,5 +110,6 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
     togglePasswordVisibility,
     handleInputChange,
     handleSubmit,
+    searchParams,
   };
 }
