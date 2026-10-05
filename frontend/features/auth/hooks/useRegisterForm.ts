@@ -8,7 +8,8 @@ import {
   validatePassword,
   validateConfirmPassword,
 } from '../utils/validation';
-import { authApi } from '../api/authApi';
+import { useRegisterMutation } from '../api/authApi';
+import { getApiErrorMessage } from '../utils/apiError';
 import { RegisterFormValues, RegisterResultData } from '../types';
 
 interface UseRegisterFormProps {
@@ -37,6 +38,7 @@ export function useRegisterForm({ onSuccess, onError }: UseRegisterFormProps = {
     general?: string;
   }>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [register] = useRegisterMutation();
 
   const togglePasswordVisibility = () => {
     setShowPassword((prev) => !prev);
@@ -91,19 +93,17 @@ export function useRegisterForm({ onSuccess, onError }: UseRegisterFormProps = {
     setErrors({});
 
     try {
-      const response = await authApi.register({
+      const data = await register({
         fullName: formData.fullName,
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
         role: 'TRAVELER',
-      });
+      }).unwrap();
 
-      if (response.success && response.data) {
-        onSuccess?.(response.data);
-      }
-    } catch (err: any) {
-      const message = err.message || 'Đăng ký tài khoản không thành công. Vui lòng thử lại.';
+      onSuccess?.(data);
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Đăng ký tài khoản không thành công. Vui lòng thử lại.');
       setErrors((prev) => ({ ...prev, general: message }));
       onError?.(message);
     } finally {

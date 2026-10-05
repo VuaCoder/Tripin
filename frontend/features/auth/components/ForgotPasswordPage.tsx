@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import { AuthBackground } from './AuthBackground';
 import { BackButton } from './BackButton';
 import { validateEmail } from '../utils/validation';
-import { authApi } from '../api/authApi';
+import { useForgotPasswordMutation } from '../api/authApi';
+import { getApiErrorMessage } from '../utils/apiError';
 
 export const ForgotPasswordPage: React.FC = () => {
   const router = useRouter();
+  const [forgotPassword] = useForgotPasswordMutation();
   const [email, setEmail] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -28,11 +30,11 @@ export const ForgotPasswordPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      await authApi.forgotPassword({ email });
+      await forgotPassword({ email }).unwrap();
       // On success, redirect to verify-otp page with FORGOT_PASSWORD purpose
       router.push(`/verify-otp?email=${encodeURIComponent(email)}&purpose=FORGOT_PASSWORD`);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Không thể gửi yêu cầu khôi phục mật khẩu. Vui lòng thử lại sau.');
+    } catch (err) {
+      setErrorMsg(getApiErrorMessage(err, 'Không thể gửi yêu cầu khôi phục mật khẩu. Vui lòng thử lại sau.'));
     } finally {
       setIsSubmitting(false);
     }

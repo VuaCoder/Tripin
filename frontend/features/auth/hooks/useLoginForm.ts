@@ -3,7 +3,10 @@
 import { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { validateCredential, validatePassword } from '../utils/validation';
-import { authApi } from '../api/authApi';
+import { useLoginMutation } from '../api/authApi';
+import { useAppDispatch } from '@/store/hooks';
+import { setCredentials } from '../store/authSlice';
+import { getApiErrorCode, getApiErrorMessage } from '../utils/apiError';
 import { LoginFormValues, LoginResultData } from '../types';
 
 interface UseLoginFormProps {
@@ -24,6 +27,8 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ credential?: string; password?: string; general?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
+  const dispatch = useAppDispatch();
+  const [login] = useLoginMutation();
 
   useEffect(() => {
     const emailParam = searchParams.get('email');
@@ -73,18 +78,16 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
     setErrors({});
 
     try {
-      const response = await authApi.login(formData);
-      if (response.success && response.data) {
-        onSuccess?.(response.data);
+      const data = await login({ email: formData.credential, password: formData.password }).unwrap();
+      if (!data.twoFactorRequired) {
+        dispatch(setCredentials({ user: data.user, accessToken: data.accessToken }));
       }
-    } catch (err: any) {
-      const message = err.message || 'Đăng nhập không thành công. Vui lòng thử lại.';
-      if (
-        message.toLowerCase().includes('verify') ||
-        message.toLowerCase().includes('xác thực') ||
-        message.toLowerCase().includes('xác nhận') ||
-        err.code === 'ACCOUNT_NOT_VERIFIED'
-      ) {
+      onSuccess?.(data);
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Đăng nhập không thành công. Vui lòng thử lại.');
+
+      // Tài khoản chưa xác thực email → đưa sang trang OTP (giữ hành vi từ main)
+      if (getApiErrorCode(err) === 'ACCOUNT_NOT_VERIFIED') {
         router.push(`/verify-otp?email=${encodeURIComponent(formData.credential)}&purpose=REGISTER`);
         return;
       }
