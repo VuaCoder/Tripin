@@ -41,6 +41,10 @@ Giao diện được đồng bộ chính xác từ Stitch MCP thiết kế **Tra
 - **Hiệu ứng:** Glassmorphism (`backdrop-blur-xl`), floating balloons keyframe animations.
 
 ## 🚀 Tích hợp với Next.js App Router
-Trang đăng nhập được định tuyến tại:
-- Đường dẫn: `frontend/app/(auth)/login/page.tsx`
-- Import: `import { LoginPage } from '@/features/auth';`
+Các trang xác thực được định tuyến tại:
+- Đăng nhập: `frontend/app/(auth)/login/page.tsx` — `import { LoginPage } from '@/features/auth';`
+- Đăng ký Traveler: `frontend/app/(auth)/register/page.tsx` — `<RegisterPage />`
+- Đăng ký Hướng dẫn viên: `frontend/app/(auth)/register/guide/page.tsx` — `<RegisterPage role="TOUR_GUIDE" />` (gửi `role=TOUR_GUIDE` lên backend)
+- Xác thực OTP: `frontend/app/(auth)/verify-otp/page.tsx` — sau OTP điều hướng theo role qua `homeForRole()` (Tour Guide vào `/guide`)
+
+`RegisterPage` nhận prop `role` (`TRAVELER` mặc định hoặc `TOUR_GUIDE`) và truyền xuống `AuthContainer` → `RegisterForm` → `useRegisterForm`, nơi role được gửi kèm trong `POST /auth/register`. Lỗi backend được xử lý theo `code` (`EMAIL_ALREADY_REGISTERED` hiển thị ở field email, các mã khác hiển thị ở banner chung).

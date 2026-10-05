@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { AuthBackground } from './AuthBackground';
 import { BackButton } from './BackButton';
 import { validatePassword, validateConfirmPassword } from '../utils/validation';
-import { authApi } from '../api/authApi';
+import { useResetPasswordMutation } from '../api/authApi';
+import { getApiErrorMessage } from '../utils/apiError';
 
 interface ResetPasswordPageProps {
   email?: string;
@@ -14,6 +15,7 @@ interface ResetPasswordPageProps {
 
 export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ email: initialEmail = '', code: initialCode = '' }) => {
   const router = useRouter();
+  const [resetPassword] = useResetPasswordMutation();
   const [email, setEmail] = useState(initialEmail);
   const [code, setCode] = useState(initialCode);
   const [newPassword, setNewPassword] = useState('');
@@ -61,18 +63,18 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ email: ini
     setIsSubmitting(true);
 
     try {
-      await authApi.resetPassword({
+      await resetPassword({
         email,
         code,
         newPassword,
-      });
+      }).unwrap();
 
       setIsSuccess(true);
       setTimeout(() => {
         router.push('/');
       }, 1500);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Đặt lại mật khẩu mới không thành công. Vui lòng thử lại.');
+    } catch (err) {
+      setErrorMsg(getApiErrorMessage(err, 'Đặt lại mật khẩu mới không thành công. Vui lòng thử lại.'));
     } finally {
       setIsSubmitting(false);
     }

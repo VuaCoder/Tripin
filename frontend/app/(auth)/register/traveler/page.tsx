@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: "Tạo tài khoản Traveler trên Tripri để khám phá các chuyến du lịch tuyệt vời và trải nghiệm bản địa độc đáo.",
 };
 
-export default function RegisterAsTravelerRoute() {
+export default function RegisterTravelerRoute() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-desk-travel flex items-center justify-center text-slate-500">Đang tải...</div>}>
       <RegisterPage />

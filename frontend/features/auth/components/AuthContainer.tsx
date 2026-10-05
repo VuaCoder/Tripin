@@ -4,10 +4,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
-import { LoginResultData, RegisterResultData } from '../types';
+import { LoginResultData, RegisterableRole, RegisterResultData } from '../types';
 
 interface AuthContainerProps {
   initialMode: 'login' | 'register';
+  /** Role sent to the backend when the register form is submitted. */
+  registerRole?: RegisterableRole;
   onLoginSuccess?: (data: LoginResultData) => void;
   onRegisterSuccess?: (data: RegisterResultData) => void;
   onError?: (errorMessage: string) => void;
@@ -15,6 +17,7 @@ interface AuthContainerProps {
 
 export const AuthContainer: React.FC<AuthContainerProps> = ({
   initialMode,
+  registerRole = 'TRAVELER',
   onLoginSuccess,
   onRegisterSuccess,
   onError,
@@ -75,7 +78,11 @@ export const AuthContainer: React.FC<AuthContainerProps> = ({
         {/* Header */}
         <div className="mb-6 pb-2 border-b border-slate-100">
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            {mode === 'login' ? 'CHÀO MỪNG QUAY LẠI !' : 'TẠO TÀI KHOẢN TRAVELER'}
+            {mode === 'login'
+              ? 'CHÀO MỪNG QUAY LẠI !'
+              : registerRole === 'TOUR_GUIDE'
+              ? 'TẠO TÀI KHOẢN HƯỚNG DẪN VIÊN'
+              : 'TẠO TÀI KHOẢN TRAVELER'}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             {mode === 'login'
@@ -93,6 +100,7 @@ export const AuthContainer: React.FC<AuthContainerProps> = ({
             />
           ) : (
             <RegisterForm
+              role={registerRole}
               onSuccess={onRegisterSuccess}
               onGoogleSuccess={onLoginSuccess}
               onError={onError}

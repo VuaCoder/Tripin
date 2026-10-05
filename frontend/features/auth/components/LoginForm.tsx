@@ -229,7 +229,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         <div className="text-slate-400 pt-1">
           Chưa có tài khoản?{" "}
           <Link
-            href="/register-as-traveler"
+            href="/register/traveler"
             className="text-brand-tealLight hover:text-brand-teal font-semibold transition-colors underline decoration-dotted"
           >
             Đăng ký ngay
