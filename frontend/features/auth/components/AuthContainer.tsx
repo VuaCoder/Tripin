@@ -20,8 +20,6 @@ export const AuthContainer: React.FC<AuthContainerProps> = ({
   onError,
 }) => {
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
-  
-  const pillRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
 
@@ -30,30 +28,11 @@ export const AuthContainer: React.FC<AuthContainerProps> = ({
     setMode(initialMode);
   }, [initialMode]);
 
-  const handleSwitchMode = (targetMode: 'login' | 'register') => {
-    if (mode === targetMode) return;
-    setMode(targetMode);
-    
-    // Pure SPA URL pushState without full page reload
-    if (typeof window !== 'undefined') {
-      window.history.pushState(null, '', targetMode === 'login' ? '/login' : '/register');
-    }
-  };
-
-  // GSAP animation on tab switch & mode change
+  // GSAP animation on mode change
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
-    }
-
-    // Animate tab sliding pill indicator perfectly within boundaries
-    if (pillRef.current) {
-      gsap.to(pillRef.current, {
-        xPercent: mode === 'login' ? 0 : 100,
-        duration: 0.3,
-        ease: 'power2.out',
-      });
     }
 
     // Animate form container fade & subtle scale
@@ -84,70 +63,38 @@ export const AuthContainer: React.FC<AuthContainerProps> = ({
         {/* Top: Tripri Brand White Logo */}
         <div className="relative z-10 flex items-center gap-3">
           <img
+            src="/images/tripri-logo.png"
             alt="Tripri Logo"
             className="h-10 w-auto object-contain brightness-0 invert drop-shadow-md"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBvgyrWOQJ_Pboo1MmnwXZli0jTh-C8sZAQbCs8MzFn_vgUnw_kluvF-Hql74XSvzuRjZEUidQy4HIox8FchlHXBop2MvKSBXZIU_1G19ykGDeRDpvNF7qGOz0jtqNON33xfk2l9fOVcZM9BLqI3mxg4oze3578r5T_EnK3J22_Y6yg1lJRT95VKZNmiEL7LBDdbV8Sfn0Dcg9UNzZb4nyso89EM-ouGte5ojp4HDZdeAwZviAMHlLqoB32buuHttnr4imYhkjQe8aHLDU"
           />
         </div>
       </div>
 
       {/* Right Column: Form Panel */}
       <div className="lg:col-span-7 p-6 sm:p-9 flex flex-col justify-center bg-white relative">
-        {/* Header & Tab Switcher */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-2 border-b border-slate-100">
-          <div>
-            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-              {mode === 'login' ? 'CHÀO MỪNG QUAY LẠI !' : 'XIN CHÀO !'}
-            </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              {mode === 'login'
-                ? 'Vui lòng nhập thông tin đăng nhập của bạn.'
-                : 'Điền đầy đủ các thông tin bắt buộc dưới đây.'}
-            </p>
-          </div>
-
-          {/* GSAP Animated Tab Switcher */}
-          <div className="bg-slate-200/70 p-1 rounded-2xl flex items-center w-full sm:w-56 relative overflow-hidden border border-slate-200/80 self-start sm:self-auto">
-            {/* GSAP Sliding Pill Indicator */}
-            <div
-              ref={pillRef}
-              className="absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white rounded-xl shadow-sm pointer-events-none z-0"
-            />
-
-            <button
-              type="button"
-              onClick={() => handleSwitchMode('login')}
-              className={`relative z-10 flex-1 py-1.5 text-center text-xs sm:text-sm font-bold transition-colors duration-200 cursor-pointer ${
-                mode === 'login' ? 'text-brand-teal' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Đăng nhập
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSwitchMode('register')}
-              className={`relative z-10 flex-1 py-1.5 text-center text-xs sm:text-sm font-bold transition-colors duration-200 cursor-pointer ${
-                mode === 'register' ? 'text-brand-teal' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Đăng ký
-            </button>
-          </div>
+        {/* Header */}
+        <div className="mb-6 pb-2 border-b border-slate-100">
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+            {mode === 'login' ? 'CHÀO MỪNG QUAY LẠI !' : 'TẠO TÀI KHOẢN TRAVELER'}
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            {mode === 'login'
+              ? 'Vui lòng nhập thông tin đăng nhập của bạn.'
+              : 'Điền đầy đủ các thông tin bắt buộc dưới đây để bắt đầu trải nghiệm.'}
+          </p>
         </div>
 
-        {/* GSAP Animated Form Wrapper */}
+        {/* Form Wrapper */}
         <div ref={formRef} className="w-full">
           {mode === 'login' ? (
             <LoginForm
               onSuccess={onLoginSuccess}
               onError={onError}
-              onSwitchToRegister={() => handleSwitchMode('register')}
             />
           ) : (
             <RegisterForm
               onSuccess={onRegisterSuccess}
               onError={onError}
-              onSwitchToLogin={() => handleSwitchMode('login')}
             />
           )}
         </div>

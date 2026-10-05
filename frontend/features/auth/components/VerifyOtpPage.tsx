@@ -95,7 +95,7 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
     setErrorMsg(null);
     
     try {
-      await import('../api/authApi').then(m => m.authApi.verifyOtp({
+      const result = await import('../api/authApi').then(m => m.authApi.verifyOtp({
         email: email || '',
         code: otpValue,
         purpose: purpose
@@ -106,7 +106,28 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
         if (purpose === 'FORGOT_PASSWORD') {
           router.push(`/reset-password?email=${encodeURIComponent(email || '')}&code=${encodeURIComponent(otpValue)}`);
         } else {
-          router.push('/');
+          // Redirect to role-based dashboard after successful OTP verification
+          const role = result?.data?.user?.role || result?.user?.role;
+          switch (role) {
+            case 'AGENCY':
+              router.push('/agency');
+              break;
+            case 'TOUR_GUIDE':
+              router.push('/guide');
+              break;
+            case 'MODERATOR':
+              router.push('/moderator');
+              break;
+            case 'SUPER_ADMIN':
+              router.push('/super-admin');
+              break;
+            case 'TRAVELER':
+              router.push('/traveler');
+              break;
+            default:
+              router.push('/');
+              break;
+          }
         }
       }, 1200);
     } catch (err: any) {
@@ -155,8 +176,8 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
   return (
     <div className="min-h-screen font-vietnam text-body-md text-slate-800 flex flex-col justify-center items-center selection:bg-brand-teal selection:text-white relative bg-desk-travel px-4 py-8">
       <AuthBackground />
-      {/* Back button navigates to previous page */}
-      <BackButton onClick={() => router.back()} />
+      {/* Back button navigates to homepage */}
+      <BackButton onClick={() => router.push('/')} />
 
       {/* Floating Top-Right Notification Toast */}
       {(errorMsg || isSuccess || resendToast) && (
@@ -244,7 +265,15 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
                   </div>
                 </div>
 
-                <form className="flex flex-col items-center" onSubmit={handleSubmit}>
+                <form
+                  action="#"
+                  method="POST"
+                  className="flex flex-col items-center"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }}
+                >
                   <div className="w-full max-w-md">
                     {/* 6 Digit Input Boxes */}
                     <div className="flex justify-between items-center gap-2">

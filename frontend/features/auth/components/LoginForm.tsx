@@ -21,10 +21,28 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError, onSwit
     handleInputChange,
     handleSubmit,
     handleGoogleLogin,
+    searchParams,
   } = useLoginForm({ onSuccess, onError });
 
   return (
-    <form className="w-full flex flex-col space-y-3.5 animate-fadeInScale" onSubmit={handleSubmit} data-purpose="login-form">
+    <form
+      action="#"
+      method="POST"
+      className="w-full flex flex-col space-y-3.5 animate-fadeInScale"
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSubmit(e);
+      }}
+      data-purpose="login-form"
+    >
+      {/* Registration Success Banner */}
+      {searchParams?.get('registered') === 'true' && (
+        <div className="p-3 bg-teal-50 border border-teal-200/80 rounded-xl text-xs text-brand-teal font-medium flex items-center gap-2.5">
+          <span className="material-symbols-outlined text-base text-brand-teal shrink-0">check_circle</span>
+          <span className="flex-1">Đăng ký thành công! Vui lòng nhập mật khẩu để đăng nhập.</span>
+        </div>
+      )}
+
       {/* General Error Alert - Inline Banner */}
       {errors.general && (
         <div className="p-3 bg-red-50 border border-red-200/80 rounded-xl text-xs text-red-700 font-medium flex items-center gap-2.5">
@@ -162,22 +180,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError, onSwit
         </Link>
         <div className="text-slate-400 pt-1">
           Chưa có tài khoản?{' '}
-          {onSwitchToRegister ? (
-            <button
-              type="button"
-              onClick={onSwitchToRegister}
-              className="text-brand-tealLight hover:text-brand-teal font-semibold transition-colors underline decoration-dotted"
-            >
-              Đăng ký ngay
-            </button>
-          ) : (
-            <Link
-              href="/register"
-              className="text-brand-tealLight hover:text-brand-teal font-semibold transition-colors underline decoration-dotted"
-            >
-              Đăng ký ngay
-            </Link>
-          )}
+          <Link
+            href="/register-as-traveler"
+            className="text-brand-tealLight hover:text-brand-teal font-semibold transition-colors underline decoration-dotted"
+          >
+            Đăng ký ngay
+          </Link>
         </div>
       </div>
     </form>

@@ -33,6 +33,7 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: optionalString,
   GOOGLE_CLIENT_SECRET: optionalString,
 
+  BREVO_API_KEY: optionalString,
   SMTP_HOST: optionalString,
   SMTP_PORT: z.coerce.number().int().positive().default(587),
   SMTP_USER: optionalString,
