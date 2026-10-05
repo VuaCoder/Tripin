@@ -1,0 +1,34 @@
+- generic [active] [ref=f10e1]:
+  - generic [ref=f10e2]:
+    - button "Quay lại" [ref=f10e3] [cursor=pointer]
+    - main [ref=f10e6]:
+      - generic [ref=f10e7]:
+        - img "Tripri Logo" [ref=f10e12]
+        - generic [ref=f10e13]:
+          - generic [ref=f10e14]:
+            - generic [ref=f10e15]:
+              - heading "CHÀO MỪNG QUAY LẠI !" [level=1] [ref=f10e16]
+              - paragraph [ref=f10e17]: Vui lòng nhập thông tin đăng nhập của bạn.
+            - generic [ref=f10e18]:
+              - button "Đăng nhập" [ref=f10e19] [cursor=pointer]
+              - button "Đăng ký" [ref=f10e20] [cursor=pointer]
+          - generic [ref=f10e22]:
+            - generic [ref=f10e23]:
+              - generic [ref=f10e24]: Email hoặc số điện thoại *
+              - textbox "Email hoặc số điện thoại *" [ref=f10e26]:
+                - /placeholder: Nhập email hoặc số điện thoại
+            - generic [ref=f10e27]:
+              - generic [ref=f10e28]: Mật khẩu *
+              - generic [ref=f10e29]:
+                - textbox "Mật khẩu *" [ref=f10e30]:
+                  - /placeholder: Nhập mật khẩu
+                - button "Hiện hoặc ẩn mật khẩu" [ref=f10e31] [cursor=pointer]
+            - button "Đăng nhập" [ref=f10e35] [cursor=pointer]
+            - button "Đăng nhập bằng Google" [ref=f10e37] [cursor=pointer]
+            - generic [ref=f10e44]:
+              - link "Quên mật khẩu?" [ref=f10e45] [cursor=pointer]:
+                - /url: /forgot-password
+              - generic [ref=f10e46]:
+                - text: Chưa có tài khoản?
+                - button "Đăng ký ngay" [ref=f10e47] [cursor=pointer]
+  - alert [ref=f10e48]
