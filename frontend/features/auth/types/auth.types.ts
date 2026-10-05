@@ -4,6 +4,9 @@ export type UserStatus = 'PENDING_VERIFICATION' | 'ACTIVE' | 'BANNED';
 
 export type AgencyVerificationStatus = 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
 
+/** Roles a guest can self-register with from the public auth pages. */
+export type RegisterableRole = 'TRAVELER' | 'TOUR_GUIDE';
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -68,6 +71,7 @@ export interface LoginRequest {
 export interface RegisterResultData {
   email: string;
   otpExpiresInSeconds: number;
+  message?: string;
 }
 
 export interface SessionData {
