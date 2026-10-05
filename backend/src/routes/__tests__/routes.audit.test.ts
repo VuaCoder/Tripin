@@ -28,6 +28,7 @@ const PUBLIC_ROUTES = [
   'POST /auth/logout',
   'POST /auth/refresh',
   'POST /auth/register',
+  'POST /auth/resend-otp',
   'POST /auth/reset-password',
   'POST /auth/verify-otp',
   'POST /payments/webhooks/payos',

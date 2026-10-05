@@ -44,7 +44,7 @@ class DynamicMailProvider implements MailProvider {
 
     if (!apiKey) {
       logger.error(
-        '[mail:brevo] ❌ BREVO_API_KEY chưa được cấu hình.'
+        '[mail:brevo] ❌ Mail provider API key chưa được cấu hình.'
       );
 
       if (process.env.NODE_ENV === 'development') {
@@ -55,7 +55,7 @@ class DynamicMailProvider implements MailProvider {
           '[mail:fallback] ⚠️ Development mode: OTP được in ra console.'
         );
 
-        logger.info(`${header}\n${message.text}`);
+        logger.info(`${header} (body not logged)`);
 
         return;
       }
