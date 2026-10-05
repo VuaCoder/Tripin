@@ -6,6 +6,7 @@ import { AuthBackground } from './AuthBackground';
 import { BackButton } from './BackButton';
 import { AuthContainer } from './AuthContainer';
 import { LoginResultData, RegisterableRole, RegisterResultData } from '../types';
+import { homeForRole } from '../utils/roles';
 
 interface RegisterPageProps {
   /** Which account type this register page creates. Defaults to `TRAVELER`. */
@@ -21,25 +22,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ role = 'TRAVELER' })
       return;
     }
 
-    const role = data.user.role;
-    switch (role) {
-      case 'AGENCY':
-        router.push('/agency');
-        break;
-      case 'TOUR_GUIDE':
-        router.push('/guide');
-        break;
-      case 'MODERATOR':
-        router.push('/moderator');
-        break;
-      case 'SUPER_ADMIN':
-        router.push('/super-admin');
-        break;
-      case 'TRAVELER':
-      default:
-        router.push('/traveler');
-        break;
-    }
+    router.push(homeForRole(data.user.role));
   };
 
   const handleRegisterSuccess = (data: RegisterResultData) => {
