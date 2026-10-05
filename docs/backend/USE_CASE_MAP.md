@@ -10,6 +10,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Use case | Actor | Endpoint | Status |
 |---|---|---|---|
 | Register | Guest | `POST /auth/register` | done |
+| Resend registration OTP | Guest | `POST /auth/resend-otp` | done |
 | Verify OTP | Guest/User | `POST /auth/verify-otp` (purposes REGISTER, LOGIN_2FA) | done |
 | Login (+ Validate credentials, + 2FA extend) | All | `POST /auth/login` | done |
 | Login with Google (+ Authenticate via OAuth) | Guest | `POST /auth/google` | done |
