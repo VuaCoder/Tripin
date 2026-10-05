@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useState, useEffect, ChangeEvent, FormEvent } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { validateCredential, validatePassword } from '../utils/validation';
-import { useLoginMutation } from '../api/authApi';
-import { useAppDispatch } from '@/store/hooks';
-import { setCredentials } from '../store/authSlice';
-import { getApiErrorCode, getApiErrorMessage } from '../utils/apiError';
-import { LoginFormValues, LoginResultData } from '../types';
+import { useState, useEffect, ChangeEvent, FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { validateCredential, validatePassword } from "../utils/validation";
+import { useLoginMutation } from "../api/authApi";
+import { useAppDispatch } from "@/store/hooks";
+import { setCredentials } from "../store/authSlice";
+import { getApiErrorCode, getApiErrorMessage } from "../utils/apiError";
+import { LoginFormValues, LoginResultData } from "../types";
 
 interface UseLoginFormProps {
   onSuccess?: (data: LoginResultData) => void;
@@ -19,19 +19,23 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
   const searchParams = useSearchParams();
 
   const [formData, setFormData] = useState<LoginFormValues>({
-    credential: '',
-    password: '',
+    credential: "",
+    password: "",
     rememberMe: false,
   });
 
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ credential?: string; password?: string; general?: string }>({});
+  const [errors, setErrors] = useState<{
+    credential?: string;
+    password?: string;
+    general?: string;
+  }>({});
   const [isLoading, setIsLoading] = useState(false);
   const dispatch = useAppDispatch();
   const [login] = useLoginMutation();
 
   useEffect(() => {
-    const emailParam = searchParams.get('email');
+    const emailParam = searchParams.get("email");
     if (emailParam) {
       setFormData((prev) => ({ ...prev, credential: emailParam }));
     }
@@ -45,7 +49,7 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === "checkbox" ? checked : value,
     }));
 
     // Clear validation error when user types
@@ -84,11 +88,16 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
       }
       onSuccess?.(data);
     } catch (err) {
-      const message = getApiErrorMessage(err, 'Đăng nhập không thành công. Vui lòng thử lại.');
+      const message = getApiErrorMessage(
+        err,
+        "Đăng nhập không thành công. Vui lòng thử lại.",
+      );
 
-      // Tài khoản chưa xác thực email → đưa sang trang OTP (giữ hành vi từ main)
-      if (getApiErrorCode(err) === 'ACCOUNT_NOT_VERIFIED') {
-        router.push(`/verify-otp?email=${encodeURIComponent(formData.credential)}&purpose=REGISTER`);
+      // Tài khoản chưa xác thực email → đưa sang trang OTP
+      if (getApiErrorCode(err) === "ACCOUNT_NOT_VERIFIED") {
+        router.push(
+          `/verify-otp?email=${encodeURIComponent(formData.credential)}&purpose=REGISTER`,
+        );
         return;
       }
       setErrors((prev) => ({ ...prev, general: message }));
@@ -96,11 +105,6 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleGoogleLogin = async () => {
-    // Tích hợp Google OAuth Client ID Token
-    console.log('Initiating Google Login...');
   };
 
   return {
@@ -111,7 +115,6 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
     togglePasswordVisibility,
     handleInputChange,
     handleSubmit,
-    handleGoogleLogin,
     searchParams,
   };
 }
