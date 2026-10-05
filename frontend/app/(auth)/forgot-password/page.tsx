@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { ForgotPasswordPage } from "@/features/auth";
 import type { Metadata } from "next";
 
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function ForgotPasswordRoute() {
-  return <ForgotPasswordPage />;
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-desk-travel flex items-center justify-center text-slate-500">Đang tải...</div>}>
+      <ForgotPasswordPage />
+    </Suspense>
+  );
 }

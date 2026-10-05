@@ -1,17 +1,16 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
 
 export const AuthShowcase: React.FC = () => {
   return (
     <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left order-1 lg:order-2 px-2 sm:px-6">
-      {/* Large Official Tripri Logo Image */}
+      {/* Tripri Brand Logo */}
       <div className="max-w-md w-full mb-6 flex justify-center lg:justify-start">
         <img
-          alt="Tripri Official Logo"
-          className="w-full max-w-[360px] h-auto object-contain drop-shadow-sm"
-          src="https://lh3.googleusercontent.com/aida-public/AB6AXuCTeBb0xH9sFeWAg7sRvmPby6qQYwJ0CU5gwv491f3eFc-RVyijDySo44UqC6ekXxGe_MM8OkKrBnRQRsKRsRGorre3PiVfVD6XWkA4-bkTDSbEUN2gNg2qLNPt323ieSoxaWS9biQWXpZH1grXPFbEo5IupwrugWo4AKvRmxhsnyzosCHomafpNSj8lwiQ17RmPTnM_saw3AEAOPF7aVF1vXXXXyb5RI0uhYW2sfXO8nUfwlZvLVxgaPbb_8yDHkWRWATkWwxzlIJF6aQ"
+          src="/images/tripri-logo.png"
+          alt="Tripri Logo"
+          className="h-16 w-auto object-contain drop-shadow-md"
         />
       </div>
 

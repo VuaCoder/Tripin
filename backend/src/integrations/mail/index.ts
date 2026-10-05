@@ -1,7 +1,4 @@
-import path from 'node:path';
 import dotenv from 'dotenv';
-import nodemailer from 'nodemailer';
-import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
 import type { MailMessage, MailProvider } from './mail.provider';
 
@@ -12,70 +9,200 @@ export class ConsoleMailProvider implements MailProvider {
 
   async send(message: MailMessage): Promise<void> {
     const header = `[mail:console] to=${message.to} subject="${message.subject}"`;
-    logger.info(this.includeBody ? `${header}\n${message.text}` : `${header} (body not logged)`);
+
+    logger.info(
+      this.includeBody
+        ? `${header}\n${message.text}`
+        : `${header} (body not logged)`
+    );
   }
 }
 
 class DynamicMailProvider implements MailProvider {
   async send(message: MailMessage): Promise<void> {
-    // Dynamically re-read .env file from disk to ensure any changes are picked up immediately without server restart
-    dotenv.config({ path: [path.resolve(process.cwd(), '.env'), path.resolve(process.cwd(), '../.env')], override: true });
+    // Load .env for local development.
+    // On Render, environment variables come from Render Environment Variables.
+    dotenv.config({
+      path: [
+        `${process.cwd()}/.env`,
+        `${process.cwd()}/../.env`,
+      ],
+      override: false,
+    });
 
-    const host = process.env.SMTP_HOST || env.SMTP_HOST;
-    const port = Number(process.env.SMTP_PORT || env.SMTP_PORT || 587);
-    const user = process.env.SMTP_USER || env.SMTP_USER;
-    const rawPass = process.env.SMTP_PASSWORD || env.SMTP_PASSWORD || '';
-    const pass = rawPass.replace(/\s+/g, ''); // strip spaces from App Password (e.g. "abcd efgh ijkl mnop" -> "abcdefghijklmnop")
-    let from = process.env.MAIL_FROM || env.MAIL_FROM || 'Tripri <no-reply@tripri.local>';
+    const apiKey = process.env.BREVO_API_KEY?.trim();
 
-    // If Gmail account is used, ensure FROM header has the authenticated user address to avoid Gmail rejection
-    if (user && user.includes('@gmail.com') && from.includes('@tripri.local')) {
-      from = `Tripri <${user}>`;
-    }
+    const senderEmail =
+      process.env.BREVO_SENDER_EMAIL?.trim();
 
-    if (host && host.trim() !== '') {
-      const isGmail = host.toLowerCase().includes('gmail') || Boolean(user && user.toLowerCase().endsWith('@gmail.com'));
-      logger.info(`[mail:smtp] 📧 Đang gửi email thật tới [${message.to}] qua ${isGmail ? 'Gmail Service' : `server ${host}:${port}`}...`);
+    const senderName =
+      process.env.BREVO_SENDER_NAME?.trim() || 'TripRI';
 
-      const transporter = nodemailer.createTransport(
-        isGmail
-          ? {
-              service: 'gmail',
-              auth: { user, pass },
-            }
-          : {
-              host,
-              port,
-              secure: port === 465,
-              auth: user ? { user, pass } : undefined,
-            }
+    // ---------------------------------------------------------
+    // Validate Brevo configuration
+    // ---------------------------------------------------------
+
+    if (!apiKey) {
+      logger.error(
+        '[mail:brevo] ❌ BREVO_API_KEY chưa được cấu hình.'
       );
 
-      try {
-        const info = await transporter.sendMail({
-          from,
-          to: message.to,
-          subject: message.subject,
-          text: message.text,
-          html: message.html,
-        });
-        logger.info(`[mail:smtp] ✅ ĐÃ GỬI EMAIL THẬT THÀNH CÔNG tới [${message.to}]! MessageID: ${info.messageId}`);
-      } catch (err: any) {
-        logger.error(`[mail:smtp] ❌ Lỗi Gmail SMTP (${err.message}). Vui lòng kiểm tra lại 16 ký tự Google App Password trong .env.`);
-        if (env.NODE_ENV === 'development') {
-          logger.warn(`[mail:fallback] ⚠️ Do lỗi kết nối Gmail SMTP ở môi trường dev, OTP đã được in tạm ra console dưới đây:`);
-          const header = `[mail:console] to=${message.to} subject="${message.subject}"`;
-          logger.info(`${header}\n${message.text}`);
-        } else {
-          throw new Error(`Không thể gửi email qua Gmail: ${err.message}`);
-        }
+      if (process.env.NODE_ENV === 'development') {
+        const header =
+          `[mail:console] to=${message.to} subject="${message.subject}"`;
+
+        logger.warn(
+          '[mail:fallback] ⚠️ Development mode: OTP được in ra console.'
+        );
+
+        logger.info(`${header}\n${message.text}`);
+
+        return;
       }
-    } else {
-      const header = `[mail:console] to=${message.to} subject="${message.subject}"`;
-      logger.warn(`⚠️ SMTP_HOST chưa được điền trong file .env! Đã in OTP ra console server.`);
-      logger.info(`${header}\n${message.text}`);
+
+      throw new Error(
+        'BREVO_API_KEY chưa được cấu hình.'
+      );
+    }
+
+    if (!senderEmail) {
+      logger.error(
+        '[mail:brevo] ❌ BREVO_SENDER_EMAIL chưa được cấu hình.'
+      );
+
+      throw new Error(
+        'BREVO_SENDER_EMAIL chưa được cấu hình.'
+      );
+    }
+
+    // ---------------------------------------------------------
+    // Send email through Brevo REST API
+    // ---------------------------------------------------------
+
+    logger.info(
+      `[mail:brevo] 📧 Đang gửi email tới [${message.to}]...`
+    );
+
+    try {
+      const response = await fetch(
+        'https://api.brevo.com/v3/smtp/email',
+        {
+          method: 'POST',
+
+          headers: {
+            accept: 'application/json',
+            'api-key': apiKey,
+            'content-type': 'application/json',
+          },
+
+          body: JSON.stringify({
+            sender: {
+              name: senderName,
+              email: senderEmail,
+            },
+
+            to: [
+              {
+                email: message.to,
+              },
+            ],
+
+            subject: message.subject,
+
+            textContent: message.text,
+
+            htmlContent: message.html,
+          }),
+        }
+      );
+
+      // -------------------------------------------------------
+      // Read Brevo response
+      // -------------------------------------------------------
+
+      const responseText = await response.text();
+
+      let data: {
+        messageId?: string;
+        messageIds?: string[];
+        code?: string;
+        message?: string;
+      } = {};
+
+      try {
+        data = responseText
+          ? JSON.parse(responseText)
+          : {};
+      } catch {
+        // Brevo response is not JSON
+      }
+
+      // -------------------------------------------------------
+      // Handle Brevo error
+      // -------------------------------------------------------
+
+      if (!response.ok) {
+        const errorMessage =
+          data.message ||
+          data.code ||
+          responseText ||
+          `HTTP ${response.status}`;
+
+        logger.error(
+          `[mail:brevo] ❌ Brevo API error: ${errorMessage}`
+        );
+
+        throw new Error(
+          `Brevo API error (${response.status}): ${errorMessage}`
+        );
+      }
+
+      // -------------------------------------------------------
+      // Success
+      // -------------------------------------------------------
+
+      const messageId =
+        data.messageId ||
+        data.messageIds?.[0] ||
+        'unknown';
+
+      logger.info(
+        `[mail:brevo] ✅ Email gửi thành công tới [${message.to}]`
+      );
+
+      logger.info(
+        `[mail:brevo] MessageID: ${messageId}`
+      );
+    } catch (error: any) {
+      logger.error(
+        `[mail:brevo] ❌ Không thể gửi email tới [${message.to}]`
+      );
+
+      logger.error(
+        `[mail:brevo] Error: ${error?.message || error}`
+      );
+
+      // Development: allow OTP testing through console
+      if (process.env.NODE_ENV === 'development') {
+        const header =
+          `[mail:console] to=${message.to} subject="${message.subject}"`;
+
+        logger.warn(
+          '[mail:fallback] ⚠️ Development mode: OTP được in ra console.'
+        );
+
+        logger.info(
+          `${header}\n${message.text}`
+        );
+
+        return;
+      }
+
+      // Production: do NOT silently hide email failure
+      throw error;
     }
   }
 }
 
-export const mailProvider: MailProvider = new DynamicMailProvider();
+export const mailProvider: MailProvider =
+  new DynamicMailProvider();

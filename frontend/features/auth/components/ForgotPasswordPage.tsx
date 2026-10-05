@@ -41,7 +41,7 @@ export const ForgotPasswordPage: React.FC = () => {
   return (
     <div className="min-h-screen font-vietnam text-body-md text-slate-800 flex flex-col justify-center items-center selection:bg-brand-teal selection:text-white relative bg-desk-travel px-4 py-8">
       <AuthBackground />
-      <BackButton onClick={() => router.back()} />
+      <BackButton onClick={() => router.push('/login')} />
 
 
 
@@ -67,7 +67,15 @@ export const ForgotPasswordPage: React.FC = () => {
                   </p>
                 </div>
 
-                <form className="w-full space-y-4" onSubmit={handleSubmit}>
+                <form
+                  action="#"
+                  method="POST"
+                  className="w-full space-y-4"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }}
+                >
                   {errorMsg && (
                     <div className="p-3 bg-red-50 border border-red-200/80 rounded-xl text-xs text-red-700 font-medium flex items-center gap-2.5">
                       <span className="material-symbols-outlined text-base text-red-500 shrink-0">error</span>

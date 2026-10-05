@@ -9,7 +9,7 @@ export const AuthBackground: React.FC = () => {
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000"
         style={{
-          backgroundImage: `url("https://lh3.googleusercontent.com/aida/AEtjO1WcrIRXrdE-lHH85h7FbqapUvbrzTet33fzwUSADrjqChusphrq02qqiwBUOotreB94iy-OmC_cdJmK548oZ4l-541WAKqNUkZtIfuRj6ZvawaKEJ2Oq5H69OOsDnsnXzRSVmk553H7D2WAaGsMAQlD8FeKOD2msxCxQ-jclG5SLBhQBj-qnI-5KeyfN6vZB9iHdIvn76YignWlNn7-ogeUkKm1Vudzy3cugC5MWrXDwQGBdc-z4fEFtV2Z")`,
+          backgroundImage: `url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=80")`,
         }}
       />
       

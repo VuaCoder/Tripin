@@ -26,7 +26,16 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
   } = useRegisterForm({ onSuccess, onError });
 
   return (
-    <form className="w-full flex flex-col space-y-3.5 animate-fadeInScale" onSubmit={handleSubmit} data-purpose="register-form">
+    <form
+      action="#"
+      method="POST"
+      className="w-full flex flex-col space-y-3.5 animate-fadeInScale"
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSubmit(e);
+      }}
+      data-purpose="register-form"
+    >
       {/* General Error Alert - Inline Banner */}
       {errors.general && (
         <div className="p-3 bg-red-50 border border-red-200/80 rounded-xl text-xs text-red-700 font-medium flex items-center gap-2.5">
@@ -274,22 +283,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
       <div className="mt-3 flex flex-col items-center text-xs">
         <div className="text-slate-500 pt-1">
           Đã có tài khoản?{' '}
-          {onSwitchToLogin ? (
-            <button
-              type="button"
-              onClick={onSwitchToLogin}
-              className="text-brand-tealLight hover:text-brand-teal font-semibold transition-colors underline decoration-dotted"
-            >
-              Đăng nhập ngay
-            </button>
-          ) : (
-            <Link
-              href="/login"
-              className="text-brand-tealLight hover:text-brand-teal font-semibold transition-colors underline decoration-dotted"
-            >
-              Đăng nhập ngay
-            </Link>
-          )}
+          <Link
+            href="/login"
+            className="text-brand-tealLight hover:text-brand-teal font-semibold transition-colors underline decoration-dotted"
+          >
+            Đăng nhập ngay
+          </Link>
         </div>
       </div>
     </form>

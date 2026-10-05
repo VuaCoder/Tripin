@@ -38,7 +38,7 @@ export const LoginPage: React.FC = () => {
   };
 
   const handleRegisterSuccess = (data: RegisterResultData) => {
-    router.push(`/verify-otp?email=${encodeURIComponent(data.email)}&purpose=REGISTER`);
+    router.push(`/login?registered=true&email=${encodeURIComponent(data.email)}`);
   };
 
   return (
@@ -46,8 +46,8 @@ export const LoginPage: React.FC = () => {
       {/* Background visual layers */}
       <AuthBackground />
 
-      {/* Expandable Back Button */}
-      <BackButton />
+      {/* Expandable Back Button returning to homepage */}
+      <BackButton onClick={() => router.push('/')} />
 
       {/* Main Centered Auth Container */}
       <main className="w-full flex items-center justify-center relative z-10 my-auto">
