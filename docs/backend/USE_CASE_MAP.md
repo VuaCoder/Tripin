@@ -9,9 +9,12 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 ## Authentication (module `auth`)
 | Use case | Actor | Endpoint | Status |
 |---|---|---|---|
-| Register | Guest | `POST /auth/register` | done |
+| Register Traveler / Tour guide | Guest | `POST /auth/register` | done |
+| Register Agency + onboarding profile | Guest | `POST /auth/agency/register` | done |
+| Verify / resend Agency OTP | Agency | `POST /auth/agency/verify-otp`, `POST /auth/agency/resend-otp` | done |
 | Verify OTP | Guest/User | `POST /auth/verify-otp` (purposes REGISTER, LOGIN_2FA) | done |
-| Login (+ Validate credentials, + 2FA extend) | All | `POST /auth/login` | done |
+| Customer login (+ Validate credentials, + 2FA extend) | Traveler / Tour guide / Staff | `POST /auth/login` | done |
+| Agency login (+ 2FA extend) | Agency | `POST /auth/agency/login` | done |
 | Login with Google (+ Authenticate via OAuth) | Guest | `POST /auth/google` | done |
 | Forgot password (+ Verify OTP) | All | `POST /auth/forgot-password`, `POST /auth/reset-password` | done |
 | Log out | All | `POST /auth/logout`, `POST /auth/refresh` (session upkeep) | done |
@@ -47,6 +50,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 ## Agency
 | Use case | Module | Endpoint | Permission | Status |
 |---|---|---|---|---|
+| Register, onboard and sign in through dedicated portal | auth | `POST /auth/agency/register`, `/login`, `/verify-otp`, `/resend-otp` | GUEST | done |
 | Create / Edit / Delete tour | tours | `POST /agency/tours`, `PATCH /agency/tours/:id`, `DELETE /agency/tours/:id`, `GET /agency/tours`, `GET /agency/tours/:id` | tour:create/update-own/delete-own | done |
 | Upload tours | tours | `POST /agency/tours/import` (bulk JSON, see DECISIONS) | tour:import | done |
 | Set tour availability | tours | `PUT /agency/tours/:id/availability` | tour:set-availability | done |

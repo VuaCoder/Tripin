@@ -14,6 +14,18 @@ export interface RegisterInput {
   role: SelfRegistrationRole;
 }
 
+export interface AgencyRegisterInput {
+  email: string;
+  password: string;
+  fullName: string;
+  phone: string;
+  companyName: string;
+  licenseNumber: string;
+  address: string;
+  description?: string;
+  website?: string;
+}
+
 export interface LoginInput {
   email: string;
   password: string;
@@ -30,6 +42,10 @@ export interface Session {
 export type LoginResult =
   | { twoFactorRequired: true; email: string }
   | { twoFactorRequired: false; session: Session };
+
+export type AgencyOtpResult =
+  | { registrationComplete: true; email: string; agencyVerificationStatus: 'PENDING' }
+  | { registrationComplete: false; session: Session };
 
 export interface RequestContext {
   ip?: string;

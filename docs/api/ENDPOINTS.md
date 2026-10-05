@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 119 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 124 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -123,12 +123,17 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 
 | Method | Path | Access |
 |---|---|---|
+| POST | `/api/v1/auth/agency/login` | public |
+| POST | `/api/v1/auth/agency/register` | public |
+| POST | `/api/v1/auth/agency/resend-otp` | public |
+| POST | `/api/v1/auth/agency/verify-otp` | public |
 | POST | `/api/v1/auth/forgot-password` | public |
 | POST | `/api/v1/auth/google` | public |
 | POST | `/api/v1/auth/login` | public |
 | POST | `/api/v1/auth/logout` | public |
 | POST | `/api/v1/auth/refresh` | public |
 | POST | `/api/v1/auth/register` | public |
+| POST | `/api/v1/auth/resend-otp` | public |
 | POST | `/api/v1/auth/reset-password` | public |
 | PATCH | `/api/v1/auth/two-factor` | login |
 | POST | `/api/v1/auth/verify-otp` | public |
