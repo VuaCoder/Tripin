@@ -75,6 +75,9 @@ export class AuthService {
       if (existing.status !== USER_STATUS.PENDING_VERIFICATION) {
         throw AppError.conflict('This email is already registered', 'EMAIL_ALREADY_REGISTERED');
       }
+      if (existing.role !== input.role) {
+        throw AppError.conflict('This email is already registered with a different account type', 'EMAIL_ALREADY_REGISTERED');
+      }
       const updated = await users.updateById(existing.id, {
         passwordHash,
         fullName: input.fullName,
@@ -116,6 +119,9 @@ export class AuthService {
     if (existing) {
       if (existing.status !== USER_STATUS.PENDING_VERIFICATION) {
         throw AppError.conflict('This email is already registered', 'EMAIL_ALREADY_REGISTERED');
+      }
+      if (existing.role !== ROLES.AGENCY) {
+        throw AppError.conflict('This email is already registered with a different account type', 'EMAIL_ALREADY_REGISTERED');
       }
       const updated = await this.deps.users.updateById(existing.id, {
         passwordHash,
