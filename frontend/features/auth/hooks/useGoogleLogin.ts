@@ -1,7 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { authApi } from '../api/authApi';
+import { useLoginWithGoogleMutation } from '../api/authApi';
+import { useAppDispatch } from '@/store/hooks';
+import { setCredentials } from '../store/authSlice';
+import { getApiErrorMessage } from '../utils/apiError';
 import { LoginResultData } from '../types';
 import { GOOGLE_CLIENT_ID, GoogleCredentialResponse, loadGoogleIdentity } from '../utils/googleIdentity';
 
@@ -14,6 +17,8 @@ interface UseGoogleLoginProps {
 const CANCEL_GRACE_MS = 1500;
 
 export function useGoogleLogin({ onSuccess, onError }: UseGoogleLoginProps = {}) {
+  const dispatch = useAppDispatch();
+  const [loginWithGoogle] = useLoginWithGoogleMutation();
   const [isReady, setIsReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,19 +57,16 @@ export function useGoogleLogin({ onSuccess, onError }: UseGoogleLoginProps = {})
       setError(null);
       setNotice(null);
       try {
-        const result = await authApi.loginWithGoogle({ idToken: response.credential });
-        if (result.success && result.data) {
-          handlers.current.onSuccess?.(result.data);
-        } else {
-          fail(result.error?.message || 'Đăng nhập Google thất bại');
-        }
+        const session = await loginWithGoogle({ idToken: response.credential }).unwrap();
+        dispatch(setCredentials({ user: session.user, accessToken: session.accessToken }));
+        handlers.current.onSuccess?.({ twoFactorRequired: false, ...session });
       } catch (err) {
-        fail(err instanceof Error && err.message ? err.message : 'Đăng nhập Google thất bại');
+        fail(getApiErrorMessage(err, 'Đăng nhập Google thất bại'));
       } finally {
         setIsLoading(false);
       }
     },
-    [fail],
+    [dispatch, fail, loginWithGoogle],
   );
 
   // Load GIS and render its (invisible) button into the host element.

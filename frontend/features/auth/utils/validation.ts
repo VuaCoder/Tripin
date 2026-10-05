@@ -27,6 +27,9 @@ export const validateFullName = (fullName: string): ValidationResult => {
   if (fullName.trim().length < 2) {
     return { isValid: false, error: 'Họ và tên phải có ít nhất 2 ký tự.' };
   }
+  if (fullName.trim().length > 120) {
+    return { isValid: false, error: 'Họ và tên không được vượt quá 120 ký tự.' };
+  }
   return { isValid: true };
 };
 
@@ -37,6 +40,9 @@ export const validateEmail = (email: string): ValidationResult => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email.trim())) {
     return { isValid: false, error: 'Địa chỉ email không hợp lệ.' };
+  }
+  if (email.trim().length > 254) {
+    return { isValid: false, error: 'Địa chỉ email không được vượt quá 254 ký tự.' };
   }
   return { isValid: true };
 };
@@ -58,6 +64,9 @@ export const validatePassword = (password: string): ValidationResult => {
   }
   if (password.length < 8) {
     return { isValid: false, error: 'Mật khẩu phải có ít nhất 8 ký tự.' };
+  }
+  if (password.length > 72) {
+    return { isValid: false, error: 'Mật khẩu không được vượt quá 72 ký tự.' };
   }
   if (!/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
     return {

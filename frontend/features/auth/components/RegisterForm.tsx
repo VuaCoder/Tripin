@@ -3,15 +3,16 @@
 import React from 'react';
 import Link from 'next/link';
 import { useRegisterForm } from '../hooks/useRegisterForm';
-import { RegisterResultData } from '../types';
+import { RegisterableRole, RegisterResultData } from '../types';
 
 interface RegisterFormProps {
+  role?: RegisterableRole;
   onSuccess?: (data: RegisterResultData) => void;
   onError?: (errorMessage: string) => void;
   onSwitchToLogin?: () => void;
 }
 
-export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, onSwitchToLogin }) => {
+export const RegisterForm: React.FC<RegisterFormProps> = ({ role, onSuccess, onError, onSwitchToLogin }) => {
   const {
     formData,
     showPassword,
@@ -23,7 +24,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
     handleInputChange,
     handleSubmit,
     handleGoogleRegister,
-  } = useRegisterForm({ onSuccess, onError });
+  } = useRegisterForm({ role, onSuccess, onError });
 
   return (
     <form
@@ -38,7 +39,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
     >
       {/* General Error Alert - Inline Banner */}
       {errors.general && (
-        <div className="p-3 bg-red-50 border border-red-200/80 rounded-xl text-xs text-red-700 font-medium flex items-center gap-2.5">
+        <div
+          role="alert"
+          className="p-3 bg-red-50 border border-red-200/80 rounded-xl text-xs text-red-700 font-medium flex items-center gap-2.5"
+        >
           <span className="material-symbols-outlined text-base text-red-500 shrink-0">error</span>
           <span className="flex-1">{errors.general}</span>
         </div>
@@ -61,6 +65,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
             name="fullName"
             type="text"
             required
+            aria-invalid={Boolean(errors.fullName)}
+            aria-describedby={errors.fullName ? 'user-fullName-error' : undefined}
             value={formData.fullName}
             onChange={handleInputChange}
             placeholder="Nhập họ và tên"
@@ -72,7 +78,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
           />
         </div>
         {errors.fullName && (
-          <p className="mt-1 text-xs text-red-600 pl-1">{errors.fullName}</p>
+          <p id="user-fullName-error" className="mt-1 text-xs text-red-600 pl-1">
+            {errors.fullName}
+          </p>
         )}
       </div>
 
@@ -93,6 +101,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
             name="email"
             type="email"
             required
+            aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? 'user-email-error' : undefined}
             value={formData.email}
             onChange={handleInputChange}
             placeholder="Nhập địa chỉ email"
@@ -104,7 +114,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
           />
         </div>
         {errors.email && (
-          <p className="mt-1 text-xs text-red-600 pl-1">{errors.email}</p>
+          <p id="user-email-error" className="mt-1 text-xs text-red-600 pl-1">
+            {errors.email}
+          </p>
         )}
       </div>
 
@@ -124,6 +136,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
             name="phone"
             type="tel"
             required
+            aria-invalid={Boolean(errors.phone)}
+            aria-describedby={errors.phone ? 'user-phone-error' : undefined}
             value={formData.phone}
             onChange={handleInputChange}
             placeholder="Nhập số điện thoại"
@@ -135,7 +149,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
           />
         </div>
         {errors.phone && (
-          <p className="mt-1 text-xs text-red-600 pl-1">{errors.phone}</p>
+          <p id="user-phone-error" className="mt-1 text-xs text-red-600 pl-1">
+            {errors.phone}
+          </p>
         )}
       </div>
 
@@ -156,6 +172,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
             name="password"
             type={showPassword ? 'text' : 'password'}
             required
+            aria-invalid={Boolean(errors.password)}
+            aria-describedby={errors.password ? 'user-password-error' : undefined}
             value={formData.password}
             onChange={handleInputChange}
             onCopy={(e) => e.preventDefault()}
@@ -188,7 +206,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
           </button>
         </div>
         {errors.password && (
-          <p className="mt-1 text-xs text-red-600 pl-1">{errors.password}</p>
+          <p id="user-password-error" className="mt-1 text-xs text-red-600 pl-1">
+            {errors.password}
+          </p>
         )}
       </div>
 
@@ -209,6 +229,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
             name="confirmPassword"
             type={showConfirmPassword ? 'text' : 'password'}
             required
+            aria-invalid={Boolean(errors.confirmPassword)}
+            aria-describedby={errors.confirmPassword ? 'user-confirmPassword-error' : undefined}
             value={formData.confirmPassword}
             onChange={handleInputChange}
             onCopy={(e) => e.preventDefault()}
@@ -241,7 +263,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
           </button>
         </div>
         {errors.confirmPassword && (
-          <p className="mt-1 text-xs text-red-600 pl-1">{errors.confirmPassword}</p>
+          <p id="user-confirmPassword-error" className="mt-1 text-xs text-red-600 pl-1">
+            {errors.confirmPassword}
+          </p>
         )}
       </div>
 

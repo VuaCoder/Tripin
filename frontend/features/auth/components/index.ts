@@ -14,3 +14,5 @@ export * from './RegisterPage';
 export * from './VerifyOtpPage';
 export * from './ForgotPasswordPage';
 export * from './ResetPasswordPage';
+export * from './AuthBootstrap';
+export * from './RoleGuard';

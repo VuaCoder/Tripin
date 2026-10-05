@@ -4,6 +4,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthBackground } from './AuthBackground';
 import { BackButton } from './BackButton';
+import { useVerifyOtpMutation, useResendOtpMutation } from '../api/authApi';
+import { useAppDispatch } from '@/store/hooks';
+import { setCredentials } from '../store/authSlice';
+import { homeForRole } from '../utils/roles';
+import { getApiErrorMessage } from '../utils/apiError';
+import type { ResendOtpPurpose, VerifyOtpPurpose } from '../types';
 
 interface VerifyOtpPageProps {
   email?: string;
@@ -12,6 +18,9 @@ interface VerifyOtpPageProps {
 
 export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = 'REGISTER' }) => {
   const router = useRouter();
+  const dispatch = useAppDispatch();
+  const [verifyOtp] = useVerifyOtpMutation();
+  const [resendOtp] = useResendOtpMutation();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timeLeft, setTimeLeft] = useState(600); // 10 minutes OTP TTL
   const [resendCooldown, setResendCooldown] = useState(60); // 1 minute resend cooldown
@@ -95,43 +104,23 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
     setErrorMsg(null);
     
     try {
-      const result = await import('../api/authApi').then(m => m.authApi.verifyOtp({
+      const data = await verifyOtp({
         email: email || '',
         code: otpValue,
-        purpose: purpose
-      }));
-      
+        purpose: purpose as VerifyOtpPurpose,
+      }).unwrap();
+
+      dispatch(setCredentials(data));
       setIsSuccess(true);
       setTimeout(() => {
         if (purpose === 'FORGOT_PASSWORD') {
           router.push(`/reset-password?email=${encodeURIComponent(email || '')}&code=${encodeURIComponent(otpValue)}`);
         } else {
-          // Redirect to role-based dashboard after successful OTP verification
-          const role = result?.data?.user?.role || result?.user?.role;
-          switch (role) {
-            case 'AGENCY':
-              router.push('/agency');
-              break;
-            case 'TOUR_GUIDE':
-              router.push('/guide');
-              break;
-            case 'MODERATOR':
-              router.push('/moderator');
-              break;
-            case 'SUPER_ADMIN':
-              router.push('/super-admin');
-              break;
-            case 'TRAVELER':
-              router.push('/traveler');
-              break;
-            default:
-              router.push('/');
-              break;
-          }
+          router.push(homeForRole(data.user.role));
         }
       }, 1200);
-    } catch (err: any) {
-      const msg = err.message || '';
+    } catch (err) {
+      const msg = getApiErrorMessage(err, '');
       if (msg.toLowerCase().includes('expired') || msg.toLowerCase().includes('hết hạn')) {
         setErrorMsg('Mã xác thực đã hết hạn. Vui lòng bấm gửi lại mã mới.');
       } else if (msg.toLowerCase().includes('quá số lần') || msg.toLowerCase().includes('too many')) {
@@ -149,10 +138,7 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
     setErrorMsg(null);
     
     try {
-      await import('../api/authApi').then(m => m.authApi.resendOtp({
-        email: email || '',
-        purpose: purpose
-      }));
+      await resendOtp({ email: email || '', purpose: purpose as ResendOtpPurpose }).unwrap();
       setTimeLeft(600);
       setResendCooldown(60);
       setResendToast(true);
@@ -160,8 +146,8 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
       setIsSuccess(false);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Không thể gửi lại mã OTP. Vui lòng thử lại sau.');
+    } catch (err) {
+      setErrorMsg(getApiErrorMessage(err, 'Không thể gửi lại mã OTP. Vui lòng thử lại sau.'));
     } finally {
       setIsResending(false);
     }

@@ -30,6 +30,7 @@ coverage/
 
 # Playwright & Testing artifacts
 .playwright-mcp/
+.playwright-cli/
 playwright-report/
 blob-report/
 test-results/

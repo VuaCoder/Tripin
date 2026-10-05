@@ -5,9 +5,14 @@ import { useRouter } from 'next/navigation';
 import { AuthBackground } from './AuthBackground';
 import { BackButton } from './BackButton';
 import { AuthContainer } from './AuthContainer';
-import { LoginResultData, RegisterResultData } from '../types';
+import { LoginResultData, RegisterableRole, RegisterResultData } from '../types';
 
-export const RegisterPage: React.FC = () => {
+interface RegisterPageProps {
+  /** Which account type this register page creates. Defaults to `TRAVELER`. */
+  role?: RegisterableRole;
+}
+
+export const RegisterPage: React.FC<RegisterPageProps> = ({ role = 'TRAVELER' }) => {
   const router = useRouter();
 
   const handleLoginSuccess = (data: LoginResultData) => {
@@ -53,6 +58,7 @@ export const RegisterPage: React.FC = () => {
       <main className="w-full flex items-center justify-center relative z-10 my-auto">
         <AuthContainer
           initialMode="register"
+          registerRole={role}
           onLoginSuccess={handleLoginSuccess}
           onRegisterSuccess={handleRegisterSuccess}
         />
