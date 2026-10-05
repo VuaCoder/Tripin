@@ -85,6 +85,7 @@ export function useRegisterForm({ onSuccess, onError }: UseRegisterFormProps = {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     if (!validateForm()) return;
 
     setIsLoading(true);
@@ -103,7 +104,10 @@ export function useRegisterForm({ onSuccess, onError }: UseRegisterFormProps = {
         onSuccess?.(response.data);
       }
     } catch (err: any) {
-      const message = err.message || 'Đăng ký tài khoản không thành công. Vui lòng thử lại.';
+      let message = err.message || 'Đăng ký tài khoản không thành công. Vui lòng thử lại.';
+      if (message.includes('429') || message.toLowerCase().includes('too many requests')) {
+        message = 'Bạn đã thực hiện quá nhiều thao tác trong thời gian ngắn. Vui lòng đợi ít phút rồi thử lại.';
+      }
       setErrors((prev) => ({ ...prev, general: message }));
       onError?.(message);
     } finally {

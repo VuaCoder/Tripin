@@ -67,6 +67,7 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     if (!validateForm()) return;
 
     setIsLoading(true);
@@ -78,8 +79,10 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
         onSuccess?.(response.data);
       }
     } catch (err: any) {
-      const message = err.message || 'Đăng nhập không thành công. Vui lòng thử lại.';
-      if (
+      let message = err.message || 'Đăng nhập không thành công. Vui lòng thử lại.';
+      if (message.includes('429') || message.toLowerCase().includes('too many requests')) {
+        message = 'Bạn đã thực hiện quá nhiều thao tác trong thời gian ngắn. Vui lòng đợi ít phút rồi thử lại.';
+      } else if (
         message.toLowerCase().includes('verify') ||
         message.toLowerCase().includes('xác thực') ||
         message.toLowerCase().includes('xác nhận') ||
