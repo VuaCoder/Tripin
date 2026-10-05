@@ -37,6 +37,7 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `OTP_RESEND_TOO_SOON` | 429 | A code was sent a moment ago; wait for the cooldown |
 | `AGENCY_NOT_VERIFIED` | 403 | The agency profile is not VERIFIED yet (needed to submit tours) |
 | `LAST_SUPER_ADMIN` | 409 | The last active Super admin cannot be demoted |
+| `TWO_FACTOR_REQUIRES_PASSWORD` | 400 | The account is Google-only and must configure a password to enable 2FA |
 
 ## Tours and inventory (`tours`, `categories`, `promotions`)
 

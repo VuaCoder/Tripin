@@ -9,8 +9,14 @@ const phone = z.string().trim().regex(/^\+?[0-9 ().-]{6,20}$/, 'Invalid phone nu
 export const updateProfileBody = z
   .object({
     fullName: z.string().trim().min(2).max(120),
-    phone,
-    avatarUrl: z.url().max(500),
+    phone: phone.nullable(),
+    avatarUrl: z
+      .string()
+      .trim()
+      .url()
+      .max(500)
+      .refine((val) => val.startsWith('http://') || val.startsWith('https://'), 'URL must start with http:// or https://')
+      .nullable(),
     agencyProfile: z
       .object({
         companyName: z.string().trim().min(2).max(200),

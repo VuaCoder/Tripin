@@ -92,16 +92,19 @@ export const baseQueryWithReauth: BaseQueryFn<FetchArgs | string, unknown, Fetch
   let result = await rawBaseQuery(cleanArgs, api, extraOptions);
 
   if (result.error?.status === 401 && !hasRetried(args) && !isAuthExempt(cleanArgs)) {
-    const session = await refreshSession();
+    const errorCode = (result.error?.data as any)?.error?.code;
+    if (errorCode !== 'INVALID_CREDENTIALS') {
+      const session = await refreshSession();
 
-    if (session) {
-      api.dispatch(setCredentials(session));
-      result = await rawBaseQuery(markRetried(cleanArgs), api, extraOptions);
-    } else {
-      api.dispatch(clearCredentials());
-      api.dispatch(baseApi.util.resetApiState());
-      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      if (session) {
+        api.dispatch(setCredentials(session));
+        result = await rawBaseQuery(markRetried(cleanArgs), api, extraOptions);
+      } else {
+        api.dispatch(clearCredentials());
+        api.dispatch(baseApi.util.resetApiState());
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
     }
   }

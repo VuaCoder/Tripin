@@ -262,6 +262,18 @@ export class AuthService {
 
   // --------------------------------------------------------------------- 2FA
 
+  async getSecuritySettings(userId: string): Promise<{ passwordConfigured: boolean; googleLinked: boolean; twoFactorEnabled: boolean; twoFactorMethod: string }> {
+    const user = await this.deps.users.findByIdWithPassword(userId);
+    if (!user) throw AppError.notFound('User not found');
+
+    return {
+      passwordConfigured: !!user.passwordHash,
+      googleLinked: !!user.googleId,
+      twoFactorEnabled: user.twoFactorEnabled,
+      twoFactorMethod: 'EMAIL_OTP',
+    };
+  }
+
   /** Enables/disables email-OTP two-factor login. Password-based accounts must confirm their password. */
   async setTwoFactor(userId: string, input: { enabled: boolean; password?: string }): Promise<PrivateUserDto> {
     const user = await this.deps.users.findByIdWithPassword(userId);
@@ -270,6 +282,12 @@ export class AuthService {
     if (user.passwordHash) {
       const ok = input.password ? await bcrypt.compare(input.password, user.passwordHash) : false;
       if (!ok) throw AppError.unauthenticated('Password confirmation failed', ERROR_CODES.INVALID_CREDENTIALS);
+    } else if (input.enabled) {
+      throw AppError.badRequest(
+        'The account is Google-only and must configure a password to enable 2FA',
+        undefined,
+        ERROR_CODES.TWO_FACTOR_REQUIRES_PASSWORD
+      );
     }
     const updated = await this.deps.users.updateById(userId, { twoFactorEnabled: input.enabled });
     return toPrivateUserDto(updated ?? user);

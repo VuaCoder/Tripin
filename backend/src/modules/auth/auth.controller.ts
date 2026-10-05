@@ -81,6 +81,10 @@ export class AuthController {
     sendNoContent(res);
   };
 
+  getSecuritySettings: RequestHandler = async (req, res) => {
+    sendOk(res, await this.service.getSecuritySettings(userActor(req).userId));
+  };
+
   setTwoFactor: RequestHandler = async (req, res) => {
     const { body } = validated<TwoFactorBody>(req);
     sendOk(res, await this.service.setTwoFactor(userActor(req).userId, body));
