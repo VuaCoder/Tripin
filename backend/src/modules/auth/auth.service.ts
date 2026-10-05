@@ -19,7 +19,15 @@ import type { UserRecord } from '../users/users.repository';
 import { buildOtpMail } from './auth.mail';
 import { AUTH_POLICY } from './auth.policy';
 import { generateRefreshToken, hashRefreshToken, signAccessToken } from './auth.tokens';
-import type { LoginInput, LoginResult, RegisterInput, RequestContext, Session } from './auth.types';
+import type {
+  AgencyOtpResult,
+  AgencyRegisterInput,
+  LoginInput,
+  LoginResult,
+  RegisterInput,
+  RequestContext,
+  Session,
+} from './auth.types';
 import { OtpService, otpService } from './otp.service';
 import { refreshTokenRepository, type RefreshTokenRepository } from './refresh-token.repository';
 
@@ -52,8 +60,11 @@ export class AuthService {
 
   // ---------------------------------------------------------------- Register
 
-  /** Use case "Register" (Guest -> Traveler / Agency / Tour guide). Account stays PENDING until the email OTP is verified. */
+  /** Customer registration (Traveler / Tour guide). Agencies must use the dedicated onboarding endpoint. */
   async register(input: RegisterInput): Promise<{ email: string; otpExpiresInSeconds: number }> {
+    if (input.role === ROLES.AGENCY) {
+      throw AppError.forbidden('Please use the Agency registration portal', 'AGENCY_PORTAL_REQUIRED');
+    }
     const { users } = this.deps;
     const passwordHash = await bcrypt.hash(input.password, AUTH_POLICY.BCRYPT_ROUNDS);
     const existing = await users.findByEmail(input.email);
@@ -79,10 +90,50 @@ export class AuthService {
         phone: input.phone,
         role: input.role,
         status: USER_STATUS.PENDING_VERIFICATION,
-        ...(input.role === ROLES.AGENCY
-          ? { agencyProfile: { verificationStatus: AGENCY_VERIFICATION_STATUS.UNVERIFIED } }
-          : {}),
         ...(input.role === ROLES.TOUR_GUIDE ? { guideProfile: { languages: [], specialties: [] } } : {}),
+      });
+    }
+
+    const { expiresInSeconds } = await this.sendOtp(user, OTP_PURPOSE.REGISTER);
+    return { email: user.email, otpExpiresInSeconds: expiresInSeconds };
+  }
+
+  /** Dedicated Agency registration: account and business profile are captured in one onboarding submission. */
+  async registerAgency(input: AgencyRegisterInput): Promise<{ email: string; otpExpiresInSeconds: number }> {
+    const passwordHash = await bcrypt.hash(input.password, AUTH_POLICY.BCRYPT_ROUNDS);
+    const existing = await this.deps.users.findByEmail(input.email);
+    const agencyProfile = {
+      companyName: input.companyName,
+      licenseNumber: input.licenseNumber,
+      address: input.address,
+      description: input.description,
+      website: input.website,
+      verificationStatus: AGENCY_VERIFICATION_STATUS.UNVERIFIED,
+      verificationNote: null,
+    } as const;
+
+    let user: UserRecord;
+    if (existing) {
+      if (existing.status !== USER_STATUS.PENDING_VERIFICATION) {
+        throw AppError.conflict('This email is already registered', 'EMAIL_ALREADY_REGISTERED');
+      }
+      const updated = await this.deps.users.updateById(existing.id, {
+        passwordHash,
+        fullName: input.fullName,
+        phone: input.phone,
+        role: ROLES.AGENCY,
+        agencyProfile,
+      });
+      user = updated ?? existing;
+    } else {
+      user = await this.deps.users.create({
+        email: input.email,
+        passwordHash,
+        fullName: input.fullName,
+        phone: input.phone,
+        role: ROLES.AGENCY,
+        status: USER_STATUS.PENDING_VERIFICATION,
+        agencyProfile,
       });
     }
 
@@ -95,6 +146,27 @@ export class AuthService {
   /** Use case "Login" including "Validate credentials" and, when enabled, the Verify OTP extension (2FA). */
   async login(input: LoginInput, context: RequestContext = {}): Promise<LoginResult> {
     const user = await this.validateCredentials(input);
+    if (user.role === ROLES.AGENCY) {
+      throw AppError.forbidden('Please use the Agency login portal', 'AGENCY_PORTAL_REQUIRED');
+    }
+
+    return this.loginUser(user, context);
+  }
+
+  /** Agency-only credential login. Other roles receive the same generic credentials error. */
+  async loginAgency(input: LoginInput, context: RequestContext = {}): Promise<LoginResult> {
+    const user = await this.validateCredentials(input);
+    if (user.role !== ROLES.AGENCY) {
+      throw AppError.unauthenticated('Invalid email or password', ERROR_CODES.INVALID_CREDENTIALS);
+    }
+    if (user.status === USER_STATUS.PENDING_VERIFICATION && !this.hasCompleteAgencyProfile(user)) {
+      throw AppError.forbidden('Please complete Agency registration first', 'AGENCY_ONBOARDING_REQUIRED');
+    }
+
+    return this.loginUser(user, context);
+  }
+
+  private async loginUser(user: UserRecord, context: RequestContext): Promise<LoginResult> {
 
     if (user.status === USER_STATUS.BANNED) {
       throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
@@ -118,6 +190,9 @@ export class AuthService {
   ): Promise<Session> {
     const user = await this.deps.users.findByEmail(input.email);
     if (!user) throw AppError.badRequest('Invalid or expired code', undefined, ERROR_CODES.OTP_INVALID);
+    if (user.role === ROLES.AGENCY) {
+      throw AppError.forbidden('Please use the Agency verification portal', 'AGENCY_PORTAL_REQUIRED');
+    }
     if (user.status === USER_STATUS.BANNED) {
       throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
     }
@@ -131,12 +206,68 @@ export class AuthService {
     return this.createSession(active, context);
   }
 
+  /** Agency registration activates the account and submits its complete profile; 2FA still opens a session. */
+  async verifyAgencyOtp(
+    input: { email: string; code: string; purpose: typeof OTP_PURPOSE.REGISTER | typeof OTP_PURPOSE.LOGIN_2FA },
+    context: RequestContext = {},
+  ): Promise<AgencyOtpResult> {
+    const user = await this.deps.users.findByEmail(input.email);
+    if (!user || user.role !== ROLES.AGENCY) {
+      throw AppError.badRequest('Invalid or expired code', undefined, ERROR_CODES.OTP_INVALID);
+    }
+    if (user.status === USER_STATUS.BANNED) {
+      throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
+    }
+
+    if (input.purpose === OTP_PURPOSE.REGISTER) {
+      if (user.status !== USER_STATUS.PENDING_VERIFICATION) {
+        throw AppError.badRequest('Invalid or expired code', undefined, ERROR_CODES.OTP_INVALID);
+      }
+      if (!this.hasCompleteAgencyProfile(user)) {
+        throw AppError.forbidden('Please complete Agency registration first', 'AGENCY_ONBOARDING_REQUIRED');
+      }
+      await this.deps.otp.verify(user.id, input.purpose, input.code);
+      await this.activatePending(user, true);
+      return { registrationComplete: true, email: user.email, agencyVerificationStatus: AGENCY_VERIFICATION_STATUS.PENDING };
+    }
+
+    if (user.status !== USER_STATUS.ACTIVE) {
+      throw AppError.badRequest('Invalid or expired code', undefined, ERROR_CODES.OTP_INVALID);
+    }
+    await this.deps.otp.verify(user.id, input.purpose, input.code);
+    return { registrationComplete: false, session: await this.createSession(user, context) };
+  }
+
   /** Use case "Resend OTP": issues and mails a new verification code. */
   async resendOtp(input: { email: string; purpose: OtpPurpose }): Promise<{ expiresInSeconds: number }> {
     const user = await this.deps.users.findByEmail(input.email);
     if (!user) throw AppError.badRequest('Invalid or expired request');
+    if (user.role === ROLES.AGENCY) {
+      throw AppError.forbidden('Please use the Agency verification portal', 'AGENCY_PORTAL_REQUIRED');
+    }
     if (user.status === USER_STATUS.BANNED) {
       throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
+    }
+    return this.sendOtp(user, input.purpose);
+  }
+
+  async resendAgencyOtp(input: {
+    email: string;
+    purpose: typeof OTP_PURPOSE.REGISTER | typeof OTP_PURPOSE.LOGIN_2FA;
+  }): Promise<{ expiresInSeconds: number }> {
+    const user = await this.deps.users.findByEmail(input.email);
+    if (!user || user.role !== ROLES.AGENCY) throw AppError.badRequest('Invalid or expired request');
+    if (user.status === USER_STATUS.BANNED) {
+      throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
+    }
+    if (input.purpose === OTP_PURPOSE.REGISTER && user.status !== USER_STATUS.PENDING_VERIFICATION) {
+      throw AppError.badRequest('Invalid or expired request');
+    }
+    if (input.purpose === OTP_PURPOSE.REGISTER && !this.hasCompleteAgencyProfile(user)) {
+      throw AppError.forbidden('Please complete Agency registration first', 'AGENCY_ONBOARDING_REQUIRED');
+    }
+    if (input.purpose === OTP_PURPOSE.LOGIN_2FA && user.status !== USER_STATUS.ACTIVE) {
+      throw AppError.badRequest('Invalid or expired request');
     }
     return this.sendOtp(user, input.purpose);
   }
@@ -146,13 +277,22 @@ export class AuthService {
     input: { idToken: string; role?: RegisterInput['role'] },
     context: RequestContext = {},
   ): Promise<Session> {
+    if (input.role === ROLES.AGENCY) {
+      throw AppError.forbidden('Google sign-in is not available in the Agency portal', 'AGENCY_PORTAL_REQUIRED');
+    }
     const identity = await this.deps.google.verifyIdToken(input.idToken);
     if (!identity.emailVerified) throw AppError.unauthenticated('Google email is not verified');
 
     let user = await this.deps.users.findByGoogleId(identity.googleId);
+    if (user?.role === ROLES.AGENCY) {
+      throw AppError.forbidden('Google sign-in is not available in the Agency portal', 'AGENCY_PORTAL_REQUIRED');
+    }
     if (!user) {
       const sameEmail = await this.deps.users.findByEmail(identity.email);
       if (sameEmail) {
+        if (sameEmail.role === ROLES.AGENCY) {
+          throw AppError.forbidden('Google sign-in is not available in the Agency portal', 'AGENCY_PORTAL_REQUIRED');
+        }
         // Link Google to the existing account (the email is verified by Google).
         const wasUnverified = sameEmail.status === USER_STATUS.PENDING_VERIFICATION;
         const linked =
@@ -175,9 +315,6 @@ export class AuthService {
             role,
             status: USER_STATUS.ACTIVE,
             emailVerifiedAt: new Date(),
-            ...(role === ROLES.AGENCY
-              ? { agencyProfile: { verificationStatus: AGENCY_VERIFICATION_STATUS.UNVERIFIED } }
-              : {}),
             ...(role === ROLES.TOUR_GUIDE ? { guideProfile: { languages: [], specialties: [] } } : {}),
           });
         } catch (error) {
@@ -287,11 +424,19 @@ export class AuthService {
    * PENDING_VERIFICATION -> ACTIVE as a compare-and-set on the status we read. If a moderator banned the account in the
    * meantime the update does not apply and the ban wins (it must never be overwritten by a late activation).
    */
-  private async activatePending(user: UserRecord): Promise<UserRecord> {
+  private async activatePending(user: UserRecord, submitAgencyProfile = false): Promise<UserRecord> {
     assertTransition(USER_STATUS_TRANSITIONS, user.status as typeof USER_STATUS.PENDING_VERIFICATION, USER_STATUS.ACTIVE, 'Account');
     const updated = await this.deps.users.updateStatusIf(user.id, USER_STATUS.PENDING_VERIFICATION, {
       status: USER_STATUS.ACTIVE,
       emailVerifiedAt: new Date(),
+      ...(submitAgencyProfile
+        ? {
+            agencyProfile: {
+              verificationStatus: AGENCY_VERIFICATION_STATUS.PENDING,
+              verificationNote: null,
+            },
+          }
+        : {}),
     });
     if (updated) return updated;
     const current = await this.deps.users.findById(user.id);
@@ -329,6 +474,11 @@ export class AuthService {
       refreshTokenExpiresAt: refresh.expiresAt,
       user: toPrivateUserDto(user),
     };
+  }
+
+  private hasCompleteAgencyProfile(user: UserRecord): boolean {
+    const profile = user.agencyProfile;
+    return Boolean(profile?.companyName?.trim() && profile.licenseNumber?.trim() && profile.address?.trim() && user.phone?.trim());
   }
 
   private async sendOtp(user: UserRecord, purpose: OtpPurpose): Promise<{ expiresInSeconds: number }> {

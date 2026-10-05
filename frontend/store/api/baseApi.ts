@@ -67,6 +67,10 @@ const rawBaseQuery = fetchBaseQuery({
 });
 
 const AUTH_EXEMPT_PATHS = [
+  '/auth/agency/login',
+  '/auth/agency/register',
+  '/auth/agency/verify-otp',
+  '/auth/agency/resend-otp',
   '/auth/login',
   '/auth/register',
   '/auth/verify-otp',
@@ -100,8 +104,9 @@ export const baseQueryWithReauth: BaseQueryFn<FetchArgs | string, unknown, Fetch
     } else {
       api.dispatch(clearCredentials());
       api.dispatch(baseApi.util.resetApiState());
-      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      if (typeof window !== 'undefined') {
+        const loginPath = window.location.pathname.startsWith('/agency') ? '/agency/login' : '/login';
+        if (window.location.pathname !== loginPath) window.location.href = loginPath;
       }
     }
   }
