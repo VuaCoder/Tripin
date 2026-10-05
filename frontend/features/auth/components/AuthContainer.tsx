@@ -102,6 +102,7 @@ export const AuthContainer: React.FC<AuthContainerProps> = ({
             <RegisterForm
               role={registerRole}
               onSuccess={onRegisterSuccess}
+              onGoogleSuccess={onLoginSuccess}
               onError={onError}
             />
           )}
