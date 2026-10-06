@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import type { NavigationItem } from './navigation-config';
 import { cn } from '../ui/cn';
 
-export function Navigation({ items, onNavigate }: { items: NavigationItem[]; onNavigate?: () => void }) {
+export function Navigation({ items, onNavigate, isTransparent }: { items: NavigationItem[]; onNavigate?: () => void; isTransparent?: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -20,8 +20,9 @@ export function Navigation({ items, onNavigate }: { items: NavigationItem[]; onN
               <button
                 type="button"
                 className={cn(
-                  'font-medium text-sm text-on-surface hover:text-primary transition-colors py-2 px-3 rounded-xl flex items-center gap-1 group-hover:bg-surface-container',
-                  active && 'text-primary bg-surface-container/60 font-semibold',
+                  'font-medium text-sm transition-colors py-2 px-3 rounded-xl flex items-center gap-1 group-hover:bg-surface-container/20',
+                  isTransparent ? 'text-white/90 hover:text-white' : 'text-on-surface hover:text-primary',
+                  active && (isTransparent ? 'text-white bg-white/10 font-semibold' : 'text-primary bg-surface-container/60 font-semibold'),
                 )}
               >
                 <span>{item.label}</span>
@@ -82,9 +83,10 @@ export function Navigation({ items, onNavigate }: { items: NavigationItem[]; onN
             className={cn(
               'inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container',
-              active
-                ? 'bg-surface-container text-primary font-semibold'
+              isTransparent
+                ? 'text-white/90 hover:bg-white/10 hover:text-white'
                 : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface',
+              active && (isTransparent ? 'bg-white/20 text-white font-semibold' : 'bg-surface-container text-primary font-semibold'),
             )}
           >
             {item.icon && (
