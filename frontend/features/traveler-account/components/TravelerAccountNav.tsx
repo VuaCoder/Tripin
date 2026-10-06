@@ -3,36 +3,32 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const navItems = [
-  { name: 'Hồ sơ cá nhân', href: '/traveler/profile', icon: (
-    <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-    </svg>
-  )},
-  { name: 'Bảo mật & Đăng nhập', href: '/traveler/settings/security', icon: (
-    <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-    </svg>
-  )},
+  { name: 'Hồ sơ cá nhân', href: '/traveler/profile', icon: 'person' },
+  { name: 'Bảo mật & 2FA', href: '/traveler/settings/security', icon: 'shield_lock' },
 ];
 
 export function TravelerAccountNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-row md:flex-col overflow-x-auto whitespace-nowrap gap-2 pb-2 md:pb-0 hide-scrollbar">
+    <nav
+      aria-label="Cài đặt tài khoản"
+      className="flex gap-2 overflow-x-auto rounded-2xl border border-surface-container bg-white p-2 shadow-sm lg:flex-col lg:overflow-visible"
+    >
       {navItems.map((item) => {
         const isActive = pathname === item.href;
         return (
           <Link
             key={item.name}
             href={item.href}
-            className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+            aria-current={isActive ? 'page' : undefined}
+            className={`flex shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container ${
               isActive
-                ? 'bg-brand-primary text-white'
-                : 'text-brand-ink hover:bg-surface-container'
+                ? 'bg-primary-container text-on-primary shadow-sm shadow-primary-container/20'
+                : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'
             }`}
           >
-            {item.icon}
+            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">{item.icon}</span>
             {item.name}
           </Link>
         );

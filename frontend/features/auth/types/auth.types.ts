@@ -52,7 +52,7 @@ export interface RegisterFormValues {
   phone: string;
   password: string;
   confirmPassword: string;
-  role?: 'TRAVELER' | 'AGENCY' | 'TOUR_GUIDE';
+  role?: 'TRAVELER' | 'TOUR_GUIDE';
 }
 
 export interface RegisterRequest {
@@ -60,7 +60,7 @@ export interface RegisterRequest {
   email: string;
   phone: string;
   password: string;
-  role?: 'TRAVELER' | 'AGENCY' | 'TOUR_GUIDE';
+  role?: RegisterableRole;
 }
 
 export interface LoginRequest {
@@ -129,7 +129,7 @@ export interface AuthApiResponse<T> {
 
 export interface GoogleAuthPayload {
   idToken: string;
-  role?: 'TRAVELER' | 'AGENCY' | 'TOUR_GUIDE';
+  role?: 'TRAVELER' | 'TOUR_GUIDE';
 }
 
 export type AuthStatus = 'idle' | 'authenticated' | 'unauthenticated';

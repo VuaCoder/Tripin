@@ -1,16 +1,18 @@
 # auth
 
 Account access for every actor: registration with email OTP, password login (with optional 2FA), Google login, forgot /
-reset password, session refresh and logout. Implements the **Authentication** page of the use-case diagram.
-Actors: Guest (register/login), Traveler, Agency, Tour guide (register + login), Moderator and Super admin (login +
-forgot password only — they cannot self-register, see DECISIONS D-4). External actors: Email OTP, Google OAuth System.
+reset password, session refresh and logout. Agency registration/login uses a dedicated API contract so the complete
+business profile is captured before activation. Agency Google sign-up is intentionally unavailable.
 
 ## Use cases covered
 | Use case | Actor | Endpoint |
 |---|---|---|
-| Register | Guest | `POST /auth/register` |
+| Register Traveler / Tour guide | Guest | `POST /auth/register` |
+| Register Agency + business onboarding | Guest | `POST /auth/agency/register` |
+| Verify / resend Agency OTP | Agency | `POST /auth/agency/verify-otp`, `POST /auth/agency/resend-otp` |
 | Verify OTP | Guest / User | `POST /auth/verify-otp` |
-| Login (includes Validate credentials; extended by Verify OTP when 2FA is on) | All | `POST /auth/login` |
+| Customer login (includes Validate credentials; extended by Verify OTP when 2FA is on) | Traveler / Tour guide / Staff | `POST /auth/login` |
+| Agency login | Agency | `POST /auth/agency/login` |
 | Login with Google (includes Authenticate via OAuth) | Guest | `POST /auth/google` |
 | Forgot password (includes Verify OTP) | All | `POST /auth/forgot-password` -> `POST /auth/reset-password` |
 | Log out | All | `POST /auth/logout` |
@@ -37,11 +39,15 @@ forgot password only — they cannot self-register, see DECISIONS D-4). External
 
 ## API (base `/api/v1/auth`)
 All bodies are JSON. Success envelope `{ success: true, data }`. All endpoints except `/refresh`, `/logout` and
-`/two-factor` are rate limited (20 req / 15 min / IP).
+the read-only `/security` endpoint are rate limited (20 req / 15 min / IP).
 
 | Endpoint | Body | Success | Errors |
 |---|---|---|---|
-| `POST /register` | `email, password, fullName, role?` (TRAVELER default; TRAVELER/AGENCY/TOUR_GUIDE only) | 201 `{ email, otpExpiresInSeconds, message }` | 400 validation, 409 `EMAIL_ALREADY_REGISTERED`, 429 `OTP_RESEND_TOO_SOON` |
+| `POST /register` | `email, password, fullName, role?` (TRAVELER default; TRAVELER/TOUR_GUIDE only) | 201 `{ email, otpExpiresInSeconds, message }` | 400 validation, 409 `EMAIL_ALREADY_REGISTERED`, 429 `OTP_RESEND_TOO_SOON` |
+| `POST /agency/register` | `email, password, fullName, phone, companyName, licenseNumber, address, description?, website?` | 201 `{ email, otpExpiresInSeconds, message }` | 400 validation, 409 `EMAIL_ALREADY_REGISTERED` |
+| `POST /agency/login` | `email, password` | same shape as `/login`; Agency role only | 401 `INVALID_CREDENTIALS`, 403 `ACCOUNT_*` / `AGENCY_ONBOARDING_REQUIRED` |
+| `POST /agency/verify-otp` | `email, code, purpose` (`REGISTER` \| `LOGIN_2FA`) | REGISTER completes registration without a session; 2FA returns a session | `OTP_*`, `AGENCY_ONBOARDING_REQUIRED` |
+| `POST /agency/resend-otp` | `email, purpose` | 200 `{ expiresInSeconds, message }` | 400 invalid state, 429 cooldown |
 | `POST /verify-otp` | `email, code, purpose` (`REGISTER` \| `LOGIN_2FA`) | 200 `{ accessToken, user }` + refresh cookie | 400 `OTP_INVALID`/`OTP_EXPIRED`, 429 `OTP_TOO_MANY_ATTEMPTS`, 403 `ACCOUNT_BANNED` |
 | `POST /login` | `email, password` | 200 `{ twoFactorRequired:false, accessToken, user }` + cookie, or `{ twoFactorRequired:true, email }` (then call `/verify-otp` with `LOGIN_2FA`) | 401 `INVALID_CREDENTIALS`, 403 `ACCOUNT_BANNED` / `ACCOUNT_NOT_VERIFIED` |
 | `POST /google` | `idToken, role?` | 200 `{ accessToken, user }` + cookie | 401, 503 when `GOOGLE_CLIENT_ID` is missing |
@@ -49,7 +55,8 @@ All bodies are JSON. Success envelope `{ success: true, data }`. All endpoints e
 | `POST /reset-password` | `email, code, newPassword` | 204; all sessions revoked | 400 `OTP_*` |
 | `POST /refresh` | cookie `refresh_token` | 200 `{ accessToken, user }` + rotated cookie | 401 `TOKEN_INVALID` |
 | `POST /logout` | cookie | 204, cookie cleared (idempotent) | — |
-| `PATCH /two-factor` | `enabled, password` | 200 `user` | 401 |
+| `GET /security` | — | 200 `{ passwordConfigured, googleLinked, twoFactorEnabled, twoFactorMethod }` | 401 |
+| `PATCH /two-factor` | `enabled, password?` | 200 `user` | 400 `TWO_FACTOR_REQUIRES_PASSWORD`, 401 `INVALID_CREDENTIALS` |
 
 Access token: `Authorization: Bearer <jwt>` (15 min). The refresh token is **never** in a response body.
 
@@ -64,7 +71,9 @@ Access token: `Authorization: Bearer <jwt>` (15 min). The refresh token is **nev
 6. Forgot password never reveals whether the email exists; resetting revokes every refresh token.
 7. Refresh tokens rotate on each use. Using an already-rotated token revokes the whole family (theft signal).
 8. Activation (`PENDING_VERIFICATION -> ACTIVE`, via REGISTER OTP or a verified Google email) is a compare-and-set on the status that was read, validated with `USER_STATUS_TRANSITIONS`: if a moderator banned the account meanwhile, the ban wins. Resetting a password never activates an account.
-9. A role is never accepted from a login/refresh request; only TRAVELER/AGENCY/TOUR_GUIDE can be chosen at sign-up.
+9. A role is never accepted from a login/refresh request. Generic sign-up allows TRAVELER/TOUR_GUIDE only; Agency is forced by the dedicated endpoint.
+10. Agency onboarding requires phone, company name, license number and address. Phone is stored but is not verified. REGISTER OTP atomically activates the user and changes the agency profile from UNVERIFIED to PENDING, then the UI returns to Agency login without opening a session.
+11. Agency accounts cannot use customer login/OTP/Google routes; non-Agency accounts receive generic invalid credentials from the Agency login route.
 
 ## State machine
 User status: `PENDING_VERIFICATION -> ACTIVE` (OTP) ; `ACTIVE <-> BANNED` (owned by the moderation/users modules).
@@ -77,7 +86,7 @@ This module only performs `PENDING_VERIFICATION -> ACTIVE`.
 * Users live in the `users` module.
 
 ## Permissions
-No RBAC here: every route is public except `PATCH /two-factor` (`requireAuth`). The `authenticate` middleware
+No RBAC here: every route is public except `GET /security` and `PATCH /two-factor` (`requireAuth`). The `authenticate` middleware
 (`middlewares/authenticate.ts`) uses `verifyAccessToken` from this module for all other modules.
 
 ## Dependencies

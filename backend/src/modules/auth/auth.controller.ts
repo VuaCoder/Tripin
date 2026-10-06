@@ -6,6 +6,9 @@ import { clearRefreshCookie, setRefreshCookie, toSessionResponse } from './auth.
 import { AUTH_POLICY } from './auth.policy';
 import { authService, type AuthService } from './auth.service';
 import type {
+  AgencyRegisterBody,
+  AgencyResendOtpBody,
+  AgencyVerifyOtpBody,
   ForgotPasswordBody,
   GoogleLoginBody,
   LoginBody,
@@ -28,9 +31,25 @@ export class AuthController {
     sendCreated(res, { ...result, message: 'Verification code sent to your email' });
   };
 
+  registerAgency: RequestHandler = async (req, res) => {
+    const { body } = validated<AgencyRegisterBody>(req);
+    const result = await this.service.registerAgency(body);
+    sendCreated(res, { ...result, message: 'Agency verification code sent to your email' });
+  };
+
   login: RequestHandler = async (req, res) => {
     const { body } = validated<LoginBody>(req);
     const result = await this.service.login(body, contextOf(req));
+    if (result.twoFactorRequired) {
+      return void sendOk(res, { twoFactorRequired: true, email: result.email });
+    }
+    setRefreshCookie(res, result.session);
+    sendOk(res, { twoFactorRequired: false, ...toSessionResponse(result.session) });
+  };
+
+  loginAgency: RequestHandler = async (req, res) => {
+    const { body } = validated<LoginBody>(req);
+    const result = await this.service.loginAgency(body, contextOf(req));
     if (result.twoFactorRequired) {
       return void sendOk(res, { twoFactorRequired: true, email: result.email });
     }
@@ -45,10 +64,26 @@ export class AuthController {
     sendOk(res, toSessionResponse(session));
   };
 
+  verifyAgencyOtp: RequestHandler = async (req, res) => {
+    const { body } = validated<AgencyVerifyOtpBody>(req);
+    const result = await this.service.verifyAgencyOtp(body, contextOf(req));
+    if (result.registrationComplete) {
+      return void sendOk(res, result);
+    }
+    setRefreshCookie(res, result.session);
+    sendOk(res, { registrationComplete: false, ...toSessionResponse(result.session) });
+  };
+
   resendOtp: RequestHandler = async (req, res) => {
     const { body } = validated<ResendOtpBody>(req);
     const result = await this.service.resendOtp(body);
     sendOk(res, { ...result, message: 'Verification code resent successfully' });
+  };
+
+  resendAgencyOtp: RequestHandler = async (req, res) => {
+    const { body } = validated<AgencyResendOtpBody>(req);
+    const result = await this.service.resendAgencyOtp(body);
+    sendOk(res, { ...result, message: 'Agency verification code resent successfully' });
   };
 
   loginWithGoogle: RequestHandler = async (req, res) => {

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 70" width="260" height="70" fill="none">
+  <!-- Stylized map pin + curved path arrow matching tripri logo in IMAGE_2 -->
+  <g transform="translate(6, 6)">
+    <!-- Teal loop/body -->
+    <path d="M 18 48 C 10 48 4 42 4 34 C 4 26 12 20 20 20 C 30 20 38 12 38 2 C 38 1 38 0 38 0" stroke="#0B5963" stroke-width="7" stroke-linecap="round" fill="none"/>
+    <!-- Yellow-Orange arrow loop flowing into pin -->
+    <path d="M 18 36 C 22 28 30 14 38 8 C 44 2 52 14 44 26 C 36 38 48 48 60 36 L 68 28" stroke="#F59E0B" stroke-width="6" stroke-linecap="round" fill="none"/>
+    <path d="M 60 26 L 70 26 L 68 36" fill="#F59E0B" stroke="#F59E0B" stroke-width="2" stroke-linejoin="round"/>
+    <!-- Loop pin shape combining teal and warm orange -->
+    <path d="M 28 8 C 22 8 16 14 16 22 C 16 32 28 46 28 46 C 28 46 40 32 40 22 C 40 14 34 8 28 8 Z" fill="#087E8B"/>
+    <circle cx="28" cy="20" r="5" fill="#FFFFFF"/>
+    <!-- Arrow swoosh -->
+    <path d="M 32 30 C 40 26 48 20 56 12 M 56 12 L 46 12 M 56 12 L 56 22" stroke="#F59E0B" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <!-- Wordmark tripri -->
+  <text x="82" y="44" font-family="'Plus Jakarta Sans', 'Be Vietnam Pro', sans-serif" font-weight="800" font-size="34" fill="#0B5963" letter-spacing="-0.5">trip<tspan fill="#087E8B">ri</tspan></text>
+  <circle cx="166" cy="22" r="3.5" fill="#F59E0B"/>
+  <!-- Tagline Du lịch theo cách của bạn -->
+  <text x="83" y="60" font-family="'Plus Jakarta Sans', 'Be Vietnam Pro', sans-serif" font-weight="500" font-size="9.5" fill="#4B636E" letter-spacing="0.2">Du lịch theo cách của bạn</text>
+</svg>

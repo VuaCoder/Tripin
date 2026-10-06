@@ -1,4 +1,5 @@
 'use client';
+import { Badge, Button } from '@/components/ui';
 import type { SecuritySettings } from '../types';
 
 interface TwoFactorCardProps {
@@ -10,41 +11,46 @@ export function TwoFactorCard({ settings, onToggle }: TwoFactorCardProps) {
   const isGoogleOnly = !settings.passwordConfigured && settings.googleLinked;
 
   return (
-    <div className="p-6 rounded-lg border border-brand-border bg-surface-bright space-y-4">
-      <div className="flex items-start justify-between">
-        <div>
-          <h3 className="text-lg font-bold text-brand-ink">Xác thực hai lớp (2FA)</h3>
-          <p className="text-sm text-brand-slate mt-1">
+    <div className="overflow-hidden rounded-2xl border border-surface-container bg-white">
+      <div className="flex flex-col gap-5 bg-gradient-to-br from-surface-container-low/80 to-white p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
+        <div className="flex gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-container text-on-primary shadow-sm shadow-primary-container/20">
+            <span className="material-symbols-outlined text-2xl" aria-hidden="true">shield_lock</span>
+          </div>
+          <div>
+            <h3 className="text-lg font-extrabold text-on-surface">Xác thực hai lớp</h3>
+            <p className="mt-1 max-w-xl text-sm leading-6 text-on-surface-variant">
             Bảo vệ tài khoản bằng mã OTP gửi qua email mỗi khi đăng nhập bằng mật khẩu.
-          </p>
+            </p>
+          </div>
         </div>
-        <div className={`px-3 py-1 text-xs font-bold rounded-full ${settings.twoFactorEnabled ? 'bg-[#EAFCFF] text-[#00636E]' : 'bg-surface-dim text-brand-slate'}`}>
-          {settings.twoFactorEnabled ? 'ĐANG BẬT' : 'ĐANG TẮT'}
-        </div>
+        <Badge variant={settings.twoFactorEnabled ? 'success' : 'default'} className="self-start">
+          {settings.twoFactorEnabled ? 'Đang bật' : 'Đang tắt'}
+        </Badge>
       </div>
 
-      <div className="pt-4 border-t border-brand-border">
+      <div className="border-t border-surface-container p-5 sm:p-6">
         {isGoogleOnly ? (
-          <div className="p-4 bg-surface-containerLow rounded-md text-sm text-brand-slate">
-            Tài khoản của bạn được liên kết thông qua Google và chưa cài đặt mật khẩu. Đăng nhập Google đã được bảo mật bởi Google, bạn không cần bật 2FA cho phương thức này.
+          <div className="flex gap-3 rounded-xl border border-primary-container/15 bg-primary-fixed/45 p-4 text-sm leading-6 text-on-primary-fixed">
+            <span className="material-symbols-outlined mt-0.5 text-[20px] text-primary" aria-hidden="true">info</span>
+            <p>
+              Tài khoản này chỉ đăng nhập bằng Google và chưa có mật khẩu. Google đã bảo vệ phiên đăng nhập, nên email OTP 2FA không áp dụng cho phương thức này.
+            </p>
           </div>
         ) : (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-sm text-brand-slate">
-              {settings.twoFactorEnabled 
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm leading-6 text-on-surface-variant">
+              {settings.twoFactorEnabled
                 ? 'Mã xác thực sẽ được gửi tới email của bạn mỗi khi đăng nhập.'
                 : 'Bật tính năng này để tăng cường bảo mật cho tài khoản.'}
             </div>
-            <button
+            <Button
               onClick={() => onToggle(!settings.twoFactorEnabled)}
-              className={`shrink-0 px-6 py-2 text-sm font-semibold rounded-md transition-colors ${
-                settings.twoFactorEnabled
-                  ? 'border-2 border-brand-border text-brand-slate hover:bg-surface-container'
-                  : 'bg-brand-primary text-white hover:bg-brand-primaryDark'
-              }`}
+              variant={settings.twoFactorEnabled ? 'outline' : 'primary'}
+              className="shrink-0"
             >
               {settings.twoFactorEnabled ? 'Tắt 2FA' : 'Bật xác thực hai lớp'}
-            </button>
+            </Button>
           </div>
         )}
       </div>

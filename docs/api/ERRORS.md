@@ -31,6 +31,8 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `ACCOUNT_BANNED` | 403 | The account was banned by a moderator |
 | `ACCOUNT_NOT_VERIFIED` | 403 | The email has not been verified yet (a new code is sent) |
 | `EMAIL_ALREADY_REGISTERED` | 409 | The email belongs to an active account |
+| `AGENCY_PORTAL_REQUIRED` | 403 | Agency accounts must use the dedicated Agency authentication portal |
+| `AGENCY_ONBOARDING_REQUIRED` | 403 | Agency account is missing the required onboarding profile |
 | `OTP_INVALID` | 400 | Wrong, used, or unknown one-time code |
 | `OTP_EXPIRED` | 400 | The one-time code is older than its lifetime |
 | `OTP_TOO_MANY_ATTEMPTS` | 429 | Too many wrong guesses for this code; request a new one |

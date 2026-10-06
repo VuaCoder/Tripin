@@ -69,8 +69,8 @@ export interface PublicAgencyDto {
 
 export interface UpdateProfileInput {
   fullName?: string;
-  phone?: string;
-  avatarUrl?: string;
+  phone?: string | null;
+  avatarUrl?: string | null;
   agencyProfile?: {
     companyName?: string;
     description?: string;

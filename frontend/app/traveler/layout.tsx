@@ -2,12 +2,12 @@
 
 import type { ReactNode } from 'react';
 import { RoleGuard } from '@/features/auth';
-import { TravelerAccountShell } from '@/features/traveler-account/components';
+import { AppShell } from '@/components/layout';
 
 export default function TravelerLayout({ children }: { children: ReactNode }) {
   return (
     <RoleGuard allowedRoles={['TRAVELER']}>
-      <TravelerAccountShell>{children}</TravelerAccountShell>
+      <AppShell role="TRAVELER">{children}</AppShell>
     </RoleGuard>
   );
 }

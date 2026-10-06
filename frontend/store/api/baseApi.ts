@@ -67,6 +67,10 @@ const rawBaseQuery = fetchBaseQuery({
 });
 
 const AUTH_EXEMPT_PATHS = [
+  '/auth/agency/login',
+  '/auth/agency/register',
+  '/auth/agency/verify-otp',
+  '/auth/agency/resend-otp',
   '/auth/login',
   '/auth/register',
   '/auth/verify-otp',
@@ -92,8 +96,10 @@ export const baseQueryWithReauth: BaseQueryFn<FetchArgs | string, unknown, Fetch
   let result = await rawBaseQuery(cleanArgs, api, extraOptions);
 
   if (result.error?.status === 401 && !hasRetried(args) && !isAuthExempt(cleanArgs)) {
-    const errorCode = (result.error?.data as any)?.error?.code;
-    if (errorCode !== 'INVALID_CREDENTIALS') {
+    const errorCode = (result.error.data as { error?: { code?: string } } | undefined)?.error?.code;
+    const sessionExpired = errorCode === 'TOKEN_INVALID' || errorCode === 'UNAUTHENTICATED';
+
+    if (sessionExpired) {
       const session = await refreshSession();
 
       if (session) {
@@ -102,8 +108,9 @@ export const baseQueryWithReauth: BaseQueryFn<FetchArgs | string, unknown, Fetch
       } else {
         api.dispatch(clearCredentials());
         api.dispatch(baseApi.util.resetApiState());
-        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-          window.location.href = '/login';
+        if (typeof window !== 'undefined') {
+          const loginPath = window.location.pathname.startsWith('/agency') ? '/agency/login' : '/login';
+          if (window.location.pathname !== loginPath) window.location.href = loginPath;
         }
       }
     }
