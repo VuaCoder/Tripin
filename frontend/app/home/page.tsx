@@ -242,13 +242,36 @@ export default function Home() {
   const [searchTab, setSearchTab] = useState<SearchTab>('tour');
   const [categoryTab, setCategoryTab] = useState<SearchTab>('tour');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchSticky, setIsSearchSticky] = useState(false);
+
+  // Search Dropdown States
+  const [activeDropdown, setActiveDropdown] = useState<'location' | 'date' | 'guests' | null>(null);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [adults, setAdults] = useState(0);
+  const [children, setChildren] = useState(0);
+  const [infants, setInfants] = useState(0);
+  const [pets, setPets] = useState(0);
 
   // Auto-play Hero Carousel every 6 seconds
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length);
     }, 6000);
-    return () => clearInterval(timer);
+    
+    const handleScroll = () => {
+      const searchConsole = document.getElementById('search-console');
+      if (searchConsole) {
+        setIsSearchSticky(window.scrollY > searchConsole.offsetTop + searchConsole.offsetHeight - 80);
+      } else {
+        setIsSearchSticky(window.scrollY > 600);
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   const slide = HERO_SLIDES[currentSlide];
@@ -319,7 +342,7 @@ export default function Home() {
           })}
 
           {/* Carousel Progress Indicator & Navigation Controls */}
-          <div className="absolute bottom-24 left-0 right-0 z-20 max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+          <div className="absolute bottom-32 lg:bottom-40 left-0 right-0 z-20 max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-40 sm:w-48 h-1 bg-white/30 rounded-full overflow-hidden">
                 <div
@@ -358,147 +381,301 @@ export default function Home() {
         {/* ========================================================================= */}
         {/* 2. OVERLAPPING SEARCH CONSOLE                                             */}
         {/* ========================================================================= */}
-        <section className="relative z-30 max-w-[1280px] mx-auto w-full px-4 sm:px-6 lg:px-8 -mt-16 lg:-mt-20 mb-16">
-          <div className="rounded-3xl bg-white/90 backdrop-blur-2xl shadow-[0_25px_60px_-15px_rgba(8,126,139,0.22),0_12px_30px_-10px_rgba(0,0,0,0.1)] border border-white/80 overflow-hidden">
+        <section id="search-console" className="relative z-30 max-w-[1280px] mx-auto w-full px-4 sm:px-6 lg:px-8 -mt-16 lg:-mt-20 mb-16 transition-all duration-300">
+          {activeDropdown && (
+             <div className="fixed inset-0 z-20 bg-black/5" onClick={() => setActiveDropdown(null)} />
+          )}
+          <div className={`rounded-3xl backdrop-blur-2xl shadow-[0_25px_60px_-15px_rgba(8,126,139,0.22),0_12px_30px_-10px_rgba(0,0,0,0.1)] border border-white/80 relative z-30 ${activeDropdown ? 'bg-surface-container-low' : 'bg-white/90'}`}>
             {/* Search Category Tabs */}
-            <div className="flex border-b border-surface-container/60 bg-surface-container-low/50 overflow-x-auto justify-center">
-              {[
-                { key: 'tour', label: 'Tour du lịch', icon: 'tour' },
-                { key: 'stay', label: 'Khách sạn & Lưu trú', icon: 'hotel' },
-                { key: 'transport', label: 'Vé xe & Di chuyển', icon: 'directions_car' },
-                { key: 'activity', label: 'Vé vui chơi & Trải nghiệm', icon: 'attractions' },
-              ].map((tab) => {
-                const isActive = searchTab === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setSearchTab(tab.key as SearchTab)}
-                    className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold transition-all whitespace-nowrap ${
-                      isActive
-                        ? 'text-primary-container border-b-2 border-primary-container bg-surface-container-lowest shadow-sm'
-                        : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-[20px]">{tab.icon}</span>
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <div className="flex border-b border-surface-container/60 bg-surface-container-low/50 overflow-x-auto justify-between rounded-t-3xl">
+                {[
+                  { key: 'tour', label: 'Tour du lịch', icon: 'tour' },
+                  { key: 'stay', label: 'Khách sạn & Lưu trú', icon: 'hotel' },
+                  { key: 'transport', label: 'Vé xe & Di chuyển', icon: 'directions_car' },
+                  { key: 'activity', label: 'Vé vui chơi & Trải nghiệm', icon: 'attractions' },
+                ].map((tab) => {
+                  const isActive = searchTab === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setSearchTab(tab.key as SearchTab)}
+                      className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 text-sm font-semibold transition-all whitespace-nowrap ${
+                        isActive
+                          ? 'text-primary-container border-b-2 border-primary-container bg-surface-container-lowest shadow-sm'
+                          : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[20px]">{tab.icon}</span>
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
             {/* Tab Inputs Panel */}
-            <div className="p-5 lg:p-6">
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 lg:gap-4 items-center">
+            <div className="p-4 lg:p-6">
+              <div className="flex flex-col md:flex-row items-stretch md:items-center bg-transparent md:bg-white md:rounded-full md:border md:border-slate-200 md:shadow-sm relative gap-2 md:gap-0">
                 {/* Field 1: Destination / Route */}
-                <div className="md:col-span-4 bg-surface-container-low hover:bg-surface-container p-3 rounded-2xl transition-colors cursor-pointer group border border-surface-container/40">
-                  <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-0.5">
-                    {searchTab === 'tour' && 'Điểm đến mong muốn'}
-                    {searchTab === 'stay' && 'Điểm đến hoặc khách sạn'}
-                    {searchTab === 'transport' && 'Tuyến đường di chuyển'}
-                    {searchTab === 'activity' && 'Địa điểm / Hoạt động'}
+                <div 
+                  className={`relative flex-1 w-full p-3 md:py-3 md:px-6 md:rounded-full transition-colors cursor-pointer group ${activeDropdown === 'location' ? 'bg-white shadow-lg z-10 rounded-2xl md:rounded-full md:border-transparent border border-slate-200' : 'bg-surface-container-low md:bg-transparent hover:bg-slate-200 rounded-2xl'}`}
+                  onClick={() => setActiveDropdown('location')}
+                >
+                  <label className="block text-xs font-bold text-on-surface mb-0.5 ml-1">
+                    Địa điểm
                   </label>
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary-container text-[20px]">
-                      {searchTab === 'tour' && 'location_on'}
-                      {searchTab === 'stay' && 'hotel'}
-                      {searchTab === 'transport' && 'commute'}
-                      {searchTab === 'activity' && 'confirmation_number'}
-                    </span>
+                  <div className="flex items-center justify-between">
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder={
-                        searchTab === 'tour'
-                          ? 'Bạn muốn đi đâu? (Hạ Long, Ninh Bình...)'
-                          : searchTab === 'stay'
-                          ? 'Thành phố, khu nghỉ dưỡng, khách sạn...'
-                          : searchTab === 'transport'
-                          ? 'Hà Nội ↔ Hạ Long / Sapa / Ninh Bình'
-                          : 'Vé tham quan, show diễn, văn hóa...'
-                      }
-                      className="w-full bg-transparent text-sm font-semibold text-on-surface placeholder:text-on-surface-variant focus:outline-none"
+                      placeholder="Tìm kiếm điểm đến"
+                      className="w-full bg-transparent text-sm font-semibold text-on-surface placeholder:text-on-surface-variant focus:outline-none cursor-pointer ml-1"
                     />
+                    {activeDropdown === 'location' && searchQuery && (
+                      <button 
+                        type="button" 
+                        onClick={(e) => { e.stopPropagation(); setSearchQuery(''); }}
+                        className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-600 transition-colors ml-2 flex-shrink-0"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">close</span>
+                      </button>
+                    )}
                   </div>
+                  {/* Location Popup */}
+                  {activeDropdown === 'location' && (
+                    <div className="absolute top-[120%] left-0 w-[calc(100vw-32px)] sm:w-[400px] bg-white rounded-3xl shadow-xl border border-slate-100 p-6 z-[70] cursor-default" onClick={e => e.stopPropagation()}>
+                      <div className="text-xs font-bold text-slate-500 mb-4">Điểm đến được đề xuất</div>
+                      <div className="flex flex-col gap-1 max-h-[350px] overflow-y-auto pr-2">
+                        {[
+                          { title: 'Lân cận', desc: 'Tìm xung quanh bạn', icon: 'near_me' },
+                          { title: 'Thành phố Hồ Chí Minh', desc: 'Có các thắng cảnh như Chợ Bến Thành', icon: 'location_city' },
+                          { title: 'Bangkok', desc: 'Có cuộc sống về đêm náo nhiệt', icon: 'temple_buddhist' },
+                          { title: 'Kuala Lumpur, Malaysia', desc: 'Có kiến trúc ấn tượng', icon: 'apartment' },
+                          { title: 'Thành phố Huế', desc: 'Thích hợp cho kỳ nghỉ hè', icon: 'fort' },
+                          { title: 'Paris', desc: 'Có các thắng cảnh như Tháp Eiffel', icon: 'tour' }
+                        ].map(item => (
+                          <div key={item.title} className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-2xl cursor-pointer transition-colors" onClick={(e) => { e.stopPropagation(); setSearchQuery(item.title); setActiveDropdown('date'); }}>
+                            <div className="w-12 h-12 flex-shrink-0 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600">
+                              <span className="material-symbols-outlined">{item.icon}</span>
+                            </div>
+                            <div>
+                              <div className="text-sm font-bold text-slate-800">{item.title}</div>
+                              <div className="text-xs text-slate-500">{item.desc}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
+
+                {/* Divider */}
+                <div className="hidden md:block w-px h-8 bg-slate-200 self-center"></div>
 
                 {/* Field 2: Date Selector */}
-                <div className="md:col-span-3 bg-surface-container-low hover:bg-surface-container p-3 rounded-2xl transition-colors cursor-pointer group border border-surface-container/40">
-                  <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-0.5">
-                    {searchTab === 'stay' ? 'Nhận phòng - Trả phòng' : 'Ngày khởi hành'}
+                <div 
+                  className={`relative flex-1 w-full p-3 md:py-3 md:px-6 md:rounded-full transition-colors cursor-pointer group ${activeDropdown === 'date' ? 'bg-white shadow-lg z-10 rounded-2xl md:rounded-full md:border-transparent border border-slate-200' : 'bg-surface-container-low md:bg-transparent hover:bg-slate-200 rounded-2xl'}`}
+                  onClick={() => setActiveDropdown('date')}
+                >
+                  <label className="block text-xs font-bold text-on-surface mb-0.5 ml-1">
+                    Thời gian
                   </label>
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary-container text-[20px]">calendar_month</span>
-                    <span className="text-sm font-semibold text-on-surface">Thứ Sáu, 24/10/2025</span>
+                  <div className="flex items-center justify-between">
+                    <input
+                      type="text"
+                      readOnly
+                      value={selectedDate}
+                      placeholder="Thêm ngày"
+                      className="w-full bg-transparent text-sm font-semibold text-on-surface placeholder:text-on-surface-variant focus:outline-none cursor-pointer ml-1"
+                    />
+                    {activeDropdown === 'date' && selectedDate && (
+                      <button 
+                        type="button" 
+                        onClick={(e) => { e.stopPropagation(); setSelectedDate(''); }}
+                        className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-600 transition-colors ml-2 flex-shrink-0"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">close</span>
+                      </button>
+                    )}
                   </div>
+                  {/* Date Popup */}
+                  {activeDropdown === 'date' && (
+                    <div className="absolute top-[120%] left-1/2 -translate-x-1/2 w-[calc(100vw-32px)] sm:w-[700px] bg-white rounded-3xl shadow-xl border border-slate-100 p-6 z-[70] cursor-default" onClick={e => e.stopPropagation()}>
+                       <div className="flex justify-center mb-6">
+                         <div className="bg-slate-100 p-1 rounded-full flex gap-1">
+                           <button className="px-6 py-2 bg-white rounded-full text-sm font-bold shadow-sm">Ngày</button>
+                           <button className="px-6 py-2 rounded-full text-sm font-semibold text-slate-600 hover:bg-slate-200 transition-colors">Linh hoạt</button>
+                         </div>
+                       </div>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                         {/* Month 1 */}
+                         <div>
+                           <div className="text-center font-bold mb-6 text-slate-800 text-base">Tháng 10 năm 2026</div>
+                           <div className="grid grid-cols-7 text-center text-xs font-semibold text-slate-400 mb-4">
+                             <div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div><div>CN</div>
+                           </div>
+                           <div className="grid grid-cols-7 text-center text-sm font-semibold gap-y-2">
+                              <div/><div/><div/>
+                              {Array.from({length: 31}).map((_, i) => {
+                                const dateStr = `${i+1} thg 10`;
+                                return (
+                                <div key={i} onClick={(e) => { e.stopPropagation(); setSelectedDate(dateStr); setActiveDropdown('guests'); }} className={`w-10 h-10 flex items-center justify-center rounded-full cursor-pointer mx-auto transition-all ${selectedDate === dateStr ? 'bg-slate-800 text-white' : 'hover:border hover:border-slate-800 text-slate-800'}`}>{i+1}</div>
+                              )})}
+                           </div>
+                         </div>
+                         {/* Month 2 */}
+                         <div className="hidden md:block">
+                           <div className="text-center font-bold mb-6 text-slate-800 text-base">Tháng 11 năm 2026</div>
+                           <div className="grid grid-cols-7 text-center text-xs font-semibold text-slate-400 mb-4">
+                             <div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div><div>CN</div>
+                           </div>
+                           <div className="grid grid-cols-7 text-center text-sm font-semibold gap-y-2">
+                              <div/><div/><div/><div/><div/><div/>
+                              {Array.from({length: 30}).map((_, i) => {
+                                const dateStr = `${i+1} thg 11`;
+                                return (
+                                <div key={i} onClick={(e) => { e.stopPropagation(); setSelectedDate(dateStr); setActiveDropdown('guests'); }} className={`w-10 h-10 flex items-center justify-center rounded-full cursor-pointer mx-auto transition-all ${selectedDate === dateStr ? 'bg-slate-800 text-white' : 'hover:border hover:border-slate-800 text-slate-800'}`}>{i+1}</div>
+                              )})}
+                           </div>
+                         </div>
+                       </div>
+                    </div>
+                  )}
                 </div>
+
+                {/* Divider */}
+                <div className="hidden md:block w-px h-8 bg-slate-200 self-center"></div>
 
                 {/* Field 3: Guests / Tickets */}
-                <div className="md:col-span-3 bg-surface-container-low hover:bg-surface-container p-3 rounded-2xl transition-colors cursor-pointer group border border-surface-container/40">
-                  <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-0.5">
-                    {searchTab === 'activity' ? 'Số lượng vé' : searchTab === 'stay' ? 'Phòng & Khách' : 'Số khách'}
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary-container text-[20px]">group</span>
-                    <span className="text-sm font-semibold text-on-surface truncate">
-                      {searchTab === 'stay' ? '1 phòng, 2 người lớn' : '2 người lớn, 1 trẻ em'}
-                    </span>
+                <div 
+                  className={`relative flex-1 w-full p-3 md:py-3 md:pl-6 md:pr-2 md:rounded-full transition-colors cursor-pointer group flex items-center justify-between ${activeDropdown === 'guests' ? 'bg-white shadow-lg z-10 rounded-2xl md:rounded-full md:border-transparent border border-slate-200' : 'bg-surface-container-low md:bg-transparent hover:bg-slate-200 rounded-2xl'}`}
+                  onClick={() => setActiveDropdown('guests')}
+                >
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-on-surface mb-0.5 ml-1">
+                      Khách
+                    </label>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm font-semibold truncate ml-1 ${adults + children + infants > 0 ? 'text-on-surface' : 'text-on-surface-variant'}`}>
+                        {adults + children + infants > 0 ? `${adults + children} khách${infants > 0 ? `, ${infants} em bé` : ''}${pets > 0 ? `, ${pets} thú cưng` : ''}` : 'Thêm khách'}
+                      </span>
+                    </div>
                   </div>
+                  {/* Search Button for Desktop */}
+                  <div className="hidden md:block ml-4 pr-1">
+                    <Link
+                      href={`/explore?type=${searchTab}&q=${encodeURIComponent(searchQuery)}`}
+                      className="w-12 h-12 bg-[#087e8b] hover:bg-[#00636e] text-white rounded-full flex items-center justify-center transition-transform transform hover:scale-105 shadow-md flex-shrink-0"
+                    >
+                      <span className="material-symbols-outlined text-[24px]">search</span>
+                    </Link>
+                  </div>
+                  {/* Guests Popup */}
+                  {activeDropdown === 'guests' && (
+                    <div className="absolute top-[120%] right-0 w-[calc(100vw-32px)] sm:w-[350px] bg-white rounded-3xl shadow-xl border border-slate-100 p-6 z-[70] cursor-default" onClick={e => e.stopPropagation()}>
+                       <div className="flex flex-col gap-6 divide-y divide-slate-100">
+                          <div className="flex items-center justify-between pt-2">
+                             <div>
+                               <div className="text-sm font-bold text-slate-800">Người lớn</div>
+                               <div className="text-xs text-slate-500">Từ 13 tuổi trở lên</div>
+                             </div>
+                             <div className="flex items-center gap-3">
+                               <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setAdults(Math.max(0, adults - 1))}>-</button>
+                               <span className="w-4 text-center font-semibold text-sm text-slate-800">{adults}</span>
+                               <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setAdults(adults + 1)}>+</button>
+                             </div>
+                          </div>
+                          <div className="flex items-center justify-between pt-6">
+                             <div>
+                               <div className="text-sm font-bold text-slate-800">Trẻ em</div>
+                               <div className="text-xs text-slate-500">Độ tuổi 2 – 12</div>
+                             </div>
+                             <div className="flex items-center gap-3">
+                               <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setChildren(Math.max(0, children - 1))}>-</button>
+                               <span className="w-4 text-center font-semibold text-sm text-slate-800">{children}</span>
+                               <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setChildren(children + 1)}>+</button>
+                             </div>
+                          </div>
+                          <div className="flex items-center justify-between pt-6">
+                             <div>
+                               <div className="text-sm font-bold text-slate-800">Em bé</div>
+                               <div className="text-xs text-slate-500">Dưới 2 tuổi</div>
+                             </div>
+                             <div className="flex items-center gap-3">
+                               <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setInfants(Math.max(0, infants - 1))}>-</button>
+                               <span className="w-4 text-center font-semibold text-sm text-slate-800">{infants}</span>
+                               <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setInfants(infants + 1)}>+</button>
+                             </div>
+                          </div>
+                          <div className="flex items-center justify-between pt-6">
+                             <div>
+                               <div className="text-sm font-bold text-slate-800">Thú cưng</div>
+                               <div className="text-xs text-slate-500 underline cursor-pointer hover:text-slate-800">Bạn sẽ mang theo động vật phục vụ?</div>
+                             </div>
+                             <div className="flex items-center gap-3">
+                               <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setPets(Math.max(0, pets - 1))}>-</button>
+                               <span className="w-4 text-center font-semibold text-sm text-slate-800">{pets}</span>
+                               <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setPets(pets + 1)}>+</button>
+                             </div>
+                          </div>
+                       </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Field 4: Search Button */}
-                <div className="md:col-span-2">
+                {/* Mobile Search Button */}
+                <div className="md:hidden mt-2 w-full">
                   <Link
                     href={`/explore?type=${searchTab}&q=${encodeURIComponent(searchQuery)}`}
-                    className="w-full min-h-[54px] bg-[#087e8b] hover:bg-[#00636e] text-white text-sm font-bold rounded-2xl shadow-lg shadow-primary-container/25 hover:shadow-xl flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5"
+                    className="w-full min-h-[54px] bg-[#087e8b] hover:bg-[#00636e] text-white text-sm font-bold rounded-2xl shadow-lg shadow-[#087e8b]/25 flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5"
                   >
                     <span className="material-symbols-outlined text-[20px]">search</span>
                     <span>Tìm kiếm</span>
                   </Link>
                 </div>
               </div>
-
-              {/* Bottom Quick Suggestions & Tripri AI banner */}
-              <div className="mt-4 pt-4 border-t border-surface-container/80 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-semibold text-on-surface-variant mr-1">Dịch vụ phổ biến:</span>
-                  {[
-                    'Du thuyền Hạ Long',
-                    'Vé thuyền Tràng An',
-                    'Show Ký Ức Hội An',
-                    'Xe Limousine đưa đón',
-                  ].map((tag) => (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => setSearchQuery(tag)}
-                      className="px-3 py-1 rounded-full bg-surface-container text-on-surface text-xs font-medium hover:bg-primary-container hover:text-white transition-colors shadow-sm"
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="w-full md:w-auto">
-                  <Link
-                    href="/custom-trip"
-                    className="flex items-center justify-between md:justify-start gap-3 bg-secondary-container/40 hover:bg-secondary-container/70 border border-secondary-container px-4 py-2 rounded-2xl transition-all shadow-sm"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary-container text-[20px]">auto_awesome</span>
-                      <div className="text-left">
-                        <div className="text-xs font-bold text-on-surface">Tạo chuyến đi riêng với Tripri AI</div>
-                        <div className="text-[11px] text-on-surface-variant">Tự do ghép Tour + Phòng + Xe đồng bộ</div>
-                      </div>
-                    </div>
-                    <span className="material-symbols-outlined text-primary-container text-[18px]">arrow_forward</span>
-                  </Link>
-                </div>
-              </div>
             </div>
           </div>
         </section>
+
+        {/* Floating Mini Search Console in Header */}
+        <div className={`fixed top-4 lg:top-3 left-1/2 -translate-x-1/2 z-[60] transition-all duration-300 shadow-[0_8px_30px_rgb(0,0,0,0.08)] rounded-full ${
+          isSearchSticky ? "translate-y-0 opacity-100 pointer-events-auto scale-100" : "-translate-y-10 opacity-0 pointer-events-none scale-95"
+        }`}>
+          <div className="flex items-center bg-white rounded-full border border-slate-200 p-1.5 pl-5 h-[52px]">
+             <div className="flex items-center divide-x divide-slate-200 text-sm font-semibold text-slate-800">
+               <button 
+                 type="button" 
+                 onClick={() => { document.getElementById('search-console')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); setActiveDropdown('location'); }}
+                 className="pr-4 hover:text-primary transition-colors truncate max-w-[150px]"
+               >
+                 {searchQuery || 'Mọi nơi'}
+               </button>
+               <button 
+                 type="button"
+                 onClick={() => { document.getElementById('search-console')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); setActiveDropdown('date'); }}
+                 className="px-4 hover:text-primary transition-colors whitespace-nowrap"
+               >
+                 Bất kỳ lúc nào
+               </button>
+               <button 
+                 type="button"
+                 onClick={() => { document.getElementById('search-console')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); setActiveDropdown('guests'); }}
+                 className="px-4 hover:text-primary transition-colors whitespace-nowrap text-slate-500 font-normal"
+               >
+                 {adults + children > 0 ? `${adults + children} khách` : 'Thêm khách'}
+               </button>
+             </div>
+             <button 
+               type="button"
+               onClick={() => document.getElementById('search-console')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+               className="w-10 h-10 ml-1 rounded-full bg-[#087e8b] hover:bg-[#00636e] text-white flex items-center justify-center transition-colors shadow-md"
+             >
+               <span className="material-symbols-outlined text-[18px]">search</span>
+             </button>
+          </div>
+        </div>
 
         {/* ========================================================================= */}
         {/* 3. CATEGORY SWITCHER & CARDS SHOWCASE                                     */}
@@ -627,116 +804,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ========================================================================= */}
-        {/* 4. CUSTOM TOUR & TRIPRI AI SECTION                                        */}
-        {/* ========================================================================= */}
-        <section className="max-w-[1280px] mx-auto w-full px-4 sm:px-6 lg:px-8 mb-20">
-          <div className="bg-surface-container-lowest rounded-3xl shadow-[0_20px_50px_-15px_rgba(8,126,139,0.18)] p-8 lg:p-12 relative overflow-hidden border-2 border-slate-200/80">
-            <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-secondary-fixed/30 blur-3xl pointer-events-none" />
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
-              {/* Left Column: Intro */}
-              <div className="lg:col-span-7">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-secondary-container text-teal-900 font-bold text-xs mb-4 shadow-sm border border-teal-200/80">
-                  <span className="material-symbols-outlined text-[16px] text-primary-container">psychology</span>
-                  <span>Trợ lý Tripri AI</span>
-                </div>
-
-                <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 mb-3 tracking-tight">
-                  Tạo Chuyến Đi Riêng Theo Phong Cách Của Bạn
-                </h2>
-
-                <p className="text-base sm:text-lg text-slate-700 font-medium mb-6 leading-relaxed">
-                  Cá nhân hóa lịch trình theo sở thích cùng chuyên gia bản địa. Tự do ghép tour, điểm đến, nơi lưu trú và nhịp đi mong muốn.
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                  <div className="flex items-start gap-3 bg-surface-container-low p-3.5 rounded-2xl border border-slate-200/80 shadow-sm">
-                    <span className="material-symbols-outlined text-primary-container text-[24px] mt-0.5">tune</span>
-                    <div>
-                      <h4 className="font-bold text-sm text-slate-900">Tùy biến linh hoạt</h4>
-                      <p className="text-xs text-slate-600">Chủ động điểm đến, lưu trú &amp; nhịp đi riêng.</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 bg-surface-container-low p-3.5 rounded-2xl border border-slate-200/80 shadow-sm">
-                    <span className="material-symbols-outlined text-primary-container text-[24px] mt-0.5">badge</span>
-                    <div>
-                      <h4 className="font-bold text-sm text-slate-900">Chuyên gia bản địa</h4>
-                      <p className="text-xs text-slate-600">Đồng hành am hiểu sâu sắc văn hóa &amp; ẩm thực địa phương.</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-4">
-                  <Link
-                    href="/custom-trip"
-                    className="inline-flex items-center gap-2 bg-primary-container hover:bg-primary text-white font-bold text-sm px-6 py-3 rounded-2xl shadow-lg shadow-primary-container/25 transition-all transform hover:-translate-y-0.5"
-                  >
-                    <span>Tạo lịch trình ngay</span>
-                    <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
-                  </Link>
-                  <Link
-                    href="/support"
-                    className="inline-flex items-center gap-2 text-slate-900 font-semibold text-sm px-5 py-3 rounded-2xl bg-white hover:bg-surface-container transition-colors border border-slate-200/80 shadow-sm"
-                  >
-                    <span className="material-symbols-outlined text-[20px] text-primary-container">support_agent</span>
-                    <span>Tư vấn trực tiếp</span>
-                  </Link>
-                </div>
-              </div>
-
-              {/* Right Column: Local Guide Timeline Card */}
-              <div className="lg:col-span-5">
-                <div className="rounded-3xl bg-white shadow-xl border-2 border-slate-200 p-6 space-y-4">
-                  <div className="flex items-center justify-between pb-3.5 border-b border-slate-200/80">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-primary-container text-white flex items-center justify-center text-base font-bold shadow-md">
-                        HN
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <h5 className="font-bold text-sm text-slate-900">Hoàng Nam</h5>
-                          <span className="material-symbols-outlined text-primary-container text-[18px]">verified</span>
-                        </div>
-                        <span className="text-xs text-slate-600 font-medium">Chuyên gia bản địa • Quảng Nam</span>
-                      </div>
-                    </div>
-                    <span className="text-xs px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-bold border border-secondary-container/70 shadow-sm">
-                      Xác minh
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {[
-                      { step: '1', title: 'Đón tại sân bay Đà Nẵng / khách sạn', icon: 'check_circle' },
-                      { step: '2', title: 'Chèo SUP & Thăm làng gốm Thanh Hà', icon: 'edit' },
-                      { step: '3', title: 'Ẩm thực phố Hội & Cà phê ven sông Hoài', icon: 'edit' },
-                    ].map((item) => (
-                      <div
-                        key={item.step}
-                        className="bg-surface-container-low p-3.5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-3"
-                      >
-                        <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
-                          {item.step}
-                        </span>
-                        <span className="text-sm font-semibold text-slate-900 flex-1">{item.title}</span>
-                        <span className="material-symbols-outlined text-primary-container text-[18px]">{item.icon}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="pt-2 text-center">
-                    <span className="text-xs text-slate-600 font-semibold flex items-center justify-center gap-1.5">
-                      <span className="material-symbols-outlined text-primary-container text-[16px]">lock_reset</span>
-                      Báo giá minh bạch, không phí ẩn
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
 
         {/* ========================================================================= */}
         {/* 5. TRUST & CORE VALUES                                                    */}
