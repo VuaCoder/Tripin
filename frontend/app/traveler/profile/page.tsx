@@ -1,6 +1,14 @@
 'use client';
+
 import { useState, type ReactNode } from 'react';
-import { useGetMeQuery, useUpdateMeMutation } from '@/features/traveler-account/api/profileApi';
+import {
+  useCompleteAvatarUploadMutation,
+  useCreateAvatarUploadSignatureMutation,
+  useGetMeQuery,
+  useRemoveAvatarMutation,
+  useUpdateMeMutation,
+} from '@/features/traveler-account/api/profileApi';
+import { uploadAvatarFile } from '@/features/traveler-account/api/avatarUpload';
 import {
   ProfileSkeleton,
   ProfileSummary,
@@ -10,38 +18,53 @@ import {
 import { ErrorState } from '@/components/shared';
 import { useAppDispatch } from '@/store/hooks';
 import { setUser } from '@/features/auth/store/authSlice';
-import { getApiErrorCode } from '@/features/auth/utils/apiError';
-import type { UpdateProfileRequest } from '@/features/traveler-account/types';
+import { getApiErrorCode, getApiErrorMessage } from '@/features/auth/utils/apiError';
+import type { AvatarChange, UpdateProfileRequest } from '@/features/traveler-account/types';
 
 export default function TravelerProfilePage() {
   const { data, isLoading, isError, refetch } = useGetMeQuery();
   const [updateMe, { isLoading: isUpdating }] = useUpdateMeMutation();
+  const [createAvatarUploadSignature, { isLoading: isPreparingAvatar }] = useCreateAvatarUploadSignatureMutation();
+  const [completeAvatarUpload, { isLoading: isCompletingAvatar }] = useCompleteAvatarUploadMutation();
+  const [removeAvatar, { isLoading: isRemovingAvatar }] = useRemoveAvatarMutation();
   const dispatch = useAppDispatch();
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  const handleSave = async (payload: UpdateProfileRequest) => {
-    if (Object.keys(payload).length === 0) {
+  const handleSave = async (payload: UpdateProfileRequest, avatarChange: AvatarChange) => {
+    if (Object.keys(payload).length === 0 && avatarChange.kind === 'unchanged') {
       setIsEditing(false);
       return;
     }
+
     setErrorMsg('');
     setSuccessMsg('');
     try {
-      const result = await updateMe(payload).unwrap();
-      if (result.success && result.data) {
-        dispatch(setUser(result.data));
-        setIsEditing(false);
-        setSuccessMsg('Thông tin hồ sơ đã được cập nhật.');
+      if (Object.keys(payload).length > 0) {
+        const result = await updateMe(payload).unwrap();
+        if (result.success && result.data) dispatch(setUser(result.data));
       }
+
+      if (avatarChange.kind === 'upload') {
+        const signature = await createAvatarUploadSignature().unwrap();
+        const uploaded = await uploadAvatarFile(avatarChange.file, signature.data);
+        const result = await completeAvatarUpload(uploaded).unwrap();
+        if (result.success && result.data) dispatch(setUser(result.data));
+      } else if (avatarChange.kind === 'remove') {
+        const result = await removeAvatar().unwrap();
+        if (result.success && result.data) dispatch(setUser(result.data));
+      }
+
+      setIsEditing(false);
+      setSuccessMsg('Thông tin hồ sơ đã được cập nhật.');
     } catch (err: unknown) {
       const code = getApiErrorCode(err);
       if (code === 'VALIDATION_ERROR') {
         setErrorMsg('Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.');
       } else {
-        setErrorMsg('Đã có lỗi xảy ra. Vui lòng thử lại sau.');
+        setErrorMsg(getApiErrorMessage(err, 'Đã có lỗi xảy ra. Vui lòng thử lại sau.'));
       }
     }
   };
@@ -75,7 +98,7 @@ export default function TravelerProfilePage() {
               setIsEditing(false);
               setErrorMsg('');
             }}
-            isSaving={isUpdating}
+            isSaving={isUpdating || isPreparingAvatar || isCompletingAvatar || isRemovingAvatar}
             error={errorMsg}
           />
         ) : (
@@ -91,7 +114,5 @@ export default function TravelerProfilePage() {
     );
   }
 
-  return (
-    <TravelerAccountShell>{content}</TravelerAccountShell>
-  );
+  return <TravelerAccountShell>{content}</TravelerAccountShell>;
 }

@@ -28,25 +28,6 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
     { label: 'Tổng quan', href: '/traveler', icon: 'dashboard' },
     { label: 'Đặt chỗ của tôi', href: '/traveler/bookings', icon: 'event' },
     { label: 'Khám phá tour', href: '/explore', icon: 'travel_explore' },
-    {
-      label: 'Tài khoản',
-      href: '/traveler/profile',
-      icon: 'manage_accounts',
-      children: [
-        {
-          label: 'Hồ sơ cá nhân',
-          href: '/traveler/profile',
-          icon: 'person',
-          description: 'Thông tin và ảnh đại diện',
-        },
-        {
-          label: 'Bảo mật & 2FA',
-          href: '/traveler/settings/security',
-          icon: 'shield_lock',
-          description: 'Xác thực hai lớp qua email',
-        },
-      ],
-    },
   ],
   AGENCY: [
     { label: 'Tổng quan', href: '/agency', icon: 'dashboard' },

@@ -222,7 +222,7 @@ export default function LandingPage() {
   return (
     <div id="smooth-wrapper" className="bg-[#f4f6f3]">
       <div id="smooth-content">
-        <main className="min-h-screen w-full bg-[#f4f6f3] text-[#173640] selection:bg-[#087e8b] selection:text-white">
+        <div className="min-h-screen w-full bg-[#f4f6f3] text-[#173640] selection:bg-[#087e8b] selection:text-white">
           
           {/* Hero Section */}
           <section className="relative w-full flex min-h-screen flex-col justify-end px-6 pb-12 pt-20 sm:px-14 lg:px-24 lg:pb-20 overflow-hidden">
@@ -405,7 +405,7 @@ export default function LandingPage() {
               </article>
             </div>
           </section>
-        </main>
+        </div>
       </div>
     </div>
   );

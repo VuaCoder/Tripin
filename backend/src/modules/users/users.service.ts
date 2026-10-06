@@ -6,6 +6,12 @@ import {
   type PersistedRole,
 } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
+import {
+  createTravelerAvatarSignature,
+  destroyAvatar,
+  verifyTravelerAvatar,
+  type AvatarUploadSignature,
+} from '../../integrations/cloudinary';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
 import { buildPage, type Page } from '../../utils/pagination';
 import { assertTransition } from '../../utils/state-machine';
@@ -53,6 +59,9 @@ export class UsersService {
   async updateMe(userId: string, input: UpdateProfileInput): Promise<PrivateUserDto> {
     const user = await this.requireUser(userId);
 
+    if (input.avatarUrl !== undefined && user.role === ROLES.TRAVELER) {
+      throw AppError.forbidden('Traveler avatars must be uploaded from the profile image picker');
+    }
     if (input.agencyProfile && user.role !== ROLES.AGENCY) {
       throw AppError.forbidden('Only agencies can edit an agency profile');
     }
@@ -71,6 +80,31 @@ export class UsersService {
     if (Object.keys(patch).length === 0) return toPrivateUserDto(user);
 
     const updated = await this.users.updateById(userId, patch);
+    return toPrivateUserDto(updated ?? user);
+  }
+
+  /** Gives a Traveler a one-time Cloudinary signature scoped to their own avatar public id. */
+  async createTravelerAvatarUploadSignature(userId: string): Promise<AvatarUploadSignature> {
+    const user = await this.requireUser(userId);
+    this.assertTraveler(user);
+    return createTravelerAvatarSignature(userId);
+  }
+
+  /** Verifies the direct Cloudinary upload before associating it with this Traveler. */
+  async completeTravelerAvatarUpload(userId: string, publicId: string): Promise<PrivateUserDto> {
+    const user = await this.requireUser(userId);
+    this.assertTraveler(user);
+    const asset = await verifyTravelerAvatar(userId, publicId);
+    const updated = await this.users.updateById(userId, { avatarUrl: asset.secureUrl });
+    return toPrivateUserDto(updated ?? user);
+  }
+
+  /** Removes the avatar reference and, only when Tripri owns the asset, removes it from Cloudinary too. */
+  async removeTravelerAvatar(userId: string): Promise<PrivateUserDto> {
+    const user = await this.requireUser(userId);
+    this.assertTraveler(user);
+    if (user.avatarUrl?.startsWith('https://res.cloudinary.com/')) await destroyAvatar(`tripin/travelers/avatars/${userId}`);
+    const updated = await this.users.updateById(userId, { avatarUrl: null });
     return toPrivateUserDto(updated ?? user);
   }
 
@@ -330,6 +364,10 @@ export class UsersService {
     const user = await this.users.findById(id);
     if (!user) throw AppError.notFound('User not found');
     return user;
+  }
+
+  private assertTraveler(user: UserRecord): void {
+    if (user.role !== ROLES.TRAVELER) throw AppError.forbidden('Only Travelers can manage this avatar');
   }
 }
 

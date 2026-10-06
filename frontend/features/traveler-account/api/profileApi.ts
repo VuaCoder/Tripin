@@ -1,6 +1,7 @@
 import { baseApi } from '@/store/api/baseApi';
 import type { UserProfile } from '@/features/auth/types';
 import type { UpdateProfileRequest } from '../types';
+import type { AvatarUploadSignature } from '../types';
 
 export const profileApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -16,8 +17,33 @@ export const profileApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['User'],
     }),
+    createAvatarUploadSignature: builder.mutation<{ success: boolean; data: AvatarUploadSignature }, void>({
+      query: () => ({
+        url: '/users/me/avatar/upload-signature',
+        method: 'POST',
+        body: {},
+      }),
+    }),
+    completeAvatarUpload: builder.mutation<{ success: boolean; data: UserProfile }, { publicId: string }>({
+      query: (body) => ({
+        url: '/users/me/avatar/complete',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['User'],
+    }),
+    removeAvatar: builder.mutation<{ success: boolean; data: UserProfile }, void>({
+      query: () => ({ url: '/users/me/avatar', method: 'DELETE' }),
+      invalidatesTags: ['User'],
+    }),
   }),
   overrideExisting: false,
 });
 
-export const { useGetMeQuery, useUpdateMeMutation } = profileApi;
+export const {
+  useGetMeQuery,
+  useUpdateMeMutation,
+  useCreateAvatarUploadSignatureMutation,
+  useCompleteAvatarUploadMutation,
+  useRemoveAvatarMutation,
+} = profileApi;

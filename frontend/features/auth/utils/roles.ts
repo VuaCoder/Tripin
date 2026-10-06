@@ -12,6 +12,6 @@ export const homeForRole = (role?: UserRole | null): string => {
       return '/super-admin';
     case 'TRAVELER':
     default:
-      return '/';
+      return '/home';
   }
 };

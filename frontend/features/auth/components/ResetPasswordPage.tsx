@@ -87,7 +87,7 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ email: ini
 
 
 
-      <main className="w-full max-w-lg mx-auto relative z-10 my-auto">
+      <section className="w-full max-w-lg mx-auto relative z-10 my-auto">
         <div className="flex flex-col w-full items-center justify-center relative">
           <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-teal-100/30 blur-3xl pointer-events-none" />
           <div className="absolute top-1/2 -right-24 w-[32rem] h-[32rem] rounded-full bg-amber-100/30 blur-3xl pointer-events-none" />
@@ -286,7 +286,7 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ email: ini
             </div>
           </div>
         </div>
-      </main>
+      </section>
     </div>
   );
 };

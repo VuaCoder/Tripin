@@ -6,6 +6,8 @@ import { usersController } from './users.controller';
 import {
   assignAccessBody,
   assignAccessParams,
+  avatarSignatureBody,
+  completeAvatarBody,
   listUsersQuery,
   publicProfileParams,
   updateProfileBody,
@@ -20,6 +22,19 @@ usersRouter.patch(
   validate({ body: updateProfileBody }),
   usersController.updateMe,
 );
+usersRouter.post(
+  '/me/avatar/upload-signature',
+  requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
+  validate({ body: avatarSignatureBody }),
+  usersController.createAvatarUploadSignature,
+);
+usersRouter.post(
+  '/me/avatar/complete',
+  requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
+  validate({ body: completeAvatarBody }),
+  usersController.completeAvatarUpload,
+);
+usersRouter.delete('/me/avatar', requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN), usersController.removeAvatar);
 usersRouter.post(
   '/me/agency-verification',
   requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),

@@ -1,13 +1,15 @@
 'use client';
-import { useState } from 'react';
+
+import { useEffect, useRef, useState } from 'react';
 import type { UserProfile } from '@/features/auth/types';
 import { Button, FormField, Input } from '@/components/ui';
-import type { UpdateProfileRequest } from '../types';
+import type { AvatarChange, UpdateProfileRequest } from '../types';
+import { validateAvatarFile } from '../api/avatarUpload';
 import { AvatarPreview } from './AvatarPreview';
 
 interface ProfileEditFormProps {
   user: UserProfile;
-  onSave: (data: UpdateProfileRequest) => Promise<void>;
+  onSave: (data: UpdateProfileRequest, avatarChange: AvatarChange) => Promise<void>;
   onCancel: () => void;
   isSaving: boolean;
   error?: string;
@@ -16,51 +18,77 @@ interface ProfileEditFormProps {
 export function ProfileEditForm({ user, onSave, onCancel, isSaving, error }: ProfileEditFormProps) {
   const [fullName, setFullName] = useState(user.fullName);
   const [phone, setPhone] = useState(user.phone || '');
-  const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl || '');
-  const [validationErrors, setValidationErrors] = useState<Partial<Record<'fullName' | 'phone' | 'avatarUrl', string>>>({});
+  const [selectedAvatar, setSelectedAvatar] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [removeAvatar, setRemoveAvatar] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Partial<Record<'fullName' | 'phone' | 'avatar', string>>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const busy = isSaving || isSubmitting;
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const validate = () => {
-    const errs: Partial<Record<'fullName' | 'phone' | 'avatarUrl', string>> = {};
+    const errs: Partial<Record<'fullName' | 'phone' | 'avatar', string>> = {};
     const normalizedName = fullName.trim();
     const normalizedPhone = phone.trim();
-    const normalizedAvatar = avatarUrl.trim();
-
     if (normalizedName.length < 2 || normalizedName.length > 120) {
       errs.fullName = 'Họ tên phải từ 2 đến 120 ký tự.';
     }
     if (normalizedPhone && !/^\+?[0-9 ().-]{6,20}$/.test(normalizedPhone)) {
       errs.phone = 'Số điện thoại không hợp lệ.';
     }
-    if (normalizedAvatar) {
-      try {
-        const parsedUrl = new URL(normalizedAvatar);
-        if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('unsupported protocol');
-      } catch {
-        errs.avatarUrl = 'Nhập URL hợp lệ bắt đầu bằng http:// hoặc https://.';
-      }
+    if (selectedAvatar) {
+      const avatarError = validateAvatarFile(selectedAvatar);
+      if (avatarError) errs.avatar = avatarError;
     }
     setValidationErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const selectAvatar = (file?: File) => {
+    if (!file) return;
+    const errorMessage = validateAvatarFile(file);
+    if (errorMessage) {
+      setValidationErrors((current) => ({ ...current, avatar: errorMessage }));
+      return;
+    }
+    setSelectedAvatar(file);
+    setRemoveAvatar(false);
+    setPreviewUrl(URL.createObjectURL(file));
+    setValidationErrors((current) => ({ ...current, avatar: undefined }));
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!validate()) return;
 
     const normalizedName = fullName.trim();
     const normalizedPhone = phone.trim();
-    const normalizedAvatar = avatarUrl.trim();
     const payload: UpdateProfileRequest = {};
     if (normalizedName !== user.fullName) payload.fullName = normalizedName;
-    const currentPhone = user.phone || '';
-    if (normalizedPhone !== currentPhone) payload.phone = normalizedPhone || null;
-    const currentAvatar = user.avatarUrl || '';
-    if (normalizedAvatar !== currentAvatar) payload.avatarUrl = normalizedAvatar || null;
+    if (normalizedPhone !== (user.phone || '')) payload.phone = normalizedPhone || null;
+    const avatarChange: AvatarChange = selectedAvatar
+      ? { kind: 'upload', file: selectedAvatar }
+      : removeAvatar && user.avatarUrl
+        ? { kind: 'remove' }
+        : { kind: 'unchanged' };
 
-    void onSave(payload);
+    setIsSubmitting(true);
+    try {
+      await onSave(payload, avatarChange);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const hasChanges = fullName.trim() !== user.fullName || phone.trim() !== (user.phone || '') || avatarUrl.trim() !== (user.avatarUrl || '');
+  const avatarUrl = removeAvatar ? undefined : previewUrl || user.avatarUrl;
+  const avatarChanged = Boolean(selectedAvatar) || (removeAvatar && Boolean(user.avatarUrl));
+  const hasChanges = fullName.trim() !== user.fullName || phone.trim() !== (user.phone || '') || avatarChanged;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8" noValidate>
@@ -76,15 +104,57 @@ export function ProfileEditForm({ user, onSave, onCancel, isSaving, error }: Pro
         </div>
       )}
 
-      <div className="flex flex-col gap-5 rounded-2xl border border-surface-container bg-surface-container-low/55 p-5 sm:flex-row sm:items-center sm:p-6">
-        <AvatarPreview url={avatarUrl.trim()} name={fullName} />
-        <div>
-          <p className="font-bold text-on-surface">Xem trước ảnh đại diện</p>
-          <p className="mt-1 max-w-md text-sm leading-6 text-on-surface-variant">
-            Dùng liên kết ảnh công khai qua HTTP hoặc HTTPS. Để trống để quay về ảnh chữ cái mặc định.
-          </p>
+      <FormField
+        label="Ảnh đại diện"
+        htmlFor="traveler-avatar-file"
+        hint="Chấp nhận JPG, PNG hoặc WebP, tối đa 5 MB. Ảnh chỉ được tải lên khi bạn lưu thay đổi."
+        error={validationErrors.avatar}
+      >
+        <div className="flex flex-col gap-5 rounded-2xl border border-surface-container bg-surface-container-low/55 p-5 sm:flex-row sm:items-center sm:p-6">
+          <AvatarPreview url={avatarUrl} name={fullName} />
+          <div className="min-w-0 flex-1">
+            <p className="font-bold text-on-surface">{selectedAvatar ? selectedAvatar.name : 'Chọn ảnh từ thiết bị của bạn'}</p>
+            <p className="mt-1 text-sm leading-6 text-on-surface-variant">
+              {selectedAvatar ? `${Math.ceil(selectedAvatar.size / 1024)} KB · Sẽ tải lên khi lưu hồ sơ.` : 'Ảnh rõ mặt, nền đơn giản sẽ hiển thị tốt nhất.'}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <input
+                ref={fileInputRef}
+                id="traveler-avatar-file"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                disabled={busy}
+                onChange={(event) => {
+                  selectAvatar(event.target.files?.[0]);
+                  event.target.value = '';
+                }}
+                aria-describedby={validationErrors.avatar ? 'traveler-avatar-file-error' : 'traveler-avatar-file-hint'}
+              />
+              <Button type="button" variant="outline" disabled={busy} onClick={() => fileInputRef.current?.click()}>
+                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">upload</span>
+                {selectedAvatar || user.avatarUrl ? 'Chọn ảnh khác' : 'Chọn ảnh'}
+              </Button>
+              {(avatarUrl || selectedAvatar) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => {
+                    setSelectedAvatar(null);
+                    setPreviewUrl(null);
+                    setRemoveAvatar(true);
+                    setValidationErrors((current) => ({ ...current, avatar: undefined }));
+                  }}
+                >
+                  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
+                  Gỡ ảnh
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      </FormField>
 
       <div className="grid max-w-2xl gap-5">
         <FormField label="Họ và tên" htmlFor="traveler-full-name" required error={validationErrors.fullName}>
@@ -97,7 +167,7 @@ export function ProfileEditForm({ user, onSave, onCancel, isSaving, error }: Pro
               setFullName(event.target.value);
               setValidationErrors((current) => ({ ...current, fullName: undefined }));
             }}
-            disabled={isSaving}
+            disabled={busy}
             invalid={Boolean(validationErrors.fullName)}
             aria-describedby={validationErrors.fullName ? 'traveler-full-name-error' : undefined}
             maxLength={120}
@@ -120,34 +190,10 @@ export function ProfileEditForm({ user, onSave, onCancel, isSaving, error }: Pro
               setPhone(event.target.value);
               setValidationErrors((current) => ({ ...current, phone: undefined }));
             }}
-            disabled={isSaving}
+            disabled={busy}
             invalid={Boolean(validationErrors.phone)}
             aria-describedby={validationErrors.phone ? 'traveler-phone-error' : 'traveler-phone-hint'}
             maxLength={20}
-          />
-        </FormField>
-
-        <FormField
-          label="URL ảnh đại diện"
-          htmlFor="traveler-avatar-url"
-          hint="Chỉ chấp nhận liên kết bắt đầu bằng http:// hoặc https://."
-          error={validationErrors.avatarUrl}
-        >
-          <Input
-            id="traveler-avatar-url"
-            type="url"
-            inputMode="url"
-            autoComplete="url"
-            placeholder="https://example.com/avatar.jpg"
-            value={avatarUrl}
-            onChange={(event) => {
-              setAvatarUrl(event.target.value);
-              setValidationErrors((current) => ({ ...current, avatarUrl: undefined }));
-            }}
-            disabled={isSaving}
-            invalid={Boolean(validationErrors.avatarUrl)}
-            aria-describedby={validationErrors.avatarUrl ? 'traveler-avatar-url-error' : 'traveler-avatar-url-hint'}
-            maxLength={500}
           />
         </FormField>
 
@@ -157,16 +203,10 @@ export function ProfileEditForm({ user, onSave, onCancel, isSaving, error }: Pro
       </div>
 
       <div className="flex flex-col-reverse gap-3 border-t border-surface-container pt-6 sm:flex-row sm:justify-end">
-        <Button type="button" onClick={onCancel} disabled={isSaving} variant="ghost" className="sm:min-w-24">
+        <Button type="button" onClick={onCancel} disabled={busy} variant="ghost" className="sm:min-w-24">
           Hủy
         </Button>
-        <Button
-          type="submit"
-          disabled={!hasChanges}
-          loading={isSaving}
-          loadingLabel="Đang lưu..."
-          className="sm:min-w-36"
-        >
+        <Button type="submit" disabled={!hasChanges} loading={busy} loadingLabel="Đang lưu..." className="sm:min-w-36">
           Lưu thay đổi
         </Button>
       </div>

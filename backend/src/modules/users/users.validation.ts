@@ -44,6 +44,15 @@ export const updateProfileBody = z
 
 export const publicProfileParams = idParamsSchema;
 
+/** The signature endpoint deliberately accepts no client-controlled upload parameters. */
+export const avatarSignatureBody = z.object({}).strict();
+
+export const completeAvatarBody = z
+  .object({
+    publicId: z.string().trim().min(1).max(300),
+  })
+  .strict();
+
 export const listUsersQuery = paginationQuerySchema.extend({
   role: z.enum(PERSISTED_ROLES).optional(),
   status: z.enum(Object.values(USER_STATUS) as [string, ...string[]]).optional(),
@@ -61,5 +70,6 @@ export const assignAccessBody = z
   .refine((value) => value.role !== undefined || value.extraPermissions !== undefined, 'role or extraPermissions is required');
 
 export type UpdateProfileBody = z.infer<typeof updateProfileBody>;
+export type CompleteAvatarBody = z.infer<typeof completeAvatarBody>;
 export type ListUsersQueryInput = z.infer<typeof listUsersQuery>;
 export type AssignAccessBody = z.infer<typeof assignAccessBody>;
