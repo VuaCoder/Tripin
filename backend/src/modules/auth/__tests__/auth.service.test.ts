@@ -146,7 +146,7 @@ describe('AuthService.register', () => {
       email: 'new@b.com',
       password: 'Passw0rdX',
       fullName: 'New User',
-      role: ROLES.AGENCY,
+      role: ROLES.TRAVELER,
     });
     expect(result.email).toBe('new@b.com');
     const created = ctx.mocks.users.create.mock.calls[0]![0];

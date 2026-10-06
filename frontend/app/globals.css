@@ -115,3 +115,83 @@
 .animate-slide-in-right {
   animation: slideInRight 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+.wave-line {
+  animation: drift 12s ease-in-out infinite alternate;
+  transform: rotate(-3deg);
+}
+
+.hero-stamp {
+  animation: stamp-float 6s ease-in-out infinite;
+}
+
+@keyframes stamp-float {
+  0%, 100% { transform: translateY(0) rotate(12deg); }
+  50% { transform: translateY(-8px) rotate(8deg); }
+}
+
+@keyframes drift {
+  from { transform: translateX(-2%) rotate(-3deg) scaleY(0.9); }
+  to { transform: translateX(2%) rotate(2deg) scaleY(1.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wave-line { animation: none; }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.fade-up-init {
+  opacity: 0;
+  transform: translateY(50px);
+  transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.fade-up-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+/* Liquid Fill Hover Effect */
+@keyframes wave-spin {
+  0% { transform: translateX(-50%) rotate(0deg); }
+  100% { transform: translateX(-50%) rotate(360deg); }
+}
+
+.liquid-btn {
+  position: relative;
+  overflow: hidden;
+  transform: translateZ(0); /* Hardware acceleration */
+}
+
+.liquid-btn::before {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 250%;
+  height: 250%;
+  background: #087e8b;
+  transform: translateX(-50%) rotate(0deg);
+  border-radius: 42%;
+  transition: top 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+  z-index: 0;
+  animation: wave-spin 6s linear infinite;
+}
+
+.liquid-btn:hover::before {
+  top: -20%;
+}
+
+

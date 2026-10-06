@@ -11,9 +11,10 @@ import { homeForRole } from '../utils/roles';
 interface RoleGuardProps {
   allowedRoles: UserRole[];
   children: ReactNode;
+  loginPath?: string;
 }
 
-export const RoleGuard = ({ allowedRoles, children }: RoleGuardProps) => {
+export const RoleGuard = ({ allowedRoles, children, loginPath = '/login' }: RoleGuardProps) => {
   const router = useRouter();
   const status = useAppSelector(selectAuthStatus);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
@@ -22,13 +23,13 @@ export const RoleGuard = ({ allowedRoles, children }: RoleGuardProps) => {
   useEffect(() => {
     if (status === 'idle') return;
     if (!isAuthenticated) {
-      router.replace('/login');
+      router.replace(loginPath);
       return;
     }
     if (role && !allowedRoles.includes(role)) {
       router.replace(homeForRole(role));
     }
-  }, [status, isAuthenticated, role, allowedRoles, router]);
+  }, [status, isAuthenticated, role, allowedRoles, loginPath, router]);
 
   if (status === 'idle') {
     return (

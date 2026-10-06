@@ -220,7 +220,25 @@ describe('registration rules', () => {
       expect(stored.status).toBe('PENDING_VERIFICATION');
       expect(stored.role).toBe('TRAVELER');
     }
-    expect((await register({ password: PASSWORD, role: 'AGENCY', email: 'agency-reg@example.com' })).status).toBe(201);
-    expect((await prisma.user.findFirst({ where: { email: 'agency-reg@example.com' }, include: { agencyProfile: true } }))!.agencyProfile!.verificationStatus).toBe('UNVERIFIED');
+    expect((await register({ password: PASSWORD, role: 'AGENCY', email: 'agency-generic@example.com' })).status).toBe(400);
+    const agencyRegistration = await request(app).post('/api/v1/auth/agency/register').send({
+      email: 'agency-reg@example.com',
+      password: PASSWORD,
+      fullName: 'Agency Owner',
+      phone: '+84 912 345 678',
+      companyName: 'Rule Travel Co.',
+      licenseNumber: 'GPKD-123456',
+      address: '123 Rule Street, Ho Chi Minh City',
+      website: 'https://rule-travel.example.com',
+    });
+    expect(agencyRegistration.status).toBe(201);
+    const agency = await prisma.user.findFirst({ where: { email: 'agency-reg@example.com' }, include: { agencyProfile: true } });
+    expect(agency?.phone).toBe('+84 912 345 678');
+    expect(agency?.agencyProfile).toMatchObject({
+      companyName: 'Rule Travel Co.',
+      licenseNumber: 'GPKD-123456',
+      address: '123 Rule Street, Ho Chi Minh City',
+      verificationStatus: 'UNVERIFIED',
+    });
   });
 });

@@ -22,6 +22,10 @@ const PUBLIC_ROUTES = [
   'GET /tour-guides/:id',
   'GET /tours',
   'GET /tours/:id',
+  'POST /auth/agency/login',
+  'POST /auth/agency/register',
+  'POST /auth/agency/resend-otp',
+  'POST /auth/agency/verify-otp',
   'POST /auth/forgot-password',
   'POST /auth/google',
   'POST /auth/login',
@@ -70,8 +74,8 @@ describe('route audit: who can call what', () => {
   });
 
   it('never exposes an admin / staff / agency / guide area without a permission', () => {
-    const staffAreas = ['/admin/', '/moderation/', '/agency/', '/guide/', '/earnings'];
-    const unguarded = routes.filter((r) => staffAreas.some((area) => r.path.includes(area)) && !Array.isArray(r.access));
+    const staffAreas = ['/api/v1/admin/', '/api/v1/moderation/', '/api/v1/agency/', '/api/v1/guide/', '/api/v1/earnings'];
+    const unguarded = routes.filter((r) => staffAreas.some((area) => r.path.startsWith(area)) && !Array.isArray(r.access));
     expect(labels(unguarded)).toEqual([]);
   });
 
