@@ -10,7 +10,6 @@ export interface NavigationItem {
 
 export const navigationByRole: Record<AppRole, NavigationItem[]> = {
   PUBLIC: [
-    { label: 'Trang chủ', href: '/' },
     {
       label: 'Khám phá',
       href: '/explore',
@@ -22,7 +21,6 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
         { label: 'Vé vui chơi & Show', href: '/explore?type=activity', icon: 'attractions' },
       ],
     },
-    { label: 'Tạo chuyến đi riêng', href: '/custom-trip', icon: 'auto_awesome', badge: 'AI' },
     { label: 'Hỗ trợ', href: '/support' },
   ],
   TRAVELER: [
