@@ -393,8 +393,8 @@ export default function LandingPage() {
 
                   <div className="shrink-0 z-10">
                     {/* CHỈ NÚT NÀY MỚI CÓ 3D TILT */}
-                    <Tilt3DButton href="/register" className="group">
-                      <span>Bắt đầu cùng với chúng tôi</span>
+                    <Tilt3DButton href="/home" className="group">
+                      <span>Kích hoạt</span>
                       <ArrowUpRight className="size-6 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
                     </Tilt3DButton>
                   </div>

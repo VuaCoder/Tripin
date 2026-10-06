@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { RoleGuard } from '@/features/auth';
+import { AppShell } from '@/components/layout';
 
 export default function AgencyLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
