@@ -176,3 +176,19 @@ export interface BookableDeparture {
   remaining: number;
   guide?: { guideId: string; feePerBooking: number; status: GuideAssignmentStatus };
 }
+
+/**
+ * Current facts about one departure, for callers that must tolerate a stale selection instead of failing
+ * (e.g. the cart flags an item whose departure got closed or sold out). `bookable` is the single source of truth:
+ * open + future + seats left. Keyed in the returned map as `${tourId}:${departureId}`.
+ */
+export interface DepartureFacts {
+  tourId: string;
+  departureId: string;
+  date: Date;
+  price: number;
+  remaining: number;
+  isOpen: boolean;
+  bookable: boolean;
+}
+

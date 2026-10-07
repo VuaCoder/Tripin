@@ -11,8 +11,8 @@ Written from the code, `PROGRESS.md` and `DECISIONS.md`; nothing here is a new c
 
 | | |
 |---|---|
-| Feature modules | 21 working (`auth users audit system-settings categories tours promotions wishlists notifications bookings payments e-tickets reviews subscriptions earnings chat ai reports support moderation dashboards`) + 2 README-only placeholders (`carts`, `custom-tours`, not in the use-case diagram, D-56) |
-| Endpoints | 119 under `/api/v1` (+ Socket.IO on the same port for chat and live notifications) — list: `docs/api/ENDPOINTS.md` (generated), errors: `docs/api/ERRORS.md` |
+| Feature modules | 22 working (`auth users audit system-settings categories tours promotions wishlists carts notifications bookings payments e-tickets reviews subscriptions earnings chat ai reports support moderation dashboards`) + 1 README-only placeholder (`custom-tours`, not in the use-case diagram, D-56) |
+| Endpoints | 128 under `/api/v1` (+ Socket.IO on the same port for chat and live notifications) — list: `docs/api/ENDPOINTS.md` (generated), errors: `docs/api/ERRORS.md` |
 | Use cases | All use cases of the diagram are `done` in `docs/backend/USE_CASE_MAP.md` (Guest, Traveler, Agency, Tour guide, Moderator, Super admin) |
 | Code / tests | ~12.5 k lines of source, ~7.7 k lines of tests; 590 tests in 63 files (27 of the files run against a real PostgreSQL) |
 | Structure | `modules/<feature>/{routes,validation,controller,service,repository,model,mapper,types}.ts + index.ts + README.md + __tests__/` — rules in `docs/backend/ARCHITECTURE.md` |
@@ -63,7 +63,7 @@ two test files sharing one database; every file now has a database of its own (D
 | D-43 | **Reviews** | only after COMPLETED, one per booking, immutable by the author, moderators can hide | |
 | D-74 | **Free orders / minimum amount** | refused (`BOOKING_AMOUNT_TOO_LOW`, minimum 1 VND); no free-booking flow exists. PayOS likely has a higher minimum — set `BOOKING_POLICY.MIN_PAYABLE_AMOUNT` after checking the sandbox | `bookings.policy.ts` |
 | D-11 | "Upload tours" = bulk JSON import (≤ 50) | | |
-| D-56 | `carts` and `custom-tours` are **not built** | README-only placeholders; a test fails if code or a route appears before you approve the feature | |
+| D-56 | `custom-tours` is **not built** | README-only placeholder; a test fails if code or a route appears before you approve the feature. `carts` was approved and built in P2 (D-81) | |
 | D-7, D-73 | **Google login** skips the app's own 2FA code and links to an existing account with the same verified email (a planted password on an unverified account is removed) | | `auth.service.loginWithGoogle` |
 
 ## 5. To verify against real services (cannot be proven offline)
@@ -113,5 +113,5 @@ two test files sharing one database; every file now has a database of its own (D
 * E-ticket PDF/QR image rendering (the API returns the unguessable code; D-42).
 * Per-account login lockout / CAPTCHA (only per-IP limits and the OTP attempt limit exist).
 * "Logout everywhere" (not in the diagram); change-password while logged in (not in the diagram).
-* Custom tours and carts (D-56).
+* Custom tours (D-56). Carts are now implemented (D-81).
 * When the frontend starts: it can be generated against `docs/api/ENDPOINTS.md` + `docs/api/ERRORS.md`; Socket.IO usage is in `modules/chat/README.md`.

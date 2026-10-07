@@ -13,6 +13,7 @@ import {
   GUIDE_ASSIGNMENT_TRANSITIONS,
   TOUR_TRANSITIONS,
   type BookableDeparture,
+  type DepartureFacts,
   type DepartureInput,
   type GuideTourDto,
   type ItineraryDayInput,
@@ -26,7 +27,7 @@ import { tourViewBuilder, type TourViewBuilder } from './tours.view';
 type Actor = { userId: string; role: PersistedRole };
 type Repo = Pick<
   ToursRepository,
-  | 'create' | 'insertMany' | 'findById' | 'updateIfStatus' | 'answerGuideAssignment' | 'listByAgency' | 'listByGuide'
+  | 'create' | 'insertMany' | 'findById' | 'findManyByIds' | 'updateIfStatus' | 'answerGuideAssignment' | 'listByAgency' | 'listByGuide'
   | 'listForModeration' | 'reserveSeats' | 'releaseSeats' | 'applyDepartures' | 'setRatingStats' | 'countByStatus'
 >;
 
@@ -364,6 +365,34 @@ export class ToursService {
         ? { guideId: tour.guide.guideId, feePerBooking: tour.guide.feePerBooking, status: tour.guide.status as never }
         : undefined,
     };
+  }
+
+  /**
+   * Current facts about a batch of departures, without throwing on a stale one (a cart may hold a departure that was
+   * closed or sold out since it was added). One query for all the tours; unknown pairs are simply absent from the map.
+   * The map key is `${tourId}:${departureId}`.
+   */
+  async getDepartureFacts(requests: readonly { tourId: string; departureId: string }[]): Promise<Map<string, DepartureFacts>> {
+    const facts = new Map<string, DepartureFacts>();
+    if (requests.length === 0) return facts;
+    const wanted = new Set(requests.map((request) => `${request.tourId}:${request.departureId}`));
+    const tours = await this.tours.findManyByIds(Array.from(new Set(requests.map((request) => request.tourId))));
+    for (const tour of tours) {
+      for (const departure of tour.departures) {
+        const key = `${tour.id}:${departure.id}`;
+        if (!wanted.has(key)) continue;
+        facts.set(key, {
+          tourId: tour.id,
+          departureId: departure.id,
+          date: departure.date,
+          price: departurePrice(tour, departure),
+          remaining: departure.remaining,
+          isOpen: departure.isOpen,
+          bookable: isBookable(departure),
+        });
+      }
+    }
+    return facts;
   }
 
   /** Atomic; throws 409 `NOT_ENOUGH_SEATS` instead of overselling. */

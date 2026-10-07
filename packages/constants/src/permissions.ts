@@ -11,6 +11,7 @@ export const PERMISSIONS = {
 
   // Traveler
   WISHLIST_MANAGE: 'wishlist:manage',
+  CART_MANAGE: 'cart:manage',
   BOOKING_CREATE: 'booking:create',
   BOOKING_VIEW_OWN: 'booking:view-own',
   PAYMENT_CREATE: 'payment:create',
@@ -74,6 +75,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   [ROLES.TRAVELER]: [
     ...ACCOUNT,
     P.WISHLIST_MANAGE,
+    P.CART_MANAGE,
     P.BOOKING_CREATE,
     P.BOOKING_VIEW_OWN,
     P.PAYMENT_CREATE,

@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 124 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 128 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -146,6 +146,15 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | GET | `/api/v1/bookings/:id` | `booking:view-own` |
 | POST | `/api/v1/bookings/:id/cancel` | `booking:view-own` |
 | GET | `/api/v1/bookings/me` | `booking:view-own` |
+
+## `/cart`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/cart` | `cart:manage` |
+| POST | `/api/v1/cart/items` | `cart:manage` |
+| DELETE | `/api/v1/cart/items/:id` | `cart:manage` |
+| PATCH | `/api/v1/cart/items/:id` | `cart:manage` |
 
 ## `/categories`
 

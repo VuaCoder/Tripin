@@ -20,6 +20,7 @@ import {
 } from '../../test/integration';
 import { prisma } from '../../config/database';
 import { randomUUID } from 'node:crypto';
+import bcrypt from 'bcryptjs';
 
 // Every documented error code is provoked over HTTP, on a real database, and must come back with the documented status.
 const app = createApp();
@@ -127,6 +128,14 @@ describe('error contract over HTTP', () => {
       .set(bearer(unverified.token))
       .send({ title: 'Sapa trekking', destination: 'Lao Cai', durationDays: 3, basePrice: 2_000_000, categoryIds: [categoryId] });
     expectError(await request(app).post(`/api/v1/agency/tours/${tour.body.data.id}/submit`).set(bearer(unverified.token)), 'AGENCY_NOT_VERIFIED');
+
+    // Agency portal separation: an agency account cannot use the traveler login, and an unfinished agency
+    // registration cannot sign in through the agency portal.
+    const passwordHash = await bcrypt.hash(PASSWORD, 4);
+    await createUser('AGENCY', 'agency-login@example.com', { passwordHash });
+    expectError(await request(app).post('/api/v1/auth/login').send({ email: 'agency-login@example.com', password: PASSWORD }), 'AGENCY_PORTAL_REQUIRED');
+    await createUser('AGENCY', 'agency-pending@example.com', { passwordHash, status: 'PENDING_VERIFICATION' });
+    expectError(await request(app).post('/api/v1/auth/agency/login').send({ email: 'agency-pending@example.com', password: PASSWORD }), 'AGENCY_ONBOARDING_REQUIRED');
   });
 
   it('tours, categories and promotions', async () => {
@@ -242,6 +251,10 @@ describe('error contract over HTTP', () => {
     // Wishlist limit.
     await prisma.wishlistItem.createMany({ data: Array.from({ length: 200 }, () => ({ userId: traveler.id, tourId: randomUUID() })) });
     expectError(await request(app).post(`/api/v1/wishlist/${tourId}`).set(bearer(traveler.token)), 'WISHLIST_FULL');
+
+    // Cart limit.
+    await prisma.cartItem.createMany({ data: Array.from({ length: 20 }, () => ({ userId: traveler.id, tourId: randomUUID(), departureId: randomUUID(), participants: 1 })) });
+    expectError(await request(app).post('/api/v1/cart/items').set(bearer(traveler.token)).send({ tourId, departureId, participants: 1 }), 'CART_FULL');
   });
 
   it('AI conversation limit', async () => {
