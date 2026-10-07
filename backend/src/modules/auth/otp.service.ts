@@ -45,10 +45,10 @@ export class OtpService {
       throw AppError.tooManyRequests('Đã nhập sai quá số lần quy định. Vui lòng lấy mã mới.', ERROR_CODES.OTP_TOO_MANY_ATTEMPTS);
     }
     if (!safeEqual(counted.codeHash, this.hash(userId, purpose, code))) {
-      throw AppError.badRequest('Mã xác thực không chính xác', undefined, ERROR_CODES.OTP_INVALID);
+      throw AppError.badRequest(AUTH_POLICY.OTP_INVALID_MESSAGE, undefined, ERROR_CODES.OTP_INVALID);
     }
     const consumed = await this.otps.consume(live.id);
-    if (!consumed) throw AppError.badRequest('Mã xác thực đã được sử dụng hoặc không hợp lệ', undefined, ERROR_CODES.OTP_INVALID);
+    if (!consumed) throw AppError.badRequest(AUTH_POLICY.OTP_INVALID_MESSAGE, undefined, ERROR_CODES.OTP_INVALID);
   }
 
   /** Removes expired codes; returns how many were deleted. */
