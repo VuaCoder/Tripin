@@ -126,14 +126,14 @@ describe('production build (integration)', () => {
   }, 60_000);
 });
 
-describe('placeholder modules (carts, custom tours)', () => {
+describe('placeholder modules (custom tours)', () => {
   it('contain only their README and expose no route', async () => {
-    for (const name of ['carts', 'custom-tours']) {
+    for (const name of ['custom-tours']) {
       const dir = path.join(apiRoot, 'src/modules', name);
       expect(readdirSync(dir).filter((file) => file !== '.gitkeep')).toEqual(['README.md']);
     }
     const app = createApp();
-    for (const url of ['/api/v1/carts', '/api/v1/custom-tours', '/api/v1/cart']) {
+    for (const url of ['/api/v1/carts', '/api/v1/custom-tours']) {
       expect((await request(app).get(url)).status, url).toBe(404);
       expect((await request(app).post(url).send({})).status, url).toBe(404);
     }

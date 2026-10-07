@@ -20,6 +20,16 @@ export function createApp(): Express {
     .map((origin) => origin.trim().replace(/\/$/, ''))
     .filter(Boolean);
 
+  /** A real loopback origin (dev). Compared by hostname, so `http://localhost.evil.example` is NOT local. */
+  const isLoopbackOrigin = (origin: string): boolean => {
+    try {
+      const url = new URL(origin);
+      return url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]', '::1'].includes(url.hostname);
+    } catch {
+      return false;
+    }
+  };
+
   app.use(
     cors({
       origin: (origin, callback) => {
@@ -28,11 +38,11 @@ export function createApp(): Express {
         if (
           allowedOrigins.includes(cleanOrigin) ||
           cleanOrigin.endsWith('.vercel.app') ||
-          cleanOrigin.startsWith('http://localhost')
+          isLoopbackOrigin(cleanOrigin)
         ) {
           callback(null, true);
         } else {
-          callback(null, true);
+          callback(null, false);
         }
       },
       credentials: true,

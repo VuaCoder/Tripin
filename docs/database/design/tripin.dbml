@@ -1,0 +1,1143 @@
+//////////////////////////////////////////////
+// TRIPIN — SCHEMA HỢP NHẤT (DBML)
+// Dán vào https://dbdiagram.io
+//
+// MỘT STORE DUY NHẤT: PostgreSQL.
+// File này thay thế thiết kế hai store (Postgres giao dịch + NoSQL nội dung).
+// Toàn bộ bảng nội dung & tương tác (ZONE … RAW_EVENT) đã được đưa vào
+// Postgres, khoá ngoại được cưỡng chế thật, KHÔNG còn MongoDB.
+//
+// DDL chạy được: `tripin.sql` (cùng thư mục). Dữ liệu mẫu: `seed.sql`.
+// Mọi giờ lưu theo UTC (timestamptz). Tiền tệ VND (numeric(14,2)).
+//
+// Ghi chú: các chỗ KHÔNG viết được bằng DBML (EXCLUDE, UNIQUE NULLS NOT
+// DISTINCT, trigger updatedAt) nằm ở `tripin.sql` và có Note tại bảng.
+//////////////////////////////////////////////
+
+// =========================================
+// ENUM — chỉ đặt enum cho tập giá trị mà thiết kế gốc đã liệt kê.
+// Cột nào gốc ghi `varchar` không kèm danh sách giá trị thì giữ varchar.
+// =========================================
+
+Enum user_role {
+  TRAVELLER
+  SUPPLIER
+  PLATFORM_ADMIN
+  PLATFORM_MODERATOR
+  PLATFORM_SUPPORT
+  PLATFORM_FINANCE
+}
+
+Enum supplier_type {
+  HOTEL
+  TRANSPORT
+  GUIDE
+  ACTIVITY
+  TOUR_OPERATOR
+}
+
+Enum supplier_status {
+  ONBOARDING
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+Enum transport_mode {
+  PLANE
+  TRAIN
+  BUS
+  FERRY
+}
+
+Enum product_type {
+  HOTEL
+  TRANSPORT
+  ACTIVITY
+  TOUR_PACKAGE
+}
+
+Enum product_status {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  ACTIVE
+  INACTIVE
+}
+
+Enum trip_event_type {
+  DELAY
+  CANCEL
+}
+
+Enum constraint_type {
+  HARD
+  SOFT
+}
+
+Enum hold_status {
+  ACTIVE
+  CONFIRMED
+  EXPIRED
+  RELEASED
+}
+
+Enum slot_resource_type {
+  TRAVELLER
+  GUIDE
+}
+
+Enum slot_ref_type {
+  SEGMENT
+  BOOKING_ITEM
+}
+
+Enum slot_status {
+  ACTIVE
+  RELEASED
+}
+
+Enum booking_type {
+  INSTANT
+  REQUEST
+}
+
+Enum booking_status {
+  PENDING
+  HELD
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+Enum booking_item_type {
+  ROOM
+  SEAT
+  ACTIVITY
+}
+
+Enum itinerary_status {
+  DRAFT
+  BOOKED
+  ACTIVE
+  COMPLETED
+}
+
+Enum segment_type {
+  STAY
+  TRIP
+  ACTIVITY
+}
+
+Enum chat_ref_type {
+  BOOKING
+  TOUR_REQUEST
+}
+
+Enum moderation_target_type {
+  PROFILE
+  PRODUCT
+}
+
+Enum moderation_status {
+  PENDING
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
+Enum audit_action {
+  CREATE
+  UPDATE
+  DELETE
+  APPROVE
+  REJECT
+  LOGIN
+}
+
+Enum review_target_type {
+  PRODUCT
+  SUPPLIER
+  GUIDE
+}
+
+Enum review_status {
+  PUBLISHED
+  HIDDEN
+}
+
+Enum notification_channel {
+  IN_APP
+  EMAIL
+}
+
+// =========================================
+// 1. DANH TÍNH & NHÀ CUNG CẤP
+// =========================================
+
+Table USER {
+  id varchar [pk]
+  email varchar [unique]
+  phone varchar
+  passwordHash varchar
+  role user_role
+  locale varchar
+  currency varchar
+  status varchar // gốc không liệt kê giá trị -> giữ varchar
+  createdAt timestamptz
+  updatedAt timestamptz
+  indexes {
+    (role, status)
+  }
+}
+
+Table SUPPLIER {
+  id varchar [pk]
+  userId varchar [unique] // một tài khoản duy nhất (quan hệ 1-1)
+  type supplier_type
+  legalName varchar
+  displayName varchar
+  taxId varchar
+  licenseNo varchar
+  licenseExpiry date
+  verified boolean
+  status supplier_status
+  ratingAvg float
+  ratingCount int
+  createdAt timestamptz
+  updatedAt timestamptz
+  indexes {
+    (status, type)
+  }
+}
+
+Table HOTEL_PROFILE {
+  supplierId varchar [pk]
+  name varchar
+  address varchar
+  lat float
+  lng float
+  starRating int
+  checkInTime varchar
+  checkOutTime varchar
+}
+
+Table TRANSPORT_PROFILE {
+  supplierId varchar [pk]
+  name varchar
+  mode transport_mode
+}
+
+Table GUIDE_PROFILE {
+  supplierId varchar [pk]
+  languages varchar
+}
+
+Table AMENITY {
+  id varchar [pk]
+  name varchar
+  category varchar
+  icon varchar
+  indexes {
+    (category)
+  }
+}
+
+Table PROFILE_AMENITY {
+  supplierId varchar
+  amenityId varchar
+  indexes {
+    (supplierId, amenityId) [pk]
+    (amenityId)
+  }
+}
+
+// =========================================
+// 2. DANH MỤC, TỒN KHO, CHUYẾN
+// =========================================
+
+Table PRODUCT {
+  id varchar [pk]
+  supplierId varchar
+  type product_type
+  zoneId varchar
+  title varchar
+  basePrice numeric(14,2)
+  currency varchar
+  lat float
+  lng float
+  ratingAvg float
+  ratingCount int
+  status product_status
+  isActive boolean
+  createdAt timestamptz
+  updatedAt timestamptz
+  indexes {
+    (supplierId)
+    (zoneId)
+    (status, isActive)
+  }
+}
+
+Table ROOM_TYPE {
+  id varchar [pk]
+  productId varchar
+  name varchar
+  capacity int
+  bedType varchar
+  sizeSqm float
+  basePrice numeric(14,2)
+  indexes {
+    (productId)
+  }
+}
+
+Table TRIP {
+  id varchar [pk]
+  productId varchar
+  origin varchar
+  destination varchar
+  departScheduled timestamptz
+  arriveScheduled timestamptz
+  departEstimated timestamptz
+  departActual timestamptz
+  status varchar
+  updatedAt timestamptz
+  indexes {
+    (productId, departScheduled, origin, destination) [unique]
+    (departScheduled)
+  }
+  Note: '''
+  DBML không viết được NULLS NOT DISTINCT.
+  Ba cột origin/destination/departScheduled có thể NULL, nên `tripin.sql` dùng:
+
+  UNIQUE NULLS NOT DISTINCT ("productId", "departScheduled", "origin", "destination")
+
+  (PostgreSQL 15+). Không có NULLS NOT DISTINCT thì hai chuyến cùng NULL
+  sẽ lọt qua unique index.
+  '''
+}
+
+Table TRIP_EVENT {
+  id varchar [pk]
+  tripId varchar
+  type trip_event_type
+  newTime timestamptz
+  reason varchar
+  source varchar
+  createdAt timestamptz
+  indexes {
+    (tripId, createdAt)
+  }
+}
+
+Table TOUR_PACKAGE_ITEM {
+  id varchar [pk]
+  packageProductId varchar
+  productId varchar
+  order int
+  day int
+  plannedOffsetMin int
+  durationMin int
+  bufferMin int
+  constraintType constraint_type
+  isOptional boolean
+  indexes {
+    (packageProductId, order) [unique]
+    (productId)
+  }
+  Note: 'Cột `order` là từ khoá SQL, luôn phải quote trong DDL.'
+}
+
+Table AVAILABILITY {
+  id varchar [pk]
+  productId varchar
+  roomTypeId varchar
+  date date
+  total int
+  booked int
+  held int
+  price numeric(14,2)
+  version int
+  indexes {
+    (productId, roomTypeId, date) [unique]
+    (roomTypeId)
+    (date)
+  }
+}
+
+Table SEAT_INVENTORY {
+  id varchar [pk]
+  tripId varchar
+  seatClass varchar
+  capacity int
+  booked int
+  indexes {
+    (tripId, seatClass) [unique]
+  }
+}
+
+// =========================================
+// 3. GIỮ CHỖ & LỊCH NGUỒN LỰC
+// =========================================
+
+Table HOLD {
+  id varchar [pk]
+  bookingGroupId varchar
+  itemType varchar // gốc không liệt kê giá trị -> giữ varchar
+  productId varchar
+  roomTypeId varchar
+  tripId varchar
+  date date
+  qty int
+  status hold_status
+  expiresAt timestamptz
+  indexes {
+    (bookingGroupId)
+    (productId)
+    (tripId)
+    (roomTypeId)
+    (status, expiresAt)
+  }
+}
+
+Table SLOT {
+  id varchar [pk]
+  resourceType slot_resource_type
+  resourceId varchar // TRAVELLER.id khi TRAVELLER | SUPPLIER.id khi GUIDE
+  refType slot_ref_type
+  refId varchar
+  startAt timestamptz
+  endAt timestamptz
+  status slot_status
+  createdAt timestamptz
+  indexes {
+    (resourceType, resourceId, startAt, endAt)
+    (refType, refId)
+  }
+  Note: '''
+  DBML không viết được ràng buộc chồng lấn. `tripin.sql` thêm:
+
+  CREATE EXTENSION IF NOT EXISTS btree_gist;   -- BẮT BUỘC, thiết kế gốc thiếu
+
+  ALTER TABLE "SLOT" ADD CONSTRAINT slot_no_overlap
+  EXCLUDE USING gist (
+    "resourceType" WITH =,
+    "resourceId"   WITH =,
+    tstzrange("startAt", "endAt", '[)') WITH &&
+  );
+
+  `btree_gist` cần thiết vì EXCLUDE trộn `=` trên cột text với `&&` trên range.
+  Không có extension này thì câu lệnh trên báo lỗi và luật chồng lấn không tồn tại.
+  Mọi giờ là UTC nên tstzrange là đúng; '[)' gồm điểm đầu, loại điểm cuối.
+  '''
+}
+
+// =========================================
+// 4. HÀNH TRÌNH & ĐẶT CHỖ
+// =========================================
+
+Table TRAVELLER {
+  id varchar [pk]
+  ownerUserId varchar [unique] // quan hệ 1-1 với USER
+  fullName varchar
+  dob date
+  createdAt timestamptz
+}
+
+Table BOOKING_GROUP {
+  id varchar [pk]
+  travellerUserId varchar
+  itineraryId varchar
+  status varchar
+  totalAmount numeric(14,2)
+  currency varchar
+  createdAt timestamptz
+  indexes {
+    (travellerUserId, createdAt)
+    (itineraryId)
+  }
+}
+
+Table BOOKING {
+  id varchar [pk]
+  groupId varchar
+  ref varchar [unique]
+  supplierId varchar
+  type booking_type
+  totalAmount numeric(14,2)
+  currency varchar
+  status booking_status
+  idempotencyKey varchar [unique]
+  createdAt timestamptz
+  updatedAt timestamptz
+  indexes {
+    (groupId)
+    (supplierId, createdAt)
+    (status, createdAt)
+  }
+}
+
+Table BOOKING_ITEM {
+  id varchar [pk]
+  bookingId varchar
+  itemType booking_item_type
+  productId varchar
+  roomTypeId varchar
+  tripId varchar
+  qty int
+  unitPrice numeric(14,2)
+  startDate date
+  endDate date
+  indexes {
+    (bookingId)
+    (productId)
+    (roomTypeId)
+    (tripId)
+  }
+}
+
+Table BOOKING_TRAVELLER {
+  bookingId varchar
+  travellerId varchar
+  indexes {
+    (bookingId, travellerId) [pk]
+    (travellerId)
+  }
+}
+
+Table BOOKING_EVENT {
+  id varchar [pk]
+  bookingId varchar
+  type varchar
+  payload text
+  createdAt timestamptz
+  indexes {
+    (bookingId, createdAt)
+  }
+}
+
+Table ITINERARY {
+  id varchar [pk]
+  travellerUserId varchar
+  status itinerary_status
+  currentVersion int
+  createdAt timestamptz
+  indexes {
+    (travellerUserId, createdAt)
+  }
+}
+
+Table ITINERARY_VERSION {
+  id varchar [pk]
+  itineraryId varchar
+  version int
+  reason varchar
+  createdAt timestamptz
+  indexes {
+    (itineraryId, version) [unique]
+  }
+}
+
+Table ITINERARY_SEGMENT {
+  id varchar [pk]
+  itineraryVersionId varchar
+  order int
+  type segment_type
+  productId varchar
+  tripId varchar
+  bookingId varchar
+  poiName varchar
+  plannedStart timestamptz
+  plannedEnd timestamptz
+  actualStart timestamptz
+  actualEnd timestamptz
+  bufferMin int
+  constraintType constraint_type
+  dependsOnOrder int
+  indexes {
+    (itineraryVersionId, order) [unique]
+    (productId)
+    (tripId)
+    (bookingId)
+  }
+  Note: 'Cột `order` là từ khoá SQL, luôn phải quote trong DDL.'
+}
+
+Table GUIDE_AVAILABILITY {
+  id varchar [pk]
+  supplierId varchar
+  date date
+  timeSlot varchar
+  indexes {
+    (supplierId, date, timeSlot) [unique]
+  }
+}
+
+Table TOUR_REQUEST {
+  id varchar [pk]
+  travellerUserId varchar
+  status varchar
+  preferredDate date
+  guestCount int
+  depositAmount numeric(14,2)
+  createdAt timestamptz
+  indexes {
+    (travellerUserId, createdAt)
+    (status, preferredDate)
+  }
+}
+
+Table CHAT_THREAD {
+  id varchar [pk]
+  refType chat_ref_type
+  refId varchar
+  createdAt timestamptz
+  indexes {
+    (refType, refId)
+  }
+  Note: 'refId là tham chiếu polymorphic (BOOKING | TOUR_REQUEST) nên không có FK.'
+}
+
+Table CHAT_MESSAGE {
+  id varchar [pk]
+  threadId varchar
+  senderUserId varchar
+  message text
+  sentAt timestamptz
+  indexes {
+    (threadId, sentAt)
+    (senderUserId)
+  }
+}
+
+// =========================================
+// 5. TIỀN
+// =========================================
+
+Table PAYMENT {
+  id varchar [pk]
+  groupId varchar
+  travellerUserId varchar
+  method varchar
+  amount numeric(14,2)
+  currency varchar
+  status varchar
+  gatewayRef varchar
+  paidAt timestamptz
+  createdAt timestamptz
+  indexes {
+    (groupId)
+    (travellerUserId)
+    (status, createdAt)
+  }
+}
+
+Table PAYMENT_TRANSACTION {
+  id varchar [pk]
+  paymentId varchar
+  type varchar
+  amount numeric(14,2)
+  status varchar
+  gatewayRef varchar
+  createdAt timestamptz
+  indexes {
+    (paymentId)
+  }
+}
+
+Table REFUND {
+  id varchar [pk]
+  bookingId varchar
+  paymentId varchar
+  policyVersion int
+  amount numeric(14,2)
+  reason varchar
+  status varchar
+  createdAt timestamptz
+  indexes {
+    (bookingId)
+    (paymentId)
+    (policyVersion)
+  }
+}
+
+Table PAYOUT {
+  id varchar [pk]
+  supplierId varchar
+  period varchar
+  gross numeric(14,2)
+  commission numeric(14,2)
+  net numeric(14,2)
+  status varchar
+  paidAt timestamptz
+  indexes {
+    (supplierId, period)
+  }
+}
+
+Table INVOICE {
+  id varchar [pk]
+  refType varchar
+  refId varchar
+  invoiceNo varchar [unique]
+  taxNo varchar
+  amount numeric(14,2)
+  issuedAt timestamptz
+  indexes {
+    (refType, refId)
+  }
+  Note: '''
+  Thiết kế gốc khai `Ref: INVOICE.refId > BOOKING.id`, nhưng `refType` là
+  polymorphic nên FK đó sẽ chặn các hoá đơn không trỏ vào BOOKING.
+  Bản hợp nhất bỏ FK này và đánh index (refType, refId) — đúng quy ước
+  "polymorphic references have no foreign key" của repo.
+  `invoiceNo` được thêm UNIQUE: số hoá đơn phải duy nhất.
+  '''
+}
+
+Table CANCELLATION_POLICY {
+  id varchar [pk]
+  version int [unique]
+  rules text
+  effectiveFrom timestamptz
+}
+
+Table PLATFORM_SETTING {
+  key varchar [pk]
+  value varchar
+  description varchar
+}
+
+// =========================================
+// 6. KIỂM DUYỆT, AUDIT, TÍCH HỢP
+// =========================================
+
+Table MODERATION_REQUEST {
+  id varchar [pk]
+  supplierId varchar
+  targetType moderation_target_type
+  targetId varchar
+  status moderation_status
+  submittedBy varchar
+  reviewerId varchar
+  reason text
+  submittedAt timestamptz
+  reviewedAt timestamptz
+  indexes {
+    (status, submittedAt)
+    (supplierId)
+    (submittedBy)
+    (reviewerId)
+  }
+  Note: 'targetId là tham chiếu polymorphic (PROFILE | PRODUCT) nên không có FK.'
+}
+
+Table MODERATION_LOG {
+  id varchar [pk]
+  requestId varchar
+  actorId varchar
+  action varchar
+  note text
+  createdAt timestamptz
+  indexes {
+    (requestId, createdAt)
+    (actorId)
+  }
+}
+
+Table AUDIT_LOG {
+  id varchar [pk]
+  actorId varchar
+  action audit_action
+  entityType varchar
+  entityId varchar
+  beforeJson text
+  afterJson text
+  ip varchar
+  userAgent varchar
+  requestId varchar
+  createdAt timestamptz
+  indexes {
+    (actorId, createdAt)
+    (entityType, entityId, createdAt)
+    (createdAt)
+  }
+}
+
+Table SUPPLIER_PAYOUT_ACCOUNT {
+  id varchar [pk]
+  supplierId varchar
+  bankName varchar
+  accountNo varchar
+  accountName varchar
+  isDefault boolean
+  indexes {
+    (supplierId)
+  }
+}
+
+Table SUPPLIER_INTEGRATION {
+  id varchar [pk]
+  supplierId varchar
+  channel varchar
+  credentials text // bí mật, phải mã hoá ở tầng ứng dụng
+  status varchar
+  lastSyncAt timestamptz
+  indexes {
+    (supplierId)
+  }
+}
+
+// =========================================
+// 7. NỘI DUNG & TƯƠNG TÁC (trước đây ở NoSQL — nay vào Postgres)
+// =========================================
+
+Table ZONE {
+  id varchar [pk]
+  name varchar
+  vibe varchar
+  indexes {
+    (vibe)
+  }
+}
+
+Table LOCATION {
+  id varchar [pk]
+  zoneId varchar
+  name varchar
+  lat float
+  lng float
+  indexes {
+    (zoneId)
+  }
+}
+
+Table PRODUCT_CONTENT {
+  id varchar [pk]
+  productId varchar [unique]
+  titleVi varchar
+  titleEn varchar
+  descriptionVi text
+  descriptionEn text
+  media jsonb
+  amenities jsonb
+  Note: 'media/amenities là mảng JSON -> jsonb (gốc ghi text).'
+}
+
+Table PROFILE_CONTENT {
+  id varchar [pk]
+  supplierId varchar [unique]
+  nameVi varchar
+  nameEn varchar
+  descriptionVi text
+  descriptionEn text
+  media jsonb
+  policies text
+  Note: 'media là mảng JSON -> jsonb (gốc ghi text).'
+}
+
+Table REVIEW {
+  id varchar [pk]
+  targetType review_target_type
+  targetId varchar
+  bookingId varchar
+  travellerUserId varchar
+  rating int
+  title varchar
+  comment text
+  status review_status
+  createdAt timestamptz
+  indexes {
+    (bookingId, targetType) [unique]
+    (targetType, targetId, createdAt)
+    (travellerUserId)
+  }
+  Note: 'targetId là tham chiếu polymorphic (PRODUCT | SUPPLIER | GUIDE) nên không có FK.'
+}
+
+Table REVIEW_SUMMARY {
+  targetType review_target_type
+  targetId varchar
+  avgRating float
+  count int
+  distribution jsonb
+  indexes {
+    (targetType, targetId) [pk]
+  }
+  Note: 'Bảng tổng hợp theo (targetType, targetId) polymorphic nên không có FK. distribution -> jsonb.'
+}
+
+Table NOTIFICATION {
+  id varchar [pk]
+  userId varchar
+  type varchar
+  title varchar
+  body text
+  channel notification_channel
+  refType varchar
+  refId varchar
+  isRead boolean
+  sentAt timestamptz
+  readAt timestamptz
+  indexes {
+    (userId, isRead, sentAt)
+  }
+  Note: 'refType/refId là tham chiếu polymorphic nên không có FK.'
+}
+
+Table WISHLIST {
+  id varchar [pk]
+  travellerUserId varchar
+  productId varchar
+  createdAt timestamptz
+  indexes {
+    (travellerUserId, productId) [unique]
+    (productId)
+  }
+}
+
+Table CART {
+  id varchar [pk]
+  travellerUserId varchar [unique]
+  updatedAt timestamptz
+  Note: 'Một giỏ cho mỗi traveller (unique travellerUserId).'
+}
+
+Table CART_ITEM {
+  id varchar [pk]
+  cartId varchar
+  productId varchar
+  qty int
+  startDate date
+  endDate date
+  indexes {
+    (cartId)
+    (productId)
+  }
+}
+
+Table REPORT {
+  id varchar [pk]
+  reporterUserId varchar
+  targetType varchar
+  targetId varchar
+  reason text
+  status varchar
+  createdAt timestamptz
+  indexes {
+    (status, createdAt)
+    (reporterUserId)
+  }
+  Note: 'targetType/targetId là tham chiếu polymorphic nên không có FK.'
+}
+
+Table HELP_ARTICLE {
+  id varchar [pk]
+  title varchar
+  category varchar
+  body text
+  viewCount int
+  indexes {
+    (category)
+  }
+}
+
+Table TICKET {
+  id varchar [pk]
+  userId varchar
+  subject varchar
+  priority varchar
+  status varchar
+  assigneeId varchar
+  createdAt timestamptz
+  indexes {
+    (userId, status)
+    (assigneeId, status)
+  }
+}
+
+Table TICKET_MESSAGE {
+  id varchar [pk]
+  ticketId varchar
+  senderUserId varchar
+  message text
+  sentAt timestamptz
+  indexes {
+    (ticketId, sentAt)
+    (senderUserId)
+  }
+}
+
+Table RAW_EVENT {
+  id varchar [pk]
+  source varchar
+  externalId varchar
+  hash varchar
+  payload jsonb
+  processedAt timestamptz
+  createdAt timestamptz
+  indexes {
+    (source, externalId, hash) [unique]
+    (processedAt)
+  }
+  Note: 'payload -> jsonb (gốc ghi text). processedAt NULL = chưa xử lý.'
+}
+
+//////////////////////////////////////////////
+// QUAN HỆ — NAY TẤT CẢ ĐỀU CƯỠNG CHẾ BẰNG FK
+// =========================================
+// Trước đây nhóm NoSQL chỉ tham chiếu logic; nay mọi ref đều là FK thật.
+// Ngoại lệ duy nhất: các cột polymorphic (targetId / refId) không có FK.
+//////////////////////////////////////////////
+
+// --- 1. Danh tính & nhà cung cấp ---
+Ref: SUPPLIER.userId - USER.id
+Ref: HOTEL_PROFILE.supplierId - SUPPLIER.id
+Ref: TRANSPORT_PROFILE.supplierId - SUPPLIER.id
+Ref: GUIDE_PROFILE.supplierId - SUPPLIER.id
+Ref: PROFILE_AMENITY.supplierId > SUPPLIER.id
+Ref: PROFILE_AMENITY.amenityId > AMENITY.id
+
+// --- 2. Danh mục, tồn kho, chuyến ---
+Ref: PRODUCT.supplierId > SUPPLIER.id
+Ref: PRODUCT.zoneId > ZONE.id // MỚI: trước đây trỏ sang ZONE ở NoSQL, không cưỡng chế được
+Ref: ROOM_TYPE.productId > PRODUCT.id
+Ref: TRIP.productId > PRODUCT.id
+Ref: TRIP_EVENT.tripId > TRIP.id
+Ref: TOUR_PACKAGE_ITEM.packageProductId > PRODUCT.id
+Ref: TOUR_PACKAGE_ITEM.productId > PRODUCT.id
+Ref: AVAILABILITY.productId > PRODUCT.id
+Ref: AVAILABILITY.roomTypeId > ROOM_TYPE.id
+Ref: SEAT_INVENTORY.tripId > TRIP.id
+
+// --- 3. Giữ chỗ & lịch nguồn lực ---
+Ref: HOLD.bookingGroupId > BOOKING_GROUP.id
+Ref: HOLD.productId > PRODUCT.id
+Ref: HOLD.roomTypeId > ROOM_TYPE.id
+Ref: HOLD.tripId > TRIP.id
+
+// --- 4. Hành trình & đặt chỗ ---
+Ref: TRAVELLER.ownerUserId - USER.id
+Ref: BOOKING_GROUP.travellerUserId > USER.id
+Ref: BOOKING_GROUP.itineraryId > ITINERARY.id
+Ref: BOOKING.groupId > BOOKING_GROUP.id
+Ref: BOOKING.supplierId > SUPPLIER.id
+Ref: BOOKING_ITEM.bookingId > BOOKING.id
+Ref: BOOKING_ITEM.productId > PRODUCT.id
+Ref: BOOKING_ITEM.roomTypeId > ROOM_TYPE.id
+Ref: BOOKING_ITEM.tripId > TRIP.id
+Ref: BOOKING_TRAVELLER.bookingId > BOOKING.id
+Ref: BOOKING_TRAVELLER.travellerId > TRAVELLER.id
+Ref: BOOKING_EVENT.bookingId > BOOKING.id
+Ref: ITINERARY.travellerUserId > USER.id
+Ref: ITINERARY_VERSION.itineraryId > ITINERARY.id
+Ref: ITINERARY_SEGMENT.itineraryVersionId > ITINERARY_VERSION.id
+Ref: ITINERARY_SEGMENT.productId > PRODUCT.id
+Ref: ITINERARY_SEGMENT.tripId > TRIP.id
+Ref: ITINERARY_SEGMENT.bookingId > BOOKING.id
+Ref: GUIDE_AVAILABILITY.supplierId > SUPPLIER.id
+Ref: TOUR_REQUEST.travellerUserId > USER.id
+Ref: CHAT_MESSAGE.threadId > CHAT_THREAD.id
+Ref: CHAT_MESSAGE.senderUserId > USER.id
+
+// --- 5. Tiền ---
+Ref: PAYMENT.groupId > BOOKING_GROUP.id
+Ref: PAYMENT.travellerUserId > USER.id
+Ref: PAYMENT_TRANSACTION.paymentId > PAYMENT.id
+Ref: REFUND.bookingId > BOOKING.id
+Ref: REFUND.paymentId > PAYMENT.id
+Ref: REFUND.policyVersion > CANCELLATION_POLICY.version // MỚI: trước đây chỉ là số rời
+Ref: PAYOUT.supplierId > SUPPLIER.id
+
+// --- 6. Kiểm duyệt, audit, tích hợp ---
+Ref: MODERATION_REQUEST.supplierId > SUPPLIER.id
+Ref: MODERATION_REQUEST.submittedBy > USER.id
+Ref: MODERATION_REQUEST.reviewerId > USER.id
+Ref: MODERATION_LOG.requestId > MODERATION_REQUEST.id
+Ref: MODERATION_LOG.actorId > USER.id
+Ref: AUDIT_LOG.actorId > USER.id
+Ref: SUPPLIER_PAYOUT_ACCOUNT.supplierId > SUPPLIER.id
+Ref: SUPPLIER_INTEGRATION.supplierId > SUPPLIER.id
+
+// --- 7. Nội dung & tương tác (MỚI: trước đây là ref logic, nay là FK) ---
+Ref: LOCATION.zoneId > ZONE.id
+Ref: PRODUCT_CONTENT.productId - PRODUCT.id
+Ref: PROFILE_CONTENT.supplierId - SUPPLIER.id
+Ref: REVIEW.bookingId > BOOKING.id
+Ref: REVIEW.travellerUserId > USER.id
+Ref: NOTIFICATION.userId > USER.id
+Ref: WISHLIST.travellerUserId > USER.id
+Ref: WISHLIST.productId > PRODUCT.id
+Ref: CART.travellerUserId - USER.id
+Ref: CART_ITEM.cartId > CART.id
+Ref: CART_ITEM.productId > PRODUCT.id
+Ref: REPORT.reporterUserId > USER.id
+Ref: TICKET.userId > USER.id
+Ref: TICKET.assigneeId > USER.id
+Ref: TICKET_MESSAGE.ticketId > TICKET.id
+Ref: TICKET_MESSAGE.senderUserId > USER.id
+
+//////////////////////////////////////////////
+// TABLE GROUPS
+//////////////////////////////////////////////
+
+TableGroup "PostgreSQL — một store duy nhất" {
+  USER
+  SUPPLIER
+  HOTEL_PROFILE
+  TRANSPORT_PROFILE
+  GUIDE_PROFILE
+  AMENITY
+  PROFILE_AMENITY
+  PRODUCT
+  ROOM_TYPE
+  TRIP
+  TRIP_EVENT
+  TOUR_PACKAGE_ITEM
+  AVAILABILITY
+  SEAT_INVENTORY
+  HOLD
+  SLOT
+  TRAVELLER
+  BOOKING_GROUP
+  BOOKING
+  BOOKING_ITEM
+  BOOKING_TRAVELLER
+  BOOKING_EVENT
+  ITINERARY
+  ITINERARY_VERSION
+  ITINERARY_SEGMENT
+  GUIDE_AVAILABILITY
+  TOUR_REQUEST
+  CHAT_THREAD
+  CHAT_MESSAGE
+  PAYMENT
+  PAYMENT_TRANSACTION
+  REFUND
+  PAYOUT
+  INVOICE
+  CANCELLATION_POLICY
+  PLATFORM_SETTING
+  MODERATION_REQUEST
+  MODERATION_LOG
+  AUDIT_LOG
+  SUPPLIER_PAYOUT_ACCOUNT
+  SUPPLIER_INTEGRATION
+  ZONE
+  LOCATION
+  PRODUCT_CONTENT
+  PROFILE_CONTENT
+  REVIEW
+  REVIEW_SUMMARY
+  NOTIFICATION
+  WISHLIST
+  CART
+  CART_ITEM
+  REPORT
+  HELP_ARTICLE
+  TICKET
+  TICKET_MESSAGE
+  RAW_EVENT
+}

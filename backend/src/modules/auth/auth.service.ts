@@ -195,7 +195,7 @@ export class AuthService {
     context: RequestContext = {},
   ): Promise<Session> {
     const user = await this.deps.users.findByEmail(input.email);
-    if (!user) throw AppError.badRequest('Invalid or expired code', undefined, ERROR_CODES.OTP_INVALID);
+    if (!user) throw AppError.badRequest(AUTH_POLICY.OTP_INVALID_MESSAGE, undefined, ERROR_CODES.OTP_INVALID);
     if (user.role === ROLES.AGENCY) {
       throw AppError.forbidden('Please use the Agency verification portal', 'AGENCY_PORTAL_REQUIRED');
     }
@@ -219,7 +219,7 @@ export class AuthService {
   ): Promise<AgencyOtpResult> {
     const user = await this.deps.users.findByEmail(input.email);
     if (!user || user.role !== ROLES.AGENCY) {
-      throw AppError.badRequest('Invalid or expired code', undefined, ERROR_CODES.OTP_INVALID);
+      throw AppError.badRequest(AUTH_POLICY.OTP_INVALID_MESSAGE, undefined, ERROR_CODES.OTP_INVALID);
     }
     if (user.status === USER_STATUS.BANNED) {
       throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
@@ -227,7 +227,7 @@ export class AuthService {
 
     if (input.purpose === OTP_PURPOSE.REGISTER) {
       if (user.status !== USER_STATUS.PENDING_VERIFICATION) {
-        throw AppError.badRequest('Invalid or expired code', undefined, ERROR_CODES.OTP_INVALID);
+        throw AppError.badRequest(AUTH_POLICY.OTP_INVALID_MESSAGE, undefined, ERROR_CODES.OTP_INVALID);
       }
       if (!this.hasCompleteAgencyProfile(user)) {
         throw AppError.forbidden('Please complete Agency registration first', 'AGENCY_ONBOARDING_REQUIRED');
@@ -238,7 +238,7 @@ export class AuthService {
     }
 
     if (user.status !== USER_STATUS.ACTIVE) {
-      throw AppError.badRequest('Invalid or expired code', undefined, ERROR_CODES.OTP_INVALID);
+      throw AppError.badRequest(AUTH_POLICY.OTP_INVALID_MESSAGE, undefined, ERROR_CODES.OTP_INVALID);
     }
     await this.deps.otp.verify(user.id, input.purpose, input.code);
     return { registrationComplete: false, session: await this.createSession(user, context) };
@@ -354,7 +354,7 @@ export class AuthService {
   async resetPassword(input: { email: string; code: string; newPassword: string }): Promise<void> {
     const user = await this.deps.users.findByEmail(input.email);
     if (!user || user.status === USER_STATUS.BANNED) {
-      throw AppError.badRequest('Invalid or expired code', undefined, ERROR_CODES.OTP_INVALID);
+      throw AppError.badRequest(AUTH_POLICY.OTP_INVALID_MESSAGE, undefined, ERROR_CODES.OTP_INVALID);
     }
     await this.deps.otp.verify(user.id, OTP_PURPOSE.FORGOT_PASSWORD, input.code);
 
