@@ -1,15 +1,24 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthBackground } from './AuthBackground';
 import { BackButton } from './BackButton';
 import { AuthContainer } from './AuthContainer';
 import { LoginResultData, RegisterResultData } from '../types';
 import { homeForRole } from '../utils/roles';
 
+/** `?next=` is honoured only for internal paths, so a link cannot send a fresh session off-site. */
+function safeNextPath(next: string | null): string | undefined {
+  if (!next) return undefined;
+  if (!next.startsWith('/') || next.startsWith('//')) return undefined;
+  return next;
+}
+
 export const LoginPage: React.FC = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = safeNextPath(searchParams.get('next'));
 
   const handleLoginSuccess = (data: LoginResultData) => {
     if (data.twoFactorRequired) {
@@ -17,7 +26,8 @@ export const LoginPage: React.FC = () => {
       return;
     }
 
-    router.push(homeForRole(data.user.role));
+    // Come back to the page the visitor was on (e.g. a tour they wanted to review) when asked to.
+    router.push(nextPath ?? homeForRole(data.user.role));
   };
 
   const handleRegisterSuccess = (data: RegisterResultData) => {
