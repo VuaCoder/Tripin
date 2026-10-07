@@ -5,6 +5,7 @@ import { adminCategoriesRouter, publicCategoriesRouter } from '../modules/catego
 import { agencyToursRouter, guideToursRouter, publicToursRouter } from '../modules/tours';
 import { adminPromotionsRouter, agencyPromotionsRouter, promotionsRouter } from '../modules/promotions';
 import { wishlistsRouter } from '../modules/wishlists';
+import { cartsRouter } from '../modules/carts';
 import { notificationsRouter } from '../modules/notifications';
 import { agencyBookingsRouter, agencyCustomersExportRouter, bookingsRouter } from '../modules/bookings';
 import { paymentsRouter } from '../modules/payments';
@@ -51,6 +52,7 @@ mount('/agency/promotions', agencyPromotionsRouter);
 mount('/admin/promotions', adminPromotionsRouter);
 mount('/promotions', promotionsRouter);
 mount('/wishlist', wishlistsRouter);
+mount('/cart', cartsRouter);
 mount('/notifications', notificationsRouter);
 mount('/bookings', bookingsRouter);
 mount('/agency/bookings', agencyBookingsRouter);

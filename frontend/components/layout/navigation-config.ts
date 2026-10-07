@@ -26,6 +26,7 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
   TRAVELER: [
     { label: 'Tổng quan', href: '/traveler', icon: 'dashboard' },
     { label: 'Đặt chỗ của tôi', href: '/traveler/bookings', icon: 'event' },
+    { label: 'Giỏ hàng', href: '/traveler/cart', icon: 'shopping_cart' },
     { label: 'Khám phá tour', href: '/explore', icon: 'travel_explore' },
   ],
   AGENCY: [

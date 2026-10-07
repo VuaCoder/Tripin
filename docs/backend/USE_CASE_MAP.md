@@ -13,6 +13,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Register Agency + onboarding profile | Guest | `POST /auth/agency/register` | done |
 | Verify / resend Agency OTP | Agency | `POST /auth/agency/verify-otp`, `POST /auth/agency/resend-otp` | done |
 | Verify OTP | Guest/User | `POST /auth/verify-otp` (purposes REGISTER, LOGIN_2FA) | done |
+| Resend OTP (register / login 2FA) | Guest/User | `POST /auth/resend-otp` | done |
 | Customer login (+ Validate credentials, + 2FA extend) | Traveler / Tour guide / Staff | `POST /auth/login` | done |
 | Agency login (+ 2FA extend) | Agency | `POST /auth/agency/login` | done |
 | Login with Google (+ Authenticate via OAuth) | Guest | `POST /auth/google` | done |
@@ -37,6 +38,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 |---|---|---|---|---|
 | View profile / Update profile informations | users | `GET/PATCH /users/me` | profile:* | done |
 | Add wishlist / Remove tour from wishlist | wishlists | `GET /wishlist`, `POST /wishlist/:tourId`, `DELETE /wishlist/:tourId` | wishlist:manage | done |
+| Add tour to cart / view cart / update or remove an item (supports Book tour) | carts | `GET /cart`, `POST /cart/items`, `PATCH/DELETE /cart/items/:id` | cart:manage | done |
 | Book tour | bookings | `GET /promotions/preview` (discount preview before booking), `POST /bookings`, `GET /bookings/me`, `GET /bookings/:id`, `POST /bookings/:id/cancel` | booking:* | done |
 | Make payment (Payment Gateway) | payments | `POST /payments/bookings/:bookingId/checkout`, `GET /payments/:id`, `POST /payments/webhooks/payos` (GUEST, signature) | payment:create | done |
 | Receive E-ticket | e-tickets | `GET /e-tickets`, `GET /e-tickets/:id`, `GET /e-tickets/booking/:bookingId` (+ email/notification on issue) | eticket:view-own | done |
@@ -99,5 +101,6 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | (supporting) audit log | audit | `GET /admin/audit-logs` | audit:view | done |
 
 ## Out of the diagram (kept as documented placeholders, no code)
-`carts`, `custom-tours` — present in the repository architecture (AI rules §13) but not in the use-case diagram.
-Their folders contain only a README explaining the intended boundary.
+`custom-tours` — present in the repository architecture (AI rules §13) but not in the use-case diagram; its folder
+contains only a README explaining the intended boundary. `carts` was approved by the owner and is now implemented
+(D-81); it is mapped to the Traveler "Book tour" flow above.

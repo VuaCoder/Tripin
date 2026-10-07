@@ -6,6 +6,7 @@ export { tourViewBuilder } from './tours.view';
 export { TOUR_TRANSITIONS } from './tours.types';
 export type {
   BookableDeparture,
+  DepartureFacts,
   GuideTourDto,
   ListTourFilter,
   TourDetailDto,

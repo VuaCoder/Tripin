@@ -91,7 +91,7 @@ Guide assignment: `PENDING → ACCEPTED | DECLINED`. Status changes use compare-
 
 ## Dependencies
 * Uses: `users` (summaries, guide check, agency verification), `categories`, `audit`.
-* Used by: `bookings` (`getBookableDeparture`, `reserveSeats`, `releaseSeats`), `reviews` (`getTourFacts`, `updateRatingStats`), `earnings`, `moderation`, `dashboards`.
+* Used by: `bookings` (`getBookableDeparture`, `reserveSeats`, `releaseSeats`), `carts` (`getBookableDeparture`, `getDepartureFacts`, `getPublicCards`), `reviews` (`getTourFacts`, `updateRatingStats`), `earnings`, `moderation`, `dashboards`.
 
 ## Events / side effects
 Audit: `tour.validated`, `tour.suspended`. In-app notifications: moderation decision and suspension (to the agency), guide assignment (to the guide).

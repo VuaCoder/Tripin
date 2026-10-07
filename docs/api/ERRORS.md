@@ -74,7 +74,7 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `BOOKING_NOT_COMPLETED` | 409 | Only a COMPLETED booking can be reviewed |
 | `REVIEW_EXISTS` | 409 | The booking already has a review |
 
-## Community (`reports`, `support`, `wishlists`, `ai`)
+## Community (`reports`, `support`, `wishlists`, `carts`, `ai`)
 
 | Code | HTTP | Meaning |
 |---|---|---|
@@ -82,4 +82,5 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `TICKET_CLOSED` | 409 | A closed support ticket accepts nothing |
 | `TICKET_FULL` | 409 | The support ticket reached its message limit |
 | `WISHLIST_FULL` | 409 | The wishlist reached its size limit |
+| `CART_FULL` | 409 | The cart reached its limit of distinct departures |
 | `AI_CONVERSATION_FULL` | 409 | The AI conversation reached its message limit; start a new one |
