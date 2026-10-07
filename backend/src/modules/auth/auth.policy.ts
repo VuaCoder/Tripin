@@ -8,6 +8,8 @@ export const AUTH_POLICY = {
   OTP_TTL_MINUTES: 10,
   OTP_MAX_ATTEMPTS: 5,
   OTP_RESEND_COOLDOWN_SECONDS: 60,
+  /** One message for EVERY `OTP_INVALID` answer: a wrong, used or unknown code must not reveal which part failed. */
+  OTP_INVALID_MESSAGE: 'Mã xác thực không chính xác',
   REFRESH_COOKIE_NAME: 'refresh_token',
   REFRESH_COOKIE_PATH: '/api/v1/auth',
   ACCESS_TOKEN_ISSUER: 'tripri-api',
