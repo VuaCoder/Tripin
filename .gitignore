@@ -60,3 +60,7 @@ backend/src/generated/
 # Throw-away output of the build smoke test
 backend/.tmp-build-smoke-*/
 .neon
+
+# Python bytecode (docs/database/*/generate*.py are checked in, their caches are not)
+__pycache__/
+*.pyc

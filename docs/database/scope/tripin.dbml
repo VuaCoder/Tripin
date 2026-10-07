@@ -1,0 +1,937 @@
+//////////////////////////////////////////////
+// TRIPIN — SCHEMA ĐÚNG PHẠM VI ĐANG CODE (DBML)
+// Dán vào https://dbdiagram.io
+//
+// 30 bảng · 21 enum · 60 khoá ngoại · 36 CHECK
+//
+// Khớp 1-1 với `prisma/schema.prisma`. Sinh tự động từ `tripin.sql`.
+// Xem README.md cùng thư mục: phần nào là bổ sung so với Prisma.
+//////////////////////////////////////////////
+
+Enum AgencyVerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+Enum BookingCancelReason {
+  TRAVELER_REQUEST
+  PAYMENT_EXPIRED
+}
+
+Enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+Enum DiscountType {
+  PERCENT
+  FIXED
+}
+
+Enum ETicketStatus {
+  VALID
+  USED
+  CANCELLED
+}
+
+Enum GuideAssignmentStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+Enum NotificationType {
+  TOUR_APPROVED
+  TOUR_REJECTED
+  TOUR_SUSPENDED
+  GUIDE_ASSIGNED
+  GUIDE_ASSIGNMENT_ANSWERED
+  AGENCY_VERIFICATION_DECIDED
+  BOOKING_CREATED
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  BOOKING_COMPLETED
+  PAYMENT_SUCCEEDED
+  PAYMENT_FAILED
+  ETICKET_ISSUED
+  REVIEW_RECEIVED
+  REVIEW_MODERATED
+  REPORT_UPDATED
+  REPORT_RESOLVED
+  COMPLAINT_RECEIVED
+  SUPPORT_REPLIED
+  CHAT_MESSAGE
+  SUBSCRIPTION_ACTIVATED
+  EARNING_RECORDED
+}
+
+Enum OtpPurpose {
+  REGISTER
+  LOGIN_2FA
+  FORGOT_PASSWORD
+}
+
+Enum PaymentPurpose {
+  BOOKING
+  SUBSCRIPTION
+}
+
+Enum PaymentStatus {
+  PENDING
+  PAID
+  CANCELLED
+  EXPIRED
+  FAILED
+}
+
+Enum PromotionScope {
+  AGENCY
+  PLATFORM
+}
+
+Enum ReportCategory {
+  MISLEADING_INFO
+  SAFETY
+  SERVICE_QUALITY
+  PAYMENT_OR_REFUND
+  INAPPROPRIATE_CONTENT
+  OTHER
+}
+
+Enum ReportStatus {
+  OPEN
+  AGENCY_RESPONDED
+  RESOLVED
+  REJECTED
+}
+
+Enum ReportTarget {
+  TOUR
+  USER
+  REVIEW
+}
+
+Enum ReviewStatus {
+  VISIBLE
+  HIDDEN
+}
+
+Enum Role {
+  TRAVELER
+  AGENCY
+  TOUR_GUIDE
+  MODERATOR
+  SUPER_ADMIN
+}
+
+Enum SubscriptionStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+Enum TicketCategory {
+  BOOKING
+  PAYMENT
+  ACCOUNT
+  TOUR
+  OTHER
+}
+
+Enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+Enum TourStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  SUSPENDED
+  ARCHIVED
+}
+
+Enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  BANNED
+}
+
+Table "AgencyProfile" {
+  "userId" uuid [pk, not null]
+  "companyName" varchar
+  "description" varchar
+  "address" varchar
+  "website" varchar
+  "licenseNumber" varchar
+  "verificationStatus" "AgencyVerificationStatus" [not null, note: 'default UNVERIFIED']
+  "verifiedAt" timestamp
+  "verifiedById" uuid
+  "verificationNote" varchar
+  indexes {
+    (verificationStatus)
+  }
+}
+
+Table "AiConversation" {
+  "id" uuid [pk, not null]
+  "userId" uuid [not null]
+  "title" varchar [not null]
+  "messageCount" int [not null, note: 'default 0']
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "updatedAt" timestamp [not null]
+  indexes {
+    (userId, updatedAt)
+  }
+  Note: '''
+  Ràng buộc:
+  - AiConversation_messageCount_check: (("messageCount" >= 0))
+  '''
+}
+
+Table "AiMessage" {
+  "id" uuid [pk, not null]
+  "conversationId" uuid [not null]
+  "role" varchar [not null]
+  "content" varchar [not null]
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  indexes {
+    (conversationId, createdAt)
+  }
+}
+
+Table "AuditLog" {
+  "id" uuid [pk, not null]
+  "actorId" uuid [not null]
+  "actorRole" "Role" [not null]
+  "action" varchar [not null]
+  "targetType" varchar [not null]
+  "targetId" varchar
+  "metadata" jsonb
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  indexes {
+    (action, createdAt)
+    (actorId, createdAt)
+    (createdAt)
+    (targetType, targetId, createdAt)
+  }
+}
+
+Table "Booking" {
+  "id" uuid [pk, not null]
+  "bookingCode" varchar [unique, not null]
+  "travelerId" uuid [not null]
+  "agencyId" uuid [not null]
+  "tourId" uuid [not null]
+  "departureId" uuid [not null]
+  "tourTitle" varchar [not null]
+  "departureDate" timestamp [not null]
+  "endDate" timestamp [not null]
+  "participants" int [not null]
+  "contactName" varchar [not null]
+  "contactPhone" varchar [not null]
+  "notes" varchar
+  "unitPrice" int [not null]
+  "subtotal" int [not null]
+  "promotionId" uuid
+  "promotionCode" varchar
+  "promotionScope" "PromotionScope"
+  "discountAmount" int [not null, note: 'default 0']
+  "totalAmount" int [not null]
+  "commissionBps" int [not null]
+  "commissionAmount" int [not null]
+  "agencyAmount" int [not null]
+  "status" "BookingStatus" [not null, note: 'default PENDING']
+  "isPaid" boolean [not null, note: 'default false']
+  "refundRequired" boolean [not null, note: 'default false']
+  "paymentExpiresAt" timestamp
+  "confirmedAt" timestamp
+  "completedAt" timestamp
+  "cancelledAt" timestamp
+  "cancelReason" "BookingCancelReason"
+  "cancelNote" varchar
+  "clientRequestId" varchar
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "updatedAt" timestamp [not null]
+  indexes {
+    (travelerId, clientRequestId) [unique]
+    (agencyId, createdAt, id)
+    (agencyId, status, createdAt, id)
+    (departureId)
+    (promotionId)
+    (status, confirmedAt)
+    (status, endDate)
+    (status, paymentExpiresAt)
+    (tourId, departureId, status)
+    (travelerId, createdAt, id)
+  }
+  Note: '''
+  Ràng buộc:
+  - Booking_amount_min_check: (((subtotal >= 1) AND ("totalAmount" >= 1)))
+  - Booking_commission_check: ((("commissionBps" >= 0) AND ("commissionBps" <= 10000) AND ("commissionAmount" = ((("totalAmount")::bigint * "commissionBps") / 10000)) AND ("agencyAmount" = ("totalAmount" - "commissionAmount"))))
+  - Booking_dates_check: (("endDate" >= "departureDate"))
+  - Booking_money_check: ((("unitPrice" >= 0) AND (subtotal >= 0) AND ("discountAmount" >= 0) AND ("totalAmount" >= 0) AND ("commissionAmount" >= 0) AND ("agencyAmount" >= 0)))
+  - Booking_participants_check: ((participants >= 1))
+  - Booking_total_check: (("totalAmount" = (subtotal - "discountAmount")))
+  '''
+}
+
+Table "CartItem" {
+  "id" uuid [pk, not null]
+  "userId" uuid [not null]
+  "tourId" uuid [not null]
+  "departureId" uuid [not null]
+  "participants" int [not null]
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "updatedAt" timestamp [not null]
+  indexes {
+    (userId, departureId) [unique]
+    (departureId)
+    (tourId)
+    (userId, createdAt, id)
+  }
+  Note: '''
+  Ràng buộc:
+  - CartItem_participants_check: (((participants >= 1) AND (participants <= 50)))
+  '''
+}
+
+Table "Category" {
+  "id" uuid [pk, not null]
+  "name" varchar [not null]
+  "slug" varchar [unique, not null]
+  "description" varchar
+  "isActive" boolean [not null, note: 'default true']
+  "sortOrder" int [not null, note: 'default 0']
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "updatedAt" timestamp [not null]
+  indexes {
+    (isActive, sortOrder, name)
+  }
+}
+
+Table "Conversation" {
+  "id" uuid [pk, not null]
+  "travelerId" uuid [not null]
+  "guideId" uuid [not null]
+  "tourId" uuid
+  "lastMessageText" varchar
+  "lastMessageSenderId" uuid
+  "lastMessageSentAt" timestamp
+  "unreadTraveler" int [not null, note: 'default 0']
+  "unreadGuide" int [not null, note: 'default 0']
+  "lastActivityAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "updatedAt" timestamp [not null]
+  indexes {
+    (travelerId, guideId) [unique]
+    (guideId, lastActivityAt, id)
+    (lastMessageSenderId)
+    (tourId)
+    (travelerId, lastActivityAt, id)
+  }
+  Note: '''
+  Ràng buộc:
+  - Conversation_unread_check: ((("unreadTraveler" >= 0) AND ("unreadGuide" >= 0)))
+  '''
+}
+
+Table "ETicket" {
+  "id" uuid [pk, not null]
+  "bookingId" uuid [unique, not null]
+  "bookingCode" varchar [not null]
+  "code" varchar [unique, not null]
+  "travelerId" uuid [not null]
+  "agencyId" uuid [not null]
+  "tourId" uuid [not null]
+  "tourTitle" varchar [not null]
+  "departureDate" timestamp [not null]
+  "participants" int [not null]
+  "holderName" varchar [not null]
+  "status" "ETicketStatus" [not null, note: 'default VALID']
+  "issuedAt" timestamp [not null]
+  "cancelledAt" timestamp
+  "usedAt" timestamp
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "updatedAt" timestamp [not null]
+  indexes {
+    (agencyId)
+    (tourId)
+    (travelerId, issuedAt, id)
+  }
+  Note: '''
+  Ràng buộc:
+  - ETicket_participants_check: ((participants >= 1))
+  '''
+}
+
+Table "Earning" {
+  "id" uuid [pk, not null]
+  "guideId" uuid [not null]
+  "bookingId" uuid [unique, not null]
+  "bookingCode" varchar [not null]
+  "tourId" uuid [not null]
+  "tourTitle" varchar [not null]
+  "agencyId" uuid [not null]
+  "amount" int [not null]
+  "earnedAt" timestamp [not null]
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  indexes {
+    (agencyId)
+    (guideId, earnedAt, id)
+    (tourId)
+  }
+  Note: '''
+  Ràng buộc:
+  - Earning_amount_check: ((amount >= 0))
+  '''
+}
+
+Table "GuideProfile" {
+  "userId" uuid [pk, not null]
+  "bio" varchar
+  "languages" text[] [not null, note: 'default {}']
+  "specialties" text[] [not null, note: 'default {}']
+  "experienceYears" int
+  "licenseNumber" varchar
+}
+
+Table "Message" {
+  "id" uuid [pk, not null]
+  "conversationId" uuid [not null]
+  "senderId" uuid [not null]
+  "text" varchar [not null]
+  "readAt" timestamp
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  indexes {
+    (conversationId, createdAt, id)
+    (senderId)
+  }
+}
+
+Table "Notification" {
+  "id" uuid [pk, not null]
+  "userId" uuid [not null]
+  "type" "NotificationType" [not null]
+  "title" varchar [not null]
+  "body" varchar [not null]
+  "data" jsonb
+  "readAt" timestamp
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  indexes {
+    (createdAt)
+    (userId, createdAt, id)
+    (userId, readAt, createdAt)
+  }
+}
+
+Table "Otp" {
+  "id" uuid [pk, not null]
+  "userId" uuid [not null]
+  "purpose" "OtpPurpose" [not null]
+  "codeHash" varchar [not null]
+  "attempts" int [not null, note: 'default 0']
+  "issuedAt" timestamp [not null]
+  "expiresAt" timestamp [not null]
+  indexes {
+    (userId, purpose) [unique]
+    (expiresAt)
+  }
+  Note: '''
+  Ràng buộc:
+  - Otp_attempts_check: ((attempts >= 0))
+  - Otp_expiry_check: (("expiresAt" > "issuedAt"))
+  '''
+}
+
+Table "Payment" {
+  "id" uuid [pk, not null]
+  "purpose" "PaymentPurpose" [not null]
+  "userId" uuid [not null]
+  "referenceId" uuid [not null]
+  "amount" int [not null]
+  "currency" varchar [not null, note: 'default VND']
+  "description" varchar [not null]
+  "provider" varchar [not null]
+  "providerOrderCode" bigint [unique, not null]
+  "providerPaymentLinkId" varchar
+  "checkoutUrl" varchar
+  "providerReference" varchar
+  "status" "PaymentStatus" [not null, note: 'default PENDING']
+  "expiresAt" timestamp [not null]
+  "paidAt" timestamp
+  "failureReason" varchar
+  "fulfilledAt" timestamp
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "updatedAt" timestamp [not null]
+  indexes {
+    (purpose, referenceId)
+    (status, expiresAt)
+    (status, fulfilledAt)
+    (userId, createdAt)
+  }
+  Note: '''
+  Ràng buộc:
+  - Payment_amount_check: ((amount >= 1))
+  '''
+}
+
+Table "Promotion" {
+  "id" uuid [pk, not null]
+  "scope" "PromotionScope" [not null]
+  "ownerId" uuid
+  "code" varchar [unique, not null]
+  "title" varchar [not null]
+  "description" varchar
+  "discountType" "DiscountType" [not null]
+  "discountValue" int [not null]
+  "maxDiscountAmount" int
+  "minOrderAmount" int [not null, note: 'default 0']
+  "startsAt" timestamp [not null]
+  "endsAt" timestamp [not null]
+  "usageLimit" int
+  "usedCount" int [not null, note: 'default 0']
+  "isActive" boolean [not null, note: 'default true']
+  "createdById" uuid [not null]
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "updatedAt" timestamp [not null]
+  indexes {
+    (createdById)
+    (ownerId)
+    (scope, ownerId, createdAt)
+  }
+  Note: '''
+  Ràng buộc:
+  - Promotion_dates_check: (("endsAt" > "startsAt"))
+  - Promotion_discountValue_check: (("discountValue" >= 1))
+  - Promotion_maxDiscountAmount_check: ((("maxDiscountAmount" IS NULL) OR ("maxDiscountAmount" >= 0)))
+  - Promotion_minOrderAmount_check: (("minOrderAmount" >= 0))
+  - Promotion_percent_check: ((("discountType" <> 'PERCENT'::"DiscountType") OR ("discountValue" <= 100)))
+  - Promotion_usage_check: ((("usedCount" >= 0) AND (("usageLimit" IS NULL) OR ("usedCount" <= "usageLimit"))))
+  '''
+}
+
+Table "RefreshToken" {
+  "id" uuid [pk, not null]
+  "userId" uuid [not null]
+  "tokenHash" varchar [unique, not null]
+  "family" varchar [not null]
+  "expiresAt" timestamp [not null]
+  "revokedAt" timestamp
+  "ip" varchar
+  "userAgent" varchar
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  indexes {
+    (expiresAt)
+    (family)
+    (userId)
+  }
+}
+
+Table "Report" {
+  "id" uuid [pk, not null]
+  "reporterId" uuid [not null]
+  "targetType" "ReportTarget" [not null]
+  "targetId" uuid [not null]
+  "category" "ReportCategory" [not null]
+  "description" varchar [not null]
+  "bookingId" uuid
+  "agencyId" uuid
+  "tourId" uuid
+  "status" "ReportStatus" [not null, note: 'default OPEN']
+  "openKey" varchar [unique]
+  "agencyResponseText" varchar
+  "agencyResponseAt" timestamp
+  "agencyResponseById" uuid
+  "resolutionDecision" "ReportStatus"
+  "resolutionNote" varchar
+  "resolutionById" uuid
+  "resolvedAt" timestamp
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "updatedAt" timestamp [not null]
+  indexes {
+    (agencyId, status, createdAt)
+    (agencyResponseById)
+    (bookingId)
+    (reporterId, createdAt, id)
+    (resolutionById)
+    (status, createdAt)
+    (tourId)
+  }
+}
+
+Table "Review" {
+  "id" uuid [pk, not null]
+  "bookingId" uuid [unique, not null]
+  "tourId" uuid [not null]
+  "tourTitle" varchar [not null]
+  "agencyId" uuid [not null]
+  "travelerId" uuid [not null]
+  "rating" int [not null]
+  "comment" varchar [not null]
+  "status" "ReviewStatus" [not null, note: 'default VISIBLE']
+  "hiddenReason" varchar
+  "moderatedById" uuid
+  "moderatedAt" timestamp
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "updatedAt" timestamp [not null]
+  indexes {
+    (agencyId, status, createdAt, id)
+    (moderatedById)
+    (status, createdAt)
+    (tourId, status, createdAt, id)
+    (tourId, status, rating)
+    (travelerId, createdAt)
+  }
+  Note: '''
+  Ràng buộc:
+  - Review_rating_check: (((rating >= 1) AND (rating <= 5)))
+  '''
+}
+
+Table "Subscription" {
+  "id" uuid [pk, not null]
+  "userId" uuid [not null]
+  "planId" uuid [not null]
+  "planCode" varchar [not null]
+  "planName" varchar [not null]
+  "price" int [not null]
+  "durationDays" int [not null]
+  "status" "SubscriptionStatus" [not null, note: 'default PENDING_PAYMENT']
+  "startsAt" timestamp
+  "endsAt" timestamp
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "updatedAt" timestamp [not null]
+  indexes {
+    (planId)
+    (status, createdAt)
+    (status, endsAt)
+    (userId, createdAt)
+    (userId, status, endsAt)
+  }
+  Note: '''
+  Ràng buộc:
+  - Subscription_durationDays_check: (("durationDays" >= 1))
+  - Subscription_period_check: ((("startsAt" IS NULL) OR ("endsAt" IS NULL) OR ("endsAt" > "startsAt")))
+  - Subscription_price_check: ((price >= 0))
+  '''
+}
+
+Table "SubscriptionPlan" {
+  "id" uuid [pk, not null]
+  "code" varchar [unique, not null]
+  "name" varchar [not null]
+  "description" varchar
+  "price" int [not null]
+  "durationDays" int [not null]
+  "benefits" text[] [not null, note: 'default {}']
+  "isActive" boolean [not null, note: 'default true']
+  "sortOrder" int [not null, note: 'default 0']
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "updatedAt" timestamp [not null]
+  indexes {
+    (isActive, sortOrder)
+  }
+  Note: '''
+  Ràng buộc:
+  - SubscriptionPlan_durationDays_check: (("durationDays" >= 1))
+  - SubscriptionPlan_price_check: ((price >= 0))
+  '''
+}
+
+Table "SupportTicket" {
+  "id" uuid [pk, not null]
+  "userId" uuid [not null]
+  "subject" varchar [not null]
+  "category" "TicketCategory" [not null]
+  "bookingId" uuid
+  "status" "TicketStatus" [not null, note: 'default OPEN']
+  "assignedToId" uuid
+  "messageCount" int [not null, note: 'default 0']
+  "lastMessageAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "closedAt" timestamp
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "updatedAt" timestamp [not null]
+  indexes {
+    (assignedToId)
+    (bookingId)
+    (category, status, createdAt)
+    (createdAt)
+    (status, createdAt)
+    (userId, lastMessageAt)
+  }
+  Note: '''
+  Ràng buộc:
+  - SupportTicket_messageCount_check: (("messageCount" >= 0))
+  '''
+}
+
+Table "SupportTicketMessage" {
+  "id" uuid [pk, not null]
+  "ticketId" uuid [not null]
+  "authorId" uuid [not null]
+  "authorKind" varchar [not null]
+  "text" varchar [not null]
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  indexes {
+    (authorId)
+    (ticketId, createdAt)
+  }
+}
+
+Table "SystemSetting" {
+  "id" uuid [pk, not null]
+  "key" varchar [unique, not null]
+  "value" jsonb [not null]
+  "updatedById" uuid
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "updatedAt" timestamp [not null]
+  indexes {
+    (updatedById)
+  }
+}
+
+Table "Tour" {
+  "id" uuid [pk, not null]
+  "agencyId" uuid [not null]
+  "title" varchar [not null]
+  "summary" varchar
+  "description" varchar
+  "destination" varchar [not null]
+  "durationDays" int [not null]
+  "basePrice" int [not null]
+  "maxGroupSize" int
+  "images" text[] [not null, note: 'default {}']
+  "inclusions" text[] [not null, note: 'default {}']
+  "exclusions" text[] [not null, note: 'default {}']
+  "itinerary" jsonb [not null, note: 'default []']
+  "status" "TourStatus" [not null, note: 'default DRAFT']
+  "submittedAt" timestamp
+  "reviewedAt" timestamp
+  "reviewedById" uuid
+  "statusReason" varchar
+  "ratingAvg" float [not null, note: 'default 0']
+  "ratingCount" int [not null, note: 'default 0']
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "updatedAt" timestamp [not null]
+  indexes {
+    (agencyId, status, updatedAt)
+    (reviewedById)
+    (status, basePrice, id)
+    (status, createdAt, id)
+    (status, ratingAvg, ratingCount, id)
+    (status, submittedAt, id)
+  }
+  Note: '''
+  Ràng buộc:
+  - Tour_basePrice_check: (("basePrice" >= 0))
+  - Tour_durationDays_check: (("durationDays" >= 1))
+  - Tour_maxGroupSize_check: ((("maxGroupSize" IS NULL) OR ("maxGroupSize" >= 1)))
+  - Tour_ratingAvg_check: ((("ratingAvg" >= (0)::double precision) AND ("ratingAvg" <= (5)::double precision)))
+  - Tour_ratingCount_check: (("ratingCount" >= 0))
+  '''
+}
+
+Table "TourDeparture" {
+  "id" uuid [pk, not null]
+  "tourId" uuid [not null]
+  "date" timestamp [not null]
+  "capacity" int [not null]
+  "remaining" int [not null]
+  "priceOverride" int
+  "isOpen" boolean [not null, note: 'default true']
+  indexes {
+    (date)
+    (tourId)
+  }
+  Note: '''
+  Ràng buộc:
+  - TourDeparture_capacity_check: ((capacity >= 1))
+  - TourDeparture_priceOverride_check: ((("priceOverride" IS NULL) OR ("priceOverride" >= 0)))
+  - TourDeparture_remaining_check: (((remaining >= 0) AND (remaining <= capacity)))
+  '''
+}
+
+Table "TourGuideAssignment" {
+  "tourId" uuid [pk, not null]
+  "guideId" uuid [not null]
+  "feePerBooking" int [not null]
+  "status" "GuideAssignmentStatus" [not null, note: 'default PENDING']
+  "respondedAt" timestamp
+  "note" varchar
+  indexes {
+    (guideId)
+  }
+  Note: '''
+  Ràng buộc:
+  - TourGuideAssignment_feePerBooking_check: (("feePerBooking" >= 0))
+  '''
+}
+
+Table "User" {
+  "id" uuid [pk, not null]
+  "email" varchar [unique, not null]
+  "passwordHash" varchar
+  "fullName" varchar [not null]
+  "phone" varchar
+  "avatarUrl" varchar
+  "role" "Role" [not null, note: 'default TRAVELER']
+  "extraPermissions" text[] [not null, note: 'default {}']
+  "status" "UserStatus" [not null, note: 'default PENDING_VERIFICATION']
+  "emailVerifiedAt" timestamp
+  "googleId" varchar [unique]
+  "twoFactorEnabled" boolean [not null, note: 'default false']
+  "lastLoginAt" timestamp
+  "bannedAt" timestamp
+  "bannedById" uuid
+  "banReason" varchar
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  "updatedAt" timestamp [not null]
+  indexes {
+    (bannedById)
+    (createdAt)
+    (role, status, createdAt)
+  }
+}
+
+Table "WishlistItem" {
+  "id" uuid [pk, not null]
+  "userId" uuid [not null]
+  "tourId" uuid [not null]
+  "createdAt" timestamp [not null, note: 'default CURRENT_TIMESTAMP']
+  indexes {
+    (userId, tourId) [unique]
+    (tourId)
+    (userId, createdAt, id)
+  }
+}
+
+Table "_CategoryToTour" {
+  "A" uuid [pk, not null]
+  "B" uuid [pk, not null]
+  indexes {
+    (B)
+  }
+}
+
+//////////////////////////////////////////////
+// QUAN HỆ (đều là FK thật)
+//////////////////////////////////////////////
+
+Ref: "AgencyProfile"."userId" > "User"."id"
+Ref: "AiConversation"."userId" > "User"."id"
+Ref: "AiMessage"."conversationId" > "AiConversation"."id"
+Ref: "AuditLog"."actorId" > "User"."id"
+Ref: "Booking"."agencyId" > "User"."id"
+Ref: "Booking"."departureId" > "TourDeparture"."id"
+Ref: "Booking"."promotionId" > "Promotion"."id"
+Ref: "Booking"."tourId" > "Tour"."id"
+Ref: "Booking"."travelerId" > "User"."id"
+Ref: "CartItem"."departureId" > "TourDeparture"."id"
+Ref: "CartItem"."tourId" > "Tour"."id"
+Ref: "CartItem"."userId" > "User"."id"
+Ref: "Conversation"."guideId" > "User"."id"
+Ref: "Conversation"."lastMessageSenderId" > "User"."id"
+Ref: "Conversation"."tourId" > "Tour"."id"
+Ref: "Conversation"."travelerId" > "User"."id"
+Ref: "ETicket"."agencyId" > "User"."id"
+Ref: "ETicket"."bookingId" > "Booking"."id"
+Ref: "ETicket"."tourId" > "Tour"."id"
+Ref: "ETicket"."travelerId" > "User"."id"
+Ref: "Earning"."agencyId" > "User"."id"
+Ref: "Earning"."bookingId" > "Booking"."id"
+Ref: "Earning"."guideId" > "User"."id"
+Ref: "Earning"."tourId" > "Tour"."id"
+Ref: "GuideProfile"."userId" > "User"."id"
+Ref: "Message"."conversationId" > "Conversation"."id"
+Ref: "Message"."senderId" > "User"."id"
+Ref: "Notification"."userId" > "User"."id"
+Ref: "Payment"."userId" > "User"."id"
+Ref: "Promotion"."createdById" > "User"."id"
+Ref: "Promotion"."ownerId" > "User"."id"
+Ref: "Report"."agencyId" > "User"."id"
+Ref: "Report"."agencyResponseById" > "User"."id"
+Ref: "Report"."bookingId" > "Booking"."id"
+Ref: "Report"."reporterId" > "User"."id"
+Ref: "Report"."resolutionById" > "User"."id"
+Ref: "Report"."tourId" > "Tour"."id"
+Ref: "Review"."agencyId" > "User"."id"
+Ref: "Review"."bookingId" > "Booking"."id"
+Ref: "Review"."moderatedById" > "User"."id"
+Ref: "Review"."tourId" > "Tour"."id"
+Ref: "Review"."travelerId" > "User"."id"
+Ref: "Subscription"."planId" > "SubscriptionPlan"."id"
+Ref: "Subscription"."userId" > "User"."id"
+Ref: "SupportTicket"."assignedToId" > "User"."id"
+Ref: "SupportTicket"."bookingId" > "Booking"."id"
+Ref: "SupportTicket"."userId" > "User"."id"
+Ref: "SupportTicketMessage"."authorId" > "User"."id"
+Ref: "SupportTicketMessage"."ticketId" > "SupportTicket"."id"
+Ref: "SystemSetting"."updatedById" > "User"."id"
+Ref: "Tour"."agencyId" > "User"."id"
+Ref: "Tour"."reviewedById" > "User"."id"
+Ref: "TourDeparture"."tourId" > "Tour"."id"
+Ref: "TourGuideAssignment"."guideId" > "User"."id"
+Ref: "TourGuideAssignment"."tourId" > "Tour"."id"
+Ref: "User"."bannedById" > "User"."id"
+Ref: "WishlistItem"."tourId" > "Tour"."id"
+Ref: "WishlistItem"."userId" > "User"."id"
+Ref: "_CategoryToTour"."A" > "Category"."id"
+Ref: "_CategoryToTour"."B" > "Tour"."id"
+
+//////////////////////////////////////////////
+// TABLE GROUPS
+//////////////////////////////////////////////
+
+TableGroup "Danh tính & tài khoản" {
+  "User"
+  "AgencyProfile"
+  "GuideProfile"
+  "Otp"
+  "RefreshToken"
+}
+
+TableGroup "Danh mục & tour" {
+  "Category"
+  "Tour"
+  "TourDeparture"
+  "TourGuideAssignment"
+  "_CategoryToTour"
+}
+
+TableGroup "Đặt chỗ & tiền" {
+  "Booking"
+  "Payment"
+  "ETicket"
+  "Earning"
+  "Promotion"
+  "SubscriptionPlan"
+  "Subscription"
+}
+
+TableGroup "Tương tác" {
+  "Review"
+  "Report"
+  "SupportTicket"
+  "SupportTicketMessage"
+  "Notification"
+  "Conversation"
+  "Message"
+  "AiConversation"
+  "AiMessage"
+}
+
+TableGroup "Vận hành & cấu hình" {
+  "AuditLog"
+  "SystemSetting"
+  "WishlistItem"
+  "CartItem"
+}

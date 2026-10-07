@@ -35,3 +35,21 @@ repositories use the shared `prisma` from `backend/src/config/database.ts`.
 
 Integration tests start an embedded PostgreSQL by themselves (no Docker): one server per run, one database per test
 file cloned from a migrated template (`backend/src/test/global-setup.ts`).
+
+## Design reference
+
+`prisma/schema.prisma` above is what the application runs. Two design artifacts sit beside it:
+
+- **[`scope/`](scope/README.md)** — the schema **re-cut to the implemented scope**: 29 tables + 1 join table + 21 enums,
+  matching `prisma/schema.prisma` one to one. Part 1 of `scope/tripin.sql` is the exact DDL Prisma emits; part 2 adds
+  what Prisma cannot express (49 foreign keys, 36 CHECKs, 26 indexes, 7 `NOT NULL`, 16 `updatedAt` triggers), so every
+  difference from the running database is deliberate. `scope/preflight.sql` checks existing data before anything is
+  applied. This is the artifact to audit Prisma against — ADR
+  [`adr/0005-recut-design-to-scope.md`](adr/0005-recut-design-to-scope.md).
+- **[`design/`](design/README.md)** — the earlier **marketplace vision** (56 tables: hotels, transport, self-assembled
+  itineraries, guide slots). Historical only: 30 of its tables are outside the current scope and 10 models the app runs
+  are missing from it, so it is **not** a superset and must not be used as a target schema. ADR
+  [`adr/0004-single-postgres-store.md`](adr/0004-single-postgres-store.md) records the move to one PostgreSQL store.
+
+Neither is applied by Prisma and neither is a Prisma schema. Never copy either SQL file into `prisma/migrations/`; a
+change to the running schema goes through Prisma migrations.
