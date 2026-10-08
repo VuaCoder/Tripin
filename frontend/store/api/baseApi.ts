@@ -96,17 +96,22 @@ export const baseQueryWithReauth: BaseQueryFn<FetchArgs | string, unknown, Fetch
   let result = await rawBaseQuery(cleanArgs, api, extraOptions);
 
   if (result.error?.status === 401 && !hasRetried(args) && !isAuthExempt(cleanArgs)) {
-    const session = await refreshSession();
+    const errorCode = (result.error.data as { error?: { code?: string } } | undefined)?.error?.code;
+    const sessionExpired = errorCode === 'TOKEN_INVALID' || errorCode === 'UNAUTHENTICATED';
 
-    if (session) {
-      api.dispatch(setCredentials(session));
-      result = await rawBaseQuery(markRetried(cleanArgs), api, extraOptions);
-    } else {
-      api.dispatch(clearCredentials());
-      api.dispatch(baseApi.util.resetApiState());
-      if (typeof window !== 'undefined') {
-        const loginPath = window.location.pathname.startsWith('/agency') ? '/agency/login' : '/login';
-        if (window.location.pathname !== loginPath) window.location.href = loginPath;
+    if (sessionExpired) {
+      const session = await refreshSession();
+
+      if (session) {
+        api.dispatch(setCredentials(session));
+        result = await rawBaseQuery(markRetried(cleanArgs), api, extraOptions);
+      } else {
+        api.dispatch(clearCredentials());
+        api.dispatch(baseApi.util.resetApiState());
+        if (typeof window !== 'undefined') {
+          const loginPath = window.location.pathname.startsWith('/agency') ? '/agency/login' : '/login';
+          if (window.location.pathname !== loginPath) window.location.href = loginPath;
+        }
       }
     }
   }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -13,6 +13,31 @@ import { selectUser, selectIsAuthenticated, useLogout } from '@/features/auth';
 import { homeForRole } from '@/features/auth/utils/roles';
 import { cn } from '../ui/cn';
 
+type AccountMenuItem = {
+  label: string;
+  href: string;
+  icon: string;
+};
+
+function accountMenuForRole(role: AppRole): AccountMenuItem[] {
+  if (role === 'TRAVELER') {
+    return [
+      {
+        label: 'Hồ sơ cá nhân',
+        href: '/traveler/profile',
+        icon: 'person',
+      },
+      {
+        label: 'Bảo mật & 2FA',
+        href: '/traveler/settings/security',
+        icon: 'shield_lock',
+      },
+    ];
+  }
+
+  return [{ label: 'Tổng quan', href: homeForRole(role), icon: 'dashboard' }];
+}
+
 export function Header({ role }: { role?: AppRole }) {
   const user = useAppSelector(selectUser);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
@@ -20,25 +45,45 @@ export function Header({ role }: { role?: AppRole }) {
   const pathname = usePathname();
   const isHome = pathname === '/home';
   const [isScrolled, setIsScrolled] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isHome) {
       setIsScrolled(true);
       return;
     }
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
+
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
     handleScroll();
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isHome]);
 
-  const isTransparent = isHome && !isScrolled;
+  useEffect(() => {
+    if (!accountMenuOpen) return;
 
-  // If role is passed directly, use it; otherwise detect from user session or fallback to PUBLIC
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setAccountMenuOpen(false);
+    };
+
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutsideClick);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [accountMenuOpen]);
+
+  const isTransparent = isHome && !isScrolled;
   const effectiveRole: AppRole = role || (isAuthenticated && user?.role ? (user.role as AppRole) : 'PUBLIC');
   const items = navigationByRole[effectiveRole] || navigationByRole.PUBLIC;
+  const accountMenuItems = accountMenuForRole(effectiveRole);
 
   return (
     <header
@@ -46,13 +91,16 @@ export function Header({ role }: { role?: AppRole }) {
         'sticky top-0 left-0 right-0 z-50 transition-all duration-300',
         isTransparent
           ? 'bg-transparent border-transparent'
-          : 'bg-white/85 backdrop-blur-xl shadow-[0_4px_20px_rgba(8,126,139,0.06)] border-b border-white/60'
+          : 'bg-white/85 backdrop-blur-xl shadow-[0_4px_20px_rgba(8,126,139,0.06)] border-b border-white/60',
       )}
     >
-      <div className="h-20 max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
-        {/* Brand Logo & Desktop Nav */}
+      <div className="mx-auto flex h-20 max-w-[1280px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-6">
-          <Link href="/" aria-label="Tripri Trang chủ" className="flex items-center">
+          <Link
+            href={isAuthenticated && user ? homeForRole(user.role) : '/'}
+            aria-label="Tripri Trang chủ"
+            className="flex items-center"
+          >
             <Image
               src="/images/tripri-logo.png"
               alt="Tripri - Du lịch theo cách của bạn"
@@ -60,8 +108,8 @@ export function Header({ role }: { role?: AppRole }) {
               height={44}
               priority
               className={cn(
-                "h-9 w-auto object-contain transition-all duration-300",
-                isTransparent ? "brightness-0 invert" : ""
+                'h-9 w-auto object-contain transition-all duration-300',
+                isTransparent ? 'brightness-0 invert' : '',
               )}
             />
           </Link>
@@ -70,49 +118,77 @@ export function Header({ role }: { role?: AppRole }) {
           </div>
         </div>
 
-        {/* Right Actions & Auth Integration */}
         <div className="flex items-center gap-3">
-          {/* Conditional Auth State */}
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-2">
-              <Link
-                href={homeForRole(user.role)}
-                className="flex items-center gap-2 py-1.5 px-3 rounded-xl bg-surface-container-low hover:bg-surface-container border border-surface-container transition-all"
-              >
-                <div className="w-8 h-8 rounded-full bg-primary-container text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                  {user.fullName ? user.fullName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
-                </div>
-                <div className="hidden lg:flex flex-col text-left">
-                  <span className={cn("text-xs font-bold leading-tight", isTransparent ? "text-white" : "text-slate-900")}>
-                    {user.fullName || user.email}
-                  </span>
-                  <span className={cn("text-[10px] font-semibold uppercase", isTransparent ? "text-white/80" : "text-primary-container")}>
-                    {user.role}
-                  </span>
-                </div>
-              </Link>
-
+            <div ref={accountMenuRef} className="relative">
               <button
                 type="button"
-                onClick={logout}
-                title="Đăng xuất"
-                className={cn("p-2 rounded-xl transition-colors",
-                  isTransparent ? "text-white/80 hover:text-white hover:bg-white/20" : "text-slate-500 hover:text-red-600 hover:bg-red-50"
-                )}
-                aria-label="Đăng xuất"
+                aria-expanded={accountMenuOpen}
+                aria-controls="account-menu"
+                onClick={() => setAccountMenuOpen((open) => !open)}
+                className="flex items-center gap-2 rounded-2xl border border-white/80 bg-white/95 px-2.5 py-1.5 text-left shadow-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container"
               >
-                <span className="material-symbols-outlined text-[20px]">logout</span>
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-container text-xs font-bold text-white shadow-sm">
+                  {user.fullName ? user.fullName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
+                </span>
+                <span className="hidden min-w-0 lg:flex lg:flex-col">
+                  <span className="truncate text-xs font-bold leading-tight text-slate-900">
+                    {user.fullName || user.email}
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase text-primary-container">{user.role}</span>
+                </span>
+                <span
+                  className={cn(
+                    'material-symbols-outlined hidden text-[18px] text-slate-500 transition-transform sm:block',
+                    accountMenuOpen ? 'rotate-180' : '',
+                  )}
+                  aria-hidden="true"
+                >
+                  expand_more
+                </span>
               </button>
+
+              {accountMenuOpen && (
+                <div
+                  id="account-menu"
+                  className="absolute right-0 top-[calc(100%+0.625rem)] w-56 overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-lg shadow-slate-900/15"
+                >
+                  <div className="p-1.5">
+                    {accountMenuItems.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setAccountMenuOpen(false)}
+                        className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-surface-container-low"
+                      >
+                        <span className="material-symbols-outlined text-[19px] text-primary-container">{item.icon}</span>
+                        <span>{item.label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                  <div className="border-t border-slate-100 p-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAccountMenuOpen(false);
+                        logout();
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+                    >
+                      <span className="material-symbols-outlined text-[19px]">logout</span>
+                      Đăng xuất
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-2">
               <Link
                 href="/login"
                 className={cn(
-                  "inline-flex items-center justify-center text-sm font-semibold px-3.5 py-2 rounded-xl transition-colors",
-                  isTransparent
-                    ? "text-white hover:bg-white/20"
-                    : "text-primary hover:text-on-surface hover:bg-surface-container"
+                  'inline-flex items-center justify-center rounded-xl px-3.5 py-2 text-sm font-semibold transition-colors',
+                  isTransparent ? 'text-white hover:bg-white/20' : 'text-primary hover:bg-surface-container hover:text-on-surface',
                 )}
               >
                 Đăng nhập
@@ -120,10 +196,10 @@ export function Header({ role }: { role?: AppRole }) {
               <Link
                 href="/register"
                 className={cn(
-                  "inline-flex items-center justify-center text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow-md",
+                  'inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold shadow-md transition-colors',
                   isTransparent
-                    ? "text-primary bg-white hover:bg-white/90"
-                    : "text-on-primary bg-primary-container hover:bg-primary shadow-primary-container/20 hover:shadow-lg"
+                    ? 'bg-white text-primary hover:bg-white/90'
+                    : 'bg-primary-container text-on-primary shadow-primary-container/20 hover:bg-primary hover:shadow-lg',
                 )}
               >
                 Đăng ký

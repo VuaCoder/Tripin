@@ -13,7 +13,7 @@ export interface AppShellProps {
 
 export function AppShell({
   children,
-  role = 'PUBLIC',
+  role,
   footer = true,
   className = '',
   fullBleed = false,
