@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, Clock, MapPin } from 'lucide-react';
 import { AppShell } from '@/components/layout';
 import { ErrorState, LoadingState } from '@/components/shared';
+import { WishlistButton } from '@/features/wishlist';
 import { RatingStars, TourReviewsSection, formatDuration, formatVnd, useGetTourDetailQuery } from '@/features/review';
 
 /**
@@ -72,6 +73,8 @@ export default function TourDetailPage() {
               <p className="mt-3 text-lg font-extrabold text-primary-container" style={{ fontVariantNumeric: 'tabular-nums' }}>
                 {formatVnd(tour.basePrice)} <span className="text-xs font-semibold text-slate-500">/ khách</span>
               </p>
+
+              <WishlistButton tourId={tour.id} className="mt-4" />
 
               {tour.description && (
                 <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-slate-600">{tour.description}</p>
