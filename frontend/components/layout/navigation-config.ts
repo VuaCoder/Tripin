@@ -5,6 +5,7 @@ export interface NavigationItem {
   href: string;
   icon?: string;
   badge?: string;
+  description?: string;
   children?: NavigationItem[];
 }
 

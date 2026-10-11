@@ -33,4 +33,5 @@ authRouter.post('/forgot-password', authRateLimiter, validate({ body: forgotPass
 authRouter.post('/reset-password', authRateLimiter, validate({ body: resetPasswordBody }), authController.resetPassword);
 authRouter.post('/refresh', authController.refresh);
 authRouter.post('/logout', authController.logout);
-authRouter.patch('/two-factor', requireAuth, validate({ body: twoFactorBody }), authController.setTwoFactor);
+authRouter.get('/security', requireAuth, authController.getSecuritySettings);
+authRouter.patch('/two-factor', requireAuth, authRateLimiter, validate({ body: twoFactorBody }), authController.setTwoFactor);

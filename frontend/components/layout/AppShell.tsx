@@ -6,6 +6,7 @@ import { Footer } from './Footer';
 export interface AppShellProps {
   children: ReactNode;
   role?: AppRole;
+  header?: boolean;
   footer?: boolean;
   className?: string;
   fullBleed?: boolean;
@@ -13,14 +14,15 @@ export interface AppShellProps {
 
 export function AppShell({
   children,
-  role = 'PUBLIC',
+  role,
+  header = true,
   footer = true,
   className = '',
   fullBleed = false,
 }: AppShellProps) {
   return (
     <div className={`flex min-h-screen flex-col bg-slate-50 text-slate-800 ${className}`}>
-      <Header role={role} />
+      {header && <Header role={role} />}
       <main
         className={
           fullBleed

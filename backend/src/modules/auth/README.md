@@ -39,7 +39,7 @@ business profile is captured before activation. Agency Google sign-up is intenti
 
 ## API (base `/api/v1/auth`)
 All bodies are JSON. Success envelope `{ success: true, data }`. All endpoints except `/refresh`, `/logout` and
-`/two-factor` are rate limited (20 req / 15 min / IP).
+the read-only `/security` endpoint are rate limited (20 req / 15 min / IP).
 
 | Endpoint | Body | Success | Errors |
 |---|---|---|---|
@@ -55,7 +55,8 @@ All bodies are JSON. Success envelope `{ success: true, data }`. All endpoints e
 | `POST /reset-password` | `email, code, newPassword` | 204; all sessions revoked | 400 `OTP_*` |
 | `POST /refresh` | cookie `refresh_token` | 200 `{ accessToken, user }` + rotated cookie | 401 `TOKEN_INVALID` |
 | `POST /logout` | cookie | 204, cookie cleared (idempotent) | — |
-| `PATCH /two-factor` | `enabled, password` | 200 `user` | 401 |
+| `GET /security` | — | 200 `{ passwordConfigured, googleLinked, twoFactorEnabled, twoFactorMethod }` | 401 |
+| `PATCH /two-factor` | `enabled, password?` | 200 `user` | 400 `TWO_FACTOR_REQUIRES_PASSWORD`, 401 `INVALID_CREDENTIALS` |
 
 Access token: `Authorization: Bearer <jwt>` (15 min). The refresh token is **never** in a response body.
 
@@ -85,7 +86,7 @@ This module only performs `PENDING_VERIFICATION -> ACTIVE`.
 * Users live in the `users` module.
 
 ## Permissions
-No RBAC here: every route is public except `PATCH /two-factor` (`requireAuth`). The `authenticate` middleware
+No RBAC here: every route is public except `GET /security` and `PATCH /two-factor` (`requireAuth`). The `authenticate` middleware
 (`middlewares/authenticate.ts`) uses `verifyAccessToken` from this module for all other modules.
 
 ## Dependencies

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { AppShell } from '@/components/layout';
 
 interface Slide {
   badge: string;
@@ -277,7 +276,7 @@ export default function Home() {
   const slide = HERO_SLIDES[currentSlide];
 
   return (
-    <AppShell role="PUBLIC" fullBleed>
+    <>
       <div className="flex flex-col w-full -mt-20">
         {/* ========================================================================= */}
         {/* 1. HERO SECTION WITH BACKGROUND CAROUSEL                                  */}
@@ -341,38 +340,24 @@ export default function Home() {
             );
           })}
 
-          {/* Carousel Progress Indicator & Navigation Controls */}
-          <div className="absolute bottom-32 lg:bottom-40 left-0 right-0 z-20 max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-40 sm:w-48 h-1 bg-white/30 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-secondary-fixed transition-all duration-500"
-                  style={{ width: `${((currentSlide + 1) / HERO_SLIDES.length) * 100}%` }}
-                />
-              </div>
-              <span className="text-xs font-bold text-white/80">
-                0{currentSlide + 1} / 0{HERO_SLIDES.length}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setCurrentSlide((prev) => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)}
-                aria-label="Slide trước"
-                className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 text-white backdrop-blur-md flex items-center justify-center transition-colors border border-white/20"
-              >
-                <span className="material-symbols-outlined text-[20px]">chevron_left</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length)}
-                aria-label="Slide tiếp theo"
-                className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 text-white backdrop-blur-md flex items-center justify-center transition-colors border border-white/20"
-              >
-                <span className="material-symbols-outlined text-[20px]">chevron_right</span>
-              </button>
-            </div>
+          {/* Carousel navigation */}
+          <div className="pointer-events-none absolute inset-x-0 top-1/2 z-20 flex -translate-y-1/2 items-center justify-between px-3 sm:px-5 lg:px-8">
+            <button
+              type="button"
+              onClick={() => setCurrentSlide((prev) => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)}
+              aria-label="Slide trước"
+              className="pointer-events-auto flex size-11 items-center justify-center rounded-full border border-white/30 bg-slate-950/25 text-white backdrop-blur-md transition-colors hover:bg-slate-950/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              <span className="material-symbols-outlined text-[22px]">chevron_left</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length)}
+              aria-label="Slide tiếp theo"
+              className="pointer-events-auto flex size-11 items-center justify-center rounded-full border border-white/30 bg-slate-950/25 text-white backdrop-blur-md transition-colors hover:bg-slate-950/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              <span className="material-symbols-outlined text-[22px]">chevron_right</span>
+            </button>
           </div>
 
           <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-surface via-surface/40 to-transparent pointer-events-none z-10" />
@@ -887,6 +872,6 @@ export default function Home() {
           </div>
         </section>
       </div>
-    </AppShell>
+    </>
   );
 }

@@ -5,7 +5,7 @@ import { validated } from '../../middlewares/validate';
 import { sendOk, sendPaginated } from '../../utils/api-response';
 import type { IdParams } from '../../utils/id';
 import { usersService, type UsersService } from './users.service';
-import type { AssignAccessBody, ListUsersQueryInput, UpdateProfileBody } from './users.validation';
+import type { AssignAccessBody, CompleteAvatarBody, ListUsersQueryInput, UpdateProfileBody } from './users.validation';
 
 /** HTTP only; rules live in UsersService. */
 export class UsersController {
@@ -18,6 +18,19 @@ export class UsersController {
   updateMe: RequestHandler = async (req, res) => {
     const { body } = validated<UpdateProfileBody>(req);
     sendOk(res, await this.service.updateMe(userActor(req).userId, body));
+  };
+
+  createAvatarUploadSignature: RequestHandler = async (req, res) => {
+    sendOk(res, await this.service.createTravelerAvatarUploadSignature(userActor(req).userId));
+  };
+
+  completeAvatarUpload: RequestHandler = async (req, res) => {
+    const { body } = validated<CompleteAvatarBody>(req);
+    sendOk(res, await this.service.completeTravelerAvatarUpload(userActor(req).userId, body.publicId));
+  };
+
+  removeAvatar: RequestHandler = async (req, res) => {
+    sendOk(res, await this.service.removeTravelerAvatar(userActor(req).userId));
   };
 
   requestAgencyVerification: RequestHandler = async (req, res) => {

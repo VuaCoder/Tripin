@@ -38,14 +38,14 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ role = 'TRAVELER' })
       <BackButton onClick={() => router.push('/')} />
 
       {/* Main Centered Auth Container */}
-      <main className="w-full flex items-center justify-center relative z-10 my-auto">
+      <section className="w-full flex items-center justify-center relative z-10 my-auto">
         <AuthContainer
           initialMode="register"
           registerRole={role}
           onLoginSuccess={handleLoginSuccess}
           onRegisterSuccess={handleRegisterSuccess}
         />
-      </main>
+      </section>
     </div>
   );
 };

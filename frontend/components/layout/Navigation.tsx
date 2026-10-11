@@ -11,7 +11,14 @@ export function Navigation({ items, onNavigate, isTransparent }: { items: Naviga
   return (
     <nav aria-label="Điều hướng chính" className="flex items-center gap-1 lg:gap-2">
       {items.map((item) => {
-        const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(`${item.href}/`));
+        const childActive = item.children?.some(
+          (child) => pathname === child.href || pathname.startsWith(`${child.href}/`),
+        );
+        const active = Boolean(
+          pathname === item.href ||
+          (item.href !== '/' && pathname.startsWith(`${item.href}/`)) ||
+          childActive,
+        );
 
         // Dropdown item (e.g. Khám phá)
         if (item.children && item.children.length > 0) {
@@ -45,7 +52,9 @@ export function Navigation({ items, onNavigate, isTransparent }: { items: Naviga
                     )}
                     <div>
                       <div className="text-sm font-semibold text-on-surface">{child.label}</div>
-                      <div className="text-xs text-on-surface-variant">Dịch vụ tuyển chọn</div>
+                      {child.description && (
+                        <div className="text-xs text-on-surface-variant">{child.description}</div>
+                      )}
                     </div>
                   </Link>
                 ))}

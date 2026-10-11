@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/store/Providers";
+import { GlobalSiteShell } from "@/components/layout";
 
 export const metadata: Metadata = {
   title: "Tripri - Du lịch theo cách của bạn",
@@ -15,7 +16,9 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body className="min-h-screen text-slate-800 antialiased">
-        <Providers>{children}</Providers>
+        <Providers>
+          <GlobalSiteShell>{children}</GlobalSiteShell>
+        </Providers>
       </body>
     </html>
   );

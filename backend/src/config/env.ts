@@ -33,6 +33,11 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: optionalString,
   GOOGLE_CLIENT_SECRET: optionalString,
 
+  /** Cloudinary media storage. Keep these server-only: never prefix them with NEXT_PUBLIC_. */
+  CLOUDINARY_CLOUD_NAME: optionalString,
+  CLOUDINARY_API_KEY: optionalString,
+  CLOUDINARY_API_SECRET: optionalString,
+
   BREVO_API_KEY: optionalString,
   SMTP_HOST: optionalString,
   SMTP_PORT: z.coerce.number().int().positive().default(587),

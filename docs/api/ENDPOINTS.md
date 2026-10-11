@@ -135,6 +135,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/auth/register` | public |
 | POST | `/api/v1/auth/resend-otp` | public |
 | POST | `/api/v1/auth/reset-password` | public |
+| GET | `/api/v1/auth/security` | login |
 | PATCH | `/api/v1/auth/two-factor` | login |
 | POST | `/api/v1/auth/verify-otp` | public |
 
@@ -313,6 +314,9 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | GET | `/api/v1/users/me` | `profile:view-own` |
 | PATCH | `/api/v1/users/me` | `profile:update-own` |
 | POST | `/api/v1/users/me/agency-verification` | `profile:update-own` |
+| DELETE | `/api/v1/users/me/avatar` | `profile:update-own` |
+| POST | `/api/v1/users/me/avatar/complete` | `profile:update-own` |
+| POST | `/api/v1/users/me/avatar/upload-signature` | `profile:update-own` |
 
 ## `/wishlist`
 
