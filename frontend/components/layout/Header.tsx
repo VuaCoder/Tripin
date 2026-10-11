@@ -20,6 +20,10 @@ type AccountMenuItem = {
 };
 
 function accountMenuForRole(role: AppRole): AccountMenuItem[] {
+  if (role === 'PUBLIC') {
+    return [];
+  }
+
   if (role === 'TRAVELER') {
     return [
       {
