@@ -84,9 +84,18 @@ export function CartPage() {
             <span className="material-symbols-outlined text-[18px]" aria-hidden="true">add_shopping_cart</span>
             Thêm tour
           </Button>
-          <Button variant="outline" size="sm" loading={isFetching} onClick={refetch}>
-            Làm mới
-          </Button>
+          <button
+            type="button"
+            disabled={isFetching}
+            onClick={() => void refetch()}
+            aria-label="Làm mới"
+            title="Làm mới"
+            className="flex size-9 items-center justify-center rounded-xl border border-surface-container bg-white text-slate-600 transition-colors hover:bg-surface-container-low hover:text-primary-container disabled:opacity-50"
+          >
+            <span className={`material-symbols-outlined text-[20px] ${isFetching ? 'animate-spin' : ''}`} aria-hidden="true">
+              refresh
+            </span>
+          </button>
         </div>
       </header>
 

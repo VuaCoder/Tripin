@@ -8,6 +8,7 @@ import { ErrorState, LoadingState } from '@/components/shared';
 import { getApiErrorMessage, selectUser } from '@/features/auth';
 import { useAppSelector } from '@/store/hooks';
 import { formatDepartureDate, formatVnd, useGetCartQuery, useRemoveCartItemMutation, type CartItem } from '@/features/cart';
+import { useCheckoutBookingMutation } from '@/features/payment';
 import { useCreateBookingMutation } from '../api/bookingApi';
 import type { Booking } from '../types';
 
@@ -36,7 +37,9 @@ export function BookingEntryPage() {
 
   const { data: cart, isLoading } = useGetCartQuery();
   const [createBooking, { isLoading: isSubmitting }] = useCreateBookingMutation();
+  const [checkoutBooking, { isLoading: isPaying }] = useCheckoutBookingMutation();
   const [removeCartItem] = useRemoveCartItemMutation();
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   const item: CartItem | undefined = useMemo(() => {
     if (!cart) return undefined;
@@ -81,20 +84,35 @@ export function BookingEntryPage() {
 
   if (isLoading) return <LoadingState label="Đang chuẩn bị bước đặt chỗ..." />;
 
+  const handlePayment = async () => {
+    if (!booking) return;
+    setPaymentError(null);
+    try {
+      const res = await checkoutBooking(booking.id).unwrap();
+      if (res?.checkoutUrl) {
+        window.location.href = res.checkoutUrl;
+      } else {
+        setPaymentError('Không nhận được đường dẫn thanh toán từ cổng PayOS.');
+      }
+    } catch (err) {
+      setPaymentError(getApiErrorMessage(err, 'Không thể khởi tạo cổng thanh toán PayOS. Vui lòng kiểm tra cấu hình hoặc thử lại.'));
+    }
+  };
+
   if (booking) {
     return (
       <div className="mx-auto max-w-xl rounded-3xl border border-emerald-100 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-3">
           <span className="material-symbols-outlined text-3xl text-emerald-600" aria-hidden="true">check_circle</span>
-          <h1 className="text-xl font-extrabold text-slate-900">Đặt chỗ đã được tạo</h1>
+          <h1 className="text-xl font-extrabold text-slate-900">Đặt chỗ đã được tạo thành công</h1>
         </div>
         <p className="mt-3 text-sm text-slate-600">
           Mã đặt chỗ của bạn là <strong className="text-slate-900">{booking.bookingCode}</strong>.
         </p>
-        <dl className="mt-4 space-y-2 text-sm">
+        <dl className="mt-4 space-y-2 text-sm bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
           <div className="flex justify-between gap-4">
             <dt className="text-slate-500">Tour</dt>
-            <dd className="font-semibold text-slate-800">{booking.tour.title}</dd>
+            <dd className="font-semibold text-slate-800 text-right">{booking.tour.title}</dd>
           </div>
           <div className="flex justify-between gap-4">
             <dt className="text-slate-500">Ngày khởi hành</dt>
@@ -102,7 +120,7 @@ export function BookingEntryPage() {
           </div>
           <div className="flex justify-between gap-4">
             <dt className="text-slate-500">Số khách</dt>
-            <dd className="font-semibold text-slate-800">{booking.participants}</dd>
+            <dd className="font-semibold text-slate-800">{booking.participants} người</dd>
           </div>
           {booking.discountAmount > 0 && (
             <div className="flex justify-between gap-4">
@@ -110,27 +128,51 @@ export function BookingEntryPage() {
               <dd className="font-semibold text-emerald-700">-{formatVnd(booking.discountAmount)}</dd>
             </div>
           )}
-          <div className="flex justify-between gap-4 border-t border-slate-100 pt-2">
-            <dt className="font-semibold text-slate-700">Tổng tiền</dt>
-            <dd className="text-lg font-extrabold text-primary-container">{formatVnd(booking.totalAmount)}</dd>
+          <div className="flex justify-between gap-4 border-t border-slate-200/80 pt-3">
+            <dt className="font-semibold text-slate-700">Tổng tiền thanh toán</dt>
+            <dd className="text-xl font-extrabold text-primary-container">{formatVnd(booking.totalAmount)}</dd>
           </div>
         </dl>
-        <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Đặt chỗ đang chờ thanh toán. Bước thanh toán sẽ được hoàn thiện ở giai đoạn tiếp theo.
-        </p>
-        <div className="mt-5 flex flex-wrap gap-3">
-          <Link
-            href="/traveler/cart"
-            className="inline-flex items-center rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+
+        <div className="mt-4 rounded-xl bg-teal-50/80 border border-teal-200/60 p-3.5 flex items-start gap-2.5">
+          <span className="material-symbols-outlined text-teal-700 text-[20px] flex-shrink-0 mt-0.5">info</span>
+          <div className="text-xs text-teal-900 leading-relaxed">
+            Chỗ của bạn đang được giữ trong vòng <strong>15 phút</strong>. Vui lòng thanh toán qua cổng <strong>PayOS</strong> để nhận vé điện tử (E-ticket) ngay lập tức.
+          </div>
+        </div>
+
+        {paymentError && (
+          <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3.5 flex items-start gap-2.5">
+            <span className="material-symbols-outlined text-red-600 text-[20px] flex-shrink-0 mt-0.5">error</span>
+            <span className="text-xs font-medium text-red-700">{paymentError}</span>
+          </div>
+        )}
+
+        <div className="mt-6 flex flex-col gap-3">
+          <Button
+            type="button"
+            onClick={handlePayment}
+            loading={isPaying}
+            className="w-full flex items-center justify-center gap-2 bg-primary-container hover:bg-primary text-white py-3.5 rounded-xl font-bold text-base shadow-md shadow-primary-container/20"
           >
-            Về giỏ hàng
-          </Link>
-          <Link
-            href="/traveler"
-            className="inline-flex items-center rounded-xl bg-primary-container px-4 py-2 text-sm font-semibold text-white hover:bg-primary"
-          >
-            Về trang tổng quan
-          </Link>
+            <span className="material-symbols-outlined text-[20px]">qr_code_scanner</span>
+            <span>Thanh toán ngay qua PayOS</span>
+          </Button>
+
+          <div className="flex items-center justify-between pt-2">
+            <Link
+              href="/traveler/cart"
+              className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+            >
+              ← Về giỏ hàng
+            </Link>
+            <Link
+              href="/traveler"
+              className="text-xs font-semibold text-teal-700 hover:text-teal-900 transition-colors"
+            >
+              Để sau, về trang tổng quan →
+            </Link>
+          </div>
         </div>
       </div>
     );

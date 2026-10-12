@@ -1,7 +1,5 @@
-'use client';
-
-import { WishlistPage } from '@/features/wishlist';
+import { redirect } from 'next/navigation';
 
 export default function TravelerWishlistPage() {
-  return <WishlistPage />;
+  redirect('/settings/wishlist');
 }

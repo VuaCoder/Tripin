@@ -25,11 +25,18 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
     { label: 'Hỗ trợ', href: '/support' },
   ],
   TRAVELER: [
-    { label: 'Tổng quan', href: '/traveler', icon: 'dashboard' },
-    { label: 'Đặt chỗ của tôi', href: '/traveler/bookings', icon: 'event' },
-    { label: 'Giỏ hàng', href: '/traveler/cart', icon: 'shopping_cart' },
-    { label: 'Tour yêu thích', href: '/traveler/wishlist', icon: 'favorite' },
-    { label: 'Khám phá tour', href: '/explore', icon: 'travel_explore' },
+    {
+      label: 'Khám phá',
+      href: '/explore',
+      icon: 'explore',
+      children: [
+        { label: 'Tour & Trải nghiệm', href: '/explore?type=tour', icon: 'tour' },
+        { label: 'Khách sạn & Resort', href: '/explore?type=hotel', icon: 'hotel' },
+        { label: 'Vé xe & Di chuyển', href: '/explore?type=transport', icon: 'directions_car' },
+        { label: 'Vé vui chơi & Show', href: '/explore?type=activity', icon: 'attractions' },
+      ],
+    },
+    { label: 'Hỗ trợ', href: '/support' },
   ],
   AGENCY: [
     { label: 'Tổng quan', href: '/agency', icon: 'dashboard' },
