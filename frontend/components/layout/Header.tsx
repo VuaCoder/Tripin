@@ -11,6 +11,7 @@ import { MobileNavigation } from './MobileNavigation';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, selectIsAuthenticated, useLogout } from '@/features/auth';
 import { homeForRole } from '@/features/auth/utils/roles';
+import { useGetCartQuery } from '@/features/cart';
 import { cn } from '../ui/cn';
 
 type AccountMenuItem = {
@@ -28,13 +29,8 @@ function accountMenuForRole(role: AppRole): AccountMenuItem[] {
     return [
       {
         label: 'Hồ sơ cá nhân',
-        href: '/traveler/profile',
+        href: '/settings/profile',
         icon: 'person',
-      },
-      {
-        label: 'Bảo mật & 2FA',
-        href: '/traveler/settings/security',
-        icon: 'shield_lock',
       },
     ];
   }
@@ -51,6 +47,12 @@ export function Header({ role }: { role?: AppRole }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
+
+  const [avatarFailed, setAvatarFailed] = useState(false);
+
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [user?.avatarUrl]);
 
   useEffect(() => {
     if (!isHome) {
@@ -89,6 +91,10 @@ export function Header({ role }: { role?: AppRole }) {
   const items = navigationByRole[effectiveRole] || navigationByRole.PUBLIC;
   const accountMenuItems = accountMenuForRole(effectiveRole);
 
+  const isTraveler = isAuthenticated && user?.role === 'TRAVELER';
+  const { data: cartData } = useGetCartQuery(undefined, { skip: !isTraveler });
+  const cartItemCount = cartData?.totals?.itemCount ?? cartData?.items?.length ?? 0;
+
   return (
     <header
       className={cn(
@@ -122,7 +128,34 @@ export function Header({ role }: { role?: AppRole }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          {/* Cart Icon Button for Traveler */}
+          {isTraveler && (
+            <Link
+              href="/traveler/cart"
+              aria-label="Giỏ hàng của bạn"
+              title="Giỏ hàng"
+              className={cn(
+                'relative flex size-10 items-center justify-center rounded-2xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container',
+                isTransparent
+                  ? 'border-white/40 bg-white/15 text-white hover:bg-white/25'
+                  : 'border-slate-200/80 bg-white/95 text-slate-700 shadow-sm hover:border-slate-300 hover:bg-white hover:text-primary-container',
+              )}
+            >
+              <span className="material-symbols-outlined text-[22px]" aria-hidden="true">
+                shopping_cart
+              </span>
+              {cartItemCount > 0 && (
+                <span
+                  key={cartItemCount}
+                  className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 font-mono text-[11px] font-bold text-white shadow-md animate-scaleIn"
+                >
+                  {cartItemCount > 99 ? '99+' : cartItemCount}
+                </span>
+              )}
+            </Link>
+          )}
+
           {isAuthenticated && user ? (
             <div ref={accountMenuRef} className="relative">
               <button
@@ -130,20 +163,34 @@ export function Header({ role }: { role?: AppRole }) {
                 aria-expanded={accountMenuOpen}
                 aria-controls="account-menu"
                 onClick={() => setAccountMenuOpen((open) => !open)}
-                className="flex items-center gap-2 rounded-2xl border border-white/80 bg-white/95 px-2.5 py-1.5 text-left shadow-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container"
+                className={cn(
+                  'flex items-center gap-2 rounded-full px-2 py-1.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container',
+                  isTransparent
+                    ? 'text-white hover:bg-white/15'
+                    : 'text-slate-800 hover:bg-slate-100',
+                )}
               >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-container text-xs font-bold text-white shadow-sm">
-                  {user.fullName ? user.fullName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
+                <span className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-container text-xs font-bold text-white shadow-sm ring-1 ring-black/5">
+                  {user.avatarUrl && !avatarFailed ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.fullName || user.email}
+                      className="size-full object-cover"
+                      referrerPolicy="no-referrer"
+                      onError={() => setAvatarFailed(true)}
+                    />
+                  ) : (
+                    <span>{user.fullName ? user.fullName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}</span>
+                  )}
                 </span>
-                <span className="hidden min-w-0 lg:flex lg:flex-col">
-                  <span className="truncate text-xs font-bold leading-tight text-slate-900">
-                    {user.fullName || user.email}
-                  </span>
-                  <span className="text-[10px] font-semibold uppercase text-primary-container">{user.role}</span>
+                <span className={cn('hidden max-w-[140px] truncate text-sm font-semibold leading-tight sm:block', isTransparent ? 'text-white' : 'text-slate-900')}>
+                  {user.fullName || user.email}
                 </span>
                 <span
                   className={cn(
-                    'material-symbols-outlined hidden text-[18px] text-slate-500 transition-transform sm:block',
+                    'material-symbols-outlined hidden text-[18px] transition-transform sm:block',
+                    isTransparent ? 'text-white/80' : 'text-slate-500',
                     accountMenuOpen ? 'rotate-180' : '',
                   )}
                   aria-hidden="true"

@@ -293,7 +293,11 @@ export class AuthService {
     if (user?.role === ROLES.AGENCY) {
       throw AppError.forbidden('Google sign-in is not available in the Agency portal', 'AGENCY_PORTAL_REQUIRED');
     }
-    if (!user) {
+    if (user) {
+      if (!user.avatarUrl && identity.avatarUrl) {
+        user = (await this.deps.users.updateById(user.id, { avatarUrl: identity.avatarUrl })) ?? user;
+      }
+    } else {
       const sameEmail = await this.deps.users.findByEmail(identity.email);
       if (sameEmail) {
         if (sameEmail.role === ROLES.AGENCY) {
@@ -305,6 +309,7 @@ export class AuthService {
           (await this.deps.users.updateById(sameEmail.id, {
             googleId: identity.googleId,
             emailVerifiedAt: sameEmail.emailVerifiedAt ?? new Date(),
+            ...(!sameEmail.avatarUrl && identity.avatarUrl ? { avatarUrl: identity.avatarUrl } : {}),
             // An unverified registration may have been made by SOMEONE ELSE with this address (pre-hijacking): the
             // password they chose must not survive the real owner proving the address through Google.
             ...(wasUnverified ? { passwordHash: null } : {}),

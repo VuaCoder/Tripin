@@ -16,8 +16,7 @@ export function MobileNavigation({ items }: { items: NavigationItem[] }) {
 
   const accountLinks = user?.role === 'TRAVELER'
     ? [
-        { label: 'Hồ sơ cá nhân', href: '/traveler/profile', icon: 'person' },
-        { label: 'Bảo mật & 2FA', href: '/traveler/settings/security', icon: 'shield_lock' },
+        { label: 'Hồ sơ cá nhân', href: '/settings/profile', icon: 'person' },
       ]
     : user
       ? [{ label: 'Tổng quan', href: homeForRole(user.role), icon: 'dashboard' }]

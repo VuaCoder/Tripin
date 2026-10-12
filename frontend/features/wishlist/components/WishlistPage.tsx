@@ -61,9 +61,18 @@ export function WishlistPage() {
             Những tour bạn đã lưu để xem lại sau{meta && meta.total > 0 ? ` (${meta.total})` : ''}.
           </p>
         </div>
-        <Button variant="outline" size="sm" loading={isFetching} onClick={() => void refetch()}>
-          Làm mới
-        </Button>
+        <button
+          type="button"
+          disabled={isFetching}
+          onClick={() => void refetch()}
+          aria-label="Làm mới"
+          title="Làm mới"
+          className="flex size-9 items-center justify-center rounded-xl border border-surface-container bg-white text-slate-600 transition-colors hover:bg-surface-container-low hover:text-primary-container disabled:opacity-50"
+        >
+          <span className={`material-symbols-outlined text-[20px] ${isFetching ? 'animate-spin' : ''}`} aria-hidden="true">
+            refresh
+          </span>
+        </button>
       </header>
 
       {actionError && (

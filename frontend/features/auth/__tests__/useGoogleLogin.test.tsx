@@ -45,7 +45,7 @@ function createWrapper() {
   const store = configureStore({ reducer: { auth: authReducer } });
   // No JSX here on purpose: vitest's transform does not run the esbuild jsx option.
   return function Wrapper({ children }: { children: ReactNode }) {
-    return createElement(Provider, { store }, children);
+    return createElement(Provider, { store, children });
   };
 }
 

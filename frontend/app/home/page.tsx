@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 
 interface Slide {
@@ -236,6 +236,84 @@ const CATEGORY_PRODUCTS: Record<SearchTab, ProductCard[]> = {
   ],
 };
 
+function CalendarOutlineIcon({ className = "text-slate-500" }: { className?: string }) {
+  return (
+    <svg width="34" height="34" viewBox="0 0 32 32" fill="none" className={className}>
+      <line x1="10" y1="3" x2="10" y2="7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <line x1="22" y1="3" x2="22" y2="7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <rect x="5" y="5" width="22" height="22" rx="5" stroke="currentColor" strokeWidth="1.8" />
+      <line x1="5" y1="11" x2="27" y2="11" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function CalendarFoldedIcon({ className = "text-slate-900" }: { className?: string }) {
+  return (
+    <svg width="34" height="34" viewBox="0 0 32 32" fill="none" className={className}>
+      <line x1="10" y1="3" x2="10" y2="7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <line x1="22" y1="3" x2="22" y2="7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path 
+        d="M 18 27 H 10 C 7.2 27 5 24.8 5 22 V 10 C 5 7.2 7.2 5 10 5 H 22 C 24.8 5 27 7.2 27 10 V 18 L 18 27 Z" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinejoin="round" 
+      />
+      <line x1="5" y1="11" x2="27" y2="11" stroke="currentColor" strokeWidth="2" />
+      <path 
+        d="M 18 27 V 20 C 18 19 19 18 20 18 H 27" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinejoin="round" 
+      />
+    </svg>
+  );
+}
+
+function isSameDay(d1: Date | null, d2: Date | null): boolean {
+  if (!d1 || !d2) return false;
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
+  );
+}
+
+function getCalendarMonth(year: number, month: number) {
+  const totalDays = new Date(year, month + 1, 0).getDate();
+  const firstDay = new Date(year, month, 1).getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  const leadingOffset = (firstDay + 6) % 7; // Monday = 0, ..., Sunday = 6
+
+  const days: Date[] = [];
+  for (let d = 1; d <= totalDays; d++) {
+    days.push(new Date(year, month, d));
+  }
+
+  return {
+    year,
+    month,
+    totalDays,
+    leadingOffset,
+    days,
+  };
+}
+
+function getDynamicFlexibleMonths() {
+  const current = new Date();
+  const months = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(current.getFullYear(), current.getMonth() + i, 1);
+    const m = d.getMonth() + 1;
+    const y = d.getFullYear();
+    months.push({
+      id: `${m}-${y}`,
+      month: `Tháng ${m}`,
+      year: `${y}`,
+      short: `thg ${m}`,
+    });
+  }
+  return months;
+}
+
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [searchTab, setSearchTab] = useState<SearchTab>('tour');
@@ -243,9 +321,25 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchSticky, setIsSearchSticky] = useState(false);
 
+  const flexibleMonths = useMemo(() => getDynamicFlexibleMonths(), []);
+
+  // Today normalized to midnight
+  const today = useMemo(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }, []);
+
   // Search Dropdown States
   const [activeDropdown, setActiveDropdown] = useState<'location' | 'date' | 'guests' | null>(null);
-  const [selectedDate, setSelectedDate] = useState('');
+  const [hoveredField, setHoveredField] = useState<'location' | 'date' | 'guests' | null>(null);
+  const [dateMode, setDateMode] = useState<'exact' | 'flexible'>('exact');
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [hoverDate, setHoverDate] = useState<Date | null>(null);
+  const [calendarMonthOffset, setCalendarMonthOffset] = useState(0);
+  const [flexibleDuration, setFlexibleDuration] = useState<'weekend' | 'week' | 'month' | null>(null);
+  const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
+  const monthsScrollRef = useRef<HTMLDivElement>(null);
   const [adults, setAdults] = useState(0);
   const [children, setChildren] = useState(0);
   const [infants, setInfants] = useState(0);
@@ -274,6 +368,188 @@ export default function Home() {
   }, []);
 
   const slide = HERO_SLIDES[currentSlide];
+
+  const getExactDateText = () => {
+    if (!startDate) return '';
+    const startDay = startDate.getDate();
+    const startMonth = startDate.getMonth() + 1;
+    const startYear = startDate.getFullYear();
+
+    if (!endDate || (startDate.getTime() === endDate.getTime())) {
+      return `${startDay} thg ${startMonth}`;
+    }
+
+    const endDay = endDate.getDate();
+    const endMonth = endDate.getMonth() + 1;
+    const endYear = endDate.getFullYear();
+
+    if (startYear === endYear) {
+      return `${startDay} thg ${startMonth} - ${endDay} thg ${endMonth}`;
+    }
+    return `${startDay} thg ${startMonth}, ${startYear} - ${endDay} thg ${endMonth}, ${endYear}`;
+  };
+
+  const getFlexibleDateText = () => {
+    const durationLabel = 
+      flexibleDuration === 'weekend' ? 'Cuối tuần' :
+      flexibleDuration === 'week' ? '1 tuần' :
+      flexibleDuration === 'month' ? '1 tháng' : '';
+
+    const sortedSelected = flexibleMonths.filter(m => selectedMonths.includes(m.id));
+    const monthsLabel = sortedSelected.length > 0
+      ? sortedSelected.map(m => m.short).join(', ')
+      : '';
+
+    if (durationLabel && monthsLabel) {
+      return `${durationLabel} trong ${monthsLabel}`;
+    }
+    if (durationLabel) {
+      return `${durationLabel}`;
+    }
+    if (monthsLabel) {
+      return sortedSelected.map(m => m.month).join(', ');
+    }
+    return '';
+  };
+
+  const displayDateText = dateMode === 'exact' ? getExactDateText() : getFlexibleDateText();
+  const datePlaceholder = displayDateText || (dateMode === 'flexible' ? 'Thời gian bất kỳ' : 'Thêm ngày');
+  const hasDateValue = Boolean(
+    dateMode === 'exact' 
+      ? Boolean(startDate) 
+      : (flexibleDuration || selectedMonths.length > 0)
+  );
+
+  const handleDayClick = (dayDate: Date) => {
+    const dayClean = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate());
+    if (dayClean.getTime() < today.getTime()) return;
+
+    if (!startDate || (startDate && endDate)) {
+      setStartDate(dayClean);
+      setEndDate(null);
+    } else if (startDate && !endDate) {
+      if (dayClean.getTime() < startDate.getTime()) {
+        setStartDate(dayClean);
+        setEndDate(null);
+      } else {
+        setEndDate(dayClean);
+      }
+    }
+  };
+
+  const toggleMonth = (monthId: string) => {
+    setSelectedMonths(prev => 
+      prev.includes(monthId) 
+        ? prev.filter(id => id !== monthId)
+        : [...prev, monthId]
+    );
+  };
+
+  const selectDuration = (duration: 'weekend' | 'week' | 'month') => {
+    setFlexibleDuration(prev => prev === duration ? null : duration);
+  };
+
+  const scrollMonths = (direction: 'left' | 'right') => {
+    if (monthsScrollRef.current) {
+      const scrollAmount = direction === 'left' ? -260 : 260;
+      monthsScrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  const month1Base = useMemo(() => new Date(today.getFullYear(), today.getMonth() + calendarMonthOffset, 1), [today, calendarMonthOffset]);
+  const month2Base = useMemo(() => new Date(today.getFullYear(), today.getMonth() + calendarMonthOffset + 1, 1), [today, calendarMonthOffset]);
+  const month1Data = useMemo(() => getCalendarMonth(month1Base.getFullYear(), month1Base.getMonth()), [month1Base]);
+  const month2Data = useMemo(() => getCalendarMonth(month2Base.getFullYear(), month2Base.getMonth()), [month2Base]);
+
+  const renderDayCell = (d: Date, totalDaysInMonth: number) => {
+    const dClean = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const isPast = dClean.getTime() < today.getTime();
+
+    const isStart = Boolean(startDate && isSameDay(dClean, startDate));
+    const effectiveEnd = endDate || (startDate && hoverDate && hoverDate.getTime() >= startDate.getTime() ? hoverDate : null);
+    const isEnd = Boolean(effectiveEnd && isSameDay(dClean, effectiveEnd));
+    const hasRange = Boolean(startDate && effectiveEnd && startDate.getTime() !== effectiveEnd.getTime());
+
+    const inRange = Boolean(
+      startDate &&
+      effectiveEnd &&
+      dClean.getTime() > startDate.getTime() &&
+      dClean.getTime() < effectiveEnd.getTime()
+    );
+
+    const dayOfWeekIndex = (d.getDay() + 6) % 7; // 0 for Mon (T2), 6 for Sun (CN)
+    const isStartOfRow = dayOfWeekIndex === 0;
+    const isEndOfRow = dayOfWeekIndex === 6;
+    const isFirstOfMonth = d.getDate() === 1;
+    const isLastOfMonth = d.getDate() === totalDaysInMonth;
+
+    return (
+      <div
+        key={d.toISOString()}
+        id={`day-${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`}
+        data-day={d.getDate()}
+        data-month={d.getMonth() + 1}
+        data-year={d.getFullYear()}
+        className={`relative h-10 md:h-11 flex items-center justify-center ${isPast ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+        onMouseEnter={() => {
+          if (!isPast && startDate && !endDate) {
+            setHoverDate(dClean);
+          }
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!isPast) handleDayClick(dClean);
+        }}
+      >
+        {/* Intermediate days continuous background */}
+        {inRange && (
+          <div
+            className={`absolute inset-y-0 inset-x-0 bg-slate-300 pointer-events-none ${
+              isStartOfRow || isFirstOfMonth ? 'rounded-l-full' : ''
+            } ${
+              isEndOfRow || isLastOfMonth ? 'rounded-r-full' : ''
+            }`}
+          />
+        )}
+
+        {/* Start date right half background connector */}
+        {isStart && hasRange && (
+          <div
+            className={`absolute inset-y-0 right-0 w-1/2 bg-slate-300 pointer-events-none ${
+              isEndOfRow || isLastOfMonth ? 'rounded-r-full' : ''
+            }`}
+          />
+        )}
+
+        {/* End date left half background connector */}
+        {isEnd && hasRange && (
+          <div
+            className={`absolute inset-y-0 left-0 w-1/2 bg-slate-300 pointer-events-none ${
+              isStartOfRow || isFirstOfMonth ? 'rounded-l-full' : ''
+            }`}
+          />
+        )}
+
+        {/* Date circle */}
+        <div
+          className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-all select-none ${
+            isStart || isEnd
+              ? 'bg-slate-900 text-white font-bold shadow-sm'
+              : isPast
+              ? 'text-slate-300 cursor-not-allowed'
+              : inRange
+              ? 'text-slate-900 font-bold'
+              : 'text-slate-800 hover:border hover:border-slate-800'
+          }`}
+        >
+          {d.getDate()}
+        </div>
+      </div>
+    );
+  };
+
+  const hideDivider1 = hoveredField === 'location' || hoveredField === 'date' || activeDropdown === 'location' || activeDropdown === 'date';
+  const hideDivider2 = hoveredField === 'date' || hoveredField === 'guests' || activeDropdown === 'date' || activeDropdown === 'guests';
 
   return (
     <>
@@ -400,13 +676,25 @@ export default function Home() {
 
             {/* Tab Inputs Panel */}
             <div className="p-4 lg:p-6">
-              <div className="flex flex-col md:flex-row items-stretch md:items-center bg-transparent md:bg-white md:rounded-full md:border md:border-slate-200 md:shadow-sm relative gap-2 md:gap-0">
+              <div 
+                onMouseLeave={() => setHoveredField(null)}
+                className={`flex flex-col md:flex-row items-stretch h-auto md:h-[66px] bg-transparent md:rounded-full md:border md:border-slate-200 md:shadow-sm relative gap-2 md:gap-0 transition-colors ${
+                  activeDropdown ? 'md:bg-slate-100/90' : 'md:bg-white'
+                }`}
+              >
                 {/* Field 1: Destination / Route */}
                 <div 
-                  className={`relative flex-1 w-full p-3 md:py-3 md:px-6 md:rounded-full transition-colors cursor-pointer group ${activeDropdown === 'location' ? 'bg-white shadow-lg z-10 rounded-2xl md:rounded-full md:border-transparent border border-slate-200' : 'bg-surface-container-low md:bg-transparent hover:bg-slate-200 rounded-2xl'}`}
+                  className={`relative flex-1 w-full h-auto md:h-full p-3 md:py-0 md:px-7 rounded-2xl md:rounded-full transition-all cursor-pointer group flex flex-col justify-center ${
+                    activeDropdown === 'location' 
+                      ? 'bg-white shadow-[0_6px_20px_rgba(0,0,0,0.12)] z-10 md:rounded-full border border-slate-200 md:border-transparent' 
+                      : hoveredField === 'location'
+                      ? 'bg-slate-200/80 md:bg-slate-200/80'
+                      : 'bg-surface-container-low md:bg-transparent hover:bg-slate-200/80 md:hover:bg-slate-200/80'
+                  }`}
+                  onMouseEnter={() => setHoveredField('location')}
                   onClick={() => setActiveDropdown('location')}
                 >
-                  <label className="block text-xs font-bold text-on-surface mb-0.5 ml-1">
+                  <label className="block text-xs font-bold text-on-surface mb-0.5 cursor-pointer">
                     Địa điểm
                   </label>
                   <div className="flex items-center justify-between">
@@ -415,7 +703,7 @@ export default function Home() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Tìm kiếm điểm đến"
-                      className="w-full bg-transparent text-sm font-semibold text-on-surface placeholder:text-on-surface-variant focus:outline-none cursor-pointer ml-1"
+                      className="w-full bg-transparent text-sm font-semibold text-on-surface placeholder:text-on-surface-variant focus:outline-none cursor-pointer truncate"
                     />
                     {activeDropdown === 'location' && searchQuery && (
                       <button 
@@ -455,29 +743,47 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* Divider */}
-                <div className="hidden md:block w-px h-8 bg-slate-200 self-center"></div>
+                {/* Divider 1 */}
+                <div 
+                  className={`hidden md:block w-px h-8 bg-slate-200 self-center flex-shrink-0 pointer-events-none transition-opacity duration-150 ${
+                    hideDivider1 ? 'opacity-0' : 'opacity-100'
+                  }`}
+                />
 
                 {/* Field 2: Date Selector */}
                 <div 
-                  className={`relative flex-1 w-full p-3 md:py-3 md:px-6 md:rounded-full transition-colors cursor-pointer group ${activeDropdown === 'date' ? 'bg-white shadow-lg z-10 rounded-2xl md:rounded-full md:border-transparent border border-slate-200' : 'bg-surface-container-low md:bg-transparent hover:bg-slate-200 rounded-2xl'}`}
+                  className={`relative flex-1 w-full h-auto md:h-full p-3 md:py-0 md:px-7 rounded-2xl md:rounded-full transition-all cursor-pointer group flex flex-col justify-center ${
+                    activeDropdown === 'date' 
+                      ? 'bg-white shadow-[0_6px_20px_rgba(0,0,0,0.12)] z-10 md:rounded-full border border-slate-200 md:border-transparent' 
+                      : hoveredField === 'date'
+                      ? 'bg-slate-200/80 md:bg-slate-200/80'
+                      : 'bg-surface-container-low md:bg-transparent hover:bg-slate-200/80 md:hover:bg-slate-200/80'
+                  }`}
+                  onMouseEnter={() => setHoveredField('date')}
                   onClick={() => setActiveDropdown('date')}
                 >
-                  <label className="block text-xs font-bold text-on-surface mb-0.5 ml-1">
+                  <label className="block text-xs font-bold text-on-surface mb-0.5 cursor-pointer">
                     Thời gian
                   </label>
                   <div className="flex items-center justify-between">
                     <input
                       type="text"
                       readOnly
-                      value={selectedDate}
-                      placeholder="Thêm ngày"
-                      className="w-full bg-transparent text-sm font-semibold text-on-surface placeholder:text-on-surface-variant focus:outline-none cursor-pointer ml-1"
+                      value={displayDateText}
+                      placeholder={datePlaceholder}
+                      className="w-full bg-transparent text-sm font-semibold text-on-surface placeholder:text-on-surface-variant focus:outline-none cursor-pointer truncate"
                     />
-                    {activeDropdown === 'date' && selectedDate && (
+                    {activeDropdown === 'date' && hasDateValue && (
                       <button 
                         type="button" 
-                        onClick={(e) => { e.stopPropagation(); setSelectedDate(''); }}
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setStartDate(null);
+                          setEndDate(null);
+                          setHoverDate(null);
+                          setFlexibleDuration(null);
+                          setSelectedMonths([]);
+                        }}
                         className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-600 transition-colors ml-2 flex-shrink-0"
                       >
                         <span className="material-symbols-outlined text-[14px]">close</span>
@@ -486,72 +792,258 @@ export default function Home() {
                   </div>
                   {/* Date Popup */}
                   {activeDropdown === 'date' && (
-                    <div className="absolute top-[120%] left-1/2 -translate-x-1/2 w-[calc(100vw-32px)] sm:w-[700px] bg-white rounded-3xl shadow-xl border border-slate-100 p-6 z-[70] cursor-default" onClick={e => e.stopPropagation()}>
+                    <div className="absolute top-[120%] left-1/2 -translate-x-1/2 w-[calc(100vw-32px)] sm:w-[720px] md:w-[760px] bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 md:p-8 z-[70] cursor-default" onClick={e => e.stopPropagation()}>
+                       {/* Header Switcher: Ngày vs Linh hoạt */}
                        <div className="flex justify-center mb-6">
                          <div className="bg-slate-100 p-1 rounded-full flex gap-1">
-                           <button className="px-6 py-2 bg-white rounded-full text-sm font-bold shadow-sm">Ngày</button>
-                           <button className="px-6 py-2 rounded-full text-sm font-semibold text-slate-600 hover:bg-slate-200 transition-colors">Linh hoạt</button>
+                           <button 
+                             type="button"
+                             onClick={() => setDateMode('exact')}
+                             className={`px-7 py-2 rounded-full text-sm font-bold transition-all ${
+                               dateMode === 'exact' 
+                                 ? 'bg-white text-slate-900 shadow-sm' 
+                                 : 'text-slate-600 hover:text-slate-900'
+                             }`}
+                           >
+                             Ngày
+                           </button>
+                           <button 
+                             type="button"
+                             onClick={() => setDateMode('flexible')}
+                             className={`px-7 py-2 rounded-full text-sm font-bold transition-all ${
+                               dateMode === 'flexible' 
+                                 ? 'bg-white text-slate-900 shadow-sm' 
+                                 : 'text-slate-600 hover:text-slate-900'
+                             }`}
+                           >
+                             Linh hoạt
+                           </button>
                          </div>
                        </div>
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                         {/* Month 1 */}
-                         <div>
-                           <div className="text-center font-bold mb-6 text-slate-800 text-base">Tháng 10 năm 2026</div>
-                           <div className="grid grid-cols-7 text-center text-xs font-semibold text-slate-400 mb-4">
-                             <div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div><div>CN</div>
+
+                       {dateMode === 'exact' ? (
+                         /* EXACT CALENDAR VIEW (REAL DYNAMIC CALENDAR) */
+                         <div onMouseLeave={() => setHoverDate(null)}>
+                           {/* Navigation & Month Titles */}
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-4">
+                             {/* Month 1 Header */}
+                             <div className="flex items-center justify-between">
+                               <button
+                                 type="button"
+                                 disabled={calendarMonthOffset <= 0}
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   setCalendarMonthOffset((prev) => Math.max(0, prev - 1));
+                                 }}
+                                 aria-label="Tháng trước"
+                                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                                   calendarMonthOffset <= 0
+                                     ? 'text-slate-200 cursor-not-allowed opacity-40'
+                                     : 'text-slate-800 hover:bg-slate-100 cursor-pointer'
+                                 }`}
+                               >
+                                 <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+                               </button>
+                               <div className="font-bold text-slate-900 text-base">
+                                 {`Tháng ${month1Data.month + 1} năm ${month1Data.year}`}
+                               </div>
+                               {/* Mobile Next Month Button */}
+                               <div className="block md:hidden">
+                                 <button
+                                   type="button"
+                                   onClick={(e) => {
+                                     e.stopPropagation();
+                                     setCalendarMonthOffset((prev) => prev + 1);
+                                   }}
+                                   aria-label="Tháng sau"
+                                   className="w-8 h-8 rounded-full flex items-center justify-center text-slate-800 hover:bg-slate-100 cursor-pointer"
+                                 >
+                                   <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                                 </button>
+                               </div>
+                               <div className="hidden md:block w-8 h-8" />
+                             </div>
+
+                             {/* Month 2 Header (Desktop) */}
+                             <div className="hidden md:flex items-center justify-between">
+                               <div className="w-8 h-8" />
+                               <div className="font-bold text-slate-900 text-base">
+                                 {`Tháng ${month2Data.month + 1} năm ${month2Data.year}`}
+                               </div>
+                               <button
+                                 type="button"
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   setCalendarMonthOffset((prev) => prev + 1);
+                                 }}
+                                 aria-label="Tháng sau"
+                                 className="w-8 h-8 rounded-full flex items-center justify-center text-slate-800 hover:bg-slate-100 cursor-pointer transition-colors"
+                               >
+                                 <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                               </button>
+                             </div>
                            </div>
-                           <div className="grid grid-cols-7 text-center text-sm font-semibold gap-y-2">
-                              <div/><div/><div/>
-                              {Array.from({length: 31}).map((_, i) => {
-                                const dateStr = `${i+1} thg 10`;
-                                return (
-                                <div key={i} onClick={(e) => { e.stopPropagation(); setSelectedDate(dateStr); setActiveDropdown('guests'); }} className={`w-10 h-10 flex items-center justify-center rounded-full cursor-pointer mx-auto transition-all ${selectedDate === dateStr ? 'bg-slate-800 text-white' : 'hover:border hover:border-slate-800 text-slate-800'}`}>{i+1}</div>
-                              )})}
+
+                           {/* Months Grid */}
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+                             {/* Month 1 */}
+                             <div>
+                               <div className="grid grid-cols-7 text-center text-xs font-semibold text-slate-400 mb-2 py-1">
+                                 <div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div><div>CN</div>
+                               </div>
+                               <div className="grid grid-cols-7 text-center text-sm font-semibold gap-y-1">
+                                 {Array.from({ length: month1Data.leadingOffset }).map((_, idx) => (
+                                   <div key={`m1-empty-${idx}`} className="h-10 md:h-11" />
+                                 ))}
+                                 {month1Data.days.map((d) => renderDayCell(d, month1Data.totalDays))}
+                               </div>
+                             </div>
+
+                             {/* Month 2 */}
+                             <div className="hidden md:block">
+                               <div className="grid grid-cols-7 text-center text-xs font-semibold text-slate-400 mb-2 py-1">
+                                 <div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div><div>CN</div>
+                               </div>
+                               <div className="grid grid-cols-7 text-center text-sm font-semibold gap-y-1">
+                                 {Array.from({ length: month2Data.leadingOffset }).map((_, idx) => (
+                                   <div key={`m2-empty-${idx}`} className="h-10 md:h-11" />
+                                 ))}
+                                 {month2Data.days.map((d) => renderDayCell(d, month2Data.totalDays))}
+                               </div>
+                             </div>
                            </div>
                          </div>
-                         {/* Month 2 */}
-                         <div className="hidden md:block">
-                           <div className="text-center font-bold mb-6 text-slate-800 text-base">Tháng 11 năm 2026</div>
-                           <div className="grid grid-cols-7 text-center text-xs font-semibold text-slate-400 mb-4">
-                             <div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div><div>CN</div>
+                       ) : (
+                         /* FLEXIBLE VIEW (MATCHING IMAGES 1, 2, 3) */
+                         <div className="flex flex-col items-center pt-2">
+                           {/* Section 1: Bạn muốn ở trong bao lâu? */}
+                           <h3 className="font-bold text-slate-900 text-base md:text-lg mb-4 text-center">
+                             Bạn muốn ở trong bao lâu?
+                           </h3>
+                           <div className="flex items-center justify-center gap-3 mb-8 flex-wrap">
+                             {[
+                               { key: 'weekend', label: 'Cuối tuần' },
+                               { key: 'week', label: '1 tuần' },
+                               { key: 'month', label: '1 tháng' },
+                             ].map((dur) => {
+                               const isSelected = flexibleDuration === dur.key;
+                               return (
+                                 <button
+                                   key={dur.key}
+                                   type="button"
+                                   onClick={() => selectDuration(dur.key as 'weekend' | 'week' | 'month')}
+                                   className={`px-6 py-2.5 rounded-full text-sm transition-all ${
+                                     isSelected
+                                       ? 'border-2 border-slate-900 bg-slate-50 text-slate-900 font-bold shadow-sm'
+                                       : 'border border-slate-300 hover:border-slate-800 text-slate-700 font-medium bg-white'
+                                   }`}
+                                 >
+                                   {dur.label}
+                                 </button>
+                               );
+                             })}
                            </div>
-                           <div className="grid grid-cols-7 text-center text-sm font-semibold gap-y-2">
-                              <div/><div/><div/><div/><div/><div/>
-                              {Array.from({length: 30}).map((_, i) => {
-                                const dateStr = `${i+1} thg 11`;
-                                return (
-                                <div key={i} onClick={(e) => { e.stopPropagation(); setSelectedDate(dateStr); setActiveDropdown('guests'); }} className={`w-10 h-10 flex items-center justify-center rounded-full cursor-pointer mx-auto transition-all ${selectedDate === dateStr ? 'bg-slate-800 text-white' : 'hover:border hover:border-slate-800 text-slate-800'}`}>{i+1}</div>
-                              )})}
+
+                           {/* Section 2: Bạn muốn đi khi nào? */}
+                           <h3 className="font-bold text-slate-900 text-base md:text-lg mb-4 text-center">
+                             Bạn muốn đi khi nào?
+                           </h3>
+                           <div className="relative w-full max-w-[680px]">
+                             {/* Scrollable Month Cards */}
+                             <div 
+                               ref={monthsScrollRef}
+                               className="flex items-center gap-3 overflow-x-auto no-scrollbar scroll-smooth py-2 px-1"
+                               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                             >
+                               {flexibleMonths.map((item) => {
+                                 const isSelected = selectedMonths.includes(item.id);
+                                 return (
+                                   <button
+                                     key={item.id}
+                                     type="button"
+                                     onClick={() => toggleMonth(item.id)}
+                                     className={`w-[110px] md:w-[120px] h-[126px] md:h-[134px] rounded-3xl p-3 flex flex-col items-center justify-center shrink-0 transition-all cursor-pointer ${
+                                       isSelected
+                                         ? 'border-2 border-slate-900 bg-slate-50/90 shadow-sm'
+                                         : 'border border-slate-200 bg-white hover:border-slate-400'
+                                     }`}
+                                   >
+                                     {isSelected ? (
+                                       <CalendarFoldedIcon className="text-slate-900 mb-2" />
+                                     ) : (
+                                       <CalendarOutlineIcon className="text-slate-500 mb-2" />
+                                     )}
+                                     <div className={`text-sm leading-tight ${isSelected ? 'font-bold text-slate-900' : 'font-semibold text-slate-800'}`}>
+                                       {item.month}
+                                     </div>
+                                     <div className="text-xs text-slate-400 mt-0.5">
+                                       {item.year}
+                                     </div>
+                                   </button>
+                                 );
+                               })}
+                             </div>
+
+                             {/* Right Arrow Button */}
+                             <button
+                               type="button"
+                               onClick={() => scrollMonths('right')}
+                               aria-label="Xem thêm tháng"
+                               className="w-8 h-8 rounded-full border border-slate-200 bg-white shadow-md flex items-center justify-center text-slate-700 hover:scale-105 transition-transform absolute -right-3 top-1/2 -translate-y-1/2 z-10"
+                             >
+                               <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+                             </button>
+                             {/* Left Arrow Button */}
+                             <button
+                               type="button"
+                               onClick={() => scrollMonths('left')}
+                               aria-label="Tháng trước"
+                               className="w-8 h-8 rounded-full border border-slate-200 bg-white shadow-md flex items-center justify-center text-slate-700 hover:scale-105 transition-transform absolute -left-3 top-1/2 -translate-y-1/2 z-10"
+                             >
+                               <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+                             </button>
                            </div>
                          </div>
-                       </div>
+                       )}
                     </div>
                   )}
                 </div>
 
-                {/* Divider */}
-                <div className="hidden md:block w-px h-8 bg-slate-200 self-center"></div>
+                {/* Divider 2 */}
+                <div 
+                  className={`hidden md:block w-px h-8 bg-slate-200 self-center flex-shrink-0 pointer-events-none transition-opacity duration-150 ${
+                    hideDivider2 ? 'opacity-0' : 'opacity-100'
+                  }`}
+                />
 
                 {/* Field 3: Guests / Tickets */}
                 <div 
-                  className={`relative flex-1 w-full p-3 md:py-3 md:pl-6 md:pr-2 md:rounded-full transition-colors cursor-pointer group flex items-center justify-between ${activeDropdown === 'guests' ? 'bg-white shadow-lg z-10 rounded-2xl md:rounded-full md:border-transparent border border-slate-200' : 'bg-surface-container-low md:bg-transparent hover:bg-slate-200 rounded-2xl'}`}
+                  className={`relative flex-1 w-full h-auto md:h-full p-3 md:py-0 md:pl-7 md:pr-2.5 rounded-2xl md:rounded-full transition-all cursor-pointer group flex items-center justify-between ${
+                    activeDropdown === 'guests' 
+                      ? 'bg-white shadow-[0_6px_20px_rgba(0,0,0,0.12)] z-10 md:rounded-full border border-slate-200 md:border-transparent' 
+                      : hoveredField === 'guests'
+                      ? 'bg-slate-200/80 md:bg-slate-200/80'
+                      : 'bg-surface-container-low md:bg-transparent hover:bg-slate-200/80 md:hover:bg-slate-200/80'
+                  }`}
+                  onMouseEnter={() => setHoveredField('guests')}
                   onClick={() => setActiveDropdown('guests')}
                 >
-                  <div className="flex-1">
-                    <label className="block text-xs font-bold text-on-surface mb-0.5 ml-1">
+                  <div className="flex-1 min-w-0 flex flex-col justify-center">
+                    <label className="block text-xs font-bold text-on-surface mb-0.5 cursor-pointer">
                       Khách
                     </label>
                     <div className="flex items-center justify-between">
-                      <span className={`text-sm font-semibold truncate ml-1 ${adults + children + infants > 0 ? 'text-on-surface' : 'text-on-surface-variant'}`}>
+                      <span className={`text-sm font-semibold truncate ${adults + children + infants > 0 ? 'text-on-surface' : 'text-on-surface-variant'}`}>
                         {adults + children + infants > 0 ? `${adults + children} khách${infants > 0 ? `, ${infants} em bé` : ''}${pets > 0 ? `, ${pets} thú cưng` : ''}` : 'Thêm khách'}
                       </span>
                     </div>
                   </div>
                   {/* Search Button for Desktop */}
-                  <div className="hidden md:block ml-4 pr-1">
+                  <div className="hidden md:block ml-3 flex-shrink-0">
                     <Link
                       href={`/explore?type=${searchTab}&q=${encodeURIComponent(searchQuery)}`}
-                      className="w-12 h-12 bg-[#087e8b] hover:bg-[#00636e] text-white rounded-full flex items-center justify-center transition-transform transform hover:scale-105 shadow-md flex-shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-12 h-12 bg-[#087e8b] hover:bg-[#00636e] text-white rounded-full flex items-center justify-center transition-transform transform hover:scale-105 shadow-md"
                     >
                       <span className="material-symbols-outlined text-[24px]">search</span>
                     </Link>
@@ -642,7 +1134,7 @@ export default function Home() {
                  onClick={() => { document.getElementById('search-console')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); setActiveDropdown('date'); }}
                  className="px-4 hover:text-primary transition-colors whitespace-nowrap"
                >
-                 Bất kỳ lúc nào
+                 {displayDateText || 'Bất kỳ lúc nào'}
                </button>
                <button 
                  type="button"
