@@ -147,7 +147,7 @@ export function BookingHistoryPage() {
             }
             description="Hãy bắt đầu chuyến hành trình tuyệt vời của bạn bằng cách khám phá các tour du lịch đa dạng của chúng tôi."
             actionLabel="Khám phá tour ngay"
-            onAction={() => window.location.assign('/explore')}
+            onAction={() => window.location.assign('/tours')}
           />
         </div>
       ) : (

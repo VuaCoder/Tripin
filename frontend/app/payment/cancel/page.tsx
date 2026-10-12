@@ -16,6 +16,9 @@ function PaymentCancelContent() {
   });
 
   const [checkoutBooking, { isLoading: isRechecking }] = useCheckoutBookingMutation();
+  const paymentDestination = payment?.purpose === 'BOOKING'
+    ? `/settings/history/${payment.referenceId}`
+    : '/traveler';
 
   const handleRetryPayment = async () => {
     if (!payment?.referenceId) return;
@@ -25,7 +28,7 @@ function PaymentCancelContent() {
         window.location.href = res.checkoutUrl;
       }
     } catch {
-      window.location.assign('/traveler');
+      window.location.assign(paymentDestination);
     }
   };
 
@@ -84,7 +87,7 @@ function PaymentCancelContent() {
           </button>
         )}
         <Link
-          href="/traveler"
+          href={paymentDestination}
           className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 py-3 px-5 font-semibold text-sm transition-colors text-center"
         >
           Về trang cá nhân

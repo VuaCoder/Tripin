@@ -6,6 +6,8 @@ import type {
   CreateBookingInput,
   ListBookingsQuery,
   PaginatedBookings,
+  PromotionPreview,
+  PromotionPreviewInput,
 } from '../types';
 
 /** Booking endpoints mounted at `/api/v1/bookings`. */
@@ -15,6 +17,15 @@ export const bookingApi = baseApi.injectEndpoints({
       query: (body) => ({ url: '/bookings', method: 'POST', body }),
       transformResponse: (response: BookingApiResponse<BookingDto>) => response.data,
       invalidatesTags: [{ type: 'Booking', id: 'LIST' }],
+    }),
+
+    previewPromotion: build.query<PromotionPreview, PromotionPreviewInput>({
+      query: ({ code, tourId, subtotal }) => ({
+        url: '/promotions/preview',
+        method: 'GET',
+        params: { code, tourId, subtotal },
+      }),
+      transformResponse: (response: BookingApiResponse<PromotionPreview>) => response.data,
     }),
 
     getMyBookings: build.query<PaginatedBookings, ListBookingsQuery | void>({
@@ -100,6 +111,7 @@ export const bookingApi = baseApi.injectEndpoints({
 
 export const {
   useCreateBookingMutation,
+  useLazyPreviewPromotionQuery,
   useGetMyBookingsQuery,
   useGetBookingByIdQuery,
   useCancelBookingMutation,

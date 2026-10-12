@@ -155,9 +155,9 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
       )}
 
       {/* Hero Header Card */}
-      <div className="rounded-3xl bg-white border border-slate-100 p-6 sm:p-8 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-2">
+      <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col justify-between gap-5 xl:flex-row xl:items-start">
+          <div className="min-w-0 space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
               <BookingStatusBadge
                 status={booking.status}
@@ -168,25 +168,13 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
                 Tạo ngày {new Date(booking.createdAt).toLocaleDateString('vi-VN')}
               </span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+            <h1 className="max-w-2xl text-xl font-extrabold leading-snug tracking-tight text-slate-900 sm:text-2xl">
               {booking.tour.title}
             </h1>
           </div>
 
           {/* Quick Actions */}
-          <div className="flex items-center gap-2.5 flex-wrap">
-            {isPending && !booking.isPaid && (
-              <button
-                type="button"
-                onClick={handlePayNow}
-                disabled={isPaying}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary-container hover:bg-primary text-white px-5 py-2.5 text-xs font-bold shadow-md shadow-primary-container/20 transition-all disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-base">payments</span>
-                <span>{isPaying ? 'Đang mở PayOS...' : 'Thanh toán ngay qua PayOS'}</span>
-              </button>
-            )}
-
+          <div className="flex shrink-0 flex-wrap items-center gap-2.5 xl:justify-end">
             {(isPending || isConfirmed) && (
               <button
                 type="button"
@@ -209,7 +197,7 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
 
         {/* Pending payment countdown notice */}
         {isPending && !booking.isPaid && booking.paymentExpiresAt && (
-          <div className="mt-5 rounded-2xl bg-amber-50 border border-amber-200/80 p-4 flex items-start gap-3 text-xs text-amber-900 leading-relaxed">
+          <div className="mt-5 flex items-start gap-3 rounded-2xl border border-amber-200/80 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
             <span className="material-symbols-outlined text-amber-700 text-lg flex-shrink-0 mt-0.5">schedule</span>
             <div>
               <strong className="block font-bold mb-0.5">Thời hạn giữ chỗ có hạn</strong>
@@ -258,34 +246,34 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
       </div>
 
       {/* Main Grid: Info & Financials */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left Column (2 cols): Tour & Travel details */}
         <div className="lg:col-span-2 space-y-6">
           {/* Schedule & Participants Card */}
-          <div className="rounded-3xl bg-white border border-slate-100 p-6 shadow-sm space-y-5">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+          <div className="space-y-5 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
+            <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 sm:text-lg">
               <span className="material-symbols-outlined text-primary-container text-xl">calendar_month</span>
               <span>Lịch trình & Số lượng khách</span>
             </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-                <span className="text-slate-400">Thời gian chuyến đi</span>
-                <p className="text-sm font-bold text-slate-800">{dateRange}</p>
+            <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+              <div className="space-y-1 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <span className="text-slate-500">Thời gian chuyến đi</span>
+                <p className="font-bold text-slate-800">{dateRange}</p>
                 <span className="text-[11px] text-slate-500">Khởi hành từ ngày đã chọn</span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-                <span className="text-slate-400">Số lượng người tham gia</span>
-                <p className="text-sm font-bold text-slate-800">{formatParticipants(booking.participants)}</p>
+              <div className="space-y-1 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <span className="text-slate-500">Số lượng người tham gia</span>
+                <p className="font-bold text-slate-800">{formatParticipants(booking.participants)}</p>
                 <span className="text-[11px] text-slate-500">Người lớn & trẻ em</span>
               </div>
             </div>
           </div>
 
           {/* Contact Person Card */}
-          <div className="rounded-3xl bg-white border border-slate-100 p-6 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+          <div className="space-y-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
+            <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 sm:text-lg">
               <span className="material-symbols-outlined text-primary-container text-xl">person</span>
               <span>Thông tin người liên hệ</span>
             </h2>
@@ -313,8 +301,8 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
           </div>
 
           {/* Timeline Milestones */}
-          <div className="rounded-3xl bg-white border border-slate-100 p-6 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+          <div className="space-y-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
+            <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 sm:text-lg">
               <span className="material-symbols-outlined text-primary-container text-xl">timeline</span>
               <span>Lịch sử trạng thái</span>
             </h2>
@@ -367,50 +355,50 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
 
         {/* Right Column (1 col): Payment & Financial Summary */}
         <div className="space-y-6">
-          <div className="rounded-3xl bg-white border border-slate-100 p-6 shadow-sm space-y-5">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+          <div className="space-y-5 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm lg:sticky lg:top-28 sm:p-6">
+            <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 sm:text-lg">
               <span className="material-symbols-outlined text-primary-container text-xl">receipt_long</span>
               <span>Chi tiết thanh toán</span>
             </h2>
 
-            <div className="space-y-3 text-xs border-b border-slate-100 pb-4">
-              <div className="flex justify-between text-slate-600">
-                <span>Đơn giá mỗi khách:</span>
-                <span className="font-semibold text-slate-800">{formatVnd(booking.unitPrice)}</span>
+            <dl className="space-y-3 border-b border-slate-100 pb-4 text-sm">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 text-slate-600">
+                <dt>Đơn giá mỗi khách</dt>
+                <dd className="whitespace-nowrap font-semibold text-slate-800">{formatVnd(booking.unitPrice)}</dd>
               </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Số lượng khách:</span>
-                <span className="font-semibold text-slate-800">{booking.participants} khách</span>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 text-slate-600">
+                <dt>Số lượng khách</dt>
+                <dd className="whitespace-nowrap font-semibold text-slate-800">{booking.participants} khách</dd>
               </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Tạm tính:</span>
-                <span className="font-semibold text-slate-800">{formatVnd(booking.subtotal)}</span>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 text-slate-600">
+                <dt>Tạm tính</dt>
+                <dd className="whitespace-nowrap font-semibold text-slate-800">{formatVnd(booking.subtotal)}</dd>
               </div>
 
               {booking.discountAmount > 0 && (
-                <div className="flex justify-between text-emerald-700 bg-emerald-50/60 p-2 rounded-xl">
-                  <span>Mã ưu đãi {booking.promotion ? `(${booking.promotion.code})` : ''}:</span>
-                  <span className="font-bold">-{formatVnd(booking.discountAmount)}</span>
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 rounded-xl bg-emerald-50/70 p-3 text-emerald-700">
+                  <dt>Mã ưu đãi {booking.promotion ? `(${booking.promotion.code})` : ''}</dt>
+                  <dd className="whitespace-nowrap font-bold">-{formatVnd(booking.discountAmount)}</dd>
                 </div>
               )}
-            </div>
+            </dl>
 
-            <div className="flex justify-between items-baseline pt-1">
-              <span className="text-xs font-bold text-slate-700">Tổng thanh toán:</span>
-              <span className="text-xl font-extrabold text-primary-container">
+            <div className="rounded-2xl border border-teal-100 bg-teal-50/70 px-4 py-3.5">
+              <span className="block text-sm font-bold text-slate-800">Tổng thanh toán</span>
+              <span className="mt-1 block whitespace-nowrap text-xl font-extrabold text-primary-container">
                 {formatVnd(booking.totalAmount)}
               </span>
             </div>
 
             {/* Payment Method / Gateway Badge */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Cổng thanh toán:</span>
-                <strong className="text-slate-800">PayOS (VietQR / Thẻ)</strong>
+            <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm">
+              <div>
+                <span className="block text-slate-500">Cổng thanh toán</span>
+                <strong className="mt-1 block text-slate-800">PayOS · VietQR / Thẻ</strong>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Trạng thái tiền:</span>
-                <span className={`font-bold ${booking.isPaid ? 'text-emerald-700' : 'text-amber-700'}`}>
+              <div className="border-t border-slate-200/70 pt-3">
+                <span className="block text-slate-500">Trạng thái thanh toán</span>
+                <span className={`mt-1 block font-bold ${booking.isPaid ? 'text-emerald-700' : 'text-amber-700'}`}>
                   {booking.isPaid ? 'Đã thanh toán đủ' : 'Chưa nhận tiền'}
                 </span>
               </div>
@@ -437,7 +425,7 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
 
             {isConfirmed && (
               <Link
-                href="/explore"
+                href="/tours"
                 className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary-container hover:bg-primary text-white py-3 px-4 font-bold text-xs transition-colors"
               >
                 <span className="material-symbols-outlined text-base">travel_explore</span>

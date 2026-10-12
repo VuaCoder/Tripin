@@ -53,6 +53,22 @@ export const wishlistApi = baseApi.injectEndpoints({
     /** `DELETE /wishlist/:tourId` — 204 whether or not it was saved. */
     removeFromWishlist: build.mutation<void, string>({
       query: (tourId) => ({ url: `/wishlist/${tourId}`, method: 'DELETE' }),
+      async onQueryStarted(tourId, { dispatch, queryFulfilled }) {
+        // Header subscribes to the default page. Update its count immediately, then let tag invalidation
+        // revalidate every cached wishlist page with the backend.
+        const patch = dispatch(
+          wishlistApi.util.updateQueryData('getWishlist', undefined, (draft) => {
+            const index = draft.items.findIndex((item) => item.tourId === tourId);
+            if (index >= 0) draft.items.splice(index, 1);
+            draft.meta.total = Math.max(0, draft.meta.total - 1);
+          }),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
       invalidatesTags: [{ type: 'Wishlist', id: 'ME' }],
     }),
   }),

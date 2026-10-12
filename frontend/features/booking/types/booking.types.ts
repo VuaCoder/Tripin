@@ -20,6 +20,22 @@ export interface CreateBookingInput {
   clientRequestId?: string;
 }
 
+/** Input for the non-mutating promotion estimate endpoint. */
+export interface PromotionPreviewInput {
+  code: string;
+  tourId: string;
+  subtotal: number;
+}
+
+/** The discount and amount the backend currently estimates for a promotion. */
+export interface PromotionPreview {
+  promotionId: string;
+  code: string;
+  scope: PromotionScope;
+  discountAmount: number;
+  finalAmount: number;
+}
+
 export interface BookingDto {
   id: string;
   bookingCode: string;

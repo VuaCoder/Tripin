@@ -12,6 +12,7 @@ import { useAppSelector } from '@/store/hooks';
 import { selectUser, selectIsAuthenticated, useLogout } from '@/features/auth';
 import { homeForRole } from '@/features/auth/utils/roles';
 import { useGetCartQuery } from '@/features/cart';
+import { useGetWishlistQuery } from '@/features/wishlist';
 import { cn } from '../ui/cn';
 
 type AccountMenuItem = {
@@ -27,6 +28,16 @@ function accountMenuForRole(role: AppRole): AccountMenuItem[] {
 
   if (role === 'TRAVELER') {
     return [
+      {
+        label: 'Lịch sử đặt chỗ',
+        href: '/settings/history',
+        icon: 'confirmation_number',
+      },
+      {
+        label: 'Tour yêu thích',
+        href: '/settings/wishlist',
+        icon: 'favorite',
+      },
       {
         label: 'Hồ sơ cá nhân',
         href: '/settings/profile',
@@ -94,6 +105,8 @@ export function Header({ role }: { role?: AppRole }) {
   const isTraveler = isAuthenticated && user?.role === 'TRAVELER';
   const { data: cartData } = useGetCartQuery(undefined, { skip: !isTraveler });
   const cartItemCount = cartData?.totals?.itemCount ?? cartData?.items?.length ?? 0;
+  const { data: wishlistData } = useGetWishlistQuery(undefined, { skip: !isTraveler });
+  const wishlistItemCount = wishlistData?.meta.total ?? wishlistData?.items.length ?? 0;
 
   return (
     <header
@@ -104,7 +117,7 @@ export function Header({ role }: { role?: AppRole }) {
           : 'bg-white/85 backdrop-blur-xl shadow-[0_4px_20px_rgba(8,126,139,0.06)] border-b border-white/60',
       )}
     >
-      <div className="mx-auto flex h-20 max-w-[1280px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-20 max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-6">
           <Link
             href={isAuthenticated && user ? homeForRole(user.role) : '/'}
@@ -129,6 +142,23 @@ export function Header({ role }: { role?: AppRole }) {
         </div>
 
         <div className="flex items-center gap-2.5 sm:gap-3">
+          {isTraveler && (
+            <Link
+              href="/settings/history"
+              aria-label="Tour của tôi"
+              title="Tour của tôi"
+              className={cn(
+                'inline-flex h-10 items-center justify-center gap-2 rounded-2xl border px-3 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container',
+                isTransparent
+                  ? 'border-white/40 bg-white/15 text-white hover:bg-white/25'
+                  : 'border-slate-200/80 bg-white/95 text-slate-700 shadow-sm hover:border-teal-200 hover:bg-teal-50 hover:text-primary-container',
+              )}
+            >
+              <span className="material-symbols-outlined text-[22px]" aria-hidden="true">confirmation_number</span>
+              <span className="hidden text-sm font-semibold xl:inline">Tour của tôi</span>
+            </Link>
+          )}
+
           {/* Cart Icon Button for Traveler */}
           {isTraveler && (
             <Link
@@ -151,6 +181,28 @@ export function Header({ role }: { role?: AppRole }) {
                   className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 font-mono text-[11px] font-bold text-white shadow-md animate-scaleIn"
                 >
                   {cartItemCount > 99 ? '99+' : cartItemCount}
+                </span>
+              )}
+            </Link>
+          )}
+
+          {isTraveler && wishlistItemCount > 0 && (
+            <Link
+              href="/settings/wishlist"
+              aria-label="Tour yêu thích"
+              title="Tour yêu thích"
+              className={cn(
+                'relative inline-flex h-10 items-center justify-center gap-2 rounded-2xl border px-3 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container',
+                isTransparent
+                  ? 'border-white/40 bg-white/15 text-white hover:bg-white/25'
+                  : 'border-slate-200/80 bg-white/95 text-slate-700 shadow-sm hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600',
+              )}
+            >
+              <span className="material-symbols-outlined text-[22px]" aria-hidden="true">favorite</span>
+              <span className="hidden text-sm font-semibold lg:inline">Đã lưu</span>
+              {wishlistItemCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 font-mono text-[11px] font-bold text-white shadow-md">
+                  {wishlistItemCount > 99 ? '99+' : wishlistItemCount}
                 </span>
               )}
             </Link>

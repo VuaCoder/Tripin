@@ -86,6 +86,8 @@ export interface TourReviewContext {
   ratingAvg: number;
   ratingCount: number;
   agency?: { id: string; name: string; avatarUrl?: string };
+  /** Bookable departure data also returned by `GET /tours/:id`, used by the booking entry point. */
+  departures?: Array<{ id: string; date: string; price: number; remaining: number; isOpen: boolean }>;
 }
 
 /** The subset of `BookingDto` the eligibility check needs (`GET /bookings/me`). */

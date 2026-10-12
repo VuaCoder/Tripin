@@ -21,8 +21,9 @@ export function AddTourPanel({ open, onToggle }: AddTourPanelProps) {
   const [tourId, setTourId] = useState<string | null>(null);
   const [participants, setParticipants] = useState(1);
 
-  const { data: tours, isLoading, isError, refetch } = useGetToursQuery({ limit: 12 }, { skip: !open });
+  const { data: toursPage, isLoading, isError, refetch } = useGetToursQuery({ limit: 12 }, { skip: !open });
   const { data: detail, isLoading: isLoadingDetail } = useGetTourQuery(tourId ?? '', { skip: !open || !tourId });
+  const tours = toursPage?.items ?? [];
 
   const departures = (detail?.departures ?? []).filter(
     (departure) => departure.isOpen && departure.remaining > 0 && new Date(departure.date).getTime() > Date.now(),
@@ -45,9 +46,9 @@ export function AddTourPanel({ open, onToggle }: AddTourPanelProps) {
           {isLoading && <LoadingState label="Đang tải danh sách tour..." />}
           {isError && <ErrorState message="Không tải được danh sách tour." onAction={refetch} />}
 
-          {tours && tours.length === 0 && <p className="text-sm text-slate-500">Chưa có tour nào đang mở bán.</p>}
+          {!isLoading && !isError && tours.length === 0 && <p className="text-sm text-slate-500">Chưa có tour nào đang mở bán.</p>}
 
-          {tours && tours.length > 0 && (
+          {tours.length > 0 && (
             <div>
               <label htmlFor="cart-add-tour" className="text-xs font-semibold text-slate-600">
                 Tour

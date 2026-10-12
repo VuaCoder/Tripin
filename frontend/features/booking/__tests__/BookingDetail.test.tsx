@@ -107,7 +107,7 @@ describe('BookingDetailPage', () => {
 
     render(<BookingDetailPage bookingId="b-1" />);
 
-    const payButton = screen.getByText('Thanh toán ngay qua PayOS');
+    const payButton = screen.getByRole('button', { name: /Thanh toán ngay/i });
     fireEvent.click(payButton);
 
     await waitFor(() => {

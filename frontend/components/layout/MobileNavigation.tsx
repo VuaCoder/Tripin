@@ -16,6 +16,7 @@ export function MobileNavigation({ items }: { items: NavigationItem[] }) {
 
   const accountLinks = user?.role === 'TRAVELER'
     ? [
+        { label: 'Tour của tôi', href: '/settings/history', icon: 'confirmation_number' },
         { label: 'Hồ sơ cá nhân', href: '/settings/profile', icon: 'person' },
       ]
     : user
