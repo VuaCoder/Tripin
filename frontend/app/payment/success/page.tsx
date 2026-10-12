@@ -74,6 +74,9 @@ function PaymentSuccessContent() {
 
   const isPaid = payment.status === 'PAID';
   const isPending = payment.status === 'PENDING';
+  const paymentDestination = payment.purpose === 'BOOKING'
+    ? `/settings/history/${payment.referenceId}`
+    : '/traveler';
 
   if (isPaid) {
     return (
@@ -122,7 +125,7 @@ function PaymentSuccessContent() {
 
         <div className="mt-8 flex flex-col sm:flex-row gap-3">
           <Link
-            href="/settings/history"
+            href={paymentDestination}
             className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-primary-container hover:bg-primary text-white py-3 px-4 font-bold text-sm shadow-md shadow-primary-container/20 transition-all text-center"
           >
             <span className="material-symbols-outlined text-[18px]">airplane_ticket</span>
@@ -157,7 +160,7 @@ function PaymentSuccessContent() {
           >
             Kiểm tra lại ngay
           </button>
-          <Link href="/traveler" className="text-xs font-semibold text-slate-500 hover:text-slate-800">
+          <Link href={paymentDestination} className="text-xs font-semibold text-slate-500 hover:text-slate-800">
             Xem trong trang cá nhân
           </Link>
         </div>
@@ -179,7 +182,7 @@ function PaymentSuccessContent() {
       </p>
       <div className="mt-6 flex justify-center gap-3">
         <Link
-          href="/traveler"
+          href={paymentDestination}
           className="rounded-xl bg-primary-container px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary transition-colors"
         >
           Xem đặt chỗ

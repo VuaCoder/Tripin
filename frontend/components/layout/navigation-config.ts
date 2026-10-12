@@ -13,28 +13,16 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
   PUBLIC: [
     {
       label: 'Khám phá',
-      href: '/explore',
+      href: '/tours',
       icon: 'explore',
-      children: [
-        { label: 'Tour & Trải nghiệm', href: '/explore?type=tour', icon: 'tour' },
-        { label: 'Khách sạn & Resort', href: '/explore?type=hotel', icon: 'hotel' },
-        { label: 'Vé xe & Di chuyển', href: '/explore?type=transport', icon: 'directions_car' },
-        { label: 'Vé vui chơi & Show', href: '/explore?type=activity', icon: 'attractions' },
-      ],
     },
     { label: 'Hỗ trợ', href: '/support' },
   ],
   TRAVELER: [
     {
       label: 'Khám phá',
-      href: '/explore',
+      href: '/tours',
       icon: 'explore',
-      children: [
-        { label: 'Tour & Trải nghiệm', href: '/explore?type=tour', icon: 'tour' },
-        { label: 'Khách sạn & Resort', href: '/explore?type=hotel', icon: 'hotel' },
-        { label: 'Vé xe & Di chuyển', href: '/explore?type=transport', icon: 'directions_car' },
-        { label: 'Vé vui chơi & Show', href: '/explore?type=activity', icon: 'attractions' },
-      ],
     },
     { label: 'Hỗ trợ', href: '/support' },
   ],
