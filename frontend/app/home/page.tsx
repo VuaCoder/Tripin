@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
+import { useGetTourDestinationsQuery } from '@/features/tours';
 
 interface Slide {
   badge: string;
@@ -321,10 +322,6 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchSticky, setIsSearchSticky] = useState(false);
 
-  const tourSearchHref = searchTab === 'tour' && searchQuery.trim()
-    ? `/tours?q=${encodeURIComponent(searchQuery.trim())}`
-    : '/tours';
-
   const flexibleMonths = useMemo(() => getDynamicFlexibleMonths(), []);
 
   // Today normalized to midnight
@@ -348,6 +345,34 @@ export default function Home() {
   const [children, setChildren] = useState(0);
   const [infants, setInfants] = useState(0);
   const [pets, setPets] = useState(0);
+
+  const tourSearchHref = useMemo(() => {
+    const params = new URLSearchParams();
+    if (searchQuery.trim()) params.set('destination', searchQuery.trim());
+    if (startDate) {
+      const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      params.set('departureFrom', fmt(startDate));
+      if (endDate) params.set('departureTo', fmt(endDate));
+    }
+    const totalGuests = adults + children;
+    if (totalGuests > 0) params.set('guests', String(totalGuests));
+    const qs = params.toString();
+    return qs ? `/tours?${qs}` : '/tours';
+  }, [searchQuery, startDate, endDate, adults, children]);
+
+  // Fetch real destinations directly from database via backend API
+  const { data: databaseDestinations = [] } = useGetTourDestinationsQuery();
+
+  // Filter dynamically based on search query
+  const suggestedDestinations = useMemo(() => {
+    if (!searchQuery.trim()) return databaseDestinations;
+    const q = searchQuery.toLowerCase().trim();
+    return databaseDestinations.filter(
+      (item) =>
+        item.destination.toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q)
+    );
+  }, [databaseDestinations, searchQuery]);
 
   // Auto-play Hero Carousel every 6 seconds
   useEffect(() => {
@@ -709,39 +734,67 @@ export default function Home() {
                       placeholder="Tìm kiếm điểm đến"
                       className="w-full bg-transparent text-sm font-semibold text-on-surface placeholder:text-on-surface-variant focus:outline-none cursor-pointer truncate"
                     />
-                    {activeDropdown === 'location' && searchQuery && (
+                    {searchQuery && (
                       <button 
                         type="button" 
+                        title="Xóa điểm đến"
+                        aria-label="Xóa điểm đến"
                         onClick={(e) => { e.stopPropagation(); setSearchQuery(''); }}
-                        className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-600 transition-colors ml-2 flex-shrink-0"
+                        className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all ml-2 flex-shrink-0 shadow-xs hover:scale-105 active:scale-95"
                       >
-                        <span className="material-symbols-outlined text-[14px]">close</span>
+                        <span className="material-symbols-outlined text-[16px] sm:text-[18px]">close</span>
                       </button>
                     )}
                   </div>
                   {/* Location Popup */}
                   {activeDropdown === 'location' && (
-                    <div className="absolute top-[120%] left-0 w-[calc(100vw-32px)] sm:w-[400px] bg-white rounded-3xl shadow-xl border border-slate-100 p-6 z-[70] cursor-default" onClick={e => e.stopPropagation()}>
-                      <div className="text-xs font-bold text-slate-500 mb-4">Điểm đến được đề xuất</div>
-                      <div className="flex flex-col gap-1 max-h-[350px] overflow-y-auto pr-2">
-                        {[
-                          { title: 'Lân cận', desc: 'Tìm xung quanh bạn', icon: 'near_me' },
-                          { title: 'Thành phố Hồ Chí Minh', desc: 'Có các thắng cảnh như Chợ Bến Thành', icon: 'location_city' },
-                          { title: 'Bangkok', desc: 'Có cuộc sống về đêm náo nhiệt', icon: 'temple_buddhist' },
-                          { title: 'Kuala Lumpur, Malaysia', desc: 'Có kiến trúc ấn tượng', icon: 'apartment' },
-                          { title: 'Thành phố Huế', desc: 'Thích hợp cho kỳ nghỉ hè', icon: 'fort' },
-                          { title: 'Paris', desc: 'Có các thắng cảnh như Tháp Eiffel', icon: 'tour' }
-                        ].map(item => (
-                          <div key={item.title} className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-2xl cursor-pointer transition-colors" onClick={(e) => { e.stopPropagation(); setSearchQuery(item.title); setActiveDropdown('date'); }}>
-                            <div className="w-12 h-12 flex-shrink-0 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600">
-                              <span className="material-symbols-outlined">{item.icon}</span>
-                            </div>
-                            <div>
-                              <div className="text-sm font-bold text-slate-800">{item.title}</div>
-                              <div className="text-xs text-slate-500">{item.desc}</div>
-                            </div>
+                    <div className="absolute top-[120%] left-0 w-[calc(100vw-32px)] sm:w-[480px] md:w-[520px] bg-white rounded-3xl shadow-2xl border border-slate-100 p-5 sm:p-6 z-[70] cursor-default" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                        <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                          Điểm đến theo tour du lịch
+                        </div>
+                        <span className="text-[11px] font-semibold text-slate-400">
+                          {suggestedDestinations.length} điểm đến gợi ý
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col gap-1 max-h-[360px] overflow-y-auto pr-1">
+                        {suggestedDestinations.length === 0 ? (
+                          <div className="py-8 text-center text-sm text-slate-400 font-medium">
+                            Không tìm thấy điểm đến phù hợp với &quot;{searchQuery}&quot;
                           </div>
-                        ))}
+                        ) : (
+                          suggestedDestinations.map(item => (
+                            <div 
+                              key={item.destination} 
+                              className="group flex items-center justify-between p-3 hover:bg-slate-50 rounded-2xl cursor-pointer transition-all border border-transparent hover:border-slate-100" 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setSearchQuery(item.destination); 
+                                setActiveDropdown('date'); 
+                              }}
+                            >
+                              <div className="flex items-center gap-3.5 min-w-0">
+                                <div className={`w-11 h-11 flex-shrink-0 rounded-2xl flex items-center justify-center border shadow-xs transition-transform group-hover:scale-105 ${item.iconBgClass || 'bg-slate-100 text-slate-700'}`}>
+                                  <span className="material-symbols-outlined text-[22px]">{item.icon}</span>
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-sm font-bold text-slate-800 group-hover:text-primary transition-colors truncate">
+                                    {item.destination}
+                                  </div>
+                                  <div className="text-xs text-slate-500 truncate max-w-[280px] sm:max-w-[340px]">
+                                    {item.description}
+                                  </div>
+                                </div>
+                              </div>
+                              {item.count > 0 && (
+                                <span className="ml-2 flex-shrink-0 text-[11px] font-bold text-[#087E8B] bg-[#087E8B]/10 px-2.5 py-1 rounded-full whitespace-nowrap">
+                                  {item.count} tour
+                                </span>
+                              )}
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
                   )}
@@ -777,9 +830,11 @@ export default function Home() {
                       placeholder={datePlaceholder}
                       className="w-full bg-transparent text-sm font-semibold text-on-surface placeholder:text-on-surface-variant focus:outline-none cursor-pointer truncate"
                     />
-                    {activeDropdown === 'date' && hasDateValue && (
+                    {hasDateValue && (
                       <button 
                         type="button" 
+                        title="Xóa thời gian"
+                        aria-label="Xóa thời gian"
                         onClick={(e) => { 
                           e.stopPropagation(); 
                           setStartDate(null);
@@ -788,9 +843,9 @@ export default function Home() {
                           setFlexibleDuration(null);
                           setSelectedMonths([]);
                         }}
-                        className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-600 transition-colors ml-2 flex-shrink-0"
+                        className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all ml-2 flex-shrink-0 shadow-xs hover:scale-105 active:scale-95"
                       >
-                        <span className="material-symbols-outlined text-[14px]">close</span>
+                        <span className="material-symbols-outlined text-[16px] sm:text-[18px]">close</span>
                       </button>
                     )}
                   </div>
@@ -1040,6 +1095,23 @@ export default function Home() {
                       <span className={`text-sm font-semibold truncate ${adults + children + infants > 0 ? 'text-on-surface' : 'text-on-surface-variant'}`}>
                         {adults + children + infants > 0 ? `${adults + children} khách${infants > 0 ? `, ${infants} em bé` : ''}${pets > 0 ? `, ${pets} thú cưng` : ''}` : 'Thêm khách'}
                       </span>
+                      {adults + children + infants + pets > 0 && (
+                        <button 
+                          type="button" 
+                          title="Xóa lựa chọn khách"
+                          aria-label="Xóa lựa chọn khách"
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setAdults(0);
+                            setChildren(0);
+                            setInfants(0);
+                            setPets(0);
+                          }}
+                          className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all ml-2 flex-shrink-0 shadow-xs hover:scale-105 active:scale-95"
+                        >
+                          <span className="material-symbols-outlined text-[16px] sm:text-[18px]">close</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                   {/* Search Button for Desktop */}
@@ -1100,6 +1172,38 @@ export default function Home() {
                                <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setPets(pets + 1)}>+</button>
                              </div>
                           </div>
+                       </div>
+
+                       {/* Action bar at bottom of popup */}
+                       <div className="flex items-center justify-between pt-4 mt-6 border-t border-slate-100">
+                         <button
+                           type="button"
+                           disabled={adults + children + infants + pets === 0}
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             setAdults(0);
+                             setChildren(0);
+                             setInfants(0);
+                             setPets(0);
+                           }}
+                           className={`text-xs font-bold transition-colors ${
+                             adults + children + infants + pets > 0
+                               ? 'text-slate-800 hover:text-red-600 underline cursor-pointer'
+                               : 'text-slate-300 cursor-not-allowed no-underline'
+                           }`}
+                         >
+                           Xóa tất cả
+                         </button>
+                         <button
+                           type="button"
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             setActiveDropdown(null);
+                           }}
+                           className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-full transition-colors"
+                         >
+                           Áp dụng
+                         </button>
                        </div>
                     </div>
                   )}

@@ -209,4 +209,41 @@ html {
   top: -20%;
 }
 
+/* Price Range Slider Thumb Styles */
+.price-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  border: 2.5px solid #087e8b;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+  z-index: 10;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.price-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 3px 10px rgba(8, 126, 139, 0.35);
+}
+.price-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  border: 2.5px solid #087e8b;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.price-slider::-webkit-slider-runnable-track {
+  background: transparent;
+}
+.price-slider::-moz-range-track {
+  background: transparent;
+}
+
 

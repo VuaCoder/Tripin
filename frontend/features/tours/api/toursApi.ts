@@ -1,5 +1,5 @@
 import { baseApi } from '@/store/api/baseApi';
-import type { ListToursArgs, TourApiResponse, TourCategory, TourDetail, TourListItem, TourListResult } from '../types';
+import type { ListToursArgs, TourApiResponse, TourCategory, TourDestination, TourDetail, TourListItem, TourListResult } from '../types';
 
 /** Public tour discovery for the Tour List and the cart's "add a tour" picker. */
 export const toursApi = baseApi.injectEndpoints({
@@ -10,6 +10,10 @@ export const toursApi = baseApi.injectEndpoints({
         items: response.data,
         meta: response.meta ?? { page: 1, limit: response.data.length || 12, total: response.data.length, totalPages: 1 },
       }),
+    }),
+    getTourDestinations: build.query<TourDestination[], void>({
+      query: () => ({ url: '/tours/destinations' }),
+      transformResponse: (response: TourApiResponse<TourDestination[]>) => response.data,
     }),
     getTour: build.query<TourDetail, string>({
       query: (id) => ({ url: `/tours/${id}` }),
@@ -22,4 +26,4 @@ export const toursApi = baseApi.injectEndpoints({
   }),
 });
 
-export const { useGetToursQuery, useGetTourQuery, useGetTourCategoriesQuery } = toursApi;
+export const { useGetToursQuery, useGetTourDestinationsQuery, useGetTourQuery, useGetTourCategoriesQuery } = toursApi;

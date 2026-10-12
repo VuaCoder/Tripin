@@ -10,6 +10,7 @@ import {
 } from '../api/bookingApi';
 import { BookingStatusBadge } from './BookingStatusBadge';
 import { CancelBookingModal } from './CancelBookingModal';
+import { ETicketModal, useGetETicketByBookingIdQuery } from '@/features/e-ticket';
 
 export interface BookingDetailPageProps {
   bookingId: string;
@@ -25,7 +26,11 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
   const [cancelBooking, { isLoading: isCancelling }] = useCancelBookingMutation();
 
   const [openCancelModal, setOpenCancelModal] = useState(false);
+  const [openTicketModal, setOpenTicketModal] = useState(false);
   const [notice, setNotice] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const isEligibleForTicket = Boolean(booking?.isPaid && (booking?.status === 'CONFIRMED' || booking?.status === 'COMPLETED'));
+  const { data: ticket } = useGetETicketByBookingIdQuery(bookingId, { skip: !isEligibleForTicket });
 
   const handlePayNow = async () => {
     if (!booking) return;
@@ -175,6 +180,17 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
 
           {/* Quick Actions */}
           <div className="flex shrink-0 flex-wrap items-center gap-2.5 xl:justify-end">
+            {isEligibleForTicket && (
+              <button
+                type="button"
+                onClick={() => setOpenTicketModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 text-xs font-bold shadow-sm shadow-teal-600/20 transition-all"
+              >
+                <span className="material-symbols-outlined text-[18px]">airplane_ticket</span>
+                <span>Xem E-ticket</span>
+              </button>
+            )}
+
             {(isPending || isConfirmed) && (
               <button
                 type="button"
@@ -209,20 +225,44 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
                 </strong>{' '}
                 để đảm bảo giữ chỗ và mức giá ưu đãi. Sau thời gian này, đặt chỗ sẽ tự động bị hủy.
               </span>
+              <p className="mt-2 text-xs text-amber-800">
+                Vé điện tử (E-ticket) sẽ được phát hành tự động ngay khi bạn hoàn tất thanh toán.
+              </p>
             </div>
           </div>
         )}
 
-        {/* Confirmed E-ticket notice */}
-        {isConfirmed && booking.isPaid && (
-          <div className="mt-5 rounded-2xl bg-teal-50 border border-teal-100 p-4 flex items-start gap-3 text-xs text-teal-900 leading-relaxed">
-            <span className="material-symbols-outlined text-primary-container text-lg flex-shrink-0 mt-0.5">verified</span>
-            <div>
-              <strong className="block font-bold mb-0.5">Đặt chỗ đã được xác nhận & thanh toán thành công</strong>
-              <span>
-                Vé điện tử (E-ticket) và biên lai giao dịch đã sẵn sàng. Bạn có thể xuất trình mã đặt chỗ{' '}
-                <strong className="font-mono">{booking.bookingCode}</strong> khi tham gia tour.
-              </span>
+        {/* Confirmed E-ticket notice & banner */}
+        {isEligibleForTicket && (
+          <div className="mt-5 rounded-2xl bg-gradient-to-r from-teal-50 via-teal-50/80 to-emerald-50 border border-teal-200/80 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs text-teal-900 leading-relaxed shadow-sm">
+            <div className="flex items-start gap-3">
+              <span className="material-symbols-outlined text-teal-700 text-2xl flex-shrink-0 mt-0.5">verified</span>
+              <div>
+                <strong className="block font-bold text-sm text-slate-900 mb-0.5">
+                  Đặt chỗ đã xác nhận & Vé điện tử (E-ticket) đã sẵn sàng!
+                </strong>
+                <span>
+                  Mã đặt chỗ <strong className="font-mono">{booking.bookingCode}</strong>. Bạn có thể mở vé điện tử để quét mã QR hoặc in vé đem theo khi đi tour.
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setOpenTicketModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white px-4 py-2.5 font-bold text-xs shadow-sm transition-colors"
+              >
+                <span className="material-symbols-outlined text-[17px]">qr_code_2</span>
+                <span>Xem E-ticket</span>
+              </button>
+              <Link
+                href={`/settings/history/${booking.id}/ticket`}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-white hover:bg-teal-50 text-teal-800 px-3.5 py-2.5 font-semibold text-xs transition-colors"
+              >
+                <span className="material-symbols-outlined text-[17px]">print</span>
+                <span>Trang in vé</span>
+              </Link>
             </div>
           </div>
         )}
@@ -423,10 +463,21 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
               </button>
             )}
 
+            {isEligibleForTicket && (
+              <button
+                type="button"
+                onClick={() => setOpenTicketModal(true)}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white py-3 px-4 font-bold text-xs shadow-md shadow-teal-700/20 transition-all"
+              >
+                <span className="material-symbols-outlined text-base">airplane_ticket</span>
+                <span>Mở vé điện tử (E-ticket)</span>
+              </button>
+            )}
+
             {isConfirmed && (
               <Link
                 href="/tours"
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary-container hover:bg-primary text-white py-3 px-4 font-bold text-xs transition-colors"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 py-3 px-4 font-bold text-xs transition-colors"
               >
                 <span className="material-symbols-outlined text-base">travel_explore</span>
                 <span>Khám phá thêm điểm đến</span>
@@ -443,6 +494,13 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
         isLoading={isCancelling}
         onClose={() => setOpenCancelModal(false)}
         onConfirm={handleConfirmCancel}
+      />
+
+      {/* E-Ticket Modal */}
+      <ETicketModal
+        open={openTicketModal}
+        ticket={ticket ?? null}
+        onClose={() => setOpenTicketModal(false)}
       />
     </div>
   );

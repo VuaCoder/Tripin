@@ -22,6 +22,7 @@ const P = PERMISSIONS;
 /** Mounted at /api/v1/tours — public discovery (GUEST allowed). */
 export const publicToursRouter = Router();
 publicToursRouter.get('/', validate({ query: searchToursQuery }), toursController.search);
+publicToursRouter.get('/destinations', toursController.getDestinations);
 publicToursRouter.get('/:id', validate({ params: tourIdParams }), toursController.detail);
 
 /** Mounted at /api/v1/agency/tours — the logged-in agency's own tours. */

@@ -21,6 +21,11 @@ vi.mock('@/features/payment', () => ({
   useCheckoutBookingMutation: () => [mockCheckoutBooking, { isLoading: false }],
 }));
 
+vi.mock('@/features/e-ticket', () => ({
+  useGetETicketByBookingIdQuery: () => ({ data: undefined, isLoading: false }),
+  ETicketModal: () => null,
+}));
+
 import { BookingDetailPage } from '../components/BookingDetailPage';
 
 const mockBooking: BookingDto = {

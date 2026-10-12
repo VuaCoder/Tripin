@@ -1,19 +1,31 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button, Input } from '@/components/ui';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
 import { useGetTourCategoriesQuery, useGetToursQuery } from '../api/toursApi';
 import type { ListToursArgs, TourSort } from '../types';
 import { TourCard } from './TourCard';
+import { formatCategoryName, formatVnd } from '../utils';
 
 const PAGE_SIZE = 12;
 const SORT_OPTIONS: { value: TourSort; label: string }[] = [
   { value: 'newest', label: 'Mới nhất' },
-  { value: 'price_asc', label: 'Giá thấp đến cao' },
-  { value: 'price_desc', label: 'Giá cao đến thấp' },
-  { value: 'rating', label: 'Đánh giá cao nhất' },
+  { value: 'price_asc', label: 'Giá tăng dần' },
+  { value: 'price_desc', label: 'Giá giảm dần' },
+  { value: 'rating', label: 'Được yêu thích nhất' },
+];
+
+const PRICE_MIN = 0;
+const PRICE_MAX = 20_000_000;
+const PRICE_STEP = 100_000;
+
+const RATING_OPTIONS = [
+  { value: 4.5, label: '4.5 sao trở lên', stars: 5 },
+  { value: 4, label: '4 sao trở lên', stars: 4 },
+  { value: 3.5, label: '3.5 sao trở lên', stars: 4 },
+  { value: 3, label: '3 sao trở lên', stars: 3 },
 ];
 
 const numberParam = (value: string | null): number | undefined => {
@@ -34,7 +46,7 @@ const positiveIntParam = (value: string | null, fallback: number): number => {
 
 const stringParam = (value: string | null): string | undefined => value?.trim() || undefined;
 
-/** Public discovery page backed exclusively by the approved-tour search endpoint. */
+/** Trang khám phá tour — kết nối với endpoint tìm kiếm tour công khai. */
 export function TourListPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -42,6 +54,22 @@ export function TourListPage() {
   const queryString = searchParams.toString();
   const qFromUrl = searchParams.get('q') ?? '';
   const [searchTerm, setSearchTerm] = useState(qFromUrl);
+
+  // --- Price slider local state ---
+  const urlMinPrice = numberParam(searchParams.get('minPrice')) ?? PRICE_MIN;
+  const urlMaxPrice = numberParam(searchParams.get('maxPrice')) ?? PRICE_MAX;
+  const [localMinPrice, setLocalMinPrice] = useState(urlMinPrice);
+  const [localMaxPrice, setLocalMaxPrice] = useState(urlMaxPrice);
+  const sliderDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync slider state when URL params change externally
+  useEffect(() => {
+    setLocalMinPrice(numberParam(searchParams.get('minPrice')) ?? PRICE_MIN);
+    setLocalMaxPrice(numberParam(searchParams.get('maxPrice')) ?? PRICE_MAX);
+  }, [searchParams]);
+
+  // Has departure date from home page?
+  const hasDepartureFilter = Boolean(searchParams.get('departureFrom') || searchParams.get('departureTo'));
 
   const args = useMemo<ListToursArgs>(() => {
     const rawSort = searchParams.get('sort');
@@ -91,18 +119,6 @@ export function TourListPage() {
   const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category.name])), [categories]);
   const activeCategoryId = searchParams.get('categoryId') ?? '';
 
-  const updateNumberRange = (key: 'minPrice' | 'maxPrice' | 'minDays' | 'maxDays', raw: string) => {
-    const value = raw.trim() === '' ? undefined : Number(raw);
-    const minValue = key.endsWith('Days') ? 1 : 0;
-    if (value !== undefined && (!Number.isInteger(value) || value < minValue)) return;
-    const counterpart: Record<typeof key, typeof key> = {
-      minPrice: 'maxPrice', maxPrice: 'minPrice', minDays: 'maxDays', maxDays: 'minDays',
-    };
-    const other = numberParam(searchParams.get(counterpart[key]));
-    const clearsOther = value !== undefined && other !== undefined && ((key.startsWith('min') && value > other) || (key.startsWith('max') && value < other));
-    updateQuery({ [key]: value, ...(clearsOther ? { [counterpart[key]]: undefined } : {}) });
-  };
-
   const updateDateRange = (key: 'departureFrom' | 'departureTo', value: string) => {
     const counterpart = key === 'departureFrom' ? 'departureTo' : 'departureFrom';
     const other = searchParams.get(counterpart);
@@ -112,10 +128,42 @@ export function TourListPage() {
 
   const clearFilters = () => {
     setSearchTerm('');
+    setLocalMinPrice(PRICE_MIN);
+    setLocalMaxPrice(PRICE_MAX);
     router.replace(pathname, { scroll: false });
   };
 
-  if (isLoading) return <LoadingState label="Đang khám phá các tour phù hợp..." className="min-h-[52vh]" />;
+  // Handle price slider change with debounce
+  const handlePriceSliderChange = (type: 'min' | 'max', rawValue: number) => {
+    if (type === 'min') {
+      const clamped = Math.min(rawValue, localMaxPrice - PRICE_STEP);
+      setLocalMinPrice(clamped);
+    } else {
+      const clamped = Math.max(rawValue, localMinPrice + PRICE_STEP);
+      setLocalMaxPrice(clamped);
+    }
+    if (sliderDebounceRef.current) clearTimeout(sliderDebounceRef.current);
+    sliderDebounceRef.current = setTimeout(() => {
+      const min = type === 'min' ? Math.min(rawValue, localMaxPrice - PRICE_STEP) : localMinPrice;
+      const max = type === 'max' ? Math.max(rawValue, localMinPrice + PRICE_STEP) : localMaxPrice;
+      updateQuery({
+        minPrice: min > PRICE_MIN ? min : undefined,
+        maxPrice: max < PRICE_MAX ? max : undefined,
+      });
+    }, 400);
+  };
+
+  // Active filter count for badge
+  const activeFilterCount = [
+    searchParams.get('destination'),
+    searchParams.get('minPrice') || searchParams.get('maxPrice'),
+    searchParams.get('minRating'),
+    searchParams.get('departureFrom') || searchParams.get('departureTo'),
+    searchParams.get('minDays') || searchParams.get('maxDays'),
+    searchParams.get('guests'),
+  ].filter(Boolean).length;
+
+  if (isLoading) return <LoadingState label="Đang tìm tour phù hợp cho bạn..." className="min-h-[52vh]" />;
   if (isError || !data) {
     return <ErrorState title="Không tải được danh sách tour" message="Vui lòng kiểm tra kết nối và thử lại." onAction={() => void refetch()} />;
   }
@@ -123,43 +171,223 @@ export function TourListPage() {
   const { items, meta } = data;
   const firstResult = meta.total === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
   const lastResult = Math.min(meta.page * meta.limit, meta.total);
+  const minPricePercent = ((localMinPrice - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100;
+  const maxPricePercent = ((localMaxPrice - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100;
+  const currentMinRating = numberParam(searchParams.get('minRating'));
 
   return (
     <div className="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-      <header className="rounded-3xl border border-teal-200/90 bg-gradient-to-br from-teal-100 via-cyan-50 to-sky-100 px-5 py-7 shadow-[0_16px_40px_rgba(8,126,139,0.08)] sm:px-8">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary-container">Khám phá Việt Nam</p>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Tìm tour phù hợp với bạn</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">Chọn hành trình từ các nhà cung cấp trên Tripri, xem ngày khởi hành và mức giá rõ ràng trước khi quyết định.</p>
-        <label className="relative mt-5 block max-w-3xl" htmlFor="tour-search">
+      {/* Thanh tìm kiếm chính */}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Khám phá tour</h1>
+          <p className="mt-1 text-sm text-slate-500">Tìm hành trình phù hợp từ hàng trăm lựa chọn trên Tripri</p>
+        </div>
+        <label className="relative block w-full max-w-md" htmlFor="tour-search">
           <span className="sr-only">Tìm kiếm tour</span>
-          <span className="material-symbols-outlined pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[22px] text-primary-container" aria-hidden="true">search</span>
-          <Input id="tour-search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Tìm theo tên tour, điểm đến hoặc trải nghiệm..." className="min-h-12 rounded-2xl border-white bg-white py-3 pl-12 pr-4 shadow-lg shadow-slate-900/10" />
+          <span className="material-symbols-outlined pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[20px] text-slate-400" aria-hidden="true">search</span>
+          <Input id="tour-search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Tìm theo tên tour, điểm đến..." className="min-h-11 rounded-xl border-slate-200 bg-white py-2.5 pl-11 pr-4 shadow-sm" />
         </label>
-      </header>
+      </div>
 
-      <div className="mt-6 flex flex-wrap gap-2 overflow-x-auto pb-1" aria-label="Danh mục tour">
+      {/* Danh mục tour */}
+      <div className="mb-6 flex flex-wrap gap-2 overflow-x-auto pb-1" aria-label="Danh mục tour">
         <button type="button" onClick={() => updateQuery({ categoryId: undefined })} className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-bold transition ${!activeCategoryId ? 'border-primary-container bg-primary-container text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-primary-container'}`}>Tất cả</button>
         {categories.map((category) => (
-          <button key={category.id} type="button" onClick={() => updateQuery({ categoryId: category.id })} className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-bold transition ${activeCategoryId === category.id ? 'border-primary-container bg-primary-container text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-primary-container'}`}>{category.name}</button>
+          <button key={category.id} type="button" onClick={() => updateQuery({ categoryId: category.id })} className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-bold transition ${activeCategoryId === category.id ? 'border-primary-container bg-primary-container text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-primary-container'}`}>{formatCategoryName(category.name)}</button>
         ))}
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[270px_minmax(0,1fr)]">
-        <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-24">
+      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+        {/* ======================== BỘ LỌC BÊN TRÁI ======================== */}
+        <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-extrabold text-slate-900">Lọc tour</h2>
-            <button type="button" onClick={clearFilters} className="text-xs font-bold text-primary-container hover:text-primary">Xóa lọc</button>
+            <h2 className="flex items-center gap-2 text-base font-extrabold text-slate-900">
+              <span className="material-symbols-outlined text-[20px] text-primary-container" aria-hidden="true">tune</span>
+              Bộ lọc
+              {activeFilterCount > 0 && (
+                <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary-container text-[10px] font-bold text-white">{activeFilterCount}</span>
+              )}
+            </h2>
+            <button type="button" onClick={clearFilters} className="text-xs font-bold text-primary-container hover:text-primary transition-colors">Xóa tất cả</button>
           </div>
-          <div className="mt-4 space-y-4">
-            <label className="block text-xs font-bold text-slate-700">Điểm đến<Input value={searchParams.get('destination') ?? ''} onChange={(event) => updateQuery({ destination: event.target.value })} placeholder="Ví dụ: Đà Nẵng" className="mt-1.5" /></label>
-            <label className="block text-xs font-bold text-slate-700">Sắp xếp<select value={args.sort ?? 'newest'} onChange={(event) => updateQuery({ sort: event.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/20">{SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-            <div><p className="text-xs font-bold text-slate-700">Khoảng giá (VNĐ)</p><div className="mt-1.5 grid grid-cols-2 gap-2"><Input type="number" min={0} step={100000} value={searchParams.get('minPrice') ?? ''} onChange={(event) => updateNumberRange('minPrice', event.target.value)} placeholder="Từ" /><Input type="number" min={0} step={100000} value={searchParams.get('maxPrice') ?? ''} onChange={(event) => updateNumberRange('maxPrice', event.target.value)} placeholder="Đến" /></div></div>
-            <div><p className="text-xs font-bold text-slate-700">Thời lượng (ngày)</p><div className="mt-1.5 grid grid-cols-2 gap-2"><Input type="number" min={1} step={1} value={searchParams.get('minDays') ?? ''} onChange={(event) => updateNumberRange('minDays', event.target.value)} placeholder="Từ" /><Input type="number" min={1} step={1} value={searchParams.get('maxDays') ?? ''} onChange={(event) => updateNumberRange('maxDays', event.target.value)} placeholder="Đến" /></div></div>
-            <label className="block text-xs font-bold text-slate-700">Đánh giá tối thiểu<select value={searchParams.get('minRating') ?? ''} onChange={(event) => updateQuery({ minRating: event.target.value || undefined })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/20"><option value="">Tất cả đánh giá</option><option value="4">Từ 4 sao</option><option value="4.5">Từ 4,5 sao</option></select></label>
-            <div><p className="text-xs font-bold text-slate-700">Ngày khởi hành</p><div className="mt-1.5 space-y-2"><Input type="date" value={searchParams.get('departureFrom') ?? ''} onChange={(event) => updateDateRange('departureFrom', event.target.value)} aria-label="Khởi hành từ ngày" /><Input type="date" value={searchParams.get('departureTo') ?? ''} onChange={(event) => updateDateRange('departureTo', event.target.value)} aria-label="Khởi hành đến ngày" /></div></div>
+
+          <div className="mt-5 space-y-5">
+            {/* Điểm đến */}
+            <div>
+              <label className="mb-1.5 block text-xs font-bold text-slate-700" htmlFor="filter-destination">
+                <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">location_on</span>
+                Điểm đến
+              </label>
+              <Input id="filter-destination" value={searchParams.get('destination') ?? ''} onChange={(event) => updateQuery({ destination: event.target.value })} placeholder="Ví dụ: Đà Nẵng, Hội An..." className="rounded-xl" />
+            </div>
+
+            {/* Sắp xếp */}
+            <div>
+              <label className="mb-1.5 block text-xs font-bold text-slate-700" htmlFor="filter-sort">
+                <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">swap_vert</span>
+                Sắp xếp theo
+              </label>
+              <select id="filter-sort" value={args.sort ?? 'newest'} onChange={(event) => updateQuery({ sort: event.target.value })} className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/20">
+                {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </div>
+
+            {/* Khoảng giá — Thanh kéo */}
+            <div>
+              <p className="mb-1.5 text-xs font-bold text-slate-700">
+                <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">payments</span>
+                Khoảng giá
+              </p>
+              <div className="mb-2 flex items-center justify-between text-xs text-slate-600">
+                <span className="font-semibold">{formatVnd(localMinPrice)}</span>
+                <span className="text-slate-400">—</span>
+                <span className="font-semibold">{localMaxPrice >= PRICE_MAX ? `${formatVnd(PRICE_MAX)}+` : formatVnd(localMaxPrice)}</span>
+              </div>
+              <div className="relative h-6 px-1">
+                {/* Track */}
+                <div className="absolute left-1 right-1 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-slate-200" />
+                {/* Active range */}
+                <div className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-primary-container" style={{ left: `calc(${minPricePercent}% + 4px)`, right: `calc(${100 - maxPricePercent}% + 4px)` }} />
+                {/* Min thumb */}
+                <input
+                  type="range"
+                  min={PRICE_MIN}
+                  max={PRICE_MAX}
+                  step={PRICE_STEP}
+                  value={localMinPrice}
+                  onChange={(e) => handlePriceSliderChange('min', Number(e.target.value))}
+                  className="price-slider absolute inset-x-0 top-0 h-6 w-full cursor-pointer appearance-none bg-transparent"
+                  style={{ zIndex: localMinPrice > PRICE_MAX - PRICE_STEP * 2 ? 5 : 3 }}
+                  aria-label="Giá thấp nhất"
+                />
+                {/* Max thumb */}
+                <input
+                  type="range"
+                  min={PRICE_MIN}
+                  max={PRICE_MAX}
+                  step={PRICE_STEP}
+                  value={localMaxPrice}
+                  onChange={(e) => handlePriceSliderChange('max', Number(e.target.value))}
+                  className="price-slider absolute inset-x-0 top-0 h-6 w-full cursor-pointer appearance-none bg-transparent"
+                  style={{ zIndex: 4 }}
+                  aria-label="Giá cao nhất"
+                />
+              </div>
+            </div>
+
+            {/* Ngày khởi hành (thay thế cho Thời lượng nếu đã chọn ngày) */}
+            <div>
+              <p className="mb-1.5 text-xs font-bold text-slate-700">
+                <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">calendar_month</span>
+                Ngày khởi hành
+              </p>
+              <div className="space-y-2">
+                <Input type="date" value={searchParams.get('departureFrom') ?? ''} onChange={(event) => updateDateRange('departureFrom', event.target.value)} aria-label="Từ ngày" className="rounded-xl" />
+                <Input type="date" value={searchParams.get('departureTo') ?? ''} onChange={(event) => updateDateRange('departureTo', event.target.value)} aria-label="Đến ngày" className="rounded-xl" />
+              </div>
+            </div>
+
+            {/* Thời lượng (ẩn khi đã chọn ngày khởi hành) */}
+            {!hasDepartureFilter && (
+              <div>
+                <p className="mb-1.5 text-xs font-bold text-slate-700">
+                  <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">schedule</span>
+                  Thời lượng
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: '1 ngày', min: 1, max: 1 },
+                    { label: '2-3 ngày', min: 2, max: 3 },
+                    { label: '4-7 ngày', min: 4, max: 7 },
+                    { label: '7+ ngày', min: 7, max: undefined },
+                  ].map((opt) => {
+                    const isActive = positiveNumberParam(searchParams.get('minDays')) === opt.min && (opt.max === undefined ? !searchParams.get('maxDays') : positiveNumberParam(searchParams.get('maxDays')) === opt.max);
+                    return (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => updateQuery({
+                          minDays: isActive ? undefined : opt.min,
+                          maxDays: isActive ? undefined : opt.max,
+                        })}
+                        className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${isActive ? 'border-primary-container bg-primary-container/10 text-primary-container' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400'}`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Số lượng khách */}
+            <div>
+              <p className="mb-1.5 text-xs font-bold text-slate-700">
+                <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">group</span>
+                Số lượng khách
+              </p>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = positiveIntParam(searchParams.get('guests') ?? '', 0);
+                    updateQuery({ guests: current > 1 ? current - 1 : undefined });
+                  }}
+                  className="flex size-8 items-center justify-center rounded-full border border-slate-300 text-slate-500 transition hover:border-slate-800 hover:text-slate-800 disabled:opacity-30"
+                  disabled={!searchParams.get('guests') || Number(searchParams.get('guests')) <= 0}
+                >
+                  <span className="material-symbols-outlined text-[18px]">remove</span>
+                </button>
+                <span className="min-w-[2.5rem] text-center text-sm font-bold text-slate-800">
+                  {searchParams.get('guests') || '—'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = positiveIntParam(searchParams.get('guests') ?? '', 0);
+                    updateQuery({ guests: current + 1 });
+                  }}
+                  className="flex size-8 items-center justify-center rounded-full border border-slate-300 text-slate-500 transition hover:border-slate-800 hover:text-slate-800"
+                >
+                  <span className="material-symbols-outlined text-[18px]">add</span>
+                </button>
+                <span className="text-xs text-slate-500">khách</span>
+              </div>
+            </div>
+
+            {/* Đánh giá — Ô chọn */}
+            <div>
+              <p className="mb-2 text-xs font-bold text-slate-700">
+                <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">star</span>
+                Đánh giá
+              </p>
+              <div className="space-y-1.5">
+                {RATING_OPTIONS.map((opt) => {
+                  const isActive = currentMinRating === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => updateQuery({ minRating: isActive ? undefined : opt.value })}
+                      className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs transition ${isActive ? 'border-primary-container bg-primary-container/10 text-primary-container font-bold' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}
+                    >
+                      <div className="flex items-center gap-0.5">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <span key={i} className={`material-symbols-outlined text-[14px] ${i < Math.floor(opt.value) ? 'text-amber-500' : i < opt.value ? 'text-amber-400' : 'text-slate-300'}`}>star</span>
+                        ))}
+                      </div>
+                      <span>{opt.label}</span>
+                      {isActive && <span className="material-symbols-outlined ml-auto text-[16px] text-primary-container">check_circle</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </aside>
 
+        {/* ======================== KẾT QUẢ ======================== */}
         <section aria-live="polite" aria-busy={isFetching}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-slate-600"><strong className="text-slate-900">{meta.total}</strong> tour phù hợp{meta.total > 0 && <span className="hidden sm:inline"> · Hiển thị {firstResult}–{lastResult}</span>}</p>
@@ -167,9 +395,9 @@ export function TourListPage() {
           </div>
 
           {items.length === 0 ? (
-            <EmptyState title="Chưa tìm thấy tour phù hợp" description="Hãy thử thay đổi từ khóa hoặc nới rộng điều kiện lọc của bạn." actionLabel="Xóa bộ lọc" onAction={clearFilters} />
+            <EmptyState title="Chưa tìm thấy tour phù hợp" description="Thử thay đổi từ khóa hoặc mở rộng bộ lọc để khám phá thêm lựa chọn." actionLabel="Xóa bộ lọc" onAction={clearFilters} />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {items.map((tour) => <TourCard key={tour.id} tour={tour} categoryName={tour.categoryIds.map((id) => categoryById.get(id)).find(Boolean)} />)}
             </div>
           )}

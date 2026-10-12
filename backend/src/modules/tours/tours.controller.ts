@@ -40,6 +40,10 @@ export class ToursController {
     sendOk(res, await this.discovery.getDetail(params.id, req.actor));
   };
 
+  getDestinations: RequestHandler = async (_req, res) => {
+    sendOk(res, await this.discovery.getDestinations());
+  };
+
   // ---- agency
   create: RequestHandler = async (req, res) => {
     const { body } = validated<CreateTourBody>(req);

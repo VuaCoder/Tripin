@@ -1,19 +1,35 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useTourWishlist } from '@/features/wishlist/hooks/useTourWishlist';
 import type { TourListItem } from '../types';
-import { formatDepartureDate, formatDuration, formatVnd } from '../utils';
+import { formatCategoryName, formatDepartureDate, formatDuration, formatVnd } from '../utils';
 
 export interface TourCardProps {
   tour: TourListItem;
   categoryName?: string;
 }
 
-/** A public tour result. Every value comes from the list DTO so browsing stays fast. */
+/** Card công khai cho 1 tour — hiển thị trên trang khám phá. */
 export function TourCard({ tour, categoryName }: TourCardProps) {
+  const router = useRouter();
   const providerName = tour.agency?.name ?? 'Nhà cung cấp Tripri';
   const [coverFailed, setCoverFailed] = useState(false);
+  const wishlist = useTourWishlist(tour.id);
+
+  const handleWishlistClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (wishlist.status === 'guest') {
+      router.push('/login');
+      return;
+    }
+    if (wishlist.status === 'ready' && !wishlist.pending) {
+      void wishlist.toggle();
+    }
+  };
 
   return (
     <Link
@@ -32,9 +48,25 @@ export function TourCard({ tour, categoryName }: TourCardProps) {
         )}
         {categoryName && (
           <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold text-teal-900 shadow-sm backdrop-blur">
-            {categoryName}
+            {formatCategoryName(categoryName)}
           </span>
         )}
+
+        {/* Heart / Wishlist Button */}
+        <button
+          type="button"
+          onClick={handleWishlistClick}
+          aria-label={wishlist.isSaved ? 'Bỏ lưu tour' : 'Lưu tour yêu thích'}
+          className={`absolute right-3 top-3 flex size-8 items-center justify-center rounded-full transition-all duration-200 ${
+            wishlist.isSaved
+              ? 'bg-rose-500 text-white shadow-md hover:bg-rose-600'
+              : 'bg-black/25 text-white backdrop-blur-sm hover:bg-black/40'
+          } ${wishlist.pending ? 'animate-pulse' : ''}`}
+        >
+          <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: wishlist.isSaved ? "'FILL' 1" : "'FILL' 0" }}>
+            favorite
+          </span>
+        </button>
       </div>
 
       <div className="flex flex-1 flex-col p-4">
