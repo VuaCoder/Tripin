@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "seed": "tsx src/scripts/seed.ts",
+    "seed:demo-tours": "tsx src/scripts/seed-demo-tours.ts",
     "docs:routes": "tsx src/scripts/print-routes.ts",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",

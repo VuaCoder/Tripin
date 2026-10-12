@@ -36,9 +36,33 @@ export interface TourDetail extends TourListItem {
   departures: TourDeparture[];
 }
 
+export interface TourListMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface TourListPage {
+  items: TourListItem[];
+  meta: TourListMeta;
+}
+
+export interface TourCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export type TourSort = 'newest' | 'price_asc' | 'price_desc' | 'rating';
+
 export interface TourApiResponse<T> {
   success: boolean;
   data: T;
+  meta?: TourListMeta;
   error?: { code: string; message: string; details?: unknown };
 }
 
@@ -46,5 +70,14 @@ export interface ListToursArgs {
   page?: number;
   limit?: number;
   q?: string;
+  categoryId?: string;
   destination?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  minDays?: number;
+  maxDays?: number;
+  departureFrom?: string;
+  departureTo?: string;
+  minRating?: number;
+  sort?: TourSort;
 }

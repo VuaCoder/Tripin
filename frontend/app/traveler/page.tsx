@@ -41,7 +41,7 @@ export default function TravelerDashboardPage() {
             <span>Đặt chỗ của tôi</span>
           </Link>
           <Link
-            href="/explore"
+            href="/tours"
             className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl border border-slate-200 transition-all"
           >
             <span>Khám phá dịch vụ</span>
@@ -107,7 +107,7 @@ export default function TravelerDashboardPage() {
             title="Chưa có chuyến đi nào"
             description="Bạn chưa đặt phòng, vé xe hay tour nào. Hãy bắt đầu khám phá các điểm đến độc bản trên khắp Việt Nam!"
             actionLabel="Khám phá ngay"
-            onAction={() => window.location.assign('/explore')}
+            onAction={() => window.location.assign('/tours')}
           />
         ) : (
           <div className="divide-y divide-slate-100">

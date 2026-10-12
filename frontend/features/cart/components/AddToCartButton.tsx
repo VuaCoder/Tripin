@@ -13,6 +13,7 @@ export interface AddToCartButtonProps {
   participants: number;
   disabled?: boolean;
   className?: string;
+  label?: string;
   onAdded?: () => void;
 }
 
@@ -20,7 +21,7 @@ export interface AddToCartButtonProps {
  * "Add tour to cart" for the tour detail screen. The tour/departure/head-count come from the page; the backend
  * re-checks that the tour is public and the departure bookable, so an invalid selection surfaces its error here.
  */
-export function AddToCartButton({ tourId, departureId, participants, disabled = false, className, onAdded }: AddToCartButtonProps) {
+export function AddToCartButton({ tourId, departureId, participants, disabled = false, className, label = 'Thêm vào giỏ', onAdded }: AddToCartButtonProps) {
   const [addCartItem, { isLoading }] = useAddCartItemMutation();
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState<string | null>(null);
@@ -42,7 +43,7 @@ export function AddToCartButton({ tourId, departureId, participants, disabled = 
     <div className={className}>
       <Button onClick={handleAdd} loading={isLoading} disabled={disabled}>
         <span className="material-symbols-outlined text-[18px]" aria-hidden="true">add_shopping_cart</span>
-        Thêm vào giỏ
+        {label}
       </Button>
       {status === 'success' && (
         <p role="status" className="mt-2 text-xs font-medium text-emerald-700">

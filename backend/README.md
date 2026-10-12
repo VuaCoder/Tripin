@@ -16,6 +16,7 @@ pnpm --filter backend test           # unit + integration (an embedded PostgreSQ
 pnpm --filter backend test:unit      # unit tests only, no database needed
 pnpm --filter backend test:integration
 pnpm --filter backend seed           # first SUPER_ADMIN (SEED_ADMIN_EMAIL/PASSWORD), default categories & plans; idempotent
+pnpm --filter backend seed:demo-tours # optional local-only agencies and public tours for Tour Discovery; idempotent
 pnpm --filter backend build && pnpm --filter backend start
 ```
 

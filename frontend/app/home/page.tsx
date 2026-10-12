@@ -321,6 +321,10 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchSticky, setIsSearchSticky] = useState(false);
 
+  const tourSearchHref = searchTab === 'tour' && searchQuery.trim()
+    ? `/tours?q=${encodeURIComponent(searchQuery.trim())}`
+    : '/tours';
+
   const flexibleMonths = useMemo(() => getDynamicFlexibleMonths(), []);
 
   // Today normalized to midnight
@@ -599,7 +603,7 @@ export default function Home() {
 
                   <div className="flex items-center gap-4 flex-wrap">
                     <Link
-                      href="/explore"
+                      href="/tours"
                       className="inline-flex items-center justify-center gap-2 bg-[#087e8b] hover:bg-[#00636e] text-white font-semibold text-sm sm:text-base px-6 py-3 rounded-2xl shadow-xl shadow-primary-container/30 transition-all transform hover:-translate-y-0.5 border border-white/20 h-12"
                     >
                       <span>Khám phá ngay</span>
@@ -1041,7 +1045,7 @@ export default function Home() {
                   {/* Search Button for Desktop */}
                   <div className="hidden md:block ml-3 flex-shrink-0">
                     <Link
-                      href={`/explore?type=${searchTab}&q=${encodeURIComponent(searchQuery)}`}
+                      href={tourSearchHref}
                       onClick={(e) => e.stopPropagation()}
                       className="w-12 h-12 bg-[#087e8b] hover:bg-[#00636e] text-white rounded-full flex items-center justify-center transition-transform transform hover:scale-105 shadow-md"
                     >
@@ -1104,7 +1108,7 @@ export default function Home() {
                 {/* Mobile Search Button */}
                 <div className="md:hidden mt-2 w-full">
                   <Link
-                    href={`/explore?type=${searchTab}&q=${encodeURIComponent(searchQuery)}`}
+                    href={tourSearchHref}
                     className="w-full min-h-[54px] bg-[#087e8b] hover:bg-[#00636e] text-white text-sm font-bold rounded-2xl shadow-lg shadow-[#087e8b]/25 flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5"
                   >
                     <span className="material-symbols-outlined text-[20px]">search</span>
@@ -1168,7 +1172,7 @@ export default function Home() {
               </h2>
             </div>
             <Link
-              href="/explore"
+              href="/tours"
               className="inline-flex items-center gap-1.5 text-sm font-bold text-primary hover:text-primary-container transition-colors"
             >
               <span>Xem tất cả sản phẩm</span>
@@ -1269,7 +1273,7 @@ export default function Home() {
                       </span>
                     </div>
                     <Link
-                      href={`/explore/${item.id}`}
+                      href="/tours"
                       className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-xl bg-surface-container hover:bg-primary-container hover:text-white text-primary text-xs font-bold transition-all shadow-sm"
                     >
                       Xem chi tiết
