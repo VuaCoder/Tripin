@@ -113,7 +113,7 @@ export default function TourDetailPage() {
                         <input type="number" min={1} max={maxParticipants} value={participants} onChange={(event) => setParticipants(Math.max(1, Math.min(maxParticipants, Number(event.target.value) || 1)))} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 outline-none focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/20" />
                       </label>
                       {departure && <button type="button" onClick={() => {
-                        const query = new URLSearchParams({ tourId: tour.id, departureId: departure.id, participants: String(participants), direct: '1' });
+                        const query = new URLSearchParams({ tourId: tour.id, departureId: departure.id, participants: String(participants) });
                         router.push(`/traveler/bookings/new?${query.toString()}`);
                       }} className="inline-flex h-11 items-center justify-center rounded-xl bg-primary-container px-4 text-sm font-bold text-white transition-colors hover:bg-primary focus:outline-none focus:ring-2 focus:ring-brand-teal/30">Đặt tour</button>}
                     </div>

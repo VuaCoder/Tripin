@@ -5,6 +5,25 @@ import type { ETicketStatus } from './e-tickets.types';
 
 export type ETicketRecord = ETicket;
 
+export interface EnrichedETicketRecord extends ETicketRecord {
+  bookingDetails?: {
+    id: string;
+    bookingCode: string;
+    status: string;
+    isPaid: boolean;
+    totalAmount: number;
+    contactPhone: string;
+    endDate: Date;
+  } | null;
+  tourDetails?: {
+    id: string;
+    title: string;
+    destination: string;
+    durationDays: number;
+    images: string[];
+  } | null;
+}
+
 export type NewETicket = Omit<ETicket, 'id' | 'status' | 'cancelledAt' | 'usedAt' | 'createdAt' | 'updatedAt'> & Partial<Pick<ETicket, 'status'>>;
 
 export class ETicketsRepository {
@@ -12,12 +31,48 @@ export class ETicketsRepository {
     return prisma.eTicket.create({ data });
   }
 
-  findById(id: string): Promise<ETicketRecord | null> {
-    return prisma.eTicket.findUnique({ where: { id } });
+  async findById(id: string): Promise<EnrichedETicketRecord | null> {
+    const ticket = await prisma.eTicket.findUnique({ where: { id } });
+    if (!ticket) return null;
+    return this.enrich(ticket);
   }
 
-  findByBookingId(bookingId: string): Promise<ETicketRecord | null> {
-    return prisma.eTicket.findUnique({ where: { bookingId } });
+  async findByBookingId(bookingId: string): Promise<EnrichedETicketRecord | null> {
+    const ticket = await prisma.eTicket.findUnique({ where: { bookingId } });
+    if (!ticket) return null;
+    return this.enrich(ticket);
+  }
+
+  private async enrich(ticket: ETicketRecord): Promise<EnrichedETicketRecord> {
+    const [booking, tour] = await Promise.all([
+      prisma.booking.findUnique({
+        where: { id: ticket.bookingId },
+        select: {
+          id: true,
+          bookingCode: true,
+          status: true,
+          isPaid: true,
+          totalAmount: true,
+          contactPhone: true,
+          endDate: true,
+        },
+      }),
+      prisma.tour.findUnique({
+        where: { id: ticket.tourId },
+        select: {
+          id: true,
+          title: true,
+          destination: true,
+          durationDays: true,
+          images: true,
+        },
+      }),
+    ]);
+    return {
+      ...ticket,
+      bookingDetails: booking,
+      tourDetails: tour,
+    };
   }
 
   /** Compare-and-set on the status; null when the ticket is not in the expected status (or does not exist). */
@@ -36,3 +91,4 @@ export class ETicketsRepository {
 }
 
 export const eTicketsRepository = new ETicketsRepository();
+

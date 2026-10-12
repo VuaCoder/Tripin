@@ -5,11 +5,12 @@ import { buildPage, type Page } from '../../utils/pagination';
 import { toursRepository, type ToursRepository } from './tours.repository';
 import type { SearchToursQuery, TourDetailDto, TourListItemDto, TourManageDto } from './tours.types';
 import { tourViewBuilder, type TourViewBuilder } from './tours.view';
+import { enrichDestination, type DestinationDto } from './tours.destinations';
 
 /** Public tour discovery: "Search tours", "Filter tours", "View tours list", "View tour details". */
 export class ToursDiscoveryService {
   constructor(
-    private readonly tours: Pick<ToursRepository, 'searchPublic' | 'findById' | 'findManyByIds'> = toursRepository,
+    private readonly tours: Pick<ToursRepository, 'searchPublic' | 'findById' | 'findManyByIds' | 'getPublicDestinations'> = toursRepository,
     private readonly views: Pick<TourViewBuilder, 'listItems' | 'publicDetail' | 'manage'> = tourViewBuilder,
   ) {}
 
@@ -42,6 +43,12 @@ export class ToursDiscoveryService {
     if (isStaff || (isOwner && tour.status !== TOUR_STATUS.ARCHIVED)) return this.views.manage(tour);
     if (tour.status === TOUR_STATUS.APPROVED) return this.views.publicDetail(tour);
     throw AppError.notFound('Tour not found');
+  }
+
+  /** Returns list of active public destinations with tour counts and province characteristics. */
+  async getDestinations(): Promise<DestinationDto[]> {
+    const raw = await this.tours.getPublicDestinations();
+    return raw.map((item) => enrichDestination(item));
   }
 }
 

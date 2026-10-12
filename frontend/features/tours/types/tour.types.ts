@@ -59,6 +59,15 @@ export interface TourCategory {
   sortOrder: number;
 }
 
+export interface TourDestination {
+  destination: string;
+  count: number;
+  icon: string;
+  description: string;
+  colorClass?: string;
+  iconBgClass?: string;
+}
+
 export type TourSort = 'newest' | 'price_asc' | 'price_desc' | 'rating';
 
 export interface TourApiResponse<T> {

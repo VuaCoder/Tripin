@@ -185,6 +185,51 @@ export class ToursRepository {
     return rows.map((row) => ({ status: row.status, count: row._count._all }));
   }
 
+  /** Distinct destinations with tour counts and real tour info directly from the database for APPROVED tours. */
+  async getPublicDestinations(): Promise<
+    {
+      destination: string;
+      count: number;
+      sampleTitle: string;
+      sampleSummary: string | null;
+    }[]
+  > {
+    const tours = await prisma.tour.findMany({
+      where: { status: TOUR_STATUS.APPROVED },
+      select: {
+        destination: true,
+        title: true,
+        summary: true,
+      },
+      orderBy: [{ ratingAvg: 'desc' }, { ratingCount: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    const map = new Map<string, { count: number; sampleTitle: string; sampleSummary: string | null }>();
+    for (const tour of tours) {
+      const dest = tour.destination.trim();
+      if (!dest) continue;
+      const existing = map.get(dest);
+      if (!existing) {
+        map.set(dest, {
+          count: 1,
+          sampleTitle: tour.title,
+          sampleSummary: tour.summary,
+        });
+      } else {
+        existing.count += 1;
+      }
+    }
+
+    return Array.from(map.entries())
+      .map(([destination, info]) => ({
+        destination,
+        count: info.count,
+        sampleTitle: info.sampleTitle,
+        sampleSummary: info.sampleSummary,
+      }))
+      .sort((a, b) => b.count - a.count || a.destination.localeCompare(b.destination, 'vi'));
+  }
+
   // ------------------------------------------------------ inventory
 
   /**

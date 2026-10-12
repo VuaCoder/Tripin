@@ -124,16 +124,33 @@ function PaymentSuccessContent() {
         </div>
 
         <div className="mt-8 flex flex-col sm:flex-row gap-3">
-          <Link
-            href={paymentDestination}
-            className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-primary-container hover:bg-primary text-white py-3 px-4 font-bold text-sm shadow-md shadow-primary-container/20 transition-all text-center"
-          >
-            <span className="material-symbols-outlined text-[18px]">airplane_ticket</span>
-            <span>Xem chuyến đi của tôi</span>
-          </Link>
+          {payment.purpose === 'BOOKING' ? (
+            <>
+              <Link
+                href={`/settings/history/${payment.referenceId}/ticket`}
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white py-3 px-4 font-bold text-sm shadow-md shadow-teal-700/20 transition-all text-center"
+              >
+                <span className="material-symbols-outlined text-[18px]">airplane_ticket</span>
+                <span>Xem vé điện tử (E-ticket)</span>
+              </Link>
+              <Link
+                href={paymentDestination}
+                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 py-3 px-4 font-semibold text-sm transition-colors text-center"
+              >
+                Chi tiết chuyến đi
+              </Link>
+            </>
+          ) : (
+            <Link
+              href={paymentDestination}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-primary-container hover:bg-primary text-white py-3 px-4 font-bold text-sm shadow-md shadow-primary-container/20 transition-all text-center"
+            >
+              <span>Xem tài khoản của tôi</span>
+            </Link>
+          )}
           <Link
             href="/home"
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 py-3 px-5 font-semibold text-sm transition-colors text-center"
+            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 py-3 px-4 font-semibold text-sm transition-colors text-center"
           >
             Về trang chủ
           </Link>

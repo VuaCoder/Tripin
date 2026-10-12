@@ -11,3 +11,19 @@ export function formatDepartureDate(date?: string): string {
   if (!date) return 'Chưa có lịch khởi hành';
   return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(date));
 }
+
+export const CATEGORY_NAME_MAP: Record<string, string> = {
+  'beach & islands': 'Biển đảo & Nghỉ dưỡng',
+  'mountains & trekking': 'Núi rừng & Trekking',
+  'city & culture': 'Văn hóa & Phố thị',
+  'food & cuisine': 'Ẩm thực & Đặc sản',
+  'adventure': 'Phiêu lưu & Mạo hiểm',
+  'eco & nature': 'Sinh thái & Thiên nhiên',
+};
+
+/** Chuyển đổi tên danh mục tour từ tiếng Anh (seed database) sang tiếng Việt tự nhiên */
+export function formatCategoryName(name?: string | null): string {
+  if (!name) return '';
+  const key = name.trim().toLowerCase();
+  return CATEGORY_NAME_MAP[key] ?? name;
+}

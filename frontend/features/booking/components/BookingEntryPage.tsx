@@ -5,15 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, FormField, Input } from '@/components/ui';
 import { ErrorState, LoadingState } from '@/components/shared';
 import { getApiErrorCode, getApiErrorMessage, selectUser } from '@/features/auth';
-import {
-  CART_UNAVAILABLE_LABELS,
-  formatDepartureDate,
-  formatVnd,
-  useGetCartQuery,
-  useRemoveCartItemMutation,
-  type Cart,
-  type CartItem,
-} from '@/features/cart';
+import { formatDepartureDate, formatVnd } from '@/features/cart';
 import { useGetTourQuery } from '@/features/tours';
 import { useAppSelector } from '@/store/hooks';
 import { useCreateBookingMutation, useLazyPreviewPromotionQuery } from '../api/bookingApi';
@@ -54,49 +46,29 @@ function bookingErrorMessage(error: unknown, fallback: string): string {
   }
 }
 
-function findCartItem(
-  cart: Cart | undefined,
-  tourId: string,
-  departureId: string,
-  cartItemId: string | null,
-): CartItem | undefined {
-  return cart?.items.find((candidate) =>
-    cartItemId ? candidate.id === cartItemId : candidate.tourId === tourId && candidate.departureId === departureId,
-  );
-}
-
-/** Cart-to-booking confirmation; pricing and availability are checked again by the backend on creation. */
+/** Direct tour booking confirmation; pricing and availability are checked by the backend on creation. */
 export function BookingEntryPage() {
   const router = useRouter();
   const params = useSearchParams();
   const user = useAppSelector(selectUser);
   const tourId = params.get('tourId') ?? '';
   const departureId = params.get('departureId') ?? '';
-  const cartItemId = params.get('cartItemId');
-  const isDirectBooking = params.get('direct') === '1';
   const participantsParam = Number(params.get('participants'));
-  const { data: cart, isLoading: isCartLoading, isError: isCartError, refetch: refetchCart } = useGetCartQuery(undefined, {
-    skip: isDirectBooking,
-    refetchOnMountOrArgChange: true,
-  });
-  const { data: directTour, isLoading: isTourLoading, isError: isTourError, refetch: refetchTour } = useGetTourQuery(tourId, {
-    skip: !isDirectBooking || !tourId,
+
+  const { data: tour, isLoading: isTourLoading, isError: isTourError, refetch: refetchTour } = useGetTourQuery(tourId, {
+    skip: !tourId,
   });
   const [createBooking, { isLoading: isSubmitting }] = useCreateBookingMutation();
   const [previewPromotion, { isFetching: isPreviewingPromotion }] = useLazyPreviewPromotionQuery();
-  const [removeCartItem] = useRemoveCartItemMutation();
 
-  const item = useMemo(
-    () => findCartItem(cart, tourId, departureId, cartItemId),
-    [cart, cartItemId, departureId, tourId],
+  const departure = useMemo(
+    () => tour?.departures.find((d) => d.id === departureId),
+    [departureId, tour],
   );
-  const directDeparture = useMemo(
-    () => directTour?.departures.find((departure) => departure.id === departureId),
-    [departureId, directTour],
+  const departureAvailable = Boolean(
+    departure && departure.isOpen && departure.remaining > 0 && new Date(departure.date).getTime() > Date.now(),
   );
-  const directDepartureAvailable = Boolean(
-    directDeparture && directDeparture.isOpen && directDeparture.remaining > 0 && new Date(directDeparture.date).getTime() > Date.now(),
-  );
+
   const [fullName, setFullName] = useState(user?.fullName ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [notes, setNotes] = useState('');
@@ -108,13 +80,11 @@ export function BookingEntryPage() {
   );
   const [errors, setErrors] = useState<{ fullName?: string; phone?: string; general?: string }>({});
   const clientRequestId = useRef(retryKey());
-  const syncedParticipants = useRef(false);
 
   useEffect(() => {
-    if (isDirectBooking || syncedParticipants.current || !item) return;
-    syncedParticipants.current = true;
-    if (!(Number.isFinite(participantsParam) && participantsParam > 0)) setParticipants(item.participants);
-  }, [isDirectBooking, item, participantsParam]);
+    if (user?.fullName && !fullName) setFullName(user.fullName);
+    if (user?.phone && !phone) setPhone(user.phone);
+  }, [user, fullName, phone]);
 
   const clearPromotionPreview = () => {
     setPromotionPreview(null);
@@ -150,32 +120,57 @@ export function BookingEntryPage() {
   };
 
   if (!tourId || !departureId) {
-    return <ErrorState title="Thiếu thông tin đặt chỗ" message="Hãy chọn một tour trong giỏ hàng rồi bấm “Đặt chỗ”." actionLabel="Về giỏ hàng" onAction={() => router.push('/traveler/cart')} />;
-  }
-  if (isDirectBooking ? isTourLoading : isCartLoading) return <LoadingState label="Đang chuẩn bị bước đặt chỗ..." />;
-  if (isDirectBooking ? isTourError : isCartError) {
-    return <ErrorState title={isDirectBooking ? 'Không thể tải tour' : 'Không thể tải giỏ hàng'} message="Chúng tôi chưa thể kiểm tra tour bạn đã chọn. Vui lòng thử lại." onAction={() => void (isDirectBooking ? refetchTour() : refetchCart())} />;
-  }
-  if (isDirectBooking && (!directTour || !directDeparture)) {
-    return <ErrorState title="Không tìm thấy ngày khởi hành" message="Ngày khởi hành đã chọn không còn tồn tại." actionLabel="Quay lại tour" onAction={() => router.push(`/tours/${tourId}`)} />;
-  }
-  if (!isDirectBooking && !item) {
-    return <ErrorState title="Không tìm thấy tour trong giỏ hàng" message="Tour có thể đã bị xoá hoặc thông tin đặt chỗ không còn hợp lệ." actionLabel="Về giỏ hàng" onAction={() => router.push('/traveler/cart')} />;
-  }
-  if (isDirectBooking && !directDepartureAvailable) {
-    return <ErrorState title="Tour hiện không thể đặt" message="Ngày khởi hành này hiện không còn nhận đặt chỗ." actionLabel="Quay lại tour" onAction={() => router.push(`/tours/${tourId}`)} />;
-  }
-  if (!isDirectBooking && item && !item.available) {
-    return <ErrorState title="Tour hiện không thể đặt" message={item.unavailableReason ? CART_UNAVAILABLE_LABELS[item.unavailableReason] : 'Tour này hiện không còn nhận đặt chỗ.'} actionLabel="Về giỏ hàng" onAction={() => router.push('/traveler/cart')} />;
+    return (
+      <ErrorState
+        title="Thiếu thông tin đặt chỗ"
+        message="Vui lòng chọn một tour và ngày khởi hành để tiếp tục."
+        actionLabel="Khám phá tour"
+        onAction={() => router.push('/tours')}
+      />
+    );
   }
 
-  const title = isDirectBooking ? directTour!.title : item!.tour?.title ?? 'Tour đã chọn';
-  const unitPrice = isDirectBooking ? directDeparture!.price : item!.unitPrice ?? item!.departure?.price;
-  const subtotal = unitPrice != null ? unitPrice * participants : 0;
+  if (isTourLoading) return <LoadingState label="Đang tải thông tin tour..." />;
+
+  if (isTourError || !tour) {
+    return (
+      <ErrorState
+        title="Không thể tải tour"
+        message="Chúng tôi chưa thể kiểm tra tour bạn đã chọn. Vui lòng thử lại."
+        actionLabel="Thử lại"
+        onAction={() => void refetchTour()}
+      />
+    );
+  }
+
+  if (!departure) {
+    return (
+      <ErrorState
+        title="Không tìm thấy ngày khởi hành"
+        message="Ngày khởi hành đã chọn không còn tồn tại trong hệ thống."
+        actionLabel="Quay lại xem tour"
+        onAction={() => router.push(`/tours/${tourId}`)}
+      />
+    );
+  }
+
+  if (!departureAvailable) {
+    return (
+      <ErrorState
+        title="Ngày khởi hành đã hết chỗ"
+        message="Ngày khởi hành này hiện không còn nhận đặt chỗ hoặc đã diễn ra."
+        actionLabel="Chọn ngày khác"
+        onAction={() => router.push(`/tours/${tourId}`)}
+      />
+    );
+  }
+
+  const title = tour.title;
+  const unitPrice = departure.price;
+  const subtotal = unitPrice * participants;
   const finalEstimate = promotionPreview?.finalAmount ?? subtotal;
-  const maxParticipants = Math.min(MAX_PARTICIPANTS, isDirectBooking ? directDeparture!.remaining : item!.departure?.remaining ?? MAX_PARTICIPANTS);
-  const bookedItemId = !isDirectBooking && item!.tourId === tourId && item!.departureId === departureId ? item!.id : undefined;
-  const departureDate = isDirectBooking ? directDeparture!.date : item!.departure?.date;
+  const maxParticipants = Math.min(MAX_PARTICIPANTS, departure.remaining);
+  const departureDate = departure.date;
 
   const handleApplyPromotion = async () => {
     if (!Number.isInteger(participants) || participants < 1 || participants > maxParticipants) {
@@ -190,53 +185,31 @@ export function BookingEntryPage() {
     const next: typeof errors = {};
     if (fullName.trim().length < 2) next.fullName = 'Vui lòng nhập họ tên (ít nhất 2 ký tự).';
     if (!PHONE_PATTERN.test(phone.trim())) next.phone = 'Số điện thoại không hợp lệ.';
-    if (!Number.isInteger(participants) || participants < 1 || participants > maxParticipants) next.general = `Số khách phải từ 1 đến ${maxParticipants}.`;
+    if (!Number.isInteger(participants) || participants < 1 || participants > maxParticipants) {
+      next.general = `Số khách phải từ 1 đến ${maxParticipants}.`;
+    }
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
     let latestUnitPrice: number | undefined;
-    if (isDirectBooking) {
-      try {
-        const refreshedTour = await refetchTour().unwrap();
-        const latestDeparture = refreshedTour.departures.find((departure) => departure.id === departureId);
-        if (!latestDeparture || !latestDeparture.isOpen || latestDeparture.remaining < 1 || new Date(latestDeparture.date).getTime() <= Date.now()) {
-          setErrors({ general: 'Ngày khởi hành này hiện không còn nhận đặt chỗ.' });
-          return;
-        }
-        const latestMaxParticipants = Math.min(MAX_PARTICIPANTS, latestDeparture.remaining);
-        if (participants > latestMaxParticipants) {
-          setErrors({ general: `Chỉ còn ${latestMaxParticipants} chỗ cho ngày khởi hành này.` });
-          return;
-        }
-        latestUnitPrice = latestDeparture.price;
-      } catch (error) {
-        setErrors({ general: bookingErrorMessage(error, 'Không thể kiểm tra lại số chỗ. Vui lòng thử lại.') });
+    try {
+      const refreshedTour = await refetchTour().unwrap();
+      const latestDeparture = refreshedTour.departures.find((d) => d.id === departureId);
+      if (!latestDeparture || !latestDeparture.isOpen || latestDeparture.remaining < 1 || new Date(latestDeparture.date).getTime() <= Date.now()) {
+        setErrors({ general: 'Ngày khởi hành này hiện không còn nhận đặt chỗ.' });
         return;
       }
-    } else {
-      let latestItem: CartItem | undefined;
-      try {
-        const refreshedCart = await refetchCart().unwrap();
-        latestItem = findCartItem(refreshedCart, tourId, departureId, cartItemId);
-      } catch (error) {
-        setErrors({ general: bookingErrorMessage(error, 'Không thể kiểm tra lại số chỗ. Vui lòng thử lại.') });
-        return;
-      }
-      if (!latestItem) {
-        setErrors({ general: 'Tour không còn trong giỏ hàng. Hãy quay lại giỏ hàng để chọn lại.' });
-        return;
-      }
-      if (!latestItem.available) {
-        setErrors({ general: latestItem.unavailableReason ? CART_UNAVAILABLE_LABELS[latestItem.unavailableReason] : 'Tour này hiện không còn nhận đặt chỗ.' });
-        return;
-      }
-      const latestMaxParticipants = Math.min(MAX_PARTICIPANTS, latestItem.departure?.remaining ?? 0);
+      const latestMaxParticipants = Math.min(MAX_PARTICIPANTS, latestDeparture.remaining);
       if (participants > latestMaxParticipants) {
         setErrors({ general: `Chỉ còn ${latestMaxParticipants} chỗ cho ngày khởi hành này.` });
         return;
       }
-      latestUnitPrice = latestItem.unitPrice ?? latestItem.departure?.price;
+      latestUnitPrice = latestDeparture.price;
+    } catch (error) {
+      setErrors({ general: bookingErrorMessage(error, 'Không thể kiểm tra lại số chỗ. Vui lòng thử lại.') });
+      return;
     }
+
     if (latestUnitPrice == null) {
       setErrors({ general: 'Không thể xác định giá tour hiện tại. Vui lòng thử lại.' });
       return;
@@ -253,12 +226,12 @@ export function BookingEntryPage() {
         ...(promotionCode.trim() ? { promotionCode: promotionCode.trim() } : {}),
         clientRequestId: clientRequestId.current,
       }).unwrap();
-      if (bookedItemId) await removeCartItem(bookedItemId).unwrap().catch(() => undefined);
       router.replace(`/settings/history/${created.id}`);
     } catch (error) {
       setErrors({ general: bookingErrorMessage(error, 'Không tạo được đặt chỗ. Vui lòng thử lại.') });
     }
   };
+
 
   return (
     <div className="grid gap-6 pb-12 lg:grid-cols-[minmax(0,1fr)_320px]">

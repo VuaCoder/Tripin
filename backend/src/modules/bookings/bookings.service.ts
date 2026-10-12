@@ -84,7 +84,8 @@ export class BookingsService {
       throw AppError.conflict('Not enough seats left on this departure', 'NOT_ENOUGH_SEATS');
     }
     const subtotal = departure.unitPrice * input.participants;
-    if (subtotal < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
+    const isFreeSubtotal = subtotal === 0;
+    if (!isFreeSubtotal && subtotal < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
 
     await this.tours.reserveSeats(input.tourId, input.departureId, input.participants);
     let applied: AppliedPromotion | undefined;
@@ -92,9 +93,9 @@ export class BookingsService {
       if (input.promotionCode) applied = await this.promotions.redeem(input.promotionCode, input.tourId, subtotal);
 
       const discountAmount = applied?.discountAmount ?? 0;
-      const totalAmount = subtotal - discountAmount;
-      // A promotion that would make the order free cannot be paid online (no free-booking flow exists): refuse, seats and redemption are given back.
-      if (totalAmount < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
+      const totalAmount = Math.max(0, subtotal - discountAmount);
+      const isFree = totalAmount === 0;
+      if (!isFree && totalAmount < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
       const commissionBps = await this.settings.getCommissionBps();
       const commissionAmount = Math.floor((totalAmount * commissionBps) / 10_000);
 
@@ -117,17 +118,38 @@ export class BookingsService {
         commissionBps,
         commissionAmount,
         agencyAmount: totalAmount - commissionAmount,
-        status: BOOKING_STATUS.PENDING,
-        paymentExpiresAt: new Date(Date.now() + BOOKING_POLICY.PENDING_PAYMENT_MINUTES * MINUTE_MS),
+        status: isFree ? BOOKING_STATUS.CONFIRMED : BOOKING_STATUS.PENDING,
+        isPaid: isFree,
+        confirmedAt: isFree ? new Date() : undefined,
+        paymentExpiresAt: isFree ? null : new Date(Date.now() + BOOKING_POLICY.PENDING_PAYMENT_MINUTES * MINUTE_MS),
         clientRequestId: input.clientRequestId,
       });
 
-      await this.notifications.notify(travelerId, {
-        type: NOTIFICATION_TYPE.BOOKING_CREATED,
-        title: 'Booking created',
-        body: `Your booking ${created.bookingCode} for "${created.tourTitle}" is waiting for payment (${BOOKING_POLICY.PENDING_PAYMENT_MINUTES} minutes).`,
-        data: { bookingId: created.id },
-      });
+      if (isFree) {
+        const facts = toBookingFacts(created);
+        await Promise.all([
+          this.notifications.notify(travelerId, {
+            type: NOTIFICATION_TYPE.BOOKING_CONFIRMED,
+            title: 'Đặt chỗ thành công',
+            body: `Đặt chỗ ${created.bookingCode} cho tour "${created.tourTitle}" đã được xác nhận thành công (0 VND).`,
+            data: { bookingId: created.id },
+          }),
+          this.notifications.notify(departure.agencyId, {
+            type: NOTIFICATION_TYPE.BOOKING_CONFIRMED,
+            title: 'Đặt chỗ mới thành công',
+            body: `${input.participants} khách đã đặt tour "${created.tourTitle}" (${created.bookingCode}).`,
+            data: { bookingId: created.id },
+          }),
+        ]);
+        await bookingEvents.emitConfirmed(facts);
+      } else {
+        await this.notifications.notify(travelerId, {
+          type: NOTIFICATION_TYPE.BOOKING_CREATED,
+          title: 'Booking created',
+          body: `Your booking ${created.bookingCode} for "${created.tourTitle}" is waiting for payment (${BOOKING_POLICY.PENDING_PAYMENT_MINUTES} minutes).`,
+          data: { bookingId: created.id },
+        });
+      }
       return toBookingDto(created);
     } catch (error) {
       await this.compensate(input, applied);

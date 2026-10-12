@@ -20,8 +20,22 @@ export interface ETicketDto {
   /** The value to encode in the QR code; unguessable. */
   code: string;
   status: ETicketStatus;
-  booking: { id: string; code: string };
-  tour: { id: string; title: string };
+  booking: {
+    id: string;
+    code: string;
+    status?: string;
+    isPaid?: boolean;
+    totalAmount?: number;
+    contactPhone?: string;
+    endDate?: string;
+  };
+  tour: {
+    id: string;
+    title: string;
+    destination?: string;
+    durationDays?: number;
+    coverImage?: string;
+  };
   departureDate: string;
   participants: number;
   holderName: string;
@@ -32,3 +46,4 @@ export interface ListETicketsQuery {
   page: number;
   limit: number;
 }
+

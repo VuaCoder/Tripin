@@ -22,6 +22,7 @@ const PUBLIC_ROUTES = [
   'GET /tour-guides/:id',
   'GET /tours',
   'GET /tours/:id',
+  'GET /tours/destinations',
   'POST /auth/agency/login',
   'POST /auth/agency/register',
   'POST /auth/agency/resend-otp',
@@ -40,6 +41,7 @@ const PUBLIC_ROUTES = [
 
 /** Logged-in-only routes WITHOUT a permission: each one is scoped to the caller's own data by the token. */
 const LOGIN_ONLY_ROUTES = [
+  'GET /auth/security',
   'GET /notifications',
   'GET /notifications/unread-count',
   'GET /payments/:id',

@@ -11,7 +11,6 @@ import { MobileNavigation } from './MobileNavigation';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, selectIsAuthenticated, useLogout } from '@/features/auth';
 import { homeForRole } from '@/features/auth/utils/roles';
-import { useGetCartQuery } from '@/features/cart';
 import { useGetWishlistQuery } from '@/features/wishlist';
 import { cn } from '../ui/cn';
 
@@ -103,8 +102,6 @@ export function Header({ role }: { role?: AppRole }) {
   const accountMenuItems = accountMenuForRole(effectiveRole);
 
   const isTraveler = isAuthenticated && user?.role === 'TRAVELER';
-  const { data: cartData } = useGetCartQuery(undefined, { skip: !isTraveler });
-  const cartItemCount = cartData?.totals?.itemCount ?? cartData?.items?.length ?? 0;
   const { data: wishlistData } = useGetWishlistQuery(undefined, { skip: !isTraveler });
   const wishlistItemCount = wishlistData?.meta.total ?? wishlistData?.items.length ?? 0;
 
@@ -120,7 +117,7 @@ export function Header({ role }: { role?: AppRole }) {
       <div className="mx-auto flex h-20 max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-6">
           <Link
-            href={isAuthenticated && user ? homeForRole(user.role) : '/'}
+            href={isAuthenticated && user ? homeForRole(user.role) : '/home'}
             aria-label="Tripri Trang chủ"
             className="flex items-center"
           >
@@ -159,32 +156,7 @@ export function Header({ role }: { role?: AppRole }) {
             </Link>
           )}
 
-          {/* Cart Icon Button for Traveler */}
-          {isTraveler && (
-            <Link
-              href="/traveler/cart"
-              aria-label="Giỏ hàng của bạn"
-              title="Giỏ hàng"
-              className={cn(
-                'relative flex size-10 items-center justify-center rounded-2xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container',
-                isTransparent
-                  ? 'border-white/40 bg-white/15 text-white hover:bg-white/25'
-                  : 'border-slate-200/80 bg-white/95 text-slate-700 shadow-sm hover:border-slate-300 hover:bg-white hover:text-primary-container',
-              )}
-            >
-              <span className="material-symbols-outlined text-[22px]" aria-hidden="true">
-                shopping_cart
-              </span>
-              {cartItemCount > 0 && (
-                <span
-                  key={cartItemCount}
-                  className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 font-mono text-[11px] font-bold text-white shadow-md animate-scaleIn"
-                >
-                  {cartItemCount > 99 ? '99+' : cartItemCount}
-                </span>
-              )}
-            </Link>
-          )}
+
 
           {isTraveler && wishlistItemCount > 0 && (
             <Link
@@ -291,7 +263,7 @@ export function Header({ role }: { role?: AppRole }) {
                 href="/login"
                 className={cn(
                   'inline-flex items-center justify-center rounded-xl px-3.5 py-2 text-sm font-semibold transition-colors',
-                  isTransparent ? 'text-white hover:bg-white/20' : 'text-primary hover:bg-surface-container hover:text-on-surface',
+                  isTransparent ? 'text-white hover:bg-white/20' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
                 )}
               >
                 Đăng nhập
@@ -302,7 +274,7 @@ export function Header({ role }: { role?: AppRole }) {
                   'inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold shadow-md transition-colors',
                   isTransparent
                     ? 'bg-white text-primary hover:bg-white/90'
-                    : 'bg-primary-container text-on-primary shadow-primary-container/20 hover:bg-primary hover:shadow-lg',
+                    : 'bg-primary-container text-white shadow-primary-container/20 hover:bg-primary hover:shadow-lg',
                 )}
               >
                 Đăng ký
