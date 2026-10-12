@@ -44,7 +44,12 @@ afterEach(cleanup);
 
 describe('AddTourPanel', () => {
   it('renders nothing but the toggle while closed', () => {
-    getTours.mockReturnValue({ data: [tour], isLoading: false, isError: false, refetch: vi.fn() });
+    getTours.mockReturnValue({
+      data: { items: [tour], meta: { page: 1, limit: 12, total: 1, totalPages: 1 } },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
     getTour.mockReturnValue({ data: detail, isLoading: false });
 
     render(<AddTourPanel open={false} onToggle={vi.fn()} />);
@@ -53,7 +58,12 @@ describe('AddTourPanel', () => {
   });
 
   it('lists only the bookable departures and clamps the head-count to the remaining seats', () => {
-    getTours.mockReturnValue({ data: [tour], isLoading: false, isError: false, refetch: vi.fn() });
+    getTours.mockReturnValue({
+      data: { items: [tour], meta: { page: 1, limit: 12, total: 1, totalPages: 1 } },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
     getTour.mockReturnValue({ data: detail, isLoading: false });
 
     render(<AddTourPanel open onToggle={vi.fn()} />);
@@ -71,7 +81,12 @@ describe('AddTourPanel', () => {
   });
 
   it('tells the traveler when the selected tour has no bookable departure', () => {
-    getTours.mockReturnValue({ data: [tour], isLoading: false, isError: false, refetch: vi.fn() });
+    getTours.mockReturnValue({
+      data: { items: [tour], meta: { page: 1, limit: 12, total: 1, totalPages: 1 } },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
     getTour.mockReturnValue({ data: { ...tour, departures: [] }, isLoading: false });
 
     render(<AddTourPanel open onToggle={vi.fn()} />);

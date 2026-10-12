@@ -43,10 +43,12 @@ export interface TourListMeta {
   totalPages: number;
 }
 
-export interface TourListPage {
+export interface TourListResult {
   items: TourListItem[];
   meta: TourListMeta;
 }
+
+export type TourListPageData = TourListResult;
 
 export interface TourCategory {
   id: string;

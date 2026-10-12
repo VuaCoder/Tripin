@@ -89,8 +89,6 @@ export function TourListPage() {
   }, [qFromUrl, searchTerm, updateQuery]);
 
   const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category.name])), [categories]);
-  const items = data?.items ?? [];
-  const meta = data?.meta;
   const activeCategoryId = searchParams.get('categoryId') ?? '';
 
   const updateNumberRange = (key: 'minPrice' | 'maxPrice' | 'minDays' | 'maxDays', raw: string) => {
@@ -122,6 +120,7 @@ export function TourListPage() {
     return <ErrorState title="Không tải được danh sách tour" message="Vui lòng kiểm tra kết nối và thử lại." onAction={() => void refetch()} />;
   }
 
+  const { items, meta } = data;
   const firstResult = meta.total === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
   const lastResult = Math.min(meta.page * meta.limit, meta.total);
 
