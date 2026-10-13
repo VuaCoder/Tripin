@@ -26,6 +26,12 @@ bookingsRouter.post(
   validate({ params: bookingIdParams, body: cancelBookingBody }),
   bookingsController.cancelMine,
 );
+bookingsRouter.post(
+  '/:id/complete',
+  requirePermission(P.BOOKING_VIEW_OWN),
+  validate({ params: bookingIdParams }),
+  bookingsController.completeMine,
+);
 
 /** Mounted at /api/v1/agency/bookings — bookings of the logged-in agency's tours. */
 export const agencyBookingsRouter = Router();

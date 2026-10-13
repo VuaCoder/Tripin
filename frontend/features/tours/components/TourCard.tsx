@@ -6,7 +6,6 @@ import { useState } from 'react';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/features/auth';
 import { GuestLoginPromptModal } from '@/components/shared';
-import { usePreloader } from '@/components/preloader';
 import { useTourWishlist } from '@/features/wishlist/hooks/useTourWishlist';
 import type { TourListItem } from '../types';
 import { formatCategoryName, formatDepartureDate, formatDuration, formatVnd } from '../utils';
@@ -25,13 +24,10 @@ export function TourCard({ tour, categoryName }: TourCardProps) {
   const [coverFailed, setCoverFailed] = useState(false);
   const wishlist = useTourWishlist(tour.id);
 
-  const { stop: stopPreloader } = usePreloader();
-
   const handleCardClick = (e: React.MouseEvent) => {
     if (!isAuthenticated) {
       e.preventDefault();
       e.stopPropagation();
-      stopPreloader();
       setShowLoginModal(true);
     }
   };
@@ -40,7 +36,6 @@ export function TourCard({ tour, categoryName }: TourCardProps) {
     e.preventDefault();
     e.stopPropagation();
     if (!isAuthenticated || wishlist.status === 'guest') {
-      stopPreloader();
       setShowLoginModal(true);
       return;
     }

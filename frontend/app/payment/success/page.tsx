@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { LoadingState } from '@/components/shared';
+import { BoatPreloader } from '@/components/preloader';
 import { useGetPaymentQuery } from '@/features/payment';
 import { formatVnd } from '@/features/cart';
 
@@ -18,14 +19,36 @@ function PaymentSuccessContent() {
     pollingInterval: pollCount < 8 ? 2500 : 0,
   });
 
+  // Minimum duration ensures the GSAP boat sails smoothly without anti-flicker glitches
+  const [minTimePassed, setMinTimePassed] = useState(false);
+  const [preloaderActive, setPreloaderActive] = useState(Boolean(paymentId));
+  const [showPreloader, setShowPreloader] = useState(Boolean(paymentId));
+
+  useEffect(() => {
+    if (!paymentId) return;
+    const timer = setTimeout(() => {
+      setMinTimePassed(true);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [paymentId]);
+
   useEffect(() => {
     if (payment?.status === 'PAID') {
       setPollCount(100); // Stop polling once settled
-    } else {
+      if (minTimePassed) {
+        setPreloaderActive(false);
+      }
+    } else if (payment?.status === 'PENDING') {
+      // If still pending after 2 checks (~5s), release preloader to show pending status
+      if (pollCount >= 2 && minTimePassed) {
+        setPreloaderActive(false);
+      }
       const timer = setTimeout(() => setPollCount((prev) => prev + 1), 2500);
       return () => clearTimeout(timer);
+    } else if (!isLoading && minTimePassed) {
+      setPreloaderActive(false);
     }
-  }, [payment?.status, pollCount]);
+  }, [payment?.status, pollCount, isLoading, minTimePassed]);
 
   if (!paymentId) {
     return (
@@ -43,8 +66,29 @@ function PaymentSuccessContent() {
     );
   }
 
-  if (isLoading) {
-    return <LoadingState label="Đang đối soát và xác thực giao dịch với PayOS..." />;
+  // If initial load and preloader is active, preloader covers the screen
+  if (isLoading && !payment && !showPreloader) {
+    return <LoadingState label="Đang đối chiếu..." />;
+  }
+
+  return (
+    <>
+      {showPreloader && (
+        <BoatPreloader
+          active={preloaderActive}
+          subtitle="Đang đối chiếu"
+          accessibleLabel="Đang đối chiếu và xác thực giao dịch với PayOS..."
+          onExited={() => setShowPreloader(false)}
+        />
+      )}
+
+      {renderPaymentBody()}
+    </>
+  );
+
+  function renderPaymentBody() {
+  if (isLoading && !payment) {
+    return null;
   }
 
   if (isError || !payment) {
@@ -213,12 +257,13 @@ function PaymentSuccessContent() {
       </div>
     </div>
   );
+  }
 }
 
 export default function PaymentSuccessPage() {
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4 py-12">
-      <Suspense fallback={<LoadingState label="Đang kiểm tra giao dịch..." />}>
+      <Suspense fallback={<BoatPreloader active={true} subtitle="Đang đối chiếu" accessibleLabel="Đang đối chiếu và xác thực giao dịch với PayOS..." />}>
         <PaymentSuccessContent />
       </Suspense>
     </div>

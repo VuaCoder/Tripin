@@ -106,6 +106,19 @@ export const bookingApi = baseApi.injectEndpoints({
         { type: 'Booking', id: 'LIST' },
       ],
     }),
+
+    completeBooking: build.mutation<BookingDto, string>({
+      query: (id) => ({
+        url: `/bookings/${id}/complete`,
+        method: 'POST',
+      }),
+      transformResponse: (response: BookingApiResponse<BookingDto>) => response.data,
+      invalidatesTags: (_result, _error, id) => [
+        { type: 'Booking', id },
+        { type: 'Booking', id: 'LIST' },
+        { type: 'Review', id: 'ME' },
+      ],
+    }),
   }),
 });
 
@@ -115,4 +128,5 @@ export const {
   useGetMyBookingsQuery,
   useGetBookingByIdQuery,
   useCancelBookingMutation,
+  useCompleteBookingMutation,
 } = bookingApi;

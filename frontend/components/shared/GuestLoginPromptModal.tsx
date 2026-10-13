@@ -19,6 +19,10 @@ export function GuestLoginPromptModal({
 
   useEffect(() => {
     if (!isOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('tripri:navigation-end'));
     }
@@ -26,7 +30,11 @@ export function GuestLoginPromptModal({
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -40,7 +48,7 @@ export function GuestLoginPromptModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="login-prompt-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      className="fixed inset-0 z-50 overflow-y-auto"
     >
       {/* Backdrop */}
       <div
@@ -49,8 +57,10 @@ export function GuestLoginPromptModal({
         aria-hidden="true"
       />
 
-      {/* Modal Card */}
-      <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 text-center shadow-2xl animate-fadeInScale">
+      {/* Centering wrapper */}
+      <div className="flex min-h-full items-center justify-center p-4 sm:p-6 text-center">
+        {/* Modal Card */}
+        <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 text-center shadow-2xl animate-fadeInScale">
         {/* Close Button */}
         <button
           type="button"
@@ -94,5 +104,6 @@ export function GuestLoginPromptModal({
         </div>
       </div>
     </div>
+  </div>
   );
 }

@@ -39,6 +39,11 @@ export class BookingsController {
     sendOk(res, await this.service.cancelMine(userActor(req).userId, params.id, body.reason));
   };
 
+  completeMine: RequestHandler = async (req, res) => {
+    const { params } = validated<unknown, unknown, IdParams>(req);
+    sendOk(res, await this.service.completeMine(userActor(req).userId, params.id));
+  };
+
   listForAgency: RequestHandler = async (req, res) => {
     const { query } = validated<unknown, ListAgencyBookingsQueryInput>(req);
     const page = await this.service.listForAgency(userActor(req).userId, { ...query, status: query.status as BookingStatus | undefined });

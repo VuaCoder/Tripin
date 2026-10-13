@@ -203,6 +203,32 @@ export class BookingsService {
     return toBookingDto(cancelled);
   }
 
+  /**
+   * Mark trip as completed by the traveler. Allows traveler to proactively confirm they completed the tour
+   * and unlocks review eligibility. Transitions CONFIRMED -> COMPLETED and notifies agency/event listeners.
+   */
+  async completeMine(travelerId: string, id: string): Promise<BookingDto> {
+    const booking = await this.requireOwnedByTraveler(travelerId, id);
+    assertTransition(BOOKING_TRANSITIONS, booking.status as BookingStatus, BOOKING_STATUS.COMPLETED, ENTITY);
+
+    const done = await this.bookings.transition(booking.id, [BOOKING_STATUS.CONFIRMED], {
+      status: BOOKING_STATUS.COMPLETED,
+      completedAt: new Date(),
+    });
+    if (!done) throw AppError.conflict('The booking changed, please retry', 'CONCURRENT_UPDATE');
+
+    const facts = toBookingFacts(done);
+    await this.notifications.notify(facts.travelerId, {
+      type: NOTIFICATION_TYPE.BOOKING_COMPLETED,
+      title: 'Chuyến đi đã hoàn thành!',
+      body: `Chuyến đi "${facts.tourTitle}" của bạn đã hoàn tất. Hãy chia sẻ cảm nhận bằng một đánh giá nhé.`,
+      data: { bookingId: facts.id, tourId: facts.tourId },
+    });
+    await bookingEvents.emitCompleted(facts);
+
+    return toBookingDto(done);
+  }
+
   // ================================================================ Agency
 
   /** Use case "View bookings status". */

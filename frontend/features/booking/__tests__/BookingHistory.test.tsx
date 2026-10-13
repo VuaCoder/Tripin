@@ -6,13 +6,24 @@ const mockUseGetMyBookingsQuery = vi.fn();
 const mockCancelBooking = vi.fn();
 const mockCheckoutBooking = vi.fn();
 
+const mockCompleteBooking = vi.fn();
+
 vi.mock('../api/bookingApi', () => ({
   useGetMyBookingsQuery: (args: unknown) => mockUseGetMyBookingsQuery(args),
   useCancelBookingMutation: () => [mockCancelBooking, { isLoading: false }],
+  useCompleteBookingMutation: () => [mockCompleteBooking, { isLoading: false }],
 }));
 
 vi.mock('@/features/payment', () => ({
   useCheckoutBookingMutation: () => [mockCheckoutBooking, { isLoading: false }],
+}));
+
+vi.mock('@/features/review/api/reviewApi', () => ({
+  useGetMyReviewsQuery: () => ({ data: { items: [] }, refetch: vi.fn() }),
+}));
+
+vi.mock('@/features/review/components', () => ({
+  WriteReviewDialog: () => null,
 }));
 
 import { BookingHistoryPage } from '../components/BookingHistoryPage';

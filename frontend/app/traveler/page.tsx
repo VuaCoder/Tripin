@@ -99,8 +99,23 @@ export default function TravelerDashboardPage() {
         </div>
 
         {isLoading ? (
-          <div className="py-8">
-            <LoadingState label="Đang tải dữ liệu chuyến đi..." />
+          <div className="divide-y divide-slate-100 animate-pulse">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              >
+                <div className="space-y-2 flex-1">
+                  <div className="flex items-center gap-2">
+                    <div className="h-5 w-20 rounded bg-slate-200" />
+                    <div className="h-5 w-24 rounded-full bg-slate-200" />
+                  </div>
+                  <div className="h-4 w-3/4 max-w-sm rounded bg-slate-200" />
+                  <div className="h-3 w-40 rounded bg-slate-100" />
+                </div>
+                <div className="h-5 w-24 rounded bg-slate-200" />
+              </div>
+            ))}
           </div>
         ) : !bookingsData || bookingsData.items.length === 0 ? (
           <EmptyState

@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useGetTourDestinationsQuery } from '@/features/tours';
-import { usePreloader } from '@/components/preloader';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/features/auth';
 import { GuestLoginPromptModal } from '@/components/shared';
@@ -323,7 +322,6 @@ function getDynamicFlexibleMonths() {
 export default function Home() {
   const router = useRouter();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
-  const { start: startPreloader, stop: stopPreloader } = usePreloader();
   const [guestModalOpen, setGuestModalOpen] = useState(false);
   const [selectedTourPrompt, setSelectedTourPrompt] = useState<{ title?: string; href?: string }>({});
 
@@ -335,16 +333,12 @@ export default function Home() {
 
   const handleSearchTabChange = (tab: SearchTab) => {
     if (tab === searchTab) return;
-    startPreloader();
     setSearchTab(tab);
-    setTimeout(() => stopPreloader(), 380);
   };
 
   const handleCategoryTabChange = (tab: SearchTab) => {
     if (tab === categoryTab) return;
-    startPreloader();
     setCategoryTab(tab);
-    setTimeout(() => stopPreloader(), 380);
   };
 
   const handleProductCardClick = (product: ProductCard) => {
@@ -711,7 +705,7 @@ export default function Home() {
           )}
           <div className={`rounded-3xl backdrop-blur-2xl shadow-[0_25px_60px_-15px_rgba(8,126,139,0.22),0_12px_30px_-10px_rgba(0,0,0,0.1)] border border-white/80 relative z-30 ${activeDropdown ? 'bg-surface-container-low' : 'bg-white/90'}`}>
             {/* Search Category Tabs */}
-            <div className="flex border-b border-surface-container/60 bg-surface-container-low/50 overflow-x-auto justify-between rounded-t-3xl">
+            <div data-no-preloader="true" className="flex border-b border-surface-container/60 bg-surface-container-low/50 overflow-x-auto justify-between rounded-t-3xl">
                 {[
                   { key: 'tour', label: 'Tour du lịch', icon: 'tour' },
                   { key: 'stay', label: 'Khách sạn & Lưu trú', icon: 'hotel' },
@@ -723,6 +717,7 @@ export default function Home() {
                     <button
                       key={tab.key}
                       type="button"
+                      data-no-preloader="true"
                       onClick={() => handleSearchTabChange(tab.key as SearchTab)}
                       className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 text-sm font-semibold transition-all whitespace-nowrap ${
                         isActive
@@ -768,7 +763,7 @@ export default function Home() {
                       placeholder="Tìm kiếm điểm đến"
                       className="w-full bg-transparent text-sm font-semibold text-on-surface placeholder:text-on-surface-variant focus:outline-none cursor-pointer truncate"
                     />
-                    {searchQuery && (
+                    {activeDropdown === 'location' && searchQuery && (
                       <button 
                         type="button" 
                         title="Xóa điểm đến"
@@ -864,7 +859,7 @@ export default function Home() {
                       placeholder={datePlaceholder}
                       className="w-full bg-transparent text-sm font-semibold text-on-surface placeholder:text-on-surface-variant focus:outline-none cursor-pointer truncate"
                     />
-                    {hasDateValue && (
+                    {activeDropdown === 'date' && hasDateValue && (
                       <button 
                         type="button" 
                         title="Xóa thời gian"
@@ -1129,7 +1124,7 @@ export default function Home() {
                       <span className={`text-sm font-semibold truncate ${adults + children + infants > 0 ? 'text-on-surface' : 'text-on-surface-variant'}`}>
                         {adults + children + infants > 0 ? `${adults + children} khách${infants > 0 ? `, ${infants} em bé` : ''}${pets > 0 ? `, ${pets} thú cưng` : ''}` : 'Thêm khách'}
                       </span>
-                      {adults + children + infants + pets > 0 && (
+                      {activeDropdown === 'guests' && adults + children + infants + pets > 0 && (
                         <button 
                           type="button" 
                           title="Xóa lựa chọn khách"
@@ -1206,38 +1201,6 @@ export default function Home() {
                                <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setPets(pets + 1)}>+</button>
                              </div>
                           </div>
-                       </div>
-
-                       {/* Action bar at bottom of popup */}
-                       <div className="flex items-center justify-between pt-4 mt-6 border-t border-slate-100">
-                         <button
-                           type="button"
-                           disabled={adults + children + infants + pets === 0}
-                           onClick={(e) => {
-                             e.stopPropagation();
-                             setAdults(0);
-                             setChildren(0);
-                             setInfants(0);
-                             setPets(0);
-                           }}
-                           className={`text-xs font-bold transition-colors ${
-                             adults + children + infants + pets > 0
-                               ? 'text-slate-800 hover:text-red-600 underline cursor-pointer'
-                               : 'text-slate-300 cursor-not-allowed no-underline'
-                           }`}
-                         >
-                           Xóa tất cả
-                         </button>
-                         <button
-                           type="button"
-                           onClick={(e) => {
-                             e.stopPropagation();
-                             setActiveDropdown(null);
-                           }}
-                           className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-full transition-colors"
-                         >
-                           Áp dụng
-                         </button>
                        </div>
                     </div>
                   )}
@@ -1319,7 +1282,7 @@ export default function Home() {
           </div>
 
           {/* 4 Category Filter Buttons */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div data-no-preloader="true" className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
               { key: 'tour', label: 'Tour & Trải nghiệm', sub: 'Được kiểm định chất lượng', icon: 'tour' },
               { key: 'stay', label: 'Khách sạn & Lưu trú', sub: 'Resort & boutique chọn lọc', icon: 'hotel' },
@@ -1331,6 +1294,7 @@ export default function Home() {
                 <button
                   key={cat.key}
                   type="button"
+                  data-no-preloader="true"
                   onClick={() => handleCategoryTabChange(cat.key as SearchTab)}
                   className={`rounded-2xl p-4 flex items-center gap-3 transition-all duration-300 text-left ${
                     active
