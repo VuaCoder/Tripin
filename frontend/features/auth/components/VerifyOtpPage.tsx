@@ -163,7 +163,7 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
     <div className="min-h-screen font-vietnam text-body-md text-slate-800 flex flex-col justify-center items-center selection:bg-brand-teal selection:text-white relative bg-desk-travel px-4 py-8">
       <AuthBackground />
       {/* Back button navigates to homepage */}
-      <BackButton onClick={() => router.push('/')} />
+      <BackButton onClick={() => router.push('/home')} />
 
       {/* Floating Top-Right Notification Toast */}
       {(errorMsg || isSuccess || resendToast) && (

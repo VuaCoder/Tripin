@@ -1,4 +1,5 @@
 import { mailProvider, type MailProvider } from '../../integrations/mail';
+import { buildNotificationMail } from './notifications.mail';
 import { AppError } from '../../utils/app-error';
 import { buildPage, type Page } from '../../utils/pagination';
 import { logger } from '../../utils/logger';
@@ -98,7 +99,7 @@ export class NotificationsService {
   private async sendEmail(userId: string, input: NotifyInput): Promise<void> {
     const contact = await this.users.getContact(userId);
     if (!contact) return;
-    await this.mail.send({ to: contact.email, subject: input.title, text: `Hello ${contact.fullName},\n\n${input.body}\n\n— Tripri` });
+    await this.mail.send(buildNotificationMail(contact, input));
   }
 }
 

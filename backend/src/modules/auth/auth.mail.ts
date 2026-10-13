@@ -64,6 +64,11 @@ export function buildOtpMail(to: string, purpose: OtpPurpose, code: string): Mai
           <div>
             <span class="warning">⏱️ Mã có hiệu lực trong <strong>${ttl} phút</strong></span>
           </div>
+          ${purpose === 'REGISTER' ? `
+          <div style="font-size: 13px; color: #047857; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px 16px; border-radius: 10px; margin-top: 16px; text-align: left; line-height: 1.5;">
+            🎟️ <strong>Trải nghiệm tiện lợi:</strong> Sau khi xác thực, mọi vé điện tử khi đặt tour sẽ tự động gửi về email kèm mã QR để bạn sử dụng trực tiếp trên điện thoại di động mọi lúc mọi nơi mà không cần mang theo laptop hay chụp màn hình.
+          </div>
+          ` : ''}
           <p style="font-size: 12px; color: #94a3b8; margin-top: 16px;">Vì lý do bảo mật, tuyệt đối không chia sẻ mã OTP này cho ai khác.</p>
         </div>
         <div class="footer">

@@ -12,6 +12,7 @@ import { useAppSelector } from '@/store/hooks';
 import { selectUser, selectIsAuthenticated, useLogout } from '@/features/auth';
 import { homeForRole } from '@/features/auth/utils/roles';
 import { useGetWishlistQuery } from '@/features/wishlist';
+import { PremiumComingSoonModal } from '@/components/shared';
 import { cn } from '../ui/cn';
 
 type AccountMenuItem = {
@@ -28,17 +29,17 @@ function accountMenuForRole(role: AppRole): AccountMenuItem[] {
   if (role === 'TRAVELER') {
     return [
       {
-        label: 'Lịch sử đặt chỗ',
-        href: '/settings/history',
-        icon: 'confirmation_number',
-      },
-      {
-        label: 'Tour yêu thích',
+        label: 'Danh sách yêu thích',
         href: '/settings/wishlist',
         icon: 'favorite',
       },
       {
-        label: 'Hồ sơ cá nhân',
+        label: 'Chuyến đi',
+        href: '/settings/history',
+        icon: 'confirmation_number',
+      },
+      {
+        label: 'Hồ sơ',
         href: '/settings/profile',
         icon: 'person',
       },
@@ -56,6 +57,7 @@ export function Header({ role }: { role?: AppRole }) {
   const isHome = pathname === '/home';
   const [isScrolled, setIsScrolled] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [premiumModalOpen, setPremiumModalOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
   const [avatarFailed, setAvatarFailed] = useState(false);
@@ -139,21 +141,30 @@ export function Header({ role }: { role?: AppRole }) {
         </div>
 
         <div className="flex items-center gap-2.5 sm:gap-3">
-          {isTraveler && (
-            <Link
-              href="/settings/history"
-              aria-label="Tour của tôi"
-              title="Tour của tôi"
-              className={cn(
-                'inline-flex h-10 items-center justify-center gap-2 rounded-2xl border px-3 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container',
-                isTransparent
-                  ? 'border-white/40 bg-white/15 text-white hover:bg-white/25'
-                  : 'border-slate-200/80 bg-white/95 text-slate-700 shadow-sm hover:border-teal-200 hover:bg-teal-50 hover:text-primary-container',
-              )}
+          {(!user || user.role === 'TRAVELER') && (
+            <button
+              type="button"
+              onClick={() => setPremiumModalOpen(true)}
+              aria-label="Khám phá Tripri Premium"
+              title="Khám phá đặc quyền Tripri Premium"
+              className="group btn-premium-gold relative inline-flex h-10 items-center justify-center gap-1.5 rounded-2xl px-3.5 text-xs sm:text-sm font-bold shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[22px]" aria-hidden="true">confirmation_number</span>
-              <span className="hidden text-sm font-semibold xl:inline">Tour của tôi</span>
-            </Link>
+              <span className="premium-shine-rtl" aria-hidden="true" />
+              <span
+                className="material-symbols-outlined text-[20px] text-amber-950 shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+                aria-hidden="true"
+              >
+                workspace_premium
+              </span>
+              <span className="font-extrabold tracking-wide text-amber-950">Premium</span>
+              <span
+                className="material-symbols-outlined hidden text-[15px] text-amber-900/80 transition-transform duration-300 group-hover:scale-125 sm:inline"
+                aria-hidden="true"
+              >
+                auto_awesome
+              </span>
+            </button>
           )}
 
 
@@ -282,9 +293,14 @@ export function Header({ role }: { role?: AppRole }) {
             </div>
           )}
 
-          <MobileNavigation items={items} />
+          <MobileNavigation items={items} onOpenPremium={() => setPremiumModalOpen(true)} />
         </div>
       </div>
+
+      <PremiumComingSoonModal
+        isOpen={premiumModalOpen}
+        onClose={() => setPremiumModalOpen(false)}
+      />
     </header>
   );
 }

@@ -8,7 +8,7 @@ interface BackButtonProps {
   onClick?: () => void;
 }
 
-export const BackButton: React.FC<BackButtonProps> = ({ fallbackUrl = '/', onClick }) => {
+export const BackButton: React.FC<BackButtonProps> = ({ fallbackUrl = '/home', onClick }) => {
   const router = useRouter();
 
   const handleBack = () => {

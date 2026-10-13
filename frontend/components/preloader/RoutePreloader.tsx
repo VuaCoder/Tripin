@@ -17,7 +17,7 @@ const MAX_SAFETY_TIMEOUT_MS = 4500;
  * Inner component wrapped in Suspense that monitors App Router URL mutations.
  * When pathname or searchParams changes, notifies RoutePreloader that destination page is ready.
  */
-function RouteChangeWatcher({ onRouteSettled }: { onRouteSettled: () => void }) {
+function RouteChangeWatcher({ onRouteSettled }: { onRouteSettled: (pathname: string) => void }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -37,7 +37,7 @@ function RouteChangeWatcher({ onRouteSettled }: { onRouteSettled: () => void }) 
     // URL has changed: destination page is mounted and ready!
     if (previousUrlRef.current !== currentUrl) {
       previousUrlRef.current = currentUrl;
-      onRouteSettled();
+      onRouteSettled(pathname);
     }
   }, [pathname, searchParams, onRouteSettled]);
 
@@ -78,9 +78,12 @@ export function RoutePreloader() {
 
     // Safety recovery timeout: ensures preloader never gets stuck on network failures or aborted transitions
     safetyTimeoutRef.current = setTimeout(() => {
+      manualHoldRef.current = false;
       setIsActive(false);
     }, MAX_SAFETY_TIMEOUT_MS);
   }, [clearTimers]);
+
+  const manualHoldRef = useRef(false);
 
   // Trigger preloader exit
   const triggerFinish = useCallback(() => {
@@ -95,6 +98,18 @@ export function RoutePreloader() {
       setIsActive(false);
     }
   }, []);
+
+  const handleRouteSettled = useCallback(
+    (destPath: string) => {
+      // If the destination page is /tours (which manages its own data loading lifecycle)
+      // or manualHoldRef is active, do not dismiss the preloader yet!
+      if (destPath.startsWith('/tours') || manualHoldRef.current) {
+        return;
+      }
+      triggerFinish();
+    },
+    [triggerFinish],
+  );
 
   // Link click interceptor
   useEffect(() => {
@@ -114,6 +129,7 @@ export function RoutePreloader() {
       if (anchor.target && anchor.target !== '_self') return;
       if (anchor.hasAttribute('download')) return;
       if (anchor.getAttribute('rel')?.includes('external')) return;
+      if (anchor.dataset.noPreloader === 'true' || anchor.closest('[data-no-preloader="true"]')) return;
 
       const rawHref = anchor.getAttribute('href');
       if (!rawHref) return;
@@ -161,8 +177,14 @@ export function RoutePreloader() {
     };
 
     // Custom events for programmatic navigation
-    const handleCustomStart = () => triggerStart();
-    const handleCustomEnd = () => triggerFinish();
+    const handleCustomStart = () => {
+      manualHoldRef.current = true;
+      triggerStart();
+    };
+    const handleCustomEnd = () => {
+      manualHoldRef.current = false;
+      triggerFinish();
+    };
 
     document.addEventListener('click', handleDocumentClick, { capture: true });
     window.addEventListener('popstate', handlePopState);
@@ -181,13 +203,14 @@ export function RoutePreloader() {
   // Invoked when GSAP exit fade-out completes
   const handleExited = useCallback(() => {
     setIsMounted(false);
+    manualHoldRef.current = false;
     clearTimers();
   }, [clearTimers]);
 
   return (
     <>
       <Suspense fallback={null}>
-        <RouteChangeWatcher onRouteSettled={triggerFinish} />
+        <RouteChangeWatcher onRouteSettled={handleRouteSettled} />
       </Suspense>
 
       {isMounted && (

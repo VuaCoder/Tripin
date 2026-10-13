@@ -40,7 +40,7 @@ export const LoginPage: React.FC = () => {
       <AuthBackground />
 
       {/* Expandable Back Button returning to homepage */}
-      <BackButton onClick={() => router.push('/')} />
+      <BackButton onClick={() => router.push('/home')} />
 
       {/* Main Centered Auth Container */}
       <section className="w-full flex items-center justify-center relative z-10 my-auto">
