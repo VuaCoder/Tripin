@@ -13,6 +13,8 @@ export interface BoatPreloaderProps {
   onExited?: () => void;
   /** Optional custom accessible label. */
   accessibleLabel?: string;
+  /** Optional custom subtitle underneath Loading dots. Defaults to "Khám phá hành trình cùng Tripri". */
+  subtitle?: string;
 }
 
 /**
@@ -23,6 +25,7 @@ export function BoatPreloader({
   active,
   onExited,
   accessibleLabel = 'Đang tải nội dung chuyến đi...',
+  subtitle = 'Khám phá hành trình cùng Tripri',
 }: BoatPreloaderProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -237,7 +240,7 @@ export function BoatPreloader({
           </div>
 
           <p className="mt-1.5 text-xs sm:text-sm font-medium tracking-wide text-slate-500 font-vietnam">
-            Khám phá hành trình cùng Tripri
+            {subtitle}
           </p>
         </div>
 

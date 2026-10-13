@@ -11,7 +11,6 @@ import { MobileNavigation } from './MobileNavigation';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, selectIsAuthenticated, useLogout } from '@/features/auth';
 import { homeForRole } from '@/features/auth/utils/roles';
-import { useGetWishlistQuery } from '@/features/wishlist';
 import { PremiumComingSoonModal } from '@/components/shared';
 import { cn } from '../ui/cn';
 
@@ -103,12 +102,9 @@ export function Header({ role }: { role?: AppRole }) {
   const items = navigationByRole[effectiveRole] || navigationByRole.PUBLIC;
   const accountMenuItems = accountMenuForRole(effectiveRole);
 
-  const isTraveler = isAuthenticated && user?.role === 'TRAVELER';
-  const { data: wishlistData } = useGetWishlistQuery(undefined, { skip: !isTraveler });
-  const wishlistItemCount = wishlistData?.meta.total ?? wishlistData?.items.length ?? 0;
-
   return (
-    <header
+    <>
+      <header
       className={cn(
         'sticky top-0 left-0 right-0 z-50 transition-all duration-300',
         isTransparent
@@ -169,27 +165,7 @@ export function Header({ role }: { role?: AppRole }) {
 
 
 
-          {isTraveler && wishlistItemCount > 0 && (
-            <Link
-              href="/settings/wishlist"
-              aria-label="Tour yêu thích"
-              title="Tour yêu thích"
-              className={cn(
-                'relative inline-flex h-10 items-center justify-center gap-2 rounded-2xl border px-3 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container',
-                isTransparent
-                  ? 'border-white/40 bg-white/15 text-white hover:bg-white/25'
-                  : 'border-slate-200/80 bg-white/95 text-slate-700 shadow-sm hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600',
-              )}
-            >
-              <span className="material-symbols-outlined text-[22px]" aria-hidden="true">favorite</span>
-              <span className="hidden text-sm font-semibold lg:inline">Đã lưu</span>
-              {wishlistItemCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 font-mono text-[11px] font-bold text-white shadow-md">
-                  {wishlistItemCount > 99 ? '99+' : wishlistItemCount}
-                </span>
-              )}
-            </Link>
-          )}
+
 
           {isAuthenticated && user ? (
             <div ref={accountMenuRef} className="relative">
@@ -296,11 +272,12 @@ export function Header({ role }: { role?: AppRole }) {
           <MobileNavigation items={items} onOpenPremium={() => setPremiumModalOpen(true)} />
         </div>
       </div>
-
-      <PremiumComingSoonModal
-        isOpen={premiumModalOpen}
-        onClose={() => setPremiumModalOpen(false)}
-      />
     </header>
-  );
+
+    <PremiumComingSoonModal
+      isOpen={premiumModalOpen}
+      onClose={() => setPremiumModalOpen(false)}
+    />
+  </>
+);
 }

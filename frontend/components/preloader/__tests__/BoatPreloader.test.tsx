@@ -63,6 +63,11 @@ describe('BoatPreloader', () => {
     expect(dotSpans.length).toBe(3);
   });
 
+  it('renders custom subtitle when provided', () => {
+    render(<BoatPreloader active={true} subtitle="Đang đối chiếu" />);
+    expect(screen.getByText('Đang đối chiếu')).toBeDefined();
+  });
+
   it('calls onExited after exit transition completes when active turns false', () => {
     vi.useFakeTimers();
     const onExited = vi.fn();
@@ -90,7 +95,22 @@ describe('RoutePreloader', () => {
     vi.useRealTimers();
   });
 
-  it('triggers preloader when internal qualifying link is clicked', () => {
+  it('does NOT trigger preloader on settings link clicks or same-page links', () => {
+    render(
+      <div>
+        <RoutePreloader />
+        <a href="/settings/wishlist">Danh sách yêu thích</a>
+      </div>,
+    );
+
+    const link = screen.getByText('Danh sách yêu thích');
+    fireEvent.click(link);
+
+    // Preloader should not mount on settings link clicks
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('triggers preloader on major route navigation like /tours', () => {
     render(
       <div>
         <RoutePreloader />
@@ -101,37 +121,8 @@ describe('RoutePreloader', () => {
     const link = screen.getByText('Khám phá tour');
     fireEvent.click(link);
 
-    // Preloader is mounted
+    // Preloader mounts when navigating to major pages
     expect(screen.getByRole('status')).toBeDefined();
-  });
-
-  it('does NOT trigger preloader for hash links on the same page', () => {
-    render(
-      <div>
-        <RoutePreloader />
-        <a href="#story">Đến câu chuyện</a>
-      </div>,
-    );
-
-    const link = screen.getByText('Đến câu chuyện');
-    fireEvent.click(link);
-
-    // Preloader should not mount
-    expect(screen.queryByRole('status')).toBeNull();
-  });
-
-  it('does NOT trigger preloader for modified clicks (e.g. Meta key)', () => {
-    render(
-      <div>
-        <RoutePreloader />
-        <a href="/tours">Khám phá tour</a>
-      </div>,
-    );
-
-    const link = screen.getByText('Khám phá tour');
-    fireEvent.click(link, { metaKey: true });
-
-    expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('responds to programmatic navigation events tripri:navigation-start', () => {

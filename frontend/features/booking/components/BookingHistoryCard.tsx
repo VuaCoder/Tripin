@@ -9,9 +9,18 @@ import type { BookingDto } from '../types';
 export interface BookingHistoryCardProps {
   booking: BookingDto;
   onOpenCancel: (booking: BookingDto) => void;
+  onOpenComplete?: (booking: BookingDto) => void;
+  onOpenReview?: (booking: BookingDto) => void;
+  hasReviewed?: boolean;
 }
 
-export function BookingHistoryCard({ booking, onOpenCancel }: BookingHistoryCardProps) {
+export function BookingHistoryCard({
+  booking,
+  onOpenCancel,
+  onOpenComplete,
+  onOpenReview,
+  hasReviewed = false,
+}: BookingHistoryCardProps) {
   const pathname = usePathname();
   const [checkoutBooking, { isLoading: isPaying }] = useCheckoutBookingMutation();
 
@@ -126,6 +135,30 @@ export function BookingHistoryCard({ booking, onOpenCancel }: BookingHistoryCard
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Complete button if confirmed */}
+          {isConfirmed && onOpenComplete && (
+            <button
+              type="button"
+              onClick={() => onOpenComplete(booking)}
+              className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 text-xs font-bold shadow-sm shadow-emerald-600/20 transition-all"
+            >
+              <span className="material-symbols-outlined text-[15px]">task_alt</span>
+              <span>Hoàn thành tour</span>
+            </button>
+          )}
+
+          {/* Write review button if completed */}
+          {booking.status === 'COMPLETED' && !hasReviewed && onOpenReview && (
+            <button
+              type="button"
+              onClick={() => onOpenReview(booking)}
+              className="inline-flex items-center gap-1 rounded-xl bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-2 text-xs font-bold shadow-sm shadow-amber-500/20 transition-all"
+            >
+              <span className="material-symbols-outlined text-[15px]">star</span>
+              <span>Đánh giá tour</span>
+            </button>
+          )}
+
           {/* Cancel button if applicable */}
           {(isPending || isConfirmed) && (
             <button

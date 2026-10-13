@@ -280,9 +280,17 @@ export function ETicketCard({ ticket, onClose, showBackToBooking = true }: ETick
             <span className="material-symbols-outlined text-base">info</span>
             <span>Vui lòng mang theo CCCD/Hộ chiếu trùng khớp tên người liên hệ khi tham gia tour.</span>
           </div>
-          <span className="text-slate-400 font-mono text-[10px]">
-            Hỗ trợ 24/7: support@tripri.vn
-          </span>
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/tours/${ticket.tour.id}`}
+              className="no-print font-semibold text-primary-container hover:underline"
+            >
+              Xem trang đánh giá tour →
+            </Link>
+            <span className="text-slate-400 font-mono text-[10px]">
+              Hỗ trợ 24/7: support@tripri.vn
+            </span>
+          </div>
         </div>
       </article>
 

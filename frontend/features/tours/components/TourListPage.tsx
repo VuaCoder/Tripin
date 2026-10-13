@@ -8,7 +8,7 @@ import { useGetTourCategoriesQuery, useGetToursQuery } from '../api/toursApi';
 import type { ListToursArgs, TourSort } from '../types';
 import { TourCard } from './TourCard';
 import { formatCategoryName, formatVnd } from '../utils';
-import { usePreloader } from '@/components/preloader';
+import { cn } from '@/components/ui/cn';
 
 const PAGE_SIZE = 12;
 const SORT_OPTIONS: { value: TourSort; label: string }[] = [
@@ -47,6 +47,31 @@ const positiveIntParam = (value: string | null, fallback: number): number => {
 
 const stringParam = (value: string | null): string | undefined => value?.trim() || undefined;
 
+export function TourGridSkeleton() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 animate-pulse" role="status" aria-label="Đang tải danh sách tour">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div key={i} className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
+          <div className="aspect-[16/10] w-full bg-slate-200" />
+          <div className="flex flex-1 flex-col p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="h-4 w-24 rounded bg-slate-200" />
+              <div className="h-4 w-12 rounded bg-slate-100" />
+            </div>
+            <div className="h-5 w-4/5 rounded bg-slate-200" />
+            <div className="h-3 w-3/5 rounded bg-slate-100" />
+            <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+              <div className="h-5 w-24 rounded bg-slate-200" />
+              <div className="h-4 w-16 rounded bg-slate-100" />
+            </div>
+          </div>
+        </div>
+      ))}
+      <span className="sr-only">Đang tải danh sách tour...</span>
+    </div>
+  );
+}
+
 /** Trang khám phá tour — kết nối với endpoint tìm kiếm tour công khai. */
 export function TourListPage() {
   const router = useRouter();
@@ -55,6 +80,7 @@ export function TourListPage() {
   const queryString = searchParams.toString();
   const qFromUrl = searchParams.get('q') ?? '';
   const [searchTerm, setSearchTerm] = useState(qFromUrl);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   // --- Price slider local state ---
   const urlMinPrice = numberParam(searchParams.get('minPrice')) ?? PRICE_MIN;
@@ -95,28 +121,8 @@ export function TourListPage() {
   const { data, isLoading, isFetching, isError, refetch } = useGetToursQuery(args);
   const { data: categories = [] } = useGetTourCategoriesQuery();
 
-  const { start: startPreloader, stop: stopPreloader } = usePreloader();
-
-  // Preloader lifecycle: start when loading or refetching, dismiss ONLY when data is fully ready on screen
-  useEffect(() => {
-    if (isLoading || isFetching) {
-      startPreloader();
-    } else if (data || isError) {
-      stopPreloader();
-    }
-  }, [isLoading, isFetching, data, isError, startPreloader, stopPreloader]);
-
-  useEffect(() => {
-    return () => {
-      stopPreloader();
-    };
-  }, [stopPreloader]);
-
   const updateQuery = useCallback(
-    (changes: Record<string, string | number | undefined>, resetPage = true, triggerPreloader = true) => {
-      if (triggerPreloader) {
-        startPreloader();
-      }
+    (changes: Record<string, string | number | undefined>, resetPage = true) => {
       const next = new URLSearchParams(searchParams.toString());
       Object.entries(changes).forEach(([key, value]) => {
         if (value === undefined || value === '') next.delete(key);
@@ -126,14 +132,14 @@ export function TourListPage() {
       const nextQuery = next.toString();
       router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
     },
-    [pathname, router, searchParams, startPreloader],
+    [pathname, router, searchParams],
   );
 
   useEffect(() => setSearchTerm(qFromUrl), [qFromUrl]);
 
   useEffect(() => {
     if (searchTerm === qFromUrl) return;
-    const timer = window.setTimeout(() => updateQuery({ q: searchTerm }, true, false), 350);
+    const timer = window.setTimeout(() => updateQuery({ q: searchTerm || undefined }, true), 350);
     return () => window.clearTimeout(timer);
   }, [qFromUrl, searchTerm, updateQuery]);
 
@@ -148,7 +154,6 @@ export function TourListPage() {
   };
 
   const clearFilters = () => {
-    startPreloader();
     setSearchTerm('');
     setLocalMinPrice(PRICE_MIN);
     setLocalMaxPrice(PRICE_MAX);
@@ -185,14 +190,12 @@ export function TourListPage() {
     searchParams.get('guests'),
   ].filter(Boolean).length;
 
-  if (isLoading && !data) {
-    return null;
-  }
-  if (isError || !data) {
+  if (isError && !data) {
     return <ErrorState title="Không tải được danh sách tour" message="Vui lòng kiểm tra kết nối và thử lại." onAction={() => void refetch()} />;
   }
 
-  const { items, meta } = data;
+  const items = data?.items ?? [];
+  const meta = data?.meta ?? { page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 };
   const firstResult = meta.total === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
   const lastResult = Math.min(meta.page * meta.limit, meta.total);
   const minPricePercent = ((localMinPrice - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100;
@@ -207,11 +210,55 @@ export function TourListPage() {
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Khám phá tour</h1>
           <p className="mt-1 text-sm text-slate-500">Tìm hành trình phù hợp từ hàng trăm lựa chọn trên Tripri</p>
         </div>
-        <label className="relative block w-full max-w-md" htmlFor="tour-search">
-          <span className="sr-only">Tìm kiếm tour</span>
-          <span className="material-symbols-outlined pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[20px] text-slate-400" aria-hidden="true">search</span>
-          <Input id="tour-search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Tìm theo tên tour, điểm đến..." className="min-h-11 rounded-xl border-slate-200 bg-white py-2.5 pl-11 pr-4 shadow-sm" />
-        </label>
+
+        {/* Thanh tìm kiếm kiểu Expand thu hút người dùng khi onFocus */}
+        <div className="relative flex justify-end w-full sm:w-auto">
+          <label
+            className={cn(
+              "relative flex items-center w-full transition-all duration-300 ease-in-out cursor-pointer",
+              isSearchFocused || searchTerm.trim().length > 0
+                ? "sm:w-80 md:w-96 shadow-md ring-2 ring-primary-container/20 rounded-xl"
+                : "sm:w-60 md:w-64 rounded-xl"
+            )}
+            htmlFor="tour-search"
+          >
+            <span className="sr-only">Tìm kiếm tour</span>
+            <span
+              className={cn(
+                "material-symbols-outlined pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[20px] transition-colors",
+                isSearchFocused ? "text-primary-container" : "text-slate-400"
+              )}
+              aria-hidden="true"
+            >
+              search
+            </span>
+            <Input
+              id="tour-search"
+              value={searchTerm}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Tìm theo tên tour, điểm đến..."
+              className={cn(
+                "min-h-11 w-full rounded-xl border-slate-200 bg-white py-2.5 pl-10 pr-9 text-sm shadow-sm transition-all focus:border-primary-container",
+                isSearchFocused ? "border-primary-container" : ""
+              )}
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  updateQuery({ q: undefined }, true);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-0.5 rounded-full cursor-pointer"
+                aria-label="Xóa tìm kiếm"
+              >
+                <span className="material-symbols-outlined text-[16px]">close</span>
+              </button>
+            )}
+          </label>
+        </div>
       </div>
 
       {/* Danh mục tour */}
@@ -414,10 +461,18 @@ export function TourListPage() {
         {/* ======================== KẾT QUẢ ======================== */}
         <section aria-live="polite" aria-busy={isFetching}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-slate-600"><strong className="text-slate-900">{meta.total}</strong> tour phù hợp{meta.total > 0 && <span className="hidden sm:inline"> · Hiển thị {firstResult}–{lastResult}</span>}</p>
+            {isLoading && !data ? (
+              <div className="h-5 w-36 rounded bg-slate-200 animate-pulse" />
+            ) : (
+              <p className="text-sm text-slate-600">
+                <strong className="text-slate-900">{meta.total}</strong> tour phù hợp{meta.total > 0 && <span className="hidden sm:inline"> · Hiển thị {firstResult}–{lastResult}</span>}
+              </p>
+            )}
           </div>
 
-          {items.length === 0 ? (
+          {isLoading && !data ? (
+            <TourGridSkeleton />
+          ) : items.length === 0 ? (
             <EmptyState title="Chưa tìm thấy tour phù hợp" description="Thử thay đổi từ khóa hoặc mở rộng bộ lọc để khám phá thêm lựa chọn." actionLabel="Xóa bộ lọc" onAction={clearFilters} />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

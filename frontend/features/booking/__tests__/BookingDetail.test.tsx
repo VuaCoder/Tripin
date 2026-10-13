@@ -1,10 +1,12 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BookingDto } from '../types';
 
 const mockUseGetBookingByIdQuery = vi.fn();
 const mockCancelBooking = vi.fn();
 const mockCheckoutBooking = vi.fn();
+
+const mockCompleteBooking = vi.fn();
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -15,6 +17,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('../api/bookingApi', () => ({
   useGetBookingByIdQuery: (id: string) => mockUseGetBookingByIdQuery(id),
   useCancelBookingMutation: () => [mockCancelBooking, { isLoading: false }],
+  useCompleteBookingMutation: () => [mockCompleteBooking, { isLoading: false }],
 }));
 
 vi.mock('@/features/payment', () => ({
@@ -24,6 +27,14 @@ vi.mock('@/features/payment', () => ({
 vi.mock('@/features/e-ticket', () => ({
   useGetETicketByBookingIdQuery: () => ({ data: undefined, isLoading: false }),
   ETicketModal: () => null,
+}));
+
+vi.mock('@/features/review/api/reviewApi', () => ({
+  useGetMyReviewsQuery: () => ({ data: { items: [] }, refetch: vi.fn() }),
+}));
+
+vi.mock('@/features/review/components', () => ({
+  WriteReviewDialog: () => null,
 }));
 
 import { BookingDetailPage } from '../components/BookingDetailPage';
@@ -118,5 +129,44 @@ describe('BookingDetailPage', () => {
     await waitFor(() => {
       expect(mockCheckoutBooking).toHaveBeenCalledWith('b-1');
     });
+  });
+
+  it('renders "Hoàn thành chuyến đi" button when CONFIRMED and allows completing trip', async () => {
+    mockCompleteBooking.mockReturnValue({
+      unwrap: () => Promise.resolve({ ...mockBooking, status: 'COMPLETED' }),
+    });
+
+    mockUseGetBookingByIdQuery.mockReturnValue({
+      isLoading: false,
+      data: { ...mockBooking, status: 'CONFIRMED', isPaid: true },
+    });
+
+    render(<BookingDetailPage bookingId="b-1" />);
+
+    const completeButtons = screen.getAllByRole('button', { name: /Hoàn thành chuyến đi/i });
+    expect(completeButtons.length).toBeGreaterThan(0);
+    fireEvent.click(completeButtons[0]);
+
+    // Complete modal opens
+    const dialog = screen.getByRole('dialog', { name: 'Xác nhận hoàn thành chuyến đi' });
+    expect(dialog).toBeTruthy();
+    const confirmButton = within(dialog).getByRole('button', { name: /Xác nhận hoàn thành/i });
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => {
+      expect(mockCompleteBooking).toHaveBeenCalledWith('b-1');
+    });
+  });
+
+  it('renders "Đánh giá tour" button when COMPLETED', () => {
+    mockUseGetBookingByIdQuery.mockReturnValue({
+      isLoading: false,
+      data: { ...mockBooking, status: 'COMPLETED', isPaid: true },
+    });
+
+    render(<BookingDetailPage bookingId="b-1" />);
+
+    const reviewButtons = screen.getAllByRole('button', { name: /Đánh giá/i });
+    expect(reviewButtons.length).toBeGreaterThan(0);
   });
 });

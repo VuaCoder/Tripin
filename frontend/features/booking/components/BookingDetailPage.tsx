@@ -6,11 +6,16 @@ import { useCheckoutBookingMutation } from '@/features/payment';
 import { LoadingState } from '@/components/shared';
 import {
   useCancelBookingMutation,
+  useCompleteBookingMutation,
   useGetBookingByIdQuery,
 } from '../api/bookingApi';
 import { BookingStatusBadge } from './BookingStatusBadge';
 import { CancelBookingModal } from './CancelBookingModal';
+import { CompleteBookingModal } from './CompleteBookingModal';
 import { ETicketModal, useGetETicketByBookingIdQuery } from '@/features/e-ticket';
+import { WriteReviewDialog } from '@/features/review/components';
+import { useGetMyReviewsQuery } from '@/features/review/api/reviewApi';
+import type { MyReview } from '@/features/review/types';
 
 export interface BookingDetailPageProps {
   bookingId: string;
@@ -24,10 +29,22 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
   const { data: booking, isLoading, isError, error, refetch } = useGetBookingByIdQuery(bookingId);
   const [checkoutBooking, { isLoading: isPaying }] = useCheckoutBookingMutation();
   const [cancelBooking, { isLoading: isCancelling }] = useCancelBookingMutation();
+  const [completeBooking, { isLoading: isCompleting }] = useCompleteBookingMutation();
 
   const [openCancelModal, setOpenCancelModal] = useState(false);
+  const [openCompleteModal, setOpenCompleteModal] = useState(false);
   const [openTicketModal, setOpenTicketModal] = useState(false);
+  const [openReviewDialog, setOpenReviewDialog] = useState(false);
   const [notice, setNotice] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const { data: myReviewsData, refetch: refetchReviews } = useGetMyReviewsQuery(
+    { page: 1, limit: 100 },
+    { skip: !booking },
+  );
+
+  const hasReviewedThisBooking = Boolean(
+    myReviewsData?.items?.some((r) => r.bookingId === bookingId),
+  );
 
   const isEligibleForTicket = Boolean(booking?.isPaid && (booking?.status === 'CONFIRMED' || booking?.status === 'COMPLETED'));
   const { data: ticket } = useGetETicketByBookingIdQuery(bookingId, { skip: !isEligibleForTicket });
@@ -58,6 +75,33 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
         'Không thể hủy đặt chỗ vào lúc này.';
       setNotice({ message: errorMsg, type: 'error' });
     }
+  };
+
+  const handleConfirmComplete = async (id: string) => {
+    try {
+      await completeBooking(id).unwrap();
+      setOpenCompleteModal(false);
+      setNotice({
+        message: 'Tuyệt vời! Chuyến đi đã được ghi nhận hoàn thành. Bạn có thể viết đánh giá ngay bây giờ!',
+        type: 'success',
+      });
+      // Proactively open review dialog for seamless UX
+      setOpenReviewDialog(true);
+    } catch (err: unknown) {
+      const errorMsg =
+        (err as { data?: { error?: { message?: string } } })?.data?.error?.message ||
+        'Không thể cập nhật trạng thái hoàn thành lúc này.';
+      setNotice({ message: errorMsg, type: 'error' });
+    }
+  };
+
+  const handleReviewCreated = (review: MyReview) => {
+    setOpenReviewDialog(false);
+    setNotice({
+      message: 'Cảm ơn bạn đã đánh giá chuyến đi! Đánh giá của bạn đã được ghi nhận.',
+      type: 'success',
+    });
+    void refetchReviews();
   };
 
   if (isLoading) {
@@ -189,6 +233,37 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
                 <span className="material-symbols-outlined text-[18px]">airplane_ticket</span>
                 <span>Xem E-ticket</span>
               </button>
+            )}
+
+            {/* Traveler Proactive Complete Action */}
+            {isConfirmed && (
+              <button
+                type="button"
+                onClick={() => setOpenCompleteModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 text-xs font-bold shadow-sm shadow-emerald-600/20 transition-all"
+              >
+                <span className="material-symbols-outlined text-[18px]">task_alt</span>
+                <span>Hoàn thành chuyến đi</span>
+              </button>
+            )}
+
+            {/* Review Button when COMPLETED */}
+            {isCompleted && !hasReviewedThisBooking && (
+              <button
+                type="button"
+                onClick={() => setOpenReviewDialog(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 text-xs font-bold shadow-sm shadow-amber-500/20 transition-all"
+              >
+                <span className="material-symbols-outlined text-[18px]">star</span>
+                <span>Đánh giá tour</span>
+              </button>
+            )}
+
+            {isCompleted && hasReviewedThisBooking && (
+              <span className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3.5 py-2.5 text-xs font-semibold text-slate-600">
+                <span className="material-symbols-outlined text-amber-500 text-[18px]">check_circle</span>
+                <span>Đã đánh giá</span>
+              </span>
             )}
 
             {(isPending || isConfirmed) && (
@@ -474,6 +549,37 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
               </button>
             )}
 
+            {/* Sidebar Proactive Complete Action */}
+            {isConfirmed && (
+              <button
+                type="button"
+                onClick={() => setOpenCompleteModal(true)}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 font-bold text-xs shadow-md shadow-emerald-600/20 transition-all"
+              >
+                <span className="material-symbols-outlined text-base">task_alt</span>
+                <span>Xác nhận hoàn thành chuyến đi</span>
+              </button>
+            )}
+
+            {/* Sidebar Write Review Action */}
+            {isCompleted && !hasReviewedThisBooking && (
+              <button
+                type="button"
+                onClick={() => setOpenReviewDialog(true)}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white py-3 px-4 font-bold text-xs shadow-md shadow-amber-500/20 transition-all"
+              >
+                <span className="material-symbols-outlined text-base">star</span>
+                <span>Đánh giá chuyến đi này</span>
+              </button>
+            )}
+
+            {isCompleted && hasReviewedThisBooking && (
+              <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-center text-xs font-semibold text-amber-800 flex items-center justify-center gap-1.5">
+                <span className="material-symbols-outlined text-amber-600 text-base">check_circle</span>
+                <span>Bạn đã gửi đánh giá cho chuyến đi này</span>
+              </div>
+            )}
+
             {isConfirmed && (
               <Link
                 href="/tours"
@@ -496,12 +602,45 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
         onConfirm={handleConfirmCancel}
       />
 
+      {/* Complete Trip Confirmation Modal */}
+      <CompleteBookingModal
+        open={openCompleteModal}
+        booking={booking}
+        isLoading={isCompleting}
+        onClose={() => setOpenCompleteModal(false)}
+        onConfirm={handleConfirmComplete}
+      />
+
       {/* E-Ticket Modal */}
       <ETicketModal
         open={openTicketModal}
         ticket={ticket ?? null}
         onClose={() => setOpenTicketModal(false)}
       />
+
+      {/* Write Review Dialog */}
+      {isCompleted && (
+        <WriteReviewDialog
+          open={openReviewDialog}
+          onClose={() => setOpenReviewDialog(false)}
+          tourTitle={booking.tour.title}
+          eligibleBookings={[
+            {
+              id: booking.id,
+              bookingCode: booking.bookingCode,
+              status: booking.status,
+              tour: { id: booking.tour.id, title: booking.tour.title },
+              departureDate: booking.departureDate,
+              participants: booking.participants,
+            },
+          ]}
+          onCreated={handleReviewCreated}
+          onDuplicate={() => {
+            void refetchReviews();
+            setOpenReviewDialog(false);
+          }}
+        />
+      )}
     </div>
   );
 }

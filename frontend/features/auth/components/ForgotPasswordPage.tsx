@@ -137,17 +137,6 @@ export const ForgotPasswordPage: React.FC = () => {
                   </button>
                 </form>
               </div>
-
-              <div className="mt-6 pt-4 border-t border-slate-100 flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => router.push('/login')}
-                  className="text-xs text-slate-500 hover:text-brand-teal transition-colors font-medium flex items-center gap-1 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-sm">arrow_back</span>
-                  <span>Quay lại Đăng nhập</span>
-                </button>
-              </div>
             </div>
           </div>
         </div>

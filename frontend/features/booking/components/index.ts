@@ -3,4 +3,6 @@ export * from './BookingStatusBadge';
 export * from './CancelBookingModal';
 export * from './BookingHistoryCard';
 export * from './BookingHistoryPage';
+export * from './BookingHistorySkeleton';
 export * from './BookingDetailPage';
+export * from './CompleteBookingModal';

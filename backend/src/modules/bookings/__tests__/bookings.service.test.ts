@@ -228,6 +228,32 @@ describe('cancelMine', () => {
   });
 });
 
+describe('completeMine', () => {
+  it('marks a CONFIRMED booking as COMPLETED, notifies the traveler, and emits completed event', async () => {
+    const handler = vi.fn();
+    bookingEvents.onCompleted(handler);
+    const { service, db, notifications } = make([booking({ status: 'CONFIRMED', isPaid: true })]);
+
+    const result = await service.completeMine('u1', 'b1');
+
+    expect(result.status).toBe('COMPLETED');
+    expect(db[0].status).toBe('COMPLETED');
+    expect(db[0].completedAt).toBeInstanceOf(Date);
+    expect(notifications.notify).toHaveBeenCalledWith('u1', expect.objectContaining({ type: 'BOOKING_COMPLETED' }));
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({ id: 'b1', status: 'COMPLETED' }));
+  });
+
+  it('refuses to complete a PENDING or CANCELLED booking', async () => {
+    const { service } = make([booking({ status: 'PENDING' })]);
+    await expect(service.completeMine('u1', 'b1')).rejects.toMatchObject({ code: 'INVALID_STATE_TRANSITION' });
+  });
+
+  it('refuses to complete another traveler booking', async () => {
+    const { service } = make([booking({ travelerId: 'other', status: 'CONFIRMED' })]);
+    await expect(service.completeMine('u1', 'b1')).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
 describe('payment hooks', () => {
   it('getPayable returns the server-side amount only for a live PENDING booking', async () => {
     const { service } = make([booking()]);

@@ -100,10 +100,9 @@ export function RoutePreloader() {
   }, []);
 
   const handleRouteSettled = useCallback(
-    (destPath: string) => {
-      // If the destination page is /tours (which manages its own data loading lifecycle)
-      // or manualHoldRef is active, do not dismiss the preloader yet!
-      if (destPath.startsWith('/tours') || manualHoldRef.current) {
+    () => {
+      // If manualHoldRef is active (e.g. post-payment custom reconciliation flow), do not auto dismiss!
+      if (manualHoldRef.current) {
         return;
       }
       triggerFinish();
@@ -111,21 +110,19 @@ export function RoutePreloader() {
     [triggerFinish],
   );
 
-  // Link click interceptor
+  // Link click interceptor and history listener
   useEffect(() => {
     const handleDocumentClick = (event: MouseEvent) => {
-      // Ignore prevented clicks
-      if (event.defaultPrevented) return;
-      // Primary button only
-      if (event.button !== 0) return;
-      // Modifier keys (Cmd, Ctrl, Shift, Alt) open in new tabs/windows
-      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-
+      // Find nearest anchor
       const target = event.target as HTMLElement | null;
-      const anchor = target?.closest('a');
+      if (!target) return;
+      const anchor = target.closest('a');
       if (!anchor) return;
 
-      // Ignore external targets, downloads, or custom protocols
+      // Ignore special clicks (new tab, modifiers, download, external)
+      if (event.defaultPrevented) return;
+      if (event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       if (anchor.target && anchor.target !== '_self') return;
       if (anchor.hasAttribute('download')) return;
       if (anchor.getAttribute('rel')?.includes('external')) return;
@@ -133,50 +130,44 @@ export function RoutePreloader() {
 
       const rawHref = anchor.getAttribute('href');
       if (!rawHref) return;
-      if (
-        rawHref.startsWith('mailto:') ||
-        rawHref.startsWith('tel:') ||
-        rawHref.startsWith('javascript:')
-      ) {
+
+      // Ignore hash links, javascript:, mailto:, tel:
+      if (rawHref.startsWith('#') || rawHref.startsWith('javascript:') || rawHref.startsWith('mailto:') || rawHref.startsWith('tel:')) {
         return;
       }
 
+      // Check URL
       try {
-        const dest = new URL(anchor.href, window.location.href);
+        const url = new URL(anchor.href, window.location.href);
 
-        // Cross-origin: let standard browser navigation handle it
-        if (dest.origin !== window.location.origin) return;
+        // Ignore different origins
+        if (url.origin !== window.location.origin) return;
 
-        // Hash jump on the current page: ignore
-        if (
-          dest.pathname === window.location.pathname &&
-          dest.search === window.location.search &&
-          dest.hash
-        ) {
+        // 1. DO NOT show preloader when navigating inside settings or traveler profile pages
+        if (url.pathname.startsWith('/settings') || url.pathname.startsWith('/traveler')) {
           return;
         }
 
-        // Exact same URL: ignore
-        if (
-          dest.pathname === window.location.pathname &&
-          dest.search === window.location.search
-        ) {
+        // 2. DO NOT show preloader for query-only / in-page changes on the same route
+        // (e.g. changing tabs on /home or typing/filtering search on /tours)
+        if (url.pathname === window.location.pathname) {
           return;
         }
 
-        // Legitimate client-side navigation!
+        // 3. For navigation between major routes (e.g. / <-> /home <-> /tours <-> /tours/:id), trigger preloader!
         triggerStart();
       } catch {
-        // Invalid URL, no-op
+        // invalid URL: ignore
       }
     };
 
-    // Popstate (browser back/forward button)
     const handlePopState = () => {
+      const currentPath = window.location.pathname;
+      if (currentPath.startsWith('/settings') || currentPath.startsWith('/traveler')) return;
       triggerStart();
     };
 
-    // Custom events for programmatic navigation
+    // Custom events for programmatic navigation (e.g. post-payment reconciliation)
     const handleCustomStart = () => {
       manualHoldRef.current = true;
       triggerStart();

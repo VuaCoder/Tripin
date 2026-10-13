@@ -3,11 +3,14 @@
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui';
-import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
+import { EmptyState, ErrorState } from '@/components/shared';
 import { getApiErrorMessage } from '@/features/auth';
 import { useGetWishlistQuery, useRemoveFromWishlistMutation } from '../api/wishlistApi';
 import { WISHLIST_UI_LIMITS } from '../types';
 import { WishlistItemCard } from './WishlistItemCard';
+import { WishlistSkeleton } from './WishlistSkeleton';
+import { ConfirmDeleteWishlistModal } from './ConfirmDeleteWishlistModal';
+import type { WishlistItem } from '../types';
 
 /** The traveler's saved tours: loading / error / empty / list states, remove, and pagination. */
 export function WishlistPage() {
@@ -20,16 +23,32 @@ export function WishlistPage() {
   const [removeFromWishlist] = useRemoveFromWishlistMutation();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<WishlistItem | null>(null);
 
   const items = data?.items ?? [];
   const meta = data?.meta;
 
-  const handleRemove = useCallback(
-    async (tourId: string) => {
+  const handleRequestRemove = useCallback(
+    (tourId: string) => {
+      const targetItem = items.find((i) => i.tourId === tourId) ?? {
+        tourId,
+        addedAt: '',
+        available: false,
+      };
+      setItemToDelete(targetItem);
+    },
+    [items],
+  );
+
+  const handleConfirmRemove = useCallback(
+    async () => {
+      if (!itemToDelete) return;
+      const tourId = itemToDelete.tourId;
       setActionError(null);
       setBusyId(tourId);
       try {
         await removeFromWishlist(tourId).unwrap();
+        setItemToDelete(null);
         // Removing the last card of a later page would leave an empty page: step back one.
         if (page > 1 && items.length === 1) setPage(page - 1);
       } catch (error) {
@@ -38,10 +57,10 @@ export function WishlistPage() {
         setBusyId(null);
       }
     },
-    [removeFromWishlist, page, items.length],
+    [itemToDelete, removeFromWishlist, page, items.length],
   );
 
-  if (isLoading) return <LoadingState label="Đang tải danh sách yêu thích..." />;
+  if (isLoading) return <WishlistSkeleton />;
   if (isError || !data) {
     return (
       <ErrorState
@@ -91,7 +110,12 @@ export function WishlistPage() {
       ) : (
         <div className="flex flex-col gap-4">
           {items.map((item) => (
-            <WishlistItemCard key={item.tourId} item={item} busy={busyId === item.tourId} onRemove={handleRemove} />
+            <WishlistItemCard
+              key={item.tourId}
+              item={item}
+              busy={busyId === item.tourId}
+              onRemove={handleRequestRemove}
+            />
           ))}
         </div>
       )}
@@ -109,6 +133,16 @@ export function WishlistPage() {
           </Button>
         </nav>
       )}
+
+      <ConfirmDeleteWishlistModal
+        isOpen={Boolean(itemToDelete)}
+        item={itemToDelete}
+        isLoading={Boolean(busyId)}
+        onClose={() => {
+          if (!busyId) setItemToDelete(null);
+        }}
+        onConfirm={handleConfirmRemove}
+      />
     </div>
   );
 }
