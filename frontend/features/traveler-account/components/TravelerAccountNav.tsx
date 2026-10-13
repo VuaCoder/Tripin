@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const navItems = [
-  { name: 'Hồ sơ cá nhân', href: '/settings/profile', icon: 'person' },
-  { name: 'Lịch sử đặt chỗ', href: '/settings/history', icon: 'confirmation_number' },
-  { name: 'Tour yêu thích', href: '/settings/wishlist', icon: 'favorite' },
+  { name: 'Danh sách yêu thích', href: '/settings/wishlist', icon: 'favorite' },
+  { name: 'Chuyến đi', href: '/settings/history', icon: 'confirmation_number' },
+  { name: 'Hồ sơ', href: '/settings/profile', icon: 'person' },
   { name: 'Bảo mật & 2FA', href: '/settings/profile/security', icon: 'shield_lock' },
 ];
 

@@ -38,9 +38,19 @@ export class ETicketsService {
       booking.travelerId,
       {
         type: NOTIFICATION_TYPE.ETICKET_ISSUED,
-        title: 'Your e-ticket is ready',
-        body: `E-ticket ${ticket.doc.code} for "${booking.tourTitle}" (booking ${booking.bookingCode}) is available in your account.`,
-        data: { bookingId: booking.id, eTicketId: ticket.doc.id },
+        title: `Vé điện tử ${ticket.doc.code} cho ${booking.tourTitle}`,
+        body: `Vé điện tử ${ticket.doc.code} cho "${booking.tourTitle}" (booking ${booking.bookingCode}) đã sẵn sàng trong tài khoản của bạn.`,
+        data: {
+          bookingId: booking.id,
+          eTicketId: ticket.doc.id,
+          ticketCode: ticket.doc.code,
+          bookingCode: booking.bookingCode,
+          tourTitle: booking.tourTitle,
+          departureDate: booking.departureDate instanceof Date ? booking.departureDate.toISOString() : String(booking.departureDate),
+          participants: String(booking.participants),
+          contactName: booking.contactName,
+          totalAmount: String(booking.totalAmount),
+        },
       },
       { email: true },
     );

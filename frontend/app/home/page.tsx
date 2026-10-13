@@ -2,7 +2,12 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useGetTourDestinationsQuery } from '@/features/tours';
+import { usePreloader } from '@/components/preloader';
+import { useAppSelector } from '@/store/hooks';
+import { selectIsAuthenticated } from '@/features/auth';
+import { GuestLoginPromptModal } from '@/components/shared';
 
 interface Slide {
   badge: string;
@@ -316,11 +321,40 @@ function getDynamicFlexibleMonths() {
 }
 
 export default function Home() {
+  const router = useRouter();
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const { start: startPreloader, stop: stopPreloader } = usePreloader();
+  const [guestModalOpen, setGuestModalOpen] = useState(false);
+  const [selectedTourPrompt, setSelectedTourPrompt] = useState<{ title?: string; href?: string }>({});
+
   const [currentSlide, setCurrentSlide] = useState(0);
   const [searchTab, setSearchTab] = useState<SearchTab>('tour');
   const [categoryTab, setCategoryTab] = useState<SearchTab>('tour');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchSticky, setIsSearchSticky] = useState(false);
+
+  const handleSearchTabChange = (tab: SearchTab) => {
+    if (tab === searchTab) return;
+    startPreloader();
+    setSearchTab(tab);
+    setTimeout(() => stopPreloader(), 380);
+  };
+
+  const handleCategoryTabChange = (tab: SearchTab) => {
+    if (tab === categoryTab) return;
+    startPreloader();
+    setCategoryTab(tab);
+    setTimeout(() => stopPreloader(), 380);
+  };
+
+  const handleProductCardClick = (product: ProductCard) => {
+    if (!isAuthenticated) {
+      setSelectedTourPrompt({ title: product.title, href: '/tours' });
+      setGuestModalOpen(true);
+      return;
+    }
+    router.push('/tours');
+  };
 
   const flexibleMonths = useMemo(() => getDynamicFlexibleMonths(), []);
 
@@ -689,7 +723,7 @@ export default function Home() {
                     <button
                       key={tab.key}
                       type="button"
-                      onClick={() => setSearchTab(tab.key as SearchTab)}
+                      onClick={() => handleSearchTabChange(tab.key as SearchTab)}
                       className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 text-sm font-semibold transition-all whitespace-nowrap ${
                         isActive
                           ? 'text-primary-container border-b-2 border-primary-container bg-surface-container-lowest shadow-sm'
@@ -1297,7 +1331,7 @@ export default function Home() {
                 <button
                   key={cat.key}
                   type="button"
-                  onClick={() => setCategoryTab(cat.key as SearchTab)}
+                  onClick={() => handleCategoryTabChange(cat.key as SearchTab)}
                   className={`rounded-2xl p-4 flex items-center gap-3 transition-all duration-300 text-left ${
                     active
                       ? 'bg-primary-container text-white shadow-lg shadow-primary-container/30 -translate-y-1'
@@ -1325,7 +1359,8 @@ export default function Home() {
             {CATEGORY_PRODUCTS[categoryTab].map((item) => (
               <div
                 key={item.id}
-                className="rounded-3xl bg-white shadow-[0_12px_35px_-6px_rgba(0,0,0,0.08)] hover:shadow-[0_22px_45px_-6px_rgba(8,126,139,0.2)] border border-slate-100 hover:-translate-y-1.5 transition-all overflow-hidden flex flex-col group"
+                onClick={() => handleProductCardClick(item)}
+                className="rounded-3xl bg-white shadow-[0_12px_35px_-6px_rgba(0,0,0,0.08)] hover:shadow-[0_22px_45px_-6px_rgba(8,126,139,0.2)] border border-slate-100 hover:-translate-y-1.5 transition-all overflow-hidden flex flex-col group cursor-pointer"
               >
                 {/* Image Cover */}
                 <div className="relative w-full aspect-[16/10] overflow-hidden">
@@ -1340,6 +1375,13 @@ export default function Home() {
                   </div>
                   <button
                     type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!isAuthenticated) {
+                        setSelectedTourPrompt({ title: item.title, href: '/tours' });
+                        setGuestModalOpen(true);
+                      }
+                    }}
                     aria-label="Lưu mục yêu thích"
                     className="absolute top-3.5 right-3.5 w-8 h-8 rounded-full bg-white/85 backdrop-blur-md flex items-center justify-center text-on-surface-variant hover:text-red-500 transition-colors shadow-sm"
                   >
@@ -1376,12 +1418,16 @@ export default function Home() {
                         {item.unit && <span className="text-xs font-normal text-slate-500">{item.unit}</span>}
                       </span>
                     </div>
-                    <Link
-                      href="/tours"
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleProductCardClick(item);
+                      }}
                       className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-xl bg-surface-container hover:bg-primary-container hover:text-white text-primary text-xs font-bold transition-all shadow-sm"
                     >
                       Xem chi tiết
-                    </Link>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1472,6 +1518,13 @@ export default function Home() {
           </div>
         </section>
       </div>
+
+      <GuestLoginPromptModal
+        isOpen={guestModalOpen}
+        onClose={() => setGuestModalOpen(false)}
+        redirectUrl={selectedTourPrompt.href || '/tours'}
+        tourTitle={selectedTourPrompt.title}
+      />
     </>
   );
 }

@@ -3,6 +3,10 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useAppSelector } from '@/store/hooks';
+import { selectIsAuthenticated } from '@/features/auth';
+import { GuestLoginPromptModal } from '@/components/shared';
+import { usePreloader } from '@/components/preloader';
 import { useTourWishlist } from '@/features/wishlist/hooks/useTourWishlist';
 import type { TourListItem } from '../types';
 import { formatCategoryName, formatDepartureDate, formatDuration, formatVnd } from '../utils';
@@ -15,15 +19,29 @@ export interface TourCardProps {
 /** Card công khai cho 1 tour — hiển thị trên trang khám phá. */
 export function TourCard({ tour, categoryName }: TourCardProps) {
   const router = useRouter();
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const providerName = tour.agency?.name ?? 'Nhà cung cấp Tripri';
   const [coverFailed, setCoverFailed] = useState(false);
   const wishlist = useTourWishlist(tour.id);
 
+  const { stop: stopPreloader } = usePreloader();
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (!isAuthenticated) {
+      e.preventDefault();
+      e.stopPropagation();
+      stopPreloader();
+      setShowLoginModal(true);
+    }
+  };
+
   const handleWishlistClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (wishlist.status === 'guest') {
-      router.push('/login');
+    if (!isAuthenticated || wishlist.status === 'guest') {
+      stopPreloader();
+      setShowLoginModal(true);
       return;
     }
     if (wishlist.status === 'ready' && !wishlist.pending) {
@@ -31,11 +49,11 @@ export function TourCard({ tour, categoryName }: TourCardProps) {
     }
   };
 
-  return (
-    <Link
-      href={`/tours/${tour.id}`}
-      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-900/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
-    >
+  const cardClassName =
+    'group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-900/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2 cursor-pointer';
+
+  const cardInner = (
+    <>
       <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-teal-900 via-primary-container to-teal-500">
         {tour.coverImage && !coverFailed ? (
           // Tour cover URLs are configured by agencies and may come from different remote hosts.
@@ -106,6 +124,37 @@ export function TourCard({ tour, categoryName }: TourCardProps) {
           </div>
         </div>
       </div>
-    </Link>
+    </>
+  );
+
+  return (
+    <>
+      {isAuthenticated ? (
+        <Link href={`/tours/${tour.id}`} className={cardClassName}>
+          {cardInner}
+        </Link>
+      ) : (
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={handleCardClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleCardClick(e as unknown as React.MouseEvent);
+            }
+          }}
+          className={cardClassName}
+        >
+          {cardInner}
+        </div>
+      )}
+      <GuestLoginPromptModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        redirectUrl={`/tours/${tour.id}`}
+        tourTitle={tour.title}
+      />
+    </>
   );
 }

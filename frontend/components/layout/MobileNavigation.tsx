@@ -7,7 +7,13 @@ import { useAppSelector } from '@/store/hooks';
 import { selectUser, selectIsAuthenticated, useLogout } from '@/features/auth';
 import { homeForRole } from '@/features/auth/utils/roles';
 
-export function MobileNavigation({ items }: { items: NavigationItem[] }) {
+export function MobileNavigation({
+  items,
+  onOpenPremium,
+}: {
+  items: NavigationItem[];
+  onOpenPremium?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const user = useAppSelector(selectUser);
@@ -16,8 +22,9 @@ export function MobileNavigation({ items }: { items: NavigationItem[] }) {
 
   const accountLinks = user?.role === 'TRAVELER'
     ? [
-        { label: 'Tour của tôi', href: '/settings/history', icon: 'confirmation_number' },
-        { label: 'Hồ sơ cá nhân', href: '/settings/profile', icon: 'person' },
+        { label: 'Danh sách yêu thích', href: '/settings/wishlist', icon: 'favorite' },
+        { label: 'Chuyến đi', href: '/settings/history', icon: 'confirmation_number' },
+        { label: 'Hồ sơ', href: '/settings/profile', icon: 'person' },
       ]
     : user
       ? [{ label: 'Tổng quan', href: homeForRole(user.role), icon: 'dashboard' }]
@@ -97,6 +104,25 @@ export function MobileNavigation({ items }: { items: NavigationItem[] }) {
           </div>
 
           <div className="flex flex-col gap-2 border-t border-surface-container pt-3">
+            <button
+              type="button"
+              onClick={() => {
+                closeMenu();
+                onOpenPremium?.();
+              }}
+              className="btn-premium-gold relative flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold shadow-md cursor-pointer"
+            >
+              <span className="premium-shine-rtl" aria-hidden="true" />
+              <span
+                className="material-symbols-outlined text-[20px] text-amber-950"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
+                workspace_premium
+              </span>
+              <span className="text-amber-950">Khám phá Tripri Premium</span>
+              <span className="material-symbols-outlined text-[15px] text-amber-900/80">auto_awesome</span>
+            </button>
+
             <Link
               href="/custom-trip"
               onClick={closeMenu}

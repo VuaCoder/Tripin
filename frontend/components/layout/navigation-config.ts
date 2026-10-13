@@ -14,7 +14,6 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
     {
       label: 'Khám phá',
       href: '/tours',
-      icon: 'explore',
     },
     { label: 'Hỗ trợ', href: '/support' },
   ],
@@ -22,7 +21,6 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
     {
       label: 'Khám phá',
       href: '/tours',
-      icon: 'explore',
     },
     { label: 'Hỗ trợ', href: '/support' },
   ],

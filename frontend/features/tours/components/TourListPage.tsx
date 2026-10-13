@@ -8,6 +8,7 @@ import { useGetTourCategoriesQuery, useGetToursQuery } from '../api/toursApi';
 import type { ListToursArgs, TourSort } from '../types';
 import { TourCard } from './TourCard';
 import { formatCategoryName, formatVnd } from '../utils';
+import { usePreloader } from '@/components/preloader';
 
 const PAGE_SIZE = 12;
 const SORT_OPTIONS: { value: TourSort; label: string }[] = [
@@ -94,8 +95,28 @@ export function TourListPage() {
   const { data, isLoading, isFetching, isError, refetch } = useGetToursQuery(args);
   const { data: categories = [] } = useGetTourCategoriesQuery();
 
+  const { start: startPreloader, stop: stopPreloader } = usePreloader();
+
+  // Preloader lifecycle: start when loading or refetching, dismiss ONLY when data is fully ready on screen
+  useEffect(() => {
+    if (isLoading || isFetching) {
+      startPreloader();
+    } else if (data || isError) {
+      stopPreloader();
+    }
+  }, [isLoading, isFetching, data, isError, startPreloader, stopPreloader]);
+
+  useEffect(() => {
+    return () => {
+      stopPreloader();
+    };
+  }, [stopPreloader]);
+
   const updateQuery = useCallback(
-    (changes: Record<string, string | number | undefined>, resetPage = true) => {
+    (changes: Record<string, string | number | undefined>, resetPage = true, triggerPreloader = true) => {
+      if (triggerPreloader) {
+        startPreloader();
+      }
       const next = new URLSearchParams(searchParams.toString());
       Object.entries(changes).forEach(([key, value]) => {
         if (value === undefined || value === '') next.delete(key);
@@ -105,14 +126,14 @@ export function TourListPage() {
       const nextQuery = next.toString();
       router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
     },
-    [pathname, router, searchParams],
+    [pathname, router, searchParams, startPreloader],
   );
 
   useEffect(() => setSearchTerm(qFromUrl), [qFromUrl]);
 
   useEffect(() => {
     if (searchTerm === qFromUrl) return;
-    const timer = window.setTimeout(() => updateQuery({ q: searchTerm }), 350);
+    const timer = window.setTimeout(() => updateQuery({ q: searchTerm }, true, false), 350);
     return () => window.clearTimeout(timer);
   }, [qFromUrl, searchTerm, updateQuery]);
 
@@ -127,6 +148,7 @@ export function TourListPage() {
   };
 
   const clearFilters = () => {
+    startPreloader();
     setSearchTerm('');
     setLocalMinPrice(PRICE_MIN);
     setLocalMaxPrice(PRICE_MAX);
@@ -163,7 +185,9 @@ export function TourListPage() {
     searchParams.get('guests'),
   ].filter(Boolean).length;
 
-  if (isLoading) return <LoadingState label="Đang tìm tour phù hợp cho bạn..." className="min-h-[52vh]" />;
+  if (isLoading && !data) {
+    return null;
+  }
   if (isError || !data) {
     return <ErrorState title="Không tải được danh sách tour" message="Vui lòng kiểm tra kết nối và thử lại." onAction={() => void refetch()} />;
   }
@@ -391,7 +415,6 @@ export function TourListPage() {
         <section aria-live="polite" aria-busy={isFetching}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-slate-600"><strong className="text-slate-900">{meta.total}</strong> tour phù hợp{meta.total > 0 && <span className="hidden sm:inline"> · Hiển thị {firstResult}–{lastResult}</span>}</p>
-            {isFetching && <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary-container"><span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />Đang cập nhật</span>}
           </div>
 
           {items.length === 0 ? (
