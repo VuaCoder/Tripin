@@ -1,7 +1,19 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AGENCY_VERIFICATION_STATUS, ROLES, USER_STATUS } from '@travel-platform/constants';
 import { ERROR_CODES } from '../../../utils/app-error';
 import { UsersService } from '../users.service';
+
+const LICENSE_URL = 'https://res.cloudinary.com/demo/image/upload/v1/license.jpg';
+const cloudinary = vi.hoisted(() => ({
+  createImageUploadSignature: vi.fn((purpose: string, userId: string) => ({ purpose, publicId: `tripin/${purpose}/${userId}` })),
+  verifyImageUpload: vi.fn(async () => ({ publicId: 'p', secureUrl: 'https://res.cloudinary.com/demo/image/upload/v1/license.jpg' })),
+  destroyImage: vi.fn(async () => undefined),
+  imagePublicId: vi.fn((purpose: string, userId: string) =>
+    purpose === 'avatar' ? `tripin/travelers/avatars/${userId}` : `tripin/guides/licenses/${userId}`,
+  ),
+}));
+
+vi.mock('../../../integrations/cloudinary', () => cloudinary);
 
 function makeUser(overrides: Record<string, unknown> = {}) {
   return {
@@ -165,5 +177,35 @@ describe('UsersService access & bans', () => {
     const { service } = makeService({ u1: makeUser() });
     await expect(service.banUser({ userId: 'u1', role: ROLES.MODERATOR }, 'u1', 'x')).rejects.toMatchObject({ statusCode: 403 });
     await expect(service.unbanUser(MOD, 'u1')).rejects.toMatchObject({ code: ERROR_CODES.INVALID_STATE_TRANSITION });
+  });
+});
+
+describe('UsersService guide license image', () => {
+  const guide = (extra: Record<string, unknown> = {}) =>
+    makeUser({ id: 'g1', role: ROLES.TOUR_GUIDE, guideProfile: { languages: [], specialties: [], ...extra } });
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it('refuses the license signature and completion to anyone but a tour guide', async () => {
+    const { service } = makeService({ u1: makeUser() });
+    await expect(service.createGuideLicenseUploadSignature('u1')).rejects.toMatchObject({ statusCode: 403 });
+    await expect(service.completeGuideLicenseUpload('u1', 'tripin/guides/licenses/u1')).rejects.toMatchObject({ statusCode: 403 });
+    expect(cloudinary.createImageUploadSignature).not.toHaveBeenCalled();
+  });
+
+  it('stores the verified secure url on the guide profile', async () => {
+    const { service } = makeService({ g1: guide() });
+    const dto = await service.completeGuideLicenseUpload('g1', 'tripin/guides/licenses/g1');
+    expect(dto.guideProfile?.licenseImageUrl).toBe(LICENSE_URL);
+  });
+
+  it('deletes the uploaded asset when the guide clears it, but never for a pasted link', async () => {
+    const { service } = makeService({ g1: guide({ licenseImageUrl: LICENSE_URL }) });
+    await service.updateMe('g1', { guideProfile: { licenseImageUrl: null } });
+    expect(cloudinary.destroyImage).toHaveBeenCalledWith('licenseImage', 'tripin/guides/licenses/g1');
+
+    const pasted = makeService({ g2: makeUser({ id: 'g2', role: ROLES.TOUR_GUIDE, guideProfile: { languages: [], specialties: [], licenseImageUrl: 'https://example.com/gp.jpg' } }) });
+    await pasted.service.updateMe('g2', { guideProfile: { licenseImageUrl: null } });
+    expect(cloudinary.destroyImage).toHaveBeenCalledTimes(1);
   });
 });

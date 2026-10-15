@@ -37,6 +37,7 @@ export interface UserProfile {
     specialties: string[];
     experienceYears?: number;
     licenseNumber?: string;
+    licenseImageUrl?: string;
   };
 }
 

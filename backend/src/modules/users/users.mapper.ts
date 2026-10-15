@@ -45,6 +45,7 @@ export function toPrivateUserDto(user: UserRecord): PrivateUserDto {
           specialties: guide.specialties ?? [],
           experienceYears: guide.experienceYears ?? undefined,
           licenseNumber: guide.licenseNumber ?? undefined,
+          licenseImageUrl: guide.licenseImageUrl ?? undefined,
         }
       : undefined,
   };

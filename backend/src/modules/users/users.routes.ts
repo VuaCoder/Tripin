@@ -6,8 +6,8 @@ import { usersController } from './users.controller';
 import {
   assignAccessBody,
   assignAccessParams,
-  avatarSignatureBody,
-  completeAvatarBody,
+  completeImageUploadBody,
+  imageSignatureBody,
   listUsersQuery,
   publicProfileParams,
   updateProfileBody,
@@ -25,16 +25,28 @@ usersRouter.patch(
 usersRouter.post(
   '/me/avatar/upload-signature',
   requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
-  validate({ body: avatarSignatureBody }),
+  validate({ body: imageSignatureBody }),
   usersController.createAvatarUploadSignature,
 );
 usersRouter.post(
   '/me/avatar/complete',
   requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
-  validate({ body: completeAvatarBody }),
+  validate({ body: completeImageUploadBody }),
   usersController.completeAvatarUpload,
 );
 usersRouter.delete('/me/avatar', requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN), usersController.removeAvatar);
+usersRouter.post(
+  '/me/license-image/upload-signature',
+  requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
+  validate({ body: imageSignatureBody }),
+  usersController.createGuideLicenseUploadSignature,
+);
+usersRouter.post(
+  '/me/license-image/complete',
+  requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
+  validate({ body: completeImageUploadBody }),
+  usersController.completeGuideLicenseUpload,
+);
 usersRouter.post(
   '/me/agency-verification',
   requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),

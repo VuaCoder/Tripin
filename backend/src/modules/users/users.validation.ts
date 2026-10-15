@@ -5,18 +5,19 @@ import { paginationQuerySchema } from '../../utils/pagination';
 
 const trimmed = (max: number) => z.string().trim().max(max);
 const phone = z.string().trim().regex(/^\+?[0-9 ().-]{6,20}$/, 'Invalid phone number');
+const imageUrl = z
+  .string()
+  .trim()
+  .url()
+  .max(500)
+  .refine((val) => val.startsWith('http://') || val.startsWith('https://'), 'URL must start with http:// or https://')
+  .nullable();
 
 export const updateProfileBody = z
   .object({
     fullName: z.string().trim().min(2).max(120),
     phone: phone.nullable(),
-    avatarUrl: z
-      .string()
-      .trim()
-      .url()
-      .max(500)
-      .refine((val) => val.startsWith('http://') || val.startsWith('https://'), 'URL must start with http:// or https://')
-      .nullable(),
+    avatarUrl: imageUrl,
     agencyProfile: z
       .object({
         companyName: z.string().trim().min(2).max(200),
@@ -34,6 +35,7 @@ export const updateProfileBody = z
         specialties: z.array(z.string().trim().min(2).max(60)).max(30),
         experienceYears: z.number().int().min(0).max(80),
         licenseNumber: z.string().trim().min(3).max(100),
+        licenseImageUrl: imageUrl,
       })
       .partial()
       .strict(),
@@ -44,10 +46,10 @@ export const updateProfileBody = z
 
 export const publicProfileParams = idParamsSchema;
 
-/** The signature endpoint deliberately accepts no client-controlled upload parameters. */
-export const avatarSignatureBody = z.object({}).strict();
+/** The signature endpoints deliberately accept no client-controlled upload parameters. */
+export const imageSignatureBody = z.object({}).strict();
 
-export const completeAvatarBody = z
+export const completeImageUploadBody = z
   .object({
     publicId: z.string().trim().min(1).max(300),
   })
@@ -70,6 +72,6 @@ export const assignAccessBody = z
   .refine((value) => value.role !== undefined || value.extraPermissions !== undefined, 'role or extraPermissions is required');
 
 export type UpdateProfileBody = z.infer<typeof updateProfileBody>;
-export type CompleteAvatarBody = z.infer<typeof completeAvatarBody>;
+export type CompleteImageUploadBody = z.infer<typeof completeImageUploadBody>;
 export type ListUsersQueryInput = z.infer<typeof listUsersQuery>;
 export type AssignAccessBody = z.infer<typeof assignAccessBody>;

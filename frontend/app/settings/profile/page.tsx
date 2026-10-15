@@ -8,7 +8,7 @@ import {
   useRemoveAvatarMutation,
   useUpdateMeMutation,
 } from '@/features/traveler-account/api/profileApi';
-import { uploadAvatarFile } from '@/features/traveler-account/api/avatarUpload';
+import { uploadImageToCloudinary } from '@/features/traveler-account/api/avatarUpload';
 import {
   ProfileSkeleton,
   ProfileSummary,
@@ -49,7 +49,7 @@ export default function ProfileSettingsPage() {
 
       if (avatarChange.kind === 'upload') {
         const signature = await createAvatarUploadSignature().unwrap();
-        const uploaded = await uploadAvatarFile(avatarChange.file, signature.data);
+        const uploaded = await uploadImageToCloudinary(avatarChange.file, signature.data);
         const result = await completeAvatarUpload(uploaded).unwrap();
         if (result.success && result.data) dispatch(setUser(result.data));
       } else if (avatarChange.kind === 'remove') {

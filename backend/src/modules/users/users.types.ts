@@ -41,6 +41,7 @@ export interface PrivateUserDto {
     specialties: string[];
     experienceYears?: number;
     licenseNumber?: string;
+    licenseImageUrl?: string;
   };
 }
 
@@ -84,6 +85,7 @@ export interface UpdateProfileInput {
     specialties?: string[];
     experienceYears?: number;
     licenseNumber?: string;
+    licenseImageUrl?: string | null;
   };
 }
 

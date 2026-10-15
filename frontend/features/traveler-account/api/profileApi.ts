@@ -1,7 +1,7 @@
 import { baseApi } from '@/store/api/baseApi';
 import type { UserProfile } from '@/features/auth/types';
 import type { UpdateProfileRequest } from '../types';
-import type { AvatarUploadSignature } from '../types';
+import type { ImageUploadSignature } from '../types';
 
 export const profileApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -17,7 +17,7 @@ export const profileApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['User'],
     }),
-    createAvatarUploadSignature: builder.mutation<{ success: boolean; data: AvatarUploadSignature }, void>({
+    createAvatarUploadSignature: builder.mutation<{ success: boolean; data: ImageUploadSignature }, void>({
       query: () => ({
         url: '/users/me/avatar/upload-signature',
         method: 'POST',
@@ -36,6 +36,21 @@ export const profileApi = baseApi.injectEndpoints({
       query: () => ({ url: '/users/me/avatar', method: 'DELETE' }),
       invalidatesTags: ['User'],
     }),
+    createLicenseUploadSignature: builder.mutation<{ success: boolean; data: ImageUploadSignature }, void>({
+      query: () => ({
+        url: '/users/me/license-image/upload-signature',
+        method: 'POST',
+        body: {},
+      }),
+    }),
+    completeLicenseUpload: builder.mutation<{ success: boolean; data: UserProfile }, { publicId: string }>({
+      query: (body) => ({
+        url: '/users/me/license-image/complete',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['User'],
+    }),
   }),
   overrideExisting: false,
 });
@@ -46,4 +61,6 @@ export const {
   useCreateAvatarUploadSignatureMutation,
   useCompleteAvatarUploadMutation,
   useRemoveAvatarMutation,
+  useCreateLicenseUploadSignatureMutation,
+  useCompleteLicenseUploadMutation,
 } = profileApi;
