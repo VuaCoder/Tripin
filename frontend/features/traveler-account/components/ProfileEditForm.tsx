@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { UserProfile } from '@/features/auth/types';
 import { Button, FormField, Input } from '@/components/ui';
 import type { AvatarChange, UpdateProfileRequest } from '../types';
-import { validateAvatarFile } from '../api/avatarUpload';
+import { validateImageFile } from '../api/avatarUpload';
 import { AvatarPreview } from './AvatarPreview';
 
 interface ProfileEditFormProps {
@@ -43,7 +43,7 @@ export function ProfileEditForm({ user, onSave, onCancel, isSaving, error }: Pro
       errs.phone = 'Số điện thoại không hợp lệ.';
     }
     if (selectedAvatar) {
-      const avatarError = validateAvatarFile(selectedAvatar);
+      const avatarError = validateImageFile(selectedAvatar, 'Ảnh đại diện');
       if (avatarError) errs.avatar = avatarError;
     }
     setValidationErrors(errs);
@@ -52,7 +52,7 @@ export function ProfileEditForm({ user, onSave, onCancel, isSaving, error }: Pro
 
   const selectAvatar = (file?: File) => {
     if (!file) return;
-    const errorMessage = validateAvatarFile(file);
+    const errorMessage = validateImageFile(file, 'Ảnh đại diện');
     if (errorMessage) {
       setValidationErrors((current) => ({ ...current, avatar: errorMessage }));
       return;

@@ -7,10 +7,11 @@ import {
 } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
 import {
-  createTravelerAvatarSignature,
-  destroyAvatar,
-  verifyTravelerAvatar,
-  type AvatarUploadSignature,
+  createImageUploadSignature,
+  destroyImage,
+  imagePublicId,
+  verifyImageUpload,
+  type ImageUploadSignature,
 } from '../../integrations/cloudinary';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
 import { buildPage, type Page } from '../../utils/pagination';
@@ -79,22 +80,28 @@ export class UsersService {
     if (guideFields) patch.guideProfile = guideFields;
     if (Object.keys(patch).length === 0) return toPrivateUserDto(user);
 
+    const clearUploadedLicense =
+      guideFields?.licenseImageUrl === null && Boolean(user.guideProfile?.licenseImageUrl?.startsWith('https://res.cloudinary.com/'));
     const updated = await this.users.updateById(userId, patch);
+    // Best-effort: the clear is already committed, so a failed delete must not fail the request.
+    if (updated && clearUploadedLicense) {
+      await destroyImage('licenseImage', imagePublicId('licenseImage', userId)).catch(() => undefined);
+    }
     return toPrivateUserDto(updated ?? user);
   }
 
   /** Gives a Traveler a one-time Cloudinary signature scoped to their own avatar public id. */
-  async createTravelerAvatarUploadSignature(userId: string): Promise<AvatarUploadSignature> {
+  async createTravelerAvatarUploadSignature(userId: string): Promise<ImageUploadSignature> {
     const user = await this.requireUser(userId);
     this.assertTraveler(user);
-    return createTravelerAvatarSignature(userId);
+    return createImageUploadSignature('avatar', userId);
   }
 
   /** Verifies the direct Cloudinary upload before associating it with this Traveler. */
   async completeTravelerAvatarUpload(userId: string, publicId: string): Promise<PrivateUserDto> {
     const user = await this.requireUser(userId);
     this.assertTraveler(user);
-    const asset = await verifyTravelerAvatar(userId, publicId);
+    const asset = await verifyImageUpload('avatar', userId, publicId);
     const updated = await this.users.updateById(userId, { avatarUrl: asset.secureUrl });
     return toPrivateUserDto(updated ?? user);
   }
@@ -103,8 +110,24 @@ export class UsersService {
   async removeTravelerAvatar(userId: string): Promise<PrivateUserDto> {
     const user = await this.requireUser(userId);
     this.assertTraveler(user);
-    if (user.avatarUrl?.startsWith('https://res.cloudinary.com/')) await destroyAvatar(`tripin/travelers/avatars/${userId}`);
+    if (user.avatarUrl?.startsWith('https://res.cloudinary.com/')) await destroyImage('avatar', imagePublicId('avatar', userId));
     const updated = await this.users.updateById(userId, { avatarUrl: null });
+    return toPrivateUserDto(updated ?? user);
+  }
+
+  /** Gives a Tour guide a one-time Cloudinary signature scoped to their own license image public id. */
+  async createGuideLicenseUploadSignature(userId: string): Promise<ImageUploadSignature> {
+    const user = await this.requireUser(userId);
+    this.assertGuide(user);
+    return createImageUploadSignature('licenseImage', userId);
+  }
+
+  /** Verifies the direct Cloudinary upload before associating it with this Tour guide's license. */
+  async completeGuideLicenseUpload(userId: string, publicId: string): Promise<PrivateUserDto> {
+    const user = await this.requireUser(userId);
+    this.assertGuide(user);
+    const asset = await verifyImageUpload('licenseImage', userId, publicId);
+    const updated = await this.users.updateById(userId, { guideProfile: { licenseImageUrl: asset.secureUrl } });
     return toPrivateUserDto(updated ?? user);
   }
 
@@ -368,6 +391,10 @@ export class UsersService {
 
   private assertTraveler(user: UserRecord): void {
     if (user.role !== ROLES.TRAVELER) throw AppError.forbidden('Only Travelers can manage this avatar');
+  }
+
+  private assertGuide(user: UserRecord): void {
+    if (user.role !== ROLES.TOUR_GUIDE) throw AppError.forbidden('Only tour guides can manage a license image');
   }
 }
 

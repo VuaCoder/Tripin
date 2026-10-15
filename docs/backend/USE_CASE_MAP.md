@@ -69,7 +69,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 ## Tour guide
 | Use case | Module | Endpoint | Permission | Status |
 |---|---|---|---|---|
-| View Profile / Update Profile | users | `GET/PATCH /users/me` | profile:* | done |
+| View Profile / Update Profile | users | `GET/PATCH /users/me`, `POST /users/me/license-image/upload-signature`, `POST /users/me/license-image/complete` | profile:* | done |
 | View assigned tours | tours | `GET /guide/tours` | guide:tours-view | done |
 | Verify assigned tours | tours | `POST /guide/tours/:tourId/verification` (accept/decline) | guide:tours-verify | done |
 | Subcribe to plan (Payment Gateway) | subscriptions | `GET /subscriptions/plans`, `POST /subscriptions`, `GET /subscriptions/me`, `GET /subscriptions/me/current` | subscription:subscribe | done |

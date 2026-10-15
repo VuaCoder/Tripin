@@ -1,16 +1,17 @@
-import type { AvatarUploadSignature } from '../types';
+import type { ImageUploadSignature } from '../types';
 
-export const AVATAR_FILE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
-export const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+export const IMAGE_FILE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
-export function validateAvatarFile(file: File): string | undefined {
-  if (!AVATAR_FILE_TYPES.has(file.type)) return 'Chỉ hỗ trợ ảnh JPG, PNG hoặc WebP.';
-  if (file.size > MAX_AVATAR_BYTES) return 'Ảnh đại diện không được vượt quá 5 MB.';
+/** `label` is the field name shown to the user, e.g. "Ảnh đại diện" or "Ảnh giấy phép". */
+export function validateImageFile(file: File, label: string): string | undefined {
+  if (!IMAGE_FILE_TYPES.has(file.type)) return 'Chỉ hỗ trợ ảnh JPG, PNG hoặc WebP.';
+  if (file.size > MAX_IMAGE_BYTES) return `${label} không được vượt quá 5 MB.`;
   return undefined;
 }
 
 /** Uploads only to the signed Cloudinary URL. The API secret never enters this function or the browser. */
-export async function uploadAvatarFile(file: File, upload: AvatarUploadSignature): Promise<{ publicId: string }> {
+export async function uploadImageToCloudinary(file: File, upload: ImageUploadSignature): Promise<{ publicId: string }> {
   const form = new FormData();
   form.append('file', file);
   form.append('api_key', upload.apiKey);

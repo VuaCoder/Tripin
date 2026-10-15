@@ -5,7 +5,7 @@ import { validated } from '../../middlewares/validate';
 import { sendOk, sendPaginated } from '../../utils/api-response';
 import type { IdParams } from '../../utils/id';
 import { usersService, type UsersService } from './users.service';
-import type { AssignAccessBody, CompleteAvatarBody, ListUsersQueryInput, UpdateProfileBody } from './users.validation';
+import type { AssignAccessBody, CompleteImageUploadBody, ListUsersQueryInput, UpdateProfileBody } from './users.validation';
 
 /** HTTP only; rules live in UsersService. */
 export class UsersController {
@@ -25,12 +25,21 @@ export class UsersController {
   };
 
   completeAvatarUpload: RequestHandler = async (req, res) => {
-    const { body } = validated<CompleteAvatarBody>(req);
+    const { body } = validated<CompleteImageUploadBody>(req);
     sendOk(res, await this.service.completeTravelerAvatarUpload(userActor(req).userId, body.publicId));
   };
 
   removeAvatar: RequestHandler = async (req, res) => {
     sendOk(res, await this.service.removeTravelerAvatar(userActor(req).userId));
+  };
+
+  createGuideLicenseUploadSignature: RequestHandler = async (req, res) => {
+    sendOk(res, await this.service.createGuideLicenseUploadSignature(userActor(req).userId));
+  };
+
+  completeGuideLicenseUpload: RequestHandler = async (req, res) => {
+    const { body } = validated<CompleteImageUploadBody>(req);
+    sendOk(res, await this.service.completeGuideLicenseUpload(userActor(req).userId, body.publicId));
   };
 
   requestAgencyVerification: RequestHandler = async (req, res) => {

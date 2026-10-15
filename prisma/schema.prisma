@@ -68,6 +68,8 @@ model GuideProfile {
   specialties     String[] @default([])
   experienceYears Int?
   licenseNumber   String?
+  /// Either a Cloudinary upload or a link the guide pasted. Never exposed on the public guide profile.
+  licenseImageUrl String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

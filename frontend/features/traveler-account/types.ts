@@ -3,9 +3,19 @@ import type { UserProfile } from '@/features/auth/types';
 export interface UpdateProfileRequest {
   fullName?: string;
   phone?: string | null;
+  /** Accepted by `PATCH /users/me` for `TOUR_GUIDE` only. */
+  guideProfile?: {
+    bio?: string;
+    languages?: string[];
+    specialties?: string[];
+    experienceYears?: number;
+    licenseNumber?: string;
+    licenseImageUrl?: string | null;
+  };
 }
 
-export interface AvatarUploadSignature {
+/** Cloudinary direct-upload contract shared by the avatar and the guide license image. */
+export interface ImageUploadSignature {
   cloudName: string;
   apiKey: string;
   timestamp: number;
