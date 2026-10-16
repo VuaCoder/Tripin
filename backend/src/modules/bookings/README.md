@@ -70,6 +70,7 @@ Every change is a compare-and-set on the previous status.
 Notifications: BOOKING_CREATED / CONFIRMED / CANCELLED / COMPLETED. `bookingEvents` handlers never break the transition.
 
 ## Testing
+Agency frontend routes `/agency/bookings` and `/agency/bookings/:id` use Agency DTOs and permission-gated queries. Customer export uses an authenticated transient PDF download (no Blob in Redux/localStorage) with explicit network/error handling. PDF columns fit landscape A4 and long notes continue across pages.
 `__tests__/bookings.money.integration.test.ts` – real PostgreSQL: randomised bookings (odd prices, 0-100 % commission with 2 decimals, percent/capped/fixed/minimum-order promotions): everything is integer VND and non-negative, `total = subtotal - discount`, `commission = floor(total x bps / 10000)`, `commission + agency = total`, the payment charges exactly the booking total, free orders are refused.
 `__tests__/bookings.export.test.ts` (real PDF generation incl. Vietnamese text and pagination, ownership/cap of the list, HTTP permissions) and
 `__tests__/bookings.integration.test.ts` – real PostgreSQL: seat accounting never oversells under parallel requests, the same `clientRequestId` yields one booking, double cancel releases seats once, IDOR returns 404.

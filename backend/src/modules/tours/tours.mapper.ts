@@ -41,7 +41,13 @@ export function toDepartureDto(tour: Pick<TourRecord, 'basePrice'>, departure: D
 }
 
 const toAgencyDto = (summary?: UserSummary): TourAgencyDto | undefined =>
-  summary ? { id: summary.id, name: summary.fullName, avatarUrl: summary.avatarUrl } : undefined;
+  summary
+    ? {
+        id: summary.id,
+        name: summary.companyName?.trim() || summary.fullName,
+        avatarUrl: summary.avatarUrl,
+      }
+    : undefined;
 
 export function toTourListItemDto(tour: TourRecord, agency?: UserSummary): TourListItemDto {
   return {

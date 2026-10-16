@@ -26,7 +26,7 @@ export const guideApi = baseApi.injectEndpoints({
         body: { accept, ...(note ? { note } : {}) },
       }),
       transformResponse: (response: GuideApiResponse<GuideAssignedTour>) => response.data,
-      invalidatesTags: [{ type: 'Tour', id: 'GUIDE_ASSIGNED' }],
+      invalidatesTags: (_result, _error, { tourId }) => [{ type: 'Tour', id: 'GUIDE_ASSIGNED' }, { type: 'Tour', id: tourId }, { type: 'Tour', id: 'AGENCY_LIST' }],
     }),
   }),
   overrideExisting: false,

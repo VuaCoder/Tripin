@@ -3,6 +3,15 @@ import type { UserProfile } from '@/features/auth/types';
 export interface UpdateProfileRequest {
   fullName?: string;
   phone?: string | null;
+  avatarUrl?: string | null;
+  /** Accepted by `PATCH /users/me` for `AGENCY`. */
+  agencyProfile?: {
+    companyName?: string;
+    description?: string;
+    address?: string;
+    website?: string;
+    licenseNumber?: string;
+  };
   /** Accepted by `PATCH /users/me` for `TOUR_GUIDE` only. */
   guideProfile?: {
     bio?: string;

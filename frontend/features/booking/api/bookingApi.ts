@@ -1,4 +1,5 @@
 import { baseApi } from '@/store/api/baseApi';
+import type { AgencyBooking, AgencyBookingFilters } from '@/features/agency/types';
 import type {
   BookingApiResponse,
   BookingDto,
@@ -13,6 +14,47 @@ import type {
 /** Booking endpoints mounted at `/api/v1/bookings`. */
 export const bookingApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
+    getAgencyBookings: build.query<{ items: AgencyBooking[]; meta: import('../types').BookingPaginationMeta }, AgencyBookingFilters>({
+      query: (params) => ({ url: '/agency/bookings', params }),
+      transformResponse: (response: BookingApiResponse<AgencyBooking[]>) => ({ items: response.data, meta: response.meta! }),
+      providesTags: (result) => [{ type: 'Booking', id: 'AGENCY_LIST' }, ...(result?.items ?? []).map(({ id }) => ({ type: 'Booking' as const, id }))],
+    }),
+    getAgencyBooking: build.query<AgencyBooking, string>({
+      query: (id) => ({ url: `/agency/bookings/${id}` }),
+      transformResponse: (response: BookingApiResponse<AgencyBooking>) => response.data,
+      providesTags: (_result, _error, id) => [{ type: 'Booking', id }],
+    }),
+    downloadAgencyCustomers: build.mutation<{ downloaded: true }, { tourId: string; departureId?: string }>({
+      async queryFn({ tourId, departureId }, _api, _options, baseQuery) {
+        const result = await baseQuery({
+          url: `/agency/tours/${tourId}/customers.pdf`, params: departureId ? { departureId } : undefined,
+          cache: 'no-store',
+          responseHandler: async (response) => {
+            if (!response.ok) return response.json().catch(() => ({ error: { message: 'Không thể xuất danh sách khách.' } }));
+            const blob = await response.blob();
+            if (!blob.type.toLowerCase().includes('application/pdf') || await blob.slice(0, 5).text() !== '%PDF-') throw new Error('Invalid PDF response');
+            return blob;
+          },
+        });
+        if (result.error) return { error: result.error };
+        let url: string | undefined;
+        try {
+          url = URL.createObjectURL(result.data as Blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `customers-${tourId}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          const downloadUrl = url;
+          window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+          return { data: { downloaded: true } };
+        } catch {
+          if (url) URL.revokeObjectURL(url);
+          return { error: { status: 'CUSTOM_ERROR', error: 'Không thể tải file PDF. Vui lòng thử lại.' } };
+        }
+      },
+    }),
     createBooking: build.mutation<BookingDto, CreateBookingInput>({
       query: (body) => ({ url: '/bookings', method: 'POST', body }),
       transformResponse: (response: BookingApiResponse<BookingDto>) => response.data,
@@ -123,6 +165,7 @@ export const bookingApi = baseApi.injectEndpoints({
 });
 
 export const {
+  useGetAgencyBookingsQuery, useGetAgencyBookingQuery, useDownloadAgencyCustomersMutation,
   useCreateBookingMutation,
   useLazyPreviewPromotionQuery,
   useGetMyBookingsQuery,

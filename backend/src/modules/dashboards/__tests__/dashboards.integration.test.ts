@@ -18,6 +18,7 @@ const oid = () => randomUUID();
 let sequence = 0;
 
 interface BookingSeed {
+  travelerId?: string;
   agencyId: string;
   tourId: string;
   title: string;
@@ -29,7 +30,7 @@ interface BookingSeed {
 const seedBooking = (b: BookingSeed) =>
   prisma.booking.create({ data: {
     bookingCode: `TRP-TEST${String((sequence += 1)).padStart(4, '0')}`,
-    travelerId: oid(),
+    travelerId: b.travelerId ?? oid(),
     agencyId: b.agencyId,
     tourId: b.tourId,
     departureId: oid(),
@@ -60,13 +61,15 @@ describe('agency dashboard', () => {
     const rival = await createUser('AGENCY', 'rival@example.com');
     const t1 = await createApprovedTour(agency.id);
     const t2 = await createApprovedTour(agency.id);
+    await prisma.tour.update({ where: { id: t1.tourId }, data: { images: ['https://example.com/tour.jpg'] } });
     await prisma.tour.create({ data: { agencyId: agency.id, title: 'Draft one', destination: 'Hue', durationDays: 1, basePrice: 1, status: 'DRAFT' } });
     await prisma.tour.create({ data: { agencyId: agency.id, title: 'Pending one', destination: 'Hue', durationDays: 1, basePrice: 1, status: 'PENDING_REVIEW' } });
     const rivalTour = await createApprovedTour(rival.id);
 
     const base = { agencyId: agency.id };
-    await seedBooking({ ...base, tourId: t1.tourId, title: 'T1', status: 'CONFIRMED', total: 1_000_000, commission: 100_000, confirmedDaysAgo: 0 });
-    await seedBooking({ ...base, tourId: t1.tourId, title: 'T1', status: 'COMPLETED', total: 2_000_000, commission: 200_000, confirmedDaysAgo: 10 });
+    const repeatCustomer = oid();
+    await seedBooking({ ...base, travelerId: repeatCustomer, tourId: t1.tourId, title: 'T1', status: 'CONFIRMED', total: 1_000_000, commission: 100_000, confirmedDaysAgo: 0 });
+    await seedBooking({ ...base, travelerId: repeatCustomer, tourId: t1.tourId, title: 'T1', status: 'COMPLETED', total: 2_000_000, commission: 200_000, confirmedDaysAgo: 10 });
     await seedBooking({ ...base, tourId: t2.tourId, title: 'T2', status: 'CONFIRMED', total: 500_000, commission: 50_000, confirmedDaysAgo: 40 });
     await seedBooking({ ...base, tourId: t2.tourId, title: 'T2', status: 'PENDING', total: 700_000, commission: 70_000 });
     await seedBooking({ ...base, tourId: t2.tourId, title: 'T2', status: 'CANCELLED', total: 900_000, commission: 90_000, confirmedDaysAgo: 5 });
@@ -86,9 +89,14 @@ describe('agency dashboard', () => {
     expect(d.bookings).toMatchObject({ CONFIRMED: 2, COMPLETED: 1, PENDING: 1, CANCELLED: 1 });
     // Only CONFIRMED + COMPLETED count as revenue; the paid-then-cancelled booking is not income.
     expect(d.revenue).toEqual({ bookings: 3, gross: 3_500_000, commission: 350_000, net: 3_150_000 });
+    expect(d.customers).toBe(2); // returning travelers count once; pending/cancelled and rival customers do not count
     expect(d.last30Days.map((row: { net: number }) => row.net).sort((a: number, b: number) => a - b)).toEqual([900_000, 1_800_000]);
     expect(d.last30Days.reduce((sum: number, row: { bookings: number }) => sum + row.bookings, 0)).toBe(2); // the 40-day-old sale is outside the window
     expect(d.topTours[0]).toMatchObject({ tourId: t1.tourId, bookings: 2, net: 2_700_000 });
+    expect(d.topTours[0].coverImage).toBe('https://example.com/tour.jpg');
+    expect(d.topTours[1].coverImage).toBeNull();
+    expect(d.last6Months).toHaveLength(6);
+    expect(d.last6Months.reduce((sum: number, row: { net: number }) => sum + row.net, 0)).toBe(3_150_000);
     expect(d.topTours[1]).toMatchObject({ tourId: t2.tourId, bookings: 1, net: 450_000 });
     expect(d.openComplaints).toBe(2); // only OPEN ones of THIS agency wait for its answer
     expect(JSON.stringify(d)).not.toContain(rivalTour.tourId);
@@ -104,6 +112,7 @@ describe('agency dashboard', () => {
     expect(empty.status).toBe(200);
     expect(empty.body.data.revenue).toEqual({ bookings: 0, gross: 0, commission: 0, net: 0 });
     expect(empty.body.data.topTours).toEqual([]);
+    expect(empty.body.data.customers).toBe(0);
 
     const traveler = await createUser('TRAVELER', 'traveler@example.com');
     const moderator = await createUser('MODERATOR', 'mod@example.com');

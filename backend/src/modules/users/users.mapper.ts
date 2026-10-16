@@ -1,5 +1,5 @@
 import { AGENCY_VERIFICATION_STATUS, isPermission, resolvePermissions, type Role } from '@travel-platform/constants';
-import type { UserRecord } from './users.repository';
+import type { PublicGuideRecord, UserRecord } from './users.repository';
 import type { PrivateUserDto, PublicAgencyDto, PublicGuideDto } from './users.types';
 
 /** Effective permissions of a stored user (role defaults + extras granted by SUPER_ADMIN). */
@@ -34,6 +34,8 @@ export function toPrivateUserDto(user: UserRecord): PrivateUserDto {
           address: agency.address ?? undefined,
           website: agency.website ?? undefined,
           licenseNumber: agency.licenseNumber ?? undefined,
+          taxId: agency.taxId ?? undefined,
+          businessLicenseUrl: agency.businessLicenseUrl ?? undefined,
           verificationStatus: agency.verificationStatus as NonNullable<PrivateUserDto['agencyProfile']>['verificationStatus'],
           verificationNote: agency.verificationNote ?? undefined,
         }
@@ -51,7 +53,7 @@ export function toPrivateUserDto(user: UserRecord): PrivateUserDto {
   };
 }
 
-export function toPublicGuideDto(user: UserRecord): PublicGuideDto {
+export function toPublicGuideDto(user: PublicGuideRecord): PublicGuideDto {
   const guide = user.guideProfile;
   return {
     id: user.id,

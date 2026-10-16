@@ -75,8 +75,8 @@ export class ToursService {
   }
 
   /**
-   * Use case "Edit tour". Locked while PENDING_REVIEW. Editing an APPROVED tour sends it back to PENDING_REVIEW
-   * (DECISIONS D-14) — existing bookings keep their price snapshot.
+   * Use case "Edit tour". Locked while PENDING_REVIEW. Editing an APPROVED tour preserves its APPROVED status
+   * so agencies can update content without resubmitting — existing bookings keep their price snapshot.
    */
   async updateTour(agencyId: string, id: string, input: UpdateTourInput): Promise<TourManageDto> {
     const tour = await this.requireOwned(agencyId, id);
@@ -299,8 +299,8 @@ export class ToursService {
       tour.agencyId,
       {
         type: decision.approve ? NOTIFICATION_TYPE.TOUR_APPROVED : NOTIFICATION_TYPE.TOUR_REJECTED,
-        title: decision.approve ? 'Your tour was approved' : 'Your tour was rejected',
-        body: decision.approve ? `"${tour.title}" is now public.` : `"${tour.title}" was rejected: ${decision.reason}`,
+        title: decision.approve ? 'Tour đã được duyệt' : 'Tour cần chỉnh sửa',
+        body: decision.approve ? `Tour "${tour.title}" đã được duyệt và công khai trên hệ thống.` : `Tour "${tour.title}" chưa được duyệt: ${decision.reason}`,
         data: { tourId: tour.id },
       },
       { email: true },
@@ -334,8 +334,8 @@ export class ToursService {
       tour.agencyId,
       {
         type: NOTIFICATION_TYPE.TOUR_SUSPENDED,
-        title: 'Your tour was suspended',
-        body: `"${tour.title}" was suspended: ${reason}`,
+        title: 'Tour đã bị tạm ẩn',
+        body: `Tour "${tour.title}" đã bị tạm ẩn: ${reason}`,
         data: { tourId: tour.id },
       },
       { email: true },
@@ -450,15 +450,10 @@ export class ToursService {
     }
   }
 
-  /** Applies a content update; an APPROVED tour re-enters review (compare-and-set on the status we read). */
+  /** Applies a content update; APPROVED tours retain APPROVED status without requiring re-review. */
   private async applyContentChange(tour: TourRecord, change: TourPatch): Promise<TourManageDto> {
     const current = tour.status as TourStatus;
-    let patch = change;
-    if (current === TOUR_STATUS.APPROVED) {
-      assertTransition(TOUR_TRANSITIONS, current, TOUR_STATUS.PENDING_REVIEW, ENTITY);
-      patch = { ...patch, status: TOUR_STATUS.PENDING_REVIEW, submittedAt: new Date() };
-    }
-    const updated = await this.tours.updateIfStatus(tour.id, [current], patch);
+    const updated = await this.tours.updateIfStatus(tour.id, [current], change);
     if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
     return this.views.manage(updated);
   }

@@ -10,6 +10,7 @@ logs/
 
 # Next.js
 .next/
+.next-verify/
 out/
 build/
 .swc/

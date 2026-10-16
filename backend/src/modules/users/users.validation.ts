@@ -45,6 +45,7 @@ export const updateProfileBody = z
   .refine((value) => Object.keys(value).length > 0, 'Nothing to update');
 
 export const publicProfileParams = idParamsSchema;
+export const listAgencyGuidesQuery = paginationQuerySchema.extend({ q: z.string().trim().max(120).optional() });
 
 /** The signature endpoints deliberately accept no client-controlled upload parameters. */
 export const imageSignatureBody = z.object({}).strict();

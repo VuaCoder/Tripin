@@ -84,10 +84,10 @@ describe('tours (integration)', () => {
     const search = await request(app).get('/api/v1/tours').query({ q: 'ha long' });
     expect(search.body.data.map((t: { id: string }) => t.id)).toContain(tourId);
 
-    // Material edit of an APPROVED tour: back to review, gone from the public list.
+    // Edit of an APPROVED tour: preserves APPROVED status and remains publicly accessible.
     expect((await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(a.agency.token)).send({ title: 'Ha Long Bay 3D2N' })).status).toBe(200);
-    expect((await loadTour(tourId))!.status).toBe('PENDING_REVIEW');
-    expect((await request(app).get(`/api/v1/tours/${tourId}`)).status).toBe(404);
+    expect((await loadTour(tourId))!.status).toBe('APPROVED');
+    expect((await request(app).get(`/api/v1/tours/${tourId}`)).status).toBe(200);
   });
 
   it('list items are light cards: no description, itinerary, departures or internal fields; pages are capped', async () => {

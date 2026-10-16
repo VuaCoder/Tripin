@@ -27,6 +27,9 @@ export type UserPatch = Partial<Omit<User, 'id' | 'createdAt' | 'updatedAt'>> & 
   guideProfile?: GuideProfileFields;
 };
 export type NewUser = Pick<User, 'email' | 'fullName'> & UserPatch;
+export type PublicGuideRecord = Pick<User, 'id' | 'fullName' | 'avatarUrl'> & {
+  guideProfile: Pick<GuideProfile, 'bio' | 'languages' | 'specialties' | 'experienceYears'> | null;
+};
 
 const include = { agencyProfile: true, guideProfile: true } satisfies Prisma.UserInclude;
 const omitPassword = { passwordHash: true } as const;
@@ -41,6 +44,15 @@ function toData(patch: UserPatch): Prisma.UserUncheckedUpdateInput {
 
 /** All database access of the users domain. Services never touch Prisma directly. */
 export class UsersRepository {
+  async listActiveGuides(q: string | undefined, page: PageRequest): Promise<{ items: PublicGuideRecord[]; total: number }> {
+    const where: Prisma.UserWhereInput = { role: 'TOUR_GUIDE', status: 'ACTIVE', ...(q ? { fullName: containsText(q) } : {}) };
+    const [items, total] = await Promise.all([
+      prisma.user.findMany({ where, select: { id: true, fullName: true, avatarUrl: true, guideProfile: { select: { bio: true, languages: true, specialties: true, experienceYears: true } } }, orderBy: [{ fullName: 'asc' }, { id: 'asc' }], skip: toSkip(page), take: page.limit }),
+      prisma.user.count({ where }),
+    ]);
+    return { items, total };
+  }
+
   findById(id: string): Promise<UserRecord | null> {
     return prisma.user.findUnique({ where: { id }, include, omit: omitPassword });
   }

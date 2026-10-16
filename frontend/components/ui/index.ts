@@ -4,3 +4,6 @@ export * from './Input';
 export * from './FormField';
 export * from './Badge';
 export * from './Modal';
+export * from './Pagination';
+export * from './AntSelect';
+export * from './AntDatePicker';

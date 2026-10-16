@@ -3,11 +3,13 @@ import type { AgencyBookingStats, PlatformBookingStats } from '../bookings';
 export const DASHBOARD_CACHE_TTL_MS = 30_000;
 
 export interface AgencyDashboardDto {
+  customers: number;
   generatedAt: string;
   tours: { total: number; byStatus: Record<string, number> };
   bookings: AgencyBookingStats['byStatus'] & Record<string, number>;
   revenue: AgencyBookingStats['totals'];
   last30Days: AgencyBookingStats['last30Days'];
+  last6Months: AgencyBookingStats['last6Months'];
   topTours: AgencyBookingStats['topTours'];
   /** Complaints routed to this agency that it has not answered yet. */
   openComplaints: number;

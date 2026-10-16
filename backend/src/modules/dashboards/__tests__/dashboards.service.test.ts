@@ -6,8 +6,10 @@ function make() {
   const bookings = {
     getAgencyStats: vi.fn(async (agencyId: string) => ({
       byStatus: { CONFIRMED: 3, PENDING: 1 },
+      customers: 2,
       totals: { bookings: 3, gross: 3_000_000, commission: 300_000, net: 2_700_000 },
       last30Days: [{ date: '2026-10-01', bookings: 3, net: 2_700_000 }],
+      last6Months: [{ month: '2026-10', bookings: 3, net: 2_700_000 }],
       topTours: [{ tourId: 't1', title: `Tour of ${agencyId}`, bookings: 3, net: 2_700_000 }],
     })),
     getPlatformStats: vi.fn(async () => ({
@@ -39,6 +41,7 @@ describe('agencyDashboard', () => {
     expect(dashboard).toMatchObject({
       tours: { total: 3, byStatus: { APPROVED: 2, DRAFT: 1 } },
       revenue: { net: 2_700_000 },
+      customers: 2,
       openComplaints: 2,
       topTours: [{ title: 'Tour of a1' }],
     });

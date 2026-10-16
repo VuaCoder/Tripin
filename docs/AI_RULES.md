@@ -59,6 +59,7 @@ repository; inspect source files only when a task touches them.
   - `FORGOT_PASSWORD` passes email + code to reset-password; it must not call the normal verify endpoint.
 - `POST /auth/resend-otp` is public and must remain represented in route audits and API docs.
 - Mail fallback must never log email bodies or OTP values; log recipient/subject only.
+- Agency document extraction may use the configured AI provider to suggest tour fields. Treat the document and model output as untrusted: validate output, return drafts only, and persist nothing until the Agency explicitly confirms through the tour import API. Tell the user before sending document text to the provider.
 
 ### Change/validation checklist
 

@@ -94,6 +94,8 @@ No RBAC here: every route is public except `GET /security` and `PATCH /two-facto
 * Used by: `middlewares/authenticate.ts`, `routes/index.ts`.
 
 ## Events / side effects
+Agency approval/revision emails (`agency-approval.mail.ts`) use the same Tripri teal header for both outcomes and a centered status heading. They include no action links, status URLs or tokens in either HTML or plain text. Dynamic company names/reasons are HTML-escaped; the revision email keeps the reason and asks the Agency to return to Tripri to edit and resubmit. Existing delivered emails retain their original content; the template applies to new emails only.
+
 Sends OTP emails (console provider when `SMTP_HOST` is empty — the code is then printed to the server log in dev only).
 
 ## Testing

@@ -12,6 +12,7 @@ import { useAppSelector } from '@/store/hooks';
 import { selectUser, selectIsAuthenticated, useLogout } from '@/features/auth';
 import { homeForRole } from '@/features/auth/utils/roles';
 import { PremiumComingSoonModal } from '@/components/shared';
+import { AgencyRightSidebar } from '@/features/agency/AgencyUi';
 import { cn } from '../ui/cn';
 
 type AccountMenuItem = {
@@ -99,6 +100,11 @@ export function Header({ role }: { role?: AppRole }) {
 
   const isTransparent = isHome && !isScrolled;
   const effectiveRole: AppRole = role || (isAuthenticated && user?.role ? (user.role as AppRole) : 'PUBLIC');
+
+  if (effectiveRole === 'AGENCY') {
+    return <AgencyRightSidebar />;
+  }
+
   const items = navigationByRole[effectiveRole] || navigationByRole.PUBLIC;
   const accountMenuItems = accountMenuForRole(effectiveRole);
 

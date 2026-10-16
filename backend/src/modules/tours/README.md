@@ -47,7 +47,7 @@ Owner agency (not ARCHIVED) and staff with `tour:list-all` get the management vi
 
 **Agency** (`/agency/tours`, each route has its own permission): `POST /` body `{title,summary?,description?,destination,durationDays,basePrice,maxGroupSize?,categoryIds[1..10],images?,inclusions?,exclusions?}` → 201 DRAFT ·
 `GET /?status&page&limit` · `GET /:id` · `PATCH /:id` (any subset, ≥1 field) · `DELETE /:id` 204 ·
-`POST /import` `{tours:[≤50]}` → 201 `{created,tours}` · `PUT /:id/availability` `{departures:[{id?,date,capacity,priceOverride?,isOpen}]}` ·
+`POST /import` `{tours:[≤50]}` → 201 `{created,tours}` · `POST /extract-document` multipart field `file` (DOCX/PDF; ≤10 MB, PDF ≤40 pages) → `{tours:[partial tour drafts]}` · `PUT /:id/availability` `{departures:[{id?,date,capacity,priceOverride?,isOpen}]}` ·
 `PUT /:id/itinerary` `{days:[{day,title,description?,activities?}]}` · `PUT /:id/guide` `{guideId|null, feePerBooking}` · `POST /:id/submit` 202.
 
 **Guide** (`/guide/tours`): `GET /` assigned tours · `POST /:tourId/verification` `{accept, note?}`.
@@ -64,8 +64,9 @@ Common errors: 400 validation, 401/403 permission, 404 unknown/not owned, 409 `T
 6. Availability: matched by departure id; capacity cannot go below sold seats; a departure with sold seats cannot be moved or removed (close it); new/moved dates must be future. The write is guarded by the document version, so it can never overwrite seats sold at the same moment.
 7. Itinerary: unique day numbers, each ≤ `durationDays`; `durationDays` cannot be cut below the itinerary.
 8. Guide assignment: the guide must be an ACTIVE TOUR_GUIDE; a new assignment is PENDING; only that guide can answer, only once (`PENDING → ACCEPTED|DECLINED`).
-9. Moderator: reject needs a reason; suspend needs a reason; both audited.
-10. Inventory (`reserveSeats`) is one atomic update (`remaining ≥ seats`, open, future, tour APPROVED) — no overselling.
+9. Document extraction checks file extension, MIME and file signature, parses in memory only, and sends extracted text plus active category IDs/names to the configured AI provider. Documents and drafts are never persisted by extraction. The model is instructed to omit unsupported fields; its response is strict-schema validated and returned only as a candidate for the Agency to review before calling `/import`. Text-based PDFs only; no OCR. Limits: 10 MB, 40 PDF pages, 60,000 extracted characters, 10 AI candidates per file.
+10. Moderator: reject needs a reason; suspend needs a reason; both audited.
+11. Inventory (`reserveSeats`) is one atomic update (`remaining ≥ seats`, open, future, tour APPROVED) — no overselling.
 
 ## State machine (`TOUR_TRANSITIONS`)
 | From | To |
@@ -90,6 +91,8 @@ Guide assignment: `PENDING → ACCEPTED | DECLINED`. Status changes use compare-
 `tour:configure-itinerary`, `tour:assign-guide`, `guide:tours-view`, `guide:tours-verify`; `tour:list-all` for staff visibility. Discovery is public.
 
 ## Dependencies
+* Agency workspace searches active Guides and assigns/reassigns/removes via the existing guide endpoint. Agency and Guide views refresh every 30 seconds while focused; unsaved itinerary/availability drafts survive assignment refreshes. One Guide remains assigned to the entire tour, not individual departures.
+* Document extraction: `tour-document-extraction.service.ts` parses the file, assembles the extraction prompt and validates tour drafts. `ai/providers/index.ts` selects the model vendor. For Gemini configure `AI_PROVIDER=gemini`, `AI_API_KEY` and `AI_MODEL` in the root `.env`, then restart the backend. The Agency UI is `/agency/tours/import` → “Đọc từ tài liệu”; its component is `frontend/features/tours/components/AgencyTourImportPage.tsx`. JSON generation mode is requested for Gemini, with the same strict draft validation and explicit import confirmation as other providers.
 * Uses: `users` (summaries, guide check, agency verification), `categories`, `audit`.
 * Used by: `bookings` (`getBookableDeparture`, `reserveSeats`, `releaseSeats`), `carts` (`getBookableDeparture`, `getDepartureFacts`, `getPublicCards`), `reviews` (`getTourFacts`, `updateRatingStats`), `earnings`, `moderation`, `dashboards`.
 
@@ -97,7 +100,7 @@ Guide assignment: `PENDING → ACCEPTED | DECLINED`. Status changes use compare-
 Audit: `tour.validated`, `tour.suspended`. In-app notifications: moderation decision and suspension (to the agency), guide assignment (to the guide).
 
 ## Testing
-`__tests__/tours.integration.test.ts` – real PostgreSQL over HTTP: draft -> submit -> moderator decision -> public, locked/re-review edits, one winner among parallel decisions, suspended tours cannot be booked, ownership 404s, availability vs sold seats, seat accounting while bookings and availability edits race, delete guard, guide assignment answered once.
+`__tests__/tours.integration.test.ts` – real PostgreSQL over HTTP: draft -> submit -> moderator decision -> public, locked/re-review edits, one winner among parallel decisions, suspended tours cannot be booked, ownership 404s, availability vs sold seats, seat accounting while bookings and availability edits race, delete guard, guide assignment answered once. `__tests__/tour-document-extraction.service.test.ts` covers in-memory PDF/DOCX upload validation, disabled provider, extraction prompt, draft schema validation and malformed provider output.
 `__tests__/tours.service.test.ts` (ownership, locking, re-review, delete guard, availability invariants, submit rules, moderation, guide, inventory) and
 `__tests__/tours-discovery.service.test.ts` (visibility matrix by status/actor).
 

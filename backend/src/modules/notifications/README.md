@@ -25,6 +25,7 @@ something relevant to a user happens.
 * `GET /notifications/unread-count` → `{ unread }`.
 * `PATCH /notifications/:id/read` → the notification (idempotent). 404 if it is not yours.
 * `POST /notifications/read-all` → `{ updated }`.
+* `DELETE /notifications/:id` → `{ deleted: true }`. Deletes only the authenticated user's notification; 404 for missing/foreign ids. This action cannot be undone.
 There is no create endpoint: notifications are produced only by server-side events.
 
 ## Business rules

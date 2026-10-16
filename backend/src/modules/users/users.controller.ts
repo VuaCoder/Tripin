@@ -11,6 +11,12 @@ import type { AssignAccessBody, CompleteImageUploadBody, ListUsersQueryInput, Up
 export class UsersController {
   constructor(private readonly service: UsersService = usersService) {}
 
+  listAgencyGuides: RequestHandler = async (req, res) => {
+    const { query } = validated<unknown, { q?: string; page: number; limit: number }>(req);
+    const result = await this.service.listAgencyGuides(query);
+    sendPaginated(res, result.items, result.meta);
+  };
+
   getMe: RequestHandler = async (req, res) => {
     sendOk(res, await this.service.getMe(userActor(req).userId));
   };

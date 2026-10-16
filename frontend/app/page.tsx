@@ -2,7 +2,10 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import React, { useEffect, useRef, useLayoutEffect } from 'react';
+import { useAppSelector } from '@/store/hooks';
+import { selectRole } from '@/features/auth';
 import { ArrowDown, ArrowUpRight } from 'lucide-react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -163,6 +166,15 @@ function Tilt3DButton({
 }
 
 export default function LandingPage() {
+  const router = useRouter();
+  const role = useAppSelector(selectRole);
+
+  useEffect(() => {
+    if (role === 'AGENCY') {
+      router.replace('/agency');
+    }
+  }, [role, router]);
+
   useIsomorphicLayoutEffect(() => {
     let ctx = gsap.context(() => {
       
