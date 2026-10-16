@@ -60,9 +60,9 @@
                 "exec": [
                   "const res = pm.response.json();",
                   "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
-                  "if (res.data && res.data.token) {",
-                  "    pm.collectionVariables.set('agency_token', res.data.token);",
-                  "    console.log('Saved agency_token:', res.data.token);",
+                  "if (res.data && res.data.accessToken) {",
+                  "    pm.collectionVariables.set('agency_token', res.data.accessToken);",
+                  "    console.log('Saved agency_token:', res.data.accessToken);",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -79,12 +79,12 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"credential\": \"{{agency_email}}\",\n  \"password\": \"{{agency_password}}\"\n}"
+              "raw": "{\n  \"email\": \"{{agency_email}}\",\n  \"password\": \"{{agency_password}}\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/auth/login",
+              "raw": "{{base_url}}/auth/agency/login",
               "host": ["{{base_url}}"],
-              "path": ["auth", "login"]
+              "path": ["auth", "agency", "login"]
             }
           }
         },
@@ -232,7 +232,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"itinerary\": [\n    {\n      \"day\": 1,\n      \"title\": \"Đón khách - Khám phá Đông Đảo\",\n      \"description\": \"Xe đón tại sân bay Phú Quốc, nhận phòng khách sạn, tham quan Dinh Cậu.\",\n      \"activities\": [\"Đón sân bay\", \"Check-in khách sạn\", \"Ngắm hoàng hôn Dinh Cậu\"]\n    },\n    {\n      \"day\": 2,\n      \"title\": \"Tour 4 Đảo Cano & Cáp treo Hòn Thơm\",\n      \"description\": \"Lặn ngắm san hô tại hòn Mây Rút, trải nghiệm cáp treo vượt biển dài nhất thế giới.\",\n      \"activities\": [\"Đi cano cao tốc\", \"Lặn ngắm san hô\", \"Buffet Hòn Thơm\"]\n    },\n    {\n      \"day\": 3,\n      \"title\": \"Mua sắm đặc sản - Tiễn sân bay\",\n      \"description\": \"Tham quan vườn tiêu, cơ sở ngọc trai và tiễn đoàn ra sân bay.\",\n      \"activities\": [\"Mua sắm đặc sản\", \"Check-out\", \"Tiễn sân bay\"]\n    }\n  ]\n}"
+              "raw": "{\n  \"days\": [\n    {\n      \"day\": 1,\n      \"title\": \"Đón khách - Khám phá Đông Đảo\",\n      \"description\": \"Xe đón tại sân bay Phú Quốc, nhận phòng khách sạn, tham quan Dinh Cậu.\",\n      \"activities\": [\"Đón sân bay\", \"Check-in khách sạn\", \"Ngắm hoàng hôn Dinh Cậu\"]\n    },\n    {\n      \"day\": 2,\n      \"title\": \"Tour 4 Đảo Cano & Cáp treo Hòn Thơm\",\n      \"description\": \"Lặn ngắm san hô tại hòn Mây Rút, trải nghiệm cáp treo vượt biển dài nhất thế giới.\",\n      \"activities\": [\"Đi cano cao tốc\", \"Lặn ngắm san hô\", \"Buffet Hòn Thơm\"]\n    },\n    {\n      \"day\": 3,\n      \"title\": \"Mua sắm đặc sản - Tiễn sân bay\",\n      \"description\": \"Tham quan vườn tiêu, cơ sở ngọc trai và tiễn đoàn ra sân bay.\",\n      \"activities\": [\"Mua sắm đặc sản\", \"Check-out\", \"Tiễn sân bay\"]\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/agency/tours/{{tour_id}}/itinerary",
@@ -341,9 +341,9 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/dashboards/agency",
+              "raw": "{{base_url}}/agency/dashboard",
               "host": ["{{base_url}}"],
-              "path": ["dashboards", "agency"]
+              "path": ["agency", "dashboard"]
             }
           }
         },
@@ -354,8 +354,8 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "const res = pm.response.json();",
                   "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
                   "if (res.data && res.data.length > 0) {",
                   "    pm.collectionVariables.set('booking_id', res.data[0].id);",
                   "    console.log('Saved booking_id:', res.data[0].id);",
@@ -391,8 +391,8 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "const res = pm.response.json();",
                   "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
                   "if (res.data && res.data.length > 0) {",
                   "    pm.collectionVariables.set('guide_id', res.data[0].id);",
                   "    console.log('Saved guide_id:', res.data[0].id);",
@@ -424,7 +424,7 @@
         {
           "name": "4. Assign Guide to Tour",
           "request": {
-            "method": "POST",
+            "method": "PUT",
             "header": [
               {
                 "key": "Content-Type",
@@ -440,9 +440,9 @@
               "raw": "{\n  \"guideId\": \"{{guide_id}}\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/agency/tours/{{tour_id}}/assign-guide",
+              "raw": "{{base_url}}/agency/tours/{{tour_id}}/guide",
               "host": ["{{base_url}}"],
-              "path": ["agency", "tours", "{{tour_id}}", "assign-guide"]
+              "path": ["agency", "tours", "{{tour_id}}", "guide"]
             }
           }
         },
@@ -457,9 +457,9 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/agency/bookings/{{booking_id}}/export-pdf",
+              "raw": "{{base_url}}/agency/tours/{{tour_id}}/customers.pdf",
               "host": ["{{base_url}}"],
-              "path": ["agency", "bookings", "{{booking_id}}", "export-pdf"]
+              "path": ["agency", "tours", "{{tour_id}}", "customers.pdf"]
             }
           }
         }
