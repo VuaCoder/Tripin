@@ -31,7 +31,8 @@ those rows again — it is idempotent, so re-running `create` always starts from
 - `dev.guide.foreign@tripri.test` — owns the 4th tour, used to prove a guide cannot answer an assignment outside their scope
 - `dev.guide.none@tripri.test` — no assignment at all, for the empty state
 - `dev.guide.traveler@tripri.test` — a `TRAVELER`, for the role guard
-- All accounts share the password `DevGuide!2026`
+- All accounts share the password in `DEV_GUIDE_PASSWORD` (never committed — export it before
+  running the fixture and the driver; the fixture refuses to run without it)
 
 Assignments on the guide under test: `Hạ Long 2N1Đ` = **PENDING**, `Đà Nẵng – Hội An 3N2Đ` =
 **ACCEPTED**, `Phú Quốc 4N3Đ` = **DECLINED** (the declined row carries a note from the fixture).
@@ -39,7 +40,7 @@ Assignments on the guide under test: `Hạ Long 2N1Đ` = **PENDING**, `Đà Nẵ
 ## The run
 
 ```bash
-node .playwright-cli/verify-guide-profile-tours.mjs
+DEV_GUIDE_PASSWORD=... node .playwright-cli/verify-guide-profile-tours.mjs
 ```
 
 `42/42 checks passed` — 16 screenshots written next to this file.
