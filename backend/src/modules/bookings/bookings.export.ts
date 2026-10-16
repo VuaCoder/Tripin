@@ -43,7 +43,7 @@ export function renderCustomersPdf(input: CustomersPdfInput): PDFKit.PDFDocument
     { title: 'Traveler', width: 170 },
     { title: 'Phone', width: 100 },
     { title: 'Pax', width: 30 },
-    { title: 'Notes', width: 306 },
+    { title: 'Notes', width: doc.page.width - doc.page.margins.left - doc.page.margins.right - 490 },
   ];
   const left = doc.page.margins.left;
   const bottom = () => doc.page.height - doc.page.margins.bottom - 20;
@@ -60,7 +60,7 @@ export function renderCustomersPdf(input: CustomersPdfInput): PDFKit.PDFDocument
     useBold().fontSize(9);
     let x = left;
     for (const column of columns) {
-      doc.text(column.title, x, y, { width: column.width });
+      doc.text(column.title, x + 3, y, { width: column.width - 6 });
       x += column.width;
     }
     doc.moveTo(left, y + 13).lineTo(x, y + 13).stroke();
@@ -72,18 +72,43 @@ export function renderCustomersPdf(input: CustomersPdfInput): PDFKit.PDFDocument
   tableHead();
   input.rows.forEach((row, index) => {
     const cells = [String(index + 1), row.bookingCode, fmtDate(row.departureDate), row.travelerName, row.phone, String(row.participants), row.notes ?? ''];
-    const height = Math.max(...cells.map((text, i) => doc.heightOfString(text, { width: columns[i]!.width })));
-    if (doc.y + height > bottom()) {
+    // Wrap every cell explicitly so even one very long note can continue safely onto another page.
+    const lines = cells.map((text, column) => {
+      const result: string[] = [];
+      const width = columns[column]!.width - 6;
+      for (const paragraph of text.replace(/\r/g, '').split('\n')) {
+        let line = '';
+        for (const word of paragraph.split(/(\s+)/)) {
+          if (doc.widthOfString(line + word) <= width) { line += word; continue; }
+          if (line.trim()) result.push(line.trimEnd());
+          line = '';
+          for (const character of word.trimStart()) {
+            if (line && doc.widthOfString(line + character) > width) { result.push(line); line = ''; }
+            line += character;
+          }
+        }
+        result.push(line);
+      }
+      return result;
+    });
+    const lineHeight = doc.currentLineHeight(true);
+    const count = Math.max(...lines.map((cell) => cell.length));
+    if (doc.y + Math.min(count * lineHeight, 80) > bottom()) {
       doc.addPage();
       tableHead();
     }
-    const y = doc.y;
-    let x = left;
-    cells.forEach((text, i) => {
-      doc.text(text, x, y, { width: columns[i]!.width });
-      x += columns[i]!.width;
-    });
-    doc.y = y + height + 4;
+    for (let line = 0; line < count; line += 1) {
+      let continued = false;
+      if (doc.y + lineHeight > bottom()) { doc.addPage(); tableHead(); continued = true; }
+      const y = doc.y;
+      let x = left;
+      lines.forEach((cell, column) => {
+        doc.text(cell[line] ?? (continued && column === 1 ? row.bookingCode : ''), x + 3, y, { width: columns[column]!.width - 6, lineBreak: false });
+        x += columns[column]!.width;
+      });
+      doc.y = y + lineHeight;
+    }
+    doc.y += 6;
   });
   if (input.rows.length === 0) doc.text('No confirmed bookings yet.', left, doc.y);
   return doc;

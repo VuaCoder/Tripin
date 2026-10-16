@@ -20,7 +20,7 @@ Read-only dashboards for the three staff-like actors. The module owns no data: e
 | `index.ts` | Public API |
 
 ## API (base `/api/v1`)
-* **Agency** – `{ generatedAt, tours{total,byStatus}, bookings{<status>:n}, revenue{bookings,gross,commission,net}, last30Days[{date,bookings,net}], topTours[{tourId,title,bookings,net}], openComplaints }`. There is **no id parameter**: it is always the logged-in agency.
+* **Agency** – `{ generatedAt, customers, tours{total,byStatus}, bookings{<status>:n}, revenue{bookings,gross,commission,net}, last30Days[{date,bookings,net}], last6Months[{month,bookings,net}], topTours[{tourId,title,coverImage,bookings,net}], openComplaints }`. There is **no id parameter**: it is always the logged-in agency. `customers` counts distinct travelers with CONFIRMED/COMPLETED bookings belonging to this agency, lifetime; returning travelers count once, and no customer identity data is exposed. `last6Months` includes the current partial UTC calendar month and five previous months, oldest first, with zero-filled months. `coverImage` is the first tour image or null. Revenue includes only CONFIRMED/COMPLETED bookings belonging to the logged-in agency.
 * **Moderation** – `{ generatedAt, queues{toursPendingReview, agenciesPendingVerification, reportsOpen, reportsAwaitingDecision, supportTicketsOpen, supportTicketsInProgress}, tours{<status>:n}, reviews{visible,hidden} }`.
 * **Admin** – `{ generatedAt, users{total,byRole,byStatus,newLast30Days}, tours{total,byStatus}, bookings{byStatus}, revenue{bookings,gross,commission,net,subscriptions{amount,count}}, monthly[{month,bookings,gross,commission}] (12 months), subscriptions{active}, moderation{reportsOpen,supportTicketsOpen} }`.
 

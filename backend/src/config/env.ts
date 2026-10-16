@@ -52,7 +52,7 @@ const envSchema = z.object({
   PAYMENT_RETURN_URL: optionalString,
   PAYMENT_CANCEL_URL: optionalString,
 
-  AI_PROVIDER: z.enum(['disabled', 'anthropic']).default('disabled'),
+  AI_PROVIDER: z.enum(['disabled', 'anthropic', 'gemini']).default('disabled'),
   AI_API_KEY: optionalString,
   AI_MODEL: optionalString,
 });

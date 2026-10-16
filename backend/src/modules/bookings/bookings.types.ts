@@ -110,11 +110,14 @@ export interface RevenueTotals {
 }
 
 export interface AgencyBookingStats {
+  /** Distinct travelers with CONFIRMED/COMPLETED bookings, lifetime, agency-scoped. */
+  customers: number;
   byStatus: Record<string, number>;
   totals: RevenueTotals;
   /** Paid bookings per day (UTC) over the last 30 days, oldest first, days without sales omitted. */
   last30Days: { date: string; bookings: number; net: number }[];
-  topTours: { tourId: string; title: string; bookings: number; net: number }[];
+  last6Months: { month: string; bookings: number; net: number }[];
+  topTours: { tourId: string; title: string; coverImage: string | null; bookings: number; net: number }[];
 }
 
 export interface PlatformBookingStats {

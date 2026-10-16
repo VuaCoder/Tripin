@@ -117,10 +117,10 @@ describe('edit rules', () => {
     await expect(service.updateTour('a1', 't1', { title: 'New title here' })).rejects.toMatchObject({ code: 'TOUR_LOCKED' });
   });
 
-  it('sends an APPROVED tour back to review when its content changes', async () => {
+  it('keeps an APPROVED tour APPROVED when its content changes', async () => {
     const { service, db } = setup(makeTour({ status: TOUR_STATUS.APPROVED }));
     await service.updateTour('a1', 't1', { title: 'Better title here' });
-    expect(db!.status).toBe(TOUR_STATUS.PENDING_REVIEW);
+    expect(db!.status).toBe(TOUR_STATUS.APPROVED);
   });
 
   it('keeps a DRAFT a DRAFT', async () => {

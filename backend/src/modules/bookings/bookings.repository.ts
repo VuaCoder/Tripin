@@ -119,6 +119,14 @@ export class BookingsRepository {
 
   // ---- dashboard read models (paid = CONFIRMED + COMPLETED)
 
+  /** Unique travelers with a confirmed/completed booking belonging to this agency. */
+  async customerCount(agencyId: string): Promise<number> {
+    const rows = await prisma.$queryRaw<{ count: number }[]>`
+      SELECT COUNT(DISTINCT "travelerId")::float8 AS "count" FROM "Booking"
+      WHERE "agencyId" = ${agencyId}::uuid AND "status" IN ('CONFIRMED', 'COMPLETED')`;
+    return rows[0]?.count ?? 0;
+  }
+
   async statusCounts(agencyId?: string): Promise<Record<string, number>> {
     const rows = await prisma.booking.groupBy({ by: ['status'], where: agencyId ? { agencyId } : {}, _count: { _all: true } });
     return Object.fromEntries(rows.map((row) => [row.status, row._count._all]));
@@ -138,12 +146,12 @@ export class BookingsRepository {
     };
   }
 
-  async dailyNet(agencyId: string, since: Date): Promise<{ date: string; bookings: number; net: number }[]> {
+  async dailyNet(agencyId: string, since: Date, until = new Date()): Promise<{ date: string; bookings: number; net: number }[]> {
     return prisma.$queryRaw<{ date: string; bookings: number; net: number }[]>`
       SELECT to_char("confirmedAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS "date",
              COUNT(*)::float8 AS "bookings", COALESCE(SUM("agencyAmount"), 0)::float8 AS "net"
       FROM "Booking"
-      WHERE "agencyId" = ${agencyId}::uuid AND "status" IN ('CONFIRMED', 'COMPLETED') AND "confirmedAt" >= ${since}
+      WHERE "agencyId" = ${agencyId}::uuid AND "status" IN ('CONFIRMED', 'COMPLETED') AND "confirmedAt" >= ${since} AND "confirmedAt" <= ${until}
       GROUP BY 1 ORDER BY 1`;
   }
 
@@ -157,9 +165,10 @@ export class BookingsRepository {
       GROUP BY 1 ORDER BY 1`;
   }
 
-  async topTours(agencyId: string, limit: number): Promise<{ tourId: string; title: string; bookings: number; net: number }[]> {
-    return prisma.$queryRaw<{ tourId: string; title: string; bookings: number; net: number }[]>`
+  async topTours(agencyId: string, limit: number): Promise<{ tourId: string; title: string; coverImage: string | null; bookings: number; net: number }[]> {
+    return prisma.$queryRaw<{ tourId: string; title: string; coverImage: string | null; bookings: number; net: number }[]>`
       SELECT "tourId"::text AS "tourId", (ARRAY_AGG("tourTitle" ORDER BY "createdAt" DESC))[1] AS "title",
+             (SELECT "images"[1] FROM "Tour" WHERE "Tour"."id" = "Booking"."tourId" AND "Tour"."agencyId" = ${agencyId}::uuid) AS "coverImage",
              COUNT(*)::float8 AS "bookings", COALESCE(SUM("agencyAmount"), 0)::float8 AS "net"
       FROM "Booking"
       WHERE "agencyId" = ${agencyId}::uuid AND "status" IN ('CONFIRMED', 'COMPLETED')

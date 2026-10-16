@@ -143,8 +143,13 @@ export function RoutePreloader() {
         // Ignore different origins
         if (url.origin !== window.location.origin) return;
 
-        // 1. DO NOT show preloader when navigating inside settings or traveler profile pages
-        if (url.pathname.startsWith('/settings') || url.pathname.startsWith('/traveler')) {
+        if (anchor.dataset.routePreloader === 'true') {
+          if (url.pathname + url.search !== window.location.pathname + window.location.search) triggerStart();
+          return;
+        }
+
+        // Non-sidebar internal account navigation remains lightweight.
+        if (url.pathname.startsWith('/settings') || url.pathname.startsWith('/traveler') || url.pathname.startsWith('/agency')) {
           return;
         }
 
@@ -176,16 +181,19 @@ export function RoutePreloader() {
       manualHoldRef.current = false;
       triggerFinish();
     };
+    const handleRouteNavigation = () => { manualHoldRef.current = false; triggerStart(); };
 
     document.addEventListener('click', handleDocumentClick, { capture: true });
     window.addEventListener('popstate', handlePopState);
     window.addEventListener('tripri:navigation-start', handleCustomStart);
+    window.addEventListener('tripri:route-navigation-start', handleRouteNavigation);
     window.addEventListener('tripri:navigation-end', handleCustomEnd);
 
     return () => {
       document.removeEventListener('click', handleDocumentClick, { capture: true });
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('tripri:navigation-start', handleCustomStart);
+      window.removeEventListener('tripri:route-navigation-start', handleRouteNavigation);
       window.removeEventListener('tripri:navigation-end', handleCustomEnd);
       clearTimers();
     };

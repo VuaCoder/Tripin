@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useGetTourDestinationsQuery } from '@/features/tours';
 import { useAppSelector } from '@/store/hooks';
-import { selectIsAuthenticated } from '@/features/auth';
+import { selectIsAuthenticated, selectRole } from '@/features/auth';
 import { GuestLoginPromptModal } from '@/components/shared';
 
 interface Slide {
@@ -322,6 +322,14 @@ function getDynamicFlexibleMonths() {
 export default function Home() {
   const router = useRouter();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const role = useAppSelector(selectRole);
+
+  useEffect(() => {
+    if (role === 'AGENCY') {
+      router.replace('/agency');
+    }
+  }, [role, router]);
+
   const [guestModalOpen, setGuestModalOpen] = useState(false);
   const [selectedTourPrompt, setSelectedTourPrompt] = useState<{ title?: string; href?: string }>({});
 

@@ -108,12 +108,14 @@ export class AuthService {
     const agencyProfile = {
       companyName: input.companyName,
       licenseNumber: input.licenseNumber,
+      taxId: input.taxId ?? null,
+      businessLicenseUrl: input.businessLicenseUrl ?? null,
       address: input.address,
       description: input.description,
       website: input.website,
       verificationStatus: AGENCY_VERIFICATION_STATUS.UNVERIFIED,
       verificationNote: null,
-    } as const;
+    };
 
     let user: UserRecord;
     if (existing) {

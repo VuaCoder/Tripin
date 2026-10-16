@@ -13,7 +13,7 @@ const PAGE_SIZE = 10;
 /** Use cases "View Assigned Tours" and "Verify Assigned Tours" for the logged-in Tour guide. */
 export function GuideAssignedToursPage() {
   const [page, setPage] = useState(1);
-  const { data, isLoading, isFetching, isError, refetch } = useGetAssignedToursQuery({ page, limit: PAGE_SIZE });
+  const { data, isLoading, isFetching, isError, refetch } = useGetAssignedToursQuery({ page, limit: PAGE_SIZE }, { pollingInterval: 30_000, skipPollingIfUnfocused: true, refetchOnFocus: true, refetchOnReconnect: true });
   const [answerAssignment, { isLoading: isAnswering }] = useAnswerAssignmentMutation();
 
   const [pending, setPending] = useState<{ tour: GuideAssignedTour; accept: boolean } | null>(null);

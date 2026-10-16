@@ -87,6 +87,13 @@ describe('BoatPreloader', () => {
 });
 
 describe('RoutePreloader', () => {
+  it('loads Agency sidebar destinations but exempts notifications', () => {
+    render(<><RoutePreloader /><a href="/agency/tours" data-route-preloader="true">Quản lý tour Agency</a><a href="/agency/notifications" data-no-preloader="true">Mở thông báo</a></>);
+    fireEvent.click(screen.getByText('Mở thông báo'));
+    expect(screen.queryByRole('status')).toBeNull();
+    fireEvent.click(screen.getByText('Quản lý tour Agency'));
+    expect(screen.getByRole('status')).toBeDefined();
+  });
   beforeEach(() => {
     vi.useFakeTimers();
   });

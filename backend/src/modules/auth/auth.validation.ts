@@ -31,6 +31,8 @@ export const agencyRegisterBody = z
     phone,
     companyName: z.string().trim().min(2).max(200),
     licenseNumber: z.string().trim().min(3).max(100),
+    taxId: z.string().trim().min(3).max(50).optional(),
+    businessLicenseUrl: z.string().trim().url().max(1000).optional(),
     address: z.string().trim().min(5).max(500),
     description: z.string().trim().max(5000).optional(),
     website: z.url().max(300).optional(),
@@ -95,3 +97,32 @@ export type ForgotPasswordBody = z.infer<typeof forgotPasswordBody>;
 export type ResetPasswordBody = z.infer<typeof resetPasswordBody>;
 export type TwoFactorBody = z.infer<typeof twoFactorBody>;
 export type ResendOtpBody = z.infer<typeof resendOtpBody>;
+
+export const devAcceptBody = z.object({
+  email: email.optional(),
+  token: z.string().trim().max(1000).optional(),
+});
+
+export const devRejectBody = z.object({
+  email: email.optional(),
+  token: z.string().trim().max(1000).optional(),
+  reason: z.string().trim().min(2).max(500),
+});
+
+export const updateAgencyApplicationBody = z.object({
+  fullName: z.string().trim().min(2).max(120),
+  phone,
+  companyName: z.string().trim().min(2).max(200),
+  licenseNumber: z.string().trim().min(3).max(100),
+  taxId: z.string().trim().min(3).max(50).optional(),
+  businessLicenseUrl: z.string().trim().url().max(1000).optional(),
+  address: z.string().trim().min(5).max(500),
+  description: z.string().trim().max(5000).optional(),
+  website: z.url().max(300).optional(),
+  email: email.optional(),
+  token: z.string().trim().max(1000).optional(),
+});
+
+export type DevAcceptBody = z.infer<typeof devAcceptBody>;
+export type DevRejectBody = z.infer<typeof devRejectBody>;
+export type UpdateAgencyApplicationBody = z.infer<typeof updateAgencyApplicationBody>;

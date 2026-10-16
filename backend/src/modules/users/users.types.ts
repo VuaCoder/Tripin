@@ -32,6 +32,8 @@ export interface PrivateUserDto {
     address?: string;
     website?: string;
     licenseNumber?: string;
+    taxId?: string;
+    businessLicenseUrl?: string;
     verificationStatus: AgencyVerificationStatus;
     verificationNote?: string;
   };
@@ -78,6 +80,8 @@ export interface UpdateProfileInput {
     address?: string;
     website?: string;
     licenseNumber?: string;
+    taxId?: string;
+    businessLicenseUrl?: string;
   };
   guideProfile?: {
     bio?: string;

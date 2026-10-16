@@ -12,7 +12,12 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Register Traveler / Tour guide | Guest | `POST /auth/register` | done |
 | Register Agency + onboarding profile | Guest | `POST /auth/agency/register` | done |
 | Verify / resend Agency OTP | Agency | `POST /auth/agency/verify-otp`, `POST /auth/agency/resend-otp` | done |
+| Check Agency application status | Agency | `GET /auth/agency/application-status` | done |
+| View / edit / resubmit Agency application | Agency | `GET /auth/agency/application`, `PUT /auth/agency/application` | done |
+| Upload Agency business license | Agency | `POST /auth/agency/upload-license` | done |
+| Dev simulate Agency accept / reject | Dev / Admin | `POST /auth/agency/dev-accept`, `POST /auth/agency/dev-reject` | done |
 | Verify OTP | Guest/User | `POST /auth/verify-otp` (purposes REGISTER, LOGIN_2FA) | done |
+| View authentication security status | authenticated user | `GET /auth/security` | done |
 | Resend OTP (register / login 2FA) | Guest/User | `POST /auth/resend-otp` | done |
 | Customer login (+ Validate credentials, + 2FA extend) | Traveler / Tour guide / Staff | `POST /auth/login` | done |
 | Agency login (+ 2FA extend) | Agency | `POST /auth/agency/login` | done |
@@ -25,6 +30,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Use case | Module | Endpoint | Status |
 |---|---|---|---|
 | Search tours / Filter tours / View tours list | tours | `GET /tours` | done |
+| List tour destinations | tours | `GET /tours/destinations` | done |
 | View tour details | tours | `GET /tours/:id` | done |
 | (supporting) health check | app | `GET /health` | done |
 | View public tour guide profile | users | `GET /tour-guides/:id` | done |
@@ -37,9 +43,11 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Use case | Module | Endpoint | Permission | Status |
 |---|---|---|---|---|
 | View profile / Update profile informations | users | `GET/PATCH /users/me` | profile:* | done |
+| Upload profile avatar | users | `POST /users/me/avatar/upload-signature`, `POST /users/me/avatar/complete`, `DELETE /users/me/avatar` | profile:update-own | done |
 | Add wishlist / Remove tour from wishlist | wishlists | `GET /wishlist`, `POST /wishlist/:tourId`, `DELETE /wishlist/:tourId` | wishlist:manage | done |
 | Add tour to cart / view cart / update or remove an item (supports Book tour) | carts | `GET /cart`, `POST /cart/items`, `PATCH/DELETE /cart/items/:id` | cart:manage | done |
 | Book tour | bookings | `GET /promotions/preview` (discount preview before booking), `POST /bookings`, `GET /bookings/me`, `GET /bookings/:id`, `POST /bookings/:id/cancel` | booking:* | done |
+| Complete an owned booking | bookings | `POST /bookings/:id/complete` | booking:view-own | done |
 | Make payment (Payment Gateway) | payments | `POST /payments/bookings/:bookingId/checkout`, `GET /payments/:id`, `POST /payments/webhooks/payos` (GUEST, signature) | payment:create | done |
 | Receive E-ticket | e-tickets | `GET /e-tickets`, `GET /e-tickets/:id`, `GET /e-tickets/booking/:bookingId` (+ email/notification on issue) | eticket:view-own | done |
 | Write a review / View reviews | reviews | `POST /reviews`, `GET /reviews/me` | review:create | done |
@@ -47,17 +55,17 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Send ticket (support) | support | `POST /support/tickets`, `GET /support/tickets/me`, `GET /support/tickets/:id`, `POST /support/tickets/:id/messages`, `POST /support/tickets/:id/close` | support:create | done |
 | Make a conversation (with Tour guide) | chat | `POST /chat/conversations`, `GET /chat/conversations`, `GET /chat/conversations/:id/messages`, `POST /chat/conversations/:id/messages`, `POST /chat/conversations/:id/read` + Socket.IO | chat:use | done |
 | Chat with AI (AI Agent) | ai | `POST /ai/chat`, `GET /ai/conversations`, `GET /ai/conversations/:id` | ai:chat | done |
-| (supporting) notifications | notifications | `GET /notifications`, `GET /notifications/unread-count`, `PATCH /notifications/:id/read`, `POST /notifications/read-all` | auth | done |
+| (supporting) notifications | notifications | `GET /notifications`, `GET /notifications/unread-count`, `PATCH /notifications/:id/read`, `POST /notifications/read-all`, `DELETE /notifications/:id` | auth; owner-scoped | done |
 
 ## Agency
 | Use case | Module | Endpoint | Permission | Status |
 |---|---|---|---|---|
 | Register, onboard and sign in through dedicated portal | auth | `POST /auth/agency/register`, `/login`, `/verify-otp`, `/resend-otp` | GUEST | done |
 | Create / Edit / Delete tour | tours | `POST /agency/tours`, `PATCH /agency/tours/:id`, `DELETE /agency/tours/:id`, `GET /agency/tours`, `GET /agency/tours/:id` | tour:create/update-own/delete-own | done |
-| Upload tours | tours | `POST /agency/tours/import` (bulk JSON, see DECISIONS) | tour:import | done |
+| Upload tours | tours | `POST /agency/tours/import` (bulk JSON, see DECISIONS); `POST /agency/tours/extract-document` (DOCX/PDF to unpersisted AI drafts) | tour:import | done |
 | Set tour availability | tours | `PUT /agency/tours/:id/availability` | tour:set-availability | done |
 | Config itinerary | tours | `PUT /agency/tours/:id/itinerary` | tour:configure-itinerary | done |
-| Assign guide to tour | tours | `PUT /agency/tours/:id/guide` | tour:assign-guide | done |
+| Assign guide to tour | tours | `GET /agency/guides`, `PUT /agency/tours/:id/guide` | tour:assign-guide | done |
 | (supporting) submit tour for review | tours | `POST /agency/tours/:id/submit` | tour:update-own | done |
 | Upload promotions | promotions | `GET/POST /agency/promotions`, `GET/PATCH /agency/promotions/:id` | promotion:agency-manage | done |
 | View dashboard | dashboards | `GET /agency/dashboard` | agency:dashboard | done |

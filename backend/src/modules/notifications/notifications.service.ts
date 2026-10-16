@@ -20,7 +20,7 @@ export class NotificationsService {
   constructor(
     private readonly notifications: Pick<
       NotificationsRepository,
-      'create' | 'insertMany' | 'findOwned' | 'list' | 'countUnread' | 'markRead' | 'markAllRead' | 'deleteCreatedBefore'
+      'create' | 'insertMany' | 'findOwned' | 'list' | 'countUnread' | 'markRead' | 'markAllRead' | 'deleteCreatedBefore' | 'deleteOwned'
     > = notificationsRepository,
     private readonly users: Pick<UsersService, 'getContact'> = usersService,
     private readonly mail: MailProvider = mailProvider,
@@ -84,6 +84,11 @@ export class NotificationsService {
 
   async markAllRead(userId: string): Promise<{ updated: number }> {
     return { updated: await this.notifications.markAllRead(userId) };
+  }
+
+  async remove(userId: string, id: string): Promise<{ deleted: true }> {
+    if (!await this.notifications.deleteOwned(id, userId)) throw AppError.notFound('Notification not found');
+    return { deleted: true };
   }
 
   // ---------------------------------------------------------- helpers

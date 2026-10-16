@@ -55,6 +55,10 @@ export class NotificationsRepository {
     const result = await prisma.notification.updateMany({ where: { userId, readAt: null }, data: { readAt: new Date() } });
     return result.count;
   }
+
+  async deleteOwned(id: string, userId: string): Promise<boolean> {
+    return (await prisma.notification.deleteMany({ where: { id, userId } })).count > 0;
+  }
 }
 
 export const notificationsRepository = new NotificationsRepository();
