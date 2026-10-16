@@ -1,0 +1,194 @@
+.page {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 100svh;
+  height: 100dvh;
+  overflow: auto;
+  background: #f7f8f2;
+  color: #153f43;
+  font-family: 'Be Vietnam Pro', sans-serif;
+}
+
+.page ::selection { background: #087e8b; color: #fff; }
+.background { position: absolute; inset: 0; overflow: hidden; z-index: -1; pointer-events: none; }
+.sunlight {
+  position: absolute;
+  width: min(70vw, 900px);
+  aspect-ratio: 1;
+  right: -16%;
+  top: -40%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #f7e9c3 0%, #f7e9c355 45%, #f7f8f200 70%);
+}
+.waves { position: absolute; inset: 0; width: 100%; height: 100%; }
+.waveBack { animation: tide 20s ease-in-out infinite alternate; }
+.waveMiddle { animation: tide 16s ease-in-out -7s infinite alternate-reverse; }
+.waveFront { animation: tide 23s ease-in-out -4s infinite alternate; }
+.waveLine { animation: tide 20s ease-in-out -5s infinite alternate-reverse; }
+.spark { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #439d96; opacity: .45; animation: drift 9s ease-in-out infinite alternate; }
+.sparkOne { top: 29%; left: 22%; }
+.sparkTwo { top: 40%; right: 21%; width: 11px; height: 11px; animation-delay: -3s; background: #c39149; }
+.sparkThree { top: 65%; left: 34%; width: 5px; height: 5px; animation-delay: -6s; }
+.header { padding: clamp(20px, 4vh, 40px) clamp(24px, 5vw, 72px) 0; }
+.logo { display: inline-flex; user-select: none; }
+.logoImage { width: 106px; height: auto; object-fit: contain; }
+.action:focus-visible { outline: 3px solid #087e8b; outline-offset: 6px; }
+.content {
+  align-self: center;
+  justify-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(100%, 780px);
+  padding: 20px 24px clamp(64px, 13vh, 140px);
+  text-align: center;
+}
+.message { position: relative; max-width: 640px; }
+.title { margin: 12px 0 0; font-size: clamp(26px, 3.2vw, 40px); line-height: 1.4; font-weight: 650; letter-spacing: -.03em; text-wrap: balance; }
+.description { margin: 16px auto 0; max-width: 55ch; font-size: clamp(15px, 1.3vw, 17px); line-height: 1.7; color: #426562; overflow-wrap: anywhere; }
+.action { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 24px; border: 0; border-radius: 8px; padding: 12px 24px; background: #087e8b; color: #fff; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 160ms ease; }
+.action:hover { background: #0b5963; }
+.action:disabled { opacity: .6; cursor: wait; }
+.testControls { margin: 24px auto 0; max-width: 380px; }
+.testLabel { margin-bottom: 12px; font-size: 12px; line-height: 1.6; color: #426562; }
+.testButtons { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.testButton { margin-top: 0; }
+.rejectButton { background: #aa3d31; }
+.rejectButton:hover { background: #8c3027; }
+.rejectForm { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; text-align: left; font-size: 13px; }
+.rejectForm label { font-weight: 600; }
+.rejectForm textarea { resize: vertical; min-height: 72px; border: 1px solid #729b92; border-radius: 8px; padding: 10px 12px; background: #fffef6; color: #153f43; font: inherit; line-height: 1.6; }
+.rejectForm textarea:focus-visible { outline: 2px solid #087e8b; outline-offset: 2px; }
+.testError { margin-top: 12px; color: #8c3027; font-size: 13px; line-height: 1.6; }
+
+.clockScene { position: relative; width: clamp(190px, 29vh, 280px); aspect-ratio: 1; margin-bottom: 34px; perspective: 900px; }
+.clockFloat { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateX(12deg) rotateY(-18deg) rotateZ(-10deg); animation: levitate 9s ease-in-out infinite; }
+.clockCase {
+  position: absolute;
+  inset: 5%;
+  border-radius: 50%;
+  padding: 7%;
+  background: linear-gradient(135deg, #a9e6db 0%, #65bbae 26%, #1c827e 62%, #0b535b 100%);
+  box-shadow: 1px 2px 0 #187d77, 3px 5px 0 #187d77, 5px 8px 0 #126d69, 7px 11px 0 #126d69, 9px 14px 0 #0c5e61, 11px 17px 0 #0c5e61, 14px 24px 28px -12px #194d4f55, inset 2px 3px 4px #ecfff4a8;
+  transform-style: preserve-3d;
+}
+.clockFace { position: relative; width: 100%; height: 100%; border-radius: 50%; background: linear-gradient(145deg, #fffef6, #f5f1dd); box-shadow: inset 2px 4px 8px #164a4930, 0 1px 2px #ffffff80; transform: translateZ(3px); }
+.clockTicks { position: absolute; inset: 7%; border-radius: 50%; background: repeating-conic-gradient(from -1deg, #729b92 0deg 2deg, transparent 2deg 30deg); mask: radial-gradient(circle, transparent 64%, #000 65%); }
+.numeral { position: absolute; color: #356760; font-size: clamp(13px, 2vh, 18px); font-weight: 600; line-height: 1; }
+.twelve { top: 11%; left: 50%; transform: translateX(-50%); }
+.three { right: 12%; top: 50%; transform: translateY(-50%); }
+.six { bottom: 11%; left: 50%; transform: translateX(-50%); }
+.nine { left: 12%; top: 50%; transform: translateY(-50%); }
+.clockSignature { position: absolute; left: 50%; top: 65%; transform: translateX(-50%); font-size: 10px; font-weight: 600; color: #7b978a; }
+.hand { position: absolute; bottom: 50%; left: 50%; border-radius: 10px; transform-origin: 50% 100%; transform: translateX(-50%) rotate(var(--hand-angle, 0deg)); box-shadow: 2px 3px 3px #163e4026; animation: turn linear infinite; }
+.hourHand { width: 6px; height: 23%; background: #174b4f; animation-duration: 43200s; }
+.minuteHand { width: 4px; height: 32%; background: #24716e; animation-duration: 3600s; }
+.secondHand { width: 2px; height: 36%; background: #be663e; animation-duration: 60s; }
+.secondHand::after { content: ''; position: absolute; top: 100%; left: 0; height: 14px; width: 2px; background: inherit; }
+.clockPin { position: absolute; top: 50%; left: 50%; width: 11px; height: 11px; transform: translate(-50%, -50%); border-radius: 50%; background: #b96b43; box-shadow: inset 1px 1px 2px #ffe2b3, 1px 2px 3px #244b4a40; }
+.clockReflection { position: absolute; inset: 0; border-radius: 50%; background: linear-gradient(125deg, #ffffff4d, transparent 45%); pointer-events: none; }
+.clockShadow { position: absolute; bottom: -4%; left: 17%; width: 75%; height: 8%; border-radius: 50%; background: #29605c; filter: blur(12px); opacity: .13; animation: shadow 9s ease-in-out infinite; }
+
+.documentFloat { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateX(8deg) rotateY(-12deg) rotateZ(-7deg); animation: documentHover 9s ease-in-out infinite; }
+.documentBack {
+  position: absolute;
+  inset: 13% 20% 10% 16%;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #8acbbc, #388d83);
+  transform: rotateZ(-10deg) translateZ(-4px);
+  box-shadow: 3px 5px 0 #24756f, 7px 12px 20px -6px #164a4933;
+}
+.documentPaper { position: absolute; inset: 6% 17% 10% 20%; filter: drop-shadow(4px 7px 3px #305f552b); transform: translateZ(8px); }
+.documentSheet {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 9px;
+  clip-path: polygon(0 0, 77% 0, 100% 17%, 100% 100%, 0 100%);
+  background: linear-gradient(120deg, #fffef8, #f2ebd7);
+  box-shadow: inset 1px 2px 1px #fff;
+}
+.documentFold { position: absolute; top: 0; right: 0; width: 23%; height: 17%; border-radius: 0 0 0 6px; background: linear-gradient(135deg, #d4c7a3, #f0e5c9); box-shadow: -2px 3px 4px #7d715126; }
+.documentHeading, .documentSubheading { position: absolute; left: 16%; height: 4%; border-radius: 3px; background: #316d65; }
+.documentHeading { top: 23%; width: 41%; }
+.documentSubheading { top: 33%; width: 57%; height: 2%; background: #c0cbbc; }
+.documentChecklist { position: absolute; top: 46%; left: 16%; right: 16%; display: flex; flex-direction: column; gap: clamp(9px, 1.8vh, 16px); }
+.documentRow { display: flex; align-items: center; gap: 10%; }
+.documentRow svg, .emptyCheckbox { width: 17%; height: auto; aspect-ratio: 1; flex-shrink: 0; color: #3c8e79; }
+.documentRow > span:last-child { width: 66%; height: 5px; border-radius: 3px; background: #b5cabb; }
+.documentMissing > span:last-child { height: 13px; border: 1.5px dashed #bf8b41; background: #f3dca833; }
+.emptyCheckbox { border: 1.5px dashed #bf8b41; border-radius: 3px; }
+.documentPencil {
+  position: absolute;
+  bottom: 8%;
+  right: 14%;
+  width: 7%;
+  height: 61%;
+  border-radius: 5px 5px 1px 1px;
+  background: linear-gradient(90deg, #9f482d 0%, #db8653 35%, #edac6d 55%, #b76137 100%);
+  box-shadow: 4px 5px 6px #34534933;
+  transform: translateZ(18px) rotateZ(29deg);
+}
+.documentPencil > span { position: absolute; top: 0; left: 0; right: 0; height: 13%; border-radius: 5px 5px 0 0; background: linear-gradient(90deg, #c48471, #f1c3a9, #cf8d75); border-bottom: 6px solid #c9d5cb; }
+.documentPencil > i { position: absolute; top: 100%; left: 0; width: 100%; height: 16%; background: linear-gradient(to bottom, #e5c596 68%, #294743 69%); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.documentEditBadge { position: absolute; top: 4%; right: 4%; display: grid; place-items: center; width: 25%; aspect-ratio: 1; border-radius: 50%; color: #7a4d22; background: linear-gradient(135deg, #ffe9b6, #e5b66e); box-shadow: 2px 4px 0 #c69047, 4px 8px 14px #6f56282b; transform: translateZ(22px); }
+.documentEditBadge svg { width: 47%; height: 47%; }
+
+.approvedFloat { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateX(10deg) rotateY(-16deg) rotateZ(-8deg); animation: approvedHover 9s ease-in-out infinite; }
+.approvedMedallion {
+  position: absolute;
+  inset: 6%;
+  padding: 6%;
+  border-radius: 50%;
+  background: linear-gradient(140deg, #a0ecce, #48bca2 42%, #147c72 85%);
+  box-shadow: 2px 3px 0 #188676, 4px 6px 0 #137a6b, 6px 9px 0 #116f63, 8px 12px 0 #0e635d, 12px 20px 24px -10px #194d4f55, inset 2px 3px 3px #d9ffedb3;
+  transform-style: preserve-3d;
+}
+.approvedFace { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: linear-gradient(135deg, #54c9a6, #239c81 56%, #16846f); box-shadow: inset 1px 2px 3px #b5f5d799, inset -2px -3px 5px #0f695b4d; transform: translateZ(4px); }
+.approvedFace svg { width: 64%; height: 64%; color: #f5fff7; filter: drop-shadow(2px 4px 1px #0c655c80); }
+
+@keyframes approvedHover {
+  0%, 100% { transform: translateY(0) rotateX(10deg) rotateY(-16deg) rotateZ(-8deg); }
+  50% { transform: translateY(-10px) rotateX(5deg) rotateY(-7deg) rotateZ(-3deg); }
+}
+
+@keyframes documentHover {
+  0%, 100% { transform: translateY(0) rotateX(8deg) rotateY(-12deg) rotateZ(-7deg); }
+  50% { transform: translateY(-9px) rotateX(4deg) rotateY(-6deg) rotateZ(-3deg); }
+}
+
+@keyframes turn {
+  from { transform: translateX(-50%) rotate(var(--hand-angle, 0deg)); }
+  to { transform: translateX(-50%) rotate(calc(var(--hand-angle, 0deg) + 360deg)); }
+}
+@keyframes levitate {
+  0%, 100% { transform: translateY(0) rotateX(12deg) rotateY(-18deg) rotateZ(-10deg); }
+  50% { transform: translateY(-12px) rotateX(6deg) rotateY(-8deg) rotateZ(-5deg); }
+}
+@keyframes shadow { 0%, 100% { transform: scale(1); opacity: .13; } 50% { transform: scale(.88); opacity: .08; } }
+@keyframes tide { from { transform: translate(-18px, 14px); } to { transform: translate(18px, -14px); } }
+@keyframes drift { from { transform: translateY(0); opacity: .3; } to { transform: translateY(-18px); opacity: .65; } }
+
+.page[data-paused='true'] *, .page[data-paused='true'] *::after { animation-play-state: paused; }
+@media (max-width: 600px) {
+  .content { padding-bottom: 90px; }
+  .clockScene { margin-bottom: 24px; }
+  .title { max-width: 20ch; }
+  .waves { width: 200%; left: -50%; }
+  .sparkOne { left: 12%; }
+  .sparkTwo { right: 10%; }
+}
+@media (max-height: 560px) {
+  .header { padding-top: 12px; }
+  .logoImage { width: 80px; }
+  .content { padding-top: 8px; padding-bottom: 28px; }
+  .clockScene { width: 132px; margin-bottom: 12px; }
+  .title { font-size: 24px; }
+  .description { margin-top: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page *, .page *::after { animation: none !important; }
+}

@@ -8,6 +8,8 @@ export interface AiGenerateInput {
   /** Conversation so far, ending with the user's new message. */
   messages: AiMessage[];
   maxTokens: number;
+  /** Request JSON output for document extraction; the caller still validates the result. */
+  responseFormat?: 'json';
 }
 
 /**

@@ -20,7 +20,7 @@ import { supportRouter } from '../modules/support';
 import { moderationRouter } from '../modules/moderation';
 import { adminDashboardRouter, agencyDashboardRouter, moderationDashboardRouter } from '../modules/dashboards';
 import { adminPoliciesRouter, adminSettingsRouter, publicPoliciesRouter } from '../modules/system-settings';
-import { adminUsersRouter, publicAgenciesRouter, publicGuidesRouter, usersRouter } from '../modules/users';
+import { adminUsersRouter, publicAgenciesRouter, publicGuidesRouter, usersRouter, agencyGuidesRouter } from '../modules/users';
 
 /**
  * Central route registry mounted at /api/v1.
@@ -36,6 +36,7 @@ apiRouter.get('/health', (_req, res) => {
 
 mount('/auth', authRouter);
 mount('/users', usersRouter);
+mount('/agency/guides', agencyGuidesRouter);
 mount('/tour-guides', publicGuidesRouter);
 mount('/agencies', publicAgenciesRouter);
 mount('/admin/users', adminUsersRouter);

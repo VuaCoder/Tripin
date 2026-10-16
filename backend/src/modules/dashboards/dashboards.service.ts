@@ -50,7 +50,9 @@ export class DashboardsService {
         tours: { total: sum(tourCounts), byStatus: tourCounts },
         bookings: stats.byStatus,
         revenue: stats.totals,
+        customers: stats.customers,
         last30Days: stats.last30Days,
+        last6Months: stats.last6Months,
         topTours: stats.topTours,
         openComplaints,
       };

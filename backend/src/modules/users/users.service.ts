@@ -34,11 +34,12 @@ export interface UserSummary {
   fullName: string;
   avatarUrl?: string;
   role: PersistedRole;
+  companyName?: string;
 }
 
 type UsersRepo = Pick<
   UsersRepository,
-  'findById' | 'findManyByIds' | 'updateById' | 'updateStatusIf' | 'updateAgencyVerificationIf' | 'count' | 'list' | 'countGroupedBy' | 'countCreatedSince' | 'countAgenciesByVerification'
+  'findById' | 'findManyByIds' | 'updateById' | 'updateStatusIf' | 'updateAgencyVerificationIf' | 'count' | 'list' | 'countGroupedBy' | 'countCreatedSince' | 'countAgenciesByVerification' | 'listActiveGuides'
 >;
 
 const STAFF = new Set<PersistedRole>([ROLES.MODERATOR, ROLES.SUPER_ADMIN]);
@@ -151,6 +152,10 @@ export class UsersService {
   }
 
   // ----------------------------------------------------- Public profiles
+  async listAgencyGuides(query: { q?: string; page: number; limit: number }): Promise<Page<PublicGuideDto>> {
+    const { items, total } = await this.users.listActiveGuides(query.q, query);
+    return buildPage(items.map(toPublicGuideDto), total, query);
+  }
 
   /** Use case "View public tour guide profile" (Guest). Only ACTIVE guides are visible. */
   async getPublicGuide(id: string): Promise<PublicGuideDto> {
@@ -355,7 +360,13 @@ export class UsersService {
     return new Map(
       users.map((user) => [
         user.id,
-        { id: user.id, fullName: user.fullName, avatarUrl: user.avatarUrl ?? undefined, role: user.role as PersistedRole },
+        {
+          id: user.id,
+          fullName: user.fullName,
+          avatarUrl: user.avatarUrl ?? undefined,
+          role: user.role as PersistedRole,
+          companyName: user.agencyProfile?.companyName ?? undefined,
+        },
       ]),
     );
   }

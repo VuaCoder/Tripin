@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Button, Input } from '@/components/ui';
+import { Button, Input, Pagination } from '@/components/ui';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
 import { useGetTourCategoriesQuery, useGetToursQuery } from '../api/toursApi';
 import type { ListToursArgs, TourSort } from '../types';
@@ -480,13 +480,16 @@ export function TourListPage() {
             </div>
           )}
 
-          {meta.totalPages > 1 && (
-            <nav aria-label="Phân trang tour" className="mt-8 flex items-center justify-center gap-3">
-              <Button variant="outline" size="sm" disabled={meta.page <= 1 || isFetching} onClick={() => updateQuery({ page: meta.page - 1 }, false)}>Trước</Button>
-              <span className="text-sm text-slate-600">Trang {meta.page}/{meta.totalPages}</span>
-              <Button variant="outline" size="sm" disabled={meta.page >= meta.totalPages || isFetching} onClick={() => updateQuery({ page: meta.page + 1 }, false)}>Sau</Button>
-            </nav>
-          )}
+          <Pagination
+            currentPage={meta.page}
+            totalPages={meta.totalPages}
+            totalItems={meta.total}
+            pageSize={PAGE_SIZE}
+            itemLabel="tour"
+            onPageChange={(p) => updateQuery({ page: p }, false)}
+            disabled={isFetching}
+            className="mt-8"
+          />
         </section>
       </div>
     </div>

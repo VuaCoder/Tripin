@@ -28,6 +28,11 @@ export class NotificationsController {
   markAllRead: RequestHandler = async (req, res) => {
     sendOk(res, await this.service.markAllRead(userActor(req).userId));
   };
+
+  remove: RequestHandler = async (req, res) => {
+    const { params } = validated<unknown, unknown, IdParams>(req);
+    sendOk(res, await this.service.remove(userActor(req).userId, params.id));
+  };
 }
 
 export const notificationsController = new NotificationsController();

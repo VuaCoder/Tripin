@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 136 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 145 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -86,6 +86,12 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/agency/dashboard` | `agency:dashboard` |
 
+## `/agency/guides`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/agency/guides` | `tour:assign-guide` |
+
 ## `/agency/promotions`
 
 | Method | Path | Access |
@@ -109,6 +115,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | PUT | `/api/v1/agency/tours/:id/guide` | `tour:assign-guide` |
 | PUT | `/api/v1/agency/tours/:id/itinerary` | `tour:configure-itinerary` |
 | POST | `/api/v1/agency/tours/:id/submit` | `tour:update-own` |
+| POST | `/api/v1/agency/tours/extract-document` | `tour:import` |
 | POST | `/api/v1/agency/tours/import` | `tour:import` |
 
 ## `/ai`
@@ -123,9 +130,15 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 
 | Method | Path | Access |
 |---|---|---|
+| GET | `/api/v1/auth/agency/application` | public |
+| PUT | `/api/v1/auth/agency/application` | public |
+| GET | `/api/v1/auth/agency/application-status` | public |
+| POST | `/api/v1/auth/agency/dev-accept` | public |
+| POST | `/api/v1/auth/agency/dev-reject` | public |
 | POST | `/api/v1/auth/agency/login` | public |
 | POST | `/api/v1/auth/agency/register` | public |
 | POST | `/api/v1/auth/agency/resend-otp` | public |
+| POST | `/api/v1/auth/agency/upload-license` | public |
 | POST | `/api/v1/auth/agency/verify-otp` | public |
 | POST | `/api/v1/auth/forgot-password` | public |
 | POST | `/api/v1/auth/google` | public |
@@ -235,6 +248,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | Method | Path | Access |
 |---|---|---|
 | GET | `/api/v1/notifications` | login |
+| DELETE | `/api/v1/notifications/:id` | login |
 | PATCH | `/api/v1/notifications/:id/read` | login |
 | POST | `/api/v1/notifications/read-all` | login |
 | GET | `/api/v1/notifications/unread-count` | login |

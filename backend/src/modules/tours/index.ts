@@ -1,5 +1,6 @@
 // Public surface of the tours module.
 export { publicToursRouter, agencyToursRouter, guideToursRouter } from './tours.routes';
+export { TourDocumentExtractionService, tourDocumentExtractionService } from './tour-document-extraction.service';
 export { toursService, ToursService } from './tours.service';
 export { toursDiscoveryService, ToursDiscoveryService } from './tours-discovery.service';
 export { tourViewBuilder } from './tours.view';

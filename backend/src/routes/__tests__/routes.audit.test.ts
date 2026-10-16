@@ -23,9 +23,14 @@ const PUBLIC_ROUTES = [
   'GET /tours',
   'GET /tours/:id',
   'GET /tours/destinations',
+  'GET /auth/agency/application',
+  'GET /auth/agency/application-status',
+  'POST /auth/agency/dev-accept',
+  'POST /auth/agency/dev-reject',
   'POST /auth/agency/login',
   'POST /auth/agency/register',
   'POST /auth/agency/resend-otp',
+  'POST /auth/agency/upload-license',
   'POST /auth/agency/verify-otp',
   'POST /auth/forgot-password',
   'POST /auth/google',
@@ -37,12 +42,14 @@ const PUBLIC_ROUTES = [
   'POST /auth/reset-password',
   'POST /auth/verify-otp',
   'POST /payments/webhooks/payos',
+  'PUT /auth/agency/application',
 ].sort();
 
 /** Logged-in-only routes WITHOUT a permission: each one is scoped to the caller's own data by the token. */
 const LOGIN_ONLY_ROUTES = [
   'GET /auth/security',
-  'GET /notifications',
+    'DELETE /notifications/:id',
+    'GET /notifications',
   'GET /notifications/unread-count',
   'GET /payments/:id',
   'PATCH /auth/two-factor',
@@ -54,6 +61,8 @@ const LOGIN_ONLY_ROUTES = [
 const BODYLESS_MUTATIONS = [
   'PATCH /notifications/:id/read',
   'POST /agency/tours/:id/submit',
+  'POST /auth/agency/upload-license',
+  'POST /bookings/:id/complete',
   'POST /auth/logout',
   'POST /auth/refresh',
   'POST /chat/conversations/:id/read',

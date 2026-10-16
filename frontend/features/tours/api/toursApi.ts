@@ -1,5 +1,6 @@
 import { baseApi } from '@/store/api/baseApi';
-import type { ListToursArgs, TourApiResponse, TourCategory, TourDestination, TourDetail, TourListItem, TourListResult } from '../types';
+import type { AgencyDashboard, AgencyGuide } from '@/features/agency/types';
+import type { AgencyTourListResult, ExtractedTourCandidate, ListToursArgs, TourApiError, TourApiResponse, TourCategory, TourContentInput, TourDestination, TourDetail, TourListItem, TourListResult, TourStatus } from '../types';
 
 /** Public tour discovery for the Tour List and the cart's "add a tour" picker. */
 export const toursApi = baseApi.injectEndpoints({
@@ -23,7 +24,87 @@ export const toursApi = baseApi.injectEndpoints({
       query: () => ({ url: '/categories' }),
       transformResponse: (response: TourApiResponse<TourCategory[]>) => response.data,
     }),
+    getAgencyTours: build.query<AgencyTourListResult, { page?: number; limit?: number; status?: TourStatus } | void>({
+      query: (args) => ({ url: '/agency/tours', params: { page: 1, limit: 12, ...(args ?? {}) } }),
+      transformResponse: (response: TourApiResponse<TourDetail[]>) => ({
+        items: response.data,
+        meta: response.meta ?? { page: 1, limit: response.data.length || 12, total: response.data.length, totalPages: 1 },
+      }),
+      providesTags: (result) => [{ type: 'Tour', id: 'AGENCY_LIST' }, ...(result?.items ?? []).map(({ id }) => ({ type: 'Tour' as const, id }))],
+    }),
+    getAgencyTour: build.query<TourDetail, string>({
+      query: (id) => ({ url: `/agency/tours/${id}` }),
+      transformResponse: (response: TourApiResponse<TourDetail>) => response.data,
+      providesTags: (_result, _error, id) => [{ type: 'Tour', id }],
+    }),
+    createAgencyTour: build.mutation<TourDetail, TourContentInput>({
+      query: (body) => ({ url: '/agency/tours', method: 'POST', body }),
+      transformResponse: (response: TourApiResponse<TourDetail>) => response.data,
+      invalidatesTags: [{ type: 'Tour', id: 'AGENCY_LIST' }],
+    }),
+    updateAgencyTour: build.mutation<TourDetail, { id: string; body: Partial<TourContentInput> }>({
+      query: ({ id, body }) => ({ url: `/agency/tours/${id}`, method: 'PATCH', body }),
+      transformResponse: (response: TourApiResponse<TourDetail>) => response.data,
+      invalidatesTags: (_result, _error, { id }) => [{ type: 'Tour', id }, { type: 'Tour', id: 'AGENCY_LIST' }],
+    }),
+    deleteAgencyTour: build.mutation<void, string>({
+      query: (id) => ({ url: `/agency/tours/${id}`, method: 'DELETE' }),
+      invalidatesTags: [{ type: 'Tour', id: 'AGENCY_LIST' }],
+    }),
+    setAgencyTourItinerary: build.mutation<TourDetail, { id: string; days: TourDetail['itinerary'] }>({
+      query: ({ id, days }) => ({ url: `/agency/tours/${id}/itinerary`, method: 'PUT', body: { days } }),
+      transformResponse: (response: TourApiResponse<TourDetail>) => response.data,
+      invalidatesTags: (_result, _error, { id }) => [{ type: 'Tour', id }, { type: 'Tour', id: 'AGENCY_LIST' }],
+    }),
+    setAgencyTourAvailability: build.mutation<TourDetail, { id: string; departures: { id?: string; date: string; capacity: number; priceOverride?: number; isOpen: boolean }[] }>({
+      query: ({ id, departures }) => ({ url: `/agency/tours/${id}/availability`, method: 'PUT', body: { departures } }),
+      transformResponse: (response: TourApiResponse<TourDetail>) => response.data,
+      invalidatesTags: (_result, _error, { id }) => [{ type: 'Tour', id }, { type: 'Tour', id: 'AGENCY_LIST' }],
+    }),
+    submitAgencyTour: build.mutation<TourDetail, string>({
+      query: (id) => ({ url: `/agency/tours/${id}/submit`, method: 'POST' }),
+      transformResponse: (response: TourApiResponse<TourDetail>) => response.data,
+      invalidatesTags: (_result, _error, id) => [{ type: 'Tour', id }, { type: 'Tour', id: 'AGENCY_LIST' }],
+    }),
+    importAgencyTours: build.mutation<{ created: number; tours: TourDetail[] }, TourContentInput[]>({
+      query: (tours) => ({ url: '/agency/tours/import', method: 'POST', body: { tours } }),
+      transformResponse: (response: TourApiResponse<{ created: number; tours: TourDetail[] }>) => response.data,
+      invalidatesTags: [{ type: 'Tour', id: 'AGENCY_LIST' }],
+    }),
+    extractAgencyTourDocument: build.mutation<{ tours: ExtractedTourCandidate[] }, File>({
+      query: (file) => {
+        const body = new FormData();
+        body.append('file', file);
+        return { url: '/agency/tours/extract-document', method: 'POST', body };
+      },
+      transformResponse: (response: TourApiResponse<{ tours: ExtractedTourCandidate[] }>) => response.data,
+    }),
+    getAgencyDashboard: build.query<AgencyDashboard, void>({
+      query: () => ({ url: '/agency/dashboard' }),
+      transformResponse: (response: TourApiResponse<AgencyDashboard>) => response.data,
+    }),
+    getAgencyGuides: build.query<{ items: AgencyGuide[]; meta: import('../types').TourListMeta }, { q?: string; page: number }>({
+      query: (args) => ({ url: '/agency/guides', params: { ...args, limit: 20 } }),
+      transformResponse: (response: TourApiResponse<AgencyGuide[]>) => ({ items: response.data, meta: response.meta! }),
+    }),
+    assignAgencyTourGuide: build.mutation<TourDetail, { id: string; guideId: string | null; feePerBooking?: number }>({
+      query: ({ id, ...body }) => ({ url: `/agency/tours/${id}/guide`, method: 'PUT', body }),
+      transformResponse: (response: TourApiResponse<TourDetail>) => response.data,
+      invalidatesTags: (result, _error, { id }) => result ? [{ type: 'Tour', id }, { type: 'Tour', id: 'AGENCY_LIST' }, { type: 'Tour', id: 'GUIDE_ASSIGNED' }] : [],
+    }),
   }),
 });
 
-export const { useGetToursQuery, useGetTourDestinationsQuery, useGetTourQuery, useGetTourCategoriesQuery } = toursApi;
+export const {
+  useGetToursQuery, useGetTourDestinationsQuery, useGetTourQuery, useGetTourCategoriesQuery,
+  useGetAgencyToursQuery, useGetAgencyTourQuery, useCreateAgencyTourMutation, useUpdateAgencyTourMutation,
+  useDeleteAgencyTourMutation, useSetAgencyTourItineraryMutation, useSetAgencyTourAvailabilityMutation,
+  useSubmitAgencyTourMutation, useImportAgencyToursMutation, useExtractAgencyTourDocumentMutation,
+  useGetAgencyDashboardQuery,
+  useGetAgencyGuidesQuery, useAssignAgencyTourGuideMutation,
+} = toursApi;
+
+export function getTourApiMessage(error: unknown, fallback = 'Đã có lỗi xảy ra. Vui lòng thử lại.'): string {
+  const result = error as { error?: { data?: TourApiError }; data?: TourApiError } | undefined;
+  return result?.error?.data?.error?.message || result?.data?.error?.message || fallback;
+}

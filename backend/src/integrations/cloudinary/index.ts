@@ -13,6 +13,7 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const PURPOSES = {
   avatar: { prefix: 'tripin/travelers/avatars', tag: 'tripin_avatar', label: 'Avatar' },
   licenseImage: { prefix: 'tripin/guides/licenses', tag: 'tripin_guide_license', label: 'License image' },
+  agencyLicenseImage: { prefix: 'tripin/agencies/licenses', tag: 'tripin_agency_license', label: 'Agency license image' },
 } as const;
 
 export type ImagePurpose = keyof typeof PURPOSES;
@@ -176,4 +177,42 @@ export async function destroyImage(purpose: ImagePurpose, publicId: string): Pro
     logger.error('Cloudinary image deletion failed', { status: response.status });
     throw AppError.unavailable('Unable to remove the uploaded image');
   }
+}
+
+/** Direct upload of an image buffer to Cloudinary with secure signature. */
+export async function uploadImageBuffer(
+  purpose: ImagePurpose,
+  identifier: string,
+  buffer: Buffer,
+  mimetype: string,
+): Promise<{ publicId: string; secureUrl: string }> {
+  const { cloudName, apiKey, apiSecret } = config(purpose);
+  const timestamp = unixTimestamp();
+  const publicId = imagePublicId(purpose, identifier);
+  const tag = PURPOSES[purpose].tag;
+  const signingParams = { public_id: publicId, overwrite: true, tags: tag, timestamp };
+  const signature = sign(signingParams, apiSecret);
+
+  const form = new FormData();
+  form.append('file', new Blob([buffer], { type: mimetype }));
+  form.append('api_key', apiKey);
+  form.append('timestamp', String(timestamp));
+  form.append('signature', signature);
+  form.append('public_id', publicId);
+  form.append('overwrite', 'true');
+  form.append('tags', tag);
+
+  let response: Response;
+  try {
+    response = await fetch(uploadApiUrl(cloudName), { method: 'POST', body: form });
+  } catch (error) {
+    logger.error('Cloudinary image upload request failed', error);
+    throw AppError.unavailable('Không thể kết nối dịch vụ lưu trữ ảnh Cloudinary');
+  }
+
+  const data = (await response.json().catch(() => null)) as { secure_url?: string; public_id?: string; error?: { message?: string } } | null;
+  if (!response.ok || !data?.secure_url) {
+    throw AppError.badRequest(data?.error?.message || 'Không thể tải ảnh lên Cloudinary.');
+  }
+  return { publicId: data.public_id || publicId, secureUrl: data.secure_url };
 }

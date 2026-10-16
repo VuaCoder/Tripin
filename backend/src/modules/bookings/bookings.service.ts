@@ -34,7 +34,7 @@ const MINUTE_MS = 60 * 1000;
 type Repo = Pick<
   BookingsRepository,
   | 'create' | 'findById' | 'findByRequestId' | 'transition' | 'updateById' | 'listByTraveler' | 'listByAgency'
-  | 'findExpiredPending' | 'findDueForCompletion' | 'statusCounts' | 'revenueTotals' | 'dailyNet' | 'monthlyTotals' | 'topTours' | 'listPaidForTour'
+  | 'findExpiredPending' | 'findDueForCompletion' | 'statusCounts' | 'revenueTotals' | 'dailyNet' | 'monthlyTotals' | 'topTours' | 'listPaidForTour' | 'customerCount'
 >;
 
 const AMOUNT_TOO_LOW = () =>
@@ -196,8 +196,8 @@ export class BookingsService {
 
     await this.notifications.notify(booking.agencyId, {
       type: NOTIFICATION_TYPE.BOOKING_CANCELLED,
-      title: 'A booking was cancelled',
-      body: `Booking ${booking.bookingCode} for "${booking.tourTitle}" was cancelled by the traveler.`,
+      title: 'Đơn đặt tour đã huỷ',
+      body: `Đơn đặt chỗ ${booking.bookingCode} cho tour "${booking.tourTitle}" đã bị huỷ bởi du khách.`,
       data: { bookingId: booking.id },
     });
     return toBookingDto(cancelled);
@@ -291,14 +291,14 @@ export class BookingsService {
     await Promise.all([
       this.notifications.notify(facts.travelerId, {
         type: NOTIFICATION_TYPE.BOOKING_CONFIRMED,
-        title: 'Booking confirmed',
-        body: `Payment received. Your booking ${facts.bookingCode} for "${facts.tourTitle}" is confirmed.`,
+        title: 'Đặt chỗ thành công',
+        body: `Đã nhận thanh toán. Đơn đặt chỗ ${facts.bookingCode} cho tour "${facts.tourTitle}" đã được xác nhận.`,
         data: { bookingId: facts.id },
       }),
       this.notifications.notify(facts.agencyId, {
         type: NOTIFICATION_TYPE.BOOKING_CONFIRMED,
-        title: 'New confirmed booking',
-        body: `${facts.participants} traveler(s) booked "${facts.tourTitle}" (${facts.bookingCode}).`,
+        title: 'Đặt tour mới đã xác nhận',
+        body: `${facts.participants} du khách đã đặt "${facts.tourTitle}" (${facts.bookingCode}).`,
         data: { bookingId: facts.id },
       }),
     ]);
@@ -391,13 +391,21 @@ export class BookingsService {
   /** Read model for the agency dashboard (its own bookings only). */
   async getAgencyStats(agencyId: string, now = new Date()): Promise<AgencyBookingStats> {
     const since = new Date(now.getTime() - 30 * DAY_MS);
-    const [byStatus, totals, last30Days, topTours] = await Promise.all([
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1));
+    const [byStatus, totals, last30Days, topTours, monthlyDays, customers] = await Promise.all([
       this.bookings.statusCounts(agencyId),
       this.bookings.revenueTotals(agencyId),
       this.bookings.dailyNet(agencyId, since),
       this.bookings.topTours(agencyId, 5),
+      this.bookings.dailyNet(agencyId, monthStart, now),
+      this.bookings.customerCount(agencyId),
     ]);
-    return { byStatus, totals, last30Days, topTours };
+    const last6Months = Array.from({ length: 6 }, (_, index) => {
+      const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5 + index, 1)).toISOString().slice(0, 7);
+      const days = monthlyDays.filter((day) => day.date.startsWith(month) && day.date <= now.toISOString().slice(0, 10));
+      return { month, bookings: days.reduce((sum, day) => sum + day.bookings, 0), net: days.reduce((sum, day) => sum + day.net, 0) };
+    });
+    return { byStatus, totals, last30Days, last6Months, topTours, customers };
   }
 
   /** Read model for the super-admin dashboard (whole platform). */

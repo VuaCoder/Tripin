@@ -11,3 +11,4 @@ notificationsRouter.get('/', validate({ query: listNotificationsQuery }), notifi
 notificationsRouter.get('/unread-count', notificationsController.unreadCount);
 notificationsRouter.post('/read-all', notificationsController.markAllRead);
 notificationsRouter.patch('/:id/read', validate({ params: notificationIdParams }), notificationsController.markRead);
+notificationsRouter.delete('/:id', validate({ params: notificationIdParams }), notificationsController.remove);

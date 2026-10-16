@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui';
+import { Button, Pagination } from '@/components/ui';
 import { EmptyState, ErrorState } from '@/components/shared';
 import { getApiErrorMessage } from '@/features/auth';
 import { useGetWishlistQuery, useRemoveFromWishlistMutation } from '../api/wishlistApi';
@@ -120,18 +120,17 @@ export function WishlistPage() {
         </div>
       )}
 
-      {meta && meta.totalPages > 1 && (
-        <nav aria-label="Phân trang" className="flex items-center justify-center gap-3">
-          <Button variant="outline" size="sm" disabled={page <= 1 || isFetching} onClick={() => setPage(page - 1)}>
-            Trước
-          </Button>
-          <span className="text-sm text-slate-600">
-            Trang {meta.page}/{meta.totalPages}
-          </span>
-          <Button variant="outline" size="sm" disabled={page >= meta.totalPages || isFetching} onClick={() => setPage(page + 1)}>
-            Sau
-          </Button>
-        </nav>
+      {meta && (
+        <Pagination
+          currentPage={meta.page}
+          totalPages={meta.totalPages}
+          totalItems={meta.total}
+          pageSize={WISHLIST_UI_LIMITS.LIST_PAGE_SIZE}
+          itemLabel="tour"
+          onPageChange={setPage}
+          disabled={isFetching}
+          className="mt-6"
+        />
       )}
 
       <ConfirmDeleteWishlistModal

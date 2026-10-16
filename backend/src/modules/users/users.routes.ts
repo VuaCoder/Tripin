@@ -9,12 +9,15 @@ import {
   completeImageUploadBody,
   imageSignatureBody,
   listUsersQuery,
+  listAgencyGuidesQuery,
   publicProfileParams,
   updateProfileBody,
 } from './users.validation';
 
 /** Mounted at /api/v1/users — the logged-in user's own profile. */
 export const usersRouter = Router();
+export const agencyGuidesRouter = Router();
+agencyGuidesRouter.get('/', requirePermission(PERMISSIONS.TOUR_ASSIGN_GUIDE), validate({ query: listAgencyGuidesQuery }), usersController.listAgencyGuides);
 usersRouter.get('/me', requirePermission(PERMISSIONS.PROFILE_VIEW_OWN), usersController.getMe);
 usersRouter.patch(
   '/me',

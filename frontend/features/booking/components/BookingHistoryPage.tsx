@@ -13,6 +13,7 @@ import { WriteReviewDialog } from '@/features/review/components';
 import { useGetMyReviewsQuery } from '@/features/review/api/reviewApi';
 import type { BookingDto, BookingStatus } from '../types';
 import type { MyReview } from '@/features/review/types';
+import { Pagination } from '@/components/ui';
 
 const STATUS_TABS: { label: string; value: BookingStatus | 'ALL' }[] = [
   { label: 'Tất cả', value: 'ALL' },
@@ -211,31 +212,15 @@ export function BookingHistoryPage() {
           </div>
 
           {/* Pagination Controls */}
-          {data.meta.totalPages > 1 && (
-            <div className="pt-4 flex items-center justify-between text-xs text-slate-600">
-              <span>
-                Trang {data.meta.page} / {data.meta.totalPages} (Tổng {data.meta.total} đặt chỗ)
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={data.meta.page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="rounded-xl border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Trước
-                </button>
-                <button
-                  type="button"
-                  disabled={data.meta.page >= data.meta.totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                  className="rounded-xl border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Sau
-                </button>
-              </div>
-            </div>
-          )}
+          <Pagination
+            currentPage={data.meta.page}
+            totalPages={data.meta.totalPages}
+            totalItems={data.meta.total}
+            pageSize={10}
+            itemLabel="đặt chỗ"
+            onPageChange={(p) => setPage(p)}
+            className="pt-4"
+          />
         </div>
       )}
 

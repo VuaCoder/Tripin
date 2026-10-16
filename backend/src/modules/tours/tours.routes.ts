@@ -1,7 +1,12 @@
 import { Router } from 'express';
 import { PERMISSIONS } from '@travel-platform/constants';
+import multer from 'multer';
+import { z } from 'zod';
 import { requirePermission } from '../../middlewares/authorize';
 import { validate } from '../../middlewares/validate';
+import { AppError } from '../../utils/app-error';
+import { TOUR_DOCUMENT_LIMITS } from './tour-document-extraction.service';
+import { tourDocumentExtractionController } from './tour-document-extraction.controller';
 import { toursController } from './tours.controller';
 import {
   agencyToursQuery,
@@ -18,6 +23,17 @@ import {
 } from './tours.validation';
 
 const P = PERMISSIONS;
+const emptyMultipartBody = z.object({}).strict();
+const documentUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: TOUR_DOCUMENT_LIMITS.MAX_FILE_BYTES, files: 1 } }).single('file');
+const uploadTourDocument: import('express').RequestHandler = (req, res, next) => {
+  documentUpload(req, res, (error: unknown) => {
+    if (!error) return next();
+    if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
+      return next(AppError.badRequest('File must be 10 MB or smaller'));
+    }
+    return next(AppError.badRequest('Upload one DOCX or PDF file'));
+  });
+};
 
 /** Mounted at /api/v1/tours — public discovery (GUEST allowed). */
 export const publicToursRouter = Router();
@@ -31,6 +47,7 @@ agencyToursRouter.get('/', requirePermission(P.TOUR_UPDATE_OWN), validate({ quer
 agencyToursRouter.post('/', requirePermission(P.TOUR_CREATE), validate({ body: createTourBody }), toursController.create);
 // Declared before '/:id' routes so "import" is not read as an id.
 agencyToursRouter.post('/import', requirePermission(P.TOUR_IMPORT), validate({ body: importToursBody }), toursController.importTours);
+agencyToursRouter.post('/extract-document', requirePermission(P.TOUR_IMPORT), uploadTourDocument, validate({ body: emptyMultipartBody }), tourDocumentExtractionController.extract);
 agencyToursRouter.get('/:id', requirePermission(P.TOUR_UPDATE_OWN), validate({ params: tourIdParams }), toursController.getOwn);
 agencyToursRouter.patch(
   '/:id',

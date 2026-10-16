@@ -33,8 +33,43 @@ export interface TourDeparture {
 
 /** `GET /tours/:id` (`TourDetailDto`) — only the fields used here; the response carries more. */
 export interface TourDetail extends TourListItem {
+  summary?: string;
+  description?: string;
+  maxGroupSize?: number;
+  images: string[];
+  inclusions: string[];
+  exclusions: string[];
+  itinerary: TourItineraryDay[];
   departures: TourDeparture[];
+  categories: TourCategory[];
+  status: TourStatus;
+  statusReason?: string;
+  submittedAt?: string;
+  reviewedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  guideAssignment?: { guideId: string; feePerBooking: number; status: string; respondedAt?: string; note?: string };
+  guide?: { id: string; fullName: string; avatarUrl?: string };
 }
+
+export type TourStatus = 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'ARCHIVED';
+export interface TourItineraryDay { day: number; title: string; description?: string; activities: string[]; }
+export interface TourContentInput {
+  title: string;
+  summary?: string;
+  description?: string;
+  destination: string;
+  durationDays: number;
+  basePrice: number;
+  maxGroupSize?: number;
+  categoryIds: string[];
+  images?: string[];
+  inclusions?: string[];
+  exclusions?: string[];
+}
+export type ExtractedTourCandidate = Partial<TourContentInput>;
+export interface AgencyTourListResult { items: TourDetail[]; meta: TourListMeta; }
+export interface TourApiError { success?: boolean; error?: { code?: string; message?: string; details?: unknown }; }
 
 export interface TourListMeta {
   page: number;

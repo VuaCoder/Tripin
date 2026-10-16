@@ -30,6 +30,7 @@ The `User` model is shared by `auth` (credentials) and `authenticate` (actor res
 | `index.ts` | Public API |
 
 ## API (base `/api/v1`)
+* `GET /agency/guides?q&page&limit` – `tour:assign-guide`; active TOUR_GUIDE directory. Name-only case-insensitive literal search (max 120 chars), default 20/max 100 per page, stable fullName/id ascending order. Paginated `PublicGuideDto`; database projection excludes private contact, credentials and license fields.
 * `GET /users/me` – `profile:view-own` → `PrivateUserDto` (never contains `passwordHash`).
 * `PATCH /users/me` – `profile:update-own`; body any of `fullName, phone, avatarUrl, agencyProfile{companyName,description,address,website,licenseNumber}, guideProfile{bio,languages,specialties,experienceYears,licenseNumber}` (strict, at least one field). `agencyProfile` → 403 unless AGENCY; `guideProfile` → 403 unless TOUR_GUIDE. Email, role, status are never editable here.
 * `POST /users/me/agency-verification` – AGENCY only; needs `companyName` + `licenseNumber`; `UNVERIFIED|REJECTED → PENDING`. 202.

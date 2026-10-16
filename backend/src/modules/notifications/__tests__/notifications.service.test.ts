@@ -20,6 +20,7 @@ function make() {
     countUnread: vi.fn(async () => 3),
     markRead: vi.fn(async () => null as unknown),
     markAllRead: vi.fn(async () => 5),
+    deleteOwned: vi.fn(async () => true),
   };
   const users = { getContact: vi.fn(async () => ({ email: 'a@b.com', fullName: 'Ann' })) };
   const mail = { send: vi.fn(async () => undefined) };
@@ -78,6 +79,13 @@ describe('notify', () => {
 });
 
 describe('inbox', () => {
+  it('deletes only an owned notification and returns 404 for another user or a missing id', async () => {
+    const { service, repo } = make();
+    await expect(service.remove('u1', 'n1')).resolves.toEqual({ deleted: true });
+    expect(repo.deleteOwned).toHaveBeenCalledWith('n1', 'u1');
+    repo.deleteOwned.mockResolvedValueOnce(false);
+    await expect(service.remove('u1', 'other-users-id')).rejects.toMatchObject({ statusCode: 404 });
+  });
   it('lists with pagination meta, scoped to the user', async () => {
     const { service, repo } = make();
     const page = await service.list('u1', { page: 2, limit: 20, unreadOnly: true });
