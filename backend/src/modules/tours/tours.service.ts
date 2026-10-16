@@ -65,7 +65,7 @@ export class ToursService {
     return { created: created.length, tours: await this.views.manageMany(created) };
   }
 
-  async listOwn(agencyId: string, query: { page: number; limit: number; status?: TourStatus }): Promise<Page<TourManageDto>> {
+  async listOwn(agencyId: string, query: { page: number; limit: number; status?: TourStatus; q?: string }): Promise<Page<TourManageDto>> {
     const { items, total } = await this.tours.listByAgency(agencyId, query.status, query);
     return buildPage(await this.views.manageMany(items), total, query);
   }

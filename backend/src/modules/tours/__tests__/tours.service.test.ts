@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { GUIDE_ASSIGNMENT_STATUS, ROLES, TOUR_STATUS } from '@travel-platform/constants';
 import { ERROR_CODES } from '../../../utils/app-error';
 import { ToursService } from '../tours.service';
+import { agencyToursQuery } from '../tours.validation';
 
 const DAY = 24 * 60 * 60 * 1000;
 const future = (days: number) => new Date(Date.now() + days * DAY);
@@ -98,6 +99,14 @@ describe('create / import', () => {
 });
 
 describe('ownership', () => {
+  it('keeps the optional title search within the owned Agency list and paginates it', async () => {
+    const { service, repo } = setup(null);
+    repo.listByAgency.mockResolvedValue({ items: [], total: 0 });
+    const query = agencyToursQuery.parse({ page: '11', limit: '12', q: '  Ha Long  ' });
+    await service.listOwn('a1', { page: query.page, limit: query.limit, q: query.q });
+    expect(repo.listByAgency).toHaveBeenCalledWith('a1', undefined, { page: 11, limit: 12, q: 'Ha Long' });
+  });
+
   it('returns 404 (not 403) for another agency\'s tour', async () => {
     const { service } = setup(makeTour({ agencyId: 'someone-else' }));
     await expect(service.getOwn('a1', 't1')).rejects.toMatchObject({ statusCode: 404 });

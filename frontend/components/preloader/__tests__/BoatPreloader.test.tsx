@@ -13,6 +13,7 @@ import { BoatPreloader } from '../BoatPreloader';
 import { RoutePreloader } from '../RoutePreloader';
 
 afterEach(cleanup);
+afterEach(() => vi.unstubAllGlobals());
 
 describe('BoatIllustration', () => {
   it('renders SVG with boat group, mast, sails, and 3 wave layers', () => {
@@ -84,15 +85,40 @@ describe('BoatPreloader', () => {
     expect(onExited).toHaveBeenCalled();
     vi.useRealTimers();
   });
+
+  it('exits promptly with reduced motion enabled', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
+    const onExited = vi.fn();
+    const { rerender } = render(<BoatPreloader active={true} onExited={onExited} />);
+    rerender(<BoatPreloader active={false} onExited={onExited} />);
+    act(() => vi.advanceTimersByTime(250));
+    expect(onExited).toHaveBeenCalledOnce();
+    vi.useRealTimers();
+  });
 });
 
 describe('RoutePreloader', () => {
-  it('loads Agency sidebar destinations but exempts notifications', () => {
+  it('does not cover normal Agency links or Agency history navigation', () => {
+    const previousUrl = window.location.href;
+    window.history.pushState({}, '', '/agency');
+    try {
+      render(<><RoutePreloader /><a href="/agency/bookings">Đơn đặt chỗ Agency</a></>);
+      fireEvent.click(screen.getByText('Đơn đặt chỗ Agency'));
+      expect(screen.queryByRole('status')).toBeNull();
+      act(() => window.dispatchEvent(new PopStateEvent('popstate')));
+      expect(screen.queryByRole('status')).toBeNull();
+    } finally {
+      window.history.replaceState({}, '', previousUrl);
+    }
+  });
+
+  it('keeps Agency links lightweight even if an old opt-in attribute remains', () => {
     render(<><RoutePreloader /><a href="/agency/tours" data-route-preloader="true">Quản lý tour Agency</a><a href="/agency/notifications" data-no-preloader="true">Mở thông báo</a></>);
     fireEvent.click(screen.getByText('Mở thông báo'));
     expect(screen.queryByRole('status')).toBeNull();
     fireEvent.click(screen.getByText('Quản lý tour Agency'));
-    expect(screen.getByRole('status')).toBeDefined();
+    expect(screen.queryByRole('status')).toBeNull();
   });
   beforeEach(() => {
     vi.useFakeTimers();
@@ -117,7 +143,41 @@ describe('RoutePreloader', () => {
     expect(screen.queryByRole('status')).toBeNull();
   });
 
-  it('triggers preloader on major route navigation like /tours', () => {
+  it.each([
+    ['/', '/home'],
+    ['/home', '/'],
+    ['/home', '/login'],
+    ['/home', '/register'],
+    ['/login', '/register'],
+    ['/home', '/tours'],
+    ['/tours', '/traveler'],
+  ])('does not cover ordinary navigation from %s to %s', (from, to) => {
+    const previousUrl = window.location.href;
+    window.history.pushState({}, '', from);
+    try {
+      render(<><RoutePreloader /><a href={to}>Đi tới trang</a></>);
+      fireEvent.click(screen.getByRole('link', { name: 'Đi tới trang' }));
+      expect(screen.queryByRole('status')).toBeNull();
+    } finally {
+      window.history.replaceState({}, '', previousUrl);
+    }
+  });
+
+  it('does not cover ordinary Back/Forward history navigation', () => {
+    render(<RoutePreloader />);
+    act(() => window.dispatchEvent(new PopStateEvent('popstate')));
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('does not mount overlapping overlays during rapid ordinary navigation', () => {
+    render(<><RoutePreloader /><a href="/home">Home</a><a href="/login">Login</a></>);
+    fireEvent.click(screen.getByRole('link', { name: 'Home' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Login' }));
+    act(() => window.dispatchEvent(new PopStateEvent('popstate')));
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('does not activate the boat for public tour links', () => {
     render(
       <div>
         <RoutePreloader />
@@ -128,8 +188,7 @@ describe('RoutePreloader', () => {
     const link = screen.getByText('Khám phá tour');
     fireEvent.click(link);
 
-    // Preloader mounts when navigating to major pages
-    expect(screen.getByRole('status')).toBeDefined();
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('responds to programmatic navigation events tripri:navigation-start', () => {
@@ -152,6 +211,23 @@ describe('RoutePreloader', () => {
       gsap.globalTimeline.seek(gsap.globalTimeline.time() + 10);
     });
 
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('cleans up a superseded branded transition and its safety timeout', () => {
+    render(<RoutePreloader />);
+    act(() => window.dispatchEvent(new Event('tripri:route-navigation-start')));
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    act(() => window.dispatchEvent(new Event('tripri:navigation-end')));
+    act(() => vi.advanceTimersByTime(380));
+    act(() => window.dispatchEvent(new Event('tripri:route-navigation-start')));
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    act(() => vi.advanceTimersByTime(5000));
+    act(() => {
+      vi.advanceTimersByTime(500);
+      gsap.ticker.tick();
+      gsap.globalTimeline.seek(gsap.globalTimeline.time() + 10);
+    });
     expect(screen.queryByRole('status')).toBeNull();
   });
 });

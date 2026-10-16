@@ -79,7 +79,7 @@ describe('AgencyRightSidebar & Partner Settings', () => {
     vi.clearAllMocks();
   });
 
-  it('renders collapsed sidebar by default with expand trigger and navigation links', () => {
+  it('renders the collapsed mode when requested with expand trigger and navigation links', () => {
     render(<AgencyRightSidebar initialExpanded={false} />);
     
     // Check expand button exists
@@ -100,7 +100,7 @@ describe('AgencyRightSidebar & Partner Settings', () => {
     render(<AgencyRightSidebar initialExpanded={false} />);
     const expandBtn = screen.getByRole('button', { name: 'Mở rộng thanh bên' });
     fireEvent.click(expandBtn);
-    expect(screen.getByRole('button', { name: 'Ghim mở thanh bên' }).querySelector('svg')?.classList.contains('lucide-panel-left-open')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Thu gọn thanh bên' }).querySelector('svg')?.classList.contains('lucide-panel-left-close')).toBe(true);
 
     // Now expanded: Đối tác Tripri header and tabs should be visible
     expect(screen.getByText('Đối tác Tripri')).toBeDefined();
@@ -109,18 +109,15 @@ describe('AgencyRightSidebar & Partner Settings', () => {
     expect(screen.getByText('Đối tác')).toBeDefined();
   });
 
-  it('pins only after clicking while expanded and preserves the pin on pointer leave', () => {
+  it('toggles the rail with the arrow and keeps it stable while hovering', () => {
     render(<AgencyRightSidebar />);
     const sidebar = screen.getByLabelText('Điều hướng đối tác');
-    fireEvent.pointerEnter(sidebar, { pointerType: 'mouse' });
-    expect(sidebar.getAttribute('data-pinned')).toBe('false');
-    expect(sidebar.querySelector('.lucide-panel-left-close')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Ghim mở thanh bên' }));
-    fireEvent.pointerLeave(sidebar, { pointerType: 'mouse' });
-    expect(sidebar.getAttribute('data-expanded')).toBe('true');
-    expect(sidebar.getAttribute('data-pinned')).toBe('true');
-    fireEvent.click(screen.getByRole('button', { name: 'Bỏ ghim và thu gọn thanh bên' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thu gọn thanh bên' }));
     expect(sidebar.getAttribute('data-expanded')).toBe('false');
+    fireEvent.pointerEnter(sidebar, { pointerType: 'mouse' });
+    expect(sidebar.getAttribute('data-expanded')).toBe('false');
+    fireEvent.click(screen.getByRole('button', { name: 'Mở rộng thanh bên' }));
+    expect(sidebar.getAttribute('data-expanded')).toBe('true');
   });
 
   it('clears search with its icon and opens the real notifications inbox without navigation', () => {
@@ -139,22 +136,21 @@ describe('AgencyRightSidebar & Partner Settings', () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it('expands on hover, collapses on leave and keeps the logo mounted', () => {
+  it('does not expand on hover and keeps the logo mounted', () => {
     render(<AgencyRightSidebar />);
     const sidebar = screen.getByLabelText('Điều hướng đối tác');
     fireEvent.pointerEnter(sidebar, { pointerType: 'mouse' });
     expect(sidebar.getAttribute('data-expanded')).toBe('true');
-    expect(screen.queryByText('Mức chiết khấu thoả thuận')).toBeNull();
-    fireEvent.pointerLeave(sidebar, { pointerType: 'mouse' });
-    expect(sidebar.getAttribute('data-expanded')).toBe('false');
     expect(screen.getByRole('img', { name: 'Logo Tripri' })).toBeDefined();
-    fireEvent.click(screen.getByRole('button', { name: 'Mở rộng thanh bên' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thu gọn thanh bên' }));
     fireEvent.keyDown(sidebar, { key: 'Escape' });
     expect(sidebar.getAttribute('data-expanded')).toBe('false');
   });
 
   it('opens and focuses search with Ctrl+K or Meta+K, then searches without Vietnamese accents', () => {
     render(<AgencyRightSidebar />);
+    const navigationStart = vi.fn();
+    window.addEventListener('tripri:route-navigation-start', navigationStart);
     fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
     const input = screen.getByRole('searchbox', { name: 'Tìm chức năng' });
     expect(document.activeElement).toBe(input);
@@ -163,7 +159,9 @@ describe('AgencyRightSidebar & Partner Settings', () => {
     expect(screen.queryByRole('link', { name: 'Quản lý tour' })).toBeNull();
     fireEvent.submit(screen.getByRole('search', { name: 'Tìm chức năng' }));
     expect(mockPush).toHaveBeenCalledWith('/agency/bookings');
-    expect(screen.getByLabelText('Điều hướng đối tác').getAttribute('data-expanded')).toBe('false');
+    expect(navigationStart).not.toHaveBeenCalled();
+    window.removeEventListener('tripri:route-navigation-start', navigationStart);
+    expect(screen.getByLabelText('Điều hướng đối tác').getAttribute('data-expanded')).toBe('true');
     fireEvent.keyDown(window, { key: 'K', metaKey: true });
     expect(document.activeElement).toBe(input);
     expect((input as HTMLInputElement).value).toBe('');
@@ -181,10 +179,28 @@ describe('AgencyRightSidebar & Partner Settings', () => {
   it('places toggle alongside brand and the notification bell alongside the company name', () => {
     render(<AgencyRightSidebar initialExpanded />);
     const brand = screen.getByText('Đối tác Tripri');
-    expect(brand.closest('header')?.contains(screen.getByRole('button', { name: 'Ghim mở thanh bên' }))).toBe(true);
+    expect(brand.closest('header')?.contains(screen.getByRole('button', { name: 'Thu gọn thanh bên' }))).toBe(true);
     const profile = screen.getByRole('link', { name: 'Hồ sơ đối tác: Công ty Du lịch Hoàng Phúc' });
     expect(profile.textContent).toContain('Công ty Du lịch Hoàng Phúc');
     expect(profile.parentElement?.contains(screen.getByRole('link', { name: 'Thông báo, 3 chưa đọc' }))).toBe(true);
+  });
+
+  it('keeps Agency navigation free of the global route preloader opt-in', () => {
+    render(<AgencyRightSidebar initialExpanded />);
+    for (const label of ['Tổng quan', 'Đơn đặt chỗ', 'Quản lý tour', 'Chiết khấu hoa hồng']) {
+      expect(screen.getByRole('link', { name: label }).hasAttribute('data-route-preloader')).toBe(false);
+    }
+    fireEvent.click(screen.getByRole('link', { name: 'Hồ sơ đối tác: Công ty Du lịch Hoàng Phúc' }));
+    expect(screen.getByRole('menuitem', { name: 'Cài đặt' }).hasAttribute('data-route-preloader')).toBe(false);
+  });
+
+  it('opens account actions from the avatar and logs out from the popup', () => {
+    render(<AgencyRightSidebar initialExpanded />);
+    fireEvent.click(screen.getByRole('link', { name: 'Hồ sơ đối tác: Công ty Du lịch Hoàng Phúc' }));
+    expect(screen.getByRole('menu', { name: 'Tùy chọn tài khoản' })).toBeDefined();
+    expect(screen.getByRole('menuitem', { name: 'Cài đặt' })).toBeDefined();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Đăng xuất' }));
+    expect(mockLogout).toHaveBeenCalledTimes(1);
   });
 
   it('allows switching to Partner Settings and adjusting commission percentage', async () => {

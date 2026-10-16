@@ -54,6 +54,7 @@ describe('dashboard authorization', () => {
   it('the agency dashboard is computed for the authenticated agency only (no id parameter exists)', async () => {
     const res = await get('/agency/dashboard', 'AGENCY', 'agency-77');
     expect(res.body.data).toEqual({ agencyId: 'agency-77' });
+    expect(res.headers['server-timing']).toMatch(/^agency-dashboard-service;dur=\d+\.\d$/);
     expect((await get('/agency/dashboard/other-agency', 'AGENCY', 'agency-77')).status).toBe(404);
   });
 });

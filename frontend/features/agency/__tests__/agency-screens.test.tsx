@@ -8,13 +8,13 @@ import type { TourDetail } from '@/features/tours/types';
 
 const mocks = vi.hoisted(() => ({
   permissions: ['agency:dashboard', 'agency:bookings-view', 'tour:update-own', 'tour:assign-guide', 'agency:export-customers'],
-  dashboard: vi.fn(), bookings: vi.fn(), booking: vi.fn(), tour: vi.fn(), guides: vi.fn(), assign: vi.fn(), mutation: vi.fn(),
+  dashboard: vi.fn(), bookings: vi.fn(), booking: vi.fn(), tour: vi.fn(), tourList: vi.fn(), guides: vi.fn(), assign: vi.fn(), mutation: vi.fn(),
 }));
 vi.mock('next/navigation', () => ({ usePathname: () => '/agency', useSearchParams: () => new URLSearchParams(), useParams: () => ({ id: 'tour-1' }) }));
 vi.mock('@/store/hooks', () => ({ useAppSelector: () => ({ permissions: mocks.permissions }), useAppDispatch: () => vi.fn() }));
 vi.mock('@/features/tours/api/toursApi', async (original) => ({
   ...await original<typeof import('@/features/tours/api/toursApi')>(),
-  useGetAgencyDashboardQuery: mocks.dashboard, useGetAgencyToursQuery: () => ({ data: { items: [], meta: { totalPages: 1 } } }),
+  useGetAgencyDashboardQuery: mocks.dashboard, useGetAgencyToursQuery: mocks.tourList,
   useGetAgencyTourQuery: mocks.tour, useGetAgencyGuidesQuery: mocks.guides,
   useAssignAgencyTourGuideMutation: () => [mocks.assign, {}],
   useSetAgencyTourItineraryMutation: () => [mocks.mutation, {}], useSetAgencyTourAvailabilityMutation: () => [mocks.mutation, {}],
@@ -37,6 +37,7 @@ beforeEach(() => {
   mocks.permissions = ['agency:dashboard', 'agency:bookings-view', 'tour:update-own', 'tour:assign-guide', 'agency:export-customers'];
   mocks.guides.mockReturnValue({ data: { items: [{ id: 'guide-1', fullName: 'Nguyễn An', languages: ['Vietnamese'] }], meta: { totalPages: 1 } } });
   mocks.tour.mockReturnValue({ currentData: tour, refetch: vi.fn() });
+  mocks.tourList.mockReturnValue({ currentData: { items: [], meta: { totalPages: 1 } }, refetch: vi.fn() });
 });
 afterEach(() => { cleanup(); vi.clearAllMocks(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
@@ -94,6 +95,56 @@ describe('Agency operation screens', () => {
     expect(screen.getByRole('alert').textContent).toContain('Không tải được tổng quan');
     expect(screen.queryByText('0 ₫')).toBeNull();
     expect(screen.queryByText('Chưa có tour phát sinh doanh thu.')).toBeNull();
+  });
+
+  it('keeps the last dashboard snapshot visible when a background refresh fails', () => {
+    mocks.dashboard.mockReturnValue({
+      data: {
+        generatedAt: '2026-10-16T05:00:00Z', tours: { total: 1, byStatus: { APPROVED: 1 } },
+        bookings: { CONFIRMED: 2 }, revenue: { gross: 1000, commission: 100, net: 900, bookings: 2 },
+        customers: 2, last30Days: [], topTours: [], openComplaints: 0,
+      },
+      error: { status: 500 }, isLoading: false, isFetching: false, refetch: vi.fn(),
+    });
+    render(<AgencyDashboardPage />);
+    expect(screen.getByRole('alert').textContent).toContain('Đang hiển thị số liệu lần gần nhất');
+    expect(within(screen.getByRole('region', { name: 'Số liệu tổng quan' })).getByText('900 ₫')).toBeDefined();
+    expect(screen.getByText(/Cập nhật \d{2}:\d{2}/)).toBeDefined();
+  });
+
+  it('keeps dashboard metrics usable while a background refresh is pending', () => {
+    mocks.dashboard.mockReturnValue({
+      data: {
+        generatedAt: '2026-10-16T05:00:00Z', tours: { total: 0, byStatus: {} },
+        bookings: {}, revenue: { gross: 1000, commission: 100, net: 900, bookings: 0 },
+        customers: 0, last30Days: [], topTours: [], openComplaints: 0,
+      },
+      isLoading: false, isFetching: true, refetch: vi.fn(),
+    });
+    render(<AgencyDashboardPage />);
+    expect(within(screen.getByRole('region', { name: 'Số liệu tổng quan' })).getByText('900 ₫')).toBeDefined();
+    expect(screen.queryByText('Đang tải tổng quan…')).toBeNull();
+    expect(screen.getByLabelText('Số liệu tổng quan').parentElement?.getAttribute('aria-busy')).toBe('true');
+  });
+
+  it('loads tours only after opening the Booking filter, using a 12-item cache-compatible page', () => {
+    mocks.bookings.mockReturnValue({ currentData: { items: [], meta: { page: 1, totalPages: 1, total: 0 } }, refetch: vi.fn() });
+    render(<AgencyBookingsPage />);
+    expect(mocks.tourList.mock.lastCall?.[0]).toEqual({ page: 1, limit: 12 });
+    expect(mocks.tourList.mock.lastCall?.[1]).toMatchObject({ skip: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Tất cả tour' }));
+    expect(mocks.tourList.mock.lastCall?.[1]).toMatchObject({ skip: false });
+  });
+
+  it('paginates beyond 100 tours and searches the complete Agency list on the server', async () => {
+    mocks.bookings.mockReturnValue({ currentData: { items: [], meta: { page: 1, totalPages: 1, total: 0 } }, refetch: vi.fn() });
+    mocks.tourList.mockReturnValue({ currentData: { items: [{ ...tour, id: 'tour-1' }], meta: { totalPages: 11 } }, refetch: vi.fn() });
+    render(<AgencyBookingsPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tất cả tour' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sau →' }));
+    expect(mocks.tourList.mock.lastCall?.[0]).toEqual({ page: 2, limit: 12 });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm tour theo tên' }), { target: { value: 'Hạ Long' } });
+    await waitFor(() => expect(mocks.tourList.mock.lastCall?.[0]).toEqual({ page: 1, limit: 12, q: 'Hạ Long' }));
   });
 
   it('does not request bookings without the required permission', () => {

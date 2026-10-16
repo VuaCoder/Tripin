@@ -11,6 +11,7 @@ export interface AntSelectOption<T = string> {
 export interface AntSelectProps<T = string> {
   value: T;
   onChange: (value: T) => void;
+  onOpen?: () => void;
   options: AntSelectOption<T>[];
   placeholder?: string;
   className?: string;
@@ -23,6 +24,7 @@ export interface AntSelectProps<T = string> {
 export function AntSelect<T extends string = string>({
   value,
   onChange,
+  onOpen,
   options,
   placeholder = 'Chọn một mục',
   className = '',
@@ -72,7 +74,10 @@ export function AntSelect<T extends string = string>({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => {
+          if (!open) onOpen?.();
+          setOpen(!open);
+        }}
         aria-haspopup="listbox"
         aria-expanded={open}
         className={`group flex w-full items-center justify-between gap-2.5 rounded-lg border bg-white font-medium transition-all duration-200 cursor-pointer ${sizeClasses} ${

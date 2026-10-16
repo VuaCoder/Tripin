@@ -10,6 +10,7 @@ import {
   Sparkles, 
   BadgePercent, 
   Bell, 
+  Settings,
   LogOut, 
   PanelLeftOpen, 
   PanelLeftClose, 
@@ -24,13 +25,15 @@ import styles from './AgencySidebar.module.css';
 import { AgencyNotificationPopover } from './AgencyNotificationPopover';
 
 /** Compatibility export; the rail now sits on the left. */
-export function AgencyRightSidebar({ initialExpanded = false }: { initialExpanded?: boolean }) {
+export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded?: boolean }) {
   const [expanded, setExpanded] = useState(initialExpanded);
-  const [pinned, setPinned] = useState(false);
   const [query, setQuery] = useState('');
   const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
+  const profileRef = useRef<HTMLAnchorElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   const focusSearch = useRef(false);
   const shortcut = '⌘K';
   const user = useAppSelector(selectUser);
@@ -40,10 +43,21 @@ export function AgencyRightSidebar({ initialExpanded = false }: { initialExpande
   const { count, connected, latest } = useAgencyNotifications();
 
   const companyName = user?.agencyProfile?.companyName?.trim() || 'Đối tác du lịch';
-  const ToggleIcon = pinned ? PanelLeftClose : PanelLeftOpen;
-  const closeMenu = () => { if (!pinned) setExpanded(false); setQuery(''); };
-  const unpinAndClose = () => { setPinned(false); setExpanded(false); setQuery(''); };
-  const toggleLabel = pinned ? 'Bỏ ghim và thu gọn thanh bên' : expanded ? 'Ghim mở thanh bên' : 'Mở rộng thanh bên';
+  const ToggleIcon = expanded ? PanelLeftClose : PanelLeftOpen;
+  const closeMenu = () => { setExpanded(false); setQuery(''); setShowProfileMenu(false); };
+  const toggleLabel = expanded ? 'Thu gọn thanh bên' : 'Mở rộng thanh bên';
+
+  useEffect(() => {
+    if (!showProfileMenu) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!profileMenuRef.current?.contains(target) && !profileRef.current?.contains(target)) {
+        setShowProfileMenu(false);
+      }
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [showProfileMenu]);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -88,30 +102,28 @@ export function AgencyRightSidebar({ initialExpanded = false }: { initialExpande
   ) })).filter((group) => group.items.length > 0);
 
   return <>
-    {expanded && !pinned && <button type="button" aria-label="Đóng menu điều hướng" className="fixed inset-0 z-40 bg-slate-950/30 sm:hidden" onClick={closeMenu} />}
-    <aside aria-label="Điều hướng đối tác" data-expanded={expanded} data-pinned={pinned} className={styles.sidebar}
-      onPointerEnter={(event) => { if (event.pointerType !== 'touch') setExpanded(true); }}
-      onPointerLeave={(event) => { if (event.pointerType !== 'touch' && !showNotificationModal) closeMenu(); }}
-      onFocus={(event) => { if (!(event.target as HTMLElement).closest('button')) setExpanded(true); }}
-      onBlur={(event) => { if (!showNotificationModal && !event.currentTarget.contains(event.relatedTarget)) closeMenu(); }}
+    {expanded && <button type="button" aria-label="Đóng menu điều hướng" className="fixed inset-0 z-40 bg-slate-950/30 sm:hidden" onClick={closeMenu} />}
+    <aside aria-label="Điều hướng đối tác" data-expanded={expanded} className={styles.sidebar}
       onKeyDown={(event) => { 
         if (event.key === 'Escape') { 
           event.preventDefault(); 
-          if (showNotificationModal) {
+          if (showProfileMenu) {
+            setShowProfileMenu(false);
+          } else if (showNotificationModal) {
             setShowNotificationModal(false);
           } else {
-            unpinAndClose(); 
+            closeMenu();
             toggleRef.current?.focus(); 
           }
         } 
       }}>
       <header className={styles.header}>
         <div className={styles.brand}><svg className={styles.brandMark} role="img" aria-label="Logo Tripri" viewBox="0 0 70 70"><image href="/images/tripri-logo.svg" width="260" height="70" /></svg><span className={styles.brandName}><strong>Đối tác Tripri</strong><small>Không gian vận hành</small></span></div>
-        <button type="button" ref={toggleRef} className={styles.toggle} title={toggleLabel} aria-label={toggleLabel} aria-expanded={expanded} aria-pressed={pinned} onClick={() => { if (pinned) unpinAndClose(); else if (expanded) setPinned(true); else setExpanded(true); }}><ToggleIcon size={20} aria-hidden="true" /></button>
+        <button type="button" ref={toggleRef} className={styles.toggle} title={toggleLabel} aria-label={toggleLabel} aria-expanded={expanded} aria-pressed={expanded} onClick={() => { if (expanded) closeMenu(); else setExpanded(true); }}><ToggleIcon size={20} aria-hidden="true" /></button>
       </header>
       <div className={styles.searchArea}>
         {!expanded && <button type="button" className={styles.searchTrigger} aria-label="Tìm chức năng" title={`Tìm chức năng (${shortcut})`} onClick={() => { focusSearch.current = true; setExpanded(true); }}><Search size={20} /></button>}
-        <form className={styles.searchForm} role="search" aria-label="Tìm chức năng" onSubmit={(event) => { event.preventDefault(); const target = visibleGroups[0]?.items[0]; if (target && searchTerm) { if (target.href === '/agency/notifications') { setShowNotificationModal(true); } else { if (target.href !== window.location.pathname + window.location.search) window.dispatchEvent(new Event('tripri:route-navigation-start')); router.push(target.href); closeMenu(); } } }}>
+        <form className={styles.searchForm} role="search" aria-label="Tìm chức năng" onSubmit={(event) => { event.preventDefault(); const target = visibleGroups[0]?.items[0]; if (target && searchTerm) { if (target.href === '/agency/notifications') { setShowNotificationModal(true); } else { router.push(target.href); setQuery(''); } } }}>
           <Search size={18} aria-hidden="true" />
           <input ref={searchRef} type="search" aria-label="Tìm chức năng" aria-keyshortcuts="Control+k Meta+k" placeholder="Tìm chức năng…" value={query} tabIndex={expanded ? 0 : -1} onChange={(event) => setQuery(event.target.value)} />
           {query && <button type="button" className={styles.searchClear} aria-label="Xoá tìm kiếm" title="Xoá tìm kiếm" onClick={() => { setQuery(''); searchRef.current?.focus(); }}><X size={14} /></button>}
@@ -123,7 +135,7 @@ export function AgencyRightSidebar({ initialExpanded = false }: { initialExpande
           <h2 className={styles.groupTitle}>{group.label}</h2>
           {group.items.map(({ href, label, icon: Icon }) => {
             const active = pathname === href ||
-              (href.startsWith('/agency/settings') && pathname.startsWith('/agency/settings')) ||
+              (href === '/agency/settings/commission' && pathname.startsWith('/agency/settings/commission/')) ||
               (href === '/agency/tours' && pathname.startsWith('/agency/tours/') && !['/agency/tours/new', '/agency/tours/import'].includes(pathname)) ||
               (href === '/agency/bookings' && pathname.startsWith('/agency/bookings/'));
             return (
@@ -131,7 +143,6 @@ export function AgencyRightSidebar({ initialExpanded = false }: { initialExpande
                 key={href} 
                 href={href} 
                 data-no-preloader={href === '/agency/notifications' ? 'true' : undefined}
-                data-route-preloader={href !== '/agency/notifications' ? 'true' : undefined}
                 title={label} 
                 aria-label={label} 
                 aria-current={active ? 'page' : undefined} 
@@ -143,7 +154,7 @@ export function AgencyRightSidebar({ initialExpanded = false }: { initialExpande
                     setShowNotificationModal((prev) => !prev);
                     return;
                   }
-                  closeMenu();
+                  setQuery('');
                 }}
               >
                 <Icon size={21} aria-hidden="true" />
@@ -156,7 +167,16 @@ export function AgencyRightSidebar({ initialExpanded = false }: { initialExpande
       </nav>
       <div className={styles.footer}>
         <div className={styles.accountRow}>
-          <Link href="/agency/settings/profile" data-route-preloader="true" className={styles.profile} aria-label={`Hồ sơ đối tác: ${companyName}`} title={companyName} onClick={closeMenu}>
+          <Link
+            href="/agency/settings/profile"
+            ref={profileRef}
+            className={styles.profile}
+            aria-haspopup="menu"
+            aria-expanded={showProfileMenu}
+            aria-label={`Hồ sơ đối tác: ${companyName}`}
+            title={companyName}
+            onClick={(event) => { event.preventDefault(); setShowProfileMenu((prev) => !prev); }}
+          >
             <span className={styles.avatar}>{user?.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={user.avatarUrl} alt="" className="h-full w-full rounded-lg object-cover" />
@@ -182,17 +202,16 @@ export function AgencyRightSidebar({ initialExpanded = false }: { initialExpande
             <span className={styles.connectionDot} data-connected={connected} />
           </Link>
         </div>
-        {/* Styled prominent logout button with distinct red-tint to prevent accidental clicks */}
-        <button 
-          type="button" 
-          onClick={() => { window.dispatchEvent(new Event('tripri:route-navigation-start')); logout(); }}
-          className={styles.logoutButton} 
-          aria-label="Đăng xuất" 
-          title="Đăng xuất tài khoản"
-        >
-          <LogOut size={20} />
-          <span className={styles.label}>Đăng xuất</span>
-        </button>
+        {showProfileMenu && <div ref={profileMenuRef} className={styles.profileMenu} role="menu" aria-label="Tùy chọn tài khoản">
+          <Link href="/agency/settings/profile" className={styles.profileMenuItem} role="menuitem" onClick={() => setShowProfileMenu(false)}>
+            <Settings size={17} aria-hidden="true" />
+            <span>Cài đặt</span>
+          </Link>
+          <button type="button" className={styles.profileMenuItem} role="menuitem" onClick={() => { setShowProfileMenu(false); window.dispatchEvent(new Event('tripri:route-navigation-start')); void logout(); }}>
+            <LogOut size={17} aria-hidden="true" />
+            <span>Đăng xuất</span>
+          </button>
+        </div>}
       </div>
     </aside>
 

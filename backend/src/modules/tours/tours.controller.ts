@@ -57,7 +57,7 @@ export class ToursController {
 
   listOwn: RequestHandler = async (req, res) => {
     const { query } = validated<unknown, AgencyToursQueryInput>(req);
-    const page = await this.service.listOwn(agencyIdOf(req), { ...pageQueryOf(query), status: query.status as TourStatus | undefined });
+    const page = await this.service.listOwn(agencyIdOf(req), { ...pageQueryOf(query), status: query.status as TourStatus | undefined, q: query.q });
     sendPaginated(res, page.items, page.meta);
   };
 

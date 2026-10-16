@@ -159,8 +159,12 @@ export class ToursRepository {
     return this.paginate({ ...where, AND: and }, SORTS[query.sort], query);
   }
 
-  listByAgency(agencyId: string, status: TourStatus | undefined, page: PageRequest) {
-    return this.paginate({ agencyId, status: status ?? { not: TOUR_STATUS.ARCHIVED } }, [{ updatedAt: 'desc' }, { id: 'desc' }], page);
+  listByAgency(agencyId: string, status: TourStatus | undefined, page: PageRequest & { q?: string }) {
+    return this.paginate({
+      agencyId,
+      status: status ?? { not: TOUR_STATUS.ARCHIVED },
+      ...(page.q ? { title: containsText(page.q) } : {}),
+    }, [{ updatedAt: 'desc' }, { id: 'desc' }], page);
   }
 
   listByGuide(guideId: string, page: PageRequest) {

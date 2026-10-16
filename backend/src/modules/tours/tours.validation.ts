@@ -103,6 +103,7 @@ export const searchToursQuery = paginationQuerySchema
 
 export const agencyToursQuery = paginationQuerySchema.extend({
   status: z.enum(Object.values(TOUR_STATUS) as [string, ...string[]]).optional(),
+  q: z.string().trim().max(100).optional(),
 });
 
 export type CreateTourBody = z.infer<typeof createTourBody>;
