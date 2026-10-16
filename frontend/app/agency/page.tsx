@@ -26,7 +26,21 @@ export default function AgencyDashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/agency/promotions"
+            className="inline-flex items-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl transition-all"
+          >
+            <span className="material-symbols-outlined text-[18px]">sell</span>
+            <span>Khuyến mãi</span>
+          </Link>
+          <Link
+            href="/agency/complaints"
+            className="inline-flex items-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl transition-all"
+          >
+            <span className="material-symbols-outlined text-[18px]">report</span>
+            <span>Khiếu nại</span>
+          </Link>
           <Link
             href="/agency/tours/new"
             className="inline-flex items-center gap-2 bg-primary-container hover:bg-primary text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl shadow-md shadow-primary-container/20 transition-all"
