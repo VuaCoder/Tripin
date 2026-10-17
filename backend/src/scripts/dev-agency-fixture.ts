@@ -2,17 +2,18 @@
  * DEV-ONLY fixture for the Agency "Upload Promotions" and "Handle Tour Complaints" UI run
  * (not part of the product; delete after use).
  *
- *   DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5433/tripri_dev" npx tsx src/scripts/dev-agency-fixture.ts create
+ *   Set DATABASE_URL and DEV_FIXTURE_PASSWORD in your ignored root .env, then:
+ *   npx tsx src/scripts/dev-agency-fixture.ts create
  *   DATABASE_URL=... npx tsx src/scripts/dev-agency-fixture.ts clean
  *
  * Refuses to run against anything but a local database. Creates two VERIFIED agencies (the second one proves that
  * an agency cannot see or answer another agency's data), travelers, tours, promotions and complaints in every state.
- * Every account shares the dev password below.
+ * Every account uses DEV_FIXTURE_PASSWORD. Passwords are never printed.
  */
 import bcrypt from 'bcryptjs';
 import { prisma } from '../config/database';
+import { assertDevScriptEnvironment, assertLocalDatabaseUrl, requireDevPassword } from './dev-script-config';
 
-const PASSWORD = 'DevAgency!2026';
 const AGENCY_EMAIL = 'dev.agency@tripri.test';
 const OTHER_AGENCY_EMAIL = 'dev.agency.other@tripri.test';
 const TRAVELER_EMAILS = [1, 2, 3, 4].map((n) => `dev.agency.traveler${n}@tripri.test`);
@@ -21,13 +22,6 @@ const MARKER = '[DEV-AGENCY]';
 const PROMO_PREFIX = 'DEVAG';
 
 const daysFromNow = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-
-function assertLocal() {
-  const url = process.env.DATABASE_URL ?? '';
-  if (!/@(127\.0\.0\.1|localhost)[:/]/.test(url)) {
-    throw new Error('dev-agency-fixture only runs against a local database (DATABASE_URL must point at 127.0.0.1/localhost).');
-  }
-}
 
 async function clean() {
   const users = await prisma.user.findMany({ where: { email: { in: FIXTURE_EMAILS } }, select: { id: true } });
@@ -41,11 +35,11 @@ async function clean() {
   await prisma.user.deleteMany({ where: { email: { in: FIXTURE_EMAILS } } });
 }
 
-const account = async (email: string, fullName: string, role: 'AGENCY' | 'TRAVELER') =>
+const account = async (email: string, fullName: string, role: 'AGENCY' | 'TRAVELER', password: string) =>
   prisma.user.create({
     data: {
       email,
-      passwordHash: await bcrypt.hash(PASSWORD, 12),
+      passwordHash: await bcrypt.hash(password, 12),
       fullName,
       phone: '0900000000',
       role,
@@ -55,21 +49,21 @@ const account = async (email: string, fullName: string, role: 'AGENCY' | 'TRAVEL
     select: { id: true },
   });
 
-async function create() {
+async function create(password: string) {
   await clean();
 
   const category =
     (await prisma.category.findFirst({ where: { isActive: true }, select: { id: true } })) ??
     (await prisma.category.create({ data: { name: 'Văn hóa & Phố thị', slug: `dev-agency-culture-${Date.now()}` }, select: { id: true } }));
 
-  const agency = await account(AGENCY_EMAIL, 'Dev Agency', 'AGENCY');
-  const other = await account(OTHER_AGENCY_EMAIL, 'Dev Agency Other', 'AGENCY');
+  const agency = await account(AGENCY_EMAIL, 'Dev Agency', 'AGENCY', password);
+  const other = await account(OTHER_AGENCY_EMAIL, 'Dev Agency Other', 'AGENCY', password);
   for (const [id, name] of [[agency.id, 'Dev Agency Travel'], [other.id, 'Dev Other Travel']] as const) {
     await prisma.agencyProfile.create({
       data: { userId: id, companyName: name, address: 'Hà Nội', verificationStatus: 'VERIFIED', verifiedAt: new Date() },
     });
   }
-  const travelers = await Promise.all(TRAVELER_EMAILS.map((email, i) => account(email, `Nguyễn Văn Khách ${i + 1}`, 'TRAVELER')));
+  const travelers = await Promise.all(TRAVELER_EMAILS.map((email, i) => account(email, `Nguyễn Văn Khách ${i + 1}`, 'TRAVELER', password)));
 
   const tour = (agencyId: string, title: string, destination: string) =>
     prisma.tour.create({
@@ -148,20 +142,22 @@ async function create() {
   // Belongs to the OTHER agency: must never show up for dev.agency.
   await report(travelers[0]!.id, tourB.id, other.id, 'OTHER', 'Khiếu nại về tour của agency khác, agency này không được thấy.', { openKey: open(travelers[0]!.id, tourB.id) });
 
-  return { agency: AGENCY_EMAIL, otherAgency: OTHER_AGENCY_EMAIL, password: PASSWORD };
+  return { agency: AGENCY_EMAIL, otherAgency: OTHER_AGENCY_EMAIL };
 }
 
 async function main() {
-  assertLocal();
+  assertDevScriptEnvironment();
+  assertLocalDatabaseUrl(process.env.DATABASE_URL);
   const command = process.argv[2];
-  if (command === 'create') console.log(JSON.stringify(await create(), null, 2));
+  if (command === 'create') console.log(JSON.stringify(await create(requireDevPassword('DEV_FIXTURE_PASSWORD')), null, 2));
   else if (command === 'clean') await clean();
   else throw new Error('usage: dev-agency-fixture.ts create|clean');
 }
 
 main()
-  .catch((error) => {
-    console.error(error);
+  .catch(() => {
+    // Database errors can contain connection URLs; do not print raw errors.
+    console.error('Dev fixture failed. Check local database access, DEV_FIXTURE_PASSWORD and migrations.');
     process.exitCode = 1;
   })
   .finally(() => prisma.$disconnect());
