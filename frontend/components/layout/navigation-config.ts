@@ -28,6 +28,8 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
     { label: 'Tổng quan', href: '/agency', icon: 'dashboard' },
     { label: 'Quản lý tour', href: '/agency/tours', icon: 'tour' },
     { label: 'Đơn đặt chỗ', href: '/agency/bookings', icon: 'receipt_long' },
+    { label: 'Khuyến mãi', href: '/agency/promotions', icon: 'sell' },
+    { label: 'Khiếu nại', href: '/agency/complaints', icon: 'report' },
   ],
   TOUR_GUIDE: [
     { label: 'Lịch trình', href: '/guide', icon: 'calendar_month' },
@@ -36,6 +38,8 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
   ],
   MODERATOR: [
     { label: 'Kiểm duyệt', href: '/moderator', icon: 'verified' },
+    { label: 'Duyệt tour', href: '/moderator/tours', icon: 'tour' },
+    { label: 'Xác minh agency', href: '/moderator/agencies', icon: 'domain_verification' },
     { label: 'Báo cáo vi phạm', href: '/moderator/reports', icon: 'report' },
   ],
   SUPER_ADMIN: [

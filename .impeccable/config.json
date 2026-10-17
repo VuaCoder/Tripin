@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "ai-color-palette",
+        "value": "*",
+        "files": [
+          "frontend/features/moderation/components/ModerationDashboardPage.tsx"
+        ],
+        "createdAt": "2026-10-17T01:12:56.007Z",
+        "reason": "Pre-existing moderator-area banner gradient (from-purple-50 via-slate-50 to-indigo-50) kept from the original frontend/app/moderator/page.tsx; not a new design choice. Decided by assistant, not user-confirmed."
+      }
+    ]
+  }
+}
