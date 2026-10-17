@@ -38,6 +38,8 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
   ],
   MODERATOR: [
     { label: 'Kiểm duyệt', href: '/moderator', icon: 'verified' },
+    { label: 'Duyệt tour', href: '/moderator/tours', icon: 'tour' },
+    { label: 'Xác minh agency', href: '/moderator/agencies', icon: 'domain_verification' },
     { label: 'Báo cáo vi phạm', href: '/moderator/reports', icon: 'report' },
   ],
   SUPER_ADMIN: [
