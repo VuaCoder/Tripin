@@ -15,7 +15,9 @@ import {
   PanelLeftClose, 
   Search, 
   X, 
-  Command
+  Command,
+  Ticket,
+  MessageSquareWarning
 } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, useLogout } from '@/features/auth';
@@ -72,6 +74,10 @@ export function AgencyRightSidebar({ initialExpanded = false }: { initialExpande
       { href: '/agency/tours', label: 'Quản lý tour', icon: Compass, permission: 'tour:update-own' },
       { href: '/agency/tours/new', label: 'Tạo tour mới', icon: PlusCircle, permission: 'tour:create' },
       { href: '/agency/tours/import', label: 'Nhập tour / AI', icon: Sparkles, permission: 'tour:import' },
+    ] },
+    { label: 'Chăm sóc & Ưu đãi', items: [
+      { href: '/agency/promotions', label: 'Khuyến mãi', icon: Ticket, permission: 'promotion:agency-manage' },
+      { href: '/agency/complaints', label: 'Khiếu nại', icon: MessageSquareWarning, permission: 'complaint:respond' },
     ] },
     { label: 'Đối tác', items: [
       { href: '/agency/settings/commission', label: 'Chiết khấu hoa hồng', icon: BadgePercent, permission: '' },
