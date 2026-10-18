@@ -17,3 +17,5 @@ The high-level system flows include:
 - Guide Assignment
 - Moderation
 - Super Admin Administration
+
+Detailed flows: [Tour Guide subscriptions and earnings](guide-finance.md).

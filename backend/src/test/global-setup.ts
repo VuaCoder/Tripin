@@ -50,6 +50,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
     password: PASSWORD,
     port,
     persistent: false,
+    initdbFlags: ['--encoding=UTF8', '--locale=C'],
     onLog: () => undefined,
     onError: () => undefined,
   });

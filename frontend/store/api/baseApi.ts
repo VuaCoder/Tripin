@@ -92,8 +92,12 @@ export const baseQueryWithReauth: BaseQueryFn<FetchArgs | string, unknown, Fetch
   api,
   extraOptions,
 ) => {
+  const requestUserId = (api.getState() as RootState).auth.user?.id;
+  const identityChanged = () => (api.getState() as RootState).auth.user?.id !== requestUserId;
+  const superseded = { error: { status: 'CUSTOM_ERROR' as const, error: 'Account changed during request' } };
   const cleanArgs = stripRetryFlag(args);
   let result = await rawBaseQuery(cleanArgs, api, extraOptions);
+  if (identityChanged()) return superseded;
 
   if (result.error?.status === 401 && !hasRetried(args) && !isAuthExempt(cleanArgs)) {
     const errorCode = (result.error.data as { error?: { code?: string } } | undefined)?.error?.code;
@@ -101,10 +105,14 @@ export const baseQueryWithReauth: BaseQueryFn<FetchArgs | string, unknown, Fetch
 
     if (sessionExpired) {
       const session = await refreshSession();
+      // A refresh started by A must neither restore A nor clear B after an
+      // account switch/logout while the request was in flight.
+      if (identityChanged()) return superseded;
 
-      if (session) {
+      if (session && (!requestUserId || session.user.id === requestUserId)) {
         api.dispatch(setCredentials(session));
         result = await rawBaseQuery(markRetried(cleanArgs), api, extraOptions);
+        if (requestUserId && identityChanged()) return superseded;
       } else {
         api.dispatch(clearCredentials());
         api.dispatch(baseApi.util.resetApiState());
@@ -122,6 +130,6 @@ export const baseQueryWithReauth: BaseQueryFn<FetchArgs | string, unknown, Fetch
 export const baseApi = createApi({
   reducerPath: 'api',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['Auth', 'User', 'Tour', 'Review', 'Cart', 'Wishlist', 'Payment', 'Booking', 'ETicket', 'Notification', 'Promotion', 'Complaint', 'Moderation'],
+  tagTypes: ['Auth', 'User', 'Tour', 'Review', 'Cart', 'Wishlist', 'Payment', 'Booking', 'ETicket', 'Notification', 'Promotion', 'Complaint', 'Moderation', 'Subscription', 'Earning'],
   endpoints: () => ({}),
 });

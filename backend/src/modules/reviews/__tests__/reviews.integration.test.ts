@@ -151,5 +151,29 @@ describe('earnings (integration)', () => {
     expect((await request(app).get('/api/v1/earnings/me').set(bearer(guide.token))).body.data).toHaveLength(1);
     expect((await request(app).get('/api/v1/earnings/me').set(bearer(traveler.token))).status).toBe(403);
     expect((await request(app).get('/api/v1/earnings/me')).status).toBe(401);
+    expect((await request(app).get('/api/v1/earnings/me/summary').set(bearer(otherGuide.token)).query({ guideId: guide.id })).body.data).toEqual({ totalAmount: 0, count: 0, byMonth: [] });
+    expect((await request(app).get('/api/v1/earnings/me').set(bearer(otherGuide.token)).query({ guideId: guide.id })).body.data).toEqual([]);
+    expect((await request(app).get('/api/v1/earnings/me/summary').set(bearer(traveler.token))).status).toBe(403);
+    expect((await request(app).get('/api/v1/earnings/me/summary')).status).toBe(401);
+  });
+
+  it('filters inclusive instants and UTC months, keeping summary independent of pagination', async () => {
+    const { traveler, guide, tourId, departureId } = await guideSetup('ACCEPTED');
+    const bookings = [];
+    for (let i = 0; i < 3; i++) bookings.push(await bookTrip(traveler, tourId, departureId));
+    await completeTrips(bookings);
+    const instants = ['2026-09-30T16:59:59.999Z', '2026-09-30T17:00:00.000Z', '2026-10-01T16:59:59.999Z'];
+    for (let i = 0; i < bookings.length; i++) await prisma.earning.update({ where: { bookingId: bookings[i] }, data: { earnedAt: new Date(instants[i]!) } });
+    const range = { from: '2026-10-01T00:00:00+07:00', to: '2026-10-01T23:59:59.999+07:00' };
+    const list = await request(app).get('/api/v1/earnings/me').set(bearer(guide.token)).query({ ...range, page: 2, limit: 1 });
+    expect(list.body.data).toHaveLength(1);
+    expect(list.body.meta).toMatchObject({ total: 2, totalPages: 2, page: 2 });
+    const summary = await request(app).get('/api/v1/earnings/me/summary').set(bearer(guide.token)).query(range);
+    expect(summary.body.data).toEqual({ totalAmount: 500_000, count: 2, byMonth: [
+      { month: '2026-10', totalAmount: 250_000, count: 1 }, { month: '2026-09', totalAmount: 250_000, count: 1 },
+    ] });
+    for (const path of ['/earnings/me', '/earnings/me/summary']) {
+      expect((await request(app).get(`/api/v1${path}`).set(bearer(guide.token)).query({ from: range.to, to: range.from })).status).toBe(400);
+    }
   });
 });
