@@ -42,10 +42,13 @@ describe('admin: users and access', () => {
     const audit = () => request(app).get('/api/v1/admin/audit-logs').set(bearer(traveler.token));
 
     expect((await audit()).status).toBe(403);
-    expect((await access(admin.token, traveler.id, { extraPermissions: [PERMISSIONS.AUDIT_LOG_VIEW] })).status).toBe(200);
-    expect((await audit()).status).toBe(200);
+    expect((await access(admin.token, traveler.id, { extraPermissions: [PERMISSIONS.AUDIT_LOG_VIEW, PERMISSIONS.AGENCY_DASHBOARD_VIEW] })).status).toBe(200);
+    // Admin permissions cannot bypass the mandatory role guard; other extra grants still work immediately.
+    expect((await audit()).status).toBe(403);
+    expect((await request(app).get('/api/v1/agency/dashboard').set(bearer(traveler.token))).status).toBe(200);
     expect((await access(admin.token, traveler.id, { extraPermissions: [] })).status).toBe(200);
     expect((await audit()).status).toBe(403);
+    expect((await request(app).get('/api/v1/agency/dashboard').set(bearer(traveler.token))).status).toBe(403);
 
     expect((await request(app).get('/api/v1/agency/tours').set(bearer(traveler.token))).status).toBe(403);
     const promoted = await access(admin.token, traveler.id, { role: 'AGENCY' });

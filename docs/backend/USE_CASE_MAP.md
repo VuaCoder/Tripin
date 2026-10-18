@@ -98,6 +98,9 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Handle complaints | moderation | `GET /moderation/support-tickets`, `GET /moderation/support-tickets/:id`, `POST /moderation/support-tickets/:id/reply`, `PATCH /moderation/support-tickets/:id/status` | complaint:handle | done |
 
 ## Super admin
+
+All `/admin/*` endpoints require the current `SUPER_ADMIN` role in addition to their permission; extra admin permissions on another role do not grant access. Backend status remains separate from frontend/QA readiness: see `frontend/features/admin/README.md` and `docs/testing/admin-01/README.md`.
+
 | Use case | Module | Endpoint | Permission | Status |
 |---|---|---|---|---|
 | Set platform commission rates | system-settings | `GET/PUT /admin/settings/commission` | commission:configure | done |
@@ -112,3 +115,6 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 `custom-tours` — present in the repository architecture (AI rules §13) but not in the use-case diagram; its folder
 contains only a README explaining the intended boundary. `carts` was approved by the owner and is now implemented
 (D-81); it is mapped to the Traveler "Book tour" flow above.
+
+## ADMIN-01 reporting/filter extension
+Admin dashboard accepts paired `from`/`to` (max 366 days), returns previous-period comparison and a bounded zero-filled UTC monthly series. Admin user list supports createdAt date filters; promotion lists support literal q, discountType and overlapping validity bounds. All filtering happens before pagination and uses the original admin role/permission guards.

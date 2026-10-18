@@ -7,57 +7,59 @@ Base URL: `/api/v1` · 145 endpoints · behaviour, request/response shapes and r
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
+A `role: SUPER_ADMIN` requirement is mandatory in addition to permissions; extra permission grants do not bypass it.
+
 Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, limit, total, totalPages } }` or `{ "success": false, "error": { "code", "message", "details"? } }`.
 
 ## `/admin/audit-logs`
 
 | Method | Path | Access |
 |---|---|---|
-| GET | `/api/v1/admin/audit-logs` | `audit:view` |
+| GET | `/api/v1/admin/audit-logs` | role: `SUPER_ADMIN` + `audit:view` |
 
 ## `/admin/categories`
 
 | Method | Path | Access |
 |---|---|---|
-| GET | `/api/v1/admin/categories` | `category:configure` |
-| POST | `/api/v1/admin/categories` | `category:configure` |
-| DELETE | `/api/v1/admin/categories/:id` | `category:configure` |
-| PATCH | `/api/v1/admin/categories/:id` | `category:configure` |
+| GET | `/api/v1/admin/categories` | role: `SUPER_ADMIN` + `category:configure` |
+| POST | `/api/v1/admin/categories` | role: `SUPER_ADMIN` + `category:configure` |
+| DELETE | `/api/v1/admin/categories/:id` | role: `SUPER_ADMIN` + `category:configure` |
+| PATCH | `/api/v1/admin/categories/:id` | role: `SUPER_ADMIN` + `category:configure` |
 
 ## `/admin/dashboard`
 
 | Method | Path | Access |
 |---|---|---|
-| GET | `/api/v1/admin/dashboard` | `admin:dashboard` |
+| GET | `/api/v1/admin/dashboard` | role: `SUPER_ADMIN` + `admin:dashboard` |
 
 ## `/admin/policies`
 
 | Method | Path | Access |
 |---|---|---|
-| PUT | `/api/v1/admin/policies/:key` | `policy:configure` |
+| PUT | `/api/v1/admin/policies/:key` | role: `SUPER_ADMIN` + `policy:configure` |
 
 ## `/admin/promotions`
 
 | Method | Path | Access |
 |---|---|---|
-| GET | `/api/v1/admin/promotions` | `promotion:platform-manage` |
-| POST | `/api/v1/admin/promotions` | `promotion:platform-manage` |
-| GET | `/api/v1/admin/promotions/:id` | `promotion:platform-manage` |
-| PATCH | `/api/v1/admin/promotions/:id` | `promotion:platform-manage` |
+| GET | `/api/v1/admin/promotions` | role: `SUPER_ADMIN` + `promotion:platform-manage` |
+| POST | `/api/v1/admin/promotions` | role: `SUPER_ADMIN` + `promotion:platform-manage` |
+| GET | `/api/v1/admin/promotions/:id` | role: `SUPER_ADMIN` + `promotion:platform-manage` |
+| PATCH | `/api/v1/admin/promotions/:id` | role: `SUPER_ADMIN` + `promotion:platform-manage` |
 
 ## `/admin/settings`
 
 | Method | Path | Access |
 |---|---|---|
-| GET | `/api/v1/admin/settings/commission` | `commission:configure` |
-| PUT | `/api/v1/admin/settings/commission` | `commission:configure` |
+| GET | `/api/v1/admin/settings/commission` | role: `SUPER_ADMIN` + `commission:configure` |
+| PUT | `/api/v1/admin/settings/commission` | role: `SUPER_ADMIN` + `commission:configure` |
 
 ## `/admin/users`
 
 | Method | Path | Access |
 |---|---|---|
-| GET | `/api/v1/admin/users` | `user:assign-permissions` |
-| PATCH | `/api/v1/admin/users/:id/access` | `user:assign-permissions` |
+| GET | `/api/v1/admin/users` | role: `SUPER_ADMIN` + `user:assign-permissions` |
+| PATCH | `/api/v1/admin/users/:id/access` | role: `SUPER_ADMIN` + `user:assign-permissions` |
 
 ## `/agencies`
 

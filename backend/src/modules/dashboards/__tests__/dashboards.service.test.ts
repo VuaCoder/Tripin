@@ -80,6 +80,20 @@ describe('moderationDashboard', () => {
 });
 
 describe('adminDashboard', () => {
+  it('compares equal adjacent periods, zero-fills months, and isolates cache entries by range', async () => {
+    const { service, bookings, payments } = make();
+    const range = { from: new Date('2026-09-30T17:00:00Z'), to: new Date('2026-10-02T16:59:59.999Z') };
+    const d = await service.adminDashboard(range);
+    expect(d.period).toEqual({ from: range.from.toISOString(), to: range.to.toISOString(), previousFrom: '2026-09-28T17:00:00.000Z', previousTo: '2026-09-30T16:59:59.999Z' });
+    expect(d.monthly[0]).toEqual({ month: '2026-09', gross: 0, commission: 0, bookings: 0 });
+    expect(d.comparison?.gross).toBe(10000000);
+    expect(bookings.getPlatformStats).toHaveBeenCalledTimes(2);
+    expect(payments.paidTotal).toHaveBeenCalledWith('SUBSCRIPTION', range);
+    await service.adminDashboard(range);
+    expect(bookings.getPlatformStats).toHaveBeenCalledTimes(2);
+    await service.adminDashboard({ from: new Date('2026-10-01'), to: new Date('2026-10-02') });
+    expect(bookings.getPlatformStats).toHaveBeenCalledTimes(4);
+  });
   it('combines users, catalogue, money, subscriptions and moderation load', async () => {
     const { service, payments } = make();
     const dashboard = await service.adminDashboard();

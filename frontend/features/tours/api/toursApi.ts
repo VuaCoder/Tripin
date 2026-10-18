@@ -23,6 +23,7 @@ export const toursApi = baseApi.injectEndpoints({
     getTourCategories: build.query<TourCategory[], void>({
       query: () => ({ url: '/categories' }),
       transformResponse: (response: TourApiResponse<TourCategory[]>) => response.data,
+      providesTags: [{ type: 'Category', id: 'LIST' }],
     }),
     getAgencyTours: build.query<AgencyTourListResult, { page?: number; limit?: number; status?: TourStatus } | void>({
       query: (args) => ({ url: '/agency/tours', params: { page: 1, limit: 12, ...(args ?? {}) } }),

@@ -1,7 +1,11 @@
 import type { RouteInfo } from '../routes/introspect';
 
-const accessLabel = (route: RouteInfo): string =>
+const permissionLabel = (route: RouteInfo): string =>
   route.access === 'public' ? 'public' : route.access === 'login' ? 'login' : route.access.map((p) => `\`${p}\``).join(', ');
+
+const accessLabel = (route: RouteInfo): string => [
+  ...(route.roles ?? []).map((role) => `role: \`${role}\``), permissionLabel(route),
+].join(' + ');
 
 /**
  * Renders docs/api/ENDPOINTS.md from the live route table. A test compares this output with the committed file, so the
@@ -23,6 +27,8 @@ export function renderEndpointsMarkdown(routes: RouteInfo[]): string {
     `Base URL: \`/api/v1\` · ${routes.length} endpoints · behaviour, request/response shapes and rules are documented in each module README (\`backend/src/modules/<name>/README.md\`).`,
     '',
     '**Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).',
+    '',
+    'A `role: SUPER_ADMIN` requirement is mandatory in addition to permissions; extra permission grants do not bypass it.',
     '',
     'Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, limit, total, totalPages } }` or `{ "success": false, "error": { "code", "message", "details"? } }`.',
     '',
