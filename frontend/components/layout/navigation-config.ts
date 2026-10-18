@@ -41,6 +41,8 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
   TOUR_GUIDE: [
     { label: 'Lịch trình', href: '/guide', icon: 'calendar_month' },
     { label: 'Tour nhận dẫn', href: '/guide/tours', icon: 'flag' },
+    { label: 'Gói dịch vụ', href: '/guide/subscriptions', icon: 'workspace_premium' },
+    { label: 'Thu nhập', href: '/guide/earnings', icon: 'payments' },
     { label: 'Hồ sơ', href: '/guide/profile', icon: 'person' },
   ],
   MODERATOR: [

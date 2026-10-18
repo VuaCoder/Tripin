@@ -20,3 +20,4 @@ The high-level system flows include:
 
 
 See [Platform Administration flow](platform-administration.md) for ADMIN-01.
+Detailed flows: [Tour Guide subscriptions and earnings](guide-finance.md).

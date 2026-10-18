@@ -237,8 +237,8 @@ describe('completeMine', () => {
     const result = await service.completeMine('u1', 'b1');
 
     expect(result.status).toBe('COMPLETED');
-    expect(db[0].status).toBe('COMPLETED');
-    expect(db[0].completedAt).toBeInstanceOf(Date);
+    expect(db[0]?.status).toBe('COMPLETED');
+    expect(db[0]?.completedAt).toBeInstanceOf(Date);
     expect(notifications.notify).toHaveBeenCalledWith('u1', expect.objectContaining({ type: 'BOOKING_COMPLETED' }));
     expect(handler).toHaveBeenCalledWith(expect.objectContaining({ id: 'b1', status: 'COMPLETED' }));
   });

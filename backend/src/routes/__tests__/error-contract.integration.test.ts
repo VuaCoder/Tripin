@@ -48,6 +48,7 @@ const COVERED_ELSEWHERE: Record<string, string> = {
   RATE_LIMITED: 'limiters are disabled under test; middleware is trivial',
   INTERNAL_ERROR: 'security.integration.test.ts (500 envelope)',
   PAYMENT_IN_PROGRESS: 'needs a parallel checkout that is slower than the retry budget',
+  AI_EXTRACTION_FAILED: 'tour-document-extraction.service.test.ts verifies provider failure maps to 503 AI_EXTRACTION_FAILED',
 };
 
 beforeAll(startDatabase, 120_000);
@@ -71,6 +72,7 @@ describe('error contract over HTTP', () => {
     expectError(await request(app).get('/api/v1/nope'), 'NOT_FOUND');
     expectError(await request(app).post('/api/v1/auth/google').send({ idToken: 'fake-id-token-0001' }), 'SERVICE_UNAVAILABLE');
     expectError(await request(app).post('/api/v1/auth/login').send({ email: 'bad' }), 'VALIDATION_ERROR');
+    expectError(await request(app).patch('/api/v1/auth/two-factor').set(bearer(traveler.token)).send({ enabled: true }), 'TWO_FACTOR_REQUIRES_PASSWORD');
 
     // A draft tour cannot be approved: nothing was submitted.
     const tour = await request(app)
