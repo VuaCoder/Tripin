@@ -9,6 +9,13 @@ export interface NavigationItem {
   children?: NavigationItem[];
 }
 
+/** Only the most specific matching destination is the current page. */
+export function getActiveNavigationHref(pathname: string, items: NavigationItem[]): string | undefined {
+  return items.flatMap((item) => [item, ...(item.children ?? [])])
+    .filter((item) => pathname === item.href || (item.href !== '/' && pathname.startsWith(`${item.href}/`)))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+}
+
 export const navigationByRole: Record<AppRole, NavigationItem[]> = {
   PUBLIC: [
     {
@@ -34,6 +41,8 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
   TOUR_GUIDE: [
     { label: 'Lịch trình', href: '/guide', icon: 'calendar_month' },
     { label: 'Tour nhận dẫn', href: '/guide/tours', icon: 'flag' },
+    { label: 'Gói dịch vụ', href: '/guide/subscriptions', icon: 'workspace_premium' },
+    { label: 'Thu nhập', href: '/guide/earnings', icon: 'payments' },
     { label: 'Hồ sơ', href: '/guide/profile', icon: 'person' },
   ],
   MODERATOR: [

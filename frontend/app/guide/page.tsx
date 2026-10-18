@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth';
 import { EmptyState } from '@/components/shared';
@@ -18,8 +19,8 @@ const UPCOMING_FEATURES = [
   },
   {
     icon: 'payments',
-    label: 'Thống kê thu nhập và đánh giá',
-    desc: 'Xem phản hồi từ du khách và quản lý thu nhập chuyến đi',
+    label: 'Theo dõi đánh giá',
+    desc: 'Xem phản hồi từ du khách sau chuyến đi',
   },
 ];
 
@@ -49,6 +50,11 @@ export default function GuideDashboardPage() {
             Sẵn sàng nhận tour
           </span>
         </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Link href="/guide/subscriptions" className="rounded-2xl border border-teal-100 bg-white p-5 shadow-sm transition-colors hover:bg-teal-50"><h2 className="font-bold text-teal-800">Gói dịch vụ</h2><p className="mt-1 text-sm text-slate-500">Đăng ký, gia hạn và theo dõi trạng thái gói.</p></Link>
+        <Link href="/guide/earnings" className="rounded-2xl border border-teal-100 bg-white p-5 shadow-sm transition-colors hover:bg-teal-50"><h2 className="font-bold text-teal-800">Thu nhập</h2><p className="mt-1 text-sm text-slate-500">Xem thu nhập ghi nhận và lịch sử theo booking.</p></Link>
       </div>
 
       {/* Metrics Row */}

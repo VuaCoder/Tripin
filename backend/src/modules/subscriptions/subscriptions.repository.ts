@@ -49,6 +49,11 @@ export class SubscriptionsRepository {
 
   /** The subscription with the latest end date that is currently ACTIVE. */
   findCurrentActive(userId: string, now: Date): Promise<SubscriptionRecord | null> {
+    return prisma.subscription.findFirst({ where: { userId, status: SUBSCRIPTION_STATUS.ACTIVE, startsAt: { lte: now }, endsAt: { gt: now } }, orderBy: { endsAt: 'desc' } });
+  }
+
+  /** Includes prepaid future periods so repeated renewals keep stacking. */
+  findLatestPaid(userId: string, now: Date): Promise<SubscriptionRecord | null> {
     return prisma.subscription.findFirst({ where: { userId, status: SUBSCRIPTION_STATUS.ACTIVE, endsAt: { gt: now } }, orderBy: { endsAt: 'desc' } });
   }
 
@@ -66,7 +71,7 @@ export class SubscriptionsRepository {
   }
 
   countActive(now: Date): Promise<number> {
-    return prisma.subscription.count({ where: { status: SUBSCRIPTION_STATUS.ACTIVE, endsAt: { gt: now } } });
+    return prisma.subscription.count({ where: { status: SUBSCRIPTION_STATUS.ACTIVE, startsAt: { lte: now }, endsAt: { gt: now } } });
   }
 
   findEnded(now: Date, limit: number): Promise<SubscriptionRecord[]> {

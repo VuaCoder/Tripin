@@ -98,6 +98,14 @@ describe('subscriptions (integration)', () => {
     const renewed = (await prisma.subscription.findUnique({ where: { id: second.referenceId } }))!;
     expect(renewed.status).toBe('ACTIVE');
     expect(renewed.startsAt!.getTime()).toBe(first.endsAt!.getTime());
+    const current = await request(app).get('/api/v1/subscriptions/me/current').set(bearer(guide.token));
+    expect(current.body.data.subscription.id).toBe(first.id);
+    expect(await subscriptionsService.countActive()).toBe(1);
+
+    await subscribe(guide.token, pro.id);
+    const third = (await prisma.payment.findMany({ orderBy: { createdAt: 'desc' } }))[0]!;
+    await pay(third.id);
+    expect((await prisma.subscription.findUniqueOrThrow({ where: { id: third.referenceId } })).startsAt!.getTime()).toBe(renewed.endsAt!.getTime());
   });
 
   it('expiry job closes ended subscriptions, abandoned unpaid ones are cancelled but a late payment still activates', async () => {
@@ -132,7 +140,33 @@ describe('subscriptions (integration)', () => {
 
     const mine = await request(app).get('/api/v1/subscriptions/me').set(bearer(other.token));
     expect(mine.body.data).toHaveLength(0);
+    await pay((await prisma.payment.findFirst())!.id);
+    const forged = await request(app).get('/api/v1/subscriptions/me/current').query({ userId: guide.id }).set(bearer(other.token));
+    expect(forged.body.data).toEqual({ active: false, subscription: null });
+    const forgedList = await request(app).get('/api/v1/subscriptions/me').query({ userId: guide.id }).set(bearer(other.token));
+    expect(forgedList.body.data).toEqual([]);
     const payment = (await prisma.payment.findFirst())!;
     expect((await request(app).get(`/api/v1/payments/${payment.id}`).set(bearer(other.token))).status).toBe(404);
+  });
+
+  it('does not report a future-only paid period as current', async () => {
+    const pro = await plan();
+    const guide = await createUser('TOUR_GUIDE', 'future@example.com');
+    await prisma.subscription.create({ data: { userId: guide.id, planId: pro.id, planCode: pro.code, planName: pro.name, price: pro.price, durationDays: pro.durationDays, status: 'ACTIVE', startsAt: new Date(Date.now() + 86_400_000), endsAt: new Date(Date.now() + 31 * 86_400_000) } });
+    expect((await request(app).get('/api/v1/subscriptions/me/current').set(bearer(guide.token))).body.data).toEqual({ active: false, subscription: null });
+    expect(await subscriptionsService.hasActiveSubscription(guide.id)).toBe(false);
+  });
+
+  it('protects own endpoints from other roles and rejects client price or identity', async () => {
+    const pro = await plan();
+    const guide = await createUser('TOUR_GUIDE', 'guide@example.com');
+    for (const role of ['TRAVELER', 'AGENCY'] as const) {
+      const user = await createUser(role, `${role}@example.com`);
+      for (const path of ['/subscriptions/me', '/subscriptions/me/current']) {
+        expect((await request(app).get(`/api/v1${path}`).set(bearer(user.token))).status).toBe(403);
+        expect((await request(app).get(`/api/v1${path}`)).status).toBe(401);
+      }
+    }
+    expect((await request(app).post('/api/v1/subscriptions').set(bearer(guide.token)).send({ planId: pro.id, price: 1, userId: 'foreign' })).status).toBe(400);
   });
 });

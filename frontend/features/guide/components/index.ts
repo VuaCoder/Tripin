@@ -3,3 +3,5 @@ export * from './GuideProfileForm';
 export * from './GuideAssignedToursPage';
 export * from './GuideAssignmentCard';
 export * from './GuideAssignmentDialog';
+export * from './GuideSubscriptionsPage';
+export * from './GuideEarningsPage';
