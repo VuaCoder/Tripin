@@ -1,4 +1,5 @@
 import type { DepartureFacts, TourListItemDto } from '../tours';
+import { calculateGuestPrice, type GuestCounts } from '@travel-platform/constants';
 import type { CartItemRecord } from './carts.repository';
 import type { CartItemDepartureDto, CartItemDto, CartTotalsDto } from './carts.types';
 
@@ -17,6 +18,8 @@ export function toCartItemDto(row: CartItemRecord, card?: TourListItemDto, facts
     tourId: row.tourId,
     departureId: row.departureId,
     participants: row.participants,
+    guestCounts: row.guestCounts ? row.guestCounts as unknown as GuestCounts : undefined,
+    agePricing: facts?.agePricing,
     addedAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -30,13 +33,16 @@ export function toCartItemDto(row: CartItemRecord, card?: TourListItemDto, facts
   }
 
   const unitPrice = facts.price;
+  let subtotal: number;
+  try { subtotal = calculateGuestPrice(unitPrice, row.participants, base.guestCounts, facts.agePricing).subtotal; }
+  catch { return { ...base, available: false, unavailableReason: 'PRICING_CHANGED', tour: card, departure: toDepartureDto(facts) }; }
   return {
     ...base,
     available: true,
     tour: card,
     departure: toDepartureDto(facts),
     unitPrice,
-    subtotal: unitPrice * row.participants,
+    subtotal,
   };
 }
 

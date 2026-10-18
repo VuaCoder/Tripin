@@ -1,6 +1,7 @@
 import type { PublicReview } from '../types';
 import { formatDate } from '../utils/format';
 import { RatingStars } from './RatingStars';
+import { ReviewPhotos } from './ReviewPhotos';
 
 /** "Nguyen A." -> "NA" (the backend already masks the author, so this is all the avatar needs). */
 export function initialsOf(name: string): string {
@@ -45,6 +46,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
         <RatingStars value={review.rating} size="sm" className="shrink-0" />
       </header>
       <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-slate-700">{review.comment}</p>
+      <ReviewPhotos images={review.images} author={author.name} />
     </article>
   );
 }

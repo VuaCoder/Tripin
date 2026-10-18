@@ -7,15 +7,17 @@ export const CART_LIMITS = {
 } as const;
 
 /** Why a cart item can no longer be booked. Mirrors the checks the read model performs on live data. */
-export type CartItemUnavailableReason = 'TOUR_UNAVAILABLE' | 'DEPARTURE_UNAVAILABLE' | 'NOT_ENOUGH_SEATS';
+export type CartItemUnavailableReason = 'TOUR_UNAVAILABLE' | 'DEPARTURE_UNAVAILABLE' | 'NOT_ENOUGH_SEATS' | 'PRICING_CHANGED';
 
 export interface AddCartItemInput {
+  guestCounts?: import('@travel-platform/constants').GuestCounts;
   tourId: string;
   departureId: string;
   participants: number;
 }
 
 export interface UpdateCartItemInput {
+  guestCounts?: import('@travel-platform/constants').GuestCounts;
   participants: number;
 }
 
@@ -32,6 +34,8 @@ export interface CartItemDepartureDto {
  * item is not bookable. `available:false` items stay in the cart (flagged) so the traveler can fix or remove them.
  */
 export interface CartItemDto {
+  guestCounts?: import('@travel-platform/constants').GuestCounts;
+  agePricing?: import('@travel-platform/constants').AgePricing | null;
   id: string;
   tourId: string;
   departureId: string;

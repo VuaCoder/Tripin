@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import type { AppRole } from './navigation-config';
 import { Header } from './Header';
 import { Footer } from './Footer';
+import { Container } from './Container';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, selectIsAuthenticated } from '@/features/auth';
 import sidebarStyles from '@/features/agency/components/AgencySidebar.module.css';
@@ -33,14 +34,14 @@ export function AppShell({
   return (
     <div className={`flex min-h-screen flex-col bg-slate-50 text-slate-800 ${isAgency ? sidebarStyles.shell : ''} ${className}`}>
       {header && <Header role={role} />}
-      <main
-        className={`${isAgency ? sidebarStyles.body : ''} ${
-          fullBleed
-            ? 'w-full flex-1'
-            : 'mx-auto w-full max-w-[1600px] flex-1 px-4 py-6 sm:px-6 lg:px-8'
-        }`}
-      >
-        {children}
+      <main className={`flex-1 flex flex-col ${isAgency ? sidebarStyles.body : ''}`}>
+        {fullBleed ? (
+          children
+        ) : (
+          <Container className="flex-1 py-6 sm:py-8">
+            {children}
+          </Container>
+        )}
       </main>
       {footer && <Footer />}
     </div>

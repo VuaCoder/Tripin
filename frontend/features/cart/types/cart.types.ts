@@ -28,9 +28,11 @@ export interface CartDeparture {
 }
 
 /** Why a line can no longer be booked (mirrors the backend `CartItemUnavailableReason`). */
-export type CartItemUnavailableReason = 'TOUR_UNAVAILABLE' | 'DEPARTURE_UNAVAILABLE' | 'NOT_ENOUGH_SEATS';
+export type CartItemUnavailableReason = 'TOUR_UNAVAILABLE' | 'DEPARTURE_UNAVAILABLE' | 'NOT_ENOUGH_SEATS' | 'PRICING_CHANGED';
 
 export interface CartItem {
+  guestCounts?: import('@travel-platform/constants').GuestCounts;
+  agePricing?: import('@travel-platform/constants').AgePricing | null;
   id: string;
   tourId: string;
   departureId: string;
@@ -62,12 +64,14 @@ export interface Cart {
 }
 
 export interface AddCartItemInput {
+  guestCounts?: import('@travel-platform/constants').GuestCounts;
   tourId: string;
   departureId: string;
   participants: number;
 }
 
 export interface UpdateCartItemInput {
+  guestCounts?: import('@travel-platform/constants').GuestCounts;
   id: string;
   participants: number;
 }
@@ -80,6 +84,7 @@ export interface CartApiResponse<T> {
 
 /** Vietnamese labels for the machine-readable unavailability reasons. */
 export const CART_UNAVAILABLE_LABELS: Record<CartItemUnavailableReason, string> = {
+  PRICING_CHANGED: 'Chính sách giá theo độ tuổi đã thay đổi. Vui lòng chọn lại khách từ trang tour.',
   TOUR_UNAVAILABLE: 'Tour này hiện không còn được bán.',
   DEPARTURE_UNAVAILABLE: 'Ngày khởi hành đã đóng hoặc đã hết chỗ.',
   NOT_ENOUGH_SEATS: 'Không còn đủ chỗ cho số khách đã chọn.',

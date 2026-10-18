@@ -80,6 +80,11 @@ export class ChatService {
 
   // ================================================================ Messages
 
+  async getConversation(userId: string, conversationId: string): Promise<ConversationDto> {
+    const { conversation } = await this.requireParticipation(userId, conversationId);
+    return this.toDto(conversation, userId);
+  }
+
   async listMessages(userId: string, conversationId: string, query: ListMessagesQuery): Promise<MessagesPageDto> {
     await this.requireParticipation(userId, conversationId);
     const { items, hasMore } = await this.chat.listMessages(conversationId, query.limit, query.before);

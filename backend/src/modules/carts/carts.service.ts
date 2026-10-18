@@ -1,4 +1,6 @@
 import { AppError } from '../../utils/app-error';
+import { priceGuests } from '../../utils/age-pricing';
+import type { GuestCounts } from '@travel-platform/constants';
 import { toursDiscoveryService, toursService, type ToursDiscoveryService, type ToursService } from '../tours';
 import { toCartItemDto, toCartTotals } from './carts.mapper';
 import { cartsRepository, type CartItemRecord, type CartsRepository } from './carts.repository';
@@ -37,6 +39,7 @@ export class CartsService {
    */
   async add(userId: string, input: AddCartItemInput): Promise<{ created: boolean; item: CartItemDto }> {
     const departure = await this.tours.getBookableDeparture(input.tourId, input.departureId);
+    priceGuests(departure.unitPrice, input.participants, input.guestCounts, departure.agePricing);
     if (input.participants > departure.remaining) {
       throw AppError.conflict('Not enough seats left on this departure', 'NOT_ENOUGH_SEATS');
     }
@@ -51,6 +54,7 @@ export class CartsService {
       tourId: input.tourId,
       departureId: input.departureId,
       participants: input.participants,
+      ...(input.guestCounts ? { guestCounts: input.guestCounts } : {}),
     });
     return { created: !existing, item: await this.describe(row) };
   }
@@ -72,7 +76,10 @@ export class CartsService {
     if (input.participants > departure.remaining) {
       throw AppError.conflict('Not enough seats left on this departure', 'NOT_ENOUGH_SEATS');
     }
-    const updated = await this.items.updateParticipants(userId, row.id, input.participants);
+    const previous = row.guestCounts as unknown as GuestCounts | null;
+    const counts = input.guestCounts ?? (previous ? { ...previous, adults: input.participants - previous.children - previous.infants } : undefined);
+    priceGuests(departure.price, input.participants, counts, departure.agePricing);
+    const updated = counts ? await this.items.updateParticipants(userId, row.id, input.participants, counts) : await this.items.updateParticipants(userId, row.id, input.participants);
     if (!updated) throw AppError.notFound('Cart item not found');
     return this.describe(updated);
   }

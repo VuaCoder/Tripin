@@ -1,4 +1,4 @@
-/** Vietnamese money/date formatting used by the cart UI (whole VND, `1.250.000 ₫`). */
+/** Shared Vietnamese money/date formatting for tours, bookings and tickets (whole VND, `1.250.000 ₫`). */
 
 const VND = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 });
 

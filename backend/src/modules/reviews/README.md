@@ -27,6 +27,14 @@ reviews; moderators can hide abusive ones. The average rating shown on tours is 
 * `GET /reviews?tourId|agencyId&sort=newest|rating_desc|rating_asc&page&limit` (public) → `{ id, rating, comment, tourId, author{name,avatarUrl}, createdAt }`; exactly one of `tourId` / `agencyId` is required.
 * Errors: 404 unknown/foreign booking, 409 `BOOKING_NOT_COMPLETED`, `REVIEW_EXISTS`.
 
+## Review photos
+
+`POST /reviews/images/upload-signature` (`review:create`) accepts `{ bookingId }`. Only the owner of a completed, unreviewed booking can request a signature. Each image gets a random, non-overwritable Cloudinary public ID scoped to the traveler and booking.
+
+`POST /reviews` also accepts optional `imagePublicIds` (up to 6 distinct IDs). The server checks ownership and verifies the actual Cloudinary resource, format (JPG/PNG/WebP) and size (5 MB maximum), then persists canonical HTTPS URLs in `Review.images`. Clients cannot supply arbitrary image URLs. Public, own and moderation DTOs include `images`; legacy reviews return `[]`. Hiding a review removes its photos from public review lists too, while its author and moderators can still see them. Cloudinary delivery URLs remain public; moderation is not storage revocation.
+
+The browser previews local files before uploading, allows removal, and uploads only on submit. On partial failure it retains the draft and reuses successful uploads during the same open dialog. Uploaded assets abandoned after a failed submission may need periodic storage cleanup; no background orphan cleanup is introduced here.
+
 ## Business rules
 1. Only the traveler of a **COMPLETED** booking can review it, once per booking (unique index + pre-check; a race returns `REVIEW_EXISTS`).
 2. Rating and comment are validated server-side; reviews cannot be edited or deleted by their author (not in the diagram).

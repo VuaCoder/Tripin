@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 
 export interface GuestLoginPromptModalProps {
@@ -16,6 +17,11 @@ export function GuestLoginPromptModal({
   redirectUrl,
 }: GuestLoginPromptModalProps) {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -37,18 +43,18 @@ export function GuestLoginPromptModal({
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const loginHref = redirectUrl
     ? `/login?next=${encodeURIComponent(redirectUrl)}`
     : '/login';
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="login-prompt-title"
-      className="fixed inset-0 z-50 overflow-y-auto"
+      className="fixed inset-0 z-[100] overflow-y-auto"
     >
       {/* Backdrop */}
       <div
@@ -104,6 +110,7 @@ export function GuestLoginPromptModal({
         </div>
       </div>
     </div>
-  </div>
+  </div>,
+  document.body
   );
 }

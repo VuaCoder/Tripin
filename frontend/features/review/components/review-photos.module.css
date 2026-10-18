@@ -1,0 +1,22 @@
+.strip { display: flex; gap: 8px; margin-top: 16px; }
+.thumb { position: relative; width: clamp(64px, 16vw, 128px); aspect-ratio: 1.2; overflow: hidden; border-radius: 10px; background: #e8f0f1; cursor: zoom-in; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform 180ms ease-out; }
+.thumb:hover img { transform: scale(1.05); }
+.thumb:focus-visible, .viewer button:focus-visible { outline: 3px solid #087e8b; outline-offset: 3px; }
+.more { position: absolute; inset: 0; background: #102e3b99; color: white; display: grid; place-items: center; font-size: 22px; font-weight: 700; }
+.viewer { width: min(1100px, calc(100% - 24px)); max-height: 94dvh; padding: 0; border: 0; border-radius: 16px; background: #10232b; color: white; }
+.viewer::backdrop { background: #07151de6; }
+.viewerHeader { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 22px; }
+.viewerHeader h3 { font-size: 16px; font-weight: 700; }
+.viewerHeader p { color: #b9cdd3; font-size: 12px; margin-top: 4px; }
+.viewer button { display: inline-flex; align-items: center; justify-content: center; padding: 10px; border-radius: 8px; cursor: pointer; }
+.viewer button:hover { background: #ffffff1a; }
+.stage { position: relative; display: grid; place-items: center; min-height: 200px; height: min(62dvh, 650px); background: #08191f; }
+.stage img { width: 100%; height: 100%; min-height: 0; object-fit: contain; }
+.previous, .next { position: absolute; top: calc(50% - 22px); background: #10232bcc; }
+.previous { left: 12px; } .next { right: 12px; }
+.filmstrip { display: flex; gap: 8px; overflow-x: auto; padding: 16px 22px; }
+.filmstrip button { padding: 3px; flex-shrink: 0; border: 2px solid transparent; }
+.filmstrip button[aria-pressed='true'] { border-color: #5edbd0; }
+.filmstrip img { width: 64px; height: 48px; object-fit: cover; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) { .thumb img { transition: none; } }

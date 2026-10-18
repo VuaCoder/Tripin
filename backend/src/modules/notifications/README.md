@@ -3,6 +3,8 @@
 In-app notifications (with an optional email copy) for every actor, plus the `notify()` API other modules call when
 something relevant to a user happens.
 
+System notification templates are localized to Vietnamese by `notifications.locale.ts` before storage, realtime publication and optional email delivery. The DTO mapper also localizes matching legacy English templates when reading existing inbox rows, so no data rewrite is required. Dynamic tour names, booking codes, chat previews and user-written notes remain unchanged. Add a template and regression coverage here when introducing a system notification.
+
 ## Use cases covered
 | Use case | Actor | Endpoint |
 |---|---|---|

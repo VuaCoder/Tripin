@@ -1,0 +1,12 @@
+'use client';
+import type { TourContentInput } from '../types';
+const fields = [['childPricingPolicy', 'Chính sách giá trẻ em'], ['cancellationPolicy', 'Điều kiện đổi, hủy tour'], ['requiredDocuments', 'Giấy tờ tùy thân'], ['travelNotes', 'Lưu ý chuyến đi']] as const;
+export function TourPolicyFields({ value, onChange }: { value: TourContentInput; onChange: (value: TourContentInput) => void }) {
+  const pricing = value.agePricing;
+  const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 bg-white p-3 text-sm font-normal text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-700';
+  return <fieldset className="space-y-5 rounded-xl border border-slate-200 bg-white p-5"><legend className="px-2 text-base font-bold text-slate-900">Chính sách giá & hướng dẫn</legend>
+    <label className="flex items-center gap-3 text-sm font-semibold"><input type="checkbox" checked={!!pricing} onChange={event => onChange({ ...value, agePricing: event.target.checked ? { childMinAge: 2, adultMinAge: 12, childPercent: 50, infantPercent: 0 } : null })} />Áp dụng giá theo độ tuổi</label>
+    {pricing && <div className="grid gap-4 sm:grid-cols-2">{([['childMinAge', 'Tuổi bắt đầu nhóm trẻ em', 1, 17], ['adultMinAge', 'Tuổi bắt đầu nhóm người lớn', 2, 18], ['childPercent', 'Giá trẻ em (% giá người lớn)', 0, 100], ['infantPercent', 'Giá em bé (% giá người lớn)', 0, 100]] as const).map(([key, label, min, max]) => <label key={key} className="text-sm font-semibold">{label}<input type="number" required min={min} max={max} step={1} value={pricing[key]} className={inputClass} onChange={event => onChange({ ...value, agePricing: { ...pricing, [key]: Number(event.target.value) } })} /></label>)}<p className="text-xs leading-relaxed text-slate-600 sm:col-span-2">Tuổi tính tại ngày khởi hành. Em bé: dưới {pricing.childMinAge} tuổi; trẻ em: từ {pricing.childMinAge} đến dưới {pricing.adultMinAge} tuổi. Tỷ lệ áp dụng theo giá người lớn của ngày đi đã chọn, làm tròn từng vé đến đồng. Mỗi khách chiếm một chỗ.</p></div>}
+    {fields.map(([key, label]) => <label key={key} className="block text-sm font-semibold text-slate-800">{label}<textarea className={inputClass} rows={4} maxLength={5000} value={value[key] ?? ''} onChange={event => onChange({ ...value, [key]: event.target.value })} /><span className="mt-1 block text-xs font-normal text-slate-500">{(value[key] ?? '').length}/5000 ký tự</span></label>)}
+  </fieldset>;
+}

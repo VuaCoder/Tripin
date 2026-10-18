@@ -14,6 +14,7 @@ const PURPOSES = {
   avatar: { prefix: 'tripin/travelers/avatars', tag: 'tripin_avatar', label: 'Avatar' },
   licenseImage: { prefix: 'tripin/guides/licenses', tag: 'tripin_guide_license', label: 'License image' },
   agencyLicenseImage: { prefix: 'tripin/agencies/licenses', tag: 'tripin_agency_license', label: 'Agency license image' },
+  reviewImage: { prefix: 'tripin/reviews', tag: 'tripin_review', label: 'Review image' },
 } as const;
 
 export type ImagePurpose = keyof typeof PURPOSES;
@@ -41,7 +42,7 @@ export interface ImageUploadSignature {
   uploadUrl: string;
   params: {
     public_id: string;
-    overwrite: 'true';
+    overwrite: 'true' | 'false';
     tags: string;
   };
 }
@@ -97,7 +98,8 @@ export function createImageUploadSignature(purpose: ImagePurpose, userId: string
   const timestamp = unixTimestamp();
   const publicId = imagePublicId(purpose, userId);
   const tag = PURPOSES[purpose].tag;
-  const signingParams = { public_id: publicId, overwrite: true, tags: tag, timestamp };
+  const overwrite = purpose !== 'reviewImage';
+  const signingParams = { public_id: publicId, overwrite, tags: tag, timestamp };
 
   return {
     cloudName,
@@ -106,7 +108,7 @@ export function createImageUploadSignature(purpose: ImagePurpose, userId: string
     signature: sign(signingParams, apiSecret),
     publicId,
     uploadUrl: uploadApiUrl(cloudName),
-    params: { public_id: publicId, overwrite: 'true', tags: tag },
+    params: { public_id: publicId, overwrite: overwrite ? 'true' : 'false', tags: tag },
   };
 }
 

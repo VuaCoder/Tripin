@@ -15,7 +15,7 @@ export const cartApi = baseApi.injectEndpoints({
       invalidatesTags: [{ type: 'Cart', id: 'ME' }],
     }),
     updateCartItem: build.mutation<CartItem, UpdateCartItemInput>({
-      query: ({ id, participants }) => ({ url: `/cart/items/${id}`, method: 'PATCH', body: { participants } }),
+      query: ({ id, participants, guestCounts }) => ({ url: `/cart/items/${id}`, method: 'PATCH', body: { participants, ...(guestCounts ? { guestCounts } : {}) } }),
       transformResponse: (response: CartApiResponse<CartItem>) => response.data,
       invalidatesTags: [{ type: 'Cart', id: 'ME' }],
     }),

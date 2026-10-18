@@ -13,6 +13,8 @@ function asEditable(candidate: ExtractedTourCandidate = {}): TourContentInput {
     basePrice: candidate.basePrice ?? 0, maxGroupSize: candidate.maxGroupSize,
     categoryIds: candidate.categoryIds ?? [], images: candidate.images ?? [],
     inclusions: candidate.inclusions ?? [], exclusions: candidate.exclusions ?? [],
+    agePricing: candidate.agePricing, childPricingPolicy: candidate.childPricingPolicy,
+    cancellationPolicy: candidate.cancellationPolicy, requiredDocuments: candidate.requiredDocuments, travelNotes: candidate.travelNotes,
   };
 }
 

@@ -1,4 +1,5 @@
 'use client';
+import { TourPolicyFields } from './TourPolicyFields';
 
 import { useEffect, useState, useId, type FormEvent } from 'react';
 import Link from 'next/link';
@@ -115,6 +116,11 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
         images: tour.images && tour.images.length > 0 ? tour.images : (tour.coverImage ? [tour.coverImage] : []),
         inclusions: tour.inclusions ?? [],
         exclusions: tour.exclusions ?? [],
+        agePricing: tour.agePricing,
+        childPricingPolicy: tour.childPricingPolicy ?? '',
+        cancellationPolicy: tour.cancellationPolicy ?? '',
+        travelNotes: tour.travelNotes ?? '',
+        requiredDocuments: tour.requiredDocuments ?? '',
       });
     }
   }, [tour]);
@@ -892,6 +898,8 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   <p className="text-xs text-slate-500 mt-0.5">Kiểm tra thông tin trước khi lưu và xuất bản tour lên hệ thống.</p>
                 </div>
 
+                <TourPolicyFields value={value} onChange={setValue} />
+                {fieldErrors.agePricing && <p role="alert" className="text-sm text-red-700">{fieldErrors.agePricing}</p>}
                 {/* Guide Assignment Status */}
                 <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/70">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">

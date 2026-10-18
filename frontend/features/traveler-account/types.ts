@@ -33,7 +33,7 @@ export interface ImageUploadSignature {
   uploadUrl: string;
   params: {
     public_id: string;
-    overwrite: 'true';
+    overwrite: 'true' | 'false';
     tags: string;
   };
 }

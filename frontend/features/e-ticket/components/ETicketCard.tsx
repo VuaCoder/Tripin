@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { formatDepartureDate, formatParticipants, formatVnd } from '@/features/cart';
+import { formatDepartureDate, formatParticipants, formatVnd } from '@/lib/travel-format';
 import type { ETicketDto } from '../types';
 import { QRCodeDisplay } from './QRCodeDisplay';
 

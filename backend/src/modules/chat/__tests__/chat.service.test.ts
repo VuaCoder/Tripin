@@ -60,6 +60,13 @@ describe('policy', () => {
 });
 
 describe('startConversation', () => {
+  it('loads detail only for participants and hides foreign or missing conversations', async () => {
+    const { service } = make([conv()]);
+    await expect(service.getConversation('t1', 'c1')).resolves.toMatchObject({ id: 'c1', counterpart: { id: 'g1' } });
+    await expect(service.getConversation('g1', 'c1')).resolves.toMatchObject({ id: 'c1', counterpart: { id: 't1' } });
+    await expect(service.getConversation('stranger', 'c1')).rejects.toMatchObject({ statusCode: 404 });
+    await expect(service.getConversation('t1', 'missing')).rejects.toMatchObject({ statusCode: 404 });
+  });
   it('a traveler opens a conversation with an active guide; the pair is stored in the right slots', async () => {
     const { service, repo, users } = make();
     const dto = await service.startConversation(traveler, { participantId: 'g1', tourId: 'tour1' });

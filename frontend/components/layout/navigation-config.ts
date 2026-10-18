@@ -39,6 +39,7 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
     { label: 'Khiếu nại', href: '/agency/complaints', icon: 'report' },
   ],
   TOUR_GUIDE: [
+    { label: 'Tin nhắn', href: '/conversations', icon: 'chat' },
     { label: 'Lịch trình', href: '/guide', icon: 'calendar_month' },
     { label: 'Tour nhận dẫn', href: '/guide/tours', icon: 'flag' },
     { label: 'Gói dịch vụ', href: '/guide/subscriptions', icon: 'workspace_premium' },

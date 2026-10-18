@@ -1,6 +1,7 @@
 'use client';
 
 import type { TourCategory, TourContentInput } from '../types';
+import { TourPolicyFields } from './TourPolicyFields';
 
 type Props = { value: TourContentInput; onChange: (value: TourContentInput) => void; categories: TourCategory[] };
 
@@ -10,6 +11,7 @@ export function TourContentFields({ value, onChange, categories }: Props) {
   const set = <K extends keyof TourContentInput>(key: K, next: TourContentInput[K]) => onChange({ ...value, [key]: next });
   return (
     <div className="space-y-5">
+      <TourPolicyFields value={value} onChange={onChange} />
       <div className="grid gap-5 md:grid-cols-2">
         <label className="space-y-1.5 text-sm font-semibold text-slate-700">Tên tour *
           <input className={inputClass} minLength={5} maxLength={200} required value={value.title} onChange={(e) => set('title', e.target.value)} />

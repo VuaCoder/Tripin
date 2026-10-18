@@ -185,6 +185,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/chat/conversations` | `chat:use` |
 | POST | `/api/v1/chat/conversations` | `chat:use` |
+| GET | `/api/v1/chat/conversations/:id` | `chat:use`, participant only |
 | GET | `/api/v1/chat/conversations/:id/messages` | `chat:use` |
 | POST | `/api/v1/chat/conversations/:id/messages` | `chat:use` |
 | POST | `/api/v1/chat/conversations/:id/read` | `chat:use` |
@@ -290,6 +291,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/reviews` | public |
 | POST | `/api/v1/reviews` | `review:create` |
+| POST | `/api/v1/reviews/images/upload-signature` | `review:create` |
 | GET | `/api/v1/reviews/me` | `review:create` |
 
 ## `/subscriptions`

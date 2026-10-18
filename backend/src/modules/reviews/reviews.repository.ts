@@ -5,7 +5,7 @@ import { REVIEW_STATUS, type ListModerationReviewsQuery, type ListPublicReviewsQ
 
 export type ReviewRecord = Review;
 
-export type NewReview = Pick<Review, 'bookingId' | 'tourId' | 'tourTitle' | 'agencyId' | 'travelerId' | 'rating' | 'comment'>;
+export type NewReview = Pick<Review, 'bookingId' | 'tourId' | 'tourTitle' | 'agencyId' | 'travelerId' | 'rating' | 'comment'> & { images?: string[] };
 
 /** Plain-field changes (`null` clears a nullable column). */
 export type ReviewPatch = Partial<Pick<Review, 'status' | 'hiddenReason' | 'moderatedById' | 'moderatedAt'>>;

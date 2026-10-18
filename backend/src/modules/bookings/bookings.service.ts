@@ -13,6 +13,7 @@ import { toursService, type ToursService } from '../tours';
 import { bookingEvents } from './bookings.events';
 import { toAgencyBookingDto, toBookingDto, toBookingFacts } from './bookings.mapper';
 import { BOOKING_POLICY, BOOKING_TRANSITIONS } from './bookings.policy';
+import { priceGuests } from '../../utils/age-pricing';
 import { bookingsRepository, type BookingRecord, type BookingsRepository, type NewBooking } from './bookings.repository';
 import { CUSTOMER_EXPORT_LIMIT, type CustomerRow } from './bookings.types';
 import type {
@@ -84,7 +85,8 @@ export class BookingsService {
     if (input.participants > departure.remaining) {
       throw AppError.conflict('Not enough seats left on this departure', 'NOT_ENOUGH_SEATS');
     }
-    const subtotal = departure.unitPrice * input.participants;
+    const guestPricing = priceGuests(departure.unitPrice, input.participants, input.guestCounts, departure.agePricing);
+    const subtotal = guestPricing.subtotal;
     if (subtotal < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
 
     await this.tours.reserveSeats(input.tourId, input.departureId, input.participants);
@@ -107,6 +109,7 @@ export class BookingsService {
         departureDate: departure.departureDate,
         endDate: new Date(departure.departureDate.getTime() + departure.durationDays * DAY_MS),
         participants: input.participants,
+        ...(input.guestCounts ? { guestPricing: { ...guestPricing, guests: { ...guestPricing.guests } } } : {}),
         contact: input.contact,
         notes: input.notes,
         unitPrice: departure.unitPrice,

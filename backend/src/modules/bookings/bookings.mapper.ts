@@ -15,6 +15,7 @@ export function toBookingDto(booking: BookingRecord): BookingDto {
     departureDate: booking.departureDate.toISOString(),
     endDate: booking.endDate.toISOString(),
     participants: booking.participants,
+    guestPricing: booking.guestPricing ? booking.guestPricing as unknown as import('@travel-platform/constants').GuestPriceBreakdown : undefined,
     unitPrice: booking.unitPrice,
     subtotal: booking.subtotal,
     discountAmount: booking.discountAmount ?? 0,

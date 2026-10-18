@@ -1,0 +1,40 @@
+import request from 'supertest';
+import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
+import { createApp } from '../../../app';
+import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
+const app = createApp();
+beforeAll(startDatabase, 120000); afterAll(stopDatabase); beforeEach(resetDatabase);
+const pricing = { childMinAge: 2, adultMinAge: 12, childPercent: 50, infantPercent: 0 };
+describe('Tour policies and age pricing', () => {
+  it('persists agency policies and uses the same age prices for cart and booking snapshots', async () => {
+    const agency = await createUser('AGENCY', 'age-agency@test.dev');
+    const traveler = await createUser('TRAVELER', 'age-traveler@test.dev');
+    const { tourId, departureId } = await createApprovedTour(agency.id, { capacity: 20 });
+    const policies = { agePricing: pricing, childPricingPolicy: 'Trẻ em 2–11 tuổi: 50%, ngủ chung với bố mẹ.', cancellationPolicy: 'Điều kiện hủy được xác nhận trước khi đặt.', requiredDocuments: 'Mang giấy tờ tùy thân theo yêu cầu của đơn vị tổ chức.', travelNotes: 'Có mặt trước giờ khởi hành 30 phút.' };
+    const edited = await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(agency.token)).send(policies);
+    expect(edited.status).toBe(200);
+    expect((await request(app).get(`/api/v1/tours/${tourId}`)).body.data).toMatchObject(policies);
+    const guests = { adults: 2, children: 1, infants: 1 };
+    const added = await request(app).post('/api/v1/cart/items').set(bearer(traveler.token)).send({ tourId, departureId, participants: 4, guestCounts: guests });
+    expect(added.status).toBe(201);
+    expect(added.body.data).toMatchObject({ guestCounts: guests, subtotal: 2500000 });
+    const booked = await request(app).post('/api/v1/bookings').set(bearer(traveler.token)).send({ tourId, departureId, participants: 4, guestCounts: guests, contact: { fullName: 'Khách Kiểm Thử', phone: '0901234567' } });
+    expect(booked.status).toBe(201);
+    expect(booked.body.data).toMatchObject({ participants: 4, subtotal: 2500000, totalAmount: 2500000, guestPricing: { guests, childUnitPrice: 500000, infantUnitPrice: 0 } });
+    await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(agency.token)).send({ agePricing: { ...pricing, childPercent: 80 } });
+    expect((await request(app).get(`/api/v1/bookings/${booked.body.data.id}`).set(bearer(traveler.token))).body.data).toMatchObject({ subtotal: 2500000, guestPricing: { childUnitPrice: 500000 } });
+  });
+  it('rejects invalid percentages, mismatched counts and unconfigured child prices without reserving seats', async () => {
+    const agency = await createUser('AGENCY', 'age-agency@test.dev');
+    const traveler = await createUser('TRAVELER', 'age-traveler@test.dev');
+    const { tourId, departureId } = await createApprovedTour(agency.id, { capacity: 20 });
+    expect((await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(agency.token)).send({ agePricing: { ...pricing, childPercent: 120 } })).status).toBe(400);
+    expect((await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(agency.token)).send({ agePricing: { ...pricing, adultMinAge: 2 } })).status).toBe(400);
+    const body = { tourId, departureId, participants: 2, guestCounts: { adults: 1, children: 1, infants: 0 }, contact: { fullName: 'Test User', phone: '0901234567' } };
+    expect((await request(app).post('/api/v1/bookings').set(bearer(traveler.token)).send(body)).status).toBe(400);
+    await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(agency.token)).send({ agePricing: pricing });
+    expect((await request(app).post('/api/v1/bookings').set(bearer(traveler.token)).send({ ...body, participants: 3 })).status).toBe(400);
+    const detail = await request(app).get(`/api/v1/tours/${tourId}`);
+    expect(detail.body.data.departures[0].remaining).toBe(20);
+  });
+});

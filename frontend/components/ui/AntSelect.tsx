@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check, X } from 'lucide-react';
 
 export interface AntSelectOption<T = string> {
   value: T;
@@ -18,6 +18,8 @@ export interface AntSelectProps<T = string> {
   size?: 'small' | 'middle' | 'large';
   disabled?: boolean;
   prefix?: React.ReactNode;
+  allowClear?: boolean;
+  id?: string;
 }
 
 export function AntSelect<T extends string = string>({
@@ -30,6 +32,8 @@ export function AntSelect<T extends string = string>({
   size = 'middle',
   disabled = false,
   prefix,
+  allowClear = false,
+  id,
 }: AntSelectProps<T>) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -70,15 +74,16 @@ export function AntSelect<T extends string = string>({
     <div ref={containerRef} className={`relative inline-block ${className}`}>
       {/* Trigger Button - Ant Design Style */}
       <button
+        id={id}
         type="button"
         disabled={disabled}
         onClick={() => setOpen((prev) => !prev)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`group flex w-full items-center justify-between gap-2.5 rounded-lg border bg-white font-medium transition-all duration-200 cursor-pointer ${sizeClasses} ${
+        className={`group flex w-full items-center justify-between gap-2.5 rounded-xl border bg-white font-medium transition-all duration-200 cursor-pointer ${sizeClasses} ${
           open
-            ? 'border-teal-600 ring-2 ring-teal-600/15 shadow-xs'
-            : 'border-slate-300 hover:border-teal-500'
+            ? 'border-brand-teal ring-2 ring-brand-teal/15 shadow-sm'
+            : 'border-slate-200 hover:border-brand-teal'
         } ${disabled ? 'cursor-not-allowed opacity-50 bg-slate-50' : ''}`}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -87,12 +92,29 @@ export function AntSelect<T extends string = string>({
             {selectedOption ? selectedOption.label : placeholder}
           </span>
         </div>
-        <ChevronDown
-          size={14}
-          className={`shrink-0 text-slate-400 transition-transform duration-200 ${
-            open ? 'rotate-180 text-teal-600' : 'group-hover:text-slate-600'
-          }`}
-        />
+        <div className="flex items-center gap-1 shrink-0">
+          {allowClear && value && !disabled ? (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange('' as T);
+              }}
+              title="Xóa lựa chọn"
+              aria-label="Xóa lựa chọn"
+              className="p-0.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X size={13} />
+            </span>
+          ) : null}
+          <ChevronDown
+            size={14}
+            className={`text-slate-400 transition-transform duration-200 ${
+              open ? 'rotate-180 text-brand-teal' : 'group-hover:text-slate-600'
+            }`}
+          />
+        </div>
       </button>
 
       {/* Floating Dropdown Menu - Ant Design Style */}
