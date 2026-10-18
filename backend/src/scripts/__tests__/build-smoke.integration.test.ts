@@ -5,7 +5,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../app';
-import { databaseUrl, startDatabase, stopDatabase } from '../../test/integration';
+import { createApprovedTour, createVerifiedAgency, databaseUrl, startDatabase, stopDatabase } from '../../test/integration';
 
 // The production artefact: `tsup` bundle started with plain `node`, exactly like `pnpm --filter backend start`.
 // Built into a throw-away folder INSIDE backend/ (never the developer's own dist/): the bundle resolves its external
@@ -88,14 +88,19 @@ describe('production build (integration)', () => {
     expect(await health.json()).toMatchObject({ success: true, data: { status: 'ok' } });
 
     // A request that needs the database proves the connection and the bundled Prisma client work.
-    const register = await fetch(`http://127.0.0.1:${port}/api/v1/auth/register`, {
+    const agency = await createVerifiedAgency('smoke-agency@example.com');
+    const tour = await createApprovedTour(agency.id);
+    const login = await fetch(`http://127.0.0.1:${port}/api/v1/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'smoke@example.com', password: 'Passw0rdTest', fullName: 'Smoke Test' }),
+      body: JSON.stringify({ email: 'smoke@example.com', password: 'Passw0rdTest' }),
     });
-    expect(register.status).toBe(201);
+    // Login reads the database without requiring a live email transport in production mode.
+    expect(login.status).toBe(401);
+    expect(await login.json()).toMatchObject({ success: false, error: { code: 'INVALID_CREDENTIALS' } });
     const tours = await fetch(`http://127.0.0.1:${port}/api/v1/tours`);
     expect(tours.status).toBe(200);
+    expect(await tours.json()).toMatchObject({ success: true, data: expect.arrayContaining([expect.objectContaining({ id: tour.tourId })]) });
 
     // Production headers are on.
     expect(health.headers.get('strict-transport-security')).toBeTruthy();

@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
+import { validated } from '../../middlewares/validate';
+import type { DevAcceptBody } from './auth.validation';
 import { uploadImageBuffer } from '../../integrations/cloudinary';
 import { AppError } from '../../utils/app-error';
 import { sendOk } from '../../utils/api-response';
@@ -11,14 +13,14 @@ export class AgencyApprovalController {
   getStatus = async (req: Request, res: Response) => {
     const token = typeof req.query.token === 'string' ? req.query.token : undefined;
     const email = typeof req.query.email === 'string' ? req.query.email : undefined;
-    const userId = req.user?.id;
+    const userId = (req.actor?.kind === 'user' ? req.actor.userId : undefined);
 
     const data = await this.service.getStatus({ token, email, userId });
     sendOk(res, data);
   };
 
   devAccept = async (req: Request, res: Response) => {
-    const { email, token } = req.body as { email?: string; token?: string };
+    const { email, token } = validated<DevAcceptBody>(req).body;
     const result = await this.service.devAccept({ email, token });
     sendOk(res, result);
   };
@@ -35,7 +37,7 @@ export class AgencyApprovalController {
   getApplication = async (req: Request, res: Response) => {
     const token = typeof req.query.token === 'string' ? req.query.token : undefined;
     const email = typeof req.query.email === 'string' ? req.query.email : undefined;
-    const userId = req.user?.id;
+    const userId = (req.actor?.kind === 'user' ? req.actor.userId : undefined);
 
     const data = await this.service.getApplication({ token, email, userId });
     sendOk(res, data);
@@ -44,7 +46,7 @@ export class AgencyApprovalController {
   updateApplication = async (req: Request, res: Response) => {
     const token = typeof req.body.token === 'string' ? req.body.token : undefined;
     const email = typeof req.body.email === 'string' ? req.body.email : undefined;
-    const userId = req.user?.id;
+    const userId = (req.actor?.kind === 'user' ? req.actor.userId : undefined);
 
     const { fullName, phone, companyName, licenseNumber, taxId, businessLicenseUrl, address, description, website } = req.body;
     if (!fullName || !phone || !companyName || !licenseNumber || !address) {
@@ -73,7 +75,7 @@ export class AgencyApprovalController {
       throw AppError.badRequest('Kích thước file ảnh không được vượt quá 5 MB');
     }
 
-    const identifier = req.user?.id || randomUUID();
+    const identifier = (req.actor?.kind === 'user' ? req.actor.userId : undefined) || randomUUID();
     const result = await uploadImageBuffer('agencyLicenseImage', identifier, file.buffer, file.mimetype);
     sendOk(res, { url: result.secureUrl, publicId: result.publicId });
   };
