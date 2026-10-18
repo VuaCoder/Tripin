@@ -75,6 +75,8 @@ Access token: `Authorization: Bearer <jwt>` (15 min). The refresh token is **nev
 10. Agency onboarding requires phone, company name, license number and address. Phone is stored but is not verified. REGISTER OTP atomically activates the user and changes the agency profile from UNVERIFIED to PENDING, then the UI returns to Agency login without opening a session.
 11. Agency accounts cannot use customer login/OTP/Google routes; non-Agency accounts receive generic invalid credentials from the Agency login route.
 
+Agency application status tokens are HMAC-signed with the configured `JWT_ACCESS_SECRET`; there is no hardcoded secret fallback. Tokens issued by the previous fallback implementation must be obtained again. Agency application controllers read the authenticated identity from `req.actor`, consistent with the shared authentication middleware.
+
 ## State machine
 User status: `PENDING_VERIFICATION -> ACTIVE` (OTP) ; `ACTIVE <-> BANNED` (owned by the moderation/users modules).
 This module only performs `PENDING_VERIFICATION -> ACTIVE`.

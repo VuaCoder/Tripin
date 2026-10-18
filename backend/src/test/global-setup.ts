@@ -60,7 +60,8 @@ export default async function setup(project: TestProject): Promise<() => Promise
   const adminUrl = `postgresql://${USER}:${PASSWORD}@127.0.0.1:${port}/postgres`;
   const admin = new Client({ connectionString: adminUrl });
   await admin.connect();
-  await admin.query(`CREATE DATABASE ${TEMPLATE_DB}`);
+  // Windows initdb may default to WIN1252, which cannot store Vietnamese notifications.
+  await admin.query(`CREATE DATABASE ${TEMPLATE_DB} TEMPLATE template0 ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C'`);
   await admin.end();
 
   const template = new Client({ connectionString: adminUrl.replace(/\/postgres$/, `/${TEMPLATE_DB}`) });

@@ -35,6 +35,13 @@ repositories use the shared `prisma` from `backend/src/config/database.ts`.
 
 Integration tests start an embedded PostgreSQL by themselves (no Docker): one server per run, one database per test
 file cloned from a migrated template (`backend/src/test/global-setup.ts`).
+The template explicitly uses UTF8 with the C locale so Windows locale defaults cannot reject Vietnamese text.
+
+Schema fields require a matching migration: regenerating Prisma Client alone does not add database columns.
+Migration `20261018000000_agency_profile_documents` adds the optional `AgencyProfile.taxId` and
+`businessLicenseUrl` columns. Apply it to an existing application database with `pnpm --filter backend db:deploy`.
+Integration tests apply it automatically to their disposable template; the database integration suite verifies
+that these fields can be read and saved through the user repository.
 
 ## Design reference
 

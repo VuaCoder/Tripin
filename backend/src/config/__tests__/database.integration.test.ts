@@ -9,6 +9,27 @@ beforeAll(startDatabase, 120_000);
 afterAll(stopDatabase);
 beforeEach(resetDatabase);
 
+it('uses UTF8 and preserves Vietnamese content', async () => {
+  const [encoding] = await prisma.$queryRaw<{ server_encoding: string }[]>`SHOW server_encoding`;
+  expect(encoding?.server_encoding).toBe('UTF8');
+  const traveler = await createUser('TRAVELER', 'unicode@example.com', { fullName: 'Đặng Thị Ánh' });
+  expect((await usersRepository.findById(traveler.id))?.fullName).toBe('Đặng Thị Ánh');
+});
+
+describe('agency profile migrations', () => {
+  it('supports reading and saving the optional onboarding document fields', async () => {
+    const agency = await createUser('AGENCY', 'documents@example.com', { agencyProfile: { companyName: 'Documents Travel' } });
+    const initial = await usersRepository.findById(agency.id);
+    expect(initial?.agencyProfile).toMatchObject({ taxId: null, businessLicenseUrl: null });
+    await prisma.agencyProfile.update({
+      where: { userId: agency.id },
+      data: { taxId: '0123456789', businessLicenseUrl: 'https://example.com/license.png' },
+    });
+    const saved = await usersRepository.findById(agency.id);
+    expect(saved?.agencyProfile).toMatchObject({ taxId: '0123456789', businessLicenseUrl: 'https://example.com/license.png' });
+  });
+});
+
 describe('unique violations', () => {
   it('are recognised, and attributed to the column that clashed', async () => {
     await createUser('TRAVELER', 'dup@example.com');

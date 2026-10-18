@@ -194,7 +194,7 @@ export async function uploadImageBuffer(
   const signature = sign(signingParams, apiSecret);
 
   const form = new FormData();
-  form.append('file', new Blob([buffer], { type: mimetype }));
+  form.append('file', new Blob([new Uint8Array(buffer)], { type: mimetype }));
   form.append('api_key', apiKey);
   form.append('timestamp', String(timestamp));
   form.append('signature', signature);

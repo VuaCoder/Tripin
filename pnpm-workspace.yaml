@@ -8,3 +8,4 @@ allowBuilds:
   "@prisma/engines": true
   "@embedded-postgres/windows-x64": true
   "@embedded-postgres/linux-x64": true
+  unrs-resolver: false
