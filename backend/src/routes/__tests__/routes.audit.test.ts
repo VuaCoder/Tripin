@@ -76,6 +76,14 @@ const BODYLESS_MUTATIONS = [
 ].sort();
 
 describe('route audit: who can call what', () => {
+  it('requires the Super Admin role as well as permissions on every admin endpoint', () => {
+    const adminRoutes = routes.filter((r) => r.path.startsWith('/api/v1/admin/'));
+    expect(adminRoutes.length).toBeGreaterThan(10);
+    for (const route of adminRoutes) {
+      expect(route.roles, `${route.method} ${route.path}`).toEqual(['SUPER_ADMIN']);
+      expect(Array.isArray(route.access)).toBe(true);
+    }
+  });
   it('has exactly the intended public endpoints', () => {
     expect(labels(routes.filter((r) => r.access === 'public'))).toEqual(PUBLIC_ROUTES);
   });

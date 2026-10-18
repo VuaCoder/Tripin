@@ -1,3 +1,4 @@
+import { dateRangeFields, validDateRange } from '../../utils/date-range';
 import { z } from 'zod';
 import { DISCOUNT_TYPE } from '@travel-platform/constants';
 import { idParamsSchema, idSchema } from '../../utils/id';
@@ -42,11 +43,14 @@ export const updatePromotionBody = z
   .refine((value) => Object.keys(value).length > 0, 'Nothing to update');
 
 export const listPromotionsQuery = paginationQuerySchema.extend({
+  ...dateRangeFields,
+  q: z.string().trim().max(100).optional(),
+  discountType: z.enum([DISCOUNT_TYPE.PERCENT, DISCOUNT_TYPE.FIXED]).optional(),
   isActive: z
     .enum(['true', 'false'])
     .transform((value) => value === 'true')
     .optional(),
-});
+}).refine(validDateRange, 'Provide both from and to, with from <= to');
 
 export const previewQuery = z.object({
   code,

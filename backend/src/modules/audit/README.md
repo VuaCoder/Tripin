@@ -59,3 +59,6 @@ None.
 * No retention/archival policy – decide with the owner before adding a purge job (like `notifications.purgeOld`).
 * Add a new action to `AUDIT_ACTIONS` only together with the code that records it (every declared action is wired).
 * IP / user-agent of the actor is not stored yet.
+
+## ADMIN-01 role boundary
+Admin endpoints require the current `SUPER_ADMIN` role as well as the listed permission. Other roles cannot use admin endpoints through extra permission grants. Public, agency and moderation access rules are otherwise unchanged.

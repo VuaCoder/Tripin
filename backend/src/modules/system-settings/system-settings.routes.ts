@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PERMISSIONS } from '@travel-platform/constants';
-import { requirePermission } from '../../middlewares/authorize';
+import { requirePermission, requireSuperAdmin } from '../../middlewares/authorize';
 import { validate } from '../../middlewares/validate';
 import { systemSettingsController } from './system-settings.controller';
 import { commissionBody, policyBody, policyKeyParams } from './system-settings.validation';
@@ -12,6 +12,7 @@ publicPoliciesRouter.get('/:key', validate({ params: policyKeyParams }), systemS
 
 /** Mounted at /api/v1/admin/settings — SUPER_ADMIN. */
 export const adminSettingsRouter = Router();
+adminSettingsRouter.use(requireSuperAdmin);
 adminSettingsRouter.get('/commission', requirePermission(PERMISSIONS.COMMISSION_CONFIGURE), systemSettingsController.getCommission);
 adminSettingsRouter.put(
   '/commission',
@@ -22,6 +23,7 @@ adminSettingsRouter.put(
 
 /** Mounted at /api/v1/admin/policies — SUPER_ADMIN. */
 export const adminPoliciesRouter = Router();
+adminPoliciesRouter.use(requireSuperAdmin);
 adminPoliciesRouter.put(
   '/:key',
   requirePermission(PERMISSIONS.POLICY_CONFIGURE),

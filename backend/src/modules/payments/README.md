@@ -66,3 +66,6 @@ Notification `PAYMENT_SUCCEEDED`; booking confirmation (which emails/notifies an
 * Refunds / payouts (no provider refund API call; bookings only carry `refundRequired`).
 * Verify the signature recipe against the PayOS **sandbox** before go-live (implemented from the public docs, covered by unit tests only).
 * Other providers: implement `PaymentProvider` and select it in `PaymentsService`'s default argument.
+
+## Admin revenue ranges
+`paidTotal(purpose, range?)` optionally restricts PAID payment aggregation by inclusive `paidAt` bounds. Lifetime aggregation is unchanged when no range is supplied.

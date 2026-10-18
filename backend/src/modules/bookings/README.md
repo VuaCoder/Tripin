@@ -80,3 +80,6 @@ Agency frontend routes `/agency/bookings` and `/agency/bookings/:id` use Agency 
 * Refund execution and `REFUND_REQUESTED/REFUNDED` states (policy undefined, D-15).
 * Agency/admin cancellation of a booking (not in the diagram).
 * Revival of an expired booking when a late payment arrives.
+
+## Admin report ranges
+`getPlatformStats(now, range?)` supports inclusive date bounds: revenue/monthly series use `confirmedAt`, status counts use `createdAt`. Paid status rules stay CONFIRMED/COMPLETED. UTC month grouping uses the stored UTC timestamp independently of PostgreSQL session timezone.

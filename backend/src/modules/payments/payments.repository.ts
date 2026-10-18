@@ -1,3 +1,4 @@
+import type { DateRange } from '../../utils/date-range';
 import { PAYMENT_STATUS, type PaymentPurpose, type PaymentStatus } from '@travel-platform/constants';
 import { nullIfNotFound, prisma } from '../../config/database';
 import type { Payment } from '../../generated/prisma/client';
@@ -69,8 +70,8 @@ export class PaymentsRepository {
   }
 
   /** Sum and count of PAID payments of one purpose (dashboards). */
-  async paidTotal(purpose: PaymentPurpose): Promise<{ amount: number; count: number }> {
-    const total = await prisma.payment.aggregate({ where: { purpose, status: PAYMENT_STATUS.PAID }, _sum: { amount: true }, _count: { _all: true } });
+  async paidTotal(purpose: PaymentPurpose, range?: DateRange): Promise<{ amount: number; count: number }> {
+    const total = await prisma.payment.aggregate({ where: { purpose, status: PAYMENT_STATUS.PAID, ...(range ? { paidAt: { gte: range.from, lte: range.to } } : {}) }, _sum: { amount: true }, _count: { _all: true } });
     return { amount: total._sum.amount ?? 0, count: total._count._all };
   }
 

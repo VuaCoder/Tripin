@@ -1,3 +1,4 @@
+import type { DateRange } from '../../utils/date-range';
 import { BOOKING_CANCEL_REASON, BOOKING_STATUS, type BookingCancelReason, type BookingStatus } from '@travel-platform/constants';
 import { isUniqueViolation } from '../../config/database';
 import { AppError } from '../../utils/app-error';
@@ -409,12 +410,12 @@ export class BookingsService {
   }
 
   /** Read model for the super-admin dashboard (whole platform). */
-  async getPlatformStats(now = new Date()): Promise<PlatformBookingStats> {
+  async getPlatformStats(now = new Date(), range?: DateRange): Promise<PlatformBookingStats> {
     const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1));
     const [byStatus, totals, monthly] = await Promise.all([
-      this.bookings.statusCounts(),
-      this.bookings.revenueTotals(),
-      this.bookings.monthlyTotals(since),
+      this.bookings.statusCounts(undefined, range),
+      this.bookings.revenueTotals(undefined, range),
+      this.bookings.monthlyTotals(range?.from ?? since, range?.to),
     ]);
     return { byStatus, totals, monthly };
   }

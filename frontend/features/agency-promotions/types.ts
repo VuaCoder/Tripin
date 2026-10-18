@@ -41,6 +41,10 @@ export interface PromotionApiResponse<T> {
 }
 
 export interface ListPromotionsArgs {
+  q?: string;
+  discountType?: DiscountType;
+  from?: string;
+  to?: string;
   page?: number;
   limit?: number;
   isActive?: boolean;

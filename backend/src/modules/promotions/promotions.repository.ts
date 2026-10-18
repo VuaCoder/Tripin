@@ -1,3 +1,5 @@
+import { containsText } from '../../utils/search';
+import type { ListPromotionsQuery } from './promotions.types';
 import type { PromotionScope } from '@travel-platform/constants';
 import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
 import type { Promotion } from '../../generated/prisma/client';
@@ -32,10 +34,13 @@ export class PromotionsRepository {
     return prisma.promotion.update({ where: { id }, data: patch }).catch(nullIfNotFound);
   }
 
-  async list(filter: { scope: PromotionScope; ownerId?: string; isActive?: boolean }, page: PageRequest) {
+  async list(filter: { scope: PromotionScope; ownerId?: string } & Omit<ListPromotionsQuery, 'page' | 'limit'>, page: PageRequest) {
     const where: Prisma.PromotionWhereInput = { scope: filter.scope };
     if (filter.ownerId) where.ownerId = filter.ownerId;
     if (filter.isActive !== undefined) where.isActive = filter.isActive;
+    if (filter.q) where.OR = [{ code: containsText(filter.q) }, { title: containsText(filter.q) }];
+    if (filter.discountType) where.discountType = filter.discountType;
+    if (filter.from && filter.to) { where.startsAt = { lte: filter.to }; where.endsAt = { gte: filter.from }; }
     const [items, total] = await Promise.all([
       prisma.promotion.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit }),
       prisma.promotion.count({ where }),

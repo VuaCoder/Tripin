@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import type { NavigationItem } from './navigation-config';
+import { getActiveNavigationHref } from './navigation-config';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, selectIsAuthenticated, useLogout } from '@/features/auth';
 import { homeForRole } from '@/features/auth/utils/roles';
@@ -15,6 +17,7 @@ export function MobileNavigation({
   onOpenPremium?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const activeHref = getActiveNavigationHref(usePathname(), items);
   const [accountOpen, setAccountOpen] = useState(false);
   const user = useAppSelector(selectUser);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
@@ -68,6 +71,7 @@ export function MobileNavigation({
                         <Link
                           key={child.href}
                           href={child.href}
+                          aria-current={child.href === activeHref ? 'page' : undefined}
                           onClick={closeMenu}
                           className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-container-low"
                         >
@@ -86,6 +90,7 @@ export function MobileNavigation({
                 <Link
                   key={item.href}
                   href={item.href}
+                  aria-current={item.href === activeHref ? 'page' : undefined}
                   onClick={closeMenu}
                   className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-container"
                 >
