@@ -171,21 +171,27 @@ Hai tour đã seed (bấm tìm `[DEV-REPORTS]` ở `/tours` nếu id đã đổi
 
 ## Chạy lại từ đầu (dữ liệu sạch)
 
+Mật khẩu Postgres tạm **được sinh ngẫu nhiên mỗi lần chạy** và chỉ in ra màn hình (không nằm trong source),
+nên bước 1 in ra URL nào thì dùng đúng URL đó cho các bước sau.
+
 ```bash
-# Postgres tạm (giữ nguyên terminal này):
+# 1) Postgres tạm (giữ nguyên terminal này). Dòng cuối in ra: READY postgresql://postgres:<chuỗi>@127.0.0.1:5433/tripri_dev
 cd backend && npx tsx src/scripts/dev-local-pg.ts
 
-# Backend, trỏ vào DB tạm (DATABASE_URL đã set sẽ thắng .env):
-DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5433/tripri_dev" npx tsx src/server.ts
+# 2) Backend, trỏ vào DB tạm vừa in (DATABASE_URL đã set sẽ thắng .env):
+DATABASE_URL="<URL ở dòng READY>" npx tsx src/server.ts
 
-# Frontend:
+# 3) Frontend:
 cd frontend && npx next dev -p 3000
 
-# Seed lại dữ liệu (đổi id tour → tìm lại tour theo tiêu đề [DEV-REPORTS]):
+# 4) Seed lại dữ liệu (đổi id tour → tìm lại tour theo tiêu đề [DEV-REPORTS]):
 cp .playwright-cli/dev-reports-fixture.ts backend/src/scripts/ && \
-  (cd backend && DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5433/tripri_dev" \
+  (cd backend && DATABASE_URL="<URL ở dòng READY>" \
      npx tsx src/scripts/dev-reports-fixture.ts create) && \
   rm backend/src/scripts/dev-reports-fixture.ts
 ```
+
+Fixture của module agency (`dev-agency-fixture.ts`) cần thêm `DEV_AGENCY_PASSWORD`: nó **không** ship
+mật khẩu, thiếu biến này sẽ báo lỗi ngay.
 
 Bằng chứng chụp màn hình của cùng luồng này: xem [`README.md`](./README.md) và ảnh `01`–`25` trong thư mục này.

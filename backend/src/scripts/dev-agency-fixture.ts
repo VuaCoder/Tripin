@@ -2,17 +2,18 @@
  * DEV-ONLY fixture for the Agency "Upload Promotions" and "Handle Tour Complaints" UI run
  * (not part of the product; delete after use).
  *
- *   DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5433/tripri_dev" npx tsx src/scripts/dev-agency-fixture.ts create
- *   DATABASE_URL=... npx tsx src/scripts/dev-agency-fixture.ts clean
+ *   DATABASE_URL=... DEV_AGENCY_PASSWORD=... npx tsx src/scripts/dev-agency-fixture.ts create
+ *   DATABASE_URL=... DEV_AGENCY_PASSWORD=... npx tsx src/scripts/dev-agency-fixture.ts clean
  *
  * Refuses to run against anything but a local database. Creates two VERIFIED agencies (the second one proves that
  * an agency cannot see or answer another agency's data), travelers, tours, promotions and complaints in every state.
- * Every account shares the dev password below.
+ * Every account shares the password from DEV_AGENCY_PASSWORD — the fixture ships none.
  */
 import bcrypt from 'bcryptjs';
 import { prisma } from '../config/database';
 
-const PASSWORD = 'DevAgency!2026';
+const PASSWORD = process.env.DEV_AGENCY_PASSWORD;
+if (!PASSWORD) throw new Error('DEV_AGENCY_PASSWORD is required; this fixture ships no password');
 const AGENCY_EMAIL = 'dev.agency@tripri.test';
 const OTHER_AGENCY_EMAIL = 'dev.agency.other@tripri.test';
 const TRAVELER_EMAILS = [1, 2, 3, 4].map((n) => `dev.agency.traveler${n}@tripri.test`);
