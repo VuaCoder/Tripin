@@ -1,9 +1,5 @@
 'use client';
-
-import { useState } from 'react';
-import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Clock, MapPin } from 'lucide-react';
+import { useParams } from 'next/navigation';
 import { ErrorState, LoadingState } from '@/components/shared';
 import { WishlistButton } from '@/features/wishlist';
 import { ReportButton } from '@/features/report';

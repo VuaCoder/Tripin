@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PERMISSIONS } from '@travel-platform/constants';
-import { requirePermission } from '../../middlewares/authorize';
+import { requirePermission, requireSuperAdmin } from '../../middlewares/authorize';
 import { validate } from '../../middlewares/validate';
 import { usersController } from './users.controller';
 import {
@@ -66,6 +66,7 @@ publicAgenciesRouter.get('/:id', validate({ params: publicProfileParams }), user
 
 /** Mounted at /api/v1/admin/users — SUPER_ADMIN access management. */
 export const adminUsersRouter = Router();
+adminUsersRouter.use(requireSuperAdmin);
 adminUsersRouter.use(requirePermission(PERMISSIONS.USER_ASSIGN_PERMISSIONS));
 adminUsersRouter.get('/', validate({ query: listUsersQuery }), usersController.listUsers);
 adminUsersRouter.patch(

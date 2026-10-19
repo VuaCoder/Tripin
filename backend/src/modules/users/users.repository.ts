@@ -5,6 +5,8 @@ import { toSkip, type PageRequest } from '../../utils/pagination';
 import { containsText } from '../../utils/search';
 
 export interface UserListFilter {
+  from?: Date;
+  to?: Date;
   role?: PersistedRole;
   status?: UserStatus;
   q?: string;
@@ -141,6 +143,7 @@ export class UsersRepository {
 
   async list(filter: UserListFilter, page: PageRequest): Promise<{ items: UserRecord[]; total: number }> {
     const where: Prisma.UserWhereInput = {};
+    if (filter.from && filter.to) where.createdAt = { gte: filter.from, lte: filter.to };
     if (filter.role) where.role = filter.role;
     if (filter.status) where.status = filter.status;
     if (filter.agencyVerification) where.agencyProfile = { is: { verificationStatus: filter.agencyVerification } };

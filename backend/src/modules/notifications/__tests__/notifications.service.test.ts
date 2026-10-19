@@ -30,6 +30,12 @@ function make() {
 const input = { type: NOTIFICATION_TYPE.TOUR_APPROVED, title: 'Approved', body: 'Your tour is public', data: { tourId: 't1' } };
 
 describe('notify', () => {
+  it('stores and emails Vietnamese content for a system notification', async () => {
+    const { service, repo, mail } = make();
+    await service.notify('u1', { type: NOTIFICATION_TYPE.PAYMENT_SUCCEEDED, title: 'Payment received', body: 'We received your payment of 2,000 VND.' }, { email: true });
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ title: 'Đã nhận thanh toán', body: 'Chúng tôi đã nhận thanh toán 2.000 ₫ của bạn.' }));
+    expect(mail.send).toHaveBeenCalledWith(expect.objectContaining({ subject: 'Đã nhận thanh toán' }));
+  });
   it('stores the notification for the user without emailing by default', async () => {
     const { service, repo, mail } = make();
     await service.notify('u1', input);

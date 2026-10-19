@@ -6,6 +6,7 @@ import EmbeddedPostgres from 'embedded-postgres';
 import { Client } from 'pg';
 import type { TestProject } from 'vitest/node';
 import { TEMPLATE_DB } from './constants';
+import { WindowsTestPostgres } from './windows-postgres';
 
 /**
  * One real PostgreSQL server for the whole integration run (started once, no Docker needed). It holds a template
@@ -42,35 +43,41 @@ function migrationSql(): string {
 }
 
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
-  const dataDir = mkdtempSync(path.join(os.tmpdir(), 'tripri-pg-'));
+  const testRoot = mkdtempSync(path.join(os.tmpdir(), 'tripri-pg-'));
+  const dataDir = path.join(testRoot, 'data');
   const port = await freePort();
-  const server = new EmbeddedPostgres({
+  const server = process.platform === 'win32' ? new WindowsTestPostgres(testRoot, dataDir, port) : new EmbeddedPostgres({
     databaseDir: dataDir,
     user: USER,
     password: PASSWORD,
     port,
     persistent: false,
+    initdbFlags: ['--encoding=UTF8', '--locale=C'],
     onLog: () => undefined,
     onError: () => undefined,
   });
-  await server.initialise();
-  await server.start();
-
-  const adminUrl = `postgresql://${USER}:${PASSWORD}@127.0.0.1:${port}/postgres`;
-  const admin = new Client({ connectionString: adminUrl });
-  await admin.connect();
-  await admin.query(`CREATE DATABASE ${TEMPLATE_DB}`);
-  await admin.end();
-
-  const template = new Client({ connectionString: adminUrl.replace(/\/postgres$/, `/${TEMPLATE_DB}`) });
-  await template.connect();
-  await template.query(migrationSql());
-  await template.end();
-
-  project.provide('pgAdminUrl', adminUrl);
-
-  return async () => {
-    await server.stop();
-    rmSync(dataDir, { recursive: true, force: true });
+  const cleanup = async () => {
+    try { await server.stop(); }
+    finally { rmSync(testRoot, { recursive: true, force: true }); }
   };
+  try {
+    await server.initialise();
+    await server.start();
+
+    const adminUrl = `postgresql://${USER}:${PASSWORD}@127.0.0.1:${port}/postgres`;
+    const admin = new Client({ connectionString: adminUrl });
+    await admin.connect();
+    // Preserve UTF-8 for Vietnamese content on every platform.
+    try { await admin.query(`CREATE DATABASE ${TEMPLATE_DB} TEMPLATE template0 ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C'`); }
+    finally { await admin.end(); }
+
+    const template = new Client({ connectionString: adminUrl.replace(/\/postgres$/, `/${TEMPLATE_DB}`) });
+    await template.connect();
+    try { await template.query(migrationSql()); }
+    finally { await template.end(); }
+
+    project.provide('pgAdminUrl', adminUrl);
+
+    return cleanup;
+  } catch (error) { await cleanup(); throw error; }
 }

@@ -93,3 +93,6 @@ External providers that belong to ONE domain live inside that module (`payments/
 7. Every new error `code` gets a row in `docs/api/ERRORS.md`; every state change is a compare-and-set; every paginated list has an index ending in `id` (the query-plan test asks PostgreSQL).
 8. Tick the module in `docs/backend/PROGRESS.md`, add its endpoints to `docs/backend/USE_CASE_MAP.md` (a test compares both with the live routes) and regenerate `docs/api/ENDPOINTS.md` (`pnpm --filter backend docs:routes`).
 9. `pnpm --filter backend typecheck && pnpm --filter backend test` must pass.
+
+## Platform administration access
+Every `/admin/*` router uses `requireSuperAdmin` before its existing `requirePermission` guard. Role and status are resolved from the database on each request. Extra admin permissions do not authorize a non-admin role. Guard metadata exposes both constraints to route introspection and generated docs.

@@ -39,7 +39,7 @@ export class ETicketsService {
       {
         type: NOTIFICATION_TYPE.ETICKET_ISSUED,
         title: `Vé điện tử ${ticket.doc.code} cho ${booking.tourTitle}`,
-        body: `Vé điện tử ${ticket.doc.code} cho "${booking.tourTitle}" (booking ${booking.bookingCode}) đã sẵn sàng trong tài khoản của bạn.`,
+        body: `Vé điện tử ${ticket.doc.code} cho "${booking.tourTitle}" (đặt chỗ ${booking.bookingCode}) đã sẵn sàng trong tài khoản của bạn.`,
         data: {
           bookingId: booking.id,
           eTicketId: ticket.doc.id,

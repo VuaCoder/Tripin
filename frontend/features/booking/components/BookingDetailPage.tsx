@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { formatDepartureDate, formatParticipants, formatVnd } from '@/features/cart';
+import { formatDepartureDate, formatParticipants, formatVnd } from '@/lib/travel-format';
 import { useCheckoutBookingMutation } from '@/features/payment';
 import { LoadingState } from '@/components/shared';
 import {
@@ -478,13 +478,18 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
 
             <dl className="space-y-3 border-b border-slate-100 pb-4 text-sm">
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 text-slate-600">
-                <dt>Đơn giá mỗi khách</dt>
+                <dt>{booking.guestPricing ? 'Đơn giá người lớn' : 'Đơn giá mỗi khách'}</dt>
                 <dd className="whitespace-nowrap font-semibold text-slate-800">{formatVnd(booking.unitPrice)}</dd>
               </div>
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 text-slate-600">
                 <dt>Số lượng khách</dt>
                 <dd className="whitespace-nowrap font-semibold text-slate-800">{booking.participants} khách</dd>
               </div>
+              {booking.guestPricing && <>
+                <div className="flex justify-between gap-3 text-slate-600"><dt>Người lớn × {booking.guestPricing.guests.adults}</dt><dd>{formatVnd(booking.guestPricing.adultUnitPrice * booking.guestPricing.guests.adults)}</dd></div>
+                {booking.guestPricing.guests.children > 0 && <div className="flex justify-between gap-3 text-slate-600"><dt>Trẻ em × {booking.guestPricing.guests.children}</dt><dd>{formatVnd(booking.guestPricing.childUnitPrice * booking.guestPricing.guests.children)}</dd></div>}
+                {booking.guestPricing.guests.infants > 0 && <div className="flex justify-between gap-3 text-slate-600"><dt>Em bé × {booking.guestPricing.guests.infants}</dt><dd>{formatVnd(booking.guestPricing.infantUnitPrice * booking.guestPricing.guests.infants)}</dd></div>}
+              </>}
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 text-slate-600">
                 <dt>Tạm tính</dt>
                 <dd className="whitespace-nowrap font-semibold text-slate-800">{formatVnd(booking.subtotal)}</dd>

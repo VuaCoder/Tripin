@@ -31,6 +31,8 @@ export interface ModerationDashboardDto {
 }
 
 export interface AdminDashboardDto {
+  period?: { from: string; to: string; previousFrom: string; previousTo: string };
+  comparison?: { bookings: number; gross: number; commission: number; net: number; subscriptions: { amount: number; count: number } };
   generatedAt: string;
   users: { total: number; byRole: Record<string, number>; byStatus: Record<string, number>; newLast30Days: number };
   tours: { total: number; byStatus: Record<string, number> };

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PERMISSIONS } from '@travel-platform/constants';
-import { requirePermission } from '../../middlewares/authorize';
+import { requirePermission, requireSuperAdmin } from '../../middlewares/authorize';
 import { validate } from '../../middlewares/validate';
 import { categoriesController } from './categories.controller';
 import { categoryIdParams, createCategoryBody, updateCategoryBody } from './categories.validation';
@@ -11,6 +11,7 @@ publicCategoriesRouter.get('/', categoriesController.listPublic);
 
 /** Mounted at /api/v1/admin/categories — SUPER_ADMIN. */
 export const adminCategoriesRouter = Router();
+adminCategoriesRouter.use(requireSuperAdmin);
 adminCategoriesRouter.use(requirePermission(PERMISSIONS.CATEGORY_CONFIGURE));
 adminCategoriesRouter.get('/', categoriesController.listAll);
 adminCategoriesRouter.post('/', validate({ body: createCategoryBody }), categoriesController.create);

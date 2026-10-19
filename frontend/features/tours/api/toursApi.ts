@@ -2,7 +2,7 @@ import { baseApi } from '@/store/api/baseApi';
 import type { AgencyDashboard, AgencyGuide } from '@/features/agency/types';
 import type { AgencyTourListResult, ExtractedTourCandidate, ListToursArgs, TourApiError, TourApiResponse, TourCategory, TourContentInput, TourDestination, TourDetail, TourListItem, TourListResult, TourStatus } from '../types';
 
-/** Public tour discovery for the Tour List and the cart's "add a tour" picker. */
+/** Public tour discovery for tour listings. */
 export const toursApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     getTours: build.query<TourListResult, ListToursArgs | void>({
@@ -23,6 +23,7 @@ export const toursApi = baseApi.injectEndpoints({
     getTourCategories: build.query<TourCategory[], void>({
       query: () => ({ url: '/categories' }),
       transformResponse: (response: TourApiResponse<TourCategory[]>) => response.data,
+      providesTags: [{ type: 'Category', id: 'LIST' }],
     }),
     getAgencyTours: build.query<AgencyTourListResult, { page?: number; limit?: number; status?: TourStatus } | void>({
       query: (args) => ({ url: '/agency/tours', params: { page: 1, limit: 12, ...(args ?? {}) } }),

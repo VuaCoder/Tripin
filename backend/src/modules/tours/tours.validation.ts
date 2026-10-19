@@ -3,6 +3,7 @@ import { TOUR_STATUS } from '@travel-platform/constants';
 import { idParamsSchema, idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 import { TOUR_LIMITS } from './tours.types';
+import { agePricingSchema } from '../../utils/age-pricing';
 
 const text = (max: number) => z.string().trim().max(max);
 const stringList = (maxItems: number, maxLen: number) => z.array(z.string().trim().min(1).max(maxLen)).max(maxItems);
@@ -12,6 +13,11 @@ const tourContentShape = {
   title: z.string().trim().min(5).max(200),
   summary: text(500).optional(),
   description: text(20_000).optional(),
+  childPricingPolicy: text(5000).optional(),
+  agePricing: agePricingSchema.nullable().optional(),
+  cancellationPolicy: text(5000).optional(),
+  travelNotes: text(5000).optional(),
+  requiredDocuments: text(5000).optional(),
   destination: z.string().trim().min(2).max(120),
   durationDays: z.number().int().min(1).max(365),
   basePrice: vnd,

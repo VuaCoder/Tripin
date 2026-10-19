@@ -1,3 +1,4 @@
+import type { DateRange } from '../../utils/date-range';
 import { BOOKING_CANCEL_REASON, BOOKING_STATUS, type BookingCancelReason, type BookingStatus } from '@travel-platform/constants';
 import { isUniqueViolation } from '../../config/database';
 import { AppError } from '../../utils/app-error';
@@ -12,6 +13,7 @@ import { toursService, type ToursService } from '../tours';
 import { bookingEvents } from './bookings.events';
 import { toAgencyBookingDto, toBookingDto, toBookingFacts } from './bookings.mapper';
 import { BOOKING_POLICY, BOOKING_TRANSITIONS } from './bookings.policy';
+import { priceGuests } from '../../utils/age-pricing';
 import { bookingsRepository, type BookingRecord, type BookingsRepository, type NewBooking } from './bookings.repository';
 import { CUSTOMER_EXPORT_LIMIT, type CustomerRow } from './bookings.types';
 import type {
@@ -83,9 +85,9 @@ export class BookingsService {
     if (input.participants > departure.remaining) {
       throw AppError.conflict('Not enough seats left on this departure', 'NOT_ENOUGH_SEATS');
     }
-    const subtotal = departure.unitPrice * input.participants;
-    const isFreeSubtotal = subtotal === 0;
-    if (!isFreeSubtotal && subtotal < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
+    const guestPricing = priceGuests(departure.unitPrice, input.participants, input.guestCounts, departure.agePricing);
+    const subtotal = guestPricing.subtotal;
+    if (subtotal < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
 
     await this.tours.reserveSeats(input.tourId, input.departureId, input.participants);
     let applied: AppliedPromotion | undefined;
@@ -94,8 +96,7 @@ export class BookingsService {
 
       const discountAmount = applied?.discountAmount ?? 0;
       const totalAmount = Math.max(0, subtotal - discountAmount);
-      const isFree = totalAmount === 0;
-      if (!isFree && totalAmount < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
+      if (totalAmount < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
       const commissionBps = await this.settings.getCommissionBps();
       const commissionAmount = Math.floor((totalAmount * commissionBps) / 10_000);
 
@@ -108,6 +109,7 @@ export class BookingsService {
         departureDate: departure.departureDate,
         endDate: new Date(departure.departureDate.getTime() + departure.durationDays * DAY_MS),
         participants: input.participants,
+        ...(input.guestCounts ? { guestPricing: { ...guestPricing, guests: { ...guestPricing.guests } } } : {}),
         contact: input.contact,
         notes: input.notes,
         unitPrice: departure.unitPrice,
@@ -118,38 +120,18 @@ export class BookingsService {
         commissionBps,
         commissionAmount,
         agencyAmount: totalAmount - commissionAmount,
-        status: isFree ? BOOKING_STATUS.CONFIRMED : BOOKING_STATUS.PENDING,
-        isPaid: isFree,
-        confirmedAt: isFree ? new Date() : undefined,
-        paymentExpiresAt: isFree ? null : new Date(Date.now() + BOOKING_POLICY.PENDING_PAYMENT_MINUTES * MINUTE_MS),
+        status: BOOKING_STATUS.PENDING,
+        isPaid: false,
+        paymentExpiresAt: new Date(Date.now() + BOOKING_POLICY.PENDING_PAYMENT_MINUTES * MINUTE_MS),
         clientRequestId: input.clientRequestId,
       });
 
-      if (isFree) {
-        const facts = toBookingFacts(created);
-        await Promise.all([
-          this.notifications.notify(travelerId, {
-            type: NOTIFICATION_TYPE.BOOKING_CONFIRMED,
-            title: 'Đặt chỗ thành công',
-            body: `Đặt chỗ ${created.bookingCode} cho tour "${created.tourTitle}" đã được xác nhận thành công (0 VND).`,
-            data: { bookingId: created.id },
-          }),
-          this.notifications.notify(departure.agencyId, {
-            type: NOTIFICATION_TYPE.BOOKING_CONFIRMED,
-            title: 'Đặt chỗ mới thành công',
-            body: `${input.participants} khách đã đặt tour "${created.tourTitle}" (${created.bookingCode}).`,
-            data: { bookingId: created.id },
-          }),
-        ]);
-        await bookingEvents.emitConfirmed(facts);
-      } else {
-        await this.notifications.notify(travelerId, {
-          type: NOTIFICATION_TYPE.BOOKING_CREATED,
-          title: 'Booking created',
-          body: `Your booking ${created.bookingCode} for "${created.tourTitle}" is waiting for payment (${BOOKING_POLICY.PENDING_PAYMENT_MINUTES} minutes).`,
-          data: { bookingId: created.id },
-        });
-      }
+      await this.notifications.notify(travelerId, {
+        type: NOTIFICATION_TYPE.BOOKING_CREATED,
+        title: 'Booking created',
+        body: `Your booking ${created.bookingCode} for "${created.tourTitle}" is waiting for payment (${BOOKING_POLICY.PENDING_PAYMENT_MINUTES} minutes).`,
+        data: { bookingId: created.id },
+      });
       return toBookingDto(created);
     } catch (error) {
       await this.compensate(input, applied);
@@ -409,12 +391,12 @@ export class BookingsService {
   }
 
   /** Read model for the super-admin dashboard (whole platform). */
-  async getPlatformStats(now = new Date()): Promise<PlatformBookingStats> {
+  async getPlatformStats(now = new Date(), range?: DateRange): Promise<PlatformBookingStats> {
     const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1));
     const [byStatus, totals, monthly] = await Promise.all([
-      this.bookings.statusCounts(),
-      this.bookings.revenueTotals(),
-      this.bookings.monthlyTotals(since),
+      this.bookings.statusCounts(undefined, range),
+      this.bookings.revenueTotals(undefined, range),
+      this.bookings.monthlyTotals(range?.from ?? since, range?.to),
     ]);
     return { byStatus, totals, monthly };
   }

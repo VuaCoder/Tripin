@@ -1,5 +1,5 @@
 import type { Router } from 'express';
-import type { Permission } from '@travel-platform/constants';
+import type { PersistedRole, Permission } from '@travel-platform/constants';
 import { GUARD_META, type GuardMeta } from '../middlewares/authorize';
 import { VALIDATE_META, type ValidateMeta } from '../middlewares/validate';
 import { apiRouter, mounts } from './registry';
@@ -16,6 +16,7 @@ export interface RouteInfo {
   /** Mount prefix of the module router, e.g. /agency/tours ("" for routes defined directly on the API router). */
   mount: string;
   access: Access;
+  roles: PersistedRole[];
   /** Which request parts the route validates with zod. */
   validates: ValidateMeta;
 }
@@ -34,7 +35,7 @@ const validateMetaOf = (handle: unknown): ValidateMeta | undefined =>
 function accessOf(guards: GuardMeta[]): Access {
   const permissions = guards.flatMap((guard) => (guard.kind === 'permission' ? guard.permissions : []));
   if (permissions.length > 0) return Array.from(new Set(permissions));
-  return guards.some((guard) => guard.kind === 'auth') ? 'login' : 'public';
+  return guards.some((guard) => guard.kind === 'auth' || guard.kind === 'role') ? 'login' : 'public';
 }
 
 function routesOf(router: Router, mountPrefix: string): RouteInfo[] {
@@ -48,6 +49,7 @@ function routesOf(router: Router, mountPrefix: string): RouteInfo[] {
     }
     const routeGuards = layer.route.stack.map((l) => metaOf(l.handle)).filter((m): m is GuardMeta => Boolean(m));
     const access = accessOf([...routerGuards, ...routeGuards]);
+    const roles = [...routerGuards, ...routeGuards].flatMap((guard) => guard.kind === 'role' ? [guard.role] : []);
     const validates: ValidateMeta = { body: false, query: false, params: false };
     for (const l of layer.route.stack) {
       const meta = validateMetaOf(l.handle);
@@ -59,7 +61,7 @@ function routesOf(router: Router, mountPrefix: string): RouteInfo[] {
     }
     for (const method of Object.keys(layer.route.methods)) {
       const tail = layer.route.path === '/' ? '' : layer.route.path;
-      found.push({ method: method.toUpperCase(), path: `${API_PREFIX}${mountPrefix}${tail}`, mount: mountPrefix, access, validates });
+      found.push({ method: method.toUpperCase(), path: `${API_PREFIX}${mountPrefix}${tail}`, mount: mountPrefix, access, roles, validates });
     }
   }
   return found;

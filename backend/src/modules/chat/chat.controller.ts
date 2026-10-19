@@ -28,6 +28,11 @@ export class ChatController {
     sendPaginated(res, page.items, page.meta);
   };
 
+  detail: RequestHandler = async (req, res) => {
+    const { params } = validated<unknown, unknown, IdParams>(req);
+    sendOk(res, await this.service.getConversation(userActor(req).userId, params.id));
+  };
+
   messages: RequestHandler = async (req, res) => {
     const { params, query } = validated<unknown, ListMessagesQueryInput, IdParams>(req);
     sendOk(res, await this.service.listMessages(userActor(req).userId, params.id, query));

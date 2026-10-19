@@ -4,6 +4,7 @@ import type { GuideAssignmentStatus, Tour, TourDeparture, TourGuideAssignment } 
 import { toSkip, type PageRequest } from '../../utils/pagination';
 import { containsText } from '../../utils/search';
 import type { ListTourFilter, SearchToursQuery, TourSort } from './tours.types';
+import { Prisma as PrismaRuntime } from '../../generated/prisma/client';
 
 export interface StoredItineraryDay {
   day: number;
@@ -25,7 +26,7 @@ export type TourRecord = Omit<Tour, 'itinerary'> & {
 
 export type GuideAssignmentFields = Partial<Omit<GuideAssignmentRecord, 'tourId'>> & Pick<GuideAssignmentRecord, 'guideId' | 'feePerBooking'>;
 
-type TourScalars = Omit<Tour, 'id' | 'agencyId' | 'createdAt' | 'updatedAt' | 'itinerary'>;
+type TourScalars = Omit<Tour, 'id' | 'agencyId' | 'createdAt' | 'updatedAt' | 'itinerary' | 'agePricing'> & { agePricing: import('@travel-platform/constants').AgePricing | null };
 
 export type NewDeparture = Pick<DepartureRecord, 'date' | 'capacity' | 'remaining'> & Partial<Pick<DepartureRecord, 'priceOverride' | 'isOpen'>>;
 
@@ -76,9 +77,10 @@ const SORTS: Record<TourSort, Prisma.TourOrderByWithRelationInput[]> = {
 };
 
 function writeData(patch: TourPatch): Prisma.TourUncheckedUpdateInput {
-  const { categoryIds, guide, itinerary, ...scalars } = patch;
+  const { categoryIds, guide, itinerary, agePricing, ...scalars } = patch;
   return {
     ...scalars,
+    ...(agePricing !== undefined ? { agePricing: agePricing === null ? PrismaRuntime.DbNull : { ...agePricing } } : {}),
     ...(itinerary ? { itinerary: itinerary as unknown as Prisma.InputJsonValue } : {}),
     ...(categoryIds ? { categories: { set: categoryIds.map((id) => ({ id })) } } : {}),
     ...(guide ? { guideAssignment: { upsert: { create: guide, update: guide } } } : {}),
@@ -318,10 +320,11 @@ export class ToursRepository {
 }
 
 function createOne(db: DbExecutor, data: NewTour): Promise<Row> {
-  const { categoryIds, departures, guide, itinerary, ...scalars } = data;
+  const { categoryIds, departures, guide, itinerary, agePricing, ...scalars } = data;
   return db.tour.create({
     data: {
       ...scalars,
+      ...(agePricing !== undefined ? { agePricing: agePricing === null ? PrismaRuntime.DbNull : { ...agePricing } } : {}),
       ...(itinerary ? { itinerary: itinerary as unknown as Prisma.InputJsonValue } : {}),
       ...(categoryIds?.length ? { categories: { connect: categoryIds.map((id) => ({ id })) } } : {}),
       ...(departures?.length ? { departures: { create: departures } } : {}),

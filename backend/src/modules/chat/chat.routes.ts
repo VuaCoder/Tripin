@@ -19,6 +19,7 @@ export const chatRouter = Router();
 chatRouter.use(requirePermission(PERMISSIONS.CHAT_USE));
 chatRouter.post('/conversations', validate({ body: startConversationBody }), chatController.start);
 chatRouter.get('/conversations', validate({ query: listConversationsQuery }), chatController.list);
+chatRouter.get('/conversations/:id', validate({ params: conversationIdParams }), chatController.detail);
 chatRouter.get('/conversations/:id/messages', validate({ params: conversationIdParams, query: listMessagesQuery }), chatController.messages);
 chatRouter.post('/conversations/:id/messages', messageLimiter, validate({ params: conversationIdParams, body: sendMessageBody }), chatController.send);
 chatRouter.post('/conversations/:id/read', validate({ params: conversationIdParams }), chatController.read);

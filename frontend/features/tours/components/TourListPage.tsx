@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Button, Input, Pagination } from '@/components/ui';
+import { Button, Input, Pagination, AntSelect, AntDateRangePicker } from '@/components/ui';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
 import { useGetTourCategoriesQuery, useGetToursQuery } from '../api/toursApi';
 import type { ListToursArgs, TourSort } from '../types';
@@ -80,9 +80,8 @@ export function TourListPage() {
   const queryString = searchParams.toString();
   const qFromUrl = searchParams.get('q') ?? '';
   const [searchTerm, setSearchTerm] = useState(qFromUrl);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-
   // --- Price slider local state ---
+
   const urlMinPrice = numberParam(searchParams.get('minPrice')) ?? PRICE_MIN;
   const urlMaxPrice = numberParam(searchParams.get('maxPrice')) ?? PRICE_MAX;
   const [localMinPrice, setLocalMinPrice] = useState(urlMinPrice);
@@ -146,13 +145,6 @@ export function TourListPage() {
   const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category.name])), [categories]);
   const activeCategoryId = searchParams.get('categoryId') ?? '';
 
-  const updateDateRange = (key: 'departureFrom' | 'departureTo', value: string) => {
-    const counterpart = key === 'departureFrom' ? 'departureTo' : 'departureFrom';
-    const other = searchParams.get(counterpart);
-    const clearsOther = Boolean(value && other && ((key === 'departureFrom' && value > other) || (key === 'departureTo' && value < other)));
-    updateQuery({ [key]: value || undefined, ...(clearsOther ? { [counterpart]: undefined } : {}) });
-  };
-
   const clearFilters = () => {
     setSearchTerm('');
     setLocalMinPrice(PRICE_MIN);
@@ -203,61 +195,12 @@ export function TourListPage() {
   const currentMinRating = numberParam(searchParams.get('minRating'));
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-      {/* Thanh tìm kiếm chính */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="w-full pb-8">
+      {/* Tiêu đề trang */}
+      <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Khám phá tour</h1>
           <p className="mt-1 text-sm text-slate-500">Tìm hành trình phù hợp từ hàng trăm lựa chọn trên Tripri</p>
-        </div>
-
-        {/* Thanh tìm kiếm kiểu Expand thu hút người dùng khi onFocus */}
-        <div className="relative flex justify-end w-full sm:w-auto">
-          <label
-            className={cn(
-              "relative flex items-center w-full transition-all duration-300 ease-in-out cursor-pointer",
-              isSearchFocused || searchTerm.trim().length > 0
-                ? "sm:w-80 md:w-96 shadow-md ring-2 ring-primary-container/20 rounded-xl"
-                : "sm:w-60 md:w-64 rounded-xl"
-            )}
-            htmlFor="tour-search"
-          >
-            <span className="sr-only">Tìm kiếm tour</span>
-            <span
-              className={cn(
-                "material-symbols-outlined pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[20px] transition-colors",
-                isSearchFocused ? "text-primary-container" : "text-slate-400"
-              )}
-              aria-hidden="true"
-            >
-              search
-            </span>
-            <Input
-              id="tour-search"
-              value={searchTerm}
-              onFocus={() => setIsSearchFocused(true)}
-              onBlur={() => setIsSearchFocused(false)}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Tìm theo tên tour, điểm đến..."
-              className={cn(
-                "min-h-11 w-full rounded-xl border-slate-200 bg-white py-2.5 pl-10 pr-9 text-sm shadow-sm transition-all focus:border-primary-container",
-                isSearchFocused ? "border-primary-container" : ""
-              )}
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchTerm('');
-                  updateQuery({ q: undefined }, true);
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-0.5 rounded-full cursor-pointer"
-                aria-label="Xóa tìm kiếm"
-              >
-                <span className="material-symbols-outlined text-[16px]">close</span>
-              </button>
-            )}
-          </label>
         </div>
       </div>
 
@@ -271,8 +214,8 @@ export function TourListPage() {
 
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         {/* ======================== BỘ LỌC BÊN TRÁI ======================== */}
-        <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">
-          <div className="flex items-center justify-between gap-3">
+        <aside className="h-fit max-h-[calc(100vh-7rem)] overflow-y-auto ant-scrollbar rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <h2 className="flex items-center gap-2 text-base font-extrabold text-slate-900">
               <span className="material-symbols-outlined text-[20px] text-primary-container" aria-hidden="true">tune</span>
               Bộ lọc
@@ -280,11 +223,11 @@ export function TourListPage() {
                 <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary-container text-[10px] font-bold text-white">{activeFilterCount}</span>
               )}
             </h2>
-            <button type="button" onClick={clearFilters} className="text-xs font-bold text-primary-container hover:text-primary transition-colors">Xóa tất cả</button>
+            <button type="button" onClick={clearFilters} className="text-xs font-bold text-primary-container hover:text-primary transition-colors cursor-pointer">Xóa tất cả</button>
           </div>
 
-          <div className="mt-5 space-y-5">
-            {/* Điểm đến */}
+          <div className="mt-4 space-y-5">
+            {/* 1. Điểm đến */}
             <div>
               <label className="mb-1.5 block text-xs font-bold text-slate-700" htmlFor="filter-destination">
                 <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">location_on</span>
@@ -293,18 +236,28 @@ export function TourListPage() {
               <Input id="filter-destination" value={searchParams.get('destination') ?? ''} onChange={(event) => updateQuery({ destination: event.target.value })} placeholder="Ví dụ: Đà Nẵng, Hội An..." className="rounded-xl" />
             </div>
 
-            {/* Sắp xếp */}
+            {/* 2. Ngày khởi hành */}
             <div>
-              <label className="mb-1.5 block text-xs font-bold text-slate-700" htmlFor="filter-sort">
-                <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">swap_vert</span>
-                Sắp xếp theo
-              </label>
-              <select id="filter-sort" value={args.sort ?? 'newest'} onChange={(event) => updateQuery({ sort: event.target.value })} className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/20">
-                {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
+              <p className="mb-1.5 text-xs font-bold text-slate-700">
+                <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">calendar_month</span>
+                Ngày khởi hành
+              </p>
+              <AntDateRangePicker
+                startDate={searchParams.get('departureFrom') ?? undefined}
+                endDate={searchParams.get('departureTo') ?? undefined}
+                placeholder={['Từ ngày', 'Đến ngày']}
+                onChange={({ startDate, endDate }) => {
+                  updateQuery({
+                    departureFrom: startDate,
+                    departureTo: endDate,
+                  });
+                }}
+                className="w-full"
+                size="large"
+              />
             </div>
 
-            {/* Khoảng giá — Thanh kéo */}
+            {/* 3. Khoảng giá — Thanh kéo */}
             <div>
               <p className="mb-1.5 text-xs font-bold text-slate-700">
                 <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">payments</span>
@@ -347,52 +300,53 @@ export function TourListPage() {
               </div>
             </div>
 
-            {/* Ngày khởi hành (thay thế cho Thời lượng nếu đã chọn ngày) */}
+            {/* 4. Sắp xếp */}
+            <div>
+              <label className="mb-1.5 block text-xs font-bold text-slate-700" htmlFor="filter-sort">
+                <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">swap_vert</span>
+                Sắp xếp theo
+              </label>
+              <AntSelect
+                value={args.sort ?? 'newest'}
+                onChange={(val) => updateQuery({ sort: val })}
+                options={SORT_OPTIONS}
+                className="w-full"
+                size="large"
+              />
+            </div>
+
+            {/* 5. Thời lượng */}
             <div>
               <p className="mb-1.5 text-xs font-bold text-slate-700">
-                <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">calendar_month</span>
-                Ngày khởi hành
+                <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">schedule</span>
+                Thời lượng
               </p>
-              <div className="space-y-2">
-                <Input type="date" value={searchParams.get('departureFrom') ?? ''} onChange={(event) => updateDateRange('departureFrom', event.target.value)} aria-label="Từ ngày" className="rounded-xl" />
-                <Input type="date" value={searchParams.get('departureTo') ?? ''} onChange={(event) => updateDateRange('departureTo', event.target.value)} aria-label="Đến ngày" className="rounded-xl" />
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { label: '1 ngày', min: 1, max: 1 },
+                  { label: '2-3 ngày', min: 2, max: 3 },
+                  { label: '4-7 ngày', min: 4, max: 7 },
+                  { label: '7+ ngày', min: 7, max: undefined },
+                ].map((opt) => {
+                  const isActive = positiveNumberParam(searchParams.get('minDays')) === opt.min && (opt.max === undefined ? !searchParams.get('maxDays') : positiveNumberParam(searchParams.get('maxDays')) === opt.max);
+                  return (
+                    <button
+                      key={opt.label}
+                      type="button"
+                      onClick={() => updateQuery({
+                        minDays: isActive ? undefined : opt.min,
+                        maxDays: isActive ? undefined : opt.max,
+                      })}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${isActive ? 'border-primary-container bg-primary-container/10 text-primary-container' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400'}`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Thời lượng (ẩn khi đã chọn ngày khởi hành) */}
-            {!hasDepartureFilter && (
-              <div>
-                <p className="mb-1.5 text-xs font-bold text-slate-700">
-                  <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">schedule</span>
-                  Thời lượng
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { label: '1 ngày', min: 1, max: 1 },
-                    { label: '2-3 ngày', min: 2, max: 3 },
-                    { label: '4-7 ngày', min: 4, max: 7 },
-                    { label: '7+ ngày', min: 7, max: undefined },
-                  ].map((opt) => {
-                    const isActive = positiveNumberParam(searchParams.get('minDays')) === opt.min && (opt.max === undefined ? !searchParams.get('maxDays') : positiveNumberParam(searchParams.get('maxDays')) === opt.max);
-                    return (
-                      <button
-                        key={opt.label}
-                        type="button"
-                        onClick={() => updateQuery({
-                          minDays: isActive ? undefined : opt.min,
-                          maxDays: isActive ? undefined : opt.max,
-                        })}
-                        className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${isActive ? 'border-primary-container bg-primary-container/10 text-primary-container' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400'}`}
-                      >
-                        {opt.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Số lượng khách */}
+            {/* 6. Số lượng khách */}
             <div>
               <p className="mb-1.5 text-xs font-bold text-slate-700">
                 <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">group</span>
@@ -405,7 +359,7 @@ export function TourListPage() {
                     const current = positiveIntParam(searchParams.get('guests') ?? '', 0);
                     updateQuery({ guests: current > 1 ? current - 1 : undefined });
                   }}
-                  className="flex size-8 items-center justify-center rounded-full border border-slate-300 text-slate-500 transition hover:border-slate-800 hover:text-slate-800 disabled:opacity-30"
+                  className="flex size-8 items-center justify-center rounded-full border border-slate-300 text-slate-500 transition hover:border-slate-800 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
                   disabled={!searchParams.get('guests') || Number(searchParams.get('guests')) <= 0}
                 >
                   <span className="material-symbols-outlined text-[18px]">remove</span>
@@ -419,7 +373,7 @@ export function TourListPage() {
                     const current = positiveIntParam(searchParams.get('guests') ?? '', 0);
                     updateQuery({ guests: current + 1 });
                   }}
-                  className="flex size-8 items-center justify-center rounded-full border border-slate-300 text-slate-500 transition hover:border-slate-800 hover:text-slate-800"
+                  className="flex size-8 items-center justify-center rounded-full border border-slate-300 text-slate-500 transition hover:border-slate-800 hover:text-slate-800 cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-[18px]">add</span>
                 </button>
@@ -427,11 +381,11 @@ export function TourListPage() {
               </div>
             </div>
 
-            {/* Đánh giá — Ô chọn */}
+            {/* 7. Số sao (Đánh giá) */}
             <div>
               <p className="mb-2 text-xs font-bold text-slate-700">
                 <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">star</span>
-                Đánh giá
+                Đánh giá (Số sao)
               </p>
               <div className="space-y-1.5">
                 {RATING_OPTIONS.map((opt) => {
@@ -441,7 +395,7 @@ export function TourListPage() {
                       key={opt.value}
                       type="button"
                       onClick={() => updateQuery({ minRating: isActive ? undefined : opt.value })}
-                      className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs transition ${isActive ? 'border-primary-container bg-primary-container/10 text-primary-container font-bold' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}
+                      className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs transition cursor-pointer ${isActive ? 'border-primary-container bg-primary-container/10 text-primary-container font-bold' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}
                     >
                       <div className="flex items-center gap-0.5">
                         {Array.from({ length: 5 }).map((_, i) => (

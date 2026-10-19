@@ -514,6 +514,7 @@ export class AuthService {
 
   private async sendOtp(user: UserRecord, purpose: OtpPurpose): Promise<{ expiresInSeconds: number }> {
     const { code, expiresInSeconds } = await this.deps.otp.issue(user.id, purpose);
+    logger.info(`[AUTH OTP] 🔑 Mã OTP cho [${user.email}] (${purpose}): [${code}] (hết hạn sau ${expiresInSeconds}s)`);
     await this.deps.mail.send(buildOtpMail(user.email, purpose, code));
     return { expiresInSeconds };
   }

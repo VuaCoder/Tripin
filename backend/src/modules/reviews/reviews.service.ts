@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { isUniqueViolation } from '../../config/database';
+import { createImageUploadSignature, imagePublicId, verifyImageUpload } from '../../integrations/cloudinary';
 import { BOOKING_STATUS, type PersistedRole } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
 import { buildPage, type Page } from '../../utils/pagination';
@@ -45,14 +47,36 @@ export class ReviewsService {
    * Use case "Write a review". Only the traveler who made a COMPLETED booking can review it, once. The tour and agency
    * come from the booking, never from the client.
    */
-  async createReview(travelerId: string, input: CreateReviewInput): Promise<MyReviewDto> {
-    const booking = await this.bookings.getFacts(input.bookingId);
+  private async reviewableBooking(travelerId: string, bookingId: string) {
+    const booking = await this.bookings.getFacts(bookingId);
     if (!booking || booking.travelerId !== travelerId) throw AppError.notFound('Booking not found');
     if (booking.status !== BOOKING_STATUS.COMPLETED) {
       throw AppError.conflict('You can review a trip after it is completed', 'BOOKING_NOT_COMPLETED');
     }
     if (await this.reviews.findByBookingId(booking.id)) {
       throw AppError.conflict('You already reviewed this booking', 'REVIEW_EXISTS');
+    }
+    return booking;
+  }
+
+  async createImageSignature(travelerId: string, bookingId: string) {
+    await this.reviewableBooking(travelerId, bookingId);
+    return createImageUploadSignature('reviewImage', `${travelerId}/${bookingId}/${randomUUID()}`);
+  }
+
+  async createReview(travelerId: string, input: CreateReviewInput): Promise<MyReviewDto> {
+    const booking = await this.reviewableBooking(travelerId, input.bookingId);
+    const ids = input.imagePublicIds ?? [];
+    if (ids.length > 6 || new Set(ids).size !== ids.length) throw AppError.badRequest('Maximum 6 unique review images');
+    const prefix = `${imagePublicId('reviewImage', `${travelerId}/${booking.id}`)}/`;
+    // Reject foreign assets before contacting the storage provider. Client URLs are never trusted.
+    if (ids.some(id => !id.startsWith(prefix) || !/^[0-9a-f-]{36}$/i.test(id.slice(prefix.length)))) {
+      throw AppError.forbidden('Review images must belong to this booking and traveler');
+    }
+    const images: string[] = [];
+    for (const id of ids) {
+      const asset = await verifyImageUpload('reviewImage', id.slice('tripin/reviews/'.length), id);
+      images.push(asset.secureUrl);
     }
 
     let review: ReviewRecord;
@@ -65,6 +89,7 @@ export class ReviewsService {
         travelerId: travelerId,
         rating: input.rating,
         comment: input.comment,
+        images,
       });
     } catch (error) {
       if (isUniqueViolation(error)) {
@@ -91,7 +116,7 @@ export class ReviewsService {
 
   // ============================================================= Public
 
-  /** Use case "View public review" (Guest): VISIBLE reviews of a tour or an agency; the author is masked. */
+  /** Use case "View public review" (Guest): VISIBLE reviews scoped to a tour, agency or guide; the author is masked. */
   async listPublic(query: ListPublicReviewsQuery): Promise<Page<PublicReviewDto>> {
     const { items, total } = await this.reviews.listPublic(query);
     const authors = await this.users.getSummaries(items.map((review) => review.travelerId));

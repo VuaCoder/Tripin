@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element -- tour covers are arbitrary remote URLs; the card only needs a thumbnail */
 import Link from 'next/link';
-import { formatDepartureDate, formatDuration, formatVnd } from '@/features/cart';
+import { formatDepartureDate, formatDuration, formatVnd } from '@/lib/travel-format';
 import type { WishlistItem } from '../types';
 
 export interface WishlistItemCardProps {

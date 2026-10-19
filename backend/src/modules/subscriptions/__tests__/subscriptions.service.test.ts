@@ -34,7 +34,8 @@ function make(opts: { plan?: S | null; seed?: S[] } = {}) {
     }),
     findById: vi.fn(async (id: string) => db.find((s) => s.id === id) ?? null),
     findPending: vi.fn(async (userId: string, planId: string) => db.find((s) => s.userId === userId && String(s.planId) === planId && s.status === 'PENDING_PAYMENT') ?? null),
-    findCurrentActive: vi.fn(async (userId: string, now: Date) => db.filter((s) => s.userId === userId && s.status === 'ACTIVE' && s.endsAt > now).sort((a, b) => b.endsAt - a.endsAt)[0] ?? null),
+    findCurrentActive: vi.fn(async (userId: string, now: Date) => db.filter((s) => s.userId === userId && s.status === 'ACTIVE' && s.startsAt <= now && s.endsAt > now).sort((a, b) => b.endsAt - a.endsAt)[0] ?? null),
+    findLatestPaid: vi.fn(async (userId: string, now: Date) => db.filter((s) => s.userId === userId && s.status === 'ACTIVE' && s.endsAt > now).sort((a, b) => b.endsAt - a.endsAt)[0] ?? null),
     transition: vi.fn(async (id: string, expected: string[], update: S) => {
       const doc = db.find((s) => s.id === id);
       if (!doc || !expected.includes(doc.status)) return null;
@@ -72,6 +73,14 @@ describe('subscribe', () => {
     await expect(make({ plan: null }).service.subscribe('g1', 'p1')).rejects.toMatchObject({ statusCode: 404 });
     await expect(make({ plan: plan({ isActive: false }) }).service.subscribe('g1', 'p1')).rejects.toMatchObject({ statusCode: 404 });
   });
+
+  it('propagates a checkout failure, leaving a retryable pending subscription', async () => {
+    const { service, payments, db } = make();
+    payments.createCheckout.mockRejectedValueOnce(new Error('Gateway unavailable'));
+    await expect(service.subscribe('g1', 'p1')).rejects.toThrow('Gateway unavailable');
+    expect(db).toHaveLength(1);
+    expect(db[0]!.status).toBe('PENDING_PAYMENT');
+  });
 });
 
 describe('activateFromPayment', () => {
@@ -99,6 +108,18 @@ describe('activateFromPayment', () => {
     const { service, db } = make({ seed: [sub({ status: 'CANCELLED' })] });
     await service.activateFromPayment(paid());
     expect(db[0]!.status).toBe('ACTIVE');
+  });
+
+  it('stacks a third period after the prepaid renewal while current remains the running period', async () => {
+    const now = Date.now();
+    const { service, db } = make({ seed: [
+      sub({ id: 'running', status: 'ACTIVE', startsAt: new Date(now - DAY), endsAt: new Date(now + DAY) }),
+      sub({ id: 'future', status: 'ACTIVE', startsAt: new Date(now + DAY), endsAt: new Date(now + 31 * DAY) }),
+      sub({ id: 's3' }),
+    ] });
+    await service.activateFromPayment(paid({ referenceId: 's3' }));
+    expect(db[2]!.startsAt.getTime()).toBe(now + 31 * DAY);
+    expect(await service.getCurrent('g1')).toMatchObject({ subscription: { id: 'running' } });
   });
 
   it('fails loudly (so the payment is retried) when the subscription cannot be found or belongs to someone else', async () => {

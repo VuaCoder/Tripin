@@ -1,4 +1,4 @@
-/** The subset of the backend `tours` DTOs the cart's "add a tour" picker needs. */
+/** Public tour DTOs used by tour discovery and detail views. */
 
 export interface TourAgency {
   id: string;
@@ -33,6 +33,11 @@ export interface TourDeparture {
 
 /** `GET /tours/:id` (`TourDetailDto`) — only the fields used here; the response carries more. */
 export interface TourDetail extends TourListItem {
+  agePricing?: import('@travel-platform/constants').AgePricing | null;
+  childPricingPolicy?: string;
+  cancellationPolicy?: string;
+  travelNotes?: string;
+  requiredDocuments?: string;
   summary?: string;
   description?: string;
   maxGroupSize?: number;
@@ -55,6 +60,11 @@ export interface TourDetail extends TourListItem {
 export type TourStatus = 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'ARCHIVED';
 export interface TourItineraryDay { day: number; title: string; description?: string; activities: string[]; }
 export interface TourContentInput {
+  agePricing?: import('@travel-platform/constants').AgePricing | null;
+  childPricingPolicy?: string;
+  cancellationPolicy?: string;
+  travelNotes?: string;
+  requiredDocuments?: string;
   title: string;
   summary?: string;
   description?: string;

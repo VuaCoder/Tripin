@@ -47,6 +47,10 @@ export interface UpdatePromotionInput {
 }
 
 export interface ListPromotionsQuery {
+  q?: string;
+  discountType?: DiscountType;
+  from?: Date;
+  to?: Date;
   page: number;
   limit: number;
   isActive?: boolean;

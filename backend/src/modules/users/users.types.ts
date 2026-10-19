@@ -94,6 +94,8 @@ export interface UpdateProfileInput {
 }
 
 export interface ListUsersQuery {
+  from?: Date;
+  to?: Date;
   page: number;
   limit: number;
   role?: PersistedRole;

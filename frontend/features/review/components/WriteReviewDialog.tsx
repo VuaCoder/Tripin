@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button, FormField, Modal, cn } from '@/components/ui';
 import { getApiErrorCode, getApiErrorMessage } from '@/features/auth';
-import { useCreateReviewMutation } from '../api/reviewApi';
+import { useCreateReviewMutation, useCreateReviewImageSignatureMutation } from '../api/reviewApi';
+import { uploadImageToCloudinary } from '@/features/traveler-account/api/avatarUpload';
 import {
   REVIEW_COMMENT_MAX,
   REVIEW_COMMENT_MIN,
@@ -14,6 +15,7 @@ import {
 import { formatDate } from '../utils/format';
 import { hasReviewFormErrors, validateReviewForm, type ReviewFormErrors } from '../utils/validation';
 import { RatingInput } from './RatingInput';
+import { ReviewPhotoPicker } from './ReviewPhotoPicker';
 
 export interface WriteReviewDialogProps {
   open: boolean;
@@ -42,6 +44,13 @@ export function WriteReviewDialog({
   onDuplicate,
 }: WriteReviewDialogProps) {
   const [createReview, { isLoading }] = useCreateReviewMutation();
+  const [createSignature] = useCreateReviewImageSignatureMutation();
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState('');
+  const uploaded = useRef(new Map<File, string>());
+  const submitting = useRef(false);
+  const busy = isLoading || uploading;
   const [bookingId, setBookingId] = useState('');
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -54,17 +63,38 @@ export function WriteReviewDialog({
     setRating(0);
     setComment('');
     setErrors({});
+    setFiles([]);
+    uploaded.current.clear();
+    setProgress('');
   }, [open, eligibleBookings]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (submitting.current) return;
 
     const next = validateReviewForm({ bookingId, rating, comment }, eligibleBookings);
     setErrors(next);
     if (hasReviewFormErrors(next)) return;
 
     const body: CreateReviewInput = { bookingId, rating, comment: comment.trim() };
+    submitting.current = true;
     try {
+      if (files.length) {
+        setUploading(true);
+        const ids: string[] = [];
+        for (const [index, file] of Array.from(files.entries())) {
+          setProgress(`Đang tải ảnh ${index + 1}/${files.length}…`);
+          let publicId = uploaded.current.get(file);
+          if (!publicId) {
+            const signature = await createSignature({ bookingId }).unwrap();
+            publicId = (await uploadImageToCloudinary(file, signature)).publicId;
+            uploaded.current.set(file, publicId);
+          }
+          ids.push(publicId);
+        }
+        body.imagePublicIds = ids;
+      }
+      setProgress('Đang gửi đánh giá…');
       const created = await createReview(body).unwrap();
       onCreated(created);
     } catch (error) {
@@ -78,7 +108,11 @@ export function WriteReviewDialog({
         setErrors({ general: 'Chỉ có thể đánh giá sau khi chuyến đi kết thúc.' });
         return;
       }
-      setErrors({ general: getApiErrorMessage(error, 'Không gửi được đánh giá. Vui lòng thử lại.') });
+      setErrors({ general: error instanceof Error ? error.message : getApiErrorMessage(error, 'Không gửi được đánh giá. Vui lòng thử lại.') });
+    } finally {
+      setUploading(false);
+      setProgress('');
+      submitting.current = false;
     }
   };
 
@@ -87,8 +121,9 @@ export function WriteReviewDialog({
   return (
     <Modal
       open={open}
-      onClose={isLoading ? () => undefined : onClose}
-      closeOnBackdrop={!isLoading}
+      onClose={busy ? () => undefined : onClose}
+      closeOnBackdrop={!busy}
+      className="max-h-[90dvh] overflow-y-auto"
       title="Viết đánh giá"
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -101,8 +136,8 @@ export function WriteReviewDialog({
             <select
               id="review-booking"
               value={bookingId}
-              onChange={(event) => setBookingId(event.target.value)}
-              disabled={isLoading}
+              onChange={(event) => { setBookingId(event.target.value); setFiles([]); uploaded.current.clear(); }}
+              disabled={busy}
               aria-invalid={Boolean(errors.bookingId) || undefined}
               className={cn(FIELD_CLASS, errors.bookingId ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-brand-teal')}
             >
@@ -135,7 +170,7 @@ export function WriteReviewDialog({
             labelledBy="review-rating-label"
             describedBy={errors.rating ? 'review-rating-error' : undefined}
             invalid={Boolean(errors.rating)}
-            disabled={isLoading}
+            disabled={busy}
           />
           {errors.rating && (
             <p id="review-rating-error" role="alert" className="text-xs text-red-600">
@@ -157,7 +192,7 @@ export function WriteReviewDialog({
             onChange={(event) => setComment(event.target.value)}
             rows={5}
             maxLength={REVIEW_COMMENT_MAX}
-            disabled={isLoading}
+            disabled={busy}
             placeholder="Chuyến đi thế nào? Hướng dẫn viên, lịch trình, dịch vụ..."
             aria-invalid={Boolean(errors.comment) || undefined}
             className={cn(FIELD_CLASS, errors.comment ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-brand-teal')}
@@ -167,6 +202,8 @@ export function WriteReviewDialog({
           </p>
         </FormField>
 
+        <ReviewPhotoPicker files={files} onChange={setFiles} disabled={busy} />
+        {progress && <p role="status" className="text-sm text-teal-700">{progress}</p>}
         {errors.general && (
           <p role="alert" className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
             {errors.general}
@@ -174,10 +211,10 @@ export function WriteReviewDialog({
         )}
 
         <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose} disabled={isLoading}>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
             Hủy
           </Button>
-          <Button type="submit" loading={isLoading} loadingLabel="Đang gửi...">
+          <Button type="submit" loading={busy} loadingLabel="Đang gửi...">
             Gửi đánh giá
           </Button>
         </div>

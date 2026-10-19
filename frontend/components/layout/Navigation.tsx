@@ -3,22 +3,17 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { NavigationItem } from './navigation-config';
+import { getActiveNavigationHref } from './navigation-config';
 import { cn } from '../ui/cn';
 
 export function Navigation({ items, onNavigate, isTransparent }: { items: NavigationItem[]; onNavigate?: () => void; isTransparent?: boolean }) {
   const pathname = usePathname();
+  const activeHref = getActiveNavigationHref(pathname, items);
 
   return (
     <nav aria-label="Điều hướng chính" className="flex items-center gap-1 lg:gap-2">
       {items.map((item) => {
-        const childActive = item.children?.some(
-          (child) => pathname === child.href || pathname.startsWith(`${child.href}/`),
-        );
-        const active = Boolean(
-          pathname === item.href ||
-          (item.href !== '/' && pathname.startsWith(`${item.href}/`)) ||
-          childActive,
-        );
+        const active = item.href === activeHref || Boolean(item.children?.some((child) => child.href === activeHref));
 
         // Dropdown item (e.g. Khám phá)
         if (item.children && item.children.length > 0) {

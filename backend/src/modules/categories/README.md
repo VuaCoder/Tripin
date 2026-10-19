@@ -11,7 +11,7 @@ Tour categories configured by the Super admin and used by agencies (to classify 
 ## Files
 | File | Role |
 |---|---|
-| `categories.model.ts` / `.repository.ts` | `Category` schema + DB access |
+| `categories.repository.ts` | `Category` schema + DB access |
 | `categories.service.ts` | Rules: unique slug, deactivate-instead-of-delete, audit, `assertActiveIds` for tours |
 | `categories.validation.ts` / `.controller.ts` / `.routes.ts` / `.mapper.ts` / `.types.ts` | HTTP + DTO |
 | `index.ts` | Public API |
@@ -52,3 +52,6 @@ Real-database scenarios: `users/__tests__/admin.integration.test.ts` (public ord
 ## Not implemented / follow-ups
 * No hierarchy (parent/child) – not in the diagram.
 * No category images/icons.
+
+## ADMIN-01 access boundary
+All admin routes in this module require the current `SUPER_ADMIN` role **and** the listed permission. Extra permissions never bypass the role guard. Public read routes retain their existing access. Storage is Prisma/PostgreSQL; old document/model terminology is not a MongoDB dependency.

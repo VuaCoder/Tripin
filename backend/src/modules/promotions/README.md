@@ -13,7 +13,7 @@ promotions. Travelers enter a code at booking time; `bookings` validates and red
 ## Files
 | File | Role |
 |---|---|
-| `promotions.model.ts` / `.repository.ts` | `Promotion` schema; atomic `consume` / `release` |
+| `promotions.repository.ts` | `Promotion` schema; atomic `consume` / `release` |
 | `promotions.policy.ts` | Pure rules: `computeDiscount`, `assertApplicable`, `isRunning` |
 | `promotions.service.ts` | Scope/ownership rules, create/update, `preview`, `redeem`, `release` |
 | `promotions.validation.ts` / `.controller.ts` / `.routes.ts` / `.mapper.ts` / `.types.ts` | HTTP layer + DTO |
@@ -61,3 +61,9 @@ Audit for platform changes. No emails.
 * Per-traveler usage limits and first-booking-only rules (not in the diagram).
 * Restricting a promotion to specific tours/categories.
 * Stacking several codes on one booking.
+
+## ADMIN-01 access boundary
+All admin routes in this module require the current `SUPER_ADMIN` role **and** the listed permission. Extra permissions never bypass the role guard. Public read routes retain their existing access. Storage is Prisma/PostgreSQL; old document/model terminology is not a MongoDB dependency.
+
+## List search and date filters
+Both scoped lists accept `q` (literal case-insensitive code/title text, max 100), `discountType=PERCENT|FIXED`, existing `isActive`, and paired inclusive `from`/`to`. Date filtering returns validity windows overlapping the requested period (`startsAt <= to` and `endsAt >= from`). All filters run before count/pagination; scope/ownership remain mandatory. Invalid/partial/reversed ranges return 400.

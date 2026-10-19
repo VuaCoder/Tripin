@@ -1,4 +1,5 @@
 import { baseApi } from '@/store/api/baseApi';
+import type { ImageUploadSignature } from '@/features/traveler-account/types';
 import {
   BOOKING_STATUS_COMPLETED,
   COMPLETED_BOOKINGS_FETCH_LIMIT,
@@ -25,6 +26,10 @@ import {
  */
 export const reviewApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
+    createReviewImageSignature: build.mutation<ImageUploadSignature, { bookingId: string }>({
+      query: body => ({ url: '/reviews/images/upload-signature', method: 'POST', body }),
+      transformResponse: (response: ReviewItemResponse<ImageUploadSignature>) => response.data,
+    }),
     /** Header and rating summary of the thin public tour page (`GET /tours/:id`). */
     getTourDetail: build.query<TourReviewContext, string>({
       query: (id) => ({ url: `/tours/${id}` }),
@@ -89,4 +94,5 @@ export const {
   useGetTourReviewsQuery,
   useGetMyReviewsQuery,
   useCreateReviewMutation,
+  useCreateReviewImageSignatureMutation,
 } = reviewApi;
