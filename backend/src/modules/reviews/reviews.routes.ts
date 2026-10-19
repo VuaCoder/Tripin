@@ -8,7 +8,7 @@ import { createReviewBody, listMyReviewsQuery, listPublicReviewsQuery, reviewIma
 /** Mounted at /api/v1/reviews */
 export const reviewsRouter = Router();
 
-// Public (GUEST): visible reviews of a tour or an agency.
+// Public (GUEST): visible reviews of a tour, agency, or completed trips led by a guide.
 reviewsRouter.get('/', validate({ query: listPublicReviewsQuery }), reviewsController.listPublic);
 // '/me' is declared before any '/:id' style route.
 reviewsRouter.get('/me', requirePermission(PERMISSIONS.REVIEW_CREATE), validate({ query: listMyReviewsQuery }), reviewsController.listMine);

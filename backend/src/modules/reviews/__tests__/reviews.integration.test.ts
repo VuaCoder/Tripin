@@ -41,6 +41,47 @@ async function setup() {
 }
 
 describe('reviews (integration)', () => {
+  it('lets guests read profiles and visible reviews scoped to the guide who led the completed booking', async () => {
+    const { agency, traveler, moderator, tourId, departureId } = await setup();
+    const guide = await createUser('TOUR_GUIDE', 'public-guide@example.com');
+    const otherGuide = await createUser('TOUR_GUIDE', 'other-guide@example.com');
+    const bookingId = await bookTrip(traveler, tourId, departureId);
+    await completeTrips([bookingId]);
+    const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
+    await prisma.earning.create({ data: { guideId: guide.id, bookingId, bookingCode: booking.bookingCode, tourId, tourTitle: booking.tourTitle, agencyId: agency.id, amount: 0, earnedAt: new Date() } });
+    // Changing the current tour guide must not move an old trip's reviews to that new guide.
+    await prisma.tourGuideAssignment.upsert({ where: { tourId }, create: { tourId, guideId: otherGuide.id, feePerBooking: 0, status: 'ACCEPTED' }, update: { guideId: otherGuide.id, status: 'ACCEPTED' } });
+    const created = await review(traveler.token, bookingId, 4);
+    expect(created.status).toBe(201);
+    for (const path of [`agencies/${agency.id}`, `tour-guides/${guide.id}`]) {
+      const profile = await request(app).get(`/api/v1/${path}`);
+      expect(profile.status).toBe(200);
+      expect(profile.body.data).not.toHaveProperty('email');
+      expect(profile.body.data).not.toHaveProperty('phone');
+    }
+    for (const filter of [{ agencyId: agency.id }, { guideId: guide.id }]) {
+      const result = await request(app).get('/api/v1/reviews').query({ ...filter, sort: 'rating_desc', limit: 1 });
+      expect(result.status).toBe(200);
+      expect(result.body.data).toHaveLength(1);
+      expect(result.body.meta.total).toBe(1);
+      expect(result.body.data[0]).not.toHaveProperty('travelerId');
+      expect(result.body.data[0].author.name).not.toBe('Tran Thi B');
+    }
+    expect((await request(app).get('/api/v1/reviews').query({ guideId: otherGuide.id })).body.data).toEqual([]);
+    for (const sort of ['newest', 'rating_asc']) {
+      const result = await request(app).get('/api/v1/reviews').query({ guideId: guide.id, sort });
+      expect(result.status).toBe(200);
+      expect(result.body.data[0].id).toBe(created.body.data.id);
+    }
+    expect((await request(app).get('/api/v1/reviews').query({ guideId: guide.id, page: 2, limit: 1 })).body.data).toEqual([]);
+    expect((await request(app).get('/api/v1/reviews').query({ guideId: guide.id, tourId })).status).toBe(400);
+    expect((await request(app).get('/api/v1/reviews').query({ guideId: 'invalid' })).status).toBe(400);
+    expect((await request(app).post('/api/v1/bookings').send({})).status).toBe(401);
+    await request(app).post(`/api/v1/moderation/reviews/${created.body.data.id}/moderate`).set(bearer(moderator.token)).send({ hide: true, reason: 'Hidden for test' }).expect(200);
+    const hidden = await request(app).get('/api/v1/reviews').query({ guideId: guide.id });
+    expect(hidden.body.data).toEqual([]);
+    expect(hidden.body.meta.total).toBe(0);
+  });
   it('persists verified photos, returns them publicly, hides them with moderation and rejects foreign assets', async () => {
     const { traveler, moderator, tourId, departureId } = await setup();
     const bookingId = await bookTrip(traveler, tourId, departureId);

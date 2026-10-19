@@ -15,6 +15,13 @@ const tour = { id: 't1', title: 'Tour Ninh Bình 3 ngày', destination: 'Ninh B�
 };
 afterEach(cleanup);
 describe('Tour detail content', () => {
+  it('links guests to the public agency and guide profiles', () => {
+    render(<TourDetailView tour={{ ...tour, agency: { id: 'a1', name: 'Agency An' }, guide: { id: 'g1', fullName: 'Guide An' } }} />);
+    expect(screen.getByRole('link', { name: 'Agency An' }).getAttribute('href')).toBe('/agencies/a1');
+    expect(screen.getByRole('link', { name: 'Hướng dẫn viên: Guide An' }).getAttribute('href')).toBe('/tour-guides/g1');
+    expect(screen.getByText('Đánh giá')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Đăng nhập để đặt tour' })).toBeTruthy();
+  });
   it('renders independent itinerary, price and guidance sections from backend data', () => {
     render(<TourDetailView tour={tour} />);
     expect(screen.getByText('Đi thuyền qua các hang động.')).toBeTruthy();

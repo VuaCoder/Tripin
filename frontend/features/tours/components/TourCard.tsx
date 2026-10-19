@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/features/auth';
@@ -17,20 +16,11 @@ export interface TourCardProps {
 
 /** Card công khai cho 1 tour — hiển thị trên trang khám phá. */
 export function TourCard({ tour, categoryName }: TourCardProps) {
-  const router = useRouter();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const providerName = tour.agency?.name ?? 'Nhà cung cấp Tripri';
   const [coverFailed, setCoverFailed] = useState(false);
   const wishlist = useTourWishlist(tour.id);
-
-  const handleCardClick = (e: React.MouseEvent) => {
-    if (!isAuthenticated) {
-      e.preventDefault();
-      e.stopPropagation();
-      setShowLoginModal(true);
-    }
-  };
 
   const handleWishlistClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -124,26 +114,9 @@ export function TourCard({ tour, categoryName }: TourCardProps) {
 
   return (
     <>
-      {isAuthenticated ? (
-        <Link href={`/tours/${tour.id}`} className={cardClassName}>
-          {cardInner}
-        </Link>
-      ) : (
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={handleCardClick}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              handleCardClick(e as unknown as React.MouseEvent);
-            }
-          }}
-          className={cardClassName}
-        >
-          {cardInner}
-        </div>
-      )}
+      <Link href={`/tours/${tour.id}`} className={cardClassName}>
+        {cardInner}
+      </Link>
       <GuestLoginPromptModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
