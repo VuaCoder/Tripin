@@ -28,6 +28,7 @@ export interface ListPublicReviewsQuery {
   limit: number;
   tourId?: string;
   agencyId?: string;
+  guideId?: string;
   sort: ReviewSort;
 }
 

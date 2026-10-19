@@ -15,9 +15,10 @@ export const listPublicReviewsQuery = paginationQuerySchema
   .extend({
     tourId: idSchema.optional(),
     agencyId: idSchema.optional(),
+    guideId: idSchema.optional(),
     sort: z.enum(['newest', 'rating_desc', 'rating_asc']).default('newest'),
   })
-  .refine((q) => Boolean(q.tourId) !== Boolean(q.agencyId), { message: 'Provide exactly one of tourId or agencyId', path: ['tourId'] });
+  .refine((q) => [q.tourId, q.agencyId, q.guideId].filter(Boolean).length === 1, { message: 'Provide exactly one of tourId, agencyId or guideId', path: ['tourId'] });
 
 export const listMyReviewsQuery = paginationQuerySchema;
 export const reviewImageSignatureBody = z.object({ bookingId: idSchema }).strict();

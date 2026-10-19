@@ -115,7 +115,7 @@ export class ReviewsService {
 
   // ============================================================= Public
 
-  /** Use case "View public review" (Guest): VISIBLE reviews of a tour or an agency; the author is masked. */
+  /** Use case "View public review" (Guest): VISIBLE reviews scoped to a tour, agency or guide; the author is masked. */
   async listPublic(query: ListPublicReviewsQuery): Promise<Page<PublicReviewDto>> {
     const { items, total } = await this.reviews.listPublic(query);
     const authors = await this.users.getSummaries(items.map((review) => review.travelerId));

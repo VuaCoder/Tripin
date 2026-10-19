@@ -350,12 +350,7 @@ export default function Home() {
     setCategoryTab(tab);
   };
 
-  const handleProductCardClick = (product: ProductCard) => {
-    if (!isAuthenticated) {
-      setSelectedTourPrompt({ title: product.title, href: '/tours' });
-      setGuestModalOpen(true);
-      return;
-    }
+  const handleProductCardClick = (_product: ProductCard) => {
     router.push('/tours');
   };
 

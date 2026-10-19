@@ -17,7 +17,9 @@
 - View Tour Details
 - View Public Agency Profile
 - View Public Tour Guide Profile
-- View Public Review
+- View Public Review (included in View Tour Details, View Public Agency Profile, and View Public Tour Guide Profile)
+
+Guest can access these public views without login. Booking a tour requires login as a Traveler. Writing reviews and other account actions retain their existing permissions.
 
 ## 3. Traveler
 - View Profile

@@ -50,10 +50,10 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Complete an owned booking | bookings | `POST /bookings/:id/complete` | booking:view-own | done |
 | Make payment (Payment Gateway) | payments | `POST /payments/bookings/:bookingId/checkout`, `GET /payments/:id`, `POST /payments/webhooks/payos` (GUEST, signature) | payment:create | done |
 | Receive E-ticket | e-tickets | `GET /e-tickets`, `GET /e-tickets/:id`, `GET /e-tickets/booking/:bookingId` (+ email/notification on issue) | eticket:view-own | done |
-| Write a review / View reviews | reviews | `POST /reviews`, `GET /reviews/me` | review:create | done |
+| Write a review / View reviews | reviews | `POST /reviews`, `GET /reviews/me`, `POST /reviews/images/upload-signature` | review:create | done |
 | Send report | reports | `POST /reports`, `GET /reports/me`, `GET /reports/:id` | report:create | done |
 | Send ticket (support) | support | `POST /support/tickets`, `GET /support/tickets/me`, `GET /support/tickets/:id`, `POST /support/tickets/:id/messages`, `POST /support/tickets/:id/close` | support:create | done |
-| Make a conversation (with Tour guide) | chat | `POST /chat/conversations`, `GET /chat/conversations`, `GET /chat/conversations/:id/messages`, `POST /chat/conversations/:id/messages`, `POST /chat/conversations/:id/read` + Socket.IO | chat:use | done |
+| Make a conversation (with Tour guide) | chat | `POST /chat/conversations`, `GET /chat/conversations`, `GET /chat/conversations/:id`, `GET /chat/conversations/:id/messages`, `POST /chat/conversations/:id/messages`, `POST /chat/conversations/:id/read` + Socket.IO | chat:use | done |
 | Chat with AI (AI Agent) | ai | `POST /ai/chat`, `GET /ai/conversations`, `GET /ai/conversations/:id` | ai:chat | done |
 | (supporting) notifications | notifications | `GET /notifications`, `GET /notifications/unread-count`, `PATCH /notifications/:id/read`, `POST /notifications/read-all`, `DELETE /notifications/:id` | auth; owner-scoped | done |
 
