@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Clock, MapPin } from 'lucide-react';
 import { ErrorState, LoadingState } from '@/components/shared';
 import { WishlistButton } from '@/features/wishlist';
+import { ReportButton } from '@/features/report';
 import { formatDepartureDate } from '@/features/cart';
 import { selectIsAuthenticated, selectRole } from '@/features/auth';
 import { useAppSelector } from '@/store/hooks';
@@ -122,7 +123,10 @@ export default function TourDetailPage() {
                 );
               })()}
 
-              <WishlistButton tourId={tour.id} className="mt-4" />
+              <div className="mt-4 flex flex-wrap items-start gap-3">
+                <WishlistButton tourId={tour.id} />
+                <ReportButton targetType="TOUR" targetId={tour.id} targetLabel={tour.title} />
+              </div>
 
               {tour.description && (
                 <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-slate-600">{tour.description}</p>

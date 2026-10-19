@@ -48,9 +48,12 @@ function make(seed: T[] = []) {
     listByUser: vi.fn(async () => ({ items: db, total: db.length })),
     listForModeration: vi.fn(async () => ({ items: db, total: db.length })),
   };
-  const bookings = { getFacts: vi.fn(async (id: string) => (id === 'ghost' ? null : { id, travelerId: 'u1' })) };
+  const bookings = {
+    getFacts: vi.fn(async (id: string) => (id === 'ghost' ? null : { id, bookingCode: 'TRP-AAAA2222', travelerId: 'u1' })),
+  };
+  const users = { getSummaries: vi.fn(async (ids: string[]) => new Map(ids.map((id) => [id, { id, fullName: `Tên ${id}` }]))) };
   const notifications = { notify: vi.fn(async () => undefined) };
-  return { service: new SupportService(repo as never, bookings as never, notifications), repo, bookings, notifications, db };
+  return { service: new SupportService(repo as never, bookings as never, users as never, notifications), repo, bookings, users, notifications, db };
 }
 
 const moderator = { userId: 'm1', role: ROLES.MODERATOR } as const;
@@ -142,5 +145,16 @@ describe('staff handling', () => {
     await expect(service.setStatus(moderator, 'k1', 'IN_PROGRESS')).resolves.toMatchObject({ status: 'IN_PROGRESS' }); // RESOLVED -> IN_PROGRESS is allowed (reopen)
     const closed = make([ticket({ status: 'CLOSED' })]);
     await expect(closed.service.setStatus(moderator, 'k1', 'RESOLVED')).rejects.toMatchObject({ code: 'INVALID_STATE_TRANSITION' });
+  });
+
+  it('names the sender, the assignee and the related booking code instead of leaving ids', async () => {
+    const { service } = make([ticket({ bookingId: 'b1', status: 'IN_PROGRESS', assignedToId: 'm0' })]);
+    expect(await service.getForModeration('k1')).toMatchObject({
+      userName: 'Tên u1',
+      assignedToName: 'Tên m0',
+      bookingCode: 'TRP-AAAA2222',
+      userId: 'u1', // the id stays on the wire: the reply/ban actions are keyed by it
+    });
+    expect(await service.setStatus(moderator, 'k1', 'RESOLVED')).toMatchObject({ userName: 'Tên u1' });
   });
 });

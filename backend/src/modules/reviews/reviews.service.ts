@@ -8,7 +8,7 @@ import { bookingsService, type BookingsService } from '../bookings';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
 import { toursService, type ToursService } from '../tours';
 import { usersService, type UsersService } from '../users';
-import { toModerationReviewDto, toMyReviewDto, toPublicReviewDto } from './reviews.mapper';
+import { toModerationReviewDto, toMyReviewDto, toPublicReviewDto, type ReviewNames } from './reviews.mapper';
 import type { ReviewRecord } from './reviews.repository';
 import { reviewsRepository, type ReviewsRepository } from './reviews.repository';
 import {
@@ -20,6 +20,7 @@ import {
   type ModerationReviewDto,
   type MyReviewDto,
   type PublicReviewDto,
+  type ReviewFacts,
   type ReviewStatus,
 } from './reviews.types';
 
@@ -101,11 +102,21 @@ export class ReviewsService {
     );
   }
 
-  /** Minimal facts for other modules (e.g. reports about a review). Null when it does not exist. */
-  async getFacts(reviewId: string): Promise<{ id: string; tourId: string; agencyId: string; travelerId: string; status: ReviewStatus } | null> {
+  /** Minimal facts for other modules (e.g. a report about a review, or an agency disputing one). Null when it does not exist. */
+  async getFacts(reviewId: string): Promise<ReviewFacts | null> {
     const review = await this.reviews.findById(reviewId);
     return review
-      ? { id: review.id, tourId: review.tourId, agencyId: review.agencyId, travelerId: review.travelerId, status: review.status as ReviewStatus }
+      ? {
+          id: review.id,
+          tourId: review.tourId,
+          agencyId: review.agencyId,
+          travelerId: review.travelerId,
+          status: review.status as ReviewStatus,
+          rating: review.rating,
+          comment: review.comment,
+          tourTitle: review.tourTitle,
+          hiddenReason: review.hiddenReason ?? undefined,
+        }
       : null;
   }
 
@@ -114,7 +125,8 @@ export class ReviewsService {
   /** Called by `moderation` for "Moderate reviews" (list). */
   async listForModeration(query: ListModerationReviewsQuery): Promise<Page<ModerationReviewDto>> {
     const { items, total } = await this.reviews.listForModeration(query);
-    return buildPage(items.map(toModerationReviewDto), total, query);
+    const names = await this.namesFor(items);
+    return buildPage(items.map((review) => toModerationReviewDto(review, names.get(review.id))), total, query);
   }
 
   /** Called by `moderation`: hide (reason required) or restore a review; the tour rating is recomputed. */
@@ -149,7 +161,7 @@ export class ReviewsService {
       body: decision.hide ? `Your review of "${review.tourTitle}" was hidden: ${decision.reason}` : `Your review of "${review.tourTitle}" is visible again.`,
       data: { reviewId },
     });
-    return toModerationReviewDto(updated);
+    return toModerationReviewDto(updated, (await this.namesFor([updated])).get(updated.id));
   }
 
   /** Reviews per status (dashboards). */
@@ -159,6 +171,23 @@ export class ReviewsService {
   }
 
   // ============================================================ helpers
+
+  /** Display names of a page of reviews (author + agency), so the moderator queue shows no raw ids. */
+  private async namesFor(items: ReviewRecord[]): Promise<Map<string, ReviewNames>> {
+    const people = await this.users.getSummaries(items.flatMap((review) => [review.travelerId, review.agencyId]));
+    return new Map(
+      items.map((review) => {
+        const agency = people.get(review.agencyId);
+        return [
+          review.id,
+          {
+            travelerName: people.get(review.travelerId)?.fullName,
+            agencyName: agency ? (agency.companyName ?? agency.fullName) : undefined,
+          },
+        ];
+      }),
+    );
+  }
 
   /**
    * Recomputes the tour's average/count from VISIBLE reviews only (2 decimals). Two reviews written at the same moment

@@ -38,11 +38,18 @@ export function toComplaintDto(report: ReportRecord, reporterFullName?: string):
   return { ...base(report), tourId: report.tourId ? report.tourId : undefined, reporterName: maskName(reporterFullName) };
 }
 
-export function toModerationReportDto(report: ReportRecord): ModerationReportDto {
+/** What a report resolves to for display: names instead of ids, plus the review being judged when there is one. */
+export type ReportExtras = Pick<
+  ModerationReportDto,
+  'reporterName' | 'targetName' | 'agencyName' | 'tourTitle' | 'bookingCode' | 'review'
+>;
+
+export function toModerationReportDto(report: ReportRecord, extras: ReportExtras = {}): ModerationReportDto {
   return {
     ...base(report),
     reporterId: report.reporterId,
     agencyId: report.agencyId ? report.agencyId : undefined,
     tourId: report.tourId ? report.tourId : undefined,
+    ...extras,
   };
 }

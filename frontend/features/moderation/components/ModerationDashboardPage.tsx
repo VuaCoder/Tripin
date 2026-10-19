@@ -22,6 +22,8 @@ export function ModerationDashboardPage() {
   const allowed = useModerationPermission(PERMISSION.dashboard);
   const canTours = useModerationPermission(PERMISSION.tourList);
   const canAgencies = useModerationPermission(PERMISSION.agencyVerify);
+  const canReports = useModerationPermission(PERMISSION.disputeResolve);
+  const canTickets = useModerationPermission(PERMISSION.complaintHandle);
   const { data, isLoading, isError, isFetching, refetch } = useGetModerationDashboardQuery(undefined, { skip: !allowed });
 
   if (!allowed) return <ModerationDenied />;
@@ -30,8 +32,8 @@ export function ModerationDashboardPage() {
     ? [
         { label: 'Tour chờ duyệt', value: data.queues.toursPendingReview, hint: 'Cần quyết định duyệt / từ chối', href: '/moderator/tours?status=PENDING_REVIEW', allowed: canTours },
         { label: 'Agency chờ xác minh', value: data.queues.agenciesPendingVerification, hint: 'Hồ sơ đối tác mới gửi', href: '/moderator/agencies', allowed: canAgencies },
-        { label: 'Báo cáo đang mở', value: data.queues.reportsOpen + data.queues.reportsAwaitingDecision, hint: `${data.queues.reportsAwaitingDecision} chờ quyết định cuối`, allowed: false },
-        { label: 'Khiếu nại hỗ trợ', value: data.queues.supportTicketsOpen + data.queues.supportTicketsInProgress, hint: `${data.queues.supportTicketsInProgress} đang xử lý`, allowed: false },
+        { label: 'Báo cáo đang mở', value: data.queues.reportsOpen + data.queues.reportsAwaitingDecision, hint: `${data.queues.reportsAwaitingDecision} chờ quyết định cuối`, href: '/moderator/reports', allowed: canReports },
+        { label: 'Khiếu nại hỗ trợ', value: data.queues.supportTicketsOpen + data.queues.supportTicketsInProgress, hint: `${data.queues.supportTicketsInProgress} đang xử lý`, href: '/moderator/support-tickets', allowed: canTickets },
       ]
     : [];
 

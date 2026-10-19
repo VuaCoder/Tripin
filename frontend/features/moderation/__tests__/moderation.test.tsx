@@ -127,7 +127,7 @@ describe('ModerationTourListPage', () => {
     allowAll();
     const refetch = vi.fn();
     mockTours.mockReturnValue(q({ data: { items: [tour({ status: 'APPROVED' })], meta: META }, refetch }));
-    mockSuspend.mockReturnValue(unwrapFail('INVALID_TRANSITION', 'nope'));
+    mockSuspend.mockReturnValue(unwrapFail('INVALID_STATE_TRANSITION', 'nope'));
     render(<ModerationTourListPage />);
     fireEvent.click(screen.getByText('Xem & xử lý'));
     fireEvent.change(screen.getByLabelText(/Lý do tạm ngưng/), { target: { value: 'Sai thông tin' } });
