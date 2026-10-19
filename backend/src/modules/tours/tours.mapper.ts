@@ -1,4 +1,5 @@
 import type { TourStatus } from '@travel-platform/constants';
+import type { AgePricing } from '@travel-platform/constants';
 import type { CategoryDto } from '../categories';
 import type { UserSummary } from '../users';
 import type { TourRecord } from './tours.repository';
@@ -79,6 +80,11 @@ export function toTourDetailDto(tour: TourRecord, context: DetailContext): TourD
   return {
     ...toTourListItemDto(tour, context.agency),
     description: tour.description ?? undefined,
+    childPricingPolicy: tour.childPricingPolicy || undefined,
+    agePricing: tour.agePricing as unknown as AgePricing | null,
+    cancellationPolicy: tour.cancellationPolicy || undefined,
+    travelNotes: tour.travelNotes || undefined,
+    requiredDocuments: tour.requiredDocuments || undefined,
     maxGroupSize: tour.maxGroupSize ?? undefined,
     images: tour.images,
     inclusions: tour.inclusions,

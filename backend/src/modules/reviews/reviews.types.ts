@@ -20,6 +20,7 @@ export interface CreateReviewInput {
   bookingId: string;
   rating: number;
   comment: string;
+  imagePublicIds?: string[];
 }
 
 export interface ListPublicReviewsQuery {
@@ -42,6 +43,7 @@ export interface PublicReviewDto {
   id: string;
   rating: number;
   comment: string;
+  images: string[];
   tourId: string;
   author: { name: string; avatarUrl?: string };
   createdAt: string;
@@ -55,6 +57,7 @@ export interface MyReviewDto {
   tourTitle: string;
   rating: number;
   comment: string;
+  images: string[];
   status: ReviewStatus;
   hiddenReason?: string;
   createdAt: string;

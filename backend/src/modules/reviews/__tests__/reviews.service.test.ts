@@ -2,6 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { BOOKING_STATUS, ROLES } from '@travel-platform/constants';
 import { maskName } from '../reviews.mapper';
 import { ReviewsService } from '../reviews.service';
+import { verifyImageUpload, createImageUploadSignature } from '../../../integrations/cloudinary';
+vi.mock('../../../integrations/cloudinary', async importOriginal => ({
+  ...await importOriginal<typeof import('../../../integrations/cloudinary')>(),
+  verifyImageUpload: vi.fn(async (_purpose, _owner, publicId) => ({ publicId, secureUrl: 'https://res.cloudinary.com/test/image/upload/trip.jpg' })),
+  createImageUploadSignature: vi.fn(() => ({ params: { overwrite: 'false' } })),
+}));
 
 type R = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -48,6 +54,29 @@ function make(opts: { booking?: R | null; seed?: R[]; stats?: { avg: number; cou
 const input = { bookingId: 'b1', rating: 5, comment: 'Wonderful trip, great guide!' };
 
 describe('createReview', () => {
+  it('checks image ownership before verification and persists only verified storage URLs', async () => {
+    const id = 'tripin/reviews/u1/b1/11111111-1111-4111-8111-111111111111';
+    const { service, repo } = make();
+    const dto = await service.createReview('u1', { ...input, imagePublicIds: [id] });
+    expect(verifyImageUpload).toHaveBeenCalledWith('reviewImage', id.slice('tripin/reviews/'.length), id);
+    expect(dto.images).toEqual(['https://res.cloudinary.com/test/image/upload/trip.jpg']);
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ images: dto.images }));
+    await expect(service.createReview('u1', { ...input, bookingId: 'b2', imagePublicIds: ['tripin/reviews/other/b2/11111111-1111-4111-8111-111111111111'] })).rejects.toBeDefined();
+  });
+
+  it('refuses foreign assets, duplicate assets and more than six images', async () => {
+    const id = 'tripin/reviews/other/b1/11111111-1111-4111-8111-111111111111';
+    await expect(make().service.createReview('u1', { ...input, imagePublicIds: [id] })).rejects.toMatchObject({ statusCode: 403 });
+    await expect(make().service.createReview('u1', { ...input, imagePublicIds: [id, id] })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(make().service.createReview('u1', { ...input, imagePublicIds: Array.from({ length: 7 }, (_, i) => String(i)) })).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('only issues image signatures for an owned, completed, unreviewed booking', async () => {
+    await make().service.createImageSignature('u1', 'b1');
+    expect(createImageUploadSignature).toHaveBeenCalledWith('reviewImage', expect.stringMatching(/^u1\/b1\//));
+    await expect(make({ booking: facts({ travelerId: 'other' }) }).service.createImageSignature('u1', 'b1')).rejects.toMatchObject({ statusCode: 404 });
+    await expect(make({ booking: facts({ status: 'PENDING' }) }).service.createImageSignature('u1', 'b1')).rejects.toMatchObject({ code: 'BOOKING_NOT_COMPLETED' });
+  });
   it('reviews a completed booking, takes tour/agency from the booking and refreshes the tour rating', async () => {
     const { service, repo, tours, notifications } = make();
     const dto = await service.createReview('u1', { ...input });

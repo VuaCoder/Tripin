@@ -34,7 +34,9 @@ describe('WishlistButton', () => {
     setState({ isSaved: true });
     render(<WishlistButton tourId="t1" />);
 
-    expect(screen.getByRole('button', { name: /Đã lưu/ }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Bỏ lưu tour' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByText('Đã lưu')).toBeNull();
+    expect(screen.queryByText('Xem danh sách yêu thích')).toBeNull();
   });
 
   it('sends guests to the login page', () => {

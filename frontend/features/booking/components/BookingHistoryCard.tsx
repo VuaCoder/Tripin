@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { formatDepartureDate, formatParticipants, formatVnd } from '@/features/cart';
+import { formatDepartureDate, formatParticipants, formatVnd } from '@/lib/travel-format';
 import { useCheckoutBookingMutation } from '@/features/payment';
 import { BookingStatusBadge } from './BookingStatusBadge';
 import type { BookingDto } from '../types';

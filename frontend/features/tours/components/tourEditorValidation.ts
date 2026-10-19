@@ -1,12 +1,14 @@
 import type { TourContentInput } from '../types';
 
-export const editorFields = ['title', 'destination', 'durationDays', 'summary', 'categoryIds', 'basePrice', 'maxGroupSize'] as const;
+export const editorFields = ['title', 'destination', 'durationDays', 'summary', 'categoryIds', 'basePrice', 'maxGroupSize', 'agePricing'] as const;
 export type EditorField = typeof editorFields[number];
 export type EditorErrors = Partial<Record<EditorField, string>>;
-export const fieldStep = (field: EditorField) => field === 'basePrice' || field === 'maxGroupSize' ? 3 : 1;
+export const fieldStep = (field: EditorField) => field === 'agePricing' ? 4 : field === 'basePrice' || field === 'maxGroupSize' ? 3 : 1;
 
 export function validateTourEditor(value: TourContentInput): EditorErrors {
   const errors: EditorErrors = {};
+  const pricing = value.agePricing;
+  if (pricing && (!Object.values(pricing).every(Number.isInteger) || pricing.childMinAge < 1 || pricing.adultMinAge > 18 || pricing.childMinAge >= pricing.adultMinAge || pricing.childPercent < 0 || pricing.childPercent > 100 || pricing.infantPercent < 0 || pricing.infantPercent > 100)) errors.agePricing = 'Kiểm tra khoảng tuổi và tỷ lệ giá từ 0 đến 100%.';
   if (value.title.trim().length < 5 || value.title.trim().length > 200) errors.title = 'Nhập tên tour từ 5 đến 200 ký tự nhé.';
   if (value.destination.trim().length < 2 || value.destination.trim().length > 120) errors.destination = 'Nhập điểm đến từ 2 đến 120 ký tự nhé.';
   if (!Number.isInteger(value.durationDays) || value.durationDays < 1 || value.durationDays > 365) errors.durationDays = 'Chọn số ngày từ 1 đến 365, không dùng số lẻ.';
@@ -18,6 +20,7 @@ export function validateTourEditor(value: TourContentInput): EditorErrors {
 }
 
 const serverHints: Record<EditorField, string> = {
+  agePricing: 'Khoảng tuổi hoặc tỷ lệ giá trẻ em chưa hợp lệ.',
   title: 'Tên tour chưa hợp lệ. Hãy nhập từ 5 đến 200 ký tự.',
   destination: 'Điểm đến chưa hợp lệ. Hãy nhập từ 2 đến 120 ký tự.',
   durationDays: 'Thời lượng chưa hợp lệ. Hãy chọn từ 1 đến 365 ngày.',

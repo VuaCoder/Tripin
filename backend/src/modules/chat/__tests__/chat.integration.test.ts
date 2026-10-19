@@ -24,6 +24,19 @@ const send = (token: string, conversationId: string, text: string) =>
   request(app).post(`/api/v1/chat/conversations/${conversationId}/messages`).set(bearer(token)).send({ text });
 
 describe('chat REST (integration)', () => {
+  it('returns details only to participants and hides foreign conversation IDs', async () => {
+    const { traveler, guide, outsider } = await setup();
+    const id = (await start(traveler.token, guide.id)).body.data.id;
+    const detail = (token?: string, conversationId = id) => {
+      const req = request(app).get(`/api/v1/chat/conversations/${conversationId}`);
+      return token ? req.set(bearer(token)) : req;
+    };
+    expect((await detail(traveler.token)).body.data.counterpart.id).toBe(guide.id);
+    expect((await detail(guide.token)).body.data.counterpart.id).toBe(traveler.id);
+    expect((await detail(outsider.token)).status).toBe(404);
+    expect((await detail(traveler.token, '11111111-1111-4111-8111-111111111111')).status).toBe(404);
+    expect((await detail()).status).toBe(401);
+  });
   it('only a traveler and a tour guide can talk; both starting at once share ONE conversation', async () => {
     const { traveler, guide, outsider } = await setup();
     const agency = await createUser('AGENCY', 'agency@example.com');

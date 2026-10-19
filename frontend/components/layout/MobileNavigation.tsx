@@ -25,9 +25,7 @@ export function MobileNavigation({
 
   const accountLinks = user?.role === 'TRAVELER'
     ? [
-        { label: 'Danh sách yêu thích', href: '/settings/wishlist', icon: 'favorite' },
-        { label: 'Chuyến đi', href: '/settings/history', icon: 'confirmation_number' },
-        { label: 'Hồ sơ', href: '/settings/profile', icon: 'person' },
+        { label: 'Hồ sơ cá nhân', href: '/settings/profile', icon: 'person' },
       ]
     : user
       ? [{ label: 'Tổng quan', href: homeForRole(user.role), icon: 'dashboard' }]
@@ -170,6 +168,25 @@ export function MobileNavigation({
                         {item.label}
                       </Link>
                     ))}
+                    {user.role === 'TRAVELER' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          closeMenu();
+                          onOpenPremium?.();
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-50"
+                      >
+                        <span
+                          className="material-symbols-outlined text-[19px] text-amber-500"
+                          style={{ fontVariationSettings: "'FILL' 1" }}
+                        >
+                          workspace_premium
+                        </span>
+                        <span className="flex-1 font-bold">Premium</span>
+                        <span className="material-symbols-outlined text-[14px] text-amber-500">auto_awesome</span>
+                      </button>
+                    )}
                   </div>
                 )}
 

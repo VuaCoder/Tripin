@@ -6,7 +6,7 @@ import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth';
 import { EmptyState, LoadingState } from '@/components/shared';
 import { useGetMyBookingsQuery, BookingStatusBadge } from '@/features/booking';
-import { formatDepartureDate, formatParticipants, formatVnd } from '@/features/cart';
+import { formatDepartureDate, formatParticipants, formatVnd } from '@/lib/travel-format';
 
 export default function TravelerDashboardPage() {
   const user = useAppSelector(selectUser);

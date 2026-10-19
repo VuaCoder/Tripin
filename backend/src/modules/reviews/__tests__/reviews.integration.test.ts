@@ -1,5 +1,9 @@
 import request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+vi.mock('../../../integrations/cloudinary', async importOriginal => ({
+  ...await importOriginal<typeof import('../../../integrations/cloudinary')>(),
+  verifyImageUpload: vi.fn(async (_purpose, _owner, publicId) => ({ publicId, secureUrl: 'https://res.cloudinary.com/test/image/upload/trip.jpg' })),
+}));
 import { createApp } from '../../../app';
 import { bookingsService } from '../../bookings';
 import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase, loadTour } from '../../../test/integration';
@@ -37,6 +41,29 @@ async function setup() {
 }
 
 describe('reviews (integration)', () => {
+  it('persists verified photos, returns them publicly, hides them with moderation and rejects foreign assets', async () => {
+    const { traveler, moderator, tourId, departureId } = await setup();
+    const bookingId = await bookTrip(traveler, tourId, departureId);
+    await completeTrips([bookingId]);
+    const endpoint = '/api/v1/reviews';
+    const base = { bookingId, rating: 5, comment: 'A wonderful trip with beautiful views!' };
+    const foreign = await request(app).post(endpoint).set(bearer(traveler.token)).send({ ...base, imagePublicIds: ['tripin/reviews/foreign/asset'] });
+    expect(foreign.status).toBe(403);
+    const tooMany = await request(app).post(endpoint).set(bearer(traveler.token)).send({ ...base, imagePublicIds: Array.from({ length: 7 }, (_, index) => String(index)) });
+    expect(tooMany.status).toBe(400);
+    const imagePublicIds = [`tripin/reviews/${traveler.id}/${bookingId}/11111111-1111-4111-8111-111111111111`];
+    const created = await request(app).post(endpoint).set(bearer(traveler.token)).send({ ...base, imagePublicIds });
+    expect(created.status).toBe(201);
+    expect(created.body.data.images).toEqual(['https://res.cloudinary.com/test/image/upload/trip.jpg']);
+    expect((await prisma.review.findUniqueOrThrow({ where: { bookingId } })).images).toEqual(created.body.data.images);
+    const publicList = await request(app).get(endpoint).query({ tourId });
+    expect(publicList.body.data[0].images).toEqual(created.body.data.images);
+    await prisma.review.update({ where: { bookingId }, data: { status: 'HIDDEN', moderatedById: moderator.id } });
+    expect((await request(app).get(endpoint).query({ tourId })).body.data).toHaveLength(0);
+    const signature = await request(app).post('/api/v1/reviews/images/upload-signature').set(bearer(traveler.token)).send({ bookingId });
+    expect(signature.status).toBe(409);
+  });
+
   it('only the owner of a COMPLETED booking can review it, once, even when the request is sent in parallel', async () => {
     const { traveler, tourId, departureId } = await setup();
     const stranger = await createUser('TRAVELER', 'stranger@example.com');

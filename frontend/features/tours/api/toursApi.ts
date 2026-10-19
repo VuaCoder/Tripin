@@ -2,7 +2,7 @@ import { baseApi } from '@/store/api/baseApi';
 import type { AgencyDashboard, AgencyGuide } from '@/features/agency/types';
 import type { AgencyTourListResult, ExtractedTourCandidate, ListToursArgs, TourApiError, TourApiResponse, TourCategory, TourContentInput, TourDestination, TourDetail, TourListItem, TourListResult, TourStatus } from '../types';
 
-/** Public tour discovery for the Tour List and the cart's "add a tour" picker. */
+/** Public tour discovery for tour listings. */
 export const toursApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     getTours: build.query<TourListResult, ListToursArgs | void>({

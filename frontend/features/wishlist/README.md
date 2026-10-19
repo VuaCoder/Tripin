@@ -27,9 +27,8 @@ Backend contract: `backend/src/modules/wishlists/README.md`.
 3. The wishlist empty state links to `/tours` ("Khám phá tour"). `/tours` is still a placeholder; change the target in
    `WishlistPage.tsx` if the list lives elsewhere (nav also has `/explore`).
 4. `WishlistTourCard` mirrors the backend `TourListItemDto`. If `features/tours` types become the shared source,
-   replace it with `TourListItem` and delete the duplicate (same note as `features/cart/types`).
-5. `formatVnd` / `formatDuration` / `formatDepartureDate` are imported from `@/features/cart`. Move them to a shared util
-   when one exists.
+   replace it with `TourListItem` and delete the duplicate.
+5. `formatVnd` / `formatDuration` / `formatDepartureDate` are shared utilities in `@/lib/travel-format`.
 
 ## Behaviour notes
 * Add/remove are idempotent on the backend; a double click is safe. The button is disabled while a request is pending.
@@ -46,4 +45,3 @@ Backend contract: `backend/src/modules/wishlists/README.md`.
 
 ## Not done
 * No optimistic update (the button waits for the server, then refetches).
-* No "move to cart" and no tour-list-page integration yet (see above).

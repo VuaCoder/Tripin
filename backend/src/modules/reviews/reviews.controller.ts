@@ -1,7 +1,7 @@
 import type { RequestHandler } from 'express';
 import { userActor } from '../../middlewares/authorize';
 import { validated } from '../../middlewares/validate';
-import { sendCreated, sendPaginated } from '../../utils/api-response';
+import { sendCreated, sendPaginated, sendOk } from '../../utils/api-response';
 import { reviewsService, type ReviewsService } from './reviews.service';
 import type { ReviewSort } from './reviews.types';
 import type { CreateReviewBody, ListMyReviewsQueryInput, ListPublicReviewsQueryInput } from './reviews.validation';
@@ -13,6 +13,11 @@ export class ReviewsController {
   create: RequestHandler = async (req, res) => {
     const { body } = validated<CreateReviewBody>(req);
     sendCreated(res, await this.service.createReview(userActor(req).userId, body));
+  };
+
+  imageSignature: RequestHandler = async (req, res) => {
+    const { body } = validated<{ bookingId: string }>(req);
+    sendOk(res, await this.service.createImageSignature(userActor(req).userId, body.bookingId));
   };
 
   listPublic: RequestHandler = async (req, res) => {

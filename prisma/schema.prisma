@@ -127,6 +127,11 @@ model Tour {
   title        String
   summary      String?
   description  String?
+  childPricingPolicy String?
+  agePricing         Json?
+  cancellationPolicy String?
+  travelNotes        String?
+  requiredDocuments  String?
   destination  String
   durationDays Int
   basePrice    Int
@@ -186,6 +191,7 @@ model TourGuideAssignment {
 }
 
 model Booking {
+  guestPricing Json?
   id          String @id @default(uuid()) @db.Uuid
   bookingCode String @unique
   travelerId  String @db.Uuid
@@ -313,6 +319,7 @@ model Review {
   travelerId    String       @db.Uuid
   rating        Int
   comment       String
+  images        String[]     @default([])
   status        ReviewStatus @default(VISIBLE)
   hiddenReason  String?
   moderatedById String?      @db.Uuid
@@ -570,6 +577,7 @@ model WishlistItem {
 /// One tour departure a traveler put in their cart, with a head-count. NO price is stored: the cart is a selection,
 /// the price is computed from the live tour/departure at read time and locked again server-side when the booking is created.
 model CartItem {
+  guestCounts Json?
   id           String   @id @default(uuid()) @db.Uuid
   userId       String   @db.Uuid
   tourId       String   @db.Uuid

@@ -10,6 +10,7 @@ export interface BookingContact {
 }
 
 export interface CreateBookingInput {
+  guestCounts?: import('@travel-platform/constants').GuestCounts;
   tourId: string;
   departureId: string;
   participants: number;
@@ -37,6 +38,7 @@ export interface PromotionPreview {
 }
 
 export interface BookingDto {
+  guestPricing?: import('@travel-platform/constants').GuestPriceBreakdown;
   id: string;
   bookingCode: string;
   status: BookingStatus;

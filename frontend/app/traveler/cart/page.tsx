@@ -1,16 +1,6 @@
-'use client';
-
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { LoadingState } from '@/components/shared';
+import { redirect } from 'next/navigation';
 
 export default function TravelerCartPage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace('/tours');
-  }, [router]);
-
-  return <LoadingState label="Đang chuyển hướng tới danh sách tour..." className="py-20" />;
+  redirect('/tours');
 }
 

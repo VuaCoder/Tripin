@@ -360,6 +360,7 @@ export class ToursService {
       departureId,
       departureDate: departure.date,
       unitPrice: departurePrice(tour, departure),
+      agePricing: tour.agePricing as unknown as import('@travel-platform/constants').AgePricing | null,
       remaining: departure.remaining,
       guide: tour.guide
         ? { guideId: tour.guide.guideId, feePerBooking: tour.guide.feePerBooking, status: tour.guide.status as never }
@@ -386,6 +387,7 @@ export class ToursService {
           departureId: departure.id,
           date: departure.date,
           price: departurePrice(tour, departure),
+          agePricing: tour.agePricing as unknown as import('@travel-platform/constants').AgePricing | null,
           remaining: departure.remaining,
           isOpen: departure.isOpen,
           bookable: isBookable(departure),

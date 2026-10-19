@@ -362,3 +362,30 @@ html {
 .animate-gold-glow {
   animation: goldAuraGlow 3s ease-in-out infinite;
 }
+
+/* Custom Ant Design Stylized Vertical Scrollbar */
+.ant-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ant-scrollbar::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.6);
+  border-radius: 9999px;
+}
+
+.ant-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+.ant-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(13, 148, 136, 0.7);
+}
+
+/* Firefox scrollbar support */
+.ant-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.4) rgba(241, 245, 249, 0.6);
+}
+

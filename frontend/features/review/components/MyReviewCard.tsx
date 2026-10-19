@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui';
 import type { MyReview } from '../types';
 import { formatDate } from '../utils/format';
 import { RatingStars } from './RatingStars';
+import { ReviewPhotos } from './ReviewPhotos';
 
 export interface MyReviewCardProps {
   review: MyReview;
@@ -22,6 +23,7 @@ export function MyReviewCard({ review }: MyReviewCardProps) {
         <span className="text-xs text-slate-500">{formatDate(review.createdAt)}</span>
       </div>
       <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700">{review.comment}</p>
+      <ReviewPhotos images={review.images} author="bạn" />
       {hidden && (
         <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
           {review.hiddenReason ? `Lý do: ${review.hiddenReason}` : 'Đánh giá này đang bị kiểm duyệt ẩn khỏi trang tour.'}
