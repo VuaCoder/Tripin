@@ -12,6 +12,7 @@ import {
   agencyToursQuery,
   assignGuideBody,
   availabilityBody,
+  createCategoryQuickBody,
   createTourBody,
   guideTourParams,
   guideVerificationBody,
@@ -35,6 +36,17 @@ const uploadTourDocument: import('express').RequestHandler = (req, res, next) =>
   });
 };
 
+const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 1 } }).single('file');
+const uploadTourImage: import('express').RequestHandler = (req, res, next) => {
+  imageUpload(req, res, (error: unknown) => {
+    if (!error) return next();
+    if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
+      return next(AppError.badRequest('File ảnh phải từ 5 MB trở xuống'));
+    }
+    return next(AppError.badRequest('Upload một file ảnh hợp lệ'));
+  });
+};
+
 /** Mounted at /api/v1/tours — public discovery (GUEST allowed). */
 export const publicToursRouter = Router();
 publicToursRouter.get('/', validate({ query: searchToursQuery }), toursController.search);
@@ -45,8 +57,10 @@ publicToursRouter.get('/:id', validate({ params: tourIdParams }), toursControlle
 export const agencyToursRouter = Router();
 agencyToursRouter.get('/', requirePermission(P.TOUR_UPDATE_OWN), validate({ query: agencyToursQuery }), toursController.listOwn);
 agencyToursRouter.post('/', requirePermission(P.TOUR_CREATE), validate({ body: createTourBody }), toursController.create);
-// Declared before '/:id' routes so "import" is not read as an id.
+// Declared before '/:id' routes so "import", "categories" and "upload-image" are not read as an id.
+agencyToursRouter.post('/categories', requirePermission(P.TOUR_CREATE), validate({ body: createCategoryQuickBody }), toursController.createCategory);
 agencyToursRouter.post('/import', requirePermission(P.TOUR_IMPORT), validate({ body: importToursBody }), toursController.importTours);
+agencyToursRouter.post('/upload-image', requirePermission(P.TOUR_UPDATE_OWN), uploadTourImage, validate({ body: emptyMultipartBody }), toursController.uploadImage);
 agencyToursRouter.post('/extract-document', requirePermission(P.TOUR_IMPORT), uploadTourDocument, validate({ body: emptyMultipartBody }), tourDocumentExtractionController.extract);
 agencyToursRouter.get('/:id', requirePermission(P.TOUR_UPDATE_OWN), validate({ params: tourIdParams }), toursController.getOwn);
 agencyToursRouter.patch(

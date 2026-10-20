@@ -8,6 +8,7 @@ import { Prisma as PrismaRuntime } from '../../generated/prisma/client';
 
 export interface StoredItineraryDay {
   day: number;
+  toDay?: number | null;
   title: string;
   description?: string | null;
   activities: string[];

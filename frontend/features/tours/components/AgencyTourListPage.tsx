@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState, useId } from 'react';
 import { 
   useDeleteAgencyTourMutation, 
   useGetAgencyToursQuery, 
   useUpdateAgencyTourMutation,
+  useUploadAgencyTourImageMutation,
   getTourApiMessage 
 } from '../api/toursApi';
 import type { TourDetail, TourStatus } from '../types';
@@ -125,6 +127,7 @@ const PRESET_PHOTOS = [
 ];
 
 export function AgencyTourListPage() {
+  const router = useRouter();
   const [status, setStatus] = useState<TourStatus | undefined>();
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<'box' | 'grid'>('box');
@@ -141,6 +144,9 @@ export function AgencyTourListPage() {
   const [showModalUrlInput, setShowModalUrlInput] = useState(false);
   const [isModalDragging, setIsModalDragging] = useState(false);
   const [imageSaveMessage, setImageSaveMessage] = useState('');
+  const [modalImageError, setModalImageError] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadTourImage, uploadState] = useUploadAgencyTourImageMutation();
   const imageUploadInputId = useId();
 
   const openImageManager = (tour: TourDetail) => {
@@ -150,10 +156,13 @@ export function AgencyTourListPage() {
     setShowModalUrlInput(false);
     setIsModalDragging(false);
     setImageSaveMessage('');
+    setModalImageError('');
+    setIsUploadingImage(false);
     setActionError('');
   };
 
   const handleAddImageUrl = () => {
+    setModalImageError('');
     if (!newImageUrl.trim()) return;
     try {
       new URL(newImageUrl.trim());
@@ -161,29 +170,36 @@ export function AgencyTourListPage() {
       setNewImageUrl('');
       setShowModalUrlInput(false);
     } catch {
-      alert('Vui lòng nhập đường link URL hợp lệ (ví dụ: https://...)');
+      setModalImageError('Vui lòng nhập đường link URL hợp lệ (ví dụ: https://...)');
     }
   };
 
-  const processImageFiles = (files: FileList | File[]) => {
+  const processImageFiles = async (files: FileList | File[]) => {
+    setModalImageError('');
     const validFiles = Array.from(files).filter((file) => file.type.startsWith('image/'));
     if (!validFiles.length) {
-      alert('Vui lòng chọn hoặc kéo thả định dạng ảnh (JPG, PNG, WebP).');
+      setModalImageError('Vui lòng chọn hoặc kéo thả định dạng ảnh (JPG, PNG, WebP).');
       return;
     }
-    validFiles.forEach((file) => {
+    for (const file of validFiles) {
       if (file.size > 5 * 1024 * 1024) {
-        alert(`Kích thước ảnh ${file.name} vượt quá 5MB.`);
+        setModalImageError(`Kích thước ảnh “${file.name}” vượt quá 5MB.`);
         return;
       }
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setCurrentTourImages((prev) => [...prev, reader.result as string]);
+    }
+    setIsUploadingImage(true);
+    try {
+      for (const file of validFiles) {
+        const res = await uploadTourImage(file).unwrap();
+        if (res.url) {
+          setCurrentTourImages((prev) => [...prev, res.url]);
         }
-      };
-      reader.readAsDataURL(file);
-    });
+      }
+    } catch (err) {
+      setModalImageError(getTourApiMessage(err, 'Không thể tải ảnh lên Cloudinary. Vui lòng thử lại.'));
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -204,10 +220,12 @@ export function AgencyTourListPage() {
   const handleSaveImages = async () => {
     if (!editingImageTour) return;
     setImageSaveMessage('');
+    setActionError('');
     try {
+      const validImages = currentTourImages.filter((img) => img.startsWith('http://') || img.startsWith('https://'));
       await updateTour({
         id: editingImageTour.id,
-        body: { images: currentTourImages }
+        body: { images: validImages }
       }).unwrap();
       setImageSaveMessage('Đã cập nhật ảnh thành công!');
       setTimeout(() => {
@@ -383,7 +401,8 @@ export function AgencyTourListPage() {
                 return (
                   <article 
                     key={tour.id} 
-                    className="group relative flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs hover:border-teal-300 hover:shadow-md transition-all"
+                    onClick={() => router.push(`/agency/tours/${tour.id}`)}
+                    className="group relative flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs hover:border-teal-400 hover:shadow-md transition-all cursor-pointer"
                   >
                     {/* Left: Thumbnail image + Quick photo trigger */}
                     <div className="flex items-center gap-4 min-w-0">
@@ -403,9 +422,12 @@ export function AgencyTourListPage() {
                         {/* Hover button to change/upload photo directly */}
                         <button
                           type="button"
-                          onClick={() => openImageManager(tour)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openImageManager(tour);
+                          }}
                           title="Quản lý ảnh tour"
-                          className="absolute inset-0 flex items-center justify-center bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold gap-1"
+                          className="absolute inset-0 flex items-center justify-center bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold gap-1 cursor-pointer"
                         >
                           <span className="material-symbols-outlined text-[16px]">photo_camera</span>
                           <span>Đổi ảnh</span>
@@ -416,7 +438,13 @@ export function AgencyTourListPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <h2 className="truncate text-base sm:text-lg font-bold text-slate-900 group-hover:text-primary transition-colors" title={tour.title}>
-                            {tour.title}
+                            <Link 
+                              href={`/agency/tours/${tour.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="hover:underline focus:outline-none"
+                            >
+                              {tour.title}
+                            </Link>
                           </h2>
                           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold border ${statusInfo.bg} ${statusInfo.text} ${statusInfo.border}`}>
                             {statusInfo.label}
@@ -447,8 +475,11 @@ export function AgencyTourListPage() {
                           <span>Cập nhật: {new Date(tour.updatedAt).toLocaleDateString('vi-VN')}</span>
                           <button
                             type="button"
-                            onClick={() => openImageManager(tour)}
-                            className="inline-flex items-center gap-1 font-semibold text-teal-700 hover:text-teal-900 underline ml-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openImageManager(tour);
+                            }}
+                            className="inline-flex items-center gap-1 font-semibold text-teal-700 hover:text-teal-900 underline ml-1 cursor-pointer"
                           >
                             <span className="material-symbols-outlined text-[14px]">image</span>
                             {tour.images?.length ? `${tour.images.length} ảnh` : '+ Thêm ảnh'}
@@ -458,37 +489,42 @@ export function AgencyTourListPage() {
                     </div>
 
                     {/* Right: Actions */}
-                    <div className="flex shrink-0 items-center gap-1.5 border-t border-slate-100 pt-3 sm:border-t-0 sm:pt-0">
+                    <div className="flex shrink-0 items-center gap-2 border-t border-slate-100 pt-3 sm:border-t-0 sm:pt-0" onClick={(e) => e.stopPropagation()}>
                       <Link 
                         href={`/agency/tours/${tour.id}`} 
-                        title="Quản lý tour"
-                        aria-label="Quản lý tour"
-                        className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs"
+                        title="Quản lý lịch trình, ngày khởi hành và chỗ ngồi"
+                        aria-label="Quản lý lịch trình & chỗ ngồi"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-colors shadow-2xs"
                       >
-                        <span className="material-symbols-outlined text-[19px]">tune</span>
+                        <span className="material-symbols-outlined text-[17px] text-teal-700">calendar_month</span>
+                        <span className="hidden sm:inline">Lịch trình & Chỗ</span>
                       </Link>
                       <Link 
-                        href={`/agency/tours/${tour.id}/edit`} 
+                        href={`/agency/tours/${tour.id}/edit?from=/agency/tours`} 
                         aria-disabled={tour.status === 'PENDING_REVIEW'} 
-                        title="Chỉnh sửa tour"
-                        aria-label="Chỉnh sửa tour"
-                        className={`flex size-9 items-center justify-center rounded-xl border transition-colors shadow-2xs ${
+                        title="Chỉnh sửa thông tin tour"
+                        aria-label="Chỉnh sửa thông tin tour"
+                        className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-colors shadow-2xs ${
                           tour.status === 'PENDING_REVIEW' 
                             ? 'pointer-events-none border-slate-200 text-slate-300' 
-                            : 'border-teal-600/30 text-teal-700 bg-teal-50/50 hover:bg-teal-100/70 hover:border-teal-600'
+                            : 'border-teal-600/30 text-teal-700 bg-teal-50/60 hover:bg-teal-100/70 hover:border-teal-600'
                         }`}
                       >
-                        <span className="material-symbols-outlined text-[19px]">edit</span>
+                        <span className="material-symbols-outlined text-[17px]">edit</span>
+                        <span className="hidden sm:inline">Sửa thông tin</span>
                       </Link>
                       <button 
                         type="button" 
                         disabled={deleteState.isLoading || tour.status === 'PENDING_REVIEW'} 
-                        onClick={() => setArchivingTour({ id: tour.id, title: tour.title })} 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setArchivingTour({ id: tour.id, title: tour.title });
+                        }} 
                         title="Lưu trữ tour"
                         aria-label="Lưu trữ tour"
-                        className="flex size-9 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors shadow-2xs disabled:cursor-not-allowed disabled:opacity-40"
+                        className="flex size-9 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors shadow-2xs disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
                       >
-                        <span className="material-symbols-outlined text-[19px]">archive</span>
+                        <span className="material-symbols-outlined text-[18px]">archive</span>
                       </button>
                     </div>
                   </article>
@@ -508,7 +544,8 @@ export function AgencyTourListPage() {
                 return (
                   <article 
                     key={tour.id} 
-                    className="group flex flex-col rounded-3xl border border-slate-200/90 bg-white overflow-hidden shadow-xs hover:border-teal-300 hover:shadow-xl transition-all duration-300"
+                    onClick={() => router.push(`/agency/tours/${tour.id}`)}
+                    className="group flex flex-col rounded-3xl border border-slate-200/90 bg-white overflow-hidden shadow-xs hover:border-teal-400 hover:shadow-xl transition-all duration-300 cursor-pointer"
                   >
                     {/* Card Cover Image with Carousel */}
                     <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100">
@@ -537,7 +574,13 @@ export function AgencyTourListPage() {
                       </div>
 
                       <h2 className="text-base font-bold text-slate-900 group-hover:text-primary transition-colors line-clamp-2 min-h-[3rem]" title={tour.title}>
-                        {tour.title}
+                        <Link 
+                          href={`/agency/tours/${tour.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="hover:underline focus:outline-none"
+                        >
+                          {tour.title}
+                        </Link>
                       </h2>
 
                       <div className="mt-3 flex items-baseline justify-between border-t border-slate-100 pt-3">
@@ -553,37 +596,42 @@ export function AgencyTourListPage() {
                       </div>
 
                       {/* Card Footer Actions */}
-                      <div className="mt-5 flex items-center justify-end gap-1.5 border-t border-slate-100 pt-3">
+                      <div className="mt-5 flex items-center justify-between gap-2 border-t border-slate-100 pt-3" onClick={(e) => e.stopPropagation()}>
                         <Link 
                           href={`/agency/tours/${tour.id}`} 
-                          title="Quản lý tour"
-                          aria-label="Quản lý tour"
-                          className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs"
+                          title="Quản lý lịch trình, ngày khởi hành và chỗ ngồi"
+                          aria-label="Quản lý lịch trình & chỗ ngồi"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2 px-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs"
                         >
-                          <span className="material-symbols-outlined text-[19px]">tune</span>
+                          <span className="material-symbols-outlined text-[16px] text-teal-700">calendar_month</span>
+                          <span>Lịch trình</span>
                         </Link>
                         <Link 
-                          href={`/agency/tours/${tour.id}/edit`} 
+                          href={`/agency/tours/${tour.id}/edit?from=/agency/tours`} 
                           aria-disabled={tour.status === 'PENDING_REVIEW'} 
-                          title="Chỉnh sửa tour"
-                          aria-label="Chỉnh sửa tour"
-                          className={`flex size-9 items-center justify-center rounded-xl border transition-colors shadow-2xs ${
+                          title="Chỉnh sửa thông tin tour"
+                          aria-label="Chỉnh sửa thông tin tour"
+                          className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border py-2 px-2 text-xs font-bold transition-colors shadow-2xs ${
                             tour.status === 'PENDING_REVIEW' 
                               ? 'pointer-events-none border-slate-200 text-slate-300' 
-                              : 'border-teal-600/30 text-teal-700 bg-teal-50/50 hover:bg-teal-100/70 hover:border-teal-600'
+                              : 'border-teal-600/30 text-teal-700 bg-teal-50/60 hover:bg-teal-100/70 hover:border-teal-600'
                           }`}
                         >
-                          <span className="material-symbols-outlined text-[19px]">edit</span>
+                          <span className="material-symbols-outlined text-[16px]">edit</span>
+                          <span>Sửa thông tin</span>
                         </Link>
                         <button 
                           type="button" 
                           disabled={deleteState.isLoading || tour.status === 'PENDING_REVIEW'} 
-                          onClick={() => setArchivingTour({ id: tour.id, title: tour.title })} 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setArchivingTour({ id: tour.id, title: tour.title });
+                          }} 
                           title="Lưu trữ tour"
                           aria-label="Lưu trữ tour"
-                          className="flex size-9 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors shadow-2xs disabled:cursor-not-allowed disabled:opacity-40"
+                          className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors shadow-2xs disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
                         >
-                          <span className="material-symbols-outlined text-[19px]">archive</span>
+                          <span className="material-symbols-outlined text-[17px]">archive</span>
                         </button>
                       </div>
                     </div>
@@ -700,31 +748,47 @@ export function AgencyTourListPage() {
                       : 'border-slate-300 bg-slate-50/70 hover:border-teal-500 hover:bg-slate-50'
                   }`}
                 >
-                  <div className="flex size-11 items-center justify-center rounded-2xl bg-teal-100/70 text-teal-700 mb-2">
-                    <span className="material-symbols-outlined text-2xl">cloud_upload</span>
-                  </div>
-                  <p className="text-xs sm:text-sm font-bold text-slate-800">
-                    Kéo & thả ảnh vào đây, hoặc
-                  </p>
-                  <label
-                    htmlFor={imageUploadInputId}
-                    className="mt-1.5 inline-flex items-center gap-1.5 rounded-xl border border-teal-600 bg-white px-3.5 py-1.5 text-xs font-bold text-teal-700 hover:bg-teal-50 cursor-pointer transition-colors shadow-2xs"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">folder_open</span>
-                    <span>Tải ảnh từ máy tính</span>
-                  </label>
-                  <input 
-                    id={imageUploadInputId}
-                    type="file" 
-                    accept="image/png,image/jpeg,image/webp" 
-                    multiple
-                    onChange={handleFileUpload} 
-                    className="hidden" 
-                  />
-                  <p className="mt-2 text-[11px] text-slate-400">
-                    Hỗ trợ định dạng JPG, PNG, WebP (Tối đa 5MB)
-                  </p>
+                  {isUploadingImage ? (
+                    <div className="flex flex-col items-center justify-center py-2">
+                      <div className="size-8 animate-spin rounded-full border-2 border-teal-200 border-t-teal-700 mb-2" />
+                      <p className="text-xs font-bold text-teal-800">Đang tải ảnh lên Cloudinary...</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Vui lòng chờ trong giây lát</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex size-11 items-center justify-center rounded-2xl bg-teal-100/70 text-teal-700 mb-2">
+                        <span className="material-symbols-outlined text-2xl">cloud_upload</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold text-slate-800">
+                        Kéo & thả ảnh vào đây, hoặc
+                      </p>
+                      <label
+                        htmlFor={imageUploadInputId}
+                        className="mt-1.5 inline-flex items-center gap-1.5 rounded-xl border border-teal-600 bg-white px-3.5 py-1.5 text-xs font-bold text-teal-700 hover:bg-teal-50 cursor-pointer transition-colors shadow-2xs"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">folder_open</span>
+                        <span>Tải ảnh từ máy tính</span>
+                      </label>
+                      <input 
+                        id={imageUploadInputId}
+                        type="file" 
+                        accept="image/png,image/jpeg,image/webp" 
+                        multiple
+                        onChange={handleFileUpload} 
+                        className="hidden" 
+                      />
+                      <p className="mt-2 text-[11px] text-slate-400">
+                        Hỗ trợ định dạng JPG, PNG, WebP (Tối đa 5MB)
+                      </p>
+                    </>
+                  )}
                 </div>
+
+                {modalImageError && (
+                  <p role="alert" className="text-xs font-bold text-rose-600">
+                    {modalImageError}
+                  </p>
+                )}
 
                 {/* Thêm ảnh qua đường link ảnh */}
                 <div className="pt-1">
@@ -816,11 +880,11 @@ export function AgencyTourListPage() {
               </button>
               <button
                 type="button"
-                disabled={updateState.isLoading}
+                disabled={updateState.isLoading || isUploadingImage}
                 onClick={() => void handleSaveImages()}
-                className="rounded-xl bg-primary-container px-6 py-2.5 text-sm font-bold text-white hover:bg-primary transition-colors disabled:opacity-50 shadow-md shadow-primary-container/20"
+                className="rounded-xl bg-primary-container px-6 py-2.5 text-sm font-bold text-white hover:bg-primary transition-colors disabled:opacity-50 shadow-md shadow-primary-container/20 cursor-pointer"
               >
-                {updateState.isLoading ? 'Đang lưu ảnh...' : 'Lưu ảnh tour'}
+                {updateState.isLoading ? 'Đang lưu ảnh...' : isUploadingImage ? 'Đang tải ảnh...' : 'Lưu ảnh tour'}
               </button>
             </div>
           </div>

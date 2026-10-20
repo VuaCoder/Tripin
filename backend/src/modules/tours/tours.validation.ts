@@ -28,6 +28,10 @@ const tourContentShape = {
   exclusions: stringList(50, 300).optional(),
 };
 
+export const createCategoryQuickBody = z.object({
+  name: z.string().trim().min(2, 'Tên danh mục phải có từ 2 ký tự').max(80, 'Tên danh mục tối đa 80 ký tự'),
+}).strict();
+
 export const createTourBody = z.object(tourContentShape).strict();
 
 export const updateTourBody = z
@@ -65,16 +69,35 @@ export const itineraryBody = z
         z
           .object({
             day: z.number().int().min(1).max(365),
+            toDay: z.number().int().min(1).max(365).optional(),
             title: z.string().trim().min(2).max(200),
             description: text(5000).optional(),
             activities: stringList(30, 300).optional(),
           })
-          .strict(),
+          .strict()
+          .refine((d) => d.toDay === undefined || d.toDay >= d.day, {
+            message: 'toDay must be greater than or equal to day',
+            path: ['toDay'],
+          }),
       )
       .max(365),
   })
   .strict()
-  .refine((value) => new Set(value.days.map((d) => d.day)).size === value.days.length, { message: 'Duplicate day number', path: ['days'] });
+  .refine(
+    (value) => {
+      const sorted = [...value.days].sort((a, b) => a.day - b.day);
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const current = sorted[i];
+        const next = sorted[i + 1];
+        if (!current || !next) continue;
+        const currentEnd = current.toDay && current.toDay > current.day ? current.toDay : current.day;
+        const nextStart = next.day;
+        if (currentEnd >= nextStart) return false;
+      }
+      return true;
+    },
+    { message: 'Itinerary days or ranges cannot overlap or duplicate', path: ['days'] }
+  );
 
 export const assignGuideBody = z
   .object({ guideId: idSchema.nullable(), feePerBooking: vnd.optional() })

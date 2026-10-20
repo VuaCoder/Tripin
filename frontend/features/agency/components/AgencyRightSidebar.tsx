@@ -6,7 +6,6 @@ import {
   LayoutDashboard, 
   CalendarCheck, 
   Compass, 
-  PlusCircle, 
   Sparkles, 
   BadgePercent, 
   Bell, 
@@ -86,7 +85,6 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
     ] },
     { label: 'Sản phẩm', items: [
       { href: '/agency/tours', label: 'Quản lý tour', icon: Compass, permission: 'tour:update-own' },
-      { href: '/agency/tours/new', label: 'Tạo tour mới', icon: PlusCircle, permission: 'tour:create' },
       { href: '/agency/tours/import', label: 'Nhập tour / AI', icon: Sparkles, permission: 'tour:import' },
     ] },
     { label: 'Chăm sóc & Ưu đãi', items: [
@@ -142,7 +140,7 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
           {group.items.map(({ href, label, icon: Icon }) => {
             const active = pathname === href ||
               (href === '/agency/settings/commission' && pathname.startsWith('/agency/settings/commission/')) ||
-              (href === '/agency/tours' && pathname.startsWith('/agency/tours/') && !['/agency/tours/new', '/agency/tours/import'].includes(pathname)) ||
+              (href === '/agency/tours' && pathname.startsWith('/agency/tours/') && pathname !== '/agency/tours/import') ||
               (href === '/agency/bookings' && pathname.startsWith('/agency/bookings/'));
             return (
               <Link 

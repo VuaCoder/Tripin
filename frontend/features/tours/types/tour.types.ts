@@ -58,7 +58,7 @@ export interface TourDetail extends TourListItem {
 }
 
 export type TourStatus = 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'ARCHIVED';
-export interface TourItineraryDay { day: number; title: string; description?: string; activities: string[]; }
+export interface TourItineraryDay { day: number; toDay?: number; title: string; description?: string; activities: string[]; }
 export interface TourContentInput {
   agePricing?: import('@travel-platform/constants').AgePricing | null;
   childPricingPolicy?: string;

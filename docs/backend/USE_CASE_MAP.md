@@ -61,7 +61,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Use case | Module | Endpoint | Permission | Status |
 |---|---|---|---|---|
 | Register, onboard and sign in through dedicated portal | auth | `POST /auth/agency/register`, `/login`, `/verify-otp`, `/resend-otp` | GUEST | done |
-| Create / Edit / Delete tour | tours | `POST /agency/tours`, `PATCH /agency/tours/:id`, `DELETE /agency/tours/:id`, `GET /agency/tours`, `GET /agency/tours/:id` | tour:create/update-own/delete-own | done |
+| Create / Edit / Delete tour | tours | `POST /agency/tours`, `POST /agency/tours/upload-image`, `POST /agency/tours/categories`, `PATCH /agency/tours/:id`, `DELETE /agency/tours/:id`, `GET /agency/tours`, `GET /agency/tours/:id` | tour:create/update-own/delete-own | done |
 | Upload tours | tours | `POST /agency/tours/import` (bulk JSON, see DECISIONS); `POST /agency/tours/extract-document` (DOCX/PDF to unpersisted AI drafts) | tour:import | done |
 | Set tour availability | tours | `PUT /agency/tours/:id/availability` | tour:set-availability | done |
 | Config itinerary | tours | `PUT /agency/tours/:id/itinerary` | tour:configure-itinerary | done |

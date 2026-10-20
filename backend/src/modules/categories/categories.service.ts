@@ -60,6 +60,27 @@ export class CategoriesService {
 
   // ------------------------------------------------ for other modules
 
+  /** Allows adding or re-activating an active category by name (e.g. when agency enters custom category). */
+  async upsertActive(name: string): Promise<CategoryDto> {
+    const trimmed = name.trim();
+    const slug = this.slugOrThrow(trimmed);
+    const existing = await this.categories.findBySlug(slug);
+    if (existing) {
+      if (!existing.isActive) {
+        const reactivated = await this.categories.updateById(existing.id, { isActive: true });
+        return toCategoryDto(reactivated ?? existing);
+      }
+      return toCategoryDto(existing);
+    }
+    const created = await this.categories.create({
+      name: trimmed,
+      slug,
+      isActive: true,
+      sortOrder: 250,
+    });
+    return toCategoryDto(created);
+  }
+
   /** Throws 400 unless every id is an ACTIVE category (used when an agency assigns categories to a tour). */
   async assertActiveIds(ids: string[]): Promise<void> {
     const unique = Array.from(new Set(ids));

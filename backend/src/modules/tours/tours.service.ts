@@ -3,7 +3,7 @@ import { AppError } from '../../utils/app-error';
 import { buildPage, type Page } from '../../utils/pagination';
 import { assertTransition } from '../../utils/state-machine';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
-import { categoriesService, type CategoriesService } from '../categories';
+import { categoriesService, type CategoriesService, type CategoryDto } from '../categories';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
 import { usersService, type UsersService } from '../users';
 import { departurePrice, isBookable } from './tours.mapper';
@@ -41,13 +41,18 @@ export class ToursService {
   constructor(
     private readonly tours: Repo = toursRepository,
     private readonly users: Pick<UsersService, 'assertActiveWithRole' | 'assertAgencyVerified'> = usersService,
-    private readonly categories: Pick<CategoriesService, 'assertActiveIds'> = categoriesService,
+    private readonly categories: Pick<CategoriesService, 'assertActiveIds' | 'upsertActive'> = categoriesService,
     private readonly audit: Pick<AuditService, 'record'> = auditService,
     private readonly views: Pick<TourViewBuilder, 'manage' | 'manageMany' | 'guideItems'> = tourViewBuilder,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
   ) {}
 
   // ================================================================ Agency
+
+  /** Allows agency to create or find an active category on-the-fly when typing custom category. */
+  async createCategory(name: string): Promise<CategoryDto> {
+    return this.categories.upsertActive(name);
+  }
 
   /** Use case "Create tour" — always starts as DRAFT. */
   async createTour(agencyId: string, input: TourContentInput): Promise<TourManageDto> {
@@ -82,7 +87,7 @@ export class ToursService {
     const tour = await this.requireOwned(agencyId, id);
     this.assertAgencyEditable(tour);
     if (input.categoryIds) await this.categories.assertActiveIds(input.categoryIds);
-    if (input.durationDays !== undefined && tour.itinerary.some((day) => day.day > input.durationDays!)) {
+    if (input.durationDays !== undefined && tour.itinerary.some((day) => (day.toDay && day.toDay > day.day ? day.toDay : day.day) > input.durationDays!)) {
       throw AppError.badRequest('durationDays is shorter than the configured itinerary', undefined, 'ITINERARY_EXCEEDS_DURATION');
     }
     return this.applyContentChange(tour, { ...input });
@@ -164,12 +169,18 @@ export class ToursService {
   async setItinerary(agencyId: string, id: string, days: ItineraryDayInput[]): Promise<TourManageDto> {
     const tour = await this.requireOwned(agencyId, id);
     this.assertAgencyEditable(tour);
-    if (days.some((day) => day.day > tour.durationDays)) {
+    if (days.some((day) => (day.toDay && day.toDay > day.day ? day.toDay : day.day) > tour.durationDays)) {
       throw AppError.badRequest(`Itinerary days cannot exceed durationDays (${tour.durationDays})`, undefined, 'ITINERARY_EXCEEDS_DURATION');
     }
     const itinerary = [...days]
       .sort((a, b) => a.day - b.day)
-      .map((day) => ({ day: day.day, title: day.title, description: day.description, activities: day.activities ?? [] }));
+      .map((day) => ({
+        day: day.day,
+        toDay: day.toDay && day.toDay > day.day ? day.toDay : undefined,
+        title: day.title,
+        description: day.description,
+        activities: day.activities ?? [],
+      }));
     return this.applyContentChange(tour, { itinerary });
   }
 

@@ -93,6 +93,19 @@ export const toursApi = baseApi.injectEndpoints({
       transformResponse: (response: TourApiResponse<TourDetail>) => response.data,
       invalidatesTags: (result, _error, { id }) => result ? [{ type: 'Tour', id }, { type: 'Tour', id: 'AGENCY_LIST' }, { type: 'Tour', id: 'GUIDE_ASSIGNED' }] : [],
     }),
+    uploadAgencyTourImage: build.mutation<{ url: string; publicId: string }, File>({
+      query: (file) => {
+        const body = new FormData();
+        body.append('file', file);
+        return { url: '/agency/tours/upload-image', method: 'POST', body };
+      },
+      transformResponse: (response: TourApiResponse<{ url: string; publicId: string }>) => response.data,
+    }),
+    createAgencyCategory: build.mutation<TourCategory, { name: string }>({
+      query: (body) => ({ url: '/agency/tours/categories', method: 'POST', body }),
+      transformResponse: (response: TourApiResponse<TourCategory>) => response.data,
+      invalidatesTags: [{ type: 'Category', id: 'LIST' }],
+    }),
   }),
 });
 
@@ -103,6 +116,8 @@ export const {
   useSubmitAgencyTourMutation, useImportAgencyToursMutation, useExtractAgencyTourDocumentMutation,
   useGetAgencyDashboardQuery,
   useGetAgencyGuidesQuery, useAssignAgencyTourGuideMutation,
+  useUploadAgencyTourImageMutation,
+  useCreateAgencyCategoryMutation,
 } = toursApi;
 
 export function getTourApiMessage(error: unknown, fallback = 'Đã có lỗi xảy ra. Vui lòng thử lại.'): string {

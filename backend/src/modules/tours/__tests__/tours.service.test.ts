@@ -143,18 +143,33 @@ describe('edit rules', () => {
     await expect(service.updateTour('a1', 't1', { durationDays: 2 })).rejects.toMatchObject({ code: 'ITINERARY_EXCEEDS_DURATION' });
   });
 
+  it('refuses to shorten the tour below the itinerary toDay range', async () => {
+    const { service } = setup(makeTour({ itinerary: [{ day: 1, toDay: 3, title: 'Days 1 to 3' }] }));
+    await expect(service.updateTour('a1', 't1', { durationDays: 2 })).rejects.toMatchObject({ code: 'ITINERARY_EXCEEDS_DURATION' });
+  });
+
   it('rejects itinerary days beyond durationDays', async () => {
     const { service } = setup(makeTour());
     await expect(service.setItinerary('a1', 't1', [{ day: 4, title: 'Day 4' }])).rejects.toMatchObject({ statusCode: 400 });
   });
 
-  it('stores the itinerary sorted by day', async () => {
-    const { service, db } = setup(makeTour());
+  it('rejects itinerary toDay range beyond durationDays', async () => {
+    const { service } = setup(makeTour({ durationDays: 3 }));
+    await expect(service.setItinerary('a1', 't1', [{ day: 1, toDay: 4, title: 'Days 1 to 4' }])).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('stores the itinerary sorted by day and preserves day ranges', async () => {
+    const { service, db } = setup(makeTour({ durationDays: 5 }));
     await service.setItinerary('a1', 't1', [
-      { day: 2, title: 'Second' },
-      { day: 1, title: 'First' },
+      { day: 3, toDay: 4, title: 'Hue' },
+      { day: 1, toDay: 2, title: 'Da Nang' },
+      { day: 5, title: 'Airport' },
     ]);
-    expect(db!.itinerary.map((d: AnyTour) => d.day)).toEqual([1, 2]);
+    expect(db!.itinerary).toEqual([
+      { day: 1, toDay: 2, title: 'Da Nang', description: undefined, activities: [] },
+      { day: 3, toDay: 4, title: 'Hue', description: undefined, activities: [] },
+      { day: 5, toDay: undefined, title: 'Airport', description: undefined, activities: [] },
+    ]);
   });
 });
 

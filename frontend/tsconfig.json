@@ -26,6 +26,12 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@travel-platform/constants": [
+        "../packages/constants/src"
+      ],
+      "@travel-platform/constants/*": [
+        "../packages/constants/src/*"
       ]
     }
   },

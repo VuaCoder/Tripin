@@ -1,6 +1,7 @@
 'use client';
 
 import type { TourCategory, TourContentInput } from '../types';
+import { formatCurrencyVndInput, parseCurrencyVndInput } from '../utils/format';
 import { TourPolicyFields } from './TourPolicyFields';
 
 type Props = { value: TourContentInput; onChange: (value: TourContentInput) => void; categories: TourCategory[] };
@@ -13,32 +14,40 @@ export function TourContentFields({ value, onChange, categories }: Props) {
     <div className="space-y-5">
       <TourPolicyFields value={value} onChange={onChange} />
       <div className="grid gap-5 md:grid-cols-2">
-        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Tên tour *
+        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Tên tour
           <input className={inputClass} minLength={5} maxLength={200} required value={value.title} onChange={(e) => set('title', e.target.value)} />
         </label>
-        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Điểm đến *
+        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Điểm đến
           <input className={inputClass} minLength={2} maxLength={120} required value={value.destination} onChange={(e) => set('destination', e.target.value)} />
         </label>
       </div>
       <div className="grid gap-5 sm:grid-cols-3">
-        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Số ngày *
+        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Số ngày
           <input className={inputClass} type="number" min={1} max={365} required value={value.durationDays} onChange={(e) => set('durationDays', Number(e.target.value))} />
         </label>
-        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Giá cơ bản (VND) *
-          <input className={inputClass} type="number" min={0} max={100000000000} step={1} required value={value.basePrice} onChange={(e) => set('basePrice', Number(e.target.value))} />
+        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Giá cơ bản (VND)
+          <input
+            className={inputClass}
+            type="text"
+            inputMode="numeric"
+            placeholder="Ví dụ: 1.500.000"
+            required
+            value={formatCurrencyVndInput(value.basePrice)}
+            onChange={(e) => set('basePrice', parseCurrencyVndInput(e.target.value))}
+          />
         </label>
-        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Số khách tối đa
+        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Số khách tối đa <span className="font-normal text-slate-500">(Optional)</span>
           <input className={inputClass} type="number" min={1} max={10000} value={value.maxGroupSize ?? ''} onChange={(e) => set('maxGroupSize', e.target.value ? Number(e.target.value) : undefined)} />
         </label>
       </div>
-      <label className="block space-y-1.5 text-sm font-semibold text-slate-700">Tóm tắt
+      <label className="block space-y-1.5 text-sm font-semibold text-slate-700">Tóm tắt <span className="font-normal text-slate-500">(Optional)</span>
         <textarea className={inputClass} rows={2} maxLength={500} value={value.summary ?? ''} onChange={(e) => set('summary', e.target.value || undefined)} />
       </label>
-      <label className="block space-y-1.5 text-sm font-semibold text-slate-700">Mô tả chi tiết
+      <label className="block space-y-1.5 text-sm font-semibold text-slate-700">Mô tả chi tiết <span className="font-normal text-slate-500">(Optional)</span>
         <textarea className={inputClass} rows={5} maxLength={20000} value={value.description ?? ''} onChange={(e) => set('description', e.target.value || undefined)} />
       </label>
       <fieldset>
-        <legend className="mb-2 text-sm font-semibold text-slate-700">Danh mục * <span className="font-normal text-slate-500">(chọn từ 1 đến 10)</span></legend>
+        <legend className="mb-2 text-sm font-semibold text-slate-700">Danh mục <span className="font-normal text-slate-500">(chọn từ 1 đến 10)</span></legend>
         {categories.length === 0 ? <p className="text-sm text-amber-700">Chưa tải được danh mục. Hãy thử tải lại trang.</p> : (
           <div className="flex flex-wrap gap-2">
             {categories.map((category) => {
@@ -52,13 +61,13 @@ export function TourContentFields({ value, onChange, categories }: Props) {
         )}
       </fieldset>
       <div className="grid gap-5 md:grid-cols-3">
-        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Ảnh (URL, mỗi dòng một ảnh)
+        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Ảnh <span className="font-normal text-slate-500">(Optional, URL)</span>
           <textarea className={inputClass} rows={3} value={(value.images ?? []).join('\n')} onChange={(e) => set('images', e.target.value.split('\n').map((item) => item.trim()).filter(Boolean))} />
         </label>
-        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Bao gồm (mỗi dòng một mục)
+        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Bao gồm <span className="font-normal text-slate-500">(Optional)</span>
           <textarea className={inputClass} rows={3} value={(value.inclusions ?? []).join('\n')} onChange={(e) => set('inclusions', e.target.value.split('\n').map((item) => item.trim()).filter(Boolean))} />
         </label>
-        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Không bao gồm (mỗi dòng một mục)
+        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Không bao gồm <span className="font-normal text-slate-500">(Optional)</span>
           <textarea className={inputClass} rows={3} value={(value.exclusions ?? []).join('\n')} onChange={(e) => set('exclusions', e.target.value.split('\n').map((item) => item.trim()).filter(Boolean))} />
         </label>
       </div>

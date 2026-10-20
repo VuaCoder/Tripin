@@ -56,7 +56,7 @@ export interface ModerationTour {
   agency?: { id: string; name: string; avatarUrl?: string };
   inclusions?: string[];
   exclusions?: string[];
-  itinerary?: { day: number; title: string; description?: string; activities: string[] }[];
+  itinerary?: { day: number; toDay?: number; title: string; description?: string; activities: string[] }[];
 }
 
 export interface ModerationAgency {

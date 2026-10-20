@@ -65,6 +65,7 @@ export interface DepartureInput {
 
 export interface ItineraryDayInput {
   day: number;
+  toDay?: number;
   title: string;
   description?: string;
   activities?: string[];
@@ -139,7 +140,7 @@ export interface TourDetailDto extends TourListItemDto {
   images: string[];
   inclusions: string[];
   exclusions: string[];
-  itinerary: { day: number; title: string; description?: string; activities: string[] }[];
+  itinerary: { day: number; toDay?: number; title: string; description?: string; activities: string[] }[];
   departures: DepartureDto[];
   categories: CategoryDto[];
   guide?: { id: string; fullName: string; avatarUrl?: string };
