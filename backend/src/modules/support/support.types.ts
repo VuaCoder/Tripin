@@ -74,8 +74,12 @@ export interface TicketDto extends TicketSummaryDto {
   messages: TicketMessageDto[];
 }
 
-/** Moderator view: knows who opened it and who handles it. */
+/** Moderator view: knows who opened it and who handles it. The ids stay for the actions; the names are displayed. */
 export interface ModerationTicketDto extends TicketDto {
   userId: string;
+  userName?: string;
   assignedTo?: string;
+  assignedToName?: string;
+  /** The related booking as its code (e.g. `TRP-AAAA2222`), never a uuid. */
+  bookingCode?: string;
 }

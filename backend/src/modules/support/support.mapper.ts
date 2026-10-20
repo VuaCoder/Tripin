@@ -34,10 +34,14 @@ export function toTicketDto(ticket: SupportTicketRecord, viewer: Viewer = 'owner
   return { ...toTicketSummary(ticket), messages: ticket.messages.map((m) => toMessage(m, viewer)) };
 }
 
-export function toModerationTicketDto(ticket: SupportTicketRecord): ModerationTicketDto {
+/** Display names resolved for a ticket; an account or booking that no longer exists just has no name. */
+export type TicketNames = Pick<ModerationTicketDto, 'userName' | 'assignedToName' | 'bookingCode'>;
+
+export function toModerationTicketDto(ticket: SupportTicketRecord, names: TicketNames = {}): ModerationTicketDto {
   return {
     ...toTicketDto(ticket, 'staff'),
     userId: ticket.userId,
     assignedTo: ticket.assignedToId ?? undefined,
+    ...names,
   };
 }

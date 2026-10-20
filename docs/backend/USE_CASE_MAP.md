@@ -72,6 +72,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | View bookings status | bookings | `GET /agency/bookings`, `GET /agency/bookings/:id` | agency:bookings-view | done |
 | Export customer PDF | bookings | `GET /agency/tours/:id/customers.pdf` | agency:export-customers | done |
 | Handle tour complaints | reports | `GET /agency/complaints`, `GET /agency/complaints/:id`, `POST /agency/complaints/:id/respond` | complaint:respond | done |
+| Dispute a review | reports | `GET /agency/review-disputes`, `POST /agency/review-disputes/:reviewId` | review:dispute | done |
 | View/Update profile (+ submit for verification) | users | `GET/PATCH /users/me`, `POST /users/me/agency-verification` | profile:* | done |
 
 ## Tour guide

@@ -9,6 +9,7 @@ the final decision. Covers "Send report", "Handle tour complaints" and (the data
 |---|---|---|
 | Send report | Traveler | `POST /reports`, `GET /reports/me`, `GET /reports/:id` |
 | Handle tour complaints | Agency | `GET /agency/complaints`, `GET /agency/complaints/:id`, `POST /agency/complaints/:id/respond` |
+| Dispute a review | Agency | `POST /agency/review-disputes/:reviewId`, `GET /agency/review-disputes` |
 | Resolve disputes | Moderator | no route here — `moderation` calls `reportsService.listForModeration / getForModeration / resolve` |
 
 ## Files
@@ -24,6 +25,7 @@ the final decision. Covers "Send report", "Handle tour complaints" and (the data
 * `POST /reports` (`report:create`, 20/h/IP) `{ targetType: TOUR|USER|REVIEW, targetId, category, description 10..2000, bookingId? }` → 201 `MyReportDto`. `USER` targets must be an agency or a tour guide.
 * `GET /reports/me?status&page&limit`, `GET /reports/:id` – own reports only.
 * `GET /agency/complaints?status`, `GET /agency/complaints/:id`, `POST /agency/complaints/:id/respond` `{ text }` (`complaint:respond`). Agencies see a masked reporter name (`Nguyen A.`), never the reporter id or contact.
+* `POST /agency/review-disputes/:reviewId` `{ category, description }`, `GET /agency/review-disputes?status` (`review:dispute`). An agency flags a review of **its own** tour as untrue; it becomes an ordinary `REVIEW` report in the moderator queue, and the agency follows the outcome through `GET /agency/review-disputes`.
 * Errors: 404 unknown target/foreign report/booking, 409 `REPORT_ALREADY_OPEN`, `INVALID_STATE_TRANSITION`.
 
 ## Business rules
@@ -33,6 +35,7 @@ the final decision. Covers "Send report", "Handle tour complaints" and (the data
 4. The agency can answer **once**, only while the report is OPEN; the reporter is notified (`REPORT_UPDATED`).
 5. A moderator can close an OPEN or answered report as `RESOLVED` (upheld) or `REJECTED` (unfounded) with a note; this is audited (`report.resolved`), the reporter is notified in-app and by email, the agency is informed.
 6. Closed reports are immutable (no re-opening).
+7. A review dispute is the same pipeline with `reporterId` = the agency and no `agencyId`: it never lands in that agency's own complaint inbox, and the moderator DTO carries the review itself (rating, comment, author, status) so the decision needs no second screen.
 
 ## State machine (`REPORT_TRANSITIONS`)
 `OPEN → AGENCY_RESPONDED | RESOLVED | REJECTED`; `AGENCY_RESPONDED → RESOLVED | REJECTED`. Every change is a compare-and-set.
@@ -42,10 +45,10 @@ the final decision. Covers "Send report", "Handle tour complaints" and (the data
 Indexes: `(reporterId, createdAt, _id)`, unique sparse `(openKey)` (one open report per reporter and target, also the duplicate check), `(agencyId, status, createdAt)` agency inbox, `(status, createdAt)` moderator queue.
 
 ## Permissions
-`report:create` (TRAVELER), `complaint:respond` (AGENCY); `dispute:resolve` is checked on the moderation routes. Ownership/routing enforced in the service.
+`report:create` (TRAVELER), `complaint:respond` (AGENCY), `review:dispute` (AGENCY); `dispute:resolve` is checked on the moderation routes. Ownership/routing enforced in the service.
 
 ## Dependencies
-* Uses: `tours` (`getTourFacts`), `users` (`getSummaries`), `reviews` (`getFacts`, `maskName`), `bookings` (`getFacts`), `notifications`, `audit`.
+* Uses: `tours` (`getTourFacts`, `getTitles`), `users` (`getSummaries`), `reviews` (`getFacts`, `maskName`), `bookings` (`getFacts`), `notifications`, `audit`.
 * Used by: `moderation`, `dashboards`.
 
 ## Events / side effects
@@ -57,4 +60,5 @@ Notifications `COMPLAINT_RECEIVED`, `REPORT_UPDATED`, `REPORT_RESOLVED` (+ email
 
 ## Not implemented / follow-ups
 * Attachments/screenshots, reporter withdrawal, automatic action (e.g. suspend a tour after N upheld reports) – moderators act manually through `moderation`.
-* Reports against travelers by agencies/guides (not in the diagram).
+* Reports against travelers by agencies/guides (not in the diagram). An agency's only channel is the review dispute above.
+* A review dispute notifies no moderator: it waits in the queue like any other report (there is no staff broadcast).

@@ -49,7 +49,13 @@ describe('support (integration)', () => {
     const { traveler, moderator, moderator2 } = await setup();
     const id = (await open(traveler.token)).body.data.id;
 
-    expect((await staffReply(moderator.token, id, { text: 'Looking into it now.' })).status).toBe(200);
+    const answered = await staffReply(moderator.token, id, { text: 'Looking into it now.' });
+    expect(answered.status).toBe(200);
+    // The moderator screen shows names, never the uuids behind them.
+    expect(answered.body.data.userName).toBe('TRAVELER traveler@example.com');
+    expect(answered.body.data.assignedToName).toBe('MODERATOR mod@example.com');
+    expect(answered.body.data.assignedTo).toBe(moderator.id);
+
     expect((await staffReply(moderator2.token, id, { text: 'I also checked the logs.' })).status).toBe(200);
     const stored = (await prisma.supportTicket.findUnique({ where: { id: id } }))!;
     expect(stored.status).toBe('IN_PROGRESS');

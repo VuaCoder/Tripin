@@ -9,7 +9,7 @@ import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } fr
 import { reviewsService, type ReviewsService } from '../reviews';
 import { toursService, type ToursService } from '../tours';
 import { usersService, type UsersService } from '../users';
-import { toComplaintDto, toModerationReportDto, toMyReportDto } from './reports.mapper';
+import { toComplaintDto, toModerationReportDto, toMyReportDto, type ReportExtras } from './reports.mapper';
 import type { ReportRecord } from './reports.repository';
 import { openReportKey, reportsRepository, type ReportsRepository } from './reports.repository';
 import {
@@ -18,6 +18,7 @@ import {
   REPORT_TRANSITIONS,
   type ComplaintDto,
   type CreateReportInput,
+  type DisputeReviewInput,
   type ListModerationReportsQuery,
   type ListReportsQuery,
   type ModerationReportDto,
@@ -34,7 +35,7 @@ export class ReportsService {
       ReportsRepository,
       'create' | 'findById' | 'findOpenDuplicate' | 'transition' | 'listByReporter' | 'listByAgency' | 'listForModeration' | 'countByStatus' | 'countOpenForAgency'
     > = reportsRepository,
-    private readonly tours: Pick<ToursService, 'getTourFacts'> = toursService,
+    private readonly tours: Pick<ToursService, 'getTourFacts' | 'getTitles'> = toursService,
     private readonly users: Pick<UsersService, 'getSummaries'> = usersService,
     private readonly reviews: Pick<ReviewsService, 'getFacts'> = reviewsService,
     private readonly bookings: Pick<BookingsService, 'getFacts'> = bookingsService,
@@ -101,6 +102,27 @@ export class ReportsService {
 
   // ================================================================== Agency
 
+  /**
+   * Use case "Dispute a review": an agency flags a review of one of its own tours as untrue. The same pipeline as a
+   * traveler's report (one open dispute per review, the moderator queue decides), but the agency never picks the
+   * target and may only dispute its own reviews. A dispute is not routed back to the agency as a complaint.
+   */
+  async disputeReview(agencyId: string, reviewId: string, input: DisputeReviewInput): Promise<MyReportDto> {
+    const review = await this.reviews.getFacts(reviewId);
+    if (!review || review.agencyId !== agencyId) throw AppError.notFound('Review not found');
+    return this.createReport(agencyId, {
+      targetType: REPORT_TARGET.REVIEW,
+      targetId: reviewId,
+      category: input.category,
+      description: input.description,
+    });
+  }
+
+  /** The disputes this agency filed (`GET /agency/review-disputes`). */
+  listDisputes(agencyId: string, query: ListReportsQuery): Promise<Page<MyReportDto>> {
+    return this.listMine(agencyId, query);
+  }
+
   /** Use case "Handle tour complaints" (list): reports routed to this agency. */
   async listComplaints(agencyId: string, query: ListReportsQuery): Promise<Page<ComplaintDto>> {
     const { items, total } = await this.reports.listByAgency(agencyId, query.status, query);
@@ -140,13 +162,14 @@ export class ReportsService {
   /** Called by `moderation` ("Resolve disputes"): the queue of reports. */
   async listForModeration(query: ListModerationReportsQuery): Promise<Page<ModerationReportDto>> {
     const { items, total } = await this.reports.listForModeration(query);
-    return buildPage(items.map(toModerationReportDto), total, query);
+    const extras = await this.extrasFor(items);
+    return buildPage(items.map((r) => toModerationReportDto(r, extras.get(r.id))), total, query);
   }
 
   async getForModeration(id: string): Promise<ModerationReportDto> {
     const report = await this.reports.findById(id);
     if (!report) throw AppError.notFound('Report not found');
-    return toModerationReportDto(report);
+    return toModerationReportDto(report, (await this.extrasFor([report])).get(report.id));
   }
 
   /** Called by `moderation`: closes a report as RESOLVED (upheld) or REJECTED (unfounded) with a note for the parties. */
@@ -182,7 +205,7 @@ export class ReportsService {
         data: { reportId: id },
       });
     }
-    return toModerationReportDto(updated);
+    return toModerationReportDto(updated, (await this.extrasFor([updated])).get(updated.id));
   }
 
   /** Reports per status (dashboards). */
@@ -224,6 +247,71 @@ export class ReportsService {
     const report = await this.reports.findById(id);
     if (!report || !report.agencyId || report.agencyId !== agencyId) throw AppError.notFound('Report not found');
     return report;
+  }
+
+  /**
+   * What a page of reports resolves to for display: names in batched lookups (never raw ids) and, for a report
+   * about a review, the review itself. An account, tour or booking that no longer exists simply has no name.
+   */
+  private async extrasFor(items: ReportRecord[]): Promise<Map<string, ReportExtras>> {
+    const reviewIds = Array.from(new Set(items.filter((r) => r.targetType === REPORT_TARGET.REVIEW).map((r) => r.targetId)));
+    const reviews = new Map(
+      (await Promise.all(reviewIds.map((id) => this.reviews.getFacts(id)))).flatMap((facts) => (facts ? [[facts.id, facts] as const] : [])),
+    );
+
+    const userIds = items.flatMap((r) => {
+      const author = r.targetType === REPORT_TARGET.REVIEW ? reviews.get(r.targetId)?.travelerId : undefined;
+      return [r.reporterId, ...(r.agencyId ? [r.agencyId] : []), ...(r.targetType === REPORT_TARGET.USER ? [r.targetId] : []), ...(author ? [author] : [])];
+    });
+    const tourIds = items.flatMap((r) => [
+      ...(r.tourId ? [r.tourId] : []),
+      ...(r.targetType === REPORT_TARGET.TOUR ? [r.targetId] : []),
+    ]);
+    const bookingIds = Array.from(new Set(items.flatMap((r) => (r.bookingId ? [r.bookingId] : []))));
+    const [people, titles, bookings] = await Promise.all([
+      this.users.getSummaries(userIds),
+      this.tours.getTitles(tourIds),
+      Promise.all(bookingIds.map((id) => this.bookings.getFacts(id))),
+    ]);
+    const codes = new Map(bookings.flatMap((booking) => (booking ? [[booking.id, booking.bookingCode] as const] : [])));
+
+    const accountName = (id?: string | null) => {
+      const account = id ? people.get(id) : undefined;
+      return account ? (account.companyName ?? account.fullName) : undefined;
+    };
+    return new Map(
+      items.map((report) => {
+        // A report about a review is named by the tour that review is about (the report's own `tourId`).
+        const targetName =
+          report.targetType === REPORT_TARGET.TOUR
+            ? titles.get(report.targetId)
+            : report.targetType === REPORT_TARGET.USER
+              ? accountName(report.targetId)
+              : report.tourId
+                ? titles.get(report.tourId)
+                : undefined;
+        const facts = report.targetType === REPORT_TARGET.REVIEW ? reviews.get(report.targetId) : undefined;
+        return [
+          report.id,
+          {
+            reporterName: people.get(report.reporterId)?.fullName,
+            targetName,
+            agencyName: accountName(report.agencyId),
+            tourTitle: report.tourId ? titles.get(report.tourId) : undefined,
+            bookingCode: report.bookingId ? codes.get(report.bookingId) : undefined,
+            review: facts
+              ? {
+                  rating: facts.rating,
+                  comment: facts.comment,
+                  status: facts.status as 'VISIBLE' | 'HIDDEN',
+                  hiddenReason: facts.hiddenReason,
+                  authorName: people.get(facts.travelerId)?.fullName,
+                }
+              : undefined,
+          },
+        ];
+      }),
+    );
   }
 }
 

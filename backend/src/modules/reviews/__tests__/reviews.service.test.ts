@@ -45,7 +45,15 @@ function make(opts: { booking?: R | null; seed?: R[]; stats?: { avg: number; cou
   };
   const bookings = { getFacts: vi.fn(async () => (opts.booking === undefined ? facts() : opts.booking)) };
   const tours = { updateRatingStats: vi.fn(async () => undefined) };
-  const users = { getSummaries: vi.fn(async () => new Map([['u1', { id: 'u1', fullName: 'Nguyen Van An', avatarUrl: 'http://x/a.png' }]])) };
+  const users = {
+    getSummaries: vi.fn(
+      async () =>
+        new Map([
+          ['u1', { id: 'u1', fullName: 'Nguyen Van An', avatarUrl: 'http://x/a.png' }],
+          ['a1', { id: 'a1', fullName: 'Tran Thi B', companyName: 'Saigon Travel' }],
+        ]),
+    ),
+  };
   const notifications = { notify: vi.fn(async () => undefined) };
   const audit = { record: vi.fn(async () => undefined) };
   return { service: new ReviewsService(repo as never, bookings as never, tours as never, users as never, notifications, audit), repo, bookings, tours, notifications, audit, db };
@@ -150,5 +158,12 @@ describe('moderation', () => {
 
   it('404 for an unknown review', async () => {
     await expect(make().service.moderate(moderator, 'nope', { hide: false })).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('names the author and the agency in the queue and after a decision, keeping the ids for the actions', async () => {
+    const { service } = make({ seed: [stored()] });
+    const page = await service.listForModeration({ page: 1, limit: 10 });
+    expect(page.items[0]).toMatchObject({ travelerName: 'Nguyen Van An', agencyName: 'Saigon Travel', travelerId: 'u1' });
+    expect(await service.moderate(moderator, 'r1', { hide: true, reason: 'Abusive language' })).toMatchObject({ travelerName: 'Nguyen Van An' });
   });
 });

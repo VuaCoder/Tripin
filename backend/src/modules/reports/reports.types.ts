@@ -51,6 +51,12 @@ export interface ListReportsQuery {
   status?: ReportStatus;
 }
 
+/** An agency disputing a review of one of its own tours: the same pipeline, without a target the client picks. */
+export interface DisputeReviewInput {
+  category: ReportCategory;
+  description: string;
+}
+
 export interface ListModerationReportsQuery extends ListReportsQuery {
   targetType?: ReportTarget;
   category?: ReportCategory;
@@ -78,9 +84,24 @@ export interface ComplaintDto extends ReportBaseDto {
   reporterName: string;
 }
 
-/** What moderators see. */
+/** What moderators see. The ids stay for the actions; the names are what the queue displays. */
 export interface ModerationReportDto extends ReportBaseDto {
   reporterId: string;
+  reporterName?: string;
   agencyId?: string;
+  agencyName?: string;
   tourId?: string;
+  tourTitle?: string;
+  /** The reported thing itself: a tour title, an account name, or — for a review — the tour it is about. */
+  targetName?: string;
+  /** The booking offered as evidence, as its code (e.g. `TRP-AAAA2222`), never a uuid. */
+  bookingCode?: string;
+  /** Present only for a report about a review: the review itself, so the moderator need not go hunting for it. */
+  review?: {
+    rating: number;
+    comment: string;
+    status: 'VISIBLE' | 'HIDDEN';
+    hiddenReason?: string;
+    authorName?: string;
+  };
 }

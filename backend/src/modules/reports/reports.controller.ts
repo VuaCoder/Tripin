@@ -5,7 +5,7 @@ import { sendCreated, sendOk, sendPaginated } from '../../utils/api-response';
 import type { IdParams } from '../../utils/id';
 import { reportsService, type ReportsService } from './reports.service';
 import type { ReportStatus, ReportTarget, ReportCategory } from './reports.types';
-import type { CreateReportBody, ListReportsQueryInput, RespondBody } from './reports.validation';
+import type { CreateReportBody, DisputeReviewBody, ListReportsQueryInput, RespondBody, ReviewIdParams } from './reports.validation';
 
 /** HTTP only. Reporter / agency are always the authenticated user; routing data is derived server-side. */
 export class ReportsController {
@@ -37,6 +37,25 @@ export class ReportsController {
   listComplaints: RequestHandler = async (req, res) => {
     const { query } = validated<unknown, ListReportsQueryInput>(req);
     const page = await this.service.listComplaints(userActor(req).userId, { ...query, status: query.status as ReportStatus | undefined });
+    sendPaginated(res, page.items, page.meta);
+  };
+
+  /** An agency disputes a review of one of its own tours. */
+  disputeReview: RequestHandler = async (req, res) => {
+    const { params, body } = validated<DisputeReviewBody, unknown, ReviewIdParams>(req);
+    sendCreated(
+      res,
+      await this.service.disputeReview(userActor(req).userId, params.reviewId, {
+        category: body.category as ReportCategory,
+        description: body.description,
+      }),
+    );
+  };
+
+  /** The disputes this agency filed, so it can follow their outcome without waiting for a notification. */
+  listDisputes: RequestHandler = async (req, res) => {
+    const { query } = validated<unknown, ListReportsQueryInput>(req);
+    const page = await this.service.listDisputes(userActor(req).userId, { ...query, status: query.status as ReportStatus | undefined });
     sendPaginated(res, page.items, page.meta);
   };
 
