@@ -2,6 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { BOOKING_STATUS, ROLES } from '@travel-platform/constants';
 import { maskName } from '../reviews.mapper';
 import { ReviewsService } from '../reviews.service';
+import { verifyImageUpload, createImageUploadSignature } from '../../../integrations/cloudinary';
+vi.mock('../../../integrations/cloudinary', async importOriginal => ({
+  ...await importOriginal<typeof import('../../../integrations/cloudinary')>(),
+  verifyImageUpload: vi.fn(async (_purpose, _owner, publicId) => ({ publicId, secureUrl: 'https://res.cloudinary.com/test/image/upload/trip.jpg' })),
+  createImageUploadSignature: vi.fn(() => ({ params: { overwrite: 'false' } })),
+}));
 
 type R = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -39,7 +45,15 @@ function make(opts: { booking?: R | null; seed?: R[]; stats?: { avg: number; cou
   };
   const bookings = { getFacts: vi.fn(async () => (opts.booking === undefined ? facts() : opts.booking)) };
   const tours = { updateRatingStats: vi.fn(async () => undefined) };
-  const users = { getSummaries: vi.fn(async () => new Map([['u1', { id: 'u1', fullName: 'Nguyen Van An', avatarUrl: 'http://x/a.png' }]])) };
+  const users = {
+    getSummaries: vi.fn(
+      async () =>
+        new Map([
+          ['u1', { id: 'u1', fullName: 'Nguyen Van An', avatarUrl: 'http://x/a.png' }],
+          ['a1', { id: 'a1', fullName: 'Tran Thi B', companyName: 'Saigon Travel' }],
+        ]),
+    ),
+  };
   const notifications = { notify: vi.fn(async () => undefined) };
   const audit = { record: vi.fn(async () => undefined) };
   return { service: new ReviewsService(repo as never, bookings as never, tours as never, users as never, notifications, audit), repo, bookings, tours, notifications, audit, db };
@@ -48,6 +62,29 @@ function make(opts: { booking?: R | null; seed?: R[]; stats?: { avg: number; cou
 const input = { bookingId: 'b1', rating: 5, comment: 'Wonderful trip, great guide!' };
 
 describe('createReview', () => {
+  it('checks image ownership before verification and persists only verified storage URLs', async () => {
+    const id = 'tripin/reviews/u1/b1/11111111-1111-4111-8111-111111111111';
+    const { service, repo } = make();
+    const dto = await service.createReview('u1', { ...input, imagePublicIds: [id] });
+    expect(verifyImageUpload).toHaveBeenCalledWith('reviewImage', id.slice('tripin/reviews/'.length), id);
+    expect(dto.images).toEqual(['https://res.cloudinary.com/test/image/upload/trip.jpg']);
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ images: dto.images }));
+    await expect(service.createReview('u1', { ...input, bookingId: 'b2', imagePublicIds: ['tripin/reviews/other/b2/11111111-1111-4111-8111-111111111111'] })).rejects.toBeDefined();
+  });
+
+  it('refuses foreign assets, duplicate assets and more than six images', async () => {
+    const id = 'tripin/reviews/other/b1/11111111-1111-4111-8111-111111111111';
+    await expect(make().service.createReview('u1', { ...input, imagePublicIds: [id] })).rejects.toMatchObject({ statusCode: 403 });
+    await expect(make().service.createReview('u1', { ...input, imagePublicIds: [id, id] })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(make().service.createReview('u1', { ...input, imagePublicIds: Array.from({ length: 7 }, (_, i) => String(i)) })).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('only issues image signatures for an owned, completed, unreviewed booking', async () => {
+    await make().service.createImageSignature('u1', 'b1');
+    expect(createImageUploadSignature).toHaveBeenCalledWith('reviewImage', expect.stringMatching(/^u1\/b1\//));
+    await expect(make({ booking: facts({ travelerId: 'other' }) }).service.createImageSignature('u1', 'b1')).rejects.toMatchObject({ statusCode: 404 });
+    await expect(make({ booking: facts({ status: 'PENDING' }) }).service.createImageSignature('u1', 'b1')).rejects.toMatchObject({ code: 'BOOKING_NOT_COMPLETED' });
+  });
   it('reviews a completed booking, takes tour/agency from the booking and refreshes the tour rating', async () => {
     const { service, repo, tours, notifications } = make();
     const dto = await service.createReview('u1', { ...input });
@@ -121,5 +158,12 @@ describe('moderation', () => {
 
   it('404 for an unknown review', async () => {
     await expect(make().service.moderate(moderator, 'nope', { hide: false })).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('names the author and the agency in the queue and after a decision, keeping the ids for the actions', async () => {
+    const { service } = make({ seed: [stored()] });
+    const page = await service.listForModeration({ page: 1, limit: 10 });
+    expect(page.items[0]).toMatchObject({ travelerName: 'Nguyen Van An', agencyName: 'Saigon Travel', travelerId: 'u1' });
+    expect(await service.moderate(moderator, 'r1', { hide: true, reason: 'Abusive language' })).toMatchObject({ travelerName: 'Nguyen Van An' });
   });
 });

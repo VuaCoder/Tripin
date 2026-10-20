@@ -27,13 +27,19 @@ export class EarningsRepository {
 
   /** Totals per calendar month (UTC) inside the range. */
   async summarize(guideId: string, range: EarningsRange): Promise<{ month: string; totalAmount: number; count: number }[]> {
+    // Prisma DateTime is a timestamp WITHOUT time zone holding UTC values.
+    // Group and compare in UTC, independent of the database session timezone.
+    // Bind ISO text: Prisma's Date parameters carry a timestamp type, and
+    // casting those to timestamptz would first apply the session timezone.
+    const from = range.from?.toISOString() ?? null;
+    const to = range.to?.toISOString() ?? null;
     return prisma.$queryRaw<{ month: string; totalAmount: number; count: number }[]>`
-      SELECT to_char("earnedAt" AT TIME ZONE 'UTC', 'YYYY-MM') AS "month",
+      SELECT to_char("earnedAt", 'YYYY-MM') AS "month",
              COALESCE(SUM("amount"), 0)::float8 AS "totalAmount", COUNT(*)::float8 AS "count"
       FROM "Earning"
       WHERE "guideId" = ${guideId}::uuid
-        AND (${range.from ?? null}::timestamptz IS NULL OR "earnedAt" >= ${range.from ?? null}::timestamptz)
-        AND (${range.to ?? null}::timestamptz IS NULL OR "earnedAt" <= ${range.to ?? null}::timestamptz)
+        AND (${from}::timestamptz IS NULL OR "earnedAt" >= (${from}::timestamptz AT TIME ZONE 'UTC'))
+        AND (${to}::timestamptz IS NULL OR "earnedAt" <= (${to}::timestamptz AT TIME ZONE 'UTC'))
       GROUP BY 1 ORDER BY 1 DESC`;
   }
 

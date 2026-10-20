@@ -7,6 +7,7 @@ import { useGetTourDestinationsQuery } from '@/features/tours';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated, selectRole } from '@/features/auth';
 import { GuestLoginPromptModal } from '@/components/shared';
+import { Container } from '@/components/layout';
 
 interface Slide {
   badge: string;
@@ -349,12 +350,7 @@ export default function Home() {
     setCategoryTab(tab);
   };
 
-  const handleProductCardClick = (product: ProductCard) => {
-    if (!isAuthenticated) {
-      setSelectedTourPrompt({ title: product.title, href: '/tours' });
-      setGuestModalOpen(true);
-      return;
-    }
+  const handleProductCardClick = (_product: ProductCard) => {
     router.push('/tours');
   };
 
@@ -648,7 +644,7 @@ export default function Home() {
                 <div className="absolute inset-0 bg-gradient-to-r from-[#004f57]/50 via-transparent to-transparent" />
 
                 {/* Hero Content */}
-                <div className="relative max-w-[1280px] mx-auto h-full px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-32 lg:pb-36 pt-24 text-white">
+                <Container className="relative h-full flex flex-col justify-end pb-32 lg:pb-36 pt-24 text-white">
                   <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/20 backdrop-blur-md w-fit mb-4 text-secondary-fixed border border-white/20 shadow-sm">
                     <span className="material-symbols-outlined text-[16px]">{item.badgeIcon}</span>
                     <span className="text-xs uppercase font-bold tracking-wider">{item.badge}</span>
@@ -676,7 +672,7 @@ export default function Home() {
                       {item.location}
                     </span>
                   </div>
-                </div>
+                </Container>
               </div>
             );
           })}
@@ -707,7 +703,7 @@ export default function Home() {
         {/* ========================================================================= */}
         {/* 2. OVERLAPPING SEARCH CONSOLE                                             */}
         {/* ========================================================================= */}
-        <section id="search-console" className="relative z-30 max-w-[1280px] mx-auto w-full px-4 sm:px-6 lg:px-8 -mt-16 lg:-mt-20 mb-16 transition-all duration-300">
+        <Container as="section" id="search-console" className="relative z-30 -mt-16 lg:-mt-20 mb-16 transition-all duration-300">
           {activeDropdown && (
              <div className="fixed inset-0 z-20 bg-black/5" onClick={() => setActiveDropdown(null)} />
           )}
@@ -1227,7 +1223,7 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </section>
+        </Container>
 
         {/* Floating Mini Search Console in Header */}
         <div className={`fixed top-4 lg:top-3 left-1/2 -translate-x-1/2 z-[60] transition-all duration-300 shadow-[0_8px_30px_rgb(0,0,0,0.08)] rounded-full ${
@@ -1270,7 +1266,7 @@ export default function Home() {
         {/* ========================================================================= */}
         {/* 3. CATEGORY SWITCHER & CARDS SHOWCASE                                     */}
         {/* ========================================================================= */}
-        <section className="max-w-[1280px] mx-auto w-full px-4 sm:px-6 lg:px-8 mb-20">
+        <Container as="section" className="mb-20">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-primary-container block mb-1">
@@ -1405,14 +1401,14 @@ export default function Home() {
               </div>
             ))}
           </div>
-        </section>
+        </Container>
 
 
 
         {/* ========================================================================= */}
         {/* 5. TRUST & CORE VALUES                                                    */}
         {/* ========================================================================= */}
-        <section className="max-w-[1280px] mx-auto w-full px-4 sm:px-6 lg:px-8 mb-20">
+        <Container as="section" className="mb-20">
           <div className="text-center max-w-2xl mx-auto mb-12">
             <span className="text-xs font-bold uppercase tracking-wider text-primary-container block mb-2">
               Giá trị cốt lõi
@@ -1460,12 +1456,12 @@ export default function Home() {
               </div>
             ))}
           </div>
-        </section>
+        </Container>
 
         {/* ========================================================================= */}
         {/* 6. PARTNER CALLOUT BANNER                                                 */}
         {/* ========================================================================= */}
-        <section className="max-w-[1280px] mx-auto w-full px-4 sm:px-6 lg:px-8 mb-16">
+        <Container as="section" className="mb-16">
           <div className="rounded-3xl shadow-xl border border-surface-container bg-gradient-to-r from-surface-container-high to-surface-container p-6 lg:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-2xl bg-primary-container text-white flex items-center justify-center shrink-0 shadow-lg shadow-primary-container/25">
@@ -1488,7 +1484,7 @@ export default function Home() {
               </Link>
             </div>
           </div>
-        </section>
+        </Container>
       </div>
 
       <GuestLoginPromptModal

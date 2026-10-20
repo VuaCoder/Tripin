@@ -1,11 +1,13 @@
 'use client';
+import { calculateGuestPrice, guestTotal, type GuestCounts } from '@travel-platform/constants';
+import { TourGuestSelector } from '@/features/tours/components/detail/TourGuestSelector';
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, FormField, Input } from '@/components/ui';
 import { ErrorState, LoadingState } from '@/components/shared';
 import { getApiErrorCode, getApiErrorMessage, selectUser } from '@/features/auth';
-import { formatDepartureDate, formatVnd } from '@/features/cart';
+import { formatDepartureDate, formatVnd } from '@/lib/travel-format';
 import { useGetTourQuery } from '@/features/tours';
 import { useAppSelector } from '@/store/hooks';
 import { useCreateBookingMutation, useLazyPreviewPromotionQuery } from '../api/bookingApi';
@@ -79,6 +81,8 @@ export function BookingEntryPage() {
     Number.isFinite(participantsParam) && participantsParam > 0 ? participantsParam : 1,
   );
   const [errors, setErrors] = useState<{ fullName?: string; phone?: string; general?: string }>({});
+  const [children, setChildren] = useState(() => Math.max(0, Number(params.get('children')) || 0));
+  const [infants, setInfants] = useState(() => Math.max(0, Number(params.get('infants')) || 0));
   const clientRequestId = useRef(retryKey());
 
   useEffect(() => {
@@ -167,7 +171,11 @@ export function BookingEntryPage() {
 
   const title = tour.title;
   const unitPrice = departure.price;
-  const subtotal = unitPrice * participants;
+  const guestCounts: GuestCounts = { adults: participants - children - infants, children, infants };
+  let subtotal = 0;
+  let pricingError = '';
+  try { subtotal = calculateGuestPrice(unitPrice, participants, guestCounts, tour.agePricing).subtotal; }
+  catch { pricingError = 'Vui lòng kiểm tra số khách và chính sách độ tuổi của tour.'; }
   const finalEstimate = promotionPreview?.finalAmount ?? subtotal;
   const maxParticipants = Math.min(MAX_PARTICIPANTS, departure.remaining);
   const departureDate = departure.date;
@@ -192,8 +200,10 @@ export function BookingEntryPage() {
     if (Object.keys(next).length > 0) return;
 
     let latestUnitPrice: number | undefined;
+    let latestAgePricing = tour.agePricing;
     try {
       const refreshedTour = await refetchTour().unwrap();
+      latestAgePricing = refreshedTour.agePricing;
       const latestDeparture = refreshedTour.departures.find((d) => d.id === departureId);
       if (!latestDeparture || !latestDeparture.isOpen || latestDeparture.remaining < 1 || new Date(latestDeparture.date).getTime() <= Date.now()) {
         setErrors({ general: 'Ngày khởi hành này hiện không còn nhận đặt chỗ.' });
@@ -214,13 +224,18 @@ export function BookingEntryPage() {
       setErrors({ general: 'Không thể xác định giá tour hiện tại. Vui lòng thử lại.' });
       return;
     }
-    if (!(await checkPromotion(latestUnitPrice * participants))) return;
+    if (pricingError) { setErrors({ general: pricingError }); return; }
+    let latestSubtotal = 0;
+    try { latestSubtotal = calculateGuestPrice(latestUnitPrice, participants, guestCounts, latestAgePricing).subtotal; }
+    catch { setErrors({ general: 'Chính sách giá đã thay đổi. Vui lòng chọn lại hành khách.' }); return; }
+    if (!(await checkPromotion(latestSubtotal))) return;
 
     try {
       const created = await createBooking({
         tourId,
         departureId,
         participants,
+        ...(tour.agePricing ? { guestCounts } : {}),
         contact: { fullName: fullName.trim(), phone: phone.trim() },
         ...(notes.trim() ? { notes: notes.trim() } : {}),
         ...(promotionCode.trim() ? { promotionCode: promotionCode.trim() } : {}),
@@ -246,9 +261,9 @@ export function BookingEntryPage() {
         <FormField label="Số điện thoại" htmlFor="booking-phone" required error={errors.phone}>
           <Input id="booking-phone" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="0901234567" inputMode="tel" invalid={Boolean(errors.phone)} autoComplete="tel" />
         </FormField>
-        <FormField label="Số khách" htmlFor="booking-participants" hint={`Tối đa ${maxParticipants} khách cho ngày khởi hành này.`}>
+        {tour.agePricing ? <TourGuestSelector value={guestCounts} onChange={next => { setParticipants(guestTotal(next)); setChildren(next.children); setInfants(next.infants); clearPromotionPreview(); }} max={maxParticipants} unitPrice={unitPrice} pricing={tour.agePricing} /> : <FormField label="Số khách" htmlFor="booking-participants" hint={`Tối đa ${maxParticipants} khách cho ngày khởi hành này.`}>
           <Input id="booking-participants" type="number" min={1} max={maxParticipants} value={participants} onChange={(event) => { setParticipants(Number(event.target.value)); clearPromotionPreview(); }} />
-        </FormField>
+        </FormField>}
         <FormField label="Mã giảm giá" htmlFor="booking-promotion" hint="Không bắt buộc — có thể kiểm tra trước khi xác nhận." error={promotionError ?? undefined}>
           <div className="flex gap-2">
             <Input id="booking-promotion" value={promotionCode} onChange={(event) => { setPromotionCode(event.target.value.toUpperCase()); clearPromotionPreview(); }} placeholder="VD: SAVE10" maxLength={30} autoComplete="off" />
@@ -268,6 +283,7 @@ export function BookingEntryPage() {
         <p className="mt-1 text-xs text-slate-500">Khởi hành: {formatDepartureDate(departureDate)}</p>
         {unitPrice != null && <p className="mt-1 text-xs text-slate-500">{formatVnd(unitPrice)} / khách</p>}
         <dl className="mt-4 space-y-2 border-t border-slate-100 pt-3 text-sm">
+          {tour.agePricing && <><div className="flex justify-between gap-3"><dt>Người lớn × {guestCounts.adults}</dt><dd>{formatVnd(unitPrice * guestCounts.adults)}</dd></div><div className="flex justify-between gap-3"><dt>Trẻ em × {children}</dt><dd>{formatVnd(Math.round(unitPrice * tour.agePricing.childPercent / 100) * children)}</dd></div><div className="flex justify-between gap-3"><dt>Em bé × {infants}</dt><dd>{formatVnd(Math.round(unitPrice * tour.agePricing.infantPercent / 100) * infants)}</dd></div></>}
           <div className="flex items-center justify-between gap-3 text-slate-600"><dt>Tạm tính ({participants} khách)</dt><dd className="font-semibold text-slate-800">{formatVnd(subtotal)}</dd></div>
           {promotionPreview && <div className="flex items-center justify-between gap-3 text-emerald-700"><dt>Ưu đãi {promotionPreview.code}</dt><dd className="font-semibold">-{formatVnd(promotionPreview.discountAmount)}</dd></div>}
           <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3"><dt className="font-semibold text-slate-800">Tổng dự kiến</dt><dd className="text-lg font-extrabold text-primary-container" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatVnd(finalEstimate)}</dd></div>

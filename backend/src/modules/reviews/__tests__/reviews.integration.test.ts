@@ -1,5 +1,9 @@
 import request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+vi.mock('../../../integrations/cloudinary', async importOriginal => ({
+  ...await importOriginal<typeof import('../../../integrations/cloudinary')>(),
+  verifyImageUpload: vi.fn(async (_purpose, _owner, publicId) => ({ publicId, secureUrl: 'https://res.cloudinary.com/test/image/upload/trip.jpg' })),
+}));
 import { createApp } from '../../../app';
 import { bookingsService } from '../../bookings';
 import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase, loadTour } from '../../../test/integration';
@@ -37,6 +41,70 @@ async function setup() {
 }
 
 describe('reviews (integration)', () => {
+  it('lets guests read profiles and visible reviews scoped to the guide who led the completed booking', async () => {
+    const { agency, traveler, moderator, tourId, departureId } = await setup();
+    const guide = await createUser('TOUR_GUIDE', 'public-guide@example.com');
+    const otherGuide = await createUser('TOUR_GUIDE', 'other-guide@example.com');
+    const bookingId = await bookTrip(traveler, tourId, departureId);
+    await completeTrips([bookingId]);
+    const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
+    await prisma.earning.create({ data: { guideId: guide.id, bookingId, bookingCode: booking.bookingCode, tourId, tourTitle: booking.tourTitle, agencyId: agency.id, amount: 0, earnedAt: new Date() } });
+    // Changing the current tour guide must not move an old trip's reviews to that new guide.
+    await prisma.tourGuideAssignment.upsert({ where: { tourId }, create: { tourId, guideId: otherGuide.id, feePerBooking: 0, status: 'ACCEPTED' }, update: { guideId: otherGuide.id, status: 'ACCEPTED' } });
+    const created = await review(traveler.token, bookingId, 4);
+    expect(created.status).toBe(201);
+    for (const path of [`agencies/${agency.id}`, `tour-guides/${guide.id}`]) {
+      const profile = await request(app).get(`/api/v1/${path}`);
+      expect(profile.status).toBe(200);
+      expect(profile.body.data).not.toHaveProperty('email');
+      expect(profile.body.data).not.toHaveProperty('phone');
+    }
+    for (const filter of [{ agencyId: agency.id }, { guideId: guide.id }]) {
+      const result = await request(app).get('/api/v1/reviews').query({ ...filter, sort: 'rating_desc', limit: 1 });
+      expect(result.status).toBe(200);
+      expect(result.body.data).toHaveLength(1);
+      expect(result.body.meta.total).toBe(1);
+      expect(result.body.data[0]).not.toHaveProperty('travelerId');
+      expect(result.body.data[0].author.name).not.toBe('Tran Thi B');
+    }
+    expect((await request(app).get('/api/v1/reviews').query({ guideId: otherGuide.id })).body.data).toEqual([]);
+    for (const sort of ['newest', 'rating_asc']) {
+      const result = await request(app).get('/api/v1/reviews').query({ guideId: guide.id, sort });
+      expect(result.status).toBe(200);
+      expect(result.body.data[0].id).toBe(created.body.data.id);
+    }
+    expect((await request(app).get('/api/v1/reviews').query({ guideId: guide.id, page: 2, limit: 1 })).body.data).toEqual([]);
+    expect((await request(app).get('/api/v1/reviews').query({ guideId: guide.id, tourId })).status).toBe(400);
+    expect((await request(app).get('/api/v1/reviews').query({ guideId: 'invalid' })).status).toBe(400);
+    expect((await request(app).post('/api/v1/bookings').send({})).status).toBe(401);
+    await request(app).post(`/api/v1/moderation/reviews/${created.body.data.id}/moderate`).set(bearer(moderator.token)).send({ hide: true, reason: 'Hidden for test' }).expect(200);
+    const hidden = await request(app).get('/api/v1/reviews').query({ guideId: guide.id });
+    expect(hidden.body.data).toEqual([]);
+    expect(hidden.body.meta.total).toBe(0);
+  });
+  it('persists verified photos, returns them publicly, hides them with moderation and rejects foreign assets', async () => {
+    const { traveler, moderator, tourId, departureId } = await setup();
+    const bookingId = await bookTrip(traveler, tourId, departureId);
+    await completeTrips([bookingId]);
+    const endpoint = '/api/v1/reviews';
+    const base = { bookingId, rating: 5, comment: 'A wonderful trip with beautiful views!' };
+    const foreign = await request(app).post(endpoint).set(bearer(traveler.token)).send({ ...base, imagePublicIds: ['tripin/reviews/foreign/asset'] });
+    expect(foreign.status).toBe(403);
+    const tooMany = await request(app).post(endpoint).set(bearer(traveler.token)).send({ ...base, imagePublicIds: Array.from({ length: 7 }, (_, index) => String(index)) });
+    expect(tooMany.status).toBe(400);
+    const imagePublicIds = [`tripin/reviews/${traveler.id}/${bookingId}/11111111-1111-4111-8111-111111111111`];
+    const created = await request(app).post(endpoint).set(bearer(traveler.token)).send({ ...base, imagePublicIds });
+    expect(created.status).toBe(201);
+    expect(created.body.data.images).toEqual(['https://res.cloudinary.com/test/image/upload/trip.jpg']);
+    expect((await prisma.review.findUniqueOrThrow({ where: { bookingId } })).images).toEqual(created.body.data.images);
+    const publicList = await request(app).get(endpoint).query({ tourId });
+    expect(publicList.body.data[0].images).toEqual(created.body.data.images);
+    await prisma.review.update({ where: { bookingId }, data: { status: 'HIDDEN', moderatedById: moderator.id } });
+    expect((await request(app).get(endpoint).query({ tourId })).body.data).toHaveLength(0);
+    const signature = await request(app).post('/api/v1/reviews/images/upload-signature').set(bearer(traveler.token)).send({ bookingId });
+    expect(signature.status).toBe(409);
+  });
+
   it('only the owner of a COMPLETED booking can review it, once, even when the request is sent in parallel', async () => {
     const { traveler, tourId, departureId } = await setup();
     const stranger = await createUser('TRAVELER', 'stranger@example.com');
@@ -151,5 +219,29 @@ describe('earnings (integration)', () => {
     expect((await request(app).get('/api/v1/earnings/me').set(bearer(guide.token))).body.data).toHaveLength(1);
     expect((await request(app).get('/api/v1/earnings/me').set(bearer(traveler.token))).status).toBe(403);
     expect((await request(app).get('/api/v1/earnings/me')).status).toBe(401);
+    expect((await request(app).get('/api/v1/earnings/me/summary').set(bearer(otherGuide.token)).query({ guideId: guide.id })).body.data).toEqual({ totalAmount: 0, count: 0, byMonth: [] });
+    expect((await request(app).get('/api/v1/earnings/me').set(bearer(otherGuide.token)).query({ guideId: guide.id })).body.data).toEqual([]);
+    expect((await request(app).get('/api/v1/earnings/me/summary').set(bearer(traveler.token))).status).toBe(403);
+    expect((await request(app).get('/api/v1/earnings/me/summary')).status).toBe(401);
+  });
+
+  it('filters inclusive instants and UTC months, keeping summary independent of pagination', async () => {
+    const { traveler, guide, tourId, departureId } = await guideSetup('ACCEPTED');
+    const bookings = [];
+    for (let i = 0; i < 3; i++) bookings.push(await bookTrip(traveler, tourId, departureId));
+    await completeTrips(bookings);
+    const instants = ['2026-09-30T16:59:59.999Z', '2026-09-30T17:00:00.000Z', '2026-10-01T16:59:59.999Z'];
+    for (let i = 0; i < bookings.length; i++) await prisma.earning.update({ where: { bookingId: bookings[i] }, data: { earnedAt: new Date(instants[i]!) } });
+    const range = { from: '2026-10-01T00:00:00+07:00', to: '2026-10-01T23:59:59.999+07:00' };
+    const list = await request(app).get('/api/v1/earnings/me').set(bearer(guide.token)).query({ ...range, page: 2, limit: 1 });
+    expect(list.body.data).toHaveLength(1);
+    expect(list.body.meta).toMatchObject({ total: 2, totalPages: 2, page: 2 });
+    const summary = await request(app).get('/api/v1/earnings/me/summary').set(bearer(guide.token)).query(range);
+    expect(summary.body.data).toEqual({ totalAmount: 500_000, count: 2, byMonth: [
+      { month: '2026-10', totalAmount: 250_000, count: 1 }, { month: '2026-09', totalAmount: 250_000, count: 1 },
+    ] });
+    for (const path of ['/earnings/me', '/earnings/me/summary']) {
+      expect((await request(app).get(`/api/v1${path}`).set(bearer(guide.token)).query({ from: range.to, to: range.from })).status).toBe(400);
+    }
   });
 });

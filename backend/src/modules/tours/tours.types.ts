@@ -1,6 +1,7 @@
 import { GUIDE_ASSIGNMENT_STATUS, TOUR_STATUS, type GuideAssignmentStatus, type TourStatus } from '@travel-platform/constants';
 import type { TransitionMap } from '../../utils/state-machine';
 import type { CategoryDto } from '../categories';
+import type { AgePricing } from '@travel-platform/constants';
 
 const T = TOUR_STATUS;
 /**
@@ -33,6 +34,11 @@ export const TOUR_LIMITS = {
 // ---------------------------------------------------------------- inputs
 
 export interface TourContentInput {
+  agePricing?: AgePricing | null;
+  childPricingPolicy?: string;
+  cancellationPolicy?: string;
+  travelNotes?: string;
+  requiredDocuments?: string;
   title: string;
   summary?: string;
   description?: string;
@@ -123,6 +129,11 @@ export interface TourListItemDto {
 
 /** "View tour details". */
 export interface TourDetailDto extends TourListItemDto {
+  agePricing?: AgePricing | null;
+  childPricingPolicy?: string;
+  cancellationPolicy?: string;
+  travelNotes?: string;
+  requiredDocuments?: string;
   description?: string;
   maxGroupSize?: number;
   images: string[];
@@ -166,6 +177,7 @@ export interface GuideTourDto {
 
 /** Minimal facts other modules (bookings, earnings, reviews) need about a tour. */
 export interface BookableDeparture {
+  agePricing?: AgePricing | null;
   tourId: string;
   agencyId: string;
   title: string;
@@ -183,6 +195,7 @@ export interface BookableDeparture {
  * open + future + seats left. Keyed in the returned map as `${tourId}:${departureId}`.
  */
 export interface DepartureFacts {
+  agePricing?: AgePricing | null;
   tourId: string;
   departureId: string;
   date: Date;

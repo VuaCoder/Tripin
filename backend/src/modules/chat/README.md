@@ -21,6 +21,7 @@ One-to-one conversations between a **Traveler** and a **Tour guide**, over REST 
 
 ## REST API (base `/api/v1`, permission `chat:use`)
 * `POST /chat/conversations` `{ participantId, tourId? }` → `ConversationDto` (finds or creates the single conversation of the pair). The counterpart must be an ACTIVE user of the opposite role.
+* `GET /chat/conversations/:id` → `ConversationDto`, participant-only; unknown and foreign conversations both return 404.
 * `GET /chat/conversations?page&limit` → inbox, most recent first: `{ id, counterpart{id,fullName,avatarUrl,role}, tourId?, lastMessage?, unreadCount, updatedAt }`.
 * `GET /chat/conversations/:id/messages?limit&before` → `{ items (newest first), hasMore }`; pass the last item id as `before`.
 * `POST /chat/conversations/:id/messages` `{ text 1..2000 }` → 201 `MessageDto` (60/min/IP limiter).
@@ -31,6 +32,7 @@ Unknown conversations **and** conversations of other people answer 404.
 * Connect with `io(API_URL, { auth: { token: <access token> } })`; invalid/expired token → `connect_error`.
 * Client → server (each accepts an ack callback returning `{ ok:true, data }` or `{ ok:false, error:{code,message} }`): `chat:send {conversationId,text}`, `chat:read {conversationId}`, `chat:typing {conversationId}`.
 * Server → client: `chat:message { conversationId, message }` (to **both** participants' sockets, all devices), `chat:typing { conversationId, userId }`, `notification:new <NotificationDto>` (from `notifications`).
+* Recipient clients can acknowledge `chat:message` with `true`. The gateway then emits `chat:delivered { conversationId, messageId }` to the sender's sockets. This is a transient delivery receipt, not a persisted read receipt; older clients can omit the acknowledgment.
 * Payloads are validated with zod; at most 20 events / 10 s per socket (`RATE_LIMITED`); users without `chat:use` get `FORBIDDEN`. The sender id is always the authenticated user.
 
 ## Business rules

@@ -8,6 +8,7 @@ import type { AppRole } from './navigation-config';
 import { navigationByRole } from './navigation-config';
 import { Navigation } from './Navigation';
 import { MobileNavigation } from './MobileNavigation';
+import { Container } from './Container';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, selectIsAuthenticated, useLogout } from '@/features/auth';
 import { homeForRole } from '@/features/auth/utils/roles';
@@ -15,11 +16,68 @@ import { PremiumComingSoonModal } from '@/components/shared';
 import { AgencyRightSidebar } from '@/features/agency/AgencyUi';
 import { cn } from '../ui/cn';
 
+import { useConversationsQuery } from '@/features/chat/api';
+import {
+  useGetNotificationsQuery,
+  useGetUnreadCountQuery,
+  useMarkNotificationAsReadMutation,
+  useMarkAllNotificationsAsReadMutation,
+  type AppNotification,
+} from '@/features/notifications/api/notificationsApi';
+
 type AccountMenuItem = {
   label: string;
   href: string;
   icon: string;
 };
+
+interface LocalNotification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  icon: string;
+  iconBg: string;
+  time: string;
+  href: string;
+  isRead: boolean;
+}
+
+const DEFAULT_NOTIFICATIONS: LocalNotification[] = [
+  {
+    id: 'notif-booking-success',
+    type: 'BOOKING_CONFIRMED',
+    title: 'Đặt lịch thành công!',
+    body: 'Bạn đã đặt thành công tour "Khám phá Vịnh Hạ Long 2N1Đ". Mã vé: #TRI-88392. Chúc bạn có kỳ nghỉ tuyệt vời!',
+    icon: 'check_circle',
+    iconBg: 'bg-emerald-50 text-emerald-600',
+    time: '10 phút trước',
+    href: '/settings/history',
+    isRead: false,
+  },
+  {
+    id: 'notif-promo-weekend',
+    type: 'PROMOTION',
+    title: 'Ưu đãi Tour Cuối Tuần - Giảm 25%',
+    body: 'Chương trình Flash Sale: Giảm 25% các tour Biển đảo & Nghỉ dưỡng khi đặt trong tuần này!',
+    icon: 'local_offer',
+    iconBg: 'bg-amber-50 text-amber-600',
+    time: '2 giờ trước',
+    href: '/tours',
+    isRead: false,
+  },
+  {
+    id: 'notif-review-tour',
+    type: 'BOOKING_COMPLETED',
+    title: 'Đánh giá chuyến đi đã hoàn thành',
+    body: 'Tour "Cần Thơ chợ nổi & vị ngọt miền Tây" đã hoàn tất. Hãy chia sẻ cảm nghĩ để nhận voucher 50.000đ nhé!',
+    icon: 'star',
+    iconBg: 'bg-yellow-50 text-yellow-600',
+    time: '1 ngày trước',
+    href: '/settings/history',
+    isRead: false,
+  },
+];
 
 function accountMenuForRole(role: AppRole): AccountMenuItem[] {
   if (role === 'PUBLIC') {
@@ -57,10 +115,61 @@ export function Header({ role }: { role?: AppRole }) {
   const isHome = pathname === '/home';
   const [isScrolled, setIsScrolled] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
   const [premiumModalOpen, setPremiumModalOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
+  const notificationRef = useRef<HTMLDivElement>(null);
 
   const [avatarFailed, setAvatarFailed] = useState(false);
+
+  // Tin nhắn: Đếm số lượng tin nhắn chưa đọc
+  const { data: conversationsData } = useConversationsQuery(1, { skip: !isAuthenticated });
+  const unreadChatCount = conversationsData?.data?.reduce((total, conv) => total + (conv.unreadCount || 0), 0) || 0;
+
+  // Thông báo: Lấy từ API hoặc dùng danh sách thông báo mẫu sinh động
+  const { data: apiNotifications } = useGetNotificationsQuery(1, { skip: !isAuthenticated });
+  const [markAllReadApi] = useMarkAllNotificationsAsReadMutation();
+  const [markOneReadApi] = useMarkNotificationAsReadMutation();
+  const [notificationsList, setNotificationsList] = useState<LocalNotification[]>(DEFAULT_NOTIFICATIONS);
+
+  // Cập nhật khi có dữ liệu từ backend
+  useEffect(() => {
+    if (apiNotifications?.data && apiNotifications.data.length > 0) {
+      const mapped: LocalNotification[] = apiNotifications.data.map((item) => ({
+        id: item.id,
+        type: item.type,
+        title: item.title,
+        body: item.body,
+        icon: item.type.includes('BOOKING') ? 'check_circle' : item.type.includes('PROMOTION') ? 'local_offer' : 'notifications',
+        iconBg: item.type.includes('BOOKING') ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600',
+        time: new Date(item.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        href: item.type.includes('BOOKING') ? '/settings/history' : '/tours',
+        isRead: item.isRead,
+      }));
+      setNotificationsList(mapped);
+    }
+  }, [apiNotifications]);
+
+  const unreadNotifCount = notificationsList.filter((n) => !n.isRead).length;
+
+  const handleMarkAllRead = async () => {
+    setNotificationsList((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    try {
+      await markAllReadApi().unwrap();
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleReadNotification = async (id: string) => {
+    setNotificationsList((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+    setNotificationOpen(false);
+    try {
+      await markOneReadApi(id).unwrap();
+    } catch {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     setAvatarFailed(false);
@@ -79,15 +188,21 @@ export function Header({ role }: { role?: AppRole }) {
   }, [isHome]);
 
   useEffect(() => {
-    if (!accountMenuOpen) return;
+    if (!accountMenuOpen && !notificationOpen) return;
 
     const closeOnOutsideClick = (event: MouseEvent) => {
-      if (!accountMenuRef.current?.contains(event.target as Node)) {
+      if (accountMenuOpen && !accountMenuRef.current?.contains(event.target as Node)) {
         setAccountMenuOpen(false);
+      }
+      if (notificationOpen && !notificationRef.current?.contains(event.target as Node)) {
+        setNotificationOpen(false);
       }
     };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setAccountMenuOpen(false);
+      if (event.key === 'Escape') {
+        setAccountMenuOpen(false);
+        setNotificationOpen(false);
+      }
     };
 
     document.addEventListener('mousedown', closeOnOutsideClick);
@@ -96,7 +211,7 @@ export function Header({ role }: { role?: AppRole }) {
       document.removeEventListener('mousedown', closeOnOutsideClick);
       document.removeEventListener('keydown', closeOnEscape);
     };
-  }, [accountMenuOpen]);
+  }, [accountMenuOpen, notificationOpen]);
 
   const isTransparent = isHome && !isScrolled;
   const effectiveRole: AppRole = role || (isAuthenticated && user?.role ? (user.role as AppRole) : 'PUBLIC');
@@ -111,14 +226,14 @@ export function Header({ role }: { role?: AppRole }) {
   return (
     <>
       <header
-      className={cn(
-        'sticky top-0 left-0 right-0 z-50 transition-all duration-300',
-        isTransparent
-          ? 'bg-transparent border-transparent'
-          : 'bg-white/85 backdrop-blur-xl shadow-[0_4px_20px_rgba(8,126,139,0.06)] border-b border-white/60',
-      )}
-    >
-      <div className="mx-auto flex h-20 max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        className={cn(
+          'sticky top-0 left-0 right-0 z-50 transition-all duration-300',
+          isTransparent
+            ? 'bg-transparent border-transparent'
+            : 'bg-white/95 backdrop-blur-md shadow-md border-b border-slate-200/80',
+        )}
+      >
+      <Container className="flex h-20 items-center justify-between gap-4">
         <div className="flex items-center gap-6">
           <Link
             href={isAuthenticated && user ? homeForRole(user.role) : '/home'}
@@ -143,7 +258,7 @@ export function Header({ role }: { role?: AppRole }) {
         </div>
 
         <div className="flex items-center gap-2.5 sm:gap-3">
-          {(!user || user.role === 'TRAVELER') && (
+          {!user && (
             <button
               type="button"
               onClick={() => setPremiumModalOpen(true)}
@@ -169,86 +284,230 @@ export function Header({ role }: { role?: AppRole }) {
             </button>
           )}
 
-
-
-
-
           {isAuthenticated && user ? (
-            <div ref={accountMenuRef} className="relative">
-              <button
-                type="button"
-                aria-expanded={accountMenuOpen}
-                aria-controls="account-menu"
-                onClick={() => setAccountMenuOpen((open) => !open)}
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Nút Chuông thông báo 🔔 */}
+              <div ref={notificationRef} className="relative">
+                <button
+                  type="button"
+                  aria-label="Thông báo"
+                  title="Thông báo"
+                  onClick={() => {
+                    setNotificationOpen((prev) => !prev);
+                    setAccountMenuOpen(false);
+                  }}
+                  className={cn(
+                    'relative flex size-10 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container cursor-pointer',
+                    isTransparent
+                      ? 'text-white hover:bg-white/15'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                  )}
+                >
+                  <span className="material-symbols-outlined text-[22px]">notifications</span>
+                  {unreadNotifCount > 0 && (
+                    <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+                      {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                    </span>
+                  )}
+                </button>
+
+                {notificationOpen && (
+                  <div
+                    id="notification-menu"
+                    className="absolute right-0 top-[calc(100%+0.625rem)] w-80 sm:w-96 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-3 shadow-2xl shadow-slate-900/15 animate-fadeInScale z-50 text-slate-800"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 px-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-slate-900">Thông báo</span>
+                        {unreadNotifCount > 0 && (
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-600">
+                            {unreadNotifCount} mới
+                          </span>
+                        )}
+                      </div>
+                      {unreadNotifCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleMarkAllRead}
+                          className="flex items-center gap-1 text-xs font-semibold text-primary-container hover:underline cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">done_all</span>
+                          Đã đọc tất cả
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="max-h-96 overflow-y-auto ant-scrollbar divide-y divide-slate-100 my-1">
+                      {notificationsList.length === 0 ? (
+                        <div className="py-8 text-center text-xs text-slate-400">
+                          <span className="material-symbols-outlined mx-auto mb-1 block text-3xl text-slate-300">notifications_none</span>
+                          Bạn chưa có thông báo nào
+                        </div>
+                      ) : (
+                        notificationsList.map((item) => (
+                          <Link
+                            key={item.id}
+                            href={item.href}
+                            onClick={() => handleReadNotification(item.id)}
+                            className={cn(
+                              'flex items-start gap-3 p-2.5 rounded-xl transition-colors hover:bg-slate-50 cursor-pointer',
+                              !item.isRead ? 'bg-slate-50/70' : 'opacity-80',
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                'flex size-9 shrink-0 items-center justify-center rounded-xl',
+                                item.iconBg,
+                              )}
+                            >
+                              <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-1">
+                                <h4 className="text-xs font-bold text-slate-900 truncate">{item.title}</h4>
+                                {!item.isRead && <span className="size-2 rounded-full bg-primary-container shrink-0" />}
+                              </div>
+                              <p className="text-xs text-slate-600 line-clamp-2 mt-0.5 leading-relaxed">{item.body}</p>
+                              <span className="text-[10px] text-slate-400 mt-1 block">{item.time}</span>
+                            </div>
+                          </Link>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Nút Bong bóng chat / Tin nhắn 💬 */}
+              <Link
+                href="/conversations"
+                aria-label="Tin nhắn"
+                title="Tin nhắn"
                 className={cn(
-                  'flex items-center gap-2 rounded-full px-2 py-1.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container',
+                  'relative flex size-10 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container cursor-pointer',
                   isTransparent
                     ? 'text-white hover:bg-white/15'
-                    : 'text-slate-800 hover:bg-slate-100',
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
                 )}
               >
-                <span className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-container text-xs font-bold text-white shadow-sm ring-1 ring-black/5">
-                  {user.avatarUrl && !avatarFailed ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={user.avatarUrl}
-                      alt={user.fullName || user.email}
-                      className="size-full object-cover"
-                      referrerPolicy="no-referrer"
-                      onError={() => setAvatarFailed(true)}
-                    />
-                  ) : (
-                    <span>{user.fullName ? user.fullName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}</span>
-                  )}
-                </span>
-                <span className={cn('hidden max-w-[140px] truncate text-sm font-semibold leading-tight sm:block', isTransparent ? 'text-white' : 'text-slate-900')}>
-                  {user.fullName || user.email}
-                </span>
-                <span
-                  className={cn(
-                    'material-symbols-outlined hidden text-[18px] transition-transform sm:block',
-                    isTransparent ? 'text-white/80' : 'text-slate-500',
-                    accountMenuOpen ? 'rotate-180' : '',
-                  )}
-                  aria-hidden="true"
-                >
-                  expand_more
-                </span>
-              </button>
+                <span className="material-symbols-outlined text-[22px]">chat</span>
+                {unreadChatCount > 0 && (
+                  <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+                    {unreadChatCount > 9 ? '9+' : unreadChatCount}
+                  </span>
+                )}
+              </Link>
 
-              {accountMenuOpen && (
-                <div
-                  id="account-menu"
-                  className="absolute right-0 top-[calc(100%+0.625rem)] w-56 overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-lg shadow-slate-900/15"
+              {/* Nút Tài khoản người dùng (Giữ nguyên giao diện đẹp ban đầu) */}
+              <div ref={accountMenuRef} className="relative">
+                <button
+                  type="button"
+                  aria-expanded={accountMenuOpen}
+                  aria-controls="account-menu"
+                  onClick={() => {
+                    setAccountMenuOpen((open) => !open);
+                    setNotificationOpen(false);
+                  }}
+                  className={cn(
+                    'flex items-center gap-2 rounded-full px-2 py-1.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container cursor-pointer',
+                    isTransparent
+                      ? 'text-white hover:bg-white/15'
+                      : 'text-slate-800 hover:bg-slate-100',
+                  )}
                 >
-                  <div className="p-1.5">
-                    {accountMenuItems.map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setAccountMenuOpen(false)}
-                        className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-surface-container-low"
+                  <span className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-container text-xs font-bold text-white shadow-sm ring-1 ring-black/5">
+                    {user.avatarUrl && !avatarFailed ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={user.avatarUrl}
+                        alt={user.fullName || user.email}
+                        className="size-full object-cover"
+                        referrerPolicy="no-referrer"
+                        onError={() => setAvatarFailed(true)}
+                      />
+                    ) : (
+                      <span>{user.fullName ? user.fullName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}</span>
+                    )}
+                  </span>
+                  <span className={cn('hidden max-w-[140px] truncate text-sm font-semibold leading-tight sm:block', isTransparent ? 'text-white' : 'text-slate-900')}>
+                    {user.fullName || user.email}
+                  </span>
+                  <span
+                    className={cn(
+                      'material-symbols-outlined hidden text-[18px] transition-transform sm:block',
+                      isTransparent ? 'text-white/80' : 'text-slate-500',
+                      accountMenuOpen ? 'rotate-180' : '',
+                    )}
+                    aria-hidden="true"
+                  >
+                    expand_more
+                  </span>
+                </button>
+
+                {accountMenuOpen && (
+                  <div
+                    id="account-menu"
+                    className="absolute right-0 top-[calc(100%+0.625rem)] w-56 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-900/15 animate-fadeInScale z-50"
+                  >
+                    <div className="p-1.5">
+                      {effectiveRole === 'TRAVELER' ? (
+                        <>
+                          <Link
+                            href="/settings/profile"
+                            onClick={() => setAccountMenuOpen(false)}
+                            className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-surface-container-low"
+                          >
+                            <span className="material-symbols-outlined text-[19px] text-primary-container">person</span>
+                            <span>Hồ sơ cá nhân</span>
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAccountMenuOpen(false);
+                              setPremiumModalOpen(true);
+                            }}
+                            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-50 cursor-pointer"
+                          >
+                            <span
+                              className="material-symbols-outlined text-[19px] text-amber-500"
+                              style={{ fontVariationSettings: "'FILL' 1" }}
+                            >
+                              workspace_premium
+                            </span>
+                            <span className="flex-1 font-bold">Premium</span>
+                            <span className="material-symbols-outlined text-[14px] text-amber-500">auto_awesome</span>
+                          </button>
+                        </>
+                      ) : (
+                        accountMenuItems.map((item) => (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            onClick={() => setAccountMenuOpen(false)}
+                            className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-surface-container-low"
+                          >
+                            <span className="material-symbols-outlined text-[19px] text-primary-container">{item.icon}</span>
+                            <span>{item.label}</span>
+                          </Link>
+                        ))
+                      )}
+                    </div>
+                    <div className="border-t border-slate-100 p-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAccountMenuOpen(false);
+                          logout();
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
                       >
-                        <span className="material-symbols-outlined text-[19px] text-primary-container">{item.icon}</span>
-                        <span>{item.label}</span>
-                      </Link>
-                    ))}
+                        <span className="material-symbols-outlined text-[19px]">logout</span>
+                        Đăng xuất
+                      </button>
+                    </div>
                   </div>
-                  <div className="border-t border-slate-100 p-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAccountMenuOpen(false);
-                        logout();
-                      }}
-                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
-                    >
-                      <span className="material-symbols-outlined text-[19px]">logout</span>
-                      Đăng xuất
-                    </button>
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -277,7 +536,7 @@ export function Header({ role }: { role?: AppRole }) {
 
           <MobileNavigation items={items} onOpenPremium={() => setPremiumModalOpen(true)} />
         </div>
-      </div>
+      </Container>
     </header>
 
     <PremiumComingSoonModal

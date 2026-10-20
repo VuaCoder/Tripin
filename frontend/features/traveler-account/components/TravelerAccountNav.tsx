@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 const navItems = [
   { name: 'Danh sách yêu thích', href: '/settings/wishlist', icon: 'favorite' },
   { name: 'Chuyến đi', href: '/settings/history', icon: 'confirmation_number' },
+  { name: 'Báo cáo của tôi', href: '/settings/reports', icon: 'flag' },
   { name: 'Hồ sơ', href: '/settings/profile', icon: 'person' },
   { name: 'Bảo mật & 2FA', href: '/settings/profile/security', icon: 'shield_lock' },
 ];

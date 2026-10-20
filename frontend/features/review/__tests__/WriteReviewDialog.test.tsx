@@ -3,9 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const createReview = vi.hoisted(() => vi.fn());
 const mutationState = vi.hoisted(() => ({ isLoading: false }));
+const createSignature = vi.hoisted(() => vi.fn());
+const uploadImage = vi.hoisted(() => vi.fn());
+vi.mock('@/features/traveler-account/api/avatarUpload', async importOriginal => ({
+  ...await importOriginal<typeof import('@/features/traveler-account/api/avatarUpload')>(),
+  uploadImageToCloudinary: uploadImage,
+}));
 
 vi.mock('../api/reviewApi', () => ({
   useCreateReviewMutation: () => [createReview, mutationState],
+  useCreateReviewImageSignatureMutation: () => [createSignature],
 }));
 
 import { WriteReviewDialog } from '../components/WriteReviewDialog';
@@ -58,6 +65,10 @@ const typeComment = (value: string) => fireEvent.change(screen.getByLabelText(/C
 const chooseRating = (stars: number) => fireEvent.click(screen.getByLabelText(`${stars} sao`));
 
 beforeEach(() => {
+  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:test'), revokeObjectURL: vi.fn() }));
+  createSignature.mockReset(); uploadImage.mockReset();
+  createSignature.mockReturnValue({ unwrap: async () => ({ publicId: 'asset-1' }) });
+  uploadImage.mockResolvedValue({ publicId: 'asset-1' });
   mutationState.isLoading = false;
   createReview.mockReset();
   createReview.mockReturnValue({ unwrap: () => Promise.resolve(CREATED) });
@@ -66,6 +77,33 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('WriteReviewDialog', () => {
+  it('uploads selected images and sends only verified public IDs with the review', async () => {
+    renderDialog(); chooseRating(5); typeComment(VALID_COMMENT);
+    fireEvent.change(screen.getByLabelText('Thêm ảnh chuyến đi'), { target: { files: [new File(['photo'], 'trip.jpg', { type: 'image/jpeg' })] } });
+    expect(screen.getByAltText('Xem trước trip.jpg')).toBeTruthy();
+    submit();
+    await waitFor(() => expect(createReview).toHaveBeenCalledWith({ bookingId: 'b1', rating: 5, comment: VALID_COMMENT, imagePublicIds: ['asset-1'] }));
+    expect(createSignature).toHaveBeenCalledWith({ bookingId: 'b1' });
+  });
+
+  it('keeps photos and draft on upload failure and retries without posting an incomplete review', async () => {
+    uploadImage.mockRejectedValueOnce(new Error('Không thể tải ảnh lên.'));
+    renderDialog(); chooseRating(5); typeComment(VALID_COMMENT);
+    fireEvent.change(screen.getByLabelText('Thêm ảnh chuyến đi'), { target: { files: [new File(['photo'], 'trip.jpg', { type: 'image/jpeg' })] } });
+    submit(); await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Không thể tải ảnh lên.'));
+    expect(createReview).not.toHaveBeenCalled();
+    expect(screen.getByAltText('Xem trước trip.jpg')).toBeTruthy();
+    submit(); await waitFor(() => expect(createReview).toHaveBeenCalledTimes(1));
+  });
+
+  it('rejects non-images and supports removing a selected photo', () => {
+    renderDialog();
+    fireEvent.change(screen.getByLabelText('Thêm ảnh chuyến đi'), { target: { files: [new File(['x'], 'bad.svg', { type: 'image/svg+xml' })] } });
+    expect(screen.getByRole('alert').textContent).toContain('Chỉ hỗ trợ ảnh');
+    fireEvent.change(screen.getByLabelText('Thêm ảnh chuyến đi'), { target: { files: [new File(['photo'], 'trip.jpg', { type: 'image/jpeg' })] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa ảnh trip.jpg' }));
+    expect(screen.queryByAltText('Xem trước trip.jpg')).toBeNull();
+  });
   it('shows the booking being reviewed and the rating picker', () => {
     renderDialog();
 

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../../app';
@@ -67,6 +68,19 @@ describe('reports (integration)', () => {
     expect((await request(app).get('/api/v1/agency/complaints').set(bearer(traveler.token))).status).toBe(403);
   });
 
+  it('the moderator queue shows the reporter, the agency and the tour by name', async () => {
+    const { moderator, traveler, tourId } = await setup();
+    await file(traveler.token, tourId);
+    const queue = await request(app).get('/api/v1/moderation/reports').set(bearer(moderator.token));
+    expect(queue.status).toBe(200);
+    const [row] = queue.body.data as { reporterName: string; agencyName: string; tourTitle: string; targetName: string; targetId: string }[];
+    expect(row!.reporterName).toBe('TRAVELER traveler@example.com');
+    expect(row!.agencyName).toBe('AGENCY agency@example.com'); // no company profile: the account name stands in
+    expect(row!.tourTitle).toBe('Ha Long Bay 2D1N');
+    expect(row!.targetName).toBe('Ha Long Bay 2D1N');
+    expect(row!.targetId).toBe(tourId); // the ids stay: the ban action of a USER report needs one
+  });
+
   it('the agency answers once; a moderator then decides once; every other order is refused', async () => {
     const { agency, rival, traveler, moderator, tourId } = await setup();
     const id = (await file(traveler.token, tourId)).body.data.id;
@@ -96,5 +110,42 @@ describe('reports (integration)', () => {
 
     const notices = await request(app).get('/api/v1/notifications').set(bearer(traveler.token));
     expect(notices.body.data.map((n: { type: string }) => n.type)).toEqual(expect.arrayContaining(['REPORT_UPDATED', 'REPORT_RESOLVED']));
+  });
+
+  it('an agency disputes a review of its own tour; a rival and a traveler cannot, and it is not a complaint against it', async () => {
+    const { agency, rival, traveler, moderator, tourId } = await setup();
+    const review = await prisma.review.create({
+      data: {
+        bookingId: randomUUID(),
+        tourId,
+        tourTitle: 'Ha Long Bay 2D1N',
+        agencyId: agency.id,
+        travelerId: traveler.id,
+        rating: 1,
+        comment: 'Terrible, the guide was rude.',
+        status: 'VISIBLE',
+      },
+    });
+    const dispute = (token: string, body: object = { category: 'INAPPROPRIATE_CONTENT', description: 'This review is untrue.' }) =>
+      request(app).post(`/api/v1/agency/review-disputes/${review.id}`).set(bearer(token)).send(body);
+
+    expect((await dispute(traveler.token)).status).toBe(403); // a traveler holds no review:dispute
+    expect((await dispute(rival.token)).status).toBe(404); // not the rival's review
+    expect((await dispute(agency.token, { category: 'NOPE', description: 'This review is untrue.' })).status).toBe(400);
+    const filed = await dispute(agency.token);
+    expect(filed.status).toBe(201);
+    expect(filed.body.data).toMatchObject({ targetType: 'REVIEW', status: 'OPEN' });
+    expect((await dispute(agency.token)).status).toBe(409); // one open dispute per review
+
+    // The moderator queue carries the review itself, so the decision needs no second screen.
+    const queue = await request(app).get('/api/v1/moderation/reports?targetType=REVIEW').set(bearer(moderator.token));
+    expect(queue.body.data).toHaveLength(1);
+    expect(queue.body.data[0].review).toMatchObject({ rating: 1, comment: 'Terrible, the guide was rude.', status: 'VISIBLE' });
+
+    // A dispute is not routed back to the agency as a complaint about itself; the agency sees it as its own filing.
+    expect((await request(app).get('/api/v1/agency/complaints').set(bearer(agency.token))).body.data).toHaveLength(0);
+    const mine = await request(app).get('/api/v1/agency/review-disputes').set(bearer(agency.token));
+    expect(mine.status).toBe(200);
+    expect(mine.body.data.map((r: { id: string }) => r.id)).toEqual([filed.body.data.id]);
   });
 });

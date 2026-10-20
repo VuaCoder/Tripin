@@ -360,6 +360,7 @@ export class ToursService {
       departureId,
       departureDate: departure.date,
       unitPrice: departurePrice(tour, departure),
+      agePricing: tour.agePricing as unknown as import('@travel-platform/constants').AgePricing | null,
       remaining: departure.remaining,
       guide: tour.guide
         ? { guideId: tour.guide.guideId, feePerBooking: tour.guide.feePerBooking, status: tour.guide.status as never }
@@ -386,6 +387,7 @@ export class ToursService {
           departureId: departure.id,
           date: departure.date,
           price: departurePrice(tour, departure),
+          agePricing: tour.agePricing as unknown as import('@travel-platform/constants').AgePricing | null,
           remaining: departure.remaining,
           isOpen: departure.isOpen,
           bookable: isBookable(departure),
@@ -431,6 +433,14 @@ export class ToursService {
       guideId: tour.guide?.status === GUIDE_ASSIGNMENT_STATUS.ACCEPTED ? tour.guide.guideId : undefined,
       guideFee: tour.guide?.status === GUIDE_ASSIGNMENT_STATUS.ACCEPTED ? tour.guide.feePerBooking : undefined,
     };
+  }
+
+  /** Titles of several tours at once, for queues that must show a name instead of an id. */
+  async getTitles(tourIds: string[]): Promise<Map<string, string>> {
+    const unique = Array.from(new Set(tourIds));
+    if (unique.length === 0) return new Map();
+    const tours = await this.tours.findManyByIds(unique);
+    return new Map(tours.map((tour) => [tour.id, tour.title]));
   }
 
   // ================================================================ helpers

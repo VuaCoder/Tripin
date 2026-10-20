@@ -9,13 +9,16 @@
  * (one with assignments in every state, one with none for the empty state) and a TRAVELER
  * used to prove the role guard. `clean` removes exactly those rows again.
  *
- * Run against a throwaway local database, never the shared Neon branch:
- *   DATABASE_URL="postgresql://postgres@127.0.0.1:5433/tripri_guide_e2e" npx tsx src/scripts/dev-guide-fixture.ts create
+ * Run against a throwaway local database, never the shared Neon branch. The password is never
+ * committed — export DEV_GUIDE_PASSWORD (same variable the Playwright driver reads):
+ *   DATABASE_URL="postgresql://postgres@127.0.0.1:5433/tripri_guide_e2e" DEV_GUIDE_PASSWORD=... \
+ *     npx tsx src/scripts/dev-guide-fixture.ts create
  */
 import bcrypt from 'bcryptjs';
 import { prisma } from '../config/database';
 
-const PASSWORD = 'DevGuide!2026';
+const PASSWORD = process.env.DEV_GUIDE_PASSWORD;
+if (!PASSWORD) throw new Error('DEV_GUIDE_PASSWORD is required; this fixture ships no password');
 const AGENCY_EMAIL = 'dev.guide.agency@tripri.test';
 const GUIDE_EMAIL = 'dev.guide@tripri.test';
 const FOREIGN_GUIDE_EMAIL = 'dev.guide.foreign@tripri.test';

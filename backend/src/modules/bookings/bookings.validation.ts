@@ -3,6 +3,7 @@ import { BOOKING_STATUS } from '@travel-platform/constants';
 import { idParamsSchema, idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 import { BOOKING_POLICY } from './bookings.policy';
+import { guestCountsSchema } from '../../utils/age-pricing';
 
 const phone = z.string().trim().regex(/^\+?[0-9 ().-]{6,20}$/, 'Invalid phone number');
 const status = z.enum(Object.values(BOOKING_STATUS) as [string, ...string[]]);
@@ -12,6 +13,7 @@ export const createBookingBody = z
     tourId: idSchema,
     departureId: idSchema,
     participants: z.number().int().min(1).max(BOOKING_POLICY.MAX_PARTICIPANTS),
+    guestCounts: guestCountsSchema.optional(),
     contact: z.object({ fullName: z.string().trim().min(2).max(120), phone }).strict(),
     notes: z.string().trim().max(500).optional(),
     promotionCode: z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,30}$/).optional(),

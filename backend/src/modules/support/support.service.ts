@@ -4,7 +4,8 @@ import { buildPage, type Page } from '../../utils/pagination';
 import { assertTransition } from '../../utils/state-machine';
 import { bookingsService, type BookingsService } from '../bookings';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
-import { toModerationTicketDto, toTicketDto, toTicketSummary } from './support.mapper';
+import { usersService, type UsersService } from '../users';
+import { toModerationTicketDto, toTicketDto, toTicketSummary, type TicketNames } from './support.mapper';
 import type { SupportTicketRecord } from './support.repository';
 import { supportRepository, type SupportRepository } from './support.repository';
 import {
@@ -30,6 +31,7 @@ export class SupportService {
       'create' | 'findById' | 'appendMessage' | 'transition' | 'listByUser' | 'listForModeration' | 'countByStatus'
     > = supportRepository,
     private readonly bookings: Pick<BookingsService, 'getFacts'> = bookingsService,
+    private readonly users: Pick<UsersService, 'getSummaries'> = usersService,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
   ) {}
 
@@ -93,7 +95,7 @@ export class SupportService {
   async getForModeration(id: string): Promise<ModerationTicketDto> {
     const ticket = await this.tickets.findById(id);
     if (!ticket) throw AppError.notFound('Ticket not found');
-    return toModerationTicketDto(ticket);
+    return toModerationTicketDto(ticket, await this.namesFor(ticket));
   }
 
   /**
@@ -128,7 +130,7 @@ export class SupportService {
       },
       { email: true },
     );
-    return toModerationTicketDto(updated);
+    return toModerationTicketDto(updated, await this.namesFor(updated));
   }
 
   /** Status change without a message (e.g. claim a ticket, or mark it resolved). */
@@ -146,7 +148,7 @@ export class SupportService {
         data: { ticketId: id },
       });
     }
-    return toModerationTicketDto(updated);
+    return toModerationTicketDto(updated, await this.namesFor(updated));
   }
 
   /** Tickets per status (dashboards). */
@@ -156,6 +158,18 @@ export class SupportService {
   }
 
   // =============================================================== helpers
+
+  /** Who opened the ticket, who handles it and the related booking code — the queue shows names, never raw ids. */
+  private async namesFor(ticket: SupportTicketRecord): Promise<TicketNames> {
+    const assignee = ticket.assignedToId;
+    const people = await this.users.getSummaries([ticket.userId, ...(assignee ? [assignee] : [])]);
+    const booking = ticket.bookingId ? await this.bookings.getFacts(ticket.bookingId) : null;
+    return {
+      userName: people.get(ticket.userId)?.fullName,
+      assignedToName: assignee ? people.get(assignee)?.fullName : undefined,
+      bookingCode: booking?.bookingCode,
+    };
+  }
 
   private async requireOwned(userId: string, id: string): Promise<SupportTicketRecord> {
     const ticket = await this.tickets.findById(id);

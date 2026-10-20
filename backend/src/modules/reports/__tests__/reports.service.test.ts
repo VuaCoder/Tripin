@@ -42,13 +42,22 @@ function make(seed: R[] = []) {
     listByAgency: vi.fn(async () => ({ items: db, total: db.length })),
     listForModeration: vi.fn(async () => ({ items: db, total: db.length })),
   };
-  const tours = { getTourFacts: vi.fn(async (id: string) => (id === 'ghost' ? null : { id, agencyId: 'a1', title: 'x', status: 'APPROVED' })) };
+  const tours = {
+    getTourFacts: vi.fn(async (id: string) => (id === 'ghost' ? null : { id, agencyId: 'a1', title: 'x', status: 'APPROVED' })),
+    getTitles: vi.fn(async (ids: string[]) => new Map(ids.filter((id) => id !== 'ghost').map((id) => [id, `Tour ${id}`]))),
+  };
   const users = {
     getSummaries: vi.fn(async (ids: string[]) =>
       new Map(ids.map((id) => [id, { id, fullName: 'Nguyen Van An', role: id.startsWith('a') ? 'AGENCY' : id.startsWith('g') ? 'TOUR_GUIDE' : 'TRAVELER' }])),
     ),
   };
-  const reviews = { getFacts: vi.fn(async (id: string) => (id === 'ghost' ? null : { id, tourId: 't1', agencyId: 'a1', travelerId: 'x', status: 'VISIBLE' })) };
+  const reviews = {
+    getFacts: vi.fn(async (id: string) =>
+      id === 'ghost'
+        ? null
+        : { id, tourId: 't1', agencyId: 'a1', travelerId: 'x', status: 'VISIBLE', rating: 5, comment: 'Tuyệt vời', tourTitle: 'Ha Long' },
+    ),
+  };
   const bookings = { getFacts: vi.fn(async (id: string) => (id === 'ghost' ? null : { id, travelerId: 'u1' })) };
   const notifications = { notify: vi.fn(async () => undefined) };
   const audit = { record: vi.fn(async () => undefined) };
@@ -162,5 +171,75 @@ describe('moderator resolution', () => {
     const { service, notifications } = make([stored({ agencyId: undefined })]);
     await service.resolve(moderator, 'r1', { decision: 'RESOLVED', note: 'Handled by staff' });
     expect(notifications.notify).toHaveBeenCalledTimes(1);
+  });
+
+  it('names the reporter, the responsible agency, the tour and the target instead of leaving ids', async () => {
+    const { service } = make([stored()]);
+    const dto = await service.getForModeration('r1');
+    expect(dto).toMatchObject({
+      reporterName: 'Nguyen Van An',
+      agencyName: 'Nguyen Van An',
+      tourTitle: 'Tour t1',
+      targetName: 'Tour t1',
+    });
+    // The ids stay on the DTO: the ban action of a USER report needs the reported account id.
+    expect(dto.reporterId).toBe('u1');
+  });
+
+  it('names a reported account by its company, and a reported review by the tour it is about', async () => {
+    const { service, users, tours } = make([
+      stored({ id: 'r1', targetType: 'USER', targetId: 'a1', tourId: undefined }),
+      stored({ id: 'r2', targetType: 'REVIEW', targetId: 'rev1', agencyId: undefined, tourId: 't9' }),
+    ]);
+    users.getSummaries.mockResolvedValueOnce(
+      new Map([
+        ['u1', { id: 'u1', fullName: 'Nguyen Van An', role: 'TRAVELER' }],
+        ['a1', { id: 'a1', fullName: 'Tran Thi B', companyName: 'Saigon Travel', role: 'AGENCY' }],
+      ]) as never,
+    );
+    const page = await service.listForModeration({ page: 1, limit: 10 });
+    expect(page.items[0]).toMatchObject({ targetName: 'Saigon Travel', agencyName: 'Saigon Travel' });
+    expect(page.items[1]).toMatchObject({ targetName: 'Tour t9', tourTitle: 'Tour t9' });
+    expect(page.items[1]!.agencyName).toBeUndefined();
+    expect(tours.getTitles).toHaveBeenCalledWith(['t9']);
+  });
+
+  it('carries the reported review itself, so the moderator judges it without hunting for it', async () => {
+    const { service } = make([stored({ targetType: 'REVIEW', targetId: 'rev1', agencyId: undefined, tourId: 't1' })]);
+    const dto = await service.getForModeration('r1');
+    expect(dto.review).toMatchObject({ rating: 5, comment: 'Tuyệt vời', status: 'VISIBLE', authorName: 'Nguyen Van An' });
+    expect(dto.review?.hiddenReason).toBeUndefined();
+  });
+
+  it('carries no review block for a report that is not about a review', async () => {
+    const { service } = make([stored()]);
+    expect((await service.getForModeration('r1')).review).toBeUndefined();
+  });
+});
+
+describe('agency review disputes', () => {
+  const dispute = { category: 'INAPPROPRIATE_CONTENT', description: 'Bài đánh giá sai sự thật về đoàn của chúng tôi.' } as const;
+
+  it('files a review dispute through the report pipeline, without routing it back as a complaint', async () => {
+    const { service, repo } = make();
+    const dto = await service.disputeReview('a1', 'rev1', dispute);
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ reporterId: 'a1', targetType: 'REVIEW', targetId: 'rev1', tourId: 't1' }));
+    expect(repo.create.mock.calls[0]![0]).not.toHaveProperty('agencyId');
+    expect(dto).toMatchObject({ targetType: 'REVIEW', status: 'OPEN' });
+  });
+
+  it('only disputes a review of its own tour, once', async () => {
+    const { service } = make();
+    await expect(service.disputeReview('a2', 'rev1', dispute)).rejects.toMatchObject({ statusCode: 404 }); // another agency's review
+    await expect(service.disputeReview('a1', 'ghost', dispute)).rejects.toMatchObject({ statusCode: 404 });
+    await service.disputeReview('a1', 'rev1', dispute);
+    await expect(service.disputeReview('a1', 'rev1', dispute)).rejects.toMatchObject({ code: 'REPORT_ALREADY_OPEN' });
+  });
+
+  it('lists the disputes the agency filed', async () => {
+    const { service } = make([stored({ targetType: 'REVIEW', targetId: 'rev1', reporterId: 'a1' })]);
+    const page = await service.listDisputes('a1', { page: 1, limit: 10 });
+    expect(page.items).toHaveLength(1);
+    expect(page.items[0]).toMatchObject({ targetType: 'REVIEW' });
   });
 });

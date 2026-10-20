@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { isUniqueViolation } from '../../config/database';
+import { createImageUploadSignature, imagePublicId, verifyImageUpload } from '../../integrations/cloudinary';
 import { BOOKING_STATUS, type PersistedRole } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
 import { buildPage, type Page } from '../../utils/pagination';
@@ -8,7 +10,7 @@ import { bookingsService, type BookingsService } from '../bookings';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
 import { toursService, type ToursService } from '../tours';
 import { usersService, type UsersService } from '../users';
-import { toModerationReviewDto, toMyReviewDto, toPublicReviewDto } from './reviews.mapper';
+import { toModerationReviewDto, toMyReviewDto, toPublicReviewDto, type ReviewNames } from './reviews.mapper';
 import type { ReviewRecord } from './reviews.repository';
 import { reviewsRepository, type ReviewsRepository } from './reviews.repository';
 import {
@@ -20,6 +22,7 @@ import {
   type ModerationReviewDto,
   type MyReviewDto,
   type PublicReviewDto,
+  type ReviewFacts,
   type ReviewStatus,
 } from './reviews.types';
 
@@ -44,14 +47,36 @@ export class ReviewsService {
    * Use case "Write a review". Only the traveler who made a COMPLETED booking can review it, once. The tour and agency
    * come from the booking, never from the client.
    */
-  async createReview(travelerId: string, input: CreateReviewInput): Promise<MyReviewDto> {
-    const booking = await this.bookings.getFacts(input.bookingId);
+  private async reviewableBooking(travelerId: string, bookingId: string) {
+    const booking = await this.bookings.getFacts(bookingId);
     if (!booking || booking.travelerId !== travelerId) throw AppError.notFound('Booking not found');
     if (booking.status !== BOOKING_STATUS.COMPLETED) {
       throw AppError.conflict('You can review a trip after it is completed', 'BOOKING_NOT_COMPLETED');
     }
     if (await this.reviews.findByBookingId(booking.id)) {
       throw AppError.conflict('You already reviewed this booking', 'REVIEW_EXISTS');
+    }
+    return booking;
+  }
+
+  async createImageSignature(travelerId: string, bookingId: string) {
+    await this.reviewableBooking(travelerId, bookingId);
+    return createImageUploadSignature('reviewImage', `${travelerId}/${bookingId}/${randomUUID()}`);
+  }
+
+  async createReview(travelerId: string, input: CreateReviewInput): Promise<MyReviewDto> {
+    const booking = await this.reviewableBooking(travelerId, input.bookingId);
+    const ids = input.imagePublicIds ?? [];
+    if (ids.length > 6 || new Set(ids).size !== ids.length) throw AppError.badRequest('Maximum 6 unique review images');
+    const prefix = `${imagePublicId('reviewImage', `${travelerId}/${booking.id}`)}/`;
+    // Reject foreign assets before contacting the storage provider. Client URLs are never trusted.
+    if (ids.some(id => !id.startsWith(prefix) || !/^[0-9a-f-]{36}$/i.test(id.slice(prefix.length)))) {
+      throw AppError.forbidden('Review images must belong to this booking and traveler');
+    }
+    const images: string[] = [];
+    for (const id of ids) {
+      const asset = await verifyImageUpload('reviewImage', id.slice('tripin/reviews/'.length), id);
+      images.push(asset.secureUrl);
     }
 
     let review: ReviewRecord;
@@ -64,6 +89,7 @@ export class ReviewsService {
         travelerId: travelerId,
         rating: input.rating,
         comment: input.comment,
+        images,
       });
     } catch (error) {
       if (isUniqueViolation(error)) {
@@ -90,7 +116,7 @@ export class ReviewsService {
 
   // ============================================================= Public
 
-  /** Use case "View public review" (Guest): VISIBLE reviews of a tour or an agency; the author is masked. */
+  /** Use case "View public review" (Guest): VISIBLE reviews scoped to a tour, agency or guide; the author is masked. */
   async listPublic(query: ListPublicReviewsQuery): Promise<Page<PublicReviewDto>> {
     const { items, total } = await this.reviews.listPublic(query);
     const authors = await this.users.getSummaries(items.map((review) => review.travelerId));
@@ -101,11 +127,21 @@ export class ReviewsService {
     );
   }
 
-  /** Minimal facts for other modules (e.g. reports about a review). Null when it does not exist. */
-  async getFacts(reviewId: string): Promise<{ id: string; tourId: string; agencyId: string; travelerId: string; status: ReviewStatus } | null> {
+  /** Minimal facts for other modules (e.g. a report about a review, or an agency disputing one). Null when it does not exist. */
+  async getFacts(reviewId: string): Promise<ReviewFacts | null> {
     const review = await this.reviews.findById(reviewId);
     return review
-      ? { id: review.id, tourId: review.tourId, agencyId: review.agencyId, travelerId: review.travelerId, status: review.status as ReviewStatus }
+      ? {
+          id: review.id,
+          tourId: review.tourId,
+          agencyId: review.agencyId,
+          travelerId: review.travelerId,
+          status: review.status as ReviewStatus,
+          rating: review.rating,
+          comment: review.comment,
+          tourTitle: review.tourTitle,
+          hiddenReason: review.hiddenReason ?? undefined,
+        }
       : null;
   }
 
@@ -114,7 +150,8 @@ export class ReviewsService {
   /** Called by `moderation` for "Moderate reviews" (list). */
   async listForModeration(query: ListModerationReviewsQuery): Promise<Page<ModerationReviewDto>> {
     const { items, total } = await this.reviews.listForModeration(query);
-    return buildPage(items.map(toModerationReviewDto), total, query);
+    const names = await this.namesFor(items);
+    return buildPage(items.map((review) => toModerationReviewDto(review, names.get(review.id))), total, query);
   }
 
   /** Called by `moderation`: hide (reason required) or restore a review; the tour rating is recomputed. */
@@ -149,7 +186,7 @@ export class ReviewsService {
       body: decision.hide ? `Your review of "${review.tourTitle}" was hidden: ${decision.reason}` : `Your review of "${review.tourTitle}" is visible again.`,
       data: { reviewId },
     });
-    return toModerationReviewDto(updated);
+    return toModerationReviewDto(updated, (await this.namesFor([updated])).get(updated.id));
   }
 
   /** Reviews per status (dashboards). */
@@ -159,6 +196,23 @@ export class ReviewsService {
   }
 
   // ============================================================ helpers
+
+  /** Display names of a page of reviews (author + agency), so the moderator queue shows no raw ids. */
+  private async namesFor(items: ReviewRecord[]): Promise<Map<string, ReviewNames>> {
+    const people = await this.users.getSummaries(items.flatMap((review) => [review.travelerId, review.agencyId]));
+    return new Map(
+      items.map((review) => {
+        const agency = people.get(review.agencyId);
+        return [
+          review.id,
+          {
+            travelerName: people.get(review.travelerId)?.fullName,
+            agencyName: agency ? (agency.companyName ?? agency.fullName) : undefined,
+          },
+        ];
+      }),
+    );
+  }
 
   /**
    * Recomputes the tour's average/count from VISIBLE reviews only (2 decimals). Two reviews written at the same moment

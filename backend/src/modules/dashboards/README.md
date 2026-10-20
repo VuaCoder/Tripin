@@ -47,6 +47,19 @@ None.
 `__tests__/dashboards.routes.test.ts` (who may open which dashboard; agency dashboard bound to the token).
 
 ## Not implemented / follow-ups
-* Custom date ranges and CSV export, per-category / per-destination breakdowns.
+* CSV export and per-category / per-destination breakdowns.
 * Guide-specific dashboard (the guide has `earnings`).
 * The aggregations rely on existing indexes (`agencyId,status,createdAt`; `status,endDate`); add `(status, confirmedAt)` on bookings if the revenue charts become slow (review in step D4).
+
+## ADMIN-01 role boundary
+Admin endpoints require the current `SUPER_ADMIN` role as well as the listed permission. Other roles cannot use admin endpoints through extra permission grants. Public, agency and moderation access rules are otherwise unchanged.
+
+## Admin reporting ranges
+`GET /admin/dashboard?from=<ISO>&to=<ISO>` accepts an optional inclusive pair, ordered and no longer than 366 days.
+No parameters retain the previous lifetime totals / last-12-month series contract. With a range, booking revenue and
+monthly series filter `confirmedAt`; subscription payments filter `paidAt`. Booking status counts filter `createdAt`.
+Users/tours/account-status counts, active subscriptions and moderation queues remain current platform-wide snapshots.
+The response includes `period` (the requested bounds and immediately preceding equally long disjoint bounds) and
+`comparison` (prior booking totals plus subscription payment totals). Selected-period UTC months are zero-filled.
+Cache keys include both bounds. UTC timestamps stored by Prisma are grouped directly, without a session-timezone conversion.
+The UI defaults to 30 Vietnam calendar days, offers 7/30/90/365 presets, and explicitly separates period and snapshot figures.

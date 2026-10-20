@@ -138,7 +138,7 @@ export class PromotionsService {
     filter: { scope: PromotionScope; ownerId?: string },
     query: ListPromotionsQuery,
   ): Promise<Page<PromotionDto>> {
-    const { items, total } = await this.promotions.list({ ...filter, isActive: query.isActive }, query);
+    const { items, total } = await this.promotions.list({ ...filter, isActive: query.isActive, q: query.q, discountType: query.discountType, from: query.from, to: query.to }, query);
     return buildPage(items.map(toPromotionDto), total, query);
   }
 

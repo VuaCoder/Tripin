@@ -51,7 +51,7 @@ export class AgencyApprovalService {
   ) {}
 
   generateStatusToken(email: string): string {
-    const secret = env.JWT_SECRET || 'tripri-agency-approval-secret';
+    const secret = env.JWT_ACCESS_SECRET;
     const payload = Buffer.from(email.toLowerCase().trim()).toString('base64url');
     const signature = createHmac('sha256', secret).update(payload).digest('base64url');
     return `${payload}.${signature}`;
@@ -59,9 +59,9 @@ export class AgencyApprovalService {
 
   verifyStatusToken(token: string): string {
     const parts = token.trim().split('.');
-    if (parts.length !== 2) throw AppError.badRequest('Token xác thực không hợp lệ');
     const [payload, signature] = parts;
-    const secret = env.JWT_SECRET || 'tripri-agency-approval-secret';
+    if (parts.length !== 2 || !payload || !signature) throw AppError.badRequest('Token xác thực không hợp lệ');
+    const secret = env.JWT_ACCESS_SECRET;
     const expected = createHmac('sha256', secret).update(payload).digest('base64url');
     if (signature !== expected) throw AppError.badRequest('Token xác thực không hợp lệ hoặc đã bị thay đổi');
     return Buffer.from(payload, 'base64url').toString('utf-8');

@@ -1,3 +1,4 @@
+import type { DateRange } from '../../utils/date-range';
 import { randomInt } from 'node:crypto';
 import { PAYMENT_PURPOSE, PAYMENT_STATUS, type PaymentPurpose, type PaymentStatus } from '@travel-platform/constants';
 import { env } from '../../config/env';
@@ -176,8 +177,8 @@ export class PaymentsService {
   }
 
   /** Money received for one purpose, e.g. SUBSCRIPTION revenue on the admin dashboard. */
-  paidTotal(purpose: PaymentPurpose): Promise<{ amount: number; count: number }> {
-    return this.payments.paidTotal(purpose);
+  paidTotal(purpose: PaymentPurpose, range?: DateRange): Promise<{ amount: number; count: number }> {
+    return this.payments.paidTotal(purpose, range);
   }
 
   // ============================================================ Maintenance

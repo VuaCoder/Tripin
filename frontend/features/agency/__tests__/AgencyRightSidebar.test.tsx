@@ -18,6 +18,17 @@ vi.mock('../notifications', () => ({
   useDeleteAgencyNotificationMutation: () => [vi.fn(), {}],
 }));
 
+vi.mock('@/features/chat/api', () => ({
+  useConversationsQuery: () => ({ data: { data: [] } }),
+}));
+
+vi.mock('@/features/notifications/api/notificationsApi', () => ({
+  useGetNotificationsQuery: () => ({ data: { data: [] } }),
+  useGetUnreadCountQuery: () => ({ data: { data: { count: 0 } } }),
+  useMarkNotificationAsReadMutation: () => [vi.fn()],
+  useMarkAllNotificationsAsReadMutation: () => [vi.fn()],
+}));
+
 const mockUser: UserProfile = {
   id: 'agency-user-1',
   email: 'agency@tripri.vn',

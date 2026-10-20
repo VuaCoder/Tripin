@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PERMISSIONS } from '@travel-platform/constants';
-import { requirePermission } from '../../middlewares/authorize';
+import { requirePermission, requireSuperAdmin } from '../../middlewares/authorize';
 import { validate } from '../../middlewares/validate';
 import { promotionsController } from './promotions.controller';
 import {
@@ -25,6 +25,7 @@ agencyPromotionsRouter.patch(
 
 /** Mounted at /api/v1/admin/promotions — SUPER_ADMIN platform promotions. */
 export const adminPromotionsRouter = Router();
+adminPromotionsRouter.use(requireSuperAdmin);
 adminPromotionsRouter.use(requirePermission(PERMISSIONS.PROMOTION_PLATFORM_MANAGE));
 adminPromotionsRouter.get('/', validate({ query: listPromotionsQuery }), promotionsController.listPlatform);
 adminPromotionsRouter.post('/', validate({ body: createPromotionBody }), promotionsController.createPlatform);

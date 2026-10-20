@@ -36,6 +36,18 @@ describe('commission', () => {
 });
 
 describe('policies', () => {
+  it.each([-1, Infinity, NaN, '24', true])('rejects invalid cancellation hours %s before writing or auditing', async (value) => {
+    const { service, repo, audit } = make();
+    await expect(service.setPolicy(admin, 'cancellation', { title: 'Cancel', content: '', params: { cancellationWindowHours: value } })).rejects.toMatchObject({ statusCode: 400 });
+    expect(repo.upsert).not.toHaveBeenCalled();
+    expect(audit.record).not.toHaveBeenCalled();
+  });
+
+  it.each([0, 0.5, 48])('accepts finite non-negative cancellation hours %s', async (value) => {
+    const { service } = make();
+    const result = await service.setPolicy(admin, 'cancellation', { title: 'Cancel', content: '', params: { cancellationWindowHours: value, enabled: true } });
+    expect(result.params).toEqual({ cancellationWindowHours: value, enabled: true });
+  });
   it('lists every policy with defaults, including the cancellation window knob', async () => {
     const policies = await make().service.listPolicies();
     expect(policies.map((p) => p.key)).toEqual(['cancellation', 'refund', 'terms', 'privacy']);

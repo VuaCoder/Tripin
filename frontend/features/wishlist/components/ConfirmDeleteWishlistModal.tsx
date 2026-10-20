@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element -- thumbnail preview from remote CDN */
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { formatDuration, formatVnd } from '@/features/cart';
+import { formatDuration, formatVnd } from '@/lib/travel-format';
 import type { WishlistItem } from '../types';
 
 export interface ConfirmDeleteWishlistModalProps {

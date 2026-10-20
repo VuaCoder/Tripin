@@ -35,6 +35,7 @@ export const PERMISSIONS = {
   AGENCY_BOOKINGS_VIEW: 'agency:bookings-view',
   AGENCY_EXPORT_CUSTOMERS: 'agency:export-customers',
   COMPLAINT_RESPOND: 'complaint:respond',
+  REVIEW_DISPUTE: 'review:dispute',
 
   // Tour guide
   GUIDE_TOURS_VIEW: 'guide:tours-view',
@@ -100,6 +101,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     P.AGENCY_BOOKINGS_VIEW,
     P.AGENCY_EXPORT_CUSTOMERS,
     P.COMPLAINT_RESPOND,
+    P.REVIEW_DISPUTE,
   ],
   [ROLES.TOUR_GUIDE]: [
     ...ACCOUNT,

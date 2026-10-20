@@ -16,6 +16,7 @@ export function toPublicReviewDto(review: ReviewRecord, author?: { fullName: str
     id: review.id,
     rating: review.rating,
     comment: review.comment,
+    images: review.images ?? [],
     tourId: review.tourId,
     author: { name: maskName(author?.fullName), avatarUrl: author?.avatarUrl },
     createdAt: createdAtOf(review),
@@ -30,18 +31,23 @@ export function toMyReviewDto(review: ReviewRecord): MyReviewDto {
     tourTitle: review.tourTitle,
     rating: review.rating,
     comment: review.comment,
+    images: review.images ?? [],
     status: review.status as ReviewStatus,
     hiddenReason: review.hiddenReason ?? undefined,
     createdAt: createdAtOf(review),
   };
 }
 
-export function toModerationReviewDto(review: ReviewRecord): ModerationReviewDto {
+/** Display names resolved for a review; an account that no longer exists just has no name. */
+export type ReviewNames = Pick<ModerationReviewDto, 'travelerName' | 'agencyName'>;
+
+export function toModerationReviewDto(review: ReviewRecord, names: ReviewNames = {}): ModerationReviewDto {
   return {
     ...toMyReviewDto(review),
     travelerId: review.travelerId,
     agencyId: review.agencyId,
     moderatedAt: review.moderatedAt?.toISOString(),
     moderatedBy: review.moderatedById ?? undefined,
+    ...names,
   };
 }

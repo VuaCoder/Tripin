@@ -1,3 +1,4 @@
+import type { DateRange } from '../../utils/date-range';
 import { BOOKING_STATUS, type BookingStatus, type PromotionScope } from '@travel-platform/constants';
 import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
 import type { Booking } from '../../generated/prisma/client';
@@ -19,7 +20,7 @@ export type BookingRecord = Omit<Booking, FlattenedColumns> & {
   promotion?: PromotionSnapshot;
 };
 
-type BookingScalars = Omit<Booking, 'id' | 'createdAt' | 'updatedAt' | FlattenedColumns>;
+type BookingScalars = Omit<Booking, 'id' | 'createdAt' | 'updatedAt' | 'guestPricing' | FlattenedColumns> & { guestPricing: Prisma.InputJsonValue };
 
 export type NewBooking = Pick<
   Booking,
@@ -127,14 +128,14 @@ export class BookingsRepository {
     return rows[0]?.count ?? 0;
   }
 
-  async statusCounts(agencyId?: string): Promise<Record<string, number>> {
-    const rows = await prisma.booking.groupBy({ by: ['status'], where: agencyId ? { agencyId } : {}, _count: { _all: true } });
+  async statusCounts(agencyId?: string, range?: DateRange): Promise<Record<string, number>> {
+    const rows = await prisma.booking.groupBy({ by: ['status'], where: { ...(agencyId ? { agencyId } : {}), ...(range ? { createdAt: { gte: range.from, lte: range.to } } : {}) }, _count: { _all: true } });
     return Object.fromEntries(rows.map((row) => [row.status, row._count._all]));
   }
 
-  async revenueTotals(agencyId?: string): Promise<RevenueTotals> {
+  async revenueTotals(agencyId?: string, range?: DateRange): Promise<RevenueTotals> {
     const total = await prisma.booking.aggregate({
-      where: { status: PAID, ...(agencyId ? { agencyId } : {}) },
+      where: { status: PAID, ...(agencyId ? { agencyId } : {}), ...(range ? { confirmedAt: { gte: range.from, lte: range.to } } : {}) },
       _count: { _all: true },
       _sum: { totalAmount: true, commissionAmount: true, agencyAmount: true },
     });
@@ -155,13 +156,14 @@ export class BookingsRepository {
       GROUP BY 1 ORDER BY 1`;
   }
 
-  async monthlyTotals(since: Date): Promise<{ month: string; bookings: number; gross: number; commission: number }[]> {
+  async monthlyTotals(since: Date, until?: Date): Promise<{ month: string; bookings: number; gross: number; commission: number }[]> {
     return prisma.$queryRaw<{ month: string; bookings: number; gross: number; commission: number }[]>`
-      SELECT to_char("confirmedAt" AT TIME ZONE 'UTC', 'YYYY-MM') AS "month",
+      SELECT to_char("confirmedAt", 'YYYY-MM') AS "month",
              COUNT(*)::float8 AS "bookings", COALESCE(SUM("totalAmount"), 0)::float8 AS "gross",
              COALESCE(SUM("commissionAmount"), 0)::float8 AS "commission"
       FROM "Booking"
       WHERE "status" IN ('CONFIRMED', 'COMPLETED') AND "confirmedAt" >= ${since}
+        AND (${until ?? null}::timestamp IS NULL OR "confirmedAt" <= ${until ?? null})
       GROUP BY 1 ORDER BY 1`;
   }
 

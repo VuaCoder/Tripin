@@ -106,7 +106,15 @@ export function attachChatGateway(
   });
 
   chat.setPublisher((userId, event) => {
-    io.to(userRoom(userId)).emit('chat:message', event);
+    // Receipt means a recipient client acknowledged the event, not merely that
+    // the database saved it. Older clients can ignore the optional callback.
+    io.to(userRoom(userId)).timeout(5000).emit('chat:message', event, (_error: Error | null, responses: unknown[]) => {
+      if (event.message.senderId !== userId && responses?.some(response => response === true)) {
+        io.to(userRoom(event.message.senderId)).emit('chat:delivered', {
+          conversationId: event.conversationId, messageId: event.message.id,
+        });
+      }
+    });
   });
   notifications.setPublisher((userId, notification) => {
     io.to(userRoom(userId)).emit('notification:new', notification);

@@ -25,7 +25,8 @@ build/
 
 # Build & TypeScript
 dist/
-lib/
+/lib/
+!frontend/lib/
 coverage/
 *.tsbuildinfo
 

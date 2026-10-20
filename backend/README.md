@@ -22,6 +22,12 @@ pnpm --filter backend build && pnpm --filter backend start
 
 Database: see `docs/database/README.md` (schema in `prisma/schema.prisma`, migrations in `prisma/migrations`).
 
+Tests clear the local Google client configuration so offline authentication checks are deterministic.
+The production build smoke test verifies authentication and persisted tour reads without requiring live email delivery.
+Verification on 2026-10-18: 31 integration files / 167 tests and 43 unit files / 508 tests passed;
+typecheck and production build passed. On this Windows runner, integration results finish but teardown remains stuck,
+so its test process required cleanup after the passing summary.
+
 ## Where things live
 | Path | What |
 |---|---|

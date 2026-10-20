@@ -25,7 +25,14 @@ export const resolveReportBody = z
 
 export const reportIdParams = idParamsSchema;
 
+/** An agency dispute names no target: the review is in the path and the server checks it owns it. */
+export const disputeReviewBody = createReportBody.omit({ targetType: true, targetId: true, bookingId: true });
+
+export const reviewIdParams = z.object({ reviewId: idSchema });
+
 export type CreateReportBody = z.infer<typeof createReportBody>;
+export type DisputeReviewBody = z.infer<typeof disputeReviewBody>;
+export type ReviewIdParams = z.infer<typeof reviewIdParams>;
 export type ListReportsQueryInput = z.infer<typeof listReportsQuery>;
 export type RespondBody = z.infer<typeof respondBody>;
 export type ResolveReportBody = z.infer<typeof resolveReportBody>;

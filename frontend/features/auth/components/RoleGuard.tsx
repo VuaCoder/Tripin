@@ -33,8 +33,15 @@ export const RoleGuard = ({ allowedRoles, children, loginPath = '/login' }: Role
 
   if (status === 'idle') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-desk-travel">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-brand-teal" />
+      <div className="w-full min-h-[60vh] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-pulse" role="status" aria-label="Đang chuẩn bị dữ liệu...">
+        <div className="h-8 w-48 rounded-lg bg-slate-200/80 mb-6" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="h-28 rounded-2xl bg-slate-100" />
+          <div className="h-28 rounded-2xl bg-slate-100" />
+          <div className="h-28 rounded-2xl bg-slate-100" />
+        </div>
+        <div className="h-64 rounded-2xl bg-slate-100 w-full" />
+        <span className="sr-only">Đang kiểm tra quyền truy cập...</span>
       </div>
     );
   }
@@ -45,3 +52,4 @@ export const RoleGuard = ({ allowedRoles, children, loginPath = '/login' }: Role
 
   return <>{children}</>;
 };
+

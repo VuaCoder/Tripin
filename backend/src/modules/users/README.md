@@ -23,8 +23,7 @@ The `User` model is shared by `auth` (credentials) and `authenticate` (actor res
 | `users.validation.ts` | zod: profile update (strict, role-specific sections), list query, access assignment |
 | `users.controller.ts` | HTTP only |
 | `users.service.ts` | Rules: role-gated profile sections, public visibility, verification, access guards, ban rules |
-| `users.repository.ts` | All DB access (`list` supports role/status/agencyVerification/text search with escaped regex) |
-| `users.model.ts` | `User` schema |
+| `users.repository.ts` | All DB access (`list` supports role/status/agencyVerification/text search with escaped SQL wildcard characters) |
 | `users.mapper.ts` | `toPrivateUserDto`, `toPublicGuideDto`, `toPublicAgencyDto`, `permissionsOf` |
 | `users.types.ts` | DTOs, inputs, `AGENCY_VERIFICATION_TRANSITIONS`, `USER_STATUS_TRANSITIONS` |
 | `index.ts` | Public API |
@@ -54,8 +53,10 @@ Agency verification (`AGENCY_VERIFICATION_TRANSITIONS`):
 `UNVERIFIED → PENDING → VERIFIED | REJECTED`, `REJECTED → PENDING`. `VERIFIED` is terminal.
 
 ## Data model
-`User`: unique `email`, sparse unique `googleId`, `(role, status, createdAt)` and `(createdAt)` for the admin list / "new accounts" count, sparse index
-`agencyProfile.verificationStatus` (moderator queue). `passwordHash` is `select:false`. Embedded `agencyProfile` and `guideProfile`.
+`prisma/schema.prisma` owns the PostgreSQL User, AgencyProfile and GuideProfile tables. User ids are UUIDs;
+email and googleId are unique, extraPermissions is a string array, and profiles are related rows rather than embedded documents.
+Indexes cover `(role, status, createdAt)` and `(createdAt)`. Repository searches escape SQL wildcard characters.
+The mapper excludes credentials from DTOs.
 
 ## Permissions
 `profile:view-own`, `profile:update-own` (all roles), `user:assign-permissions` (SUPER_ADMIN). Moderation permissions are
@@ -76,3 +77,9 @@ access guards, last-super-admin protection, ban rules.
 ## Not implemented / follow-ups
 * Editing `licenseNumber`/`companyName` of a VERIFIED agency does not reset verification (rule not defined by the diagram).
 * No email/password change endpoints (not in the diagram).
+
+## ADMIN-01 access boundary
+All admin routes in this module require the current `SUPER_ADMIN` role **and** the listed permission. Extra permissions never bypass the role guard. Public read routes retain their existing access. Storage is Prisma/PostgreSQL; old document/model terminology is not a MongoDB dependency.
+
+## Admin list date filters
+`GET /admin/users` also accepts paired inclusive `from`/`to` timestamps for account `createdAt`; invalid/partial/reversed ranges return 400. Filters are applied in the repository before count and pagination.

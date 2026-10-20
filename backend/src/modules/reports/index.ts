@@ -1,5 +1,5 @@
 // Public surface of reports. `moderation` calls listForModeration / getForModeration / resolve.
-export { reportsRouter, agencyComplaintsRouter } from './reports.routes';
+export { reportsRouter, agencyComplaintsRouter, agencyReviewDisputesRouter } from './reports.routes';
 export { reportsService, ReportsService } from './reports.service';
 export {
   REPORT_CATEGORY,

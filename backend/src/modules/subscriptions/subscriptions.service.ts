@@ -28,7 +28,7 @@ export class SubscriptionsService {
   constructor(
     private readonly subscriptions: Pick<
       SubscriptionsRepository,
-      'listActivePlans' | 'findPlanById' | 'create' | 'findById' | 'findPending' | 'findCurrentActive' | 'transition' | 'listByUser' | 'findEnded' | 'findAbandoned' | 'countActive'
+      'listActivePlans' | 'findPlanById' | 'create' | 'findById' | 'findPending' | 'findCurrentActive' | 'findLatestPaid' | 'transition' | 'listByUser' | 'findEnded' | 'findAbandoned' | 'countActive'
     > = subscriptionsRepository,
     private readonly payments: Pick<PaymentsService, 'createCheckout'> = paymentsService,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
@@ -115,7 +115,7 @@ export class SubscriptionsService {
 
     assertTransition(SUBSCRIPTION_TRANSITIONS, subscription.status as SubscriptionStatus, SUBSCRIPTION_STATUS.ACTIVE, 'Subscription');
     const now = new Date();
-    const current = await this.subscriptions.findCurrentActive(payment.userId, now);
+    const current = await this.subscriptions.findLatestPaid(payment.userId, now);
     const startsAt = current?.endsAt && current.endsAt > now ? current.endsAt : now;
     const endsAt = new Date(startsAt.getTime() + subscription.durationDays * DAY_MS);
 

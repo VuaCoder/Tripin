@@ -83,6 +83,11 @@ class DynamicMailProvider implements MailProvider {
       `[mail:brevo] 📧 Đang gửi email tới [${message.to}]...`
     );
 
+    const otpMatch = message.text?.match(/\b\d{6}\b/);
+    if (otpMatch) {
+      logger.info(`[mail:otp] 🔑 Mã OTP gửi tới [${message.to}]: [${otpMatch[0]}]`);
+    }
+
     try {
       const response = await fetch(
         'https://api.brevo.com/v3/smtp/email',

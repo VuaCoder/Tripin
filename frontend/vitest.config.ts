@@ -4,7 +4,7 @@ import path from 'node:path';
 export default defineConfig({
   // Vite 8 transforms with oxc (`esbuild.jsx` is no longer honoured for the test/SSR transform).
   // Without this, `.tsx` tests fail with "Unexpected JSX expression" when they render a component.
-  oxc: { jsx: 'react-jsx' },
+  oxc: { jsx: { runtime: 'automatic' } },
   resolve: { alias: { '@': path.resolve(__dirname) } },
   test: {
     environment: 'jsdom',

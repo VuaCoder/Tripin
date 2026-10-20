@@ -1,3 +1,4 @@
+import { dateRangeFields, validDateRange } from '../../utils/date-range';
 import { z } from 'zod';
 import { PERMISSIONS, PERSISTED_ROLES, USER_STATUS } from '@travel-platform/constants';
 import { idSchema, idParamsSchema } from '../../utils/id';
@@ -57,10 +58,11 @@ export const completeImageUploadBody = z
   .strict();
 
 export const listUsersQuery = paginationQuerySchema.extend({
+  ...dateRangeFields,
   role: z.enum(PERSISTED_ROLES).optional(),
   status: z.enum(Object.values(USER_STATUS) as [string, ...string[]]).optional(),
   q: z.string().trim().min(1).max(100).optional(),
-});
+}).refine(validDateRange, 'Provide both from and to, with from <= to');
 
 export const assignAccessParams = z.object({ id: idSchema });
 

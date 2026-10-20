@@ -50,10 +50,10 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Complete an owned booking | bookings | `POST /bookings/:id/complete` | booking:view-own | done |
 | Make payment (Payment Gateway) | payments | `POST /payments/bookings/:bookingId/checkout`, `GET /payments/:id`, `POST /payments/webhooks/payos` (GUEST, signature) | payment:create | done |
 | Receive E-ticket | e-tickets | `GET /e-tickets`, `GET /e-tickets/:id`, `GET /e-tickets/booking/:bookingId` (+ email/notification on issue) | eticket:view-own | done |
-| Write a review / View reviews | reviews | `POST /reviews`, `GET /reviews/me` | review:create | done |
+| Write a review / View reviews | reviews | `POST /reviews`, `GET /reviews/me`, `POST /reviews/images/upload-signature` | review:create | done |
 | Send report | reports | `POST /reports`, `GET /reports/me`, `GET /reports/:id` | report:create | done |
 | Send ticket (support) | support | `POST /support/tickets`, `GET /support/tickets/me`, `GET /support/tickets/:id`, `POST /support/tickets/:id/messages`, `POST /support/tickets/:id/close` | support:create | done |
-| Make a conversation (with Tour guide) | chat | `POST /chat/conversations`, `GET /chat/conversations`, `GET /chat/conversations/:id/messages`, `POST /chat/conversations/:id/messages`, `POST /chat/conversations/:id/read` + Socket.IO | chat:use | done |
+| Make a conversation (with Tour guide) | chat | `POST /chat/conversations`, `GET /chat/conversations`, `GET /chat/conversations/:id`, `GET /chat/conversations/:id/messages`, `POST /chat/conversations/:id/messages`, `POST /chat/conversations/:id/read` + Socket.IO | chat:use | done |
 | Chat with AI (AI Agent) | ai | `POST /ai/chat`, `GET /ai/conversations`, `GET /ai/conversations/:id` | ai:chat | done |
 | (supporting) notifications | notifications | `GET /notifications`, `GET /notifications/unread-count`, `PATCH /notifications/:id/read`, `POST /notifications/read-all`, `DELETE /notifications/:id` | auth; owner-scoped | done |
 
@@ -72,6 +72,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | View bookings status | bookings | `GET /agency/bookings`, `GET /agency/bookings/:id` | agency:bookings-view | done |
 | Export customer PDF | bookings | `GET /agency/tours/:id/customers.pdf` | agency:export-customers | done |
 | Handle tour complaints | reports | `GET /agency/complaints`, `GET /agency/complaints/:id`, `POST /agency/complaints/:id/respond` | complaint:respond | done |
+| Dispute a review | reports | `GET /agency/review-disputes`, `POST /agency/review-disputes/:reviewId` | review:dispute | done |
 | View/Update profile (+ submit for verification) | users | `GET/PATCH /users/me`, `POST /users/me/agency-verification` | profile:* | done |
 
 ## Tour guide
@@ -98,6 +99,9 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Handle complaints | moderation | `GET /moderation/support-tickets`, `GET /moderation/support-tickets/:id`, `POST /moderation/support-tickets/:id/reply`, `PATCH /moderation/support-tickets/:id/status` | complaint:handle | done |
 
 ## Super admin
+
+All `/admin/*` endpoints require the current `SUPER_ADMIN` role in addition to their permission; extra admin permissions on another role do not grant access. Backend status remains separate from frontend/QA readiness: see `frontend/features/admin/README.md` and `docs/testing/admin-01/README.md`.
+
 | Use case | Module | Endpoint | Permission | Status |
 |---|---|---|---|---|
 | Set platform commission rates | system-settings | `GET/PUT /admin/settings/commission` | commission:configure | done |
@@ -112,3 +116,6 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 `custom-tours` — present in the repository architecture (AI rules §13) but not in the use-case diagram; its folder
 contains only a README explaining the intended boundary. `carts` was approved by the owner and is now implemented
 (D-81); it is mapped to the Traveler "Book tour" flow above.
+
+## ADMIN-01 reporting/filter extension
+Admin dashboard accepts paired `from`/`to` (max 366 days), returns previous-period comparison and a bounded zero-filled UTC monthly series. Admin user list supports createdAt date filters; promotion lists support literal q, discountType and overlapping validity bounds. All filtering happens before pagination and uses the original admin role/permission guards.

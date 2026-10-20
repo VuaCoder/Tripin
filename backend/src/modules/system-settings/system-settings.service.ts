@@ -1,4 +1,5 @@
 import type { PersistedRole } from '@travel-platform/constants';
+import { AppError } from '../../utils/app-error';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
 import { systemSettingsRepository, type SystemSettingsRepository } from './system-settings.repository';
 import type { SystemSettingRecord } from './system-settings.repository';
@@ -78,6 +79,11 @@ export class SystemSettingsService {
     key: PolicyKey,
     input: { title: string; content: string; params?: Record<string, PolicyParamValue> },
   ): Promise<PolicyDto> {
+    const windowHours = input.params?.cancellationWindowHours;
+    if (key === 'cancellation' && windowHours !== undefined &&
+      (typeof windowHours !== 'number' || !Number.isFinite(windowHours) || windowHours < 0)) {
+      throw AppError.badRequest('cancellationWindowHours must be a finite non-negative number');
+    }
     const value = { title: input.title, content: input.content, params: input.params ?? {} };
     const doc = await this.settings.upsert(SETTING_KEYS.policy(key), value, actor.userId);
     await this.audit.record({

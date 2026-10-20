@@ -5,6 +5,7 @@ import { buildPage, type Page } from '../../utils/pagination';
 import { logger } from '../../utils/logger';
 import { usersService, type UsersService } from '../users';
 import { toNotificationDto } from './notifications.mapper';
+import { vietnameseNotification } from './notifications.locale';
 import { notificationsRepository, type NotificationsRepository } from './notifications.repository';
 import type {
   ListNotificationsQuery,
@@ -39,14 +40,15 @@ export class NotificationsService {
    */
   async notify(userId: string, input: NotifyInput, options: NotifyOptions = {}): Promise<void> {
     try {
-      const { data, ...rest } = input;
+      const localized = { ...input, ...vietnameseNotification(input.title, input.body) };
+      const { data, ...rest } = localized;
       const created = await this.notifications.create({
         userId,
         ...rest,
         data,
       });
       this.publish(userId, toNotificationDto(created));
-      if (options.email) await this.sendEmail(userId, input);
+      if (options.email) await this.sendEmail(userId, localized);
     } catch (error) {
       logger.error(`Notification failed (${input.type})`, { message: (error as Error).message });
     }

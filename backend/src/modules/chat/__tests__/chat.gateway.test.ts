@@ -52,6 +52,15 @@ afterEach(async () => {
 });
 
 describe('chat gateway', () => {
+  it('reports delivery only after a recipient acknowledges receipt', async () => {
+    const guide = client('guide-token');
+    const traveler = client('traveler-token');
+    await Promise.all([connected(guide), connected(traveler)]);
+    guide.on('chat:message', (_event, acknowledge) => acknowledge(true));
+    const delivered = new Promise(resolve => traveler.once('chat:delivered', resolve));
+    publisher('g1', { conversationId: CONV, message: { id: 'm1', senderId: 't1', text: 'hello' } });
+    expect(await delivered).toEqual({ conversationId: CONV, messageId: 'm1' });
+  });
   it('rejects connections without a valid token', async () => {
     await expect(connected(client())).rejects.toThrow();
     await expect(connected(client('nonsense'))).rejects.toThrow();

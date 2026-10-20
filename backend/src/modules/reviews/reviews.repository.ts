@@ -1,11 +1,12 @@
 import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
+import { Prisma as Sql } from '../../generated/prisma/client';
 import type { Review } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
 import { REVIEW_STATUS, type ListModerationReviewsQuery, type ListPublicReviewsQuery, type ReviewSort, type ReviewStatus } from './reviews.types';
 
 export type ReviewRecord = Review;
 
-export type NewReview = Pick<Review, 'bookingId' | 'tourId' | 'tourTitle' | 'agencyId' | 'travelerId' | 'rating' | 'comment'>;
+export type NewReview = Pick<Review, 'bookingId' | 'tourId' | 'tourTitle' | 'agencyId' | 'travelerId' | 'rating' | 'comment'> & { images?: string[] };
 
 /** Plain-field changes (`null` clears a nullable column). */
 export type ReviewPatch = Partial<Pick<Review, 'status' | 'hiddenReason' | 'moderatedById' | 'moderatedAt'>>;
@@ -35,10 +36,25 @@ export class ReviewsRepository {
   }
 
   listPublic(query: ListPublicReviewsQuery) {
+    if (query.guideId) return this.listPublicByGuide(query);
     const where: Prisma.ReviewWhereInput = { status: REVIEW_STATUS.VISIBLE };
     if (query.tourId) where.tourId = query.tourId;
     if (query.agencyId) where.agencyId = query.agencyId;
     return this.paginate(where, SORTS[query.sort], query);
+  }
+
+  /** Completed-trip earnings retain the guide who actually led the booking, even after reassignment. */
+  private async listPublicByGuide(query: ListPublicReviewsQuery) {
+    const filter = Sql.sql`r."status" = 'VISIBLE' AND EXISTS (
+      SELECT 1 FROM "Earning" e WHERE e."bookingId" = r."bookingId" AND e."guideId" = ${query.guideId}::uuid
+    )`;
+    const order = query.sort === 'rating_desc' ? Sql.sql`r."rating" DESC,` : query.sort === 'rating_asc' ? Sql.sql`r."rating" ASC,` : Sql.empty;
+    const [items, counts] = await Promise.all([
+      prisma.$queryRaw<ReviewRecord[]>(Sql.sql`SELECT r.* FROM "Review" r WHERE ${filter}
+        ORDER BY ${order} r."createdAt" DESC, r."id" DESC LIMIT ${query.limit} OFFSET ${toSkip(query)}`),
+      prisma.$queryRaw<{ total: bigint }[]>(Sql.sql`SELECT COUNT(*) AS total FROM "Review" r WHERE ${filter}`),
+    ]);
+    return { items, total: Number(counts[0]?.total ?? 0) };
   }
 
   listByTraveler(travelerId: string, page: PageRequest) {

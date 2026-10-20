@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { PERMISSIONS } from '@travel-platform/constants';
-import { requirePermission } from '../../middlewares/authorize';
+import { requirePermission, requireSuperAdmin } from '../../middlewares/authorize';
 import { dashboardsController } from './dashboards.controller';
+import { validate } from '../../middlewares/validate';
+import { adminDashboardQuery } from './dashboards.validation';
 
 /** Mounted at /api/v1/agency/dashboard */
 export const agencyDashboardRouter = Router();
@@ -13,4 +15,5 @@ moderationDashboardRouter.get('/', requirePermission(PERMISSIONS.MODERATION_DASH
 
 /** Mounted at /api/v1/admin/dashboard */
 export const adminDashboardRouter = Router();
-adminDashboardRouter.get('/', requirePermission(PERMISSIONS.ADMIN_DASHBOARD_VIEW), dashboardsController.admin);
+adminDashboardRouter.use(requireSuperAdmin);
+adminDashboardRouter.get('/', requirePermission(PERMISSIONS.ADMIN_DASHBOARD_VIEW), validate({ query: adminDashboardQuery }), dashboardsController.admin);

@@ -1,11 +1,11 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
-import type { Permission } from '@travel-platform/constants';
+import { ROLES, type PersistedRole, type Permission } from '@travel-platform/constants';
 import { AppError } from '../utils/app-error';
 import type { UserActor } from '../types/actor';
 
 /** Metadata attached to guard middlewares so the route table (docs + audit tests) can tell who may call what. */
 export const GUARD_META = Symbol.for('travel.guard');
-export type GuardMeta = { kind: 'auth' } | { kind: 'permission'; permissions: Permission[] };
+export type GuardMeta = { kind: 'auth' } | { kind: 'permission'; permissions: Permission[] } | { kind: 'role'; role: PersistedRole };
 
 function tag<T extends RequestHandler>(handler: T, meta: GuardMeta): T {
   (handler as unknown as Record<symbol, GuardMeta>)[GUARD_META] = meta;
@@ -30,6 +30,13 @@ export function requirePermission(...permissions: Permission[]): RequestHandler 
     next();
   }, { kind: 'permission', permissions });
 }
+
+/** Platform administration cannot be delegated through extraPermissions. */
+export const requireSuperAdmin: RequestHandler = tag((req, _res, next) => {
+  if (req.actor.kind !== 'user') return next(AppError.unauthenticated());
+  if (req.actor.role !== ROLES.SUPER_ADMIN) return next(AppError.forbidden('Only Super Admin can administer the platform'));
+  next();
+}, { kind: 'role', role: ROLES.SUPER_ADMIN });
 
 /** Typed access to the logged-in actor inside controllers behind `requireAuth` / `requirePermission`. */
 export function userActor(req: Request): UserActor {

@@ -1,3 +1,4 @@
+import type { DateRange } from '../../utils/date-range';
 import { PAYMENT_PURPOSE } from '@travel-platform/constants';
 import { TtlCache } from '../../utils/ttl-cache';
 import { bookingsService, type BookingsService } from '../bookings';
@@ -86,24 +87,48 @@ export class DashboardsService {
   }
 
   /** Use case "View detailed dashboards" (Super admin): platform-wide figures. */
-  adminDashboard(): Promise<AdminDashboardDto> {
-    return this.adminCache.getOrCompute('all', async () => {
+  adminDashboard(range?: DateRange): Promise<AdminDashboardDto> {
+    const key = range ? `${range.from.toISOString()}/${range.to.toISOString()}` : 'all';
+    return this.adminCache.getOrCompute(key, async () => {
+      const now = new Date();
+      const duration = range ? range.to.getTime() - range.from.getTime() + 1 : 0;
+      const previous = range ? { from: new Date(range.from.getTime() - duration), to: new Date(range.from.getTime() - 1) } : undefined;
       const [userStats, tourCounts, platform, subscriptionRevenue, activeSubscriptions, reportCounts, ticketCounts] = await Promise.all([
         this.users.getStats(),
         this.tours.countByStatus(),
-        this.bookings.getPlatformStats(),
-        this.payments.paidTotal(PAYMENT_PURPOSE.SUBSCRIPTION),
+        range ? this.bookings.getPlatformStats(now, range) : this.bookings.getPlatformStats(),
+        range ? this.payments.paidTotal(PAYMENT_PURPOSE.SUBSCRIPTION, range) : this.payments.paidTotal(PAYMENT_PURPOSE.SUBSCRIPTION),
         this.subscriptions.countActive(),
         this.reports.countByStatus(),
         this.support.countByStatus(),
       ]);
+      const prior = previous ? await Promise.all([
+        this.bookings.getPlatformStats(now, previous),
+        this.payments.paidTotal(PAYMENT_PURPOSE.SUBSCRIPTION, previous),
+      ]) : undefined;
+      // Zero-fill UTC months in the selected period; legacy unfiltered responses retain their contract.
+      const monthly = range ? (() => {
+        const rows = new Map(platform.monthly.map((row) => [row.month, row]));
+        const result: AdminDashboardDto['monthly'] = [];
+        const cursor = new Date(Date.UTC(range.from.getUTCFullYear(), range.from.getUTCMonth(), 1));
+        while (cursor <= range.to) {
+          const month = cursor.toISOString().slice(0, 7);
+          result.push(rows.get(month) ?? { month, bookings: 0, gross: 0, commission: 0 });
+          cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+        }
+        return result;
+      })() : platform.monthly;
       return {
+        ...(range && previous && prior ? {
+          period: { from: range.from.toISOString(), to: range.to.toISOString(), previousFrom: previous.from.toISOString(), previousTo: previous.to.toISOString() },
+          comparison: { ...prior[0].totals, subscriptions: prior[1] },
+        } : {}),
         generatedAt: new Date().toISOString(),
         users: { total: sum(userStats.byRole), byRole: userStats.byRole, byStatus: userStats.byStatus, newLast30Days: userStats.newLast30Days },
         tours: { total: sum(tourCounts), byStatus: tourCounts },
         bookings: { byStatus: platform.byStatus },
         revenue: { ...platform.totals, subscriptions: subscriptionRevenue },
-        monthly: platform.monthly,
+        monthly,
         subscriptions: { active: activeSubscriptions },
         moderation: {
           reportsOpen: (reportCounts.OPEN ?? 0) + (reportCounts.AGENCY_RESPONDED ?? 0),
