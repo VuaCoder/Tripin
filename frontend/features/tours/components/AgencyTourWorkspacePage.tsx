@@ -141,7 +141,9 @@ export function AgencyTourWorkspacePage() {
   if (isLoading || (!tour && isFetching)) return <main className="mx-auto max-w-6xl p-6" role="status">Đang tải thông tin tour…</main>;
   if (error || !tour) return <main className="mx-auto max-w-6xl p-6"><p role="alert" className="text-red-700">{getTourApiMessage(error, 'Không tìm thấy tour hoặc bạn không có quyền truy cập.')}</p><button onClick={() => void refetch()} className="mt-3 rounded-lg border px-4 py-2">Thử tải lại</button></main>;
 
-  const locked = tour.status === 'PENDING_REVIEW';
+  const isArchived = tour.status === 'ARCHIVED';
+  const isPendingReview = tour.status === 'PENDING_REVIEW';
+  const locked = isPendingReview || isArchived;
   const busy = itineraryState.isLoading || availabilityState.isLoading || submitState.isLoading || deleteState.isLoading;
   const maxCoveredDay = days.length === 0 ? 0 : Math.max(0, ...days.map((d) => (d.toDay && d.toDay > d.day ? d.toDay : d.day)));
   const nextStartDay = tour ? Math.min(tour.durationDays, maxCoveredDay + 1) : 1;
@@ -172,13 +174,16 @@ export function AgencyTourWorkspacePage() {
       </div>
       <div className="flex flex-wrap gap-2">
         <Link href={`/agency/tours/${id}/edit?from=/agency/tours/${id}`} aria-disabled={locked} className={`rounded-lg border px-3 py-2 text-sm font-semibold ${locked ? 'pointer-events-none border-slate-200 text-slate-400' : 'border-slate-300 text-slate-700'}`}>Sửa thông tin</Link>
-        {tour.status !== 'APPROVED' && (
+        {tour.status !== 'APPROVED' && !isArchived && (
           <button type="button" onClick={submit} disabled={busy || locked} className="rounded-lg bg-primary-container px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{submitState.isLoading ? 'Đang gửi…' : 'Gửi duyệt'}</button>
         )}
-        <button type="button" onClick={() => void remove()} disabled={busy || locked} className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">Lưu trữ</button>
+        {!isArchived && (
+          <button type="button" onClick={() => void remove()} disabled={busy || locked} className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">Lưu trữ</button>
+        )}
       </div>
     </header>
-    {locked && <p className="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Tour đang chờ xét duyệt. Thông tin và lịch trình tạm khóa chỉnh sửa; bạn vẫn có thể điều chỉnh ngày khởi hành và số chỗ.</p>}
+    {isPendingReview && <p className="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Tour đang chờ xét duyệt. Thông tin và lịch trình tạm khóa chỉnh sửa; bạn vẫn có thể điều chỉnh ngày khởi hành và số chỗ.</p>}
+    {isArchived && <p className="mb-5 rounded-xl bg-slate-100 p-4 text-sm text-slate-700 border border-slate-200">Tour này đã được lưu trữ (ngừng hoạt động). Thông tin chỉ dùng để xem lại lịch sử.</p>}
     {message && <p role="status" className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{message}</p>}
     {errorText && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{errorText}</p>}
     <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_340px]">

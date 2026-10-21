@@ -96,6 +96,22 @@ describe('create / import', () => {
     expect(repo.insertMany).toHaveBeenCalledOnce();
     expect(repo.insertMany.mock.calls[0]![0].every((t: AnyTour) => t.status === undefined)).toBe(true);
   });
+
+  it('deduplicates tour creation when identical draft was created recently', async () => {
+    const existing = { id: 'existing-draft-id', title: 'Ha Long 3D2N', destination: 'Quang Ninh', status: 'DRAFT' };
+    const repo = {
+      create: vi.fn(),
+      findRecentDraft: vi.fn(async () => existing),
+    };
+    const views = { manage: vi.fn((t: any) => ({ id: t.id })) };
+    const categories = { assertActiveIds: vi.fn(async () => undefined) };
+    const service = new ToursService(repo as never, {} as never, categories as never, {} as never, views as never, {} as never);
+
+    const result = await service.createTour('a1', content);
+    expect(result).toEqual({ id: 'existing-draft-id' });
+    expect(repo.findRecentDraft).toHaveBeenCalledWith('a1', 'Ha Long 3D2N', 'Quang Ninh', 5000);
+    expect(repo.create).not.toHaveBeenCalled();
+  });
 });
 
 describe('ownership', () => {

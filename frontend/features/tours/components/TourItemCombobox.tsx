@@ -19,7 +19,7 @@ export function TourItemCombobox({
   id,
   label,
   optional = true,
-  placeholder = 'Tìm kiếm hoặc nhập mới...',
+  placeholder = 'Ví dụ: Xe đưa đón, vé tham quan...',
   items,
   onChange,
   suggestions,
@@ -125,7 +125,7 @@ export function TourItemCombobox({
     <div ref={containerRef} className="space-y-2.5">
       <div className="flex items-center justify-between">
         <label htmlFor={id} className="text-sm font-bold text-slate-800 block">
-          {label} {optional && <span className="text-xs font-normal text-slate-500">(Optional)</span>}
+          {label}
         </label>
         {items.length > 0 && (
           <span className="text-xs text-slate-400">
@@ -154,7 +154,7 @@ export function TourItemCombobox({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           autoComplete="off"
-          className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-2.5 pr-10 pl-10 text-sm font-medium text-slate-900 transition-all placeholder:text-slate-400 focus:bg-white focus:border-[#087e8b] focus:outline-none focus:ring-4 focus:ring-[#087e8b]/10"
+          className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-2.5 pr-10 pl-10 text-sm font-medium text-slate-900 transition-all placeholder:text-slate-400 placeholder:font-normal focus:bg-white focus:border-[#087e8b] focus:outline-none focus:ring-4 focus:ring-[#087e8b]/10"
         />
 
         {query && (

@@ -257,22 +257,6 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
     }
   };
 
-  const toggleTravelNoteOption = (opt: TravelNoteOption) => {
-    const lineItem = `• ${opt.description}`;
-    const current = value.travelNotes || '';
-    if (current.includes(opt.description)) {
-      const cleaned = current
-        .split('\n')
-        .filter((line) => !line.includes(opt.description))
-        .join('\n')
-        .trim();
-      onChange({ ...value, travelNotes: cleaned });
-    } else {
-      const next = current.trim() ? `${current.trim()}\n${lineItem}` : lineItem;
-      onChange({ ...value, travelNotes: next });
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Optional Age pricing if rendered standalone */}
@@ -286,7 +270,7 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
           <div className="flex items-center gap-2">
             <ShieldCheck size={18} className="text-[#087e8b]" />
             <h3 className="text-sm font-bold text-slate-900">
-              Chính sách đổi, hủy tour (Cancellation & Refund) <span className="text-xs font-normal text-slate-500">(Optional)</span>
+              Chính sách đổi, hủy tour (Cancellation & Refund)
             </h3>
           </div>
         </div>
@@ -438,103 +422,78 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
         </p>
       </div>
 
-      {/* 2 & 3: Clean 2-column layout for Documents and Notes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 pt-4 border-t border-slate-100">
-        {/* Required Documents */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <FileText size={16} className="text-[#087e8b]" />
-              <h3 className="text-sm font-bold text-slate-900">
-                Giấy tờ tùy thân <span className="text-xs font-normal text-slate-500">(Optional)</span>
-              </h3>
-            </div>
-            <span className="text-xs text-slate-400">
-              {(value.requiredDocuments || '').length}/5000
-            </span>
+      {/* 2. Giấy tờ tùy thân (Tách riêng, giữ lại gợi ý) */}
+      <div className="space-y-3 pt-5 border-t border-slate-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FileText size={18} className="text-[#087e8b]" />
+            <h3 className="text-sm font-bold text-slate-900">
+              Giấy tờ tùy thân
+            </h3>
           </div>
-
-          {/* Clean concise chips */}
-          <div className="flex flex-wrap gap-1.5">
-            {DOCUMENT_OPTIONS.map((opt) => {
-              const isSelected = (value.requiredDocuments || '').includes(opt.description);
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => toggleDocumentOption(opt)}
-                  aria-pressed={isSelected}
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition cursor-pointer border ${
-                    isSelected
-                      ? 'border-teal-300 bg-teal-50 text-teal-800'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-teal-400 hover:text-teal-700'
-                  }`}
-                >
-                  {isSelected ? <Check size={11} className="shrink-0" /> : <Plus size={11} className="text-slate-400 shrink-0" />}
-                  <span>{opt.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <textarea
-            id="tour-required-documents-textarea"
-            rows={3}
-            maxLength={5000}
-            value={value.requiredDocuments || ''}
-            onChange={(e) => onChange({ ...value, requiredDocuments: e.target.value })}
-            placeholder="Ví dụ: CCCD/Hộ chiếu bản gốc, giấy khai sinh cho trẻ em..."
-            className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs sm:text-sm text-slate-800 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/15"
-          />
+          <span className="text-xs text-slate-400">
+            {(value.requiredDocuments || '').length}/5000 ký tự
+          </span>
         </div>
 
-        {/* Travel Notes */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <AlertCircle size={16} className="text-[#087e8b]" />
-              <h3 className="text-sm font-bold text-slate-900">
-                Lưu ý chuyến đi <span className="text-xs font-normal text-slate-500">(Optional)</span>
-              </h3>
-            </div>
-            <span className="text-xs text-slate-400">
-              {(value.travelNotes || '').length}/5000
-            </span>
-          </div>
-
-          {/* Clean concise chips */}
-          <div className="flex flex-wrap gap-1.5">
-            {TRAVEL_NOTE_OPTIONS.map((opt) => {
-              const isSelected = (value.travelNotes || '').includes(opt.description);
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => toggleTravelNoteOption(opt)}
-                  aria-pressed={isSelected}
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition cursor-pointer border ${
-                    isSelected
-                      ? 'border-teal-300 bg-teal-50 text-teal-800'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-teal-400 hover:text-teal-700'
-                  }`}
-                >
-                  {isSelected ? <Check size={11} className="shrink-0" /> : <Plus size={11} className="text-slate-400 shrink-0" />}
-                  <span>{opt.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <textarea
-            id="tour-travel-notes-textarea"
-            rows={3}
-            maxLength={5000}
-            value={value.travelNotes || ''}
-            onChange={(e) => onChange({ ...value, travelNotes: e.target.value })}
-            placeholder="Lưu ý về trang phục, sức khỏe, giờ giấc tập trung, thời tiết..."
-            className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs sm:text-sm text-slate-800 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/15"
-          />
+        {/* Suggestion chips */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium text-slate-500 mr-1">Gợi ý nhanh:</span>
+          {DOCUMENT_OPTIONS.map((opt) => {
+            const isSelected = (value.requiredDocuments || '').includes(opt.description);
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => toggleDocumentOption(opt)}
+                aria-pressed={isSelected}
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition cursor-pointer border ${
+                  isSelected
+                    ? 'border-teal-300 bg-teal-50 text-teal-800 font-semibold'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-teal-400 hover:text-teal-700'
+                }`}
+              >
+                {isSelected ? <Check size={11} className="shrink-0" /> : <Plus size={11} className="text-slate-400 shrink-0" />}
+                <span>{opt.label}</span>
+              </button>
+            );
+          })}
         </div>
+
+        <textarea
+          id="tour-required-documents-textarea"
+          rows={3}
+          maxLength={5000}
+          value={value.requiredDocuments || ''}
+          onChange={(e) => onChange({ ...value, requiredDocuments: e.target.value })}
+          placeholder="Ví dụ: CCCD/Hộ chiếu bản gốc còn hạn, giấy khai sinh cho trẻ em..."
+          className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/15 placeholder:text-slate-400 placeholder:font-normal"
+        />
+      </div>
+
+      {/* 3. Lưu ý chuyến đi (Tách riêng, bỏ hết gợi ý, chỉ để lại ô text cho người dùng tự nhập) */}
+      <div className="space-y-3 pt-5 border-t border-slate-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={18} className="text-[#087e8b]" />
+            <h3 className="text-sm font-bold text-slate-900">
+              Lưu ý chuyến đi
+            </h3>
+          </div>
+          <span className="text-xs text-slate-400">
+            {(value.travelNotes || '').length}/5000 ký tự
+          </span>
+        </div>
+
+        <textarea
+          id="tour-travel-notes-textarea"
+          rows={4}
+          maxLength={5000}
+          value={value.travelNotes || ''}
+          onChange={(e) => onChange({ ...value, travelNotes: e.target.value })}
+          placeholder="Ví dụ: Trang phục lịch sự khi vào đền chùa, chuẩn bị áo ấm khi lên núi, có mặt trước giờ hẹn 15-20 phút..."
+          className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/15 placeholder:text-slate-400 placeholder:font-normal"
+        />
       </div>
     </div>
   );

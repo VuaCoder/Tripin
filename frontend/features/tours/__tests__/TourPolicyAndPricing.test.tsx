@@ -119,17 +119,20 @@ describe('TourPolicyFields', () => {
     );
   });
 
-  it('toggles travel notes checklist chips', () => {
+  it('allows user to enter custom travel notes directly into textarea without suggestion chips', () => {
     const onChange = vi.fn();
     render(<TourPolicyFields value={baseTour} onChange={onChange} includeAgePricing={false} />);
 
-    // Click on concise travel note chip
-    const noteChip = screen.getByRole('button', { name: /Trang phục lịch sự/i });
-    fireEvent.click(noteChip);
+    // Chips should no longer exist for travel notes
+    expect(screen.queryByRole('button', { name: /Trang phục lịch sự/i })).toBeNull();
+
+    // Directly input travel notes
+    const textarea = screen.getByPlaceholderText(/Trang phục lịch sự khi vào đền chùa/i);
+    fireEvent.change(textarea, { target: { value: 'Lưu ý mang theo áo khoác ấm và giày thể thao' } });
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
-        travelNotes: expect.stringContaining('Trang phục lịch sự, kín đáo'),
+        travelNotes: 'Lưu ý mang theo áo khoác ấm và giày thể thao',
       })
     );
   });

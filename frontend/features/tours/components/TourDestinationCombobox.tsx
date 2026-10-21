@@ -156,9 +156,9 @@ export function TourDestinationCombobox({
           onBlur={onBlur}
           aria-invalid={ariaInvalid}
           aria-describedby={ariaDescribedby}
-          placeholder="Nhập để tìm tỉnh thành (vd: Hà Giang, Sa Pa, Hạ Long, Đà Nẵng...)"
+          placeholder="Ví dụ: Hà Giang, Sa Pa, Đà Nẵng, Phú Quốc..."
           autoComplete="off"
-          className="w-full rounded-xl border border-slate-300 bg-white pl-10 pr-10 py-2.5 text-sm font-medium text-slate-900 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20 placeholder:text-slate-400"
+          className="w-full rounded-xl border border-slate-300 bg-white pl-10 pr-10 py-2.5 text-sm font-medium text-slate-900 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20 placeholder:text-slate-400 placeholder:font-normal"
         />
 
         {value && (

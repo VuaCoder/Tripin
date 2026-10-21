@@ -10,6 +10,13 @@
     font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   }
 
+  /* Universal placeholder styling: gentle, consistent, regular weight and pleasant slate-400 */
+  input::placeholder,
+  textarea::placeholder {
+    font-weight: 400;
+    color: #94a3b8;
+  }
+
   /* Remove default spinner arrows from all number inputs across browsers */
   input[type='number']::-webkit-outer-spin-button,
   input[type='number']::-webkit-inner-spin-button {

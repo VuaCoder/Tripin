@@ -6,7 +6,7 @@ import { TourPolicyFields } from './TourPolicyFields';
 
 type Props = { value: TourContentInput; onChange: (value: TourContentInput) => void; categories: TourCategory[] };
 
-const inputClass = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 disabled:bg-slate-100';
+const inputClass = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 disabled:bg-slate-100 placeholder:font-normal placeholder:text-slate-400';
 
 export function TourContentFields({ value, onChange, categories }: Props) {
   const set = <K extends keyof TourContentInput>(key: K, next: TourContentInput[K]) => onChange({ ...value, [key]: next });
@@ -15,10 +15,10 @@ export function TourContentFields({ value, onChange, categories }: Props) {
       <TourPolicyFields value={value} onChange={onChange} />
       <div className="grid gap-5 md:grid-cols-2">
         <label className="space-y-1.5 text-sm font-semibold text-slate-700">Tên tour
-          <input className={inputClass} minLength={5} maxLength={200} required value={value.title} onChange={(e) => set('title', e.target.value)} />
+          <input className={inputClass} minLength={5} maxLength={200} required value={value.title} onChange={(e) => set('title', e.target.value)} placeholder="Ví dụ: Cao nguyên đá Hà Giang mùa hoa tam giác mạch 4N3Đ" />
         </label>
         <label className="space-y-1.5 text-sm font-semibold text-slate-700">Điểm đến
-          <input className={inputClass} minLength={2} maxLength={120} required value={value.destination} onChange={(e) => set('destination', e.target.value)} />
+          <input className={inputClass} minLength={2} maxLength={120} required value={value.destination} onChange={(e) => set('destination', e.target.value)} placeholder="Ví dụ: Hà Giang, Sa Pa, Đà Nẵng..." />
         </label>
       </div>
       <div className="grid gap-5 sm:grid-cols-3">
@@ -36,8 +36,8 @@ export function TourContentFields({ value, onChange, categories }: Props) {
             onChange={(e) => set('basePrice', parseCurrencyVndInput(e.target.value))}
           />
         </label>
-        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Số khách tối đa <span className="font-normal text-slate-500">(Optional)</span>
-          <input className={inputClass} type="number" min={1} max={10000} value={value.maxGroupSize ?? ''} onChange={(e) => set('maxGroupSize', e.target.value ? Number(e.target.value) : undefined)} />
+        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Số khách tối đa
+          <input className={inputClass} type="number" min={1} max={10000} value={value.maxGroupSize ?? ''} onChange={(e) => set('maxGroupSize', e.target.value ? Number(e.target.value) : undefined)} placeholder="Ví dụ: 25" />
         </label>
       </div>
       <label className="block space-y-1.5 text-sm font-semibold text-slate-700">Tóm tắt <span className="font-normal text-slate-500">(Optional)</span>
@@ -64,10 +64,10 @@ export function TourContentFields({ value, onChange, categories }: Props) {
         <label className="space-y-1.5 text-sm font-semibold text-slate-700">Ảnh <span className="font-normal text-slate-500">(Optional, URL)</span>
           <textarea className={inputClass} rows={3} value={(value.images ?? []).join('\n')} onChange={(e) => set('images', e.target.value.split('\n').map((item) => item.trim()).filter(Boolean))} />
         </label>
-        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Bao gồm <span className="font-normal text-slate-500">(Optional)</span>
+        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Bao gồm
           <textarea className={inputClass} rows={3} value={(value.inclusions ?? []).join('\n')} onChange={(e) => set('inclusions', e.target.value.split('\n').map((item) => item.trim()).filter(Boolean))} />
         </label>
-        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Không bao gồm <span className="font-normal text-slate-500">(Optional)</span>
+        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Không bao gồm
           <textarea className={inputClass} rows={3} value={(value.exclusions ?? []).join('\n')} onChange={(e) => set('exclusions', e.target.value.split('\n').map((item) => item.trim()).filter(Boolean))} />
         </label>
       </div>

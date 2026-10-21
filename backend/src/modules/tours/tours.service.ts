@@ -57,6 +57,11 @@ export class ToursService {
   /** Use case "Create tour" — always starts as DRAFT. */
   async createTour(agencyId: string, input: TourContentInput): Promise<TourManageDto> {
     await this.categories.assertActiveIds(input.categoryIds);
+    // Anti-duplicate protection: check if an identical draft was just created by this agency within the last 5 seconds
+    if (this.tours.findRecentDraft) {
+      const recent = await this.tours.findRecentDraft(agencyId, input.title.trim(), input.destination.trim(), 5000);
+      if (recent) return this.views.manage(recent);
+    }
     const created = await this.tours.create({ ...input, agencyId });
     return this.views.manage(created);
   }

@@ -72,7 +72,7 @@ export function TourAgePricingFields({ value, onChange }: Props) {
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/40 p-4 sm:p-5 space-y-4">
+    <div className="space-y-4">
       {/* Header with Switch */}
       <div className="flex items-center justify-between">
         <label htmlFor={checkboxId} className="flex items-center gap-2.5 cursor-pointer select-none">
@@ -84,7 +84,7 @@ export function TourAgePricingFields({ value, onChange }: Props) {
             className="size-4 rounded border-slate-300 text-[#087e8b] focus:ring-[#087e8b]"
           />
           <span className="text-sm font-bold text-slate-800">
-            Áp dụng chính sách giá theo độ tuổi (Trẻ em & Em bé) <span className="text-xs font-normal text-slate-500">(Optional)</span>
+            Áp dụng chính sách giá theo độ tuổi (Trẻ em & Em bé)
           </span>
         </label>
       </div>
@@ -207,8 +207,8 @@ export function TourAgePricingFields({ value, onChange }: Props) {
               maxLength={5000}
               value={value.childPricingPolicy || ''}
               onChange={(e) => onChange({ ...value, childPricingPolicy: e.target.value })}
-              placeholder="Quy định thêm cho trẻ em (ghế ngồi, phụ thu giường phụ, suất ăn...)"
-              className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs sm:text-sm text-slate-800 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/15"
+              placeholder="Ví dụ: Ghế ngồi riêng trên xe, phụ thu giường phụ, suất ăn riêng..."
+              className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs sm:text-sm text-slate-800 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/15 placeholder:text-slate-400 placeholder:font-normal"
             />
           </div>
         </div>

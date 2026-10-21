@@ -94,6 +94,26 @@ export class ToursRepository {
     return toRecord(await createOne(prisma, data));
   }
 
+  /**
+   * Anti-duplicate guard: finds a draft tour with identical title and destination
+   * created by the same agency within the last `windowMs` milliseconds.
+   */
+  async findRecentDraft(agencyId: string, title: string, destination: string, windowMs = 5000): Promise<TourRecord | null> {
+    const since = new Date(Date.now() - windowMs);
+    const row = await prisma.tour.findFirst({
+      where: {
+        agencyId,
+        title,
+        destination,
+        status: TOUR_STATUS.DRAFT,
+        createdAt: { gte: since },
+      },
+      orderBy: { createdAt: 'desc' },
+      include,
+    });
+    return row ? toRecord(row) : null;
+  }
+
   /** All-or-nothing bulk insert. */
   insertMany(data: NewTour[]): Promise<TourRecord[]> {
     return prisma.$transaction(async (tx) => {

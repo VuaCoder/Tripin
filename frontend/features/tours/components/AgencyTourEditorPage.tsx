@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useId, useMemo, type FormEvent } from 'react';
+import { useEffect, useState, useId, useMemo, useRef, type FormEvent } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Eye, CheckCircle2, X, AlertTriangle, UserX } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -96,6 +96,8 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
   const [updateTour, updateState] = useUpdateAgencyTourMutation();
   const [uploadTourImage, uploadState] = useUploadAgencyTourImageMutation();
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [value, setValue] = useState<TourContentInput>(emptyForm);
   const [pageError, setPageError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<EditorErrors>({});
@@ -179,8 +181,9 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty]);
 
-  const busy = createState.isLoading || updateState.isLoading || isUploadingImage || uploadState.isLoading;
-  const locked = tour?.status === 'PENDING_REVIEW';
+  const busy = createState.isLoading || updateState.isLoading || isUploadingImage || uploadState.isLoading || isSubmitting;
+  const isArchived = tour?.status === 'ARCHIVED';
+  const locked = tour?.status === 'PENDING_REVIEW' || isArchived;
 
   const updateField = <K extends keyof TourContentInput>(key: K, nextVal: TourContentInput[K]) => {
     setValue((prev) => ({ ...prev, [key]: nextVal }));
@@ -244,7 +247,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
         }
       }
     } catch (err) {
-      setImageError(getTourApiMessage(err, 'Không thể tải ảnh lên Cloudinary. Vui lòng thử lại.'));
+      setImageError(getTourApiMessage(err, 'Không thể tải ảnh lên. Vui lòng thử lại.'));
     } finally {
       setIsUploadingImage(false);
     }
@@ -278,7 +281,11 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
 
   const saveTourPayload = async (destinationUrl?: string): Promise<boolean> => {
     setPageError('');
-    if (!validateFields(editorFields, true) || busy || locked) return false;
+    if (isSubmittingRef.current || busy || locked) return false;
+    if (!validateFields(editorFields, true)) return false;
+
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
 
     const sanitizedImages = (value.images ?? []).filter((img) => img.startsWith('http://') || img.startsWith('https://'));
     const payload: TourContentInput = {
@@ -296,8 +303,12 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
         router.push(destinationUrl || defaultExitUrl);
         return true;
       }
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
       return false;
     } catch (error) {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
       const { fields, hasOtherIssues } = tourEditorServerErrors(error);
       const first = editorFields.find((field) => fields[field]);
       if (first) { 
@@ -316,11 +327,13 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
 
   const submit = async (event?: FormEvent) => {
     if (event) event.preventDefault();
+    if (isSubmittingRef.current || busy) return;
     if (mode === 'edit' && !isDirty) return;
     await saveTourPayload();
   };
 
   const handleRequestExit = (targetHref?: string) => {
+    if (isSubmittingRef.current || busy) return;
     const destination = targetHref || defaultExitUrl;
     if (!isDirty) {
       router.push(destination);
@@ -331,15 +344,18 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
   };
 
   const handleCancelExit = () => {
+    if (isSubmittingRef.current || busy) return;
     setShowExitConfirmModal(false);
   };
 
   const handleExitWithoutSave = () => {
+    if (isSubmittingRef.current || busy) return;
     setShowExitConfirmModal(false);
     router.push(pendingExitUrl || defaultExitUrl);
   };
 
   const handleSaveAndExit = async () => {
+    if (isSubmittingRef.current || busy) return;
     const destination = pendingExitUrl || defaultExitUrl;
     const ok = await saveTourPayload(destination);
     if (ok) {
@@ -349,6 +365,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
 
   const handleOpenCompleteModal = () => {
     setPageError('');
+    if (isSubmittingRef.current || busy) return;
     if (mode === 'edit' && !isDirty) {
       setPageError('Nội dung và thông tin tour chưa có thay đổi nào để lưu.');
       return;
@@ -359,6 +376,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
   };
 
   const handleConfirmComplete = async () => {
+    if (isSubmittingRef.current || busy) return;
     setShowCompleteModal(false);
     await submit();
   };
@@ -478,13 +496,28 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
       </div>
 
       {locked && (
-        <p className="mb-6 rounded-2xl bg-amber-50 border border-amber-200 p-4 text-sm font-semibold text-amber-900">
-          Tour đang trong quá trình kiểm duyệt nên tạm khóa chỉnh sửa thông tin.
+        <p className={`mb-6 rounded-2xl p-4 text-sm font-semibold border ${
+          isArchived 
+            ? 'bg-slate-100 border-slate-300 text-slate-700' 
+            : 'bg-amber-50 border-amber-200 text-amber-900'
+        }`}>
+          {isArchived 
+            ? 'Tour này đã được lưu trữ (ngừng hoạt động) nên không thể chỉnh sửa thông tin.' 
+            : 'Tour đang trong quá trình kiểm duyệt nên tạm khóa chỉnh sửa thông tin.'}
         </p>
       )}
 
       {/* Main 2-column layout: Left = Form with all 4 sections combined, Right = Live Preview */}
-      <form onSubmit={submit} noValidate className={editorStyles.form}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!isSubmittingRef.current && !busy && !showCompleteModal && !showExitConfirmModal) {
+            handleOpenCompleteModal();
+          }
+        }}
+        noValidate
+        className={editorStyles.form}
+      >
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* ========================================================================= */}
@@ -528,7 +561,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   value={value.title}
                   onChange={(e) => updateField('title', e.target.value)}
                   placeholder="Ví dụ: Cao nguyên đá Hà Giang mùa hoa tam giác mạch 4N3Đ"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 font-medium outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 font-medium outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20 placeholder:font-normal placeholder:text-slate-400"
                 />
                 {fieldHint('title')}
               </div>
@@ -584,8 +617,8 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   maxLength={500}
                   value={value.summary ?? ''}
                   onChange={(e) => updateField('summary', e.target.value || undefined)}
-                  placeholder="Mô tả ngắn gọn 1-2 câu nổi bật về trải nghiệm để du khách nắm bắt ngay."
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20"
+                  placeholder="Ví dụ: Hành trình khám phá vẻ đẹp kỳ vĩ của cao nguyên đá và nét văn hóa độc đáo..."
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20 placeholder:font-normal placeholder:text-slate-400"
                 />
                 {fieldHint('summary')}
               </div>
@@ -622,7 +655,6 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                     </span>
                     Hình ảnh & Thư viện ảnh tour
                   </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Tải ảnh từ máy tính lên Cloudinary hoặc dán liên kết ảnh sắc nét.</p>
                 </div>
                 {isStep2Done && (
                   <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 border border-emerald-200/60">
@@ -706,7 +738,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   {isUploadingImage ? (
                     <div className="flex flex-col items-center justify-center py-2">
                       <div className="size-8 animate-spin rounded-full border-2 border-teal-200 border-t-teal-700 mb-2" />
-                      <p className="text-xs font-bold text-teal-800">Đang tải ảnh lên Cloudinary...</p>
+                      <p className="text-xs font-bold text-teal-800">Đang tải ảnh lên...</p>
                       <p className="text-[11px] text-slate-500 mt-0.5">Vui lòng chờ trong giây lát</p>
                     </div>
                   ) : (
@@ -855,7 +887,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                         }
                       }}
                       placeholder="Ví dụ: 1.500.000"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 pr-10 text-sm font-extrabold text-[#087e8b] outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20 tracking-wide font-sans"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 pr-10 text-sm font-medium text-slate-900 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20 placeholder:font-normal placeholder:text-slate-400"
                     />
                     <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 select-none">₫</span>
                   </div>
@@ -869,7 +901,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
 
                 <div className="space-y-1.5">
                   <label htmlFor={fieldId('maxGroupSize')} className="text-sm font-bold text-slate-800">
-                    Số khách tối đa / đoàn <span className="text-xs font-normal text-slate-500">(Optional)</span>
+                    Số khách tối đa / đoàn
                   </label>
                   <div className="relative">
                     <input
@@ -880,7 +912,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                       value={value.maxGroupSize ?? ''}
                       onChange={(e) => updateField('maxGroupSize', e.target.value ? Number(e.target.value) : undefined)}
                       placeholder="Ví dụ: 25"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 pr-16 text-sm font-medium text-slate-900 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 pr-16 text-sm font-medium text-slate-900 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20 placeholder:font-normal placeholder:text-slate-400"
                     />
                     <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 select-none">khách</span>
                   </div>
@@ -894,27 +926,29 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                 {fieldErrors.agePricing && <p role="alert" className="text-sm font-semibold text-red-600">{fieldErrors.agePricing}</p>}
               </div>
 
-              {/* Inclusions & Exclusions 2-column layout */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 pt-2 border-t border-slate-100">
+              {/* Inclusions & Exclusions - Separated into full-width stacked rows */}
+              <div className="space-y-6 pt-4 border-t border-slate-100">
                 <TourItemCombobox
                   id={fieldId('inclusions')}
                   label="Dịch vụ bao gồm"
-                  placeholder="Tìm kiếm tiện ích hoặc ấn Enter..."
+                  placeholder="Ví dụ: Xe đưa đón, vé tham quan, bữa ăn..."
                   items={value.inclusions ?? []}
                   onChange={(items) => updateField('inclusions', items)}
                   suggestions={DEFAULT_INCLUSIONS}
                   tone="positive"
                 />
 
-                <TourItemCombobox
-                  id={fieldId('exclusions')}
-                  label="Dịch vụ không bao gồm"
-                  placeholder="Tìm kiếm mục loại trừ hoặc ấn Enter..."
-                  items={value.exclusions ?? []}
-                  onChange={(items) => updateField('exclusions', items)}
-                  suggestions={DEFAULT_EXCLUSIONS}
-                  tone="neutral"
-                />
+                <div className="pt-5 border-t border-slate-100">
+                  <TourItemCombobox
+                    id={fieldId('exclusions')}
+                    label="Dịch vụ không bao gồm"
+                    placeholder="Ví dụ: Chi phí cá nhân, đồ uống, VAT..."
+                    items={value.exclusions ?? []}
+                    onChange={(items) => updateField('exclusions', items)}
+                    suggestions={DEFAULT_EXCLUSIONS}
+                    tone="neutral"
+                  />
+                </div>
               </div>
             </section>
 
