@@ -98,6 +98,11 @@ export class ToursController {
     sendNoContent(res);
   };
 
+  restore: RequestHandler = async (req, res) => {
+    const { params } = validated<unknown, unknown, IdParams>(req);
+    sendOk(res, await this.service.restoreTour(agencyIdOf(req), params.id));
+  };
+
   setAvailability: RequestHandler = async (req, res) => {
     const { params, body } = validated<AvailabilityBody, unknown, IdParams>(req);
     sendOk(res, await this.service.setAvailability(agencyIdOf(req), params.id, body.departures));

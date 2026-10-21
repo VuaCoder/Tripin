@@ -130,9 +130,17 @@ describe('ownership', () => {
     await expect(service.deleteTour('a1', 't1')).rejects.toMatchObject({ statusCode: 404 });
   });
 
-  it('hides archived tours from their owner', async () => {
+  it('allows owner to view their archived tour in manage view', async () => {
     const { service } = setup(makeTour({ status: TOUR_STATUS.ARCHIVED }));
-    await expect(service.getOwn('a1', 't1')).rejects.toMatchObject({ statusCode: 404 });
+    const result = await service.getOwn('a1', 't1');
+    expect(result.status).toBe(TOUR_STATUS.ARCHIVED);
+  });
+
+  it('restores an archived tour back to DRAFT', async () => {
+    const { service, db } = setup(makeTour({ status: TOUR_STATUS.ARCHIVED }));
+    const result = await service.restoreTour('a1', 't1');
+    expect(result.status).toBe(TOUR_STATUS.DRAFT);
+    expect(db!.status).toBe(TOUR_STATUS.DRAFT);
   });
 });
 

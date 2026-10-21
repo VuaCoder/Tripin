@@ -62,29 +62,34 @@ export function TourCategoryCombobox({
     return selectedIds.map((id) => categoryById.get(id)).filter((c): c is TourCategory => Boolean(c));
   }, [selectedIds, categoryById]);
 
+  // Only standard system categories are suggested (filter out any custom user category with sortOrder >= 200)
+  const systemCategories = useMemo(() => {
+    return categories.filter((c) => (c.sortOrder ?? 0) < 200);
+  }, [categories]);
+
   // Filtered matching categories based on user query
   const matchingCategories = useMemo(() => {
     const trimmed = query.trim();
     if (!trimmed) {
-      return categories;
+      return systemCategories;
     }
     const normQ = normalizeSearchText(trimmed);
-    return categories.filter((cat) => {
+    return systemCategories.filter((cat) => {
       const normName = normalizeSearchText(cat.name);
       const normVnName = normalizeSearchText(formatCategoryName(cat.name));
       return normName.includes(normQ) || normVnName.includes(normQ);
     });
-  }, [categories, query]);
+  }, [systemCategories, query]);
 
   // Check if current query matches an existing category exactly (either English or Vietnamese name)
   const exactMatch = useMemo(() => {
     const trimmed = query.trim();
     if (!trimmed) return null;
     const normQ = normalizeSearchText(trimmed);
-    return categories.find(
+    return systemCategories.find(
       (c) => normalizeSearchText(c.name) === normQ || normalizeSearchText(formatCategoryName(c.name)) === normQ,
     );
-  }, [categories, query]);
+  }, [systemCategories, query]);
 
 
   const toggleCategory = (categoryId: string) => {
@@ -130,7 +135,7 @@ export function TourCategoryCombobox({
     }
   };
 
-  const showCustomAddOption = query.trim().length >= 2 && !exactMatch;
+  const showCustomAddOption = Boolean(query.trim() && !exactMatch);
 
   // Keyboard navigation inside combobox
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {

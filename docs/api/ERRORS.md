@@ -62,6 +62,12 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `PROMOTION_NOT_APPLICABLE` | 409 | The promotion belongs to another agency |
 | `PROMOTION_MIN_ORDER` | 409 | The order is below the promotion's minimum amount |
 | `PROMOTION_EXHAUSTED` | 409 | Every redemption of the promotion is used |
+| `PROMOTION_TOUR_NOT_ELIGIBLE` | 409 | The promotion does not apply to this specific tour |
+| `PROMOTION_MIN_PARTICIPANTS` | 409 | The group size is below the promotion's minimum participants |
+| `PROMOTION_EARLY_BIRD` | 409 | The departure date is too close to qualify for the early-bird promotion |
+| `PROMOTION_FIRST_BOOKING_ONLY` | 409 | The promotion is only valid for a traveler's first booking |
+| `PROMOTION_USER_LIMIT_REACHED` | 409 | The maximum number of redemptions per account for this promotion has been reached |
+| `PROMOTION_CODE_USED` | 409 | The single-use voucher code has already been redeemed |
 
 ## Bookings and payments (`bookings`, `payments`, `reviews`)
 

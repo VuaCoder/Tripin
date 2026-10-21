@@ -929,7 +929,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
               {/* Inclusions & Exclusions - Separated into full-width stacked rows */}
               <div className="space-y-6 pt-4 border-t border-slate-100">
                 <TourItemCombobox
-                  id={fieldId('inclusions')}
+                  id={`${formId}-inclusions`}
                   label="Dịch vụ bao gồm"
                   placeholder="Ví dụ: Xe đưa đón, vé tham quan, bữa ăn..."
                   items={value.inclusions ?? []}
@@ -940,7 +940,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
 
                 <div className="pt-5 border-t border-slate-100">
                   <TourItemCombobox
-                    id={fieldId('exclusions')}
+                    id={`${formId}-exclusions`}
                     label="Dịch vụ không bao gồm"
                     placeholder="Ví dụ: Chi phí cá nhân, đồ uống, VAT..."
                     items={value.exclusions ?? []}

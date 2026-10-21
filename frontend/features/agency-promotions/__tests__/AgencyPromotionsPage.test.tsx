@@ -10,6 +10,8 @@ vi.mock('../api/agencyPromotionsApi', () => ({
   useGetAgencyPromotionsQuery: (args: unknown) => mockQuery(args),
   useCreateAgencyPromotionMutation: () => [mockCreate, { isLoading: false }],
   useUpdateAgencyPromotionMutation: () => [mockUpdate, { isLoading: false }],
+  useGenerateAgencyBatchMutation: () => [vi.fn(), { isLoading: false }],
+  useLazyGetAgencyBatchQuery: () => [vi.fn(), { data: { items: [], meta: { total: 0 } }, isFetching: false }],
 }));
 
 import { AgencyPromotionsPage } from '../components/AgencyPromotionsPage';

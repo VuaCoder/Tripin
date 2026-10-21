@@ -1,19 +1,26 @@
-import type { DiscountType, PromotionScope } from '@travel-platform/constants';
+import type { DiscountType, PromotionApplyType, PromotionCodeType, PromotionScope } from '@travel-platform/constants';
 
 export interface PromotionDto {
   id: string;
   scope: PromotionScope;
   ownerId?: string;
-  code: string;
+  applyType: PromotionApplyType;
+  codeType: PromotionCodeType;
+  code?: string;
   title: string;
   description?: string;
   discountType: DiscountType;
   discountValue: number;
   maxDiscountAmount?: number;
   minOrderAmount: number;
+  minParticipants?: number;
+  daysInAdvance?: number;
+  firstBookingOnly: boolean;
+  targetTourIds: string[];
   startsAt: string;
   endsAt: string;
   usageLimit?: number;
+  usageLimitPerUser: number;
   usedCount: number;
   isActive: boolean;
   /** Derived: active and inside its validity window right now. */
@@ -21,16 +28,23 @@ export interface PromotionDto {
 }
 
 export interface CreatePromotionInput {
-  code: string;
+  applyType?: PromotionApplyType;
+  codeType?: PromotionCodeType;
+  code?: string;
   title: string;
   description?: string;
   discountType: DiscountType;
   discountValue: number;
   maxDiscountAmount?: number;
   minOrderAmount?: number;
+  minParticipants?: number;
+  daysInAdvance?: number;
+  firstBookingOnly?: boolean;
+  targetTourIds?: string[];
   startsAt: Date;
   endsAt: Date;
   usageLimit?: number;
+  usageLimitPerUser?: number;
 }
 
 /** `code` and `discountType` are immutable; `discountValue` is locked once the promotion has been used. */
@@ -40,15 +54,21 @@ export interface UpdatePromotionInput {
   discountValue?: number;
   maxDiscountAmount?: number;
   minOrderAmount?: number;
+  minParticipants?: number;
+  daysInAdvance?: number;
+  firstBookingOnly?: boolean;
+  targetTourIds?: string[];
   startsAt?: Date;
   endsAt?: Date;
   usageLimit?: number;
+  usageLimitPerUser?: number;
   isActive?: boolean;
 }
 
 export interface ListPromotionsQuery {
   q?: string;
   discountType?: DiscountType;
+  applyType?: PromotionApplyType;
   from?: Date;
   to?: Date;
   page: number;
@@ -62,4 +82,27 @@ export interface AppliedPromotion {
   code: string;
   scope: PromotionScope;
   discountAmount: number;
+  codeInstanceId?: string;
+}
+
+export interface PromotionCodeInstanceDto {
+  id: string;
+  promotionId: string;
+  code: string;
+  isUsed: boolean;
+  usedById?: string;
+  usedAt?: string;
+  bookingId?: string;
+  createdAt: string;
+}
+
+export interface UserVoucherDto {
+  id: string;
+  userId: string;
+  promotionId: string;
+  collectedAt: string;
+  isUsed: boolean;
+  usedAt?: string;
+  bookingId?: string;
+  promotion?: PromotionDto;
 }

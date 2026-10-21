@@ -60,6 +60,7 @@ const LOGIN_ONLY_ROUTES = [
 /** Mutating routes that carry no JSON body by design (pure actions on the caller's own resource / signed callbacks). */
 const BODYLESS_MUTATIONS = [
   'PATCH /notifications/:id/read',
+  'POST /agency/tours/:id/restore',
   'POST /agency/tours/:id/submit',
   'POST /auth/agency/upload-license',
   'POST /bookings/:id/complete',

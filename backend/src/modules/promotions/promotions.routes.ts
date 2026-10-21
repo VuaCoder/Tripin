@@ -4,7 +4,10 @@ import { requirePermission, requireSuperAdmin } from '../../middlewares/authoriz
 import { validate } from '../../middlewares/validate';
 import { promotionsController } from './promotions.controller';
 import {
+  availableQuery,
+  collectVoucherBody,
   createPromotionBody,
+  generateBatchBody,
   listPromotionsQuery,
   previewQuery,
   promotionIdParams,
@@ -22,6 +25,16 @@ agencyPromotionsRouter.patch(
   validate({ params: promotionIdParams, body: updatePromotionBody }),
   promotionsController.updateAgency,
 );
+agencyPromotionsRouter.post(
+  '/:id/generate-batch',
+  validate({ params: promotionIdParams, body: generateBatchBody }),
+  promotionsController.generateBatchAgency,
+);
+agencyPromotionsRouter.get(
+  '/:id/batch',
+  validate({ params: promotionIdParams }),
+  promotionsController.listBatchAgency,
+);
 
 /** Mounted at /api/v1/admin/promotions — SUPER_ADMIN platform promotions. */
 export const adminPromotionsRouter = Router();
@@ -35,7 +48,20 @@ adminPromotionsRouter.patch(
   validate({ params: promotionIdParams, body: updatePromotionBody }),
   promotionsController.updatePlatform,
 );
+adminPromotionsRouter.post(
+  '/:id/generate-batch',
+  validate({ params: promotionIdParams, body: generateBatchBody }),
+  promotionsController.generateBatchPlatform,
+);
+adminPromotionsRouter.get(
+  '/:id/batch',
+  validate({ params: promotionIdParams }),
+  promotionsController.listBatchPlatform,
+);
 
-/** Mounted at /api/v1/promotions — checkout helper for travelers. */
+/** Mounted at /api/v1/promotions — checkout helper & voucher wallet for travelers. */
 export const promotionsRouter = Router();
 promotionsRouter.get('/preview', requirePermission(PERMISSIONS.BOOKING_CREATE), validate({ query: previewQuery }), promotionsController.preview);
+promotionsRouter.get('/available', requirePermission(PERMISSIONS.BOOKING_CREATE), validate({ query: availableQuery }), promotionsController.available);
+promotionsRouter.post('/collect', requirePermission(PERMISSIONS.BOOKING_CREATE), validate({ body: collectVoucherBody }), promotionsController.collectVoucher);
+promotionsRouter.get('/my-vouchers', requirePermission(PERMISSIONS.BOOKING_CREATE), promotionsController.listUserVouchers);

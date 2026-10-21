@@ -364,26 +364,68 @@ model Report {
 }
 
 model Promotion {
-  id                String         @id @default(uuid()) @db.Uuid
+  id                String             @id @default(uuid()) @db.Uuid
   scope             PromotionScope
-  ownerId           String?        @db.Uuid
-  code              String         @unique
+  ownerId           String?            @db.Uuid
+  applyType         PromotionApplyType @default(CODE)
+  codeType          PromotionCodeType  @default(SHARED)
+  code              String?            @unique
   title             String
   description       String?
   discountType      DiscountType
   discountValue     Int
   maxDiscountAmount Int?
-  minOrderAmount    Int            @default(0)
+  minOrderAmount    Int                @default(0)
+  minParticipants   Int?
+  daysInAdvance     Int?
+  firstBookingOnly  Boolean            @default(false)
+  targetTourIds     String[]           @default([])
   startsAt          DateTime
   endsAt            DateTime
   usageLimit        Int?
-  usedCount         Int            @default(0)
-  isActive          Boolean        @default(true)
-  createdById       String         @db.Uuid
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  usageLimitPerUser Int                @default(1)
+  usedCount         Int                @default(0)
+  isActive          Boolean            @default(true)
+  createdById       String             @db.Uuid
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  codeInstances     PromotionCodeInstance[]
+  userVouchers      UserVoucher[]
 
   @@index([scope, ownerId, createdAt(sort: Desc)])
+  @@index([applyType, isActive])
+}
+
+model PromotionCodeInstance {
+  id          String    @id @default(uuid()) @db.Uuid
+  promotionId String    @db.Uuid
+  code        String    @unique
+  isUsed      Boolean   @default(false)
+  usedById    String?   @db.Uuid
+  usedAt      DateTime?
+  bookingId   String?   @db.Uuid
+  createdAt   DateTime  @default(now())
+
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@index([promotionId, isUsed])
+  @@index([code])
+}
+
+model UserVoucher {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  promotionId String    @db.Uuid
+  collectedAt DateTime  @default(now())
+  isUsed      Boolean   @default(false)
+  usedAt      DateTime?
+  bookingId   String?   @db.Uuid
+
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, promotionId])
+  @@index([userId, isUsed])
 }
 
 model SubscriptionPlan {
@@ -662,6 +704,17 @@ enum PaymentStatus {
 enum PromotionScope {
   AGENCY
   PLATFORM
+}
+
+enum PromotionApplyType {
+  CODE
+  AUTO_APPLY
+  COLLECTABLE
+}
+
+enum PromotionCodeType {
+  SHARED
+  UNIQUE_BATCH
 }
 
 enum DiscountType {

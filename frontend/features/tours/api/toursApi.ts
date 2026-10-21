@@ -52,6 +52,11 @@ export const toursApi = baseApi.injectEndpoints({
       query: (id) => ({ url: `/agency/tours/${id}`, method: 'DELETE' }),
       invalidatesTags: [{ type: 'Tour', id: 'AGENCY_LIST' }],
     }),
+    restoreAgencyTour: build.mutation<TourDetail, string>({
+      query: (id) => ({ url: `/agency/tours/${id}/restore`, method: 'POST' }),
+      transformResponse: (response: TourApiResponse<TourDetail>) => response.data,
+      invalidatesTags: (_result, _error, id) => [{ type: 'Tour', id }, { type: 'Tour', id: 'AGENCY_LIST' }],
+    }),
     setAgencyTourItinerary: build.mutation<TourDetail, { id: string; days: TourDetail['itinerary'] }>({
       query: ({ id, days }) => ({ url: `/agency/tours/${id}/itinerary`, method: 'PUT', body: { days } }),
       transformResponse: (response: TourApiResponse<TourDetail>) => response.data,
@@ -112,7 +117,7 @@ export const toursApi = baseApi.injectEndpoints({
 export const {
   useGetToursQuery, useGetTourDestinationsQuery, useGetTourQuery, useGetTourCategoriesQuery,
   useGetAgencyToursQuery, useGetAgencyTourQuery, useCreateAgencyTourMutation, useUpdateAgencyTourMutation,
-  useDeleteAgencyTourMutation, useSetAgencyTourItineraryMutation, useSetAgencyTourAvailabilityMutation,
+  useDeleteAgencyTourMutation, useRestoreAgencyTourMutation, useSetAgencyTourItineraryMutation, useSetAgencyTourAvailabilityMutation,
   useSubmitAgencyTourMutation, useImportAgencyToursMutation, useExtractAgencyTourDocumentMutation,
   useGetAgencyDashboardQuery,
   useGetAgencyGuidesQuery, useAssignAgencyTourGuideMutation,

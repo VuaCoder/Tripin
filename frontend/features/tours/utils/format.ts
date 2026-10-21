@@ -41,16 +41,4 @@ export function formatCategoryName(name?: string | null): string {
   return CATEGORY_NAME_MAP[key] ?? name;
 }
 
-/** Định dạng số tiền có dấu chấm phân cách hàng nghìn khi người dùng gõ vào ô input (VD: 50000 -> "50.000") */
-export function formatCurrencyVndInput(val: number | string | undefined | null): string {
-  if (val === undefined || val === null || val === '' || val === 0) return '';
-  const digits = typeof val === 'number' ? Math.round(val).toString() : val.toString().replace(/\D/g, '');
-  if (!digits) return '';
-  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-}
-
-/** Tách lấy số nguyên từ chuỗi tiền tệ có dấu chấm/phẩy */
-export function parseCurrencyVndInput(raw: string): number {
-  const digits = raw.replace(/\D/g, '');
-  return digits ? parseInt(digits, 10) : 0;
-}
+export { formatCurrencyVndInput, parseCurrencyVndInput } from '@/lib/travel-format';

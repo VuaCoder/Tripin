@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction, type FormEvent } from 'react';
 import { useParams } from 'next/navigation';
-import { getTourApiMessage, useDeleteAgencyTourMutation, useGetAgencyTourQuery, useSetAgencyTourAvailabilityMutation, useSetAgencyTourItineraryMutation, useSubmitAgencyTourMutation } from '../api/toursApi';
+import { getTourApiMessage, useDeleteAgencyTourMutation, useGetAgencyTourQuery, useRestoreAgencyTourMutation, useSetAgencyTourAvailabilityMutation, useSetAgencyTourItineraryMutation, useSubmitAgencyTourMutation } from '../api/toursApi';
 import type { TourDeparture, TourItineraryDay } from '../types';
 import { toursApi } from '../api/toursApi';
 import { useAppDispatch } from '@/store/hooks';
@@ -13,6 +13,7 @@ import { ArrowLeft, ArrowRight, RotateCw } from 'lucide-react';
 import { AgencyTourStepper } from './AgencyTourStepper';
 import { AgencyTourLivePreview } from './AgencyTourLivePreview';
 import { AntDatePicker } from '@/components/ui';
+import { formatCurrencyVndInput, parseCurrencyVndInput } from '@/lib/travel-format';
 
 const inputClass = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20';
 const emptyDay = (day: number, toDay?: number): TourItineraryDay => ({ day, toDay, title: '', description: '', activities: [] });
@@ -28,6 +29,7 @@ export function AgencyTourWorkspacePage() {
   const [saveAvailability, availabilityState] = useSetAgencyTourAvailabilityMutation();
   const [submitTour, submitState] = useSubmitAgencyTourMutation();
   const [deleteTour, deleteState] = useDeleteAgencyTourMutation();
+  const [restoreTour, restoreState] = useRestoreAgencyTourMutation();
   const [days, setDaysState] = useState<TourItineraryDay[]>([]);
   const [departures, setDeparturesState] = useState<DepartureForm[]>([]);
   const itineraryDirty = useRef(false);
@@ -120,7 +122,17 @@ export function AgencyTourWorkspacePage() {
     });
     if (hasInvalidDate) { setErrorText('Ngày khởi hành mới hoặc ngày được thay đổi phải bắt đầu từ ngày mai trở đi.'); return; }
     void run(async () => {
-      const saved = await saveAvailability({ id, departures: departures.map(({ remaining: _remaining, price, ...departure }) => ({ ...departure, date: new Date(`${departure.date}T00:00:00.000Z`).toISOString(), ...(price !== tour?.basePrice ? { priceOverride: price } : {}) })) }).unwrap();
+      const saved = await saveAvailability({
+        id,
+        departures: departures.map(({ remaining: _remaining, price, ...departure }) => {
+          const effectivePrice = (!price || price <= 0) && tour ? tour.basePrice : price;
+          return {
+            ...departure,
+            date: new Date(`${departure.date}T00:00:00.000Z`).toISOString(),
+            ...(effectivePrice !== tour?.basePrice ? { priceOverride: effectivePrice } : {}),
+          };
+        }),
+      }).unwrap();
       await dispatch(toursApi.util.upsertQueryData('getAgencyTour', id, saved));
       availabilityDirty.current = false;
       availabilitySnapshot.current = '';
@@ -136,6 +148,18 @@ export function AgencyTourWorkspacePage() {
     try { await deleteTour(id).unwrap(); window.location.assign('/agency/tours'); }
     catch (e) { setErrorText(getTourApiMessage(e, 'Không thể lưu trữ tour.')); }
   };
+  const handleRestore = async () => {
+    if (!tour || !window.confirm(`Khôi phục tour “${tour.title}” về bản nháp để tiếp tục sử dụng?`)) return;
+    setErrorText('');
+    setMessage('');
+    try {
+      const restored = await restoreTour(id).unwrap();
+      await dispatch(toursApi.util.upsertQueryData('getAgencyTour', id, restored));
+      setMessage('Đã khôi phục tour về bản nháp thành công!');
+    } catch (e) {
+      setErrorText(getTourApiMessage(e, 'Không thể khôi phục tour.'));
+    }
+  };
 
   if (!canView) return <AgencyDenied />;
   if (isLoading || (!tour && isFetching)) return <main className="mx-auto max-w-6xl p-6" role="status">Đang tải thông tin tour…</main>;
@@ -144,7 +168,7 @@ export function AgencyTourWorkspacePage() {
   const isArchived = tour.status === 'ARCHIVED';
   const isPendingReview = tour.status === 'PENDING_REVIEW';
   const locked = isPendingReview || isArchived;
-  const busy = itineraryState.isLoading || availabilityState.isLoading || submitState.isLoading || deleteState.isLoading;
+  const busy = itineraryState.isLoading || availabilityState.isLoading || submitState.isLoading || deleteState.isLoading || restoreState.isLoading;
   const maxCoveredDay = days.length === 0 ? 0 : Math.max(0, ...days.map((d) => (d.toDay && d.toDay > d.day ? d.toDay : d.day)));
   const nextStartDay = tour ? Math.min(tour.durationDays, maxCoveredDay + 1) : 1;
   const isScheduleFull = tour ? maxCoveredDay >= tour.durationDays : false;
@@ -173,6 +197,16 @@ export function AgencyTourWorkspacePage() {
         {tour.statusReason && <p className="mt-2 text-sm text-amber-800">Ghi chú kiểm duyệt: {tour.statusReason}</p>}
       </div>
       <div className="flex flex-wrap gap-2">
+        {isArchived && (
+          <button
+            type="button"
+            onClick={() => void handleRestore()}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+          >
+            <span>{restoreState.isLoading ? 'Đang khôi phục…' : 'Khôi phục tour'}</span>
+          </button>
+        )}
         <Link href={`/agency/tours/${id}/edit?from=/agency/tours/${id}`} aria-disabled={locked} className={`rounded-lg border px-3 py-2 text-sm font-semibold ${locked ? 'pointer-events-none border-slate-200 text-slate-400' : 'border-slate-300 text-slate-700'}`}>Sửa thông tin</Link>
         {tour.status !== 'APPROVED' && !isArchived && (
           <button type="button" onClick={submit} disabled={busy || locked} className="rounded-lg bg-primary-container px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{submitState.isLoading ? 'Đang gửi…' : 'Gửi duyệt'}</button>
@@ -183,7 +217,7 @@ export function AgencyTourWorkspacePage() {
       </div>
     </header>
     {isPendingReview && <p className="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Tour đang chờ xét duyệt. Thông tin và lịch trình tạm khóa chỉnh sửa; bạn vẫn có thể điều chỉnh ngày khởi hành và số chỗ.</p>}
-    {isArchived && <p className="mb-5 rounded-xl bg-slate-100 p-4 text-sm text-slate-700 border border-slate-200">Tour này đã được lưu trữ (ngừng hoạt động). Thông tin chỉ dùng để xem lại lịch sử.</p>}
+    {isArchived && <p className="mb-5 rounded-xl bg-slate-100 p-4 text-sm text-slate-700 border border-slate-200">Tour này đã được lưu trữ (ngừng hoạt động). Bấm nút <strong>Khôi phục tour</strong> ở trên để chuyển về Bản nháp và tiếp tục chỉnh sửa.</p>}
     {message && <p role="status" className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{message}</p>}
     {errorText && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{errorText}</p>}
     <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -269,6 +303,9 @@ export function AgencyTourWorkspacePage() {
                           min={1}
                           max={tour.durationDays}
                           value={day.day}
+                          onKeyDown={(e) => {
+                            if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+                          }}
                           onChange={(e) => {
                             const val = Number(e.target.value);
                             setDays((prev) => prev.map((item, i) => i === index ? { ...item, day: val } : item));
@@ -286,6 +323,9 @@ export function AgencyTourWorkspacePage() {
                           max={tour.durationDays}
                           placeholder="1 ngày"
                           value={day.toDay ?? ''}
+                          onKeyDown={(e) => {
+                            if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+                          }}
                           onChange={(e) => {
                             const val = e.target.value === '' ? undefined : Number(e.target.value);
                             setDays((prev) => prev.map((item, i) => i === index ? { ...item, toDay: val } : item));
@@ -378,7 +418,82 @@ export function AgencyTourWorkspacePage() {
         <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">Ngày khởi hành</h2><p className="text-sm text-slate-600">Chỗ còn lại được giữ theo số ghế đã bán.</p></div><button type="button" disabled={departures.length >= 200} onClick={() => setDepartures((current) => [...current, { date: '', capacity: tour?.maxGroupSize && tour.maxGroupSize > 0 ? tour.maxGroupSize : 10, price: tour.basePrice, isOpen: true }])} className="rounded-lg border border-primary px-3 py-2 text-sm font-semibold text-primary disabled:opacity-50">+ Thêm ngày</button></div>
         <form onSubmit={saveDepartures} className="space-y-4" aria-busy={availabilityState.isLoading}>
           {departures.length === 0 && <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Chưa thiết lập ngày khởi hành.</p>}
-          {departures.map((departure, index) => { const sold = departure.remaining === undefined ? 0 : departure.capacity - departure.remaining; const dateLocked = sold > 0; return <fieldset key={departure.id ?? `new-${index}`} className="grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2"><div className="space-y-1 text-sm font-medium text-slate-700"><span>Ngày khởi hành</span><AntDatePicker value={departure.date} disabled={dateLocked} min={new Date().toISOString().slice(0, 10)} onChange={(d) => setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, date: d } : item))} className="w-full" size="middle" placeholder="Chọn ngày khởi hành" /></div><label className="space-y-1 text-sm font-medium text-slate-700">Sức chứa<input type="number" required min={Math.max(1, sold)} max={10000} value={departure.capacity} onChange={(e) => setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, capacity: Number(e.target.value) } : item))} className={inputClass} /></label><label className="space-y-1 text-sm font-medium text-slate-700">Giá riêng (VND)<input type="number" min={0} step={1} value={departure.price} onChange={(e) => setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, price: Number(e.target.value) } : item))} className={inputClass} /></label><div className="flex items-center justify-between gap-2"><label className="flex items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" checked={departure.isOpen} onChange={(e) => setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, isOpen: e.target.checked } : item))} /> Đang mở</label><span className="text-xs text-slate-500">Đã bán {sold}/{departure.capacity}</span><button type="button" disabled={dateLocked} onClick={() => setDepartures((prev) => prev.filter((_, i) => i !== index))} className="text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-40">Gỡ</button></div>{dateLocked && <p className="sm:col-span-2 text-xs text-amber-800">Đã có khách: không thể đổi ngày hoặc gỡ. Hãy đóng ngày khởi hành.</p>}</fieldset>; })}
+          {departures.map((departure, index) => {
+            const sold = departure.remaining === undefined ? 0 : departure.capacity - departure.remaining;
+            const dateLocked = sold > 0;
+            return (
+              <fieldset key={departure.id ?? `new-${index}`} className="grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
+                <div className="space-y-1 text-sm font-medium text-slate-700">
+                  <span>Ngày khởi hành</span>
+                  <AntDatePicker
+                    value={departure.date}
+                    disabled={dateLocked}
+                    min={new Date().toISOString().slice(0, 10)}
+                    onChange={(d) => setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, date: d } : item))}
+                    className="w-full"
+                    size="middle"
+                    placeholder="Chọn ngày khởi hành"
+                  />
+                </div>
+                <label className="space-y-1 text-sm font-medium text-slate-700">
+                  Sức chứa
+                  <input
+                    type="number"
+                    required
+                    min={Math.max(1, sold)}
+                    max={10000}
+                    value={departure.capacity}
+                    onKeyDown={(e) => {
+                      if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+                    }}
+                    onChange={(e) => setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, capacity: Number(e.target.value) } : item))}
+                    className={inputClass}
+                  />
+                </label>
+                <label className="space-y-1 text-sm font-medium text-slate-700">
+                  Giá riêng (VND)
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formatCurrencyVndInput(departure.price)}
+                    placeholder={tour ? formatCurrencyVndInput(tour.basePrice) : 'Ví dụ: 500.000'}
+                    onKeyDown={(e) => {
+                      if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+                    }}
+                    onChange={(e) => {
+                      const parsed = parseCurrencyVndInput(e.target.value);
+                      setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, price: parsed } : item));
+                    }}
+                    className={inputClass}
+                  />
+                </label>
+                <div className="flex items-center justify-between gap-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={departure.isOpen}
+                      onChange={(e) => setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, isOpen: e.target.checked } : item))}
+                    />
+                    Đang mở
+                  </label>
+                  <span className="text-xs text-slate-500">Đã bán {sold}/{departure.capacity}</span>
+                  <button
+                    type="button"
+                    disabled={dateLocked}
+                    onClick={() => setDepartures((prev) => prev.filter((_, i) => i !== index))}
+                    className="text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Gỡ
+                  </button>
+                </div>
+                {dateLocked && (
+                  <p className="sm:col-span-2 text-xs text-amber-800">
+                    Đã có khách: không thể đổi ngày hoặc gỡ. Hãy đóng ngày khởi hành.
+                  </p>
+                )}
+              </fieldset>
+            );
+          })}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200">
             <button
               type="button"

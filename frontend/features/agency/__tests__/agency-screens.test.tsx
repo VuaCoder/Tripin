@@ -19,6 +19,7 @@ vi.mock('@/features/tours/api/toursApi', async (original) => ({
   useAssignAgencyTourGuideMutation: () => [mocks.assign, {}],
   useSetAgencyTourItineraryMutation: () => [mocks.mutation, {}], useSetAgencyTourAvailabilityMutation: () => [mocks.mutation, {}],
   useSubmitAgencyTourMutation: () => [mocks.mutation, {}], useDeleteAgencyTourMutation: () => [mocks.mutation, {}],
+  useRestoreAgencyTourMutation: () => [mocks.mutation, {}],
 }));
 vi.mock('@/features/booking/api/bookingApi', () => ({
   useGetAgencyBookingsQuery: mocks.bookings, useGetAgencyBookingQuery: mocks.booking, useDownloadAgencyCustomersMutation: () => [mocks.mutation, {}],
@@ -172,7 +173,7 @@ describe('Agency operation screens', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Gửi phân công' }));
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Tour đã thay đổi'));
     expect((screen.getByLabelText('Chọn hướng dẫn viên') as HTMLSelectElement).value).toBe('guide-1');
-    expect((screen.getByLabelText('Phí mỗi đơn đặt chỗ (VND)') as HTMLInputElement).value).toBe('450000');
+    expect((screen.getByLabelText('Phí mỗi đơn đặt chỗ (VND)') as HTMLInputElement).value).toBe('450.000');
     expect(screen.queryByRole('status')).toBeNull();
   });
 

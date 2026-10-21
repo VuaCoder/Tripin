@@ -88,6 +88,10 @@ export class BookingsRepository {
     return this.paginate({ travelerId, ...(status ? { status } : {}) }, NEWEST_FIRST, page);
   }
 
+  async countByTraveler(travelerId: string): Promise<number> {
+    return prisma.booking.count({ where: { travelerId, status: { not: 'CANCELLED' } } });
+  }
+
   listByAgency(agencyId: string, query: ListAgencyBookingsQuery) {
     const where: Prisma.BookingWhereInput = { agencyId };
     if (query.status) where.status = query.status;

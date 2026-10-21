@@ -8,6 +8,8 @@ export interface CreateBookingInput {
   contact: { fullName: string; phone: string };
   notes?: string;
   promotionCode?: string;
+  agencyPromotionCode?: string;
+  platformPromotionCode?: string;
   clientRequestId?: string;
 }
 

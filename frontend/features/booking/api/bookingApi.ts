@@ -1,6 +1,7 @@
 import { baseApi } from '@/store/api/baseApi';
 import type { AgencyBooking, AgencyBookingFilters } from '@/features/agency/types';
 import type {
+  AvailablePromotions,
   BookingApiResponse,
   BookingDto,
   CancelBookingInput,
@@ -68,6 +69,27 @@ export const bookingApi = baseApi.injectEndpoints({
         params: { code, tourId, subtotal },
       }),
       transformResponse: (response: BookingApiResponse<PromotionPreview>) => response.data,
+    }),
+
+    getAvailablePromotions: build.query<AvailablePromotions, { tourId: string }>({
+      query: ({ tourId }) => ({
+        url: '/promotions/available',
+        method: 'GET',
+        params: { tourId },
+      }),
+      transformResponse: (response: BookingApiResponse<AvailablePromotions>) => response.data,
+    }),
+
+    getMyVouchers: build.query<import('../types').UserVoucherItem[], void>({
+      query: () => ({ url: '/promotions/my-vouchers' }),
+      transformResponse: (response: BookingApiResponse<import('../types').UserVoucherItem[]>) => response.data,
+      providesTags: [{ type: 'Promotion', id: 'MY_VOUCHERS' }],
+    }),
+
+    collectVoucher: build.mutation<import('../types').UserVoucherItem, { promotionId: string }>({
+      query: (body) => ({ url: '/promotions/collect', method: 'POST', body }),
+      transformResponse: (response: BookingApiResponse<import('../types').UserVoucherItem>) => response.data,
+      invalidatesTags: [{ type: 'Promotion', id: 'MY_VOUCHERS' }],
     }),
 
     getMyBookings: build.query<PaginatedBookings, ListBookingsQuery | void>({
@@ -168,6 +190,9 @@ export const {
   useGetAgencyBookingsQuery, useGetAgencyBookingQuery, useDownloadAgencyCustomersMutation,
   useCreateBookingMutation,
   useLazyPreviewPromotionQuery,
+  useGetAvailablePromotionsQuery,
+  useGetMyVouchersQuery,
+  useCollectVoucherMutation,
   useGetMyBookingsQuery,
   useGetBookingByIdQuery,
   useCancelBookingMutation,

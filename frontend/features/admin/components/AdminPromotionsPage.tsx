@@ -3,9 +3,10 @@ import { useState } from 'react';
 import { Button, FormField, Input, Modal, Pagination } from '@/components/ui';
 import { EmptyState } from '@/components/shared';
 import { PromotionFormDialog } from '@/features/promotions/PromotionFormDialog';
+import { PromotionBatchModal } from '@/features/promotions/PromotionBatchModal';
 import { buildCreatePayload, buildUpdatePatch } from '@/features/promotions/payload';
 import type { PromotionFormValues } from '@/features/promotions/validation';
-import { useGetAdminPromotionsQuery, useLazyGetAdminPromotionQuery, useCreateAdminPromotionMutation, useUpdateAdminPromotionMutation } from '../api/adminApi';
+import { useGetAdminPromotionsQuery, useLazyGetAdminPromotionQuery, useCreateAdminPromotionMutation, useUpdateAdminPromotionMutation, useGenerateAdminBatchMutation, useLazyGetAdminBatchQuery } from '../api/adminApi';
 import type { Promotion, ListPromotionsArgs } from '../types';
 import { AdminFrame, Feedback, adminError, control, forbidden, money, panel, timestamp, toolbar, useAdminSession } from './AdminUi';
 import { AdminDateFields } from './AdminDateFields';
@@ -29,6 +30,21 @@ export function AdminPromotionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [denied, setDenied] = useState<unknown>();
+  const [generateBatch, { isLoading: isGeneratingBatch }] = useGenerateAdminBatchMutation();
+  const [fetchBatch, batchState] = useLazyGetAdminBatchQuery();
+  const [batchModal, setBatchModal] = useState<{ promotion: Promotion } | null>(null);
+  const [batchPage, setBatchPage] = useState(1);
+  const openBatchModal = async (promotion: Promotion, page = 1) => {
+    setBatchModal({ promotion });
+    setBatchPage(page);
+    await fetchBatch({ id: promotion.id, page, limit: 20 });
+  };
+  const handleGenerateBatch = async (count: number, prefix: string) => {
+    if (!batchModal) return;
+    await generateBatch({ id: batchModal.promotion.id, count, prefix: prefix || undefined }).unwrap();
+    await fetchBatch({ id: batchModal.promotion.id, page: batchPage, limit: 20 });
+    void query.refetch();
+  };
   const fail = (e: unknown) => { setError(adminError(e)); if (forbidden(e)) setDenied(e); };
   const edit = async (id: string) => {
     setError(null); setSuccess(null);
@@ -62,10 +78,11 @@ export function AdminPromotionsPage() {
       <p className="text-xs text-slate-400 sm:col-span-2 xl:col-span-3">Khoảng ngày tìm các khuyến mãi có thời gian áp dụng giao với khoảng đã chọn, theo giờ Việt Nam.</p>
     </form>
     {detailState.isFetching && <p role="status">Đang tải chi tiết khuyến mãi...</p>}
-    <ul className="space-y-3">{query.currentData?.items.map((p) => <li className={panel} key={p.id}><div className="flex flex-wrap justify-between gap-4"><div><h2 className="font-bold">{p.code} · {p.title}</h2><p className="mt-1 text-sm">{p.description}</p><p className="mt-1 text-sm">{p.discountType === 'PERCENT' ? `${p.discountValue}%` : money(p.discountValue)}{p.maxDiscountAmount !== undefined && ` · Giảm tối đa ${money(p.maxDiscountAmount)}`} · Đơn tối thiểu {money(p.minOrderAmount)}</p><p className="mt-1 text-sm text-slate-600">{timestamp(p.startsAt)} → {timestamp(p.endsAt)}</p><p className="mt-1 text-sm">Đã dùng {p.usedCount}/{p.usageLimit ?? 'không giới hạn'} · {!p.isActive ? 'Đã tắt' : p.isRunning ? 'Đang chạy' : 'Ngoài thời gian áp dụng'}</p></div><div className="flex items-start gap-2"><Button variant="outline" disabled={busy || detailState.isFetching || query.isFetching} onClick={() => void edit(p.id)}>Sửa {p.code}</Button><Button variant="ghost" disabled={busy || detailState.isFetching || query.isFetching} onClick={() => { setError(null); setSuccess(null); setToggle(p); }}>{p.isActive ? 'Tắt' : 'Bật'} {p.code}</Button></div></div></li>)}</ul>
+    <ul className="space-y-3">{query.currentData?.items.map((p) => <li className={panel} key={p.id}><div className="flex flex-wrap justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold">{p.code ?? '(Tự động / Lô mã)'} · {p.title}</h2>{p.applyType === 'AUTO_APPLY' && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-700">⚡ Tự động</span>}{p.applyType === 'COLLECTABLE' && <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-700">🎁 Ví voucher</span>}{p.codeType === 'UNIQUE_BATCH' && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700">🔢 Lô mã riêng</span>}</div><p className="mt-1 text-sm">{p.description}</p><p className="mt-1 text-sm">{p.discountType === 'PERCENT' ? `${p.discountValue}%` : money(p.discountValue)}{p.maxDiscountAmount !== undefined && ` · Giảm tối đa ${money(p.maxDiscountAmount)}`} · Đơn tối thiểu {money(p.minOrderAmount)}</p>{(p.minParticipants || p.daysInAdvance || p.firstBookingOnly || (p.usageLimitPerUser && p.usageLimitPerUser > 1)) && <div className="mt-1 flex flex-wrap gap-2 text-xs font-medium text-slate-600">{p.minParticipants && <span className="rounded bg-slate-100 px-1.5 py-0.5">Tối thiểu {p.minParticipants} khách</span>}{p.daysInAdvance && <span className="rounded bg-slate-100 px-1.5 py-0.5">Đặt trước {p.daysInAdvance} ngày</span>}{p.firstBookingOnly && <span className="rounded bg-emerald-50 text-emerald-700 px-1.5 py-0.5">Chỉ đơn đầu</span>}{p.usageLimitPerUser && p.usageLimitPerUser > 1 && <span className="rounded bg-slate-100 px-1.5 py-0.5">Tối đa {p.usageLimitPerUser} lần/khách</span>}</div>}<p className="mt-1 text-sm text-slate-600">{timestamp(p.startsAt)} → {timestamp(p.endsAt)}</p><p className="mt-1 text-sm">Đã dùng {p.usedCount}/{p.usageLimit ?? 'không giới hạn'} · {!p.isActive ? 'Đã tắt' : p.isRunning ? 'Đang chạy' : 'Ngoài thời gian áp dụng'}</p></div><div className="flex flex-wrap items-start gap-2">{p.codeType === 'UNIQUE_BATCH' && <Button variant="outline" className="border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100" onClick={() => void openBatchModal(p)}>Lô mã</Button>}<Button variant="outline" disabled={busy || detailState.isFetching || query.isFetching} onClick={() => void edit(p.id)}>Sửa {p.code}</Button><Button variant="ghost" disabled={busy || detailState.isFetching || query.isFetching} onClick={() => { setError(null); setSuccess(null); setToggle(p); }}>{p.isActive ? 'Tắt' : 'Bật'} {p.code}</Button></div></div></li>)}</ul>
     {query.currentData?.items.length === 0 && <EmptyState title="Không có khuyến mãi phù hợp" description="Thay bộ lọc hoặc tạo khuyến mãi nền tảng mới." />}
     {query.currentData && <Pagination currentPage={page} totalPages={query.currentData.meta.totalPages} totalItems={query.currentData.meta.total} pageSize={10} showInfo disabled={query.isFetching || busy} onPageChange={setPage} />}
     {dialog && <PromotionFormDialog open promotion={dialog.promotion} isSubmitting={busy} serverError={error} onClose={() => { if (!busy) setDialog(null); }} onSubmit={(values) => void save(values)} />}
+    {batchModal && <PromotionBatchModal open promotionId={batchModal.promotion.id} promotionTitle={batchModal.promotion.title} isGenerating={isGeneratingBatch} codes={batchState.data?.items ?? []} total={batchState.data?.meta.total ?? 0} page={batchPage} onPageChange={(nextPage) => void openBatchModal(batchModal.promotion, nextPage)} onGenerate={handleGenerateBatch} onClose={() => setBatchModal(null)} />}
     <Modal open={!!toggle} title="Xác nhận trạng thái khuyến mãi" closeOnBackdrop={!busy} onClose={() => { if (!busy) setToggle(null); }}><Feedback error={error} /><p>{toggle?.isActive ? 'Tắt' : 'Bật'} mã {toggle?.code} trên toàn nền tảng?</p><div className="mt-4 flex justify-end gap-3"><Button variant="ghost" disabled={busy} onClick={() => setToggle(null)}>Hủy</Button><Button loading={busy} onClick={() => void changeStatus()}>Xác nhận</Button></div></Modal>
   </AdminFrame>;
 }

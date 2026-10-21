@@ -7,10 +7,13 @@ import {
   useCreateAgencyPromotionMutation,
   useGetAgencyPromotionsQuery,
   useUpdateAgencyPromotionMutation,
+  useGenerateAgencyBatchMutation,
+  useLazyGetAgencyBatchQuery,
 } from '../api/agencyPromotionsApi';
 import type { AgencyPromotion, CreatePromotionInput, UpdatePromotionInput } from '../types';
 import { PROMOTION_ERROR_MESSAGES, type PromotionFormValues } from '../validation';
 import { PromotionFormDialog } from './PromotionFormDialog';
+import { PromotionBatchModal } from '../../promotions/PromotionBatchModal';
 
 const PAGE_SIZE = 10;
 type ActiveFilter = 'all' | 'true' | 'false';
@@ -50,6 +53,24 @@ export function AgencyPromotionsPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const [generateBatch, { isLoading: isGeneratingBatch }] = useGenerateAgencyBatchMutation();
+  const [fetchBatch, batchState] = useLazyGetAgencyBatchQuery();
+  const [batchModal, setBatchModal] = useState<{ promotion: AgencyPromotion } | null>(null);
+  const [batchPage, setBatchPage] = useState(1);
+
+  const openBatchModal = async (promotion: AgencyPromotion, page = 1) => {
+    setBatchModal({ promotion });
+    setBatchPage(page);
+    await fetchBatch({ id: promotion.id, page, limit: 20 });
+  };
+
+  const handleGenerateBatch = async (count: number, prefix: string) => {
+    if (!batchModal) return;
+    await generateBatch({ id: batchModal.promotion.id, count, prefix: prefix || undefined }).unwrap();
+    await fetchBatch({ id: batchModal.promotion.id, page: batchPage, limit: 20 });
+    void refetch();
+  };
 
   const errorMessage = (err: unknown) => {
     const code = getApiErrorCode(err);
@@ -166,19 +187,48 @@ export function AgencyPromotionsPage() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-lg bg-slate-900 px-2 py-0.5 font-mono text-xs font-bold text-white">{p.code}</span>
+                        {p.code && (
+                          <span className="rounded-lg bg-slate-900 px-2 py-0.5 font-mono text-xs font-bold text-white">{p.code}</span>
+                        )}
                         <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${badge.className}`}>{badge.label}</span>
+                        {p.applyType === 'AUTO_APPLY' && (
+                          <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700">⚡ Tự động</span>
+                        )}
+                        {p.applyType === 'COLLECTABLE' && (
+                          <span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-bold text-violet-700">🎁 Ví voucher</span>
+                        )}
+                        {p.codeType === 'UNIQUE_BATCH' && (
+                          <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700">🔢 Lô mã riêng</span>
+                        )}
                       </div>
                       <p className="mt-2 font-bold text-slate-900">{p.title}</p>
                       <p className="mt-1 text-xs text-slate-500">
                         Giảm {discountLabel(p)} · Đơn tối thiểu {vnd.format(p.minOrderAmount)} ₫ · Đã dùng {p.usedCount}
                         {p.usageLimit != null ? `/${p.usageLimit}` : ''} lượt
                       </p>
+                      {(p.minParticipants || p.daysInAdvance || p.firstBookingOnly || (p.usageLimitPerUser && p.usageLimitPerUser > 1)) && (
+                        <div className="mt-1 flex flex-wrap gap-2 text-[11px] font-medium text-slate-600">
+                          {p.minParticipants && <span className="rounded bg-slate-100 px-1.5 py-0.5">Tối thiểu {p.minParticipants} khách</span>}
+                          {p.daysInAdvance && <span className="rounded bg-slate-100 px-1.5 py-0.5">Đặt trước {p.daysInAdvance} ngày</span>}
+                          {p.firstBookingOnly && <span className="rounded bg-emerald-50 text-emerald-700 px-1.5 py-0.5">Chỉ đơn đầu</span>}
+                          {p.usageLimitPerUser && p.usageLimitPerUser > 1 && <span className="rounded bg-slate-100 px-1.5 py-0.5">Tối đa {p.usageLimitPerUser} lần/khách</span>}
+                        </div>
+                      )}
                       <p className="mt-0.5 text-xs text-slate-500">
                         {dateTime.format(new Date(p.startsAt))} → {dateTime.format(new Date(p.endsAt))}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {p.codeType === 'UNIQUE_BATCH' && (
+                        <button
+                          type="button"
+                          onClick={() => void openBatchModal(p)}
+                          className="inline-flex items-center gap-1 rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-100"
+                        >
+                          <span className="material-symbols-outlined text-[15px]" aria-hidden="true">qr_code_2</span>
+                          Quản lý lô mã
+                        </button>
+                      )}
                       <button
                         type="button"
                         disabled={togglingId === p.id}
@@ -237,6 +287,21 @@ export function AgencyPromotionsPage() {
         onClose={() => setDialog(null)}
         onSubmit={(values) => void handleSubmit(values)}
       />
+
+      {batchModal && (
+        <PromotionBatchModal
+          open={true}
+          promotionId={batchModal.promotion.id}
+          promotionTitle={batchModal.promotion.title}
+          isGenerating={isGeneratingBatch}
+          codes={batchState.data?.items ?? []}
+          total={batchState.data?.meta.total ?? 0}
+          page={batchPage}
+          onPageChange={(nextPage) => void openBatchModal(batchModal.promotion, nextPage)}
+          onGenerate={handleGenerateBatch}
+          onClose={() => setBatchModal(null)}
+        />
+      )}
     </div>
   );
 }

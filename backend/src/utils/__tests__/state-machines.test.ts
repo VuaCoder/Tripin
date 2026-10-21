@@ -35,7 +35,7 @@ const MACHINES: Machine[] = [
   { name: 'review', mapName: 'REVIEW_TRANSITIONS', readme: 'reviews', map: REVIEW_TRANSITIONS, statuses: values(REVIEW_STATUS), initial: 'VISIBLE', terminal: [] },
   { name: 'subscription', mapName: 'SUBSCRIPTION_TRANSITIONS', readme: 'subscriptions', map: SUBSCRIPTION_TRANSITIONS, statuses: values(SUBSCRIPTION_STATUS), initial: 'PENDING_PAYMENT', terminal: ['EXPIRED'] },
   { name: 'support ticket', mapName: 'TICKET_TRANSITIONS', readme: 'support', map: TICKET_TRANSITIONS, statuses: values(TICKET_STATUS), initial: 'OPEN', terminal: ['CLOSED'] },
-  { name: 'tour', mapName: 'TOUR_TRANSITIONS', readme: 'tours', map: TOUR_TRANSITIONS, statuses: values(TOUR_STATUS), initial: 'DRAFT', terminal: ['ARCHIVED'] },
+  { name: 'tour', mapName: 'TOUR_TRANSITIONS', readme: 'tours', map: TOUR_TRANSITIONS, statuses: values(TOUR_STATUS), initial: 'DRAFT', terminal: [] },
   { name: 'guide assignment', mapName: 'GUIDE_ASSIGNMENT_TRANSITIONS', readme: 'tours', map: GUIDE_ASSIGNMENT_TRANSITIONS, statuses: values(GUIDE_ASSIGNMENT_STATUS), initial: 'PENDING', terminal: ['ACCEPTED', 'DECLINED'] },
   { name: 'agency verification', mapName: 'AGENCY_VERIFICATION_TRANSITIONS', readme: 'users', map: AGENCY_VERIFICATION_TRANSITIONS, statuses: values(AGENCY_VERIFICATION_STATUS), initial: 'UNVERIFIED', terminal: ['VERIFIED'] },
   // PENDING_VERIFICATION -> ACTIVE belongs to the register OTP; ACTIVE <-> BANNED to moderation.

@@ -11,6 +11,6 @@ export default defineConfig({
     path: path.resolve(__dirname, '../prisma/migrations'),
   },
   datasource: {
-    url: process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/travel_platform',
+    url: process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/travel_platform',
   },
 });

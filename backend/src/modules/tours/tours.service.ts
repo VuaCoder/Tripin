@@ -28,7 +28,7 @@ type Actor = { userId: string; role: PersistedRole };
 type Repo = Pick<
   ToursRepository,
   | 'create' | 'insertMany' | 'findById' | 'findManyByIds' | 'updateIfStatus' | 'answerGuideAssignment' | 'listByAgency' | 'listByGuide'
-  | 'listForModeration' | 'reserveSeats' | 'releaseSeats' | 'applyDepartures' | 'setRatingStats' | 'countByStatus'
+  | 'listForModeration' | 'reserveSeats' | 'releaseSeats' | 'applyDepartures' | 'setRatingStats' | 'countByStatus' | 'findRecentDraft'
 >;
 
 const ENTITY = 'Tour';
@@ -81,7 +81,7 @@ export class ToursService {
   }
 
   async getOwn(agencyId: string, id: string): Promise<TourManageDto> {
-    return this.views.manage(await this.requireOwned(agencyId, id));
+    return this.views.manage(await this.requireOwned(agencyId, id, true));
   }
 
   /**
@@ -108,6 +108,15 @@ export class ToursService {
     }
     const updated = await this.tours.updateIfStatus(id, [tour.status as TourStatus], { status: TOUR_STATUS.ARCHIVED });
     if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
+  }
+
+  /** Use case "Restore tour": restores an archived tour back to DRAFT. */
+  async restoreTour(agencyId: string, id: string): Promise<TourManageDto> {
+    const tour = await this.requireOwned(agencyId, id, true);
+    assertTransition(TOUR_TRANSITIONS, tour.status as TourStatus, TOUR_STATUS.DRAFT, ENTITY);
+    const updated = await this.tours.updateIfStatus(id, [TOUR_STATUS.ARCHIVED], { status: TOUR_STATUS.DRAFT });
+    if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
+    return this.views.manage(updated);
   }
 
   /**
@@ -462,9 +471,9 @@ export class ToursService {
   // ================================================================ helpers
 
   /** 404 (never 403) when the tour is not the agency's own, so ids of other agencies are not revealed. */
-  private async requireOwned(agencyId: string, id: string): Promise<TourRecord> {
+  private async requireOwned(agencyId: string, id: string, allowArchived = false): Promise<TourRecord> {
     const tour = await this.tours.findById(id);
-    if (!tour || tour.agencyId !== agencyId || tour.status === TOUR_STATUS.ARCHIVED) {
+    if (!tour || tour.agencyId !== agencyId || (!allowArchived && tour.status === TOUR_STATUS.ARCHIVED)) {
       throw AppError.notFound('Tour not found');
     }
     return tour;

@@ -38,10 +38,10 @@ describe('ToursDiscoveryService.getDetail', () => {
     },
   );
 
-  it('shows the owner their own non-archived tour, with the management view', async () => {
+  it('shows the owner their own tour including archived, with the management view', async () => {
     const owner = user({ userId: 'a1', role: ROLES.AGENCY });
     expect(await make(tour(TOUR_STATUS.DRAFT)).service.getDetail('t1', owner)).toBe('MANAGE');
-    await expect(make(tour(TOUR_STATUS.ARCHIVED)).service.getDetail('t1', owner)).rejects.toMatchObject({ statusCode: 404 });
+    expect(await make(tour(TOUR_STATUS.ARCHIVED)).service.getDetail('t1', owner)).toBe('MANAGE');
   });
 
   it('does not show another agency\'s draft', async () => {

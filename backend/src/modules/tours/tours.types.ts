@@ -15,6 +15,7 @@ export const TOUR_TRANSITIONS: TransitionMap<TourStatus> = {
   [T.APPROVED]: [T.SUSPENDED, T.PENDING_REVIEW, T.ARCHIVED],
   [T.REJECTED]: [T.PENDING_REVIEW, T.ARCHIVED],
   [T.SUSPENDED]: [T.PENDING_REVIEW, T.ARCHIVED],
+  [T.ARCHIVED]: [T.DRAFT],
 };
 
 /** Statuses in which the owning agency may still edit the tour content. PENDING_REVIEW is locked while moderators review. */

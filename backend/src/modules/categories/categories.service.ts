@@ -14,9 +14,10 @@ export class CategoriesService {
     private readonly audit: Pick<AuditService, 'record'> = auditService,
   ) {}
 
-  /** Public list (Guests use it to filter tours): active categories only. */
+  /** Public list (Guests use it to filter tours): active system categories only. */
   async listPublic(): Promise<CategoryDto[]> {
-    return (await this.categories.list({ onlyActive: true })).map(toCategoryDto);
+    const items = await this.categories.list({ onlyActive: true });
+    return items.filter((c) => (c.sortOrder ?? 0) < 200).map(toCategoryDto);
   }
 
   /** Admin list includes deactivated categories. */

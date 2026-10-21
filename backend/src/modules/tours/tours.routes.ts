@@ -70,6 +70,12 @@ agencyToursRouter.patch(
   toursController.update,
 );
 agencyToursRouter.delete('/:id', requirePermission(P.TOUR_DELETE_OWN), validate({ params: tourIdParams }), toursController.remove);
+agencyToursRouter.post(
+  '/:id/restore',
+  requirePermission(P.TOUR_UPDATE_OWN),
+  validate({ params: tourIdParams }),
+  toursController.restore,
+);
 agencyToursRouter.put(
   '/:id/availability',
   requirePermission(P.TOUR_SET_AVAILABILITY),

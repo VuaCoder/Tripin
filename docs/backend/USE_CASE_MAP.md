@@ -46,7 +46,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Upload profile avatar | users | `POST /users/me/avatar/upload-signature`, `POST /users/me/avatar/complete`, `DELETE /users/me/avatar` | profile:update-own | done |
 | Add wishlist / Remove tour from wishlist | wishlists | `GET /wishlist`, `POST /wishlist/:tourId`, `DELETE /wishlist/:tourId` | wishlist:manage | done |
 | Add tour to cart / view cart / update or remove an item (supports Book tour) | carts | `GET /cart`, `POST /cart/items`, `PATCH/DELETE /cart/items/:id` | cart:manage | done |
-| Book tour | bookings | `GET /promotions/preview` (discount preview before booking), `POST /bookings`, `GET /bookings/me`, `GET /bookings/:id`, `POST /bookings/:id/cancel` | booking:* | done |
+| Book tour | bookings | `GET /promotions/preview`, `GET /promotions/available` (available promotions for tour), `GET /promotions/my-vouchers`, `POST /promotions/collect`, `POST /bookings`, `GET /bookings/me`, `GET /bookings/:id`, `POST /bookings/:id/cancel` | booking:* | done |
 | Complete an owned booking | bookings | `POST /bookings/:id/complete` | booking:view-own | done |
 | Make payment (Payment Gateway) | payments | `POST /payments/bookings/:bookingId/checkout`, `GET /payments/:id`, `POST /payments/webhooks/payos` (GUEST, signature) | payment:create | done |
 | Receive E-ticket | e-tickets | `GET /e-tickets`, `GET /e-tickets/:id`, `GET /e-tickets/booking/:bookingId` (+ email/notification on issue) | eticket:view-own | done |
@@ -61,13 +61,13 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Use case | Module | Endpoint | Permission | Status |
 |---|---|---|---|---|
 | Register, onboard and sign in through dedicated portal | auth | `POST /auth/agency/register`, `/login`, `/verify-otp`, `/resend-otp` | GUEST | done |
-| Create / Edit / Delete tour | tours | `POST /agency/tours`, `POST /agency/tours/upload-image`, `POST /agency/tours/categories`, `PATCH /agency/tours/:id`, `DELETE /agency/tours/:id`, `GET /agency/tours`, `GET /agency/tours/:id` | tour:create/update-own/delete-own | done |
+| Create / Edit / Delete tour | tours | `POST /agency/tours`, `POST /agency/tours/upload-image`, `POST /agency/tours/categories`, `PATCH /agency/tours/:id`, `DELETE /agency/tours/:id`, `POST /agency/tours/:id/restore`, `GET /agency/tours`, `GET /agency/tours/:id` | tour:create/update-own/delete-own | done |
 | Upload tours | tours | `POST /agency/tours/import` (bulk JSON, see DECISIONS); `POST /agency/tours/extract-document` (DOCX/PDF to unpersisted AI drafts) | tour:import | done |
 | Set tour availability | tours | `PUT /agency/tours/:id/availability` | tour:set-availability | done |
 | Config itinerary | tours | `PUT /agency/tours/:id/itinerary` | tour:configure-itinerary | done |
 | Assign guide to tour | tours | `GET /agency/guides`, `PUT /agency/tours/:id/guide` | tour:assign-guide | done |
 | (supporting) submit tour for review | tours | `POST /agency/tours/:id/submit` | tour:update-own | done |
-| Upload promotions | promotions | `GET/POST /agency/promotions`, `GET/PATCH /agency/promotions/:id` | promotion:agency-manage | done |
+| Upload promotions | promotions | `GET/POST /agency/promotions`, `GET/PATCH /agency/promotions/:id`, `POST /agency/promotions/:id/generate-batch`, `GET /agency/promotions/:id/batch` | promotion:agency-manage | done |
 | View dashboard | dashboards | `GET /agency/dashboard` | agency:dashboard | done |
 | View bookings status | bookings | `GET /agency/bookings`, `GET /agency/bookings/:id` | agency:bookings-view | done |
 | Export customer PDF | bookings | `GET /agency/tours/:id/customers.pdf` | agency:export-customers | done |
@@ -106,7 +106,7 @@ All `/admin/*` endpoints require the current `SUPER_ADMIN` role in addition to t
 |---|---|---|---|---|
 | Set platform commission rates | system-settings | `GET/PUT /admin/settings/commission` | commission:configure | done |
 | View detailed dashboards | dashboards | `GET /admin/dashboard` | admin:dashboard | done |
-| Config platform promotions | promotions | `GET/POST /admin/promotions`, `GET/PATCH /admin/promotions/:id` | promotion:platform-manage | done |
+| Config platform promotions | promotions | `GET/POST /admin/promotions`, `GET/PATCH /admin/promotions/:id`, `POST /admin/promotions/:id/generate-batch`, `GET /admin/promotions/:id/batch` | promotion:platform-manage | done |
 | Assign User Permissions | users | `GET /admin/users`, `PATCH /admin/users/:id/access` (role + extra permissions) | user:assign-permissions | done |
 | Config Tour Categories | categories | `GET/POST /admin/categories`, `PATCH/DELETE /admin/categories/:id` | category:configure | done |
 | Configure System Policies | system-settings | `PUT /admin/policies/:key` (read is public `GET /policies`) | policy:configure | done |

@@ -6,6 +6,7 @@ import { useState, useId } from 'react';
 import { 
   useDeleteAgencyTourMutation, 
   useGetAgencyToursQuery, 
+  useRestoreAgencyTourMutation,
   useUpdateAgencyTourMutation,
   useUploadAgencyTourImageMutation,
   getTourApiMessage 
@@ -134,9 +135,12 @@ export function AgencyTourListPage() {
   const [viewMode, setViewMode] = useState<'box' | 'grid'>('box');
   const { data, isLoading, isFetching, error, refetch } = useGetAgencyToursQuery({ page, limit: 12, status });
   const [deleteTour, deleteState] = useDeleteAgencyTourMutation();
+  const [restoreTour, restoreState] = useRestoreAgencyTourMutation();
   const [updateTour, updateState] = useUpdateAgencyTourMutation();
   const [actionError, setActionError] = useState('');
+  const [actionSuccess, setActionSuccess] = useState('');
   const [archivingTour, setArchivingTour] = useState<{ id: string; title: string } | null>(null);
+  const [restoringTour, setRestoringTour] = useState<{ id: string; title: string } | null>(null);
 
   // Image Upload / Management modal state
   const [editingImageTour, setEditingImageTour] = useState<TourDetail | null>(null);
@@ -241,12 +245,28 @@ export function AgencyTourListPage() {
   const handleConfirmArchive = async () => {
     if (!archivingTour) return;
     setActionError('');
+    setActionSuccess('');
     try { 
       await deleteTour(archivingTour.id).unwrap(); 
       setArchivingTour(null);
     } catch (e) { 
       setActionError(getTourApiMessage(e, 'Không thể lưu trữ tour.')); 
       setArchivingTour(null);
+    }
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!restoringTour) return;
+    setActionError('');
+    setActionSuccess('');
+    try {
+      await restoreTour(restoringTour.id).unwrap();
+      setActionSuccess(`Đã khôi phục tour “${restoringTour.title}” về bản nháp thành công!`);
+      setRestoringTour(null);
+      setTimeout(() => setActionSuccess(''), 4000);
+    } catch (e) {
+      setActionError(getTourApiMessage(e, 'Không thể khôi phục tour.'));
+      setRestoringTour(null);
     }
   };
 
@@ -340,6 +360,12 @@ export function AgencyTourListPage() {
       {actionError && (
         <p role="alert" className="mb-6 rounded-2xl bg-red-50 border border-red-200 p-4 text-sm font-semibold text-red-800">
           {actionError}
+        </p>
+      )}
+
+      {actionSuccess && (
+        <p role="status" className="mb-6 rounded-2xl bg-emerald-50 border border-emerald-200 p-4 text-sm font-semibold text-emerald-800">
+          {actionSuccess}
         </p>
       )}
 
@@ -520,7 +546,22 @@ export function AgencyTourListPage() {
                         <span className="material-symbols-outlined text-[17px]">edit</span>
                         <span className="hidden sm:inline">Sửa thông tin</span>
                       </Link>
-                      {tour.status !== 'ARCHIVED' && (
+                      {tour.status === 'ARCHIVED' ? (
+                        <button
+                          type="button"
+                          disabled={restoreState.isLoading}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRestoringTour({ id: tour.id, title: tour.title });
+                          }}
+                          title="Khôi phục tour về bản nháp"
+                          aria-label="Khôi phục tour về bản nháp"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">unarchive</span>
+                          <span className="hidden sm:inline">Khôi phục</span>
+                        </button>
+                      ) : (
                         <button 
                           type="button" 
                           disabled={deleteState.isLoading || tour.status === 'PENDING_REVIEW'} 
@@ -635,7 +676,22 @@ export function AgencyTourListPage() {
                           <span className="material-symbols-outlined text-[16px]">edit</span>
                           <span>Sửa thông tin</span>
                         </Link>
-                        {tour.status !== 'ARCHIVED' && (
+                        {tour.status === 'ARCHIVED' ? (
+                          <button
+                            type="button"
+                            disabled={restoreState.isLoading}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRestoringTour({ id: tour.id, title: tour.title });
+                            }}
+                            title="Khôi phục tour về bản nháp"
+                            aria-label="Khôi phục tour về bản nháp"
+                            className="inline-flex items-center gap-1 rounded-xl border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">unarchive</span>
+                            <span>Khôi phục</span>
+                          </button>
+                        ) : (
                           <button 
                             type="button" 
                             disabled={deleteState.isLoading || tour.status === 'PENDING_REVIEW'} 
@@ -951,6 +1007,53 @@ export function AgencyTourListPage() {
                 className="rounded-xl border border-teal-600 bg-white px-5 py-2.5 text-sm font-bold text-teal-700 hover:bg-teal-50 transition-colors cursor-pointer"
               >
                 {deleteState.isLoading ? 'Đang lưu trữ...' : 'Tiếp tục'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* RESTORE CONFIRMATION MODAL                                                */}
+      {/* ========================================================================= */}
+      {restoringTour && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200/60 shrink-0">
+                <span className="material-symbols-outlined text-2xl">unarchive</span>
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold text-slate-900">
+                  Khôi phục tour?
+                </h3>
+                <p className="text-xs text-slate-500 truncate">
+                  Tour: <span className="font-semibold text-slate-700">{restoringTour.title}</span>
+                </p>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-600">
+              Tour này sẽ được khôi phục về trạng thái <strong>Bản nháp</strong>. Bạn có thể chỉnh sửa thông tin, lịch trình và gửi duyệt lại khi sẵn sàng.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setRestoringTour(null)}
+                disabled={restoreState.isLoading}
+                className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm cursor-pointer"
+              >
+                Huỷ
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmRestore}
+                disabled={restoreState.isLoading}
+                className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 transition-colors cursor-pointer shadow-sm"
+              >
+                {restoreState.isLoading ? 'Đang khôi phục...' : 'Khôi phục về bản nháp'}
               </button>
             </div>
           </div>
