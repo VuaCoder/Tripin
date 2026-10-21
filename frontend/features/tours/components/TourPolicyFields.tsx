@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { TourContentInput } from '../types';
 import { TourAgePricingFields } from './TourAgePricingFields';
-import { ShieldCheck, FileText, AlertCircle, Sparkles, Plus, Trash2, RotateCcw } from 'lucide-react';
+import { ShieldCheck, FileText, AlertCircle, Sparkles, Plus, Trash2, Check } from 'lucide-react';
 
 interface Props {
   value: TourContentInput;
@@ -23,8 +23,6 @@ const CANCELLATION_TEMPLATES = [
   {
     id: 'flexible',
     title: 'Linh hoạt',
-    badge: 'Hủy miễn phí trước 48h',
-    description: 'Phù hợp city tour, tour ngắn ngày',
     milestones: [
       { id: 'flex-1', daysBefore: 48, timeUnit: 'hour' as const, refundPercent: 100 },
     ],
@@ -32,8 +30,6 @@ const CANCELLATION_TEMPLATES = [
   {
     id: 'standard',
     title: 'Tiêu chuẩn',
-    badge: '7 ngày 100% · 3 ngày 50% · 1 ngày 20%',
-    description: 'Chính sách phổ biến nhất của các tour du lịch',
     milestones: [
       { id: 'std-1', daysBefore: 7, timeUnit: 'day' as const, refundPercent: 100 },
       { id: 'std-2', daysBefore: 3, timeUnit: 'day' as const, refundPercent: 50 },
@@ -43,8 +39,6 @@ const CANCELLATION_TEMPLATES = [
   {
     id: 'strict',
     title: 'Nghiêm ngặt',
-    badge: '15 ngày 70% · 7 ngày 30%',
-    description: 'Dành cho tour có vé máy bay hoặc khách sạn 5 sao',
     milestones: [
       { id: 'str-1', daysBefore: 15, timeUnit: 'day' as const, refundPercent: 70 },
       { id: 'str-2', daysBefore: 7, timeUnit: 'day' as const, refundPercent: 30 },
@@ -53,8 +47,6 @@ const CANCELLATION_TEMPLATES = [
   {
     id: 'non_refundable',
     title: 'Không hoàn tiền',
-    badge: 'Non-refundable (0%)',
-    description: 'Áp dụng cho tour khuyến mãi giờ chót, dịp Lễ Tết',
     milestones: [
       { id: 'nr-1', daysBefore: 0, timeUnit: 'day' as const, refundPercent: 0 },
     ],
@@ -194,8 +186,12 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
     return DEFAULT_INITIAL_MILESTONES;
   });
 
-  // Track whether the user has manually edited the text in the textarea
-  const [isCustomText, setIsCustomText] = useState(false);
+  // Ensure cancellationPolicy is populated from default milestones on mount if empty
+  useEffect(() => {
+    if (!value.cancellationPolicy) {
+      onChange({ ...value, cancellationPolicy: generateCancellationPolicyText(milestones) });
+    }
+  }, []);
 
   // Apply template
   const handleApplyTemplate = (templateId: string) => {
@@ -204,7 +200,6 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
 
     setMilestones(tmpl.milestones);
     const newText = generateCancellationPolicyText(tmpl.milestones);
-    setIsCustomText(false);
     onChange({ ...value, cancellationPolicy: newText });
   };
 
@@ -220,7 +215,6 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
 
     // Auto-update generated text
     const newText = generateCancellationPolicyText(nextMilestones);
-    setIsCustomText(false);
     onChange({ ...value, cancellationPolicy: newText });
   };
 
@@ -234,7 +228,6 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
     setMilestones(nextMilestones);
 
     const newText = generateCancellationPolicyText(nextMilestones);
-    setIsCustomText(false);
     onChange({ ...value, cancellationPolicy: newText });
   };
 
@@ -245,21 +238,7 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
     setMilestones(nextMilestones);
 
     const newText = generateCancellationPolicyText(nextMilestones);
-    setIsCustomText(false);
     onChange({ ...value, cancellationPolicy: newText });
-  };
-
-  // Regenerate textarea from milestones
-  const handleRegenerateFromMilestones = () => {
-    const newText = generateCancellationPolicyText(milestones);
-    setIsCustomText(false);
-    onChange({ ...value, cancellationPolicy: newText });
-  };
-
-  // Free custom textarea edit
-  const handleCustomTextChange = (text: string) => {
-    setIsCustomText(true);
-    onChange({ ...value, cancellationPolicy: text });
   };
 
   const toggleDocumentOption = (opt: DocumentOption) => {
@@ -302,80 +281,60 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
       )}
 
       {/* 1. Cancellation & Refund Policy Builder */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-5">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between pb-1 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <ShieldCheck size={18} className="text-[#087e8b]" />
             <h3 className="text-sm font-bold text-slate-900">
               Chính sách đổi, hủy tour (Cancellation & Refund) <span className="text-xs font-normal text-slate-500">(Optional)</span>
             </h3>
           </div>
-          <span className="text-xs text-slate-400">
-            {(value.cancellationPolicy || '').length}/5000 ký tự
-          </span>
         </div>
 
         {/* Quick Suggestion Templates */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-              <Sparkles size={14} className="text-amber-500" />
-              Chọn nhanh gói mẫu (hoặc tự do tạo các mốc bên dưới):
-            </span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="space-y-1.5">
+          <span className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+            <Sparkles size={13} className="text-amber-500" />
+            Chọn nhanh gói mẫu:
+          </span>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {CANCELLATION_TEMPLATES.map((tmpl) => (
               <button
                 key={tmpl.id}
                 type="button"
                 onClick={() => handleApplyTemplate(tmpl.id)}
-                className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 text-left transition hover:border-[#087e8b] hover:bg-teal-50/40 cursor-pointer group"
+                className="rounded-xl border border-slate-200 bg-slate-50/70 py-2 px-3 text-center text-xs font-bold text-slate-800 transition hover:border-[#087e8b] hover:bg-teal-50 hover:text-[#087e8b] cursor-pointer"
               >
-                <div>
-                  <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className="text-xs font-bold text-slate-900 group-hover:text-[#087e8b] transition-colors">
-                      {tmpl.title}
-                    </span>
-                    <span className="text-[10px] text-teal-700 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                      Áp dụng ↵
-                    </span>
-                  </div>
-                  <span className="inline-block rounded-md bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-700 border border-slate-200/80 mb-1">
-                    {tmpl.badge}
-                  </span>
-                  <p className="text-[10px] text-slate-500 line-clamp-1">
-                    {tmpl.description}
-                  </p>
-                </div>
+                {tmpl.title}
               </button>
             ))}
           </div>
         </div>
 
         {/* Dynamic Milestones Builder */}
-        <div className="rounded-xl border border-teal-100 bg-teal-50/40 p-4 space-y-3">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-3.5 sm:p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-teal-900 flex items-center gap-1.5">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
               Bảng thiết lập các mốc hoàn hủy:
             </span>
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-slate-500 font-medium">
               {milestones.length} mốc quy định
             </span>
           </div>
 
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {milestones.map((milestone, index) => (
               <div
                 key={milestone.id}
-                className="flex flex-wrap items-center gap-2.5 rounded-xl border border-slate-200 bg-white p-3 shadow-2xs transition hover:border-slate-300"
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 sm:p-2.5 shadow-2xs transition hover:border-slate-300"
               >
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-teal-100/70 text-xs font-bold text-teal-800">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-xs font-bold text-teal-800 border border-teal-200/50">
                   {index + 1}
                 </span>
 
                 {/* If cancel before: input + unit */}
-                <div className="flex items-center gap-1.5 text-xs text-slate-700 font-medium">
-                  <span>Nếu hủy trước</span>
+                <div className="flex items-center gap-1.5 text-xs text-slate-700 font-medium shrink-0">
+                  <span>Hủy trước</span>
                   <input
                     type="number"
                     min={0}
@@ -387,7 +346,7 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
                         daysBefore: Math.max(0, parseInt(e.target.value, 10) || 0),
                       })
                     }
-                    className="w-16 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-center text-xs font-bold text-slate-900 outline-none focus:border-[#087e8b] focus:ring-1 focus:ring-[#087e8b]"
+                    className="w-13 rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-center text-xs font-bold text-slate-900 outline-none focus:border-[#087e8b] focus:ring-1 focus:ring-[#087e8b]"
                   />
                   <select
                     value={milestone.timeUnit}
@@ -397,18 +356,18 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
                         timeUnit: e.target.value as 'day' | 'hour',
                       })
                     }
-                    className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#087e8b]"
+                    className="rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs font-semibold text-slate-800 outline-none focus:border-[#087e8b]"
                   >
                     <option value="day">ngày</option>
                     <option value="hour">giờ</option>
                   </select>
                 </div>
 
-                <span className="text-xs text-slate-400 font-bold hidden sm:inline">→</span>
+                <span className="text-xs text-slate-400 font-bold shrink-0">→</span>
 
                 {/* Refund percentage input */}
-                <div className="flex items-center gap-1.5 text-xs text-slate-700 font-medium">
-                  <span>Được hoàn</span>
+                <div className="flex items-center gap-1.5 text-xs text-slate-700 font-medium shrink-0">
+                  <span>Hoàn</span>
                   <div className="relative inline-flex items-center">
                     <input
                       type="number"
@@ -421,16 +380,16 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
                           refundPercent: Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)),
                         })
                       }
-                      className="w-16 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-center text-xs font-bold text-[#087e8b] outline-none focus:border-[#087e8b] focus:ring-1 focus:ring-[#087e8b]"
+                      className="w-13 rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-center text-xs font-bold text-[#087e8b] outline-none focus:border-[#087e8b] focus:ring-1 focus:ring-[#087e8b]"
                     />
-                    <span className="pointer-events-none absolute right-2 text-xs font-bold text-slate-400">%</span>
+                    <span className="pointer-events-none absolute right-1.5 text-xs font-bold text-slate-400">%</span>
                   </div>
                 </div>
 
                 {/* Status tag */}
-                <div className="ml-auto flex items-center gap-2">
+                <div className="ml-auto flex items-center gap-2 shrink-0">
                   <span
-                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold border ${
+                    className={`hidden sm:inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold border ${
                       milestone.refundPercent === 100
                         ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
                         : milestone.refundPercent === 0
@@ -441,8 +400,8 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
                     {milestone.refundPercent === 100
                       ? 'Miễn phí hủy'
                       : milestone.refundPercent === 0
-                      ? 'Không hoàn tiền'
-                      : `Phí phạt ${100 - milestone.refundPercent}%`}
+                      ? 'Không hoàn'
+                      : `Phạt ${100 - milestone.refundPercent}%`}
                   </span>
 
                   {/* Remove button */}
@@ -461,90 +420,42 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
             ))}
           </div>
 
-          {/* Add milestone action & No-show note */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-teal-200/50">
+          {/* Add milestone action */}
+          <div className="pt-0.5">
             <button
               type="button"
               onClick={addMilestone}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-[#087e8b] bg-white px-3.5 py-1.5 text-xs font-bold text-[#087e8b] hover:bg-teal-50 transition-colors shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-[#087e8b]/70 bg-white px-3 py-1.5 text-xs font-bold text-[#087e8b] hover:bg-teal-50 transition-colors cursor-pointer"
             >
-              <Plus size={15} />
+              <Plus size={14} />
               <span>Thêm mốc hoàn hủy</span>
             </button>
-
-            <span className="text-[11px] text-slate-500 italic">
-              ℹ️ Sát giờ khởi hành hoặc vắng mặt (No-show): Tự động tính phí hủy 100%
-            </span>
           </div>
         </div>
 
-        {/* Final Textarea with customization support */}
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <label htmlFor="tour-cancellation-policy-textarea" className="text-xs font-semibold text-slate-700 block">
-              Nội dung điều khoản chi tiết (hiển thị công khai cho du khách):
-            </label>
-            <div className="flex items-center gap-2">
-              {isCustomText ? (
-                <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 border border-amber-200/80">
-                  ✏️ Đã chỉnh sửa thủ công
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 border border-emerald-200/60">
-                  ✓ Tự động cập nhật theo các mốc
-                </span>
-              )}
-
-              {isCustomText && (
-                <button
-                  type="button"
-                  onClick={handleRegenerateFromMilestones}
-                  className="inline-flex items-center gap-1 text-xs font-bold text-[#087e8b] hover:underline cursor-pointer"
-                  title="Xóa nội dung chỉnh tay và tạo lại theo các mốc trên"
-                >
-                  <RotateCcw size={12} />
-                  <span>Tạo lại từ bảng mốc</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          <textarea
-            id="tour-cancellation-policy-textarea"
-            rows={4}
-            maxLength={5000}
-            value={value.cancellationPolicy || ''}
-            onChange={(e) => handleCustomTextChange(e.target.value)}
-            placeholder="Quy định hoàn tiền, các mốc thời gian báo hủy trước ngày khởi hành..."
-            className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-xs sm:text-sm text-slate-800 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20 leading-relaxed font-sans"
-          />
-          <p className="text-[11px] text-slate-400">
-            Nội dung này được hệ thống sinh sẵn theo các mốc bạn nhập ở trên. Bạn hoàn toàn có thể gõ thêm điều kiện vé bay, phí nhượng tour hoặc lưu ý riêng tùy ý.
-          </p>
-        </div>
+        <p className="text-xs text-slate-400 italic pt-0.5">
+          Quy định hoàn hủy sẽ được tự động áp dụng theo các mốc thiết lập ở trên khi du khách đặt tour.
+        </p>
       </div>
 
-      {/* 2. Required Documents Checklist */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2">
-            <FileText size={18} className="text-[#087e8b]" />
-            <h3 className="text-sm font-bold text-slate-900">
-              Giấy tờ tùy thân khi tham gia tour <span className="text-xs font-normal text-slate-500">(Optional)</span>
-            </h3>
+      {/* 2 & 3: Clean 2-column layout for Documents and Notes */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 pt-4 border-t border-slate-100">
+        {/* Required Documents */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <FileText size={16} className="text-[#087e8b]" />
+              <h3 className="text-sm font-bold text-slate-900">
+                Giấy tờ tùy thân <span className="text-xs font-normal text-slate-500">(Optional)</span>
+              </h3>
+            </div>
+            <span className="text-xs text-slate-400">
+              {(value.requiredDocuments || '').length}/5000
+            </span>
           </div>
-          <span className="text-xs text-slate-400">
-            {(value.requiredDocuments || '').length}/5000 ký tự
-          </span>
-        </div>
 
-        {/* Concise Multiple Choice Chips */}
-        <div>
-          <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-2.5">
-            <Sparkles size={14} className="text-amber-500" />
-            Chọn nhanh các loại giấy tờ yêu cầu (nội dung chi tiết sẽ tự động điền vào ô bên dưới):
-          </span>
-          <div className="flex flex-wrap gap-2">
+          {/* Clean concise chips */}
+          <div className="flex flex-wrap gap-1.5">
             {DOCUMENT_OPTIONS.map((opt) => {
               const isSelected = (value.requiredDocuments || '').includes(opt.description);
               return (
@@ -553,27 +464,19 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
                   type="button"
                   onClick={() => toggleDocumentOption(opt)}
                   aria-pressed={isSelected}
-                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer border ${
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition cursor-pointer border ${
                     isSelected
-                      ? 'border-[#087e8b] bg-[#087e8b] text-white shadow-2xs'
-                      : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100'
+                      ? 'border-teal-300 bg-teal-50 text-teal-800'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-teal-400 hover:text-teal-700'
                   }`}
                 >
-                  <span className={`text-[13px] font-bold ${isSelected ? 'text-white' : 'text-[#087e8b]'}`}>
-                    {isSelected ? '✓' : '+'}
-                  </span>
+                  {isSelected ? <Check size={11} className="shrink-0" /> : <Plus size={11} className="text-slate-400 shrink-0" />}
                   <span>{opt.label}</span>
                 </button>
               );
             })}
           </div>
-        </div>
 
-        {/* Textarea */}
-        <div className="space-y-1.5">
-          <label htmlFor="tour-required-documents-textarea" className="text-xs font-semibold text-slate-600 block">
-            Nội dung hiển thị cho du khách:
-          </label>
           <textarea
             id="tour-required-documents-textarea"
             rows={3}
@@ -581,32 +484,26 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
             value={value.requiredDocuments || ''}
             onChange={(e) => onChange({ ...value, requiredDocuments: e.target.value })}
             placeholder="Ví dụ: CCCD/Hộ chiếu bản gốc, giấy khai sinh cho trẻ em..."
-            className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs sm:text-sm text-slate-800 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20"
+            className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs sm:text-sm text-slate-800 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/15"
           />
         </div>
-      </div>
 
-      {/* 3. Travel Notes Checklist */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2">
-            <AlertCircle size={18} className="text-[#087e8b]" />
-            <h3 className="text-sm font-bold text-slate-900">
-              Lưu ý quan trọng cho chuyến đi <span className="text-xs font-normal text-slate-500">(Optional)</span>
-            </h3>
+        {/* Travel Notes */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <AlertCircle size={16} className="text-[#087e8b]" />
+              <h3 className="text-sm font-bold text-slate-900">
+                Lưu ý chuyến đi <span className="text-xs font-normal text-slate-500">(Optional)</span>
+              </h3>
+            </div>
+            <span className="text-xs text-slate-400">
+              {(value.travelNotes || '').length}/5000
+            </span>
           </div>
-          <span className="text-xs text-slate-400">
-            {(value.travelNotes || '').length}/5000 ký tự
-          </span>
-        </div>
 
-        {/* Concise Multiple Choice Chips */}
-        <div>
-          <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-2.5">
-            <Sparkles size={14} className="text-amber-500" />
-            Chọn nhanh các lưu ý thường gặp (nội dung chi tiết sẽ tự động điền vào ô bên dưới):
-          </span>
-          <div className="flex flex-wrap gap-2">
+          {/* Clean concise chips */}
+          <div className="flex flex-wrap gap-1.5">
             {TRAVEL_NOTE_OPTIONS.map((opt) => {
               const isSelected = (value.travelNotes || '').includes(opt.description);
               return (
@@ -615,27 +512,19 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
                   type="button"
                   onClick={() => toggleTravelNoteOption(opt)}
                   aria-pressed={isSelected}
-                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer border ${
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition cursor-pointer border ${
                     isSelected
-                      ? 'border-[#087e8b] bg-[#087e8b] text-white shadow-2xs'
-                      : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100'
+                      ? 'border-teal-300 bg-teal-50 text-teal-800'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-teal-400 hover:text-teal-700'
                   }`}
                 >
-                  <span className={`text-[13px] font-bold ${isSelected ? 'text-white' : 'text-[#087e8b]'}`}>
-                    {isSelected ? '✓' : '+'}
-                  </span>
+                  {isSelected ? <Check size={11} className="shrink-0" /> : <Plus size={11} className="text-slate-400 shrink-0" />}
                   <span>{opt.label}</span>
                 </button>
               );
             })}
           </div>
-        </div>
 
-        {/* Textarea */}
-        <div className="space-y-1.5">
-          <label htmlFor="tour-travel-notes-textarea" className="text-xs font-semibold text-slate-600 block">
-            Nội dung chi tiết:
-          </label>
           <textarea
             id="tour-travel-notes-textarea"
             rows={3}
@@ -643,7 +532,7 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
             value={value.travelNotes || ''}
             onChange={(e) => onChange({ ...value, travelNotes: e.target.value })}
             placeholder="Lưu ý về trang phục, sức khỏe, giờ giấc tập trung, thời tiết..."
-            className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs sm:text-sm text-slate-800 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20"
+            className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs sm:text-sm text-slate-800 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/15"
           />
         </div>
       </div>

@@ -19,22 +19,6 @@ interface Props {
   'aria-labelledby'?: string;
 }
 
-// Popular categories for quick 1-click toggling
-const POPULAR_SLUGS_OR_NAMES = [
-  'beach-islands',
-  'mountains-trekking',
-  'city-culture',
-  'food-cuisine',
-  'resort-wellness',
-  'cruises-waterways',
-  'photography-cloud-hunting',
-  'day-tour',
-  'adventure',
-  'eco-nature',
-  'spiritual-pilgrimage',
-  'family-friendly',
-  'camping-glamping',
-];
 
 export function TourCategoryCombobox({
   id = 'tour-categories',
@@ -52,7 +36,6 @@ export function TourCategoryCombobox({
   const [activeIndex, setActiveIndex] = useState(-1);
   const [createCategory, { isLoading: isCreating }] = useCreateAgencyCategoryMutation();
   const [createError, setCreateError] = useState<string | null>(null);
-  const [showAllPopular, setShowAllPopular] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -103,34 +86,6 @@ export function TourCategoryCombobox({
     );
   }, [categories, query]);
 
-  // Popular categories to display as sample pills
-  const popularCategories = useMemo(() => {
-    const popular: TourCategory[] = [];
-    for (const slugOrName of POPULAR_SLUGS_OR_NAMES) {
-      const found = categories.find(
-        (c) => c.slug === slugOrName || normalizeSearchText(c.name) === normalizeSearchText(slugOrName),
-      );
-      if (found && !popular.some((p) => p.id === found.id)) {
-        popular.push(found);
-      }
-    }
-    // If less than 6 found from popular list, fill in with first available categories
-    if (popular.length < 6) {
-      for (const cat of categories) {
-        if (!popular.some((p) => p.id === cat.id)) {
-          popular.push(cat);
-          if (popular.length >= 8) break;
-        }
-      }
-    }
-    return popular;
-  }, [categories]);
-
-  // Limit to 7 popular items by default so it fits cleanly in 2-3 lines
-  const displayedPopularCategories = useMemo(() => {
-    if (showAllPopular) return popularCategories;
-    return popularCategories.slice(0, 7);
-  }, [popularCategories, showAllPopular]);
 
   const toggleCategory = (categoryId: string) => {
     if (selectedIds.includes(categoryId)) {
@@ -215,7 +170,14 @@ export function TourCategoryCombobox({
   };
 
   return (
-    <div ref={containerRef} className="space-y-3">
+    <div
+      ref={containerRef}
+      role="group"
+      aria-labelledby={ariaLabelledby}
+      aria-invalid={ariaInvalid}
+      aria-describedby={ariaDescribedby}
+      className="space-y-3"
+    >
       {/* Search Input Bar */}
       <div className="relative">
         <div className="pointer-events-none absolute top-3 left-3.5 text-slate-400">
@@ -374,64 +336,13 @@ export function TourCategoryCombobox({
               </button>
             </span>
           ))}
-        </div>
-      )}
-
-      {/* Popular Sample Categories Quick-Toggle Pills */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-600">Gợi ý danh mục phổ biến:</span>
-            {popularCategories.length > 7 && (
-              <button
-                type="button"
-                onClick={() => setShowAllPopular((prev) => !prev)}
-                className="text-[11px] font-semibold text-teal-700 hover:text-teal-900 transition-colors cursor-pointer"
-              >
-                {showAllPopular ? 'Thu gọn' : `+ Xem thêm (${popularCategories.length - 7})`}
-              </button>
-            )}
-          </div>
           {selectedIds.length >= maxSelection && (
-            <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+            <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full ml-1">
               Đã đạt tối đa {maxSelection} danh mục
             </span>
           )}
         </div>
-
-        {isLoading ? (
-          <div className="h-9 animate-pulse rounded-xl bg-slate-100" />
-        ) : (
-          <div
-            role="group"
-            aria-labelledby={ariaLabelledby}
-            aria-invalid={ariaInvalid}
-            aria-describedby={ariaDescribedby}
-            className="flex flex-wrap gap-1.5"
-          >
-            {displayedPopularCategories.map((category) => {
-              const selected = selectedIds.includes(category.id);
-              const displayName = formatCategoryName(category.name);
-
-              return (
-                <button
-                  key={category.id}
-                  aria-pressed={selected}
-                  type="button"
-                  onClick={() => toggleCategory(category.id)}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer ${
-                    selected
-                      ? 'bg-[#087e8b] text-white shadow-2xs scale-[1.02]'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  {selected ? `✓ ${displayName}` : displayName}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

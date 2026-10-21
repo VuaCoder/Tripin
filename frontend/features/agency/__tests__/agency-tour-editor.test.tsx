@@ -40,7 +40,8 @@ afterEach(cleanup);
 function completeRequiredFields() {
   fireEvent.change(screen.getByRole('textbox', { name: 'Tên tour' }), { target: { value: 'Khám phá Hạ Long' } });
   fireEvent.change(screen.getByRole('textbox', { name: 'Điểm đến chính' }), { target: { value: 'Quảng Ninh' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Khám phá' }));
+  fireEvent.focus(screen.getByPlaceholderText(/Tìm hoặc nhập danh mục tour/i));
+  fireEvent.click(screen.getByRole('button', { name: /Khám phá/i }));
   fireEvent.change(screen.getByLabelText('Giá cơ bản (VND)'), { target: { value: '1.000.000' } });
   fireEvent.click(screen.getAllByRole('button', { name: 'Tạo tour & Tiếp tục' })[0]);
   fireEvent.click(screen.getByRole('button', { name: 'Xác nhận tạo tour' }));

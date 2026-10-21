@@ -120,7 +120,24 @@ export const {
   useCreateAgencyCategoryMutation,
 } = toursApi;
 
+const TOUR_ERROR_TRANSLATIONS: Record<string, string> = {
+  NO_OPEN_DEPARTURE: 'Vui lòng chuyển sang tab "Khởi hành" và thêm ít nhất một ngày khởi hành trong tương lai đang mở bán trước khi gửi duyệt tour.',
+  'Add at least one open future departure before submitting': 'Vui lòng chuyển sang tab "Khởi hành" và thêm ít nhất một ngày khởi hành trong tương lai đang mở bán trước khi gửi duyệt tour.',
+  'Add at least one category before submitting': 'Vui lòng chọn ít nhất một danh mục cho tour trước khi gửi duyệt.',
+  'The tour was modified, please retry': 'Tour đã được cập nhật bởi một phiên khác, vui lòng làm mới trang.',
+  'Itinerary days or ranges cannot overlap or duplicate': 'Các ngày hoặc khoảng ngày trong lịch trình không được trùng lặp.',
+  'Duplicate departure date': 'Ngày khởi hành này đã tồn tại trong danh sách.',
+};
+
 export function getTourApiMessage(error: unknown, fallback = 'Đã có lỗi xảy ra. Vui lòng thử lại.'): string {
   const result = error as { error?: { data?: TourApiError }; data?: TourApiError } | undefined;
-  return result?.error?.data?.error?.message || result?.data?.error?.message || fallback;
+  const errObj = result?.error?.data?.error || result?.data?.error;
+  if (errObj?.code && TOUR_ERROR_TRANSLATIONS[errObj.code]) {
+    return TOUR_ERROR_TRANSLATIONS[errObj.code];
+  }
+  const rawMsg = errObj?.message;
+  if (rawMsg && TOUR_ERROR_TRANSLATIONS[rawMsg]) {
+    return TOUR_ERROR_TRANSLATIONS[rawMsg];
+  }
+  return rawMsg || fallback;
 }

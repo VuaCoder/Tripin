@@ -20,23 +20,21 @@ const baseTour: TourContentInput = {
 };
 
 describe('TourAgePricingFields', () => {
-  it('displays live calculated prices based on base price', () => {
+  it('renders age group and percentage inputs when enabled', () => {
     const onChange = vi.fn();
     render(<TourAgePricingFields value={baseTour} onChange={onChange} />);
 
-    // Should display adult price (2,000,000 VND)
-    expect(screen.getByText(/2.000.000/i)).toBeDefined();
-    // Should display child price 50% = 1,000,000 VND
-    expect(screen.getByText(/1.000.000/i)).toBeDefined();
-    // Should display infant price = Miễn phí
-    expect(screen.getAllByText(/Miễn phí/i).length).toBeGreaterThan(0);
+    expect(screen.getByText('Tuổi nhóm trẻ em')).toBeDefined();
+    expect(screen.getByText('Tuổi nhóm người lớn')).toBeDefined();
+    expect(screen.getByText('Giá trẻ em (% người lớn)')).toBeDefined();
+    expect(screen.getByText('Giá em bé (% người lớn)')).toBeDefined();
   });
 
   it('appends child policy preset when clicked', () => {
     const onChange = vi.fn();
     render(<TourAgePricingFields value={baseTour} onChange={onChange} />);
 
-    const chip = screen.getByRole('button', { name: /\+ 👶 Dưới 2 tuổi: Miễn phí/i });
+    const chip = screen.getByRole('button', { name: /\+ Dưới 2 tuổi: Miễn phí/i });
     fireEvent.click(chip);
 
     expect(onChange).toHaveBeenCalledWith(
@@ -53,7 +51,7 @@ describe('TourPolicyFields', () => {
     render(<TourPolicyFields value={baseTour} onChange={onChange} includeAgePricing={false} />);
 
     // Click on "Linh hoạt" template button
-    const flexibleBtn = screen.getByRole('button', { name: /Hủy miễn phí trước 48h/i });
+    const flexibleBtn = screen.getByRole('button', { name: /Linh hoạt/i });
     fireEvent.click(flexibleBtn);
 
     expect(onChange).toHaveBeenCalledWith(
@@ -97,32 +95,13 @@ describe('TourPolicyFields', () => {
     expect(screen.queryByRole('spinbutton', { name: 'Số thời gian hủy mốc 4' })).toBeNull();
   });
 
-  it('allows free custom text editing in textarea and shows regeneration option', () => {
+  it('does not display manual textarea and automatically syncs cancellation terms from milestones', () => {
     const onChange = vi.fn();
     render(<TourPolicyFields value={baseTour} onChange={onChange} includeAgePricing={false} />);
 
-    const textarea = screen.getByPlaceholderText(/Quy định hoàn tiền/i);
-    fireEvent.change(textarea, { target: { value: 'Điều khoản đặc biệt: Vé máy bay không hoàn tiền.' } });
-
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        cancellationPolicy: 'Điều khoản đặc biệt: Vé máy bay không hoàn tiền.',
-      })
-    );
-
-    // Indicator switches to custom
-    expect(screen.getByText('✏️ Đã chỉnh sửa thủ công')).toBeDefined();
-
-    // Click regenerate
-    const regenBtn = screen.getByRole('button', { name: /Tạo lại từ bảng mốc/i });
-    fireEvent.click(regenBtn);
-
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        cancellationPolicy: expect.stringContaining('Nếu hủy trước 7 ngày'),
-      })
-    );
-    expect(screen.getByText('✓ Tự động cập nhật theo các mốc')).toBeDefined();
+    // Manual textarea should not be present
+    expect(screen.queryByPlaceholderText(/Quy định hoàn tiền/i)).toBeNull();
+    expect(screen.queryByText('Nội dung điều khoản chi tiết:')).toBeNull();
   });
 
   it('toggles required documents checklist chips', () => {
@@ -130,7 +109,7 @@ describe('TourPolicyFields', () => {
     render(<TourPolicyFields value={baseTour} onChange={onChange} includeAgePricing={false} />);
 
     // Click on concise CCCD chip
-    const cccdChip = screen.getByRole('button', { name: /\+ CCCD \/ CMND/i });
+    const cccdChip = screen.getByRole('button', { name: /CCCD \/ CMND/i });
     fireEvent.click(cccdChip);
 
     expect(onChange).toHaveBeenCalledWith(

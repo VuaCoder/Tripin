@@ -23,7 +23,7 @@ const sampleCategories: TourCategory[] = [
 ];
 
 describe('TourCategoryCombobox', () => {
-  it('renders popular category pills and toggles selection', () => {
+  it('opens dropdown on focus and toggles category selection', () => {
     const onChange = vi.fn();
     render(
       <TourCategoryCombobox
@@ -33,18 +33,17 @@ describe('TourCategoryCombobox', () => {
       />
     );
 
-    // Pill for Beach & Islands should have checkmark as it is selected
-    expect(screen.getByRole('button', { name: '✓ Biển đảo & Nghỉ dưỡng' })).toBeDefined();
+    // Selected chip for Beach & Islands is rendered
+    expect(screen.getByText('Biển đảo & Nghỉ dưỡng')).toBeDefined();
 
-    // Click on Resort & Wellness pill to select
-    const wellnessPill = screen.getByRole('button', { name: 'Nghỉ dưỡng & Sức khỏe (Wellness)' });
-    fireEvent.click(wellnessPill);
+    // Focus input to open dropdown
+    const input = screen.getByPlaceholderText(/Tìm hoặc nhập danh mục/i);
+    fireEvent.focus(input);
+
+    // Click on Resort & Wellness from dropdown list
+    const wellnessOption = screen.getByText('Nghỉ dưỡng & Sức khỏe (Wellness)');
+    fireEvent.click(wellnessOption);
     expect(onChange).toHaveBeenCalledWith(['cat-1', 'cat-3']);
-
-    // Click on Beach & Islands pill to deselect
-    const beachPill = screen.getByRole('button', { name: /✓ Biển đảo & Nghỉ dưỡng/i });
-    fireEvent.click(beachPill);
-    expect(onChange).toHaveBeenCalledWith([]);
   });
 
   it('searches categories with accent-insensitive search in Vietnamese', () => {
@@ -102,42 +101,26 @@ describe('TourCategoryCombobox', () => {
     expect(onChange).toHaveBeenCalledWith(['cat-1']);
   });
 
-  it('limits popular suggestions to 7 items (2-3 lines) by default and allows expand/collapse', () => {
-    const manyCategories: TourCategory[] = [
-      { id: 'c1', name: 'Beach & Islands', slug: 'beach-islands', isActive: true, sortOrder: 1 },
-      { id: 'c2', name: 'Mountains & Trekking', slug: 'mountains-trekking', isActive: true, sortOrder: 2 },
-      { id: 'c3', name: 'City & Culture', slug: 'city-culture', isActive: true, sortOrder: 3 },
-      { id: 'c4', name: 'Food & Cuisine', slug: 'food-cuisine', isActive: true, sortOrder: 4 },
-      { id: 'c5', name: 'Resort & Wellness', slug: 'resort-wellness', isActive: true, sortOrder: 5 },
-      { id: 'c6', name: 'Cruises & Waterways', slug: 'cruises-waterways', isActive: true, sortOrder: 6 },
-      { id: 'c7', name: 'Photography & Cloud Hunting', slug: 'photography-cloud-hunting', isActive: true, sortOrder: 7 },
-      { id: 'c8', name: 'Day Tour', slug: 'day-tour', isActive: true, sortOrder: 8 },
-      { id: 'c9', name: 'Adventure', slug: 'adventure', isActive: true, sortOrder: 9 },
-      { id: 'c10', name: 'Eco Nature', slug: 'eco-nature', isActive: true, sortOrder: 10 },
-    ];
+  it('displays max selection warning when max limit reached', () => {
+    const tenCategories: TourCategory[] = Array.from({ length: 10 }, (_, i) => ({
+      id: `c-${i + 1}`,
+      name: `Category ${i + 1}`,
+      slug: `category-${i + 1}`,
+      isActive: true,
+      sortOrder: i + 1,
+    }));
 
     render(
       <TourCategoryCombobox
-        selectedIds={[]}
+        selectedIds={tenCategories.map((c) => c.id)}
         onChange={vi.fn()}
-        categories={manyCategories}
+        categories={tenCategories}
+        maxSelection={10}
       />
     );
 
-    // By default, only 7 pills are rendered
-    expect(screen.getByRole('button', { name: '+ Xem thêm (3)' })).toBeDefined();
-    // 8th item should not be in document initially
-    expect(screen.queryByRole('button', { name: 'Tour trong ngày' })).toBeNull();
-
-    // Click "+ Xem thêm"
-    fireEvent.click(screen.getByRole('button', { name: '+ Xem thêm (3)' }));
-    expect(screen.getByRole('button', { name: 'Thu gọn' })).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Tour trong ngày' })).toBeDefined();
-
-    // Click "Thu gọn" to collapse back to 7
-    fireEvent.click(screen.getByRole('button', { name: 'Thu gọn' }));
-    expect(screen.getByRole('button', { name: '+ Xem thêm (3)' })).toBeDefined();
-    expect(screen.queryByRole('button', { name: 'Tour trong ngày' })).toBeNull();
+    expect(screen.getByText('Đã đạt tối đa 10 danh mục')).toBeDefined();
   });
 });
+
 

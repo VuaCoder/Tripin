@@ -9,7 +9,7 @@ import { toursApi } from '../api/toursApi';
 import { useAppDispatch } from '@/store/hooks';
 import { AgencyCustomersPanel, AgencyGuidePanel } from '@/features/agency/AgencyTourOperations';
 import { AgencyDenied, useAgencyPermission } from '@/features/agency/AgencyUi';
-import { ArrowLeft, RotateCw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, RotateCw } from 'lucide-react';
 import { AgencyTourStepper } from './AgencyTourStepper';
 import { AgencyTourLivePreview } from './AgencyTourLivePreview';
 import { AntDatePicker } from '@/components/ui';
@@ -62,7 +62,14 @@ export function AgencyTourWorkspacePage() {
   const run = async (operation: () => Promise<unknown>, success: string) => {
     setMessage(''); setErrorText('');
     try { await operation(); setMessage(success); }
-    catch (e) { setErrorText(getTourApiMessage(e, 'Không thể lưu thay đổi. Vui lòng thử lại.')); }
+    catch (e) {
+      const msg = getTourApiMessage(e, 'Không thể lưu thay đổi. Vui lòng thử lại.');
+      setErrorText(msg);
+      const isMissingDeparture = (e as { data?: { error?: { code?: string } }; error?: { data?: { error?: { code?: string } } } })?.data?.error?.code === 'NO_OPEN_DEPARTURE' || (e as { error?: { data?: { error?: { code?: string } } } })?.error?.data?.error?.code === 'NO_OPEN_DEPARTURE' || msg.includes('Khởi hành');
+      if (isMissingDeparture) {
+        setStep(2);
+      }
+    }
   };
   const saveDays = (event: FormEvent) => {
     event.preventDefault();
@@ -176,9 +183,51 @@ export function AgencyTourWorkspacePage() {
     {errorText && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{errorText}</p>}
     <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_340px]">
     <div className="min-w-0 space-y-6">
-    <AgencyTourStepper active={step} onChange={setStep} steps={[{ id: 1, title: 'Lịch trình' }, { id: 2, title: 'Khởi hành' }, { id: 3, title: 'Hướng dẫn viên' }, { id: 4, title: 'Khách hàng' }]} />
-    <div hidden={step !== 3}><AgencyGuidePanel key={id} tour={tour} /></div>
-    <div hidden={step !== 4}><AgencyCustomersPanel key={`customers-${id}`} tour={tour} /></div>
+    <AgencyTourStepper
+      active={step}
+      onChange={setStep}
+      allowSkip={true}
+      steps={[
+        { id: 1, title: 'Lịch trình', complete: days.length > 0 },
+        { id: 2, title: 'Khởi hành', complete: departures.some((d) => d.isOpen && Boolean(d.date)) },
+        { id: 3, title: 'Hướng dẫn viên', complete: Boolean(tour.guide) },
+        { id: 4, title: 'Khách hàng' },
+      ]}
+    />
+    <div hidden={step !== 3}>
+      <AgencyGuidePanel key={id} tour={tour} />
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
+        <button
+          type="button"
+          onClick={() => setStep(2)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+        >
+          <ArrowLeft size={16} />
+          <span>Quay lại: Khởi hành</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStep(4)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-primary bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary hover:text-white transition-colors"
+        >
+          <span>Sang bước 4: Khách hàng</span>
+          <ArrowRight size={16} />
+        </button>
+      </div>
+    </div>
+    <div hidden={step !== 4}>
+      <AgencyCustomersPanel key={`customers-${id}`} tour={tour} />
+      <div className="mt-5 flex justify-start border-t border-slate-200 pt-4">
+        <button
+          type="button"
+          onClick={() => setStep(3)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+        >
+          <ArrowLeft size={16} />
+          <span>Quay lại: Hướng dẫn viên</span>
+        </button>
+      </div>
+    </div>
     <div className="space-y-6">
       <div hidden={step !== 1} className="space-y-6">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
@@ -186,7 +235,7 @@ export function AgencyTourWorkspacePage() {
             <div>
               <h2 className="text-lg font-bold text-slate-900">Lịch trình tour</h2>
               <p className="text-sm text-slate-600">
-                Tổng thời lượng: <span className="font-semibold text-slate-900">{tour.durationDays} ngày</span>. Hỗ trợ thiết lập từng ngày (VD: Ngày 1) hoặc gộp khoảng ngày (VD: Ngày 1 – 2 ở Đà Nẵng, Ngày 3 – 4 ra Huế).
+                Tổng thời lượng: <span className="font-semibold text-slate-900">{tour.durationDays} ngày</span>. Hỗ trợ thiết lập từng ngày hoặc gộp khoảng ngày.
               </p>
             </div>
             <button
@@ -201,10 +250,10 @@ export function AgencyTourWorkspacePage() {
           <form onSubmit={saveDays} className="space-y-4" aria-busy={itineraryState.isLoading}>
             {days.length === 0 && <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Chưa có lịch trình. Thêm ngày đầu tiên để bắt đầu.</p>}
             {days.map((day, index) => (
-              <fieldset key={index} disabled={locked} className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4 transition-all hover:border-slate-300">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/60 pb-3">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="inline-flex items-center rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-bold text-white shadow-2xs">
+              <fieldset key={index} disabled={locked} className="space-y-3.5 rounded-xl border border-slate-200 bg-slate-50/80 p-4 transition-all hover:border-slate-300">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex shrink-0 items-center rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-bold text-white shadow-2xs">
                       {day.toDay && day.toDay > day.day ? `Ngày ${day.day} – ${day.toDay}` : `Ngày ${day.day}`}
                     </span>
                     <div className="flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg px-2.5 py-1">
@@ -219,13 +268,13 @@ export function AgencyTourWorkspacePage() {
                             const val = Number(e.target.value);
                             setDays((prev) => prev.map((item, i) => i === index ? { ...item, day: val } : item));
                           }}
-                          className="w-14 rounded border border-slate-200 px-1.5 py-0.5 text-center text-xs font-semibold text-slate-900 outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container"
+                          className="w-12 rounded border border-slate-200 px-1 py-0.5 text-center text-xs font-semibold text-slate-900 outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container"
                           title="Ngày bắt đầu"
                         />
                       </label>
                       <span className="text-slate-400">–</span>
                       <label className="flex items-center gap-1">
-                        <span className="text-slate-500">đến ngày</span>
+                        <span className="text-slate-500">đến</span>
                         <input
                           type="number"
                           min={day.day}
@@ -236,61 +285,64 @@ export function AgencyTourWorkspacePage() {
                             const val = e.target.value === '' ? undefined : Number(e.target.value);
                             setDays((prev) => prev.map((item, i) => i === index ? { ...item, toDay: val } : item));
                           }}
-                          className="w-16 rounded border border-slate-200 px-1.5 py-0.5 text-center text-xs font-semibold text-slate-900 outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container placeholder:font-normal placeholder:text-slate-400"
-                          title="Ngày kết thúc (để trống nếu chỉ 1 ngày, hoặc nhập 2 cho Ngày 1-2)"
+                          className="w-14 rounded border border-slate-200 px-1 py-0.5 text-center text-xs font-semibold text-slate-900 outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container placeholder:font-normal placeholder:text-slate-400"
+                          title="Ngày kết thúc (để trống nếu lịch trình trong 1 ngày)"
                         />
                       </label>
-                      <span className="text-[11px] text-slate-400">(để trống nếu 1 ngày)</span>
                     </div>
-                    {day.toDay && day.toDay > day.day && (
-                      <button
-                        type="button"
-                        onClick={() => setDays((prev) => prev.map((item, i) => i === index ? { ...item, toDay: undefined } : item))}
-                        className="text-xs text-slate-500 hover:text-slate-800 underline decoration-slate-300 transition-colors"
-                        title="Bỏ gộp ngày, quay lại 1 ngày"
-                      >
-                        Bỏ gộp ngày
-                      </button>
-                    )}
                   </div>
                   <button
                     type="button"
                     onClick={() => setDays((prev) => prev.filter((_, i) => i !== index))}
-                    className="text-xs font-semibold text-red-600 hover:text-red-700 hover:underline transition-colors"
+                    className="shrink-0 text-xs font-semibold text-red-600 hover:text-red-700 hover:underline transition-colors"
                   >
                     Xóa ngày
                   </button>
                 </div>
-                <input
-                  aria-label={`Tiêu đề ${day.toDay && day.toDay > day.day ? `ngày ${day.day} - ${day.toDay}` : `ngày ${day.day}`}`}
-                  required
-                  minLength={2}
-                  maxLength={200}
-                  value={day.title}
-                  onChange={(e) => setDays((prev) => prev.map((item, i) => i === index ? { ...item, title: e.target.value } : item))}
-                  placeholder={day.toDay && day.toDay > day.day ? `Tiêu đề hoạt động Ngày ${day.day} – ${day.toDay} (VD: Khám phá Đà Nẵng - Bà Nà Hills)` : `Tiêu đề hoạt động Ngày ${day.day} (VD: Đón khách sân bay - Khám phá Đà Nẵng)`}
-                  className={inputClass}
-                />
-                <textarea
-                  aria-label={`Mô tả ${day.toDay && day.toDay > day.day ? `ngày ${day.day} - ${day.toDay}` : `ngày ${day.day}`}`}
-                  maxLength={5000}
-                  rows={2}
-                  value={day.description ?? ''}
-                  onChange={(e) => setDays((prev) => prev.map((item, i) => i === index ? { ...item, description: e.target.value } : item))}
-                  placeholder="Mô tả chi tiết lịch trình..."
-                  className={inputClass}
-                />
-                <textarea
-                  aria-label={`Các hoạt động ${day.toDay && day.toDay > day.day ? `ngày ${day.day} - ${day.toDay}` : `ngày ${day.day}`}`}
-                  rows={2}
-                  value={(day.activities ?? []).join('\n')}
-                  onChange={(e) => setDays((prev) => prev.map((item, i) => i === index ? { ...item, activities: e.target.value.split('\n').map((line) => line.trim()).filter(Boolean) } : item))}
-                  placeholder="Mỗi điểm đến hoặc hoạt động nổi bật trên một dòng"
-                  className={inputClass}
-                />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Tiêu đề ngày</label>
+                  <input
+                    aria-label={`Tiêu đề ${day.toDay && day.toDay > day.day ? `ngày ${day.day} - ${day.toDay}` : `ngày ${day.day}`}`}
+                    required
+                    minLength={2}
+                    maxLength={200}
+                    value={day.title}
+                    onChange={(e) => setDays((prev) => prev.map((item, i) => i === index ? { ...item, title: e.target.value } : item))}
+                    placeholder={day.toDay && day.toDay > day.day ? `VD: Khám phá Đà Nẵng - Bán đảo Sơn Trà & Bà Nà Hills` : `VD: Đón sân bay - Khám phá trung tâm thành phố`}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900 outline-none transition-colors focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 placeholder:font-normal placeholder:text-slate-400"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Nội dung chi tiết</label>
+                  <textarea
+                    aria-label={`Nội dung ${day.toDay && day.toDay > day.day ? `ngày ${day.day} - ${day.toDay}` : `ngày ${day.day}`}`}
+                    maxLength={5000}
+                    rows={4}
+                    value={day.description ?? ''}
+                    onChange={(e) => setDays((prev) => prev.map((item, i) => i === index ? { ...item, description: e.target.value } : item))}
+                    placeholder="Mô tả chi tiết lịch trình, các hoạt động tham quan, trải nghiệm và bữa ăn trong ngày..."
+                    className="w-full rounded-lg border border-slate-300 bg-white p-3.5 text-sm leading-relaxed text-slate-800 outline-none transition-colors focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 placeholder:text-slate-400"
+                  />
+                </div>
               </fieldset>
             ))}
-            <button type="submit" disabled={locked || itineraryState.isLoading} className="rounded-lg bg-primary-container px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{itineraryState.isLoading ? 'Đang lưu…' : 'Lưu lịch trình'}</button>
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200">
+              <button
+                type="submit"
+                disabled={locked || itineraryState.isLoading}
+                className="rounded-lg bg-primary-container px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-800 disabled:opacity-50 shadow-sm"
+              >
+                {itineraryState.isLoading ? 'Đang lưu…' : 'Lưu lịch trình'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="inline-flex items-center gap-2 rounded-lg border border-primary bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary hover:text-white transition-colors ml-auto"
+              >
+                <span>Sang bước 2: Khởi hành</span>
+                <ArrowRight size={16} />
+              </button>
+            </div>
           </form>
         </section>
 
@@ -318,11 +370,37 @@ export function AgencyTourWorkspacePage() {
       </div>
 
       <section hidden={step !== 2} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">Ngày khởi hành</h2><p className="text-sm text-slate-600">Chỗ còn lại được giữ theo số ghế đã bán.</p></div><button type="button" disabled={departures.length >= 200} onClick={() => setDepartures((current) => [...current, { date: '', capacity: 10, price: tour.basePrice, isOpen: true }])} className="rounded-lg border border-primary px-3 py-2 text-sm font-semibold text-primary disabled:opacity-50">+ Thêm ngày</button></div>
+        <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">Ngày khởi hành</h2><p className="text-sm text-slate-600">Chỗ còn lại được giữ theo số ghế đã bán.</p></div><button type="button" disabled={departures.length >= 200} onClick={() => setDepartures((current) => [...current, { date: '', capacity: tour?.maxGroupSize && tour.maxGroupSize > 0 ? tour.maxGroupSize : 10, price: tour.basePrice, isOpen: true }])} className="rounded-lg border border-primary px-3 py-2 text-sm font-semibold text-primary disabled:opacity-50">+ Thêm ngày</button></div>
         <form onSubmit={saveDepartures} className="space-y-4" aria-busy={availabilityState.isLoading}>
           {departures.length === 0 && <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Chưa thiết lập ngày khởi hành.</p>}
           {departures.map((departure, index) => { const sold = departure.remaining === undefined ? 0 : departure.capacity - departure.remaining; const dateLocked = sold > 0; return <fieldset key={departure.id ?? `new-${index}`} className="grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2"><div className="space-y-1 text-sm font-medium text-slate-700"><span>Ngày khởi hành</span><AntDatePicker value={departure.date} disabled={dateLocked} min={new Date().toISOString().slice(0, 10)} onChange={(d) => setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, date: d } : item))} className="w-full" size="middle" placeholder="Chọn ngày khởi hành" /></div><label className="space-y-1 text-sm font-medium text-slate-700">Sức chứa<input type="number" required min={Math.max(1, sold)} max={10000} value={departure.capacity} onChange={(e) => setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, capacity: Number(e.target.value) } : item))} className={inputClass} /></label><label className="space-y-1 text-sm font-medium text-slate-700">Giá riêng (VND)<input type="number" min={0} step={1} value={departure.price} onChange={(e) => setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, price: Number(e.target.value) } : item))} className={inputClass} /></label><div className="flex items-center justify-between gap-2"><label className="flex items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" checked={departure.isOpen} onChange={(e) => setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, isOpen: e.target.checked } : item))} /> Đang mở</label><span className="text-xs text-slate-500">Đã bán {sold}/{departure.capacity}</span><button type="button" disabled={dateLocked} onClick={() => setDepartures((prev) => prev.filter((_, i) => i !== index))} className="text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-40">Gỡ</button></div>{dateLocked && <p className="sm:col-span-2 text-xs text-amber-800">Đã có khách: không thể đổi ngày hoặc gỡ. Hãy đóng ngày khởi hành.</p>}</fieldset>; })}
-          <button type="submit" disabled={availabilityState.isLoading} className="rounded-lg bg-primary-container px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{availabilityState.isLoading ? 'Đang lưu…' : 'Lưu ngày khởi hành'}</button>
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <ArrowLeft size={16} />
+              <span>Quay lại: Lịch trình</span>
+            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="submit"
+                disabled={availabilityState.isLoading}
+                className="rounded-lg bg-primary-container px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-800 disabled:opacity-50 shadow-sm"
+              >
+                {availabilityState.isLoading ? 'Đang lưu…' : 'Lưu ngày khởi hành'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-primary bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary hover:text-white transition-colors"
+              >
+                <span>Sang bước 3: HDV</span>
+                <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
         </form>
       </section>
     </div></div>

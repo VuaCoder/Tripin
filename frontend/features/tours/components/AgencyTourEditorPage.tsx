@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useId, useMemo, type FormEvent } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Eye, CheckCircle2, X, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Eye, CheckCircle2, X, AlertTriangle, UserX } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { 
   useCreateAgencyTourMutation, 
@@ -19,6 +19,7 @@ import { TourPolicyFields } from './TourPolicyFields';
 import { TourAgePricingFields } from './TourAgePricingFields';
 import { TourDestinationCombobox } from './TourDestinationCombobox';
 import { TourCategoryCombobox } from './TourCategoryCombobox';
+import { TourItemCombobox } from './TourItemCombobox';
 import { editorFields, fieldStep, validateTourEditor, tourEditorServerErrors, type EditorField, type EditorErrors } from './tourEditorValidation';
 import { formatCurrencyVndInput, parseCurrencyVndInput } from '../utils';
 import editorStyles from './AgencyTourEditor.module.css';
@@ -115,8 +116,6 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
   const [imageError, setImageError] = useState('');
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [customInclusion, setCustomInclusion] = useState('');
-  const [customExclusion, setCustomExclusion] = useState('');
   const [showMobilePreview, setShowMobilePreview] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showExitConfirmModal, setShowExitConfirmModal] = useState(false);
@@ -275,26 +274,6 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
     const [target] = images.splice(indexToPrimary, 1);
     images.unshift(target);
     updateField('images', images);
-  };
-
-  const addInclusionItem = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed || (value.inclusions ?? []).includes(trimmed)) return;
-    updateField('inclusions', [...(value.inclusions ?? []), trimmed]);
-  };
-
-  const removeInclusionItem = (index: number) => {
-    updateField('inclusions', (value.inclusions ?? []).filter((_, i) => i !== index));
-  };
-
-  const addExclusionItem = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed || (value.exclusions ?? []).includes(trimmed)) return;
-    updateField('exclusions', [...(value.exclusions ?? []), trimmed]);
-  };
-
-  const removeExclusionItem = (index: number) => {
-    updateField('exclusions', (value.exclusions ?? []).filter((_, i) => i !== index));
   };
 
   const saveTourPayload = async (destinationUrl?: string): Promise<boolean> => {
@@ -881,9 +860,11 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                     <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 select-none">₫</span>
                   </div>
                   {fieldHint('basePrice')}
-                  <span className="block text-xs font-semibold text-teal-700">
-                    Hiển thị: {new Intl.NumberFormat('vi-VN').format(value.basePrice || 0)} ₫ / khách
-                  </span>
+                  {value.basePrice > 0 && (
+                    <span className="block text-xs font-medium text-slate-500">
+                      Hiển thị: {new Intl.NumberFormat('vi-VN').format(value.basePrice)} ₫ / khách
+                    </span>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -913,130 +894,27 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                 {fieldErrors.agePricing && <p role="alert" className="text-sm font-semibold text-red-600">{fieldErrors.agePricing}</p>}
               </div>
 
-              {/* Inclusions */}
-              <div className="space-y-2.5">
-                <label className="text-sm font-bold text-slate-800 block">
-                  Dịch vụ bao gồm <span className="text-xs font-normal text-slate-500">(Optional)</span>
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={customInclusion}
-                    onChange={(e) => setCustomInclusion(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addInclusionItem(customInclusion);
-                        setCustomInclusion('');
-                      }
-                    }}
-                    placeholder="Nhập dịch vụ bao gồm rồi bấm Thêm..."
-                    className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#087e8b]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      addInclusionItem(customInclusion);
-                      setCustomInclusion('');
-                    }}
-                    className="rounded-xl bg-slate-800 px-4 py-2 text-xs font-bold text-white hover:bg-slate-900 cursor-pointer"
-                  >
-                    + Thêm
-                  </button>
-                </div>
+              {/* Inclusions & Exclusions 2-column layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 pt-2 border-t border-slate-100">
+                <TourItemCombobox
+                  id={fieldId('inclusions')}
+                  label="Dịch vụ bao gồm"
+                  placeholder="Tìm kiếm tiện ích hoặc ấn Enter..."
+                  items={value.inclusions ?? []}
+                  onChange={(items) => updateField('inclusions', items)}
+                  suggestions={DEFAULT_INCLUSIONS}
+                  tone="positive"
+                />
 
-                {/* Added inclusions list */}
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {(value.inclusions ?? []).map((item, idx) => (
-                    <span key={idx} className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 border border-teal-200 px-3 py-1 text-xs font-semibold text-teal-800">
-                      <span className="material-symbols-outlined text-[14px]">check</span>
-                      <span>{item}</span>
-                      <button type="button" onClick={() => removeInclusionItem(idx)} className="text-teal-600 hover:text-rose-600 cursor-pointer">
-                        ✕
-                      </button>
-                    </span>
-                  ))}
-                </div>
-
-                {/* Quick default inclusions */}
-                <div className="pt-1">
-                  <span className="text-[11px] font-semibold text-slate-400 block mb-1.5">Gợi ý nhanh tiện ích:</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {DEFAULT_INCLUSIONS.map((item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        onClick={() => addInclusionItem(item)}
-                        className="rounded-lg bg-slate-100 hover:bg-teal-50 hover:text-teal-700 px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition-colors cursor-pointer"
-                      >
-                        + {item}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Exclusions */}
-              <div className="space-y-2.5 border-t border-slate-100 pt-4">
-                <label className="text-sm font-bold text-slate-800 block">
-                  Dịch vụ không bao gồm <span className="text-xs font-normal text-slate-500">(Optional)</span>
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={customExclusion}
-                    onChange={(e) => setCustomExclusion(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addExclusionItem(customExclusion);
-                        setCustomExclusion('');
-                      }
-                    }}
-                    placeholder="Nhập dịch vụ loại trừ..."
-                    className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#087e8b]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      addExclusionItem(customExclusion);
-                      setCustomExclusion('');
-                    }}
-                    className="rounded-xl bg-slate-800 px-4 py-2 text-xs font-bold text-white hover:bg-slate-900 cursor-pointer"
-                  >
-                    + Thêm
-                  </button>
-                </div>
-
-                {/* Added exclusions list */}
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {(value.exclusions ?? []).map((item, idx) => (
-                    <span key={idx} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700">
-                      <span className="material-symbols-outlined text-[14px] text-slate-400">close</span>
-                      <span>{item}</span>
-                      <button type="button" onClick={() => removeExclusionItem(idx)} className="text-slate-500 hover:text-rose-600 cursor-pointer">
-                        ✕
-                      </button>
-                    </span>
-                  ))}
-                </div>
-
-                {/* Quick default exclusions */}
-                <div className="pt-1">
-                  <span className="text-[11px] font-semibold text-slate-400 block mb-1.5">Gợi ý mục loại trừ:</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {DEFAULT_EXCLUSIONS.map((item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        onClick={() => addExclusionItem(item)}
-                        className="rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-700 px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition-colors cursor-pointer"
-                      >
-                        + {item}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <TourItemCombobox
+                  id={fieldId('exclusions')}
+                  label="Dịch vụ không bao gồm"
+                  placeholder="Tìm kiếm mục loại trừ hoặc ấn Enter..."
+                  items={value.exclusions ?? []}
+                  onChange={(items) => updateField('exclusions', items)}
+                  suggestions={DEFAULT_EXCLUSIONS}
+                  tone="neutral"
+                />
               </div>
             </section>
 
@@ -1081,7 +959,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                 ) : (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-slate-400">person_off</span>
+                      <UserX size={18} className="text-slate-400" />
                       <p className="text-sm font-semibold text-slate-700">Chưa phân công hướng dẫn viên</p>
                     </div>
                     {id && (
@@ -1103,19 +981,19 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                 </span>
                 <div className="space-y-1.5 text-xs font-semibold text-slate-700">
                   <p className="flex items-center gap-2">
-                    <span className={`material-symbols-outlined text-[16px] ${value.title ? 'text-emerald-600' : 'text-slate-300'}`}>check_circle</span>
+                    <CheckCircle2 size={16} className={value.title ? 'text-emerald-600 shrink-0' : 'text-slate-300 shrink-0'} />
                     <span>Tên tour & điểm đến: <strong>{value.destination || 'Chưa có'}</strong></span>
                   </p>
                   <p className="flex items-center gap-2">
-                    <span className={`material-symbols-outlined text-[16px] ${(value.images ?? []).length > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>check_circle</span>
+                    <CheckCircle2 size={16} className={(value.images ?? []).length > 0 ? 'text-emerald-600 shrink-0' : 'text-slate-300 shrink-0'} />
                     <span>Hình ảnh thương hiệu: <strong>{(value.images ?? []).length} ảnh</strong></span>
                   </p>
                   <p className="flex items-center gap-2">
-                    <span className={`material-symbols-outlined text-[16px] ${value.basePrice > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>check_circle</span>
+                    <CheckCircle2 size={16} className={value.basePrice > 0 ? 'text-emerald-600 shrink-0' : 'text-slate-300 shrink-0'} />
                     <span>Giá cơ bản niêm yết: <strong>{new Intl.NumberFormat('vi-VN').format(value.basePrice)} ₫</strong></span>
                   </p>
                   <p className="flex items-center gap-2">
-                    <span className={`material-symbols-outlined text-[16px] ${value.categoryIds.length > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>check_circle</span>
+                    <CheckCircle2 size={16} className={value.categoryIds.length > 0 ? 'text-emerald-600 shrink-0' : 'text-slate-300 shrink-0'} />
                     <span>Danh mục: <strong>{value.categoryIds.length} danh mục</strong></span>
                   </p>
                 </div>
