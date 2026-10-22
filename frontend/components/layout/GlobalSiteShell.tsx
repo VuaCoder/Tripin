@@ -39,5 +39,14 @@ export function GlobalSiteShell({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
-  return <AppShell fullBleed={fullBleedRoutes.has(pathname)}>{children}</AppShell>;
+  const isConversations = pathname.startsWith('/conversations');
+
+  return (
+    <AppShell
+      fullBleed={fullBleedRoutes.has(pathname)}
+      footer={!isConversations}
+    >
+      {children}
+    </AppShell>
+  );
 }

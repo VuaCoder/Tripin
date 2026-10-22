@@ -9,6 +9,8 @@ import { useAppSelector } from '@/store/hooks';
 import { selectUser, selectIsAuthenticated } from '@/features/auth';
 import sidebarStyles from '@/features/agency/components/AgencySidebar.module.css';
 
+import { usePathname } from 'next/navigation';
+
 export interface AppShellProps {
   children: ReactNode;
   role?: AppRole;
@@ -26,6 +28,8 @@ export function AppShell({
   className = '',
   fullBleed = false,
 }: AppShellProps) {
+  const pathname = usePathname();
+  const isConversations = pathname?.startsWith('/conversations');
   const user = useAppSelector(selectUser);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const effectiveRole: AppRole = role || (isAuthenticated && user?.role ? (user.role as AppRole) : 'PUBLIC');
@@ -38,7 +42,7 @@ export function AppShell({
         {fullBleed ? (
           children
         ) : (
-          <Container className="flex-1 py-6 sm:py-8">
+          <Container className={`flex-1 ${isConversations ? 'py-3 sm:py-4 flex flex-col min-h-0' : 'py-6 sm:py-8'}`}>
             {children}
           </Container>
         )}

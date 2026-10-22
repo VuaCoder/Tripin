@@ -104,4 +104,35 @@ export interface ModerationReportDto extends ReportBaseDto {
     hiddenReason?: string;
     authorName?: string;
   };
+  relatedTicket?: RelatedTicketDto;
+  directChat?: DirectChatDto;
 }
+
+export interface ReportConversationMessage {
+  id: string;
+  senderRole: string;
+  senderName?: string;
+  text: string;
+  attachments?: string[];
+  createdAt: string;
+}
+
+export interface RelatedTicketDto {
+  id: string;
+  ticketCode: string;
+  status: string;
+  subject: string;
+  messages: ReportConversationMessage[];
+}
+
+export interface DirectChatDto {
+  id: string;
+  messages: {
+    id: string;
+    senderId: string;
+    senderName?: string;
+    text: string;
+    createdAt: string;
+  }[];
+}
+

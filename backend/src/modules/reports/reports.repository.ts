@@ -115,6 +115,68 @@ export class ReportsRepository {
     return rows.map((row) => ({ status: row.status, count: row._count._all }));
   }
 
+  async findRelatedTicket(reporterId: string, tourId?: string | null, agencyId?: string | null, bookingId?: string | null) {
+    const conditions: Prisma.ComplaintTicketWhereInput[] = [];
+    if (tourId) conditions.push({ tourId });
+    if (bookingId) conditions.push({ bookingId });
+    if (agencyId) conditions.push({ agencyId });
+    if (conditions.length === 0) return null;
+
+    return prisma.complaintTicket.findFirst({
+      where: {
+        travelerId: reporterId,
+        OR: conditions,
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        messages: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+  }
+
+  async findDirectChat(userId1: string, userId2: string) {
+    return prisma.conversation.findFirst({
+      where: {
+        OR: [
+          { travelerId: userId1, guideId: userId2 },
+          { travelerId: userId2, guideId: userId1 },
+        ],
+      },
+      include: {
+        messages: {
+          orderBy: { createdAt: 'asc' },
+          take: 30,
+        },
+      },
+    });
+  }
+
+  async closeRelatedTicket(ticketId: string, moderatorId: string, decision: string, note: string) {
+    const closed = await prisma.complaintTicket.update({
+      where: { id: ticketId },
+      data: {
+        status: 'CLOSED',
+        moderatorDecision: `${decision}: ${note}`,
+        closedAt: new Date(),
+        lastMessageAt: new Date(),
+      },
+    });
+
+    await prisma.complaintTicketMessage.create({
+      data: {
+        ticketId,
+        senderId: moderatorId,
+        senderRole: 'MODERATOR',
+        text: `[Quyết định Ban Kiểm Duyệt Sàn] Phán quyết: ${decision}. Ghi chú: ${note}. Phiếu khiếu nại chính thức đóng lại.`,
+        attachments: [],
+      },
+    });
+
+    return closed;
+  }
+
   private async paginate(where: Prisma.ReportWhereInput, orderBy: Prisma.ReportOrderByWithRelationInput[], page: PageRequest) {
     const [rows, total] = await Promise.all([
       prisma.report.findMany({ where, orderBy, skip: toSkip(page), take: page.limit }),
