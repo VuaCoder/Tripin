@@ -163,6 +163,7 @@ export class ToursRepository {
   async searchPublic(query: SearchToursQuery): Promise<{ items: TourRecord[]; total: number }> {
     const where: Prisma.TourWhereInput = { status: TOUR_STATUS.APPROVED };
     const and: Prisma.TourWhereInput[] = [];
+    if (query.agencyId) and.push({ agencyId: query.agencyId });
     if (query.q) and.push({ OR: [{ title: containsText(query.q) }, { destination: containsText(query.q) }, { summary: containsText(query.q) }] });
     if (query.destination) and.push({ destination: containsText(query.destination) });
     if (query.categoryId) and.push({ categories: { some: { id: query.categoryId } } });

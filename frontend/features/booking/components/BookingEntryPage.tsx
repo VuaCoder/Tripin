@@ -12,7 +12,9 @@ import { useGetTourQuery } from '@/features/tours';
 import { useAppSelector } from '@/store/hooks';
 import { useCreateBookingMutation, useGetAvailablePromotionsQuery, useLazyPreviewPromotionQuery, useGetMyVouchersQuery } from '../api/bookingApi';
 import type { PromotionPreview } from '../types';
-import { Building2, CheckCircle2, Sparkles, Tag, Ticket, X } from 'lucide-react';
+import { Building2, CheckCircle2, ChevronRight, Sparkles, Tag, Ticket, TicketPercent, X } from 'lucide-react';
+import { handlePromotionCodeChange, handlePromotionCodeKeyDown } from '@/features/promotions/codeHelper';
+import { ShopeePromotionModal } from './ShopeePromotionModal';
 
 const PHONE_PATTERN = /^\+?[0-9 ().-]{6,20}$/;
 const PROMOTION_CODE_PATTERN = /^[A-Z0-9_-]{3,30}$/;
@@ -87,6 +89,8 @@ export function BookingEntryPage() {
   const [platformPromotionPreview, setPlatformPromotionPreview] = useState<PromotionPreview | null>(null);
   const [platformPromotionError, setPlatformPromotionError] = useState<string | null>(null);
 
+  const [voucherModalOpen, setVoucherModalOpen] = useState(false);
+
   const [participants, setParticipants] = useState(
     Number.isFinite(participantsParam) && participantsParam > 0 ? participantsParam : 1,
   );
@@ -94,6 +98,35 @@ export function BookingEntryPage() {
   const [children, setChildren] = useState(() => Math.max(0, Number(params.get('children')) || 0));
   const [infants, setInfants] = useState(() => Math.max(0, Number(params.get('infants')) || 0));
   const clientRequestId = useRef(retryKey());
+
+  const myAgencyVouchers = useMemo(() => {
+    if (!myVouchers) return [];
+    const now = Date.now();
+    return myVouchers.filter((v) => {
+      if (v.isUsed || !v.promotion || !v.promotion.code) return false;
+      const promo = v.promotion;
+      if (!promo.isActive) return false;
+      if (new Date(promo.endsAt).getTime() <= now) return false;
+      if (promo.scope !== 'AGENCY') return false;
+      if (promo.ownerId && tour?.agencyId && promo.ownerId !== tour.agencyId) return false;
+      if (promo.targetTourIds?.length && !promo.targetTourIds.includes(tourId)) return false;
+      return true;
+    });
+  }, [myVouchers, tour?.agencyId, tourId]);
+
+  const myPlatformVouchers = useMemo(() => {
+    if (!myVouchers) return [];
+    const now = Date.now();
+    return myVouchers.filter((v) => {
+      if (v.isUsed || !v.promotion || !v.promotion.code) return false;
+      const promo = v.promotion;
+      if (!promo.isActive) return false;
+      if (new Date(promo.endsAt).getTime() <= now) return false;
+      if (promo.scope !== 'PLATFORM') return false;
+      if (promo.targetTourIds?.length && !promo.targetTourIds.includes(tourId)) return false;
+      return true;
+    });
+  }, [myVouchers, tourId]);
 
   useEffect(() => {
     if (user?.fullName && !fullName) setFullName(user.fullName);
@@ -144,6 +177,7 @@ export function BookingEntryPage() {
         setAgencyPromotionError('Mã giảm giá khiến tổng thanh toán không hợp lệ.');
         return false;
       }
+      setAgencyPromotionCode(code);
       setAgencyPromotionPreview(preview);
       setAgencyPromotionError(null);
       return true;
@@ -179,6 +213,7 @@ export function BookingEntryPage() {
         setPlatformPromotionError('Mã giảm giá khiến tổng thanh toán không hợp lệ.');
         return false;
       }
+      setPlatformPromotionCode(code);
       setPlatformPromotionPreview(preview);
       setPlatformPromotionError(null);
       return true;
@@ -186,6 +221,39 @@ export function BookingEntryPage() {
       setPlatformPromotionPreview(null);
       setPlatformPromotionError(bookingErrorMessage(error, 'Không thể áp dụng mã ưu đãi của sàn Tripin này.'));
       return false;
+    }
+  };
+
+  const handleApplyDirectCode = async (code: string): Promise<{ success: boolean; message?: string }> => {
+    const cleanCode = code.trim().toUpperCase();
+    if (!cleanCode) return { success: false, message: 'Vui lòng nhập mã voucher.' };
+    if (!PROMOTION_CODE_PATTERN.test(cleanCode)) {
+      return { success: false, message: 'Mã gồm 3–30 ký tự: chữ cái, số, dấu gạch ngang hoặc gạch dưới.' };
+    }
+
+    try {
+      const preview = await previewPromotion({ code: cleanCode, tourId, subtotal }).unwrap();
+      if (preview.scope === 'AGENCY') {
+        if (preview.finalAmount < 1) {
+          return { success: false, message: 'Mã giảm giá khiến tổng thanh toán không hợp lệ.' };
+        }
+        setAgencyPromotionCode(cleanCode);
+        setAgencyPromotionPreview(preview);
+        setAgencyPromotionError(null);
+        return { success: true, message: `Đã áp dụng mã nhà cung cấp ${cleanCode} (-${formatVnd(preview.discountAmount)})` };
+      } else {
+        const orderSubtotal = Math.max(0, subtotal - (agencyPromotionPreview?.discountAmount ?? 0));
+        const platformPreview = await previewPromotion({ code: cleanCode, tourId, subtotal: orderSubtotal }).unwrap();
+        if (platformPreview.finalAmount < 1) {
+          return { success: false, message: 'Mã giảm giá khiến tổng thanh toán không hợp lệ.' };
+        }
+        setPlatformPromotionCode(cleanCode);
+        setPlatformPromotionPreview(platformPreview);
+        setPlatformPromotionError(null);
+        return { success: true, message: `Đã áp dụng mã toàn sàn Tripin ${cleanCode} (-${formatVnd(platformPreview.discountAmount)})` };
+      }
+    } catch (error) {
+      return { success: false, message: bookingErrorMessage(error, 'Không thể áp dụng mã ưu đãi này.') };
     }
   };
 
@@ -369,258 +437,112 @@ export function BookingEntryPage() {
           </FormField>
         )}
 
-        {/* ================= KHUYẾN MÃI (CHIA 2 PHẦN: NHÀ CUNG CẤP & NỀN TẢNG) ================= */}
-        <div className="space-y-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 sm:p-5">
-          <div className="flex items-center gap-2">
-            <Ticket className="h-5 w-5 text-brand-teal" />
-            <h2 className="text-sm font-bold text-slate-900">Mã giảm giá chuyến đi</h2>
-          </div>
-          <p className="text-xs text-slate-500">
-            Bạn có thể áp dụng đồng thời mã ưu đãi của Nhà cung cấp tour và mã ưu đãi của Nền tảng Tripin.
-          </p>
-
-          {/* 1. KHUYẾN MÃI TỪ NHÀ CUNG CẤP */}
-          <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs transition">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-                <Building2 className="h-4 w-4 text-indigo-600" />
-                Khuyến mãi từ Nhà cung cấp
-              </span>
-              <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
-                Đại lý tour
-              </span>
+        {/* ================= TRIPIN VOUCHER BAR (SHOPEE STYLE) ================= */}
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-4.5 shadow-xs transition hover:border-slate-300">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setVoucherModalOpen(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setVoucherModalOpen(true);
+              }
+            }}
+            className="flex items-center justify-between gap-3 cursor-pointer group"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-brand-teal ring-1 ring-teal-500/20 group-hover:bg-brand-teal group-hover:text-white transition-colors">
+                <TicketPercent className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-slate-900">Tripin Voucher</span>
+                  {(agencyPromotionPreview || platformPromotionPreview) && (
+                    <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-teal-800">
+                      Đã áp dụng {(agencyPromotionPreview ? 1 : 0) + (platformPromotionPreview ? 1 : 0)} mã
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 truncate mt-0.5">
+                  {totalDiscount > 0
+                    ? `Tiết kiệm ${formatVnd(totalDiscount)} cho chuyến đi`
+                    : 'Chọn hoặc nhập mã giảm giá nhà cung cấp & nền tảng'}
+                </p>
+              </div>
             </div>
 
-            {agencyPromotionPreview ? (
-              <div className="flex items-center justify-between rounded-lg border border-indigo-200 bg-indigo-50/80 p-2.5 text-xs">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-indigo-600 shrink-0" />
-                  <div>
-                    <span className="font-bold text-indigo-950">{agencyPromotionPreview.code}</span>
-                    <span className="ml-2 font-semibold text-indigo-700">
-                      - {formatVnd(agencyPromotionPreview.discountAmount)}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={clearAgencyPromotion}
-                  className="rounded p-1 text-slate-400 hover:bg-indigo-100 hover:text-red-600 transition"
-                  title="Gỡ mã"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <Input
-                    id="booking-agency-promotion"
-                    value={agencyPromotionCode}
-                    onChange={(e) => {
-                      setAgencyPromotionCode(e.target.value.toUpperCase());
-                      setAgencyPromotionError(null);
-                    }}
-                    placeholder="VD: AGENCY10"
-                    maxLength={30}
-                    autoComplete="off"
-                    invalid={Boolean(agencyPromotionError)}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void checkAgencyPromotion()}
-                    loading={isPreviewingPromotion}
-                  >
-                    Áp dụng
-                  </Button>
-                </div>
-                {agencyPromotionError && (
-                  <p className="text-xs text-red-600">{agencyPromotionError}</p>
-                )}
-
-                {/* Gợi ý ưu đãi tự động từ Agency */}
-                {availablePromos?.autoAgency && !agencyPromotionPreview && (
-                  <div className="flex items-center justify-between rounded-lg border border-dashed border-indigo-300 bg-indigo-50/60 p-2.5 text-xs">
-                    <div>
-                      <span className="font-bold text-indigo-950">⚡ {availablePromos.autoAgency.title}</span>
-                      <p className="text-[11px] text-slate-500">
-                        Giảm {availablePromos.autoAgency.discountType === 'PERCENT' ? `${availablePromos.autoAgency.discountValue}%` : formatVnd(availablePromos.autoAgency.discountValue)}
-                      </p>
-                    </div>
-                    {availablePromos.autoAgency.code && (
-                      <button
-                        type="button"
-                        onClick={() => applyQuickAgencyCode(availablePromos.autoAgency!.code!)}
-                        className="rounded-lg bg-indigo-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-indigo-700 transition"
-                      >
-                        Áp dụng
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {availablePromos?.agency && availablePromos.agency.length > 0 && (
-                  <div className="pt-1">
-                    <p className="text-[11px] font-medium text-slate-500 mb-1.5">Mã khả dụng của tour này:</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {availablePromos.agency.filter((p) => Boolean(p.code)).map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => applyQuickAgencyCode(p.code!)}
-                          className="inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50/50 px-2 py-1 text-[11px] font-medium text-indigo-800 transition hover:bg-indigo-100"
-                        >
-                          <Tag className="h-3 w-3 text-indigo-600" />
-                          <span>{p.code}</span>
-                          <span className="text-slate-500">
-                            ({p.discountType === 'PERCENT' ? `-${p.discountValue}%` : `-${formatVnd(p.discountValue)}`})
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* 2. KHUYẾN MÃI TỪ NỀN TẢNG TRIPIN */}
-          <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs transition">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-                <Sparkles className="h-4 w-4 text-brand-teal" />
-                Khuyến mãi từ Nền tảng Tripin
-              </span>
-              <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-800">
-                Toàn sàn
-              </span>
+            <div className="flex shrink-0 items-center gap-1 text-xs font-bold text-brand-teal group-hover:text-teal-700 transition">
+              <span>{agencyPromotionPreview || platformPromotionPreview ? 'Thay đổi' : 'Chọn hoặc nhập mã'}</span>
+              <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
             </div>
-
-            {platformPromotionPreview ? (
-              <div className="flex items-center justify-between rounded-lg border border-teal-200 bg-teal-50/80 p-2.5 text-xs">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-brand-teal shrink-0" />
-                  <div>
-                    <span className="font-bold text-teal-950">{platformPromotionPreview.code}</span>
-                    <span className="ml-2 font-semibold text-brand-teal">
-                      - {formatVnd(platformPromotionPreview.discountAmount)}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={clearPlatformPromotion}
-                  className="rounded p-1 text-slate-400 hover:bg-teal-100 hover:text-red-600 transition"
-                  title="Gỡ mã"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <Input
-                    id="booking-platform-promotion"
-                    value={platformPromotionCode}
-                    onChange={(e) => {
-                      setPlatformPromotionCode(e.target.value.toUpperCase());
-                      setPlatformPromotionError(null);
-                    }}
-                    placeholder="VD: TRIPIN2026"
-                    maxLength={30}
-                    autoComplete="off"
-                    invalid={Boolean(platformPromotionError)}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void checkPlatformPromotion()}
-                    loading={isPreviewingPromotion}
-                  >
-                    Áp dụng
-                  </Button>
-                </div>
-                {platformPromotionError && (
-                  <p className="text-xs text-red-600">{platformPromotionError}</p>
-                )}
-
-                {/* Gợi ý ưu đãi tự động từ Tripin Platform */}
-                {availablePromos?.autoPlatform && !platformPromotionPreview && (
-                  <div className="flex items-center justify-between rounded-lg border border-dashed border-teal-300 bg-teal-50/60 p-2.5 text-xs">
-                    <div>
-                      <span className="font-bold text-teal-950">⚡ {availablePromos.autoPlatform.title}</span>
-                      <p className="text-[11px] text-slate-500">
-                        Giảm {availablePromos.autoPlatform.discountType === 'PERCENT' ? `${availablePromos.autoPlatform.discountValue}%` : formatVnd(availablePromos.autoPlatform.discountValue)}
-                      </p>
-                    </div>
-                    {availablePromos.autoPlatform.code && (
-                      <button
-                        type="button"
-                        onClick={() => applyQuickPlatformCode(availablePromos.autoPlatform!.code!)}
-                        className="rounded-lg bg-brand-teal px-2.5 py-1 text-[11px] font-bold text-white hover:bg-teal-700 transition"
-                      >
-                        Áp dụng
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Danh sách voucher thu thập trong ví của người dùng */}
-                {myVouchers && myVouchers.filter((v) => !v.isUsed && v.promotion).length > 0 && (
-                  <div className="pt-1.5 border-t border-slate-100">
-                    <p className="text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1">
-                      <Ticket className="h-3 w-3 text-brand-teal" />
-                      Voucher trong ví của bạn:
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {myVouchers.filter((v) => !v.isUsed && v.promotion).map((v) => (
-                        <button
-                          key={v.id}
-                          type="button"
-                          onClick={() => {
-                            if (v.promotion?.code) {
-                              applyQuickPlatformCode(v.promotion.code);
-                            }
-                          }}
-                          className="inline-flex items-center gap-1 rounded-md border border-violet-200 bg-violet-50/60 px-2 py-1 text-[11px] font-medium text-violet-900 transition hover:bg-violet-100"
-                        >
-                          <Sparkles className="h-3 w-3 text-violet-600" />
-                          <span>{v.promotion!.title}</span>
-                          <span className="font-bold text-violet-700">
-                            ({v.promotion!.discountType === 'PERCENT' ? `-${v.promotion!.discountValue}%` : `-${formatVnd(v.promotion!.discountValue)}`})
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {availablePromos?.platform && availablePromos.platform.length > 0 && (
-                  <div className="pt-1">
-                    <p className="text-[11px] font-medium text-slate-500 mb-1.5">Mã toàn sàn Tripin khả dụng:</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {availablePromos.platform.filter((p) => Boolean(p.code)).map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => applyQuickPlatformCode(p.code!)}
-                          className="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50/50 px-2 py-1 text-[11px] font-medium text-teal-900 transition hover:bg-teal-100"
-                        >
-                          <Tag className="h-3 w-3 text-brand-teal" />
-                          <span>{p.code}</span>
-                          <span className="text-slate-500">
-                            ({p.discountType === 'PERCENT' ? `-${p.discountValue}%` : `-${formatVnd(p.discountValue)}`})
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
+
+          {/* Applied voucher chips with direct remove button */}
+          {(agencyPromotionPreview || platformPromotionPreview) && (
+            <div className="mt-3.5 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+              {agencyPromotionPreview && (
+                <div className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50/70 py-1 pl-2.5 pr-1.5 text-xs">
+                  <Building2 className="size-3.5 text-indigo-600" />
+                  <span className="font-bold text-indigo-900">{agencyPromotionPreview.code}</span>
+                  <span className="font-semibold text-indigo-700">(-{formatVnd(agencyPromotionPreview.discountAmount)})</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearAgencyPromotion();
+                    }}
+                    className="ml-1 rounded p-0.5 text-slate-400 hover:bg-indigo-100 hover:text-red-600 transition"
+                    title="Bỏ chọn mã"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {platformPromotionPreview && (
+                <div className="inline-flex items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50/70 py-1 pl-2.5 pr-1.5 text-xs">
+                  <Sparkles className="size-3.5 text-brand-teal" />
+                  <span className="font-bold text-teal-900">{platformPromotionPreview.code}</span>
+                  <span className="font-semibold text-teal-700">(-{formatVnd(platformPromotionPreview.discountAmount)})</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearPlatformPromotion();
+                    }}
+                    className="ml-1 rounded p-0.5 text-slate-400 hover:bg-teal-100 hover:text-red-600 transition"
+                    title="Bỏ chọn mã"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
+
+        {/* Shopee Voucher Selection & Search Modal */}
+        <ShopeePromotionModal
+          open={voucherModalOpen}
+          onClose={() => setVoucherModalOpen(false)}
+          subtotal={subtotal}
+          agencyPromotionCode={agencyPromotionCode}
+          agencyPromotionPreview={agencyPromotionPreview}
+          agencyPromotionError={agencyPromotionError}
+          onApplyAgencyCode={async (code) => checkAgencyPromotion(code, subtotal)}
+          onClearAgencyCode={clearAgencyPromotion}
+          platformPromotionCode={platformPromotionCode}
+          platformPromotionPreview={platformPromotionPreview}
+          platformPromotionError={platformPromotionError}
+          onApplyPlatformCode={async (code) => checkPlatformPromotion(code, subtotal)}
+          onClearPlatformCode={clearPlatformPromotion}
+          onApplyDirectCode={handleApplyDirectCode}
+          availablePromos={availablePromos}
+          myAgencyVouchers={myAgencyVouchers}
+          myPlatformVouchers={myPlatformVouchers}
+          isPreviewing={isPreviewingPromotion}
+        />
 
         <FormField label="Ghi chú" htmlFor="booking-notes" hint="Không bắt buộc">
           <textarea id="booking-notes" value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} maxLength={500} placeholder="Yêu cầu đặc biệt cho chuyến đi..." className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/20" />

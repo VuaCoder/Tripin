@@ -23,6 +23,7 @@ export interface PromotionDto {
   usageLimitPerUser: number;
   usedCount: number;
   isActive: boolean;
+  isArchived: boolean;
   /** Derived: active and inside its validity window right now. */
   isRunning: boolean;
 }
@@ -45,6 +46,7 @@ export interface CreatePromotionInput {
   endsAt: Date;
   usageLimit?: number;
   usageLimitPerUser?: number;
+  isArchived?: boolean;
 }
 
 /** `code` and `discountType` are immutable; `discountValue` is locked once the promotion has been used. */
@@ -63,17 +65,20 @@ export interface UpdatePromotionInput {
   usageLimit?: number;
   usageLimitPerUser?: number;
   isActive?: boolean;
+  isArchived?: boolean;
 }
 
 export interface ListPromotionsQuery {
   q?: string;
   discountType?: DiscountType;
   applyType?: PromotionApplyType;
+  codeType?: PromotionCodeType;
   from?: Date;
   to?: Date;
   page: number;
   limit: number;
   isActive?: boolean;
+  isArchived?: boolean;
 }
 
 /** Result of validating a code against an order (what a booking stores as a snapshot). */

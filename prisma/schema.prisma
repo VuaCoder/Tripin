@@ -32,6 +32,7 @@ model User {
   bannedAt         DateTime?
   bannedById       String?    @db.Uuid
   banReason        String?
+  preferences      Json?
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
@@ -386,6 +387,7 @@ model Promotion {
   usageLimitPerUser Int                @default(1)
   usedCount         Int                @default(0)
   isActive          Boolean            @default(true)
+  isArchived        Boolean            @default(false)
   createdById       String             @db.Uuid
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
@@ -395,6 +397,7 @@ model Promotion {
 
   @@index([scope, ownerId, createdAt(sort: Desc)])
   @@index([applyType, isActive])
+  @@index([isArchived])
 }
 
 model PromotionCodeInstance {
@@ -751,6 +754,9 @@ enum NotificationType {
   CHAT_MESSAGE
   SUBSCRIPTION_ACTIVATED
   EARNING_RECORDED
+  VOUCHER_COLLECTED
+  VOUCHER_EXPIRING_SOON
+  VOUCHER_EXPIRING_URGENT
 }
 
 enum ReportTarget {

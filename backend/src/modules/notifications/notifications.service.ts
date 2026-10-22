@@ -21,7 +21,7 @@ export class NotificationsService {
   constructor(
     private readonly notifications: Pick<
       NotificationsRepository,
-      'create' | 'insertMany' | 'findOwned' | 'list' | 'countUnread' | 'markRead' | 'markAllRead' | 'deleteCreatedBefore' | 'deleteOwned'
+      'create' | 'insertMany' | 'findOwned' | 'list' | 'countUnread' | 'markRead' | 'markAllRead' | 'deleteCreatedBefore' | 'deleteOwned' | 'hasRecentVoucherAlert'
     > = notificationsRepository,
     private readonly users: Pick<UsersService, 'getContact'> = usersService,
     private readonly mail: MailProvider = mailProvider,
@@ -52,6 +52,10 @@ export class NotificationsService {
     } catch (error) {
       logger.error(`Notification failed (${input.type})`, { message: (error as Error).message });
     }
+  }
+
+  hasRecentVoucherAlert(userId: string, voucherId: string, since: Date): Promise<boolean> {
+    return this.notifications.hasRecentVoucherAlert(userId, voucherId, since);
   }
 
   /** Retention (periodic job): deletes notifications older than `retentionDays`. Returns how many were removed. */

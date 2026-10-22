@@ -37,6 +37,7 @@ export interface AgencyPromotion {
   usageLimitPerUser?: number;
   usedCount: number;
   isActive: boolean;
+  isArchived: boolean;
   /** Derived by the backend: active and inside its validity window right now. */
   isRunning: boolean;
 }
@@ -63,11 +64,14 @@ export interface PromotionApiResponse<T> {
 export interface ListPromotionsArgs {
   q?: string;
   discountType?: DiscountType;
+  applyType?: PromotionApplyType;
+  codeType?: PromotionCodeType;
   from?: string;
   to?: string;
   page?: number;
   limit?: number;
   isActive?: boolean;
+  isArchived?: boolean;
 }
 
 export interface CreatePromotionInput {
@@ -88,6 +92,7 @@ export interface CreatePromotionInput {
   endsAt: string;
   usageLimit?: number;
   usageLimitPerUser?: number;
+  isArchived?: boolean;
 }
 
 /** `code` and `discountType` are immutable; `discountValue` is locked once `usedCount > 0`. */
@@ -108,5 +113,6 @@ export interface UpdatePromotionInput {
     usageLimit: number;
     usageLimitPerUser: number;
     isActive: boolean;
+    isArchived: boolean;
   }>;
 }

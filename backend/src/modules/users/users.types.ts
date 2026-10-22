@@ -123,3 +123,27 @@ export const USER_STATUS_TRANSITIONS: TransitionMap<UserStatus> = {
   [U.ACTIVE]: [U.BANNED],
   [U.BANNED]: [U.ACTIVE],
 };
+
+export interface FreeTimeSlot {
+  id: string;
+  name: string;
+  start: string;
+  end: string;
+  enabled: boolean;
+}
+
+export interface UserPreferencesDto {
+  freeTimeSlots: FreeTimeSlot[];
+  voucherExpiryAlerts: boolean;
+  emailAlerts: boolean;
+}
+
+export const DEFAULT_USER_PREFERENCES: UserPreferencesDto = {
+  freeTimeSlots: [
+    { id: 'slot_1', name: 'Nghỉ trưa', start: '11:45', end: '13:00', enabled: true },
+    { id: 'slot_2', name: 'Buổi tối', start: '19:30', end: '21:30', enabled: true },
+  ],
+  voucherExpiryAlerts: true,
+  emailAlerts: false,
+};
+

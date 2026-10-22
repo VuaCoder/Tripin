@@ -9,6 +9,8 @@ import { ReviewCard } from '@/features/review/components/ReviewCard';
 import { initialsOf } from '@/features/review/components/ReviewCard';
 import type { ReviewSort } from '@/features/review/types';
 import { useGetPublicProfileQuery, useGetProfileReviewsQuery, type ProfileKind } from './api';
+import { AgencyVouchersSection } from './components/AgencyVouchersSection';
+import { AgencyToursSection } from './components/AgencyToursSection';
 
 export function safeWebsite(value?: string): string | undefined {
   try {
@@ -88,6 +90,12 @@ export function PublicProfilePage({ kind }: { kind: ProfileKind }) {
         </>}
       </aside>
     </div>
+    {kind === 'agency' && (
+      <>
+        <AgencyVouchersSection agencyId={id} agencyName={name} />
+        <AgencyToursSection agencyId={id} agencyName={name} />
+      </>
+    )}
     <PublicReviews key={`${kind}-${id}`} kind={kind} id={id} />
   </div>;
 }

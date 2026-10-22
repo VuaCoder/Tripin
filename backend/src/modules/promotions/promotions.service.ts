@@ -1,8 +1,12 @@
 import { DISCOUNT_TYPE, PROMOTION_APPLY_TYPE, PROMOTION_CODE_TYPE, PROMOTION_SCOPE, type PersistedRole, type PromotionScope } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
+import { prisma } from '../../config/database';
 import { buildPage, type Page, type PageRequest } from '../../utils/pagination';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
 import { toursService, type ToursService } from '../tours';
+import { notificationsService, type NotificationsService, NOTIFICATION_TYPE } from '../notifications';
+import { usersService, type UsersService } from '../users';
+import type { FreeTimeSlot } from '../users/users.types';
 import type { PromotionCodeInstanceRecord, PromotionRecord, UserVoucherRecord } from './promotions.repository';
 import { toPromotionDto } from './promotions.mapper';
 import { assertApplicable, computeDiscount, isApplicable } from './promotions.policy';
@@ -34,6 +38,7 @@ type Repo = Pick<
   | 'collectUserVoucher'
   | 'listUserVouchers'
   | 'countUserUsages'
+  | 'findExpiringUserVouchers'
 >;
 
 export class PromotionsService {
@@ -41,6 +46,8 @@ export class PromotionsService {
     private readonly promotions: Repo = promotionsRepository,
     private readonly tours: Pick<ToursService, 'getTourFacts'> = toursService,
     private readonly audit: Pick<AuditService, 'record'> = auditService,
+    private readonly notifications: Pick<NotificationsService, 'notify' | 'hasRecentVoucherAlert'> = notificationsService,
+    private readonly users: Pick<UsersService, 'getPreferences'> = usersService,
   ) {}
 
   // ------------------------------------------------ Agency: Upload promotions
@@ -130,6 +137,12 @@ export class PromotionsService {
       throw AppError.badRequest('This promotion is not a collectable voucher');
     }
     const record = await this.promotions.collectUserVoucher(userId, promotionId);
+    await this.notifications.notify(userId, {
+      type: NOTIFICATION_TYPE.VOUCHER_COLLECTED,
+      title: 'Đã lưu voucher vào ví',
+      body: `Voucher "${promotion.title}" đã được lưu vào ví ưu đãi của bạn.`,
+      data: { promotionId: promotion.id, voucherId: record.id },
+    }).catch(() => undefined);
     return {
       id: record.id,
       userId: record.userId,
@@ -140,6 +153,104 @@ export class PromotionsService {
       bookingId: record.bookingId ?? undefined,
       promotion: record.promotion ? toPromotionDto(record.promotion) : undefined,
     };
+  }
+
+  /**
+   * Sweeps vouchers expiring within the next 48 hours.
+   * Dispatches notifications to users whose current local time matches their free-time slots,
+   * or triggers urgent alerts if less than 3 hours remain.
+   */
+  async sweepExpiringVouchers(now = new Date()): Promise<number> {
+    const expiring = await this.promotions.findExpiringUserVouchers(48, now);
+    if (!expiring.length) return 0;
+
+    let dispatchedCount = 0;
+
+    for (const voucher of expiring) {
+      if (!voucher.promotion) continue;
+      const { userId, promotion } = voucher;
+
+      try {
+        const preferences = await this.users.getPreferences(userId);
+        if (preferences.voucherExpiryAlerts === false) continue;
+
+        const remainingMs = promotion.endsAt.getTime() - now.getTime();
+        const remainingHours = remainingMs / (1000 * 60 * 60);
+        if (remainingHours <= 0) continue;
+
+        const isUrgent = remainingHours <= 3;
+        const isInFreeTimeSlot = this.isTimeInFreeSlots(preferences.freeTimeSlots, now);
+
+        // If not urgent and not in free-time slot, skip until their next leisure slot
+        if (!isUrgent && !isInFreeTimeSlot) {
+          continue;
+        }
+
+        const notifType = isUrgent
+          ? NOTIFICATION_TYPE.VOUCHER_EXPIRING_URGENT
+          : NOTIFICATION_TYPE.VOUCHER_EXPIRING_SOON;
+
+        // Idempotency: check if we already notified this user for this voucher recently (within 12h)
+        const alreadySent = await this.notifications.hasRecentVoucherAlert(
+          userId,
+          voucher.id,
+          new Date(now.getTime() - 12 * 60 * 60 * 1000),
+        );
+        if (alreadySent) continue;
+
+        const discountText =
+          promotion.discountType === 'PERCENT'
+            ? `${promotion.discountValue}%`
+            : `${(promotion.discountValue / 1000).toLocaleString('vi-VN')}k`;
+
+        const title = isUrgent
+          ? `Cơ hội cuối! Voucher giảm ${discountText} sắp hết hạn`
+          : `Ưu đãi giờ rảnh: Voucher giảm ${discountText} sắp hết hạn`;
+
+        const body = isUrgent
+          ? `Voucher "${promotion.title}" chỉ còn chưa đầy 3 giờ hiệu lực. Đặt tour ngay trước khi voucher hết hạn!`
+          : `Voucher "${promotion.title}" sắp hết hạn sau ${Math.round(remainingHours)} giờ. Tranh thủ giờ rảnh lên kế hoạch và áp dụng ngay nhé!`;
+
+        await this.notifications.notify(
+          userId,
+          {
+            type: notifType,
+            title,
+            body,
+            data: {
+              voucherId: voucher.id,
+              promotionId: promotion.id,
+              endsAt: promotion.endsAt.toISOString(),
+            },
+          },
+          { email: preferences.emailAlerts },
+        );
+
+        dispatchedCount++;
+      } catch (err) {
+        // Individual notification failure never breaks the sweep loop
+      }
+    }
+
+    return dispatchedCount;
+  }
+
+  private isTimeInFreeSlots(slots: FreeTimeSlot[], now: Date): boolean {
+    if (!slots || !slots.length) return false;
+    // Vietnam is UTC+7
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const vnTime = new Date(utc + 7 * 3600000);
+    const currentMinutes = vnTime.getHours() * 60 + vnTime.getMinutes();
+
+    return slots.some((slot) => {
+      if (!slot.enabled) return false;
+      const [startH, startM] = slot.start.split(':').map(Number);
+      const [endH, endM] = slot.end.split(':').map(Number);
+      if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) return false;
+      const startMin = startH * 60 + startM;
+      const endMin = endH * 60 + endM;
+      return currentMinutes >= startMin && currentMinutes <= endMin;
+    });
   }
 
   async listUserVouchers(userId: string): Promise<UserVoucherDto[]> {
@@ -242,6 +353,31 @@ export class PromotionsService {
     return this.promotions.release(promotionId);
   }
 
+  /** Returns active promotions publicly displayed for an agency storefront (collectable, codes). */
+  async listPublicAgencyPromotions(agencyId: string): Promise<PromotionDto[]> {
+    const now = new Date();
+    const res = await this.promotions.list(
+      {
+        scope: PROMOTION_SCOPE.AGENCY,
+        ownerId: agencyId,
+        isActive: true,
+        isArchived: false,
+      },
+      { page: 1, limit: 50 },
+    );
+    return res.items
+      .filter(
+        (p) =>
+          p.isActive &&
+          !p.isArchived &&
+          p.startsAt <= now &&
+          now <= p.endsAt &&
+          (p.usageLimit == null || p.usedCount < p.usageLimit) &&
+          p.codeType !== PROMOTION_CODE_TYPE.UNIQUE_BATCH,
+      )
+      .map(toPromotionDto);
+  }
+
   /** Returns active promotions for a tour (code, auto, collectable). */
   async listAvailableForTour(
     tourId: string,
@@ -256,11 +392,19 @@ export class PromotionsService {
     if (!tour) throw AppError.notFound('Tour not found');
     const now = new Date();
     const [platformRes, agencyRes] = await Promise.all([
-      this.promotions.list({ scope: PROMOTION_SCOPE.PLATFORM, isActive: true }, { page: 1, limit: 50 }),
-      this.promotions.list({ scope: PROMOTION_SCOPE.AGENCY, ownerId: tour.agencyId, isActive: true }, { page: 1, limit: 50 }),
+      this.promotions.list({ scope: PROMOTION_SCOPE.PLATFORM, isActive: true, isArchived: false }, { page: 1, limit: 50 }),
+      this.promotions.list({ scope: PROMOTION_SCOPE.AGENCY, ownerId: tour.agencyId, isActive: true, isArchived: false }, { page: 1, limit: 50 }),
     ]);
     const filterValid = (items: PromotionRecord[]) =>
-      items.filter((p) => p.isActive && p.startsAt <= now && now <= p.endsAt && (p.usageLimit == null || p.usedCount < p.usageLimit));
+      items.filter(
+        (p) =>
+          p.isActive &&
+          !p.isArchived &&
+          p.startsAt <= now &&
+          now <= p.endsAt &&
+          (p.usageLimit == null || p.usedCount < p.usageLimit) &&
+          p.codeType !== PROMOTION_CODE_TYPE.UNIQUE_BATCH,
+      );
 
     const validPlatform = filterValid(platformRes.items);
     const validAgency = filterValid(agencyRes.items);
@@ -373,7 +517,12 @@ export class PromotionsService {
       input.endsAt ?? current.endsAt,
     );
 
-    const updated = await this.promotions.updateById(id, { ...input });
+    const patchData: UpdatePromotionInput = { ...input };
+    if (patchData.isArchived === true && patchData.isActive === undefined) {
+      patchData.isActive = false;
+    }
+
+    const updated = await this.promotions.updateById(id, patchData);
     await this.auditPlatform(scope, actor, id, { change: 'updated', fields: Object.keys(input) });
     return toPromotionDto(updated ?? current);
   }
@@ -382,8 +531,18 @@ export class PromotionsService {
     filter: { scope: PromotionScope; ownerId?: string },
     query: ListPromotionsQuery,
   ): Promise<Page<PromotionDto>> {
+    const isArchived = query.isArchived !== undefined ? query.isArchived : false;
     const { items, total } = await this.promotions.list(
-      { ...filter, isActive: query.isActive, q: query.q, discountType: query.discountType, applyType: query.applyType, from: query.from, to: query.to },
+      {
+        ...filter,
+        isActive: query.isActive,
+        isArchived,
+        q: query.q,
+        discountType: query.discountType,
+        applyType: query.applyType,
+        from: query.from,
+        to: query.to,
+      },
       query,
     );
     return buildPage(items.map(toPromotionDto), total, query);
@@ -406,6 +565,15 @@ export class PromotionsService {
     if (!raw) throw AppError.notFound('Promotion code not found');
     const promotion: PromotionRecord = raw.promotion ?? raw;
     const codeInstance: PromotionCodeInstanceRecord | undefined = raw.codeInstance;
+    if (promotion.isArchived) {
+      throw AppError.badRequest('Khuyến mãi này đã được lưu trữ và không còn hiệu lực.', 'PROMOTION_ARCHIVED');
+    }
+    if (promotion.codeType === PROMOTION_CODE_TYPE.UNIQUE_BATCH && !codeInstance) {
+      throw AppError.badRequest(
+        'Đây là chương trình phát hành theo lô mã riêng. Vui lòng sử dụng mã cá nhân đã được cấp.',
+        'PROMOTION_BATCH_PREFIX_NOT_USABLE',
+      );
+    }
     const tour = await this.tours.getTourFacts(tourId);
     if (!tour) throw AppError.notFound('Tour not found');
     return { promotion, agencyId: tour.agencyId, codeInstance };

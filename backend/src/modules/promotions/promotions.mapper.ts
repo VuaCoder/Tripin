@@ -27,6 +27,7 @@ export function toPromotionDto(promotion: PromotionRecord): PromotionDto {
     usageLimitPerUser: promotion.usageLimitPerUser ?? 1,
     usedCount: promotion.usedCount,
     isActive: promotion.isActive,
+    isArchived: promotion.isArchived ?? false,
     isRunning: isRunning(promotion),
   };
 }

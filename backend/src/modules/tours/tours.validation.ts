@@ -115,6 +115,7 @@ export const guideTourParams = z.object({ tourId: idSchema });
 export const searchToursQuery = paginationQuerySchema
   .extend({
     q: z.string().trim().min(1).max(100).optional(),
+    agencyId: idSchema.optional(),
     categoryId: idSchema.optional(),
     destination: z.string().trim().min(1).max(120).optional(),
     minPrice: z.coerce.number().int().min(0).optional(),

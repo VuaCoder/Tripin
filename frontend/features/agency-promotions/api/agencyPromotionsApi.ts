@@ -35,7 +35,10 @@ export const agencyPromotionsApi = baseApi.injectEndpoints({
     generateAgencyBatch: build.mutation<{ count: number; codes: string[] }, { id: string; count: number; prefix?: string }>({
       query: ({ id, count, prefix }) => ({ url: `/agency/promotions/${id}/generate-batch`, method: 'POST', body: { count, prefix } }),
       transformResponse: (response: PromotionApiResponse<{ count: number; codes: string[] }>) => response.data,
-      invalidatesTags: [{ type: 'Promotion', id: 'AGENCY_LIST' }],
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Promotion', id: 'AGENCY_LIST' },
+        { type: 'Promotion', id: `BATCH_${id}` },
+      ],
     }),
 
     getAgencyBatch: build.query<{ items: import('../types').PromotionCodeInstance[]; meta: import('../types').PromotionPageMeta }, { id: string; page?: number; limit?: number }>({
@@ -44,6 +47,7 @@ export const agencyPromotionsApi = baseApi.injectEndpoints({
         items: response.data,
         meta: response.meta ?? { page: 1, limit: response.data.length || 20, total: response.data.length, totalPages: 1 },
       }),
+      providesTags: (_result, _error, { id }) => [{ type: 'Promotion', id: `BATCH_${id}` }],
     }),
   }),
   overrideExisting: false,

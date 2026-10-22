@@ -1,14 +1,17 @@
 'use client';
 
 import { useState } from 'react';
+import { PlusCircle, Copy, Check } from 'lucide-react';
 import { Button, FormField, Input, Modal, Pagination } from '@/components/ui';
 import type { PromotionCodeInstance } from '../agency-promotions/types';
+import { handlePromotionCodeChange, handlePromotionCodeKeyDown } from './codeHelper';
 
 interface PromotionBatchModalProps {
   open: boolean;
   promotionTitle: string;
   promotionId: string;
   isGenerating: boolean;
+  isLoading?: boolean;
   codes: PromotionCodeInstance[];
   total: number;
   page: number;
@@ -21,6 +24,7 @@ export function PromotionBatchModal({
   open,
   promotionTitle,
   isGenerating,
+  isLoading,
   codes,
   total,
   page,
@@ -67,7 +71,7 @@ export function PromotionBatchModal({
       onClose={onClose}
       closeOnBackdrop={!isGenerating}
       title="Quản lý lô mã khuyến mãi (Unique Codes)"
-      className="max-h-[90vh] max-w-2xl overflow-y-auto"
+      className="max-h-[90vh] max-w-4xl overflow-y-auto sm:p-6 lg:p-7"
     >
       <div className="space-y-5">
         <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5">
@@ -87,7 +91,7 @@ export function PromotionBatchModal({
         {/* Generate batch form */}
         <form onSubmit={handleGenerate} className="rounded-2xl border border-slate-200 p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-[20px]" aria-hidden="true">add_circle</span>
+            <PlusCircle className="size-4 text-brand-teal" />
             <span className="text-sm font-bold text-slate-800">Sinh thêm mã mới</span>
           </div>
 
@@ -105,13 +109,14 @@ export function PromotionBatchModal({
               />
             </FormField>
 
-            <FormField label="Tiền tố mã (Prefix)" htmlFor="batch-prefix" hint="VD: TET2026 -> TET2026-XXXXXX">
+            <FormField label="Tiền tố mã (Prefix)" htmlFor="batch-prefix" hint="VD: TET2026 -> TET2026-XXXXXX (khoảng trắng tự chuyển thành _)">
               <Input
                 id="batch-prefix"
                 value={prefix}
                 maxLength={10}
                 disabled={isGenerating}
-                onChange={(e) => setPrefix(e.target.value.toUpperCase())}
+                onChange={(e) => handlePromotionCodeChange(e, setPrefix)}
+                onKeyDown={(e) => handlePromotionCodeKeyDown(e, setPrefix)}
                 placeholder="VD: TRIP"
               />
             </FormField>
@@ -132,15 +137,19 @@ export function PromotionBatchModal({
               <button
                 type="button"
                 onClick={copyAllUnused}
-                className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+                className="text-xs font-semibold text-brand-teal hover:underline flex items-center gap-1 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[15px]" aria-hidden="true">content_copy</span>
+                <Copy className="size-3.5" />
                 Sao chép các mã chưa dùng
               </button>
             )}
           </div>
 
-          {codes.length === 0 ? (
+          {isLoading ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-8 text-center text-sm font-medium text-slate-500 animate-pulse">
+              Đang tải danh sách mã...
+            </div>
+          ) : codes.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
               Chưa có mã nào trong lô này. Hãy nhập số lượng ở trên và nhấn "Tạo lô mã".
             </div>
@@ -177,11 +186,13 @@ export function PromotionBatchModal({
                         <button
                           type="button"
                           onClick={() => copyToClipboard(item.code)}
-                          className="rounded px-2 py-1 text-slate-600 hover:bg-slate-100 font-medium inline-flex items-center gap-1"
+                          className="rounded px-2 py-1 text-slate-600 hover:bg-slate-100 font-medium inline-flex items-center gap-1 cursor-pointer"
                         >
-                          <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
-                            {copiedCode === item.code ? 'check' : 'content_copy'}
-                          </span>
+                          {copiedCode === item.code ? (
+                            <Check className="size-3.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="size-3.5" />
+                          )}
                           {copiedCode === item.code ? 'Đã chép' : 'Sao chép'}
                         </button>
                       </td>

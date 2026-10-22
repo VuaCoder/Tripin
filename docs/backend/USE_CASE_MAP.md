@@ -35,6 +35,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | (supporting) health check | app | `GET /health` | done |
 | View public tour guide profile | users | `GET /tour-guides/:id` | done |
 | View public agency profile | users | `GET /agencies/:id` | done |
+| View public agency promotions | promotions | `GET /agencies/:id/promotions` | done |
 | View public review | reviews | `GET /reviews?tourId=` or `?agencyId=` | done |
 | (supporting) list categories | categories | `GET /categories` | done |
 | (supporting) read policies | system-settings | `GET /policies`, `GET /policies/:key` | done |
@@ -42,7 +43,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 ## Traveler
 | Use case | Module | Endpoint | Permission | Status |
 |---|---|---|---|---|
-| View profile / Update profile informations | users | `GET/PATCH /users/me` | profile:* | done |
+| View profile / Update profile informations | users | `GET/PATCH /users/me`, `GET/PATCH /users/me/preferences` | profile:* | done |
 | Upload profile avatar | users | `POST /users/me/avatar/upload-signature`, `POST /users/me/avatar/complete`, `DELETE /users/me/avatar` | profile:update-own | done |
 | Add wishlist / Remove tour from wishlist | wishlists | `GET /wishlist`, `POST /wishlist/:tourId`, `DELETE /wishlist/:tourId` | wishlist:manage | done |
 | Add tour to cart / view cart / update or remove an item (supports Book tour) | carts | `GET /cart`, `POST /cart/items`, `PATCH/DELETE /cart/items/:id` | cart:manage | done |

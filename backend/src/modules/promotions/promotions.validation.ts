@@ -30,6 +30,7 @@ export const createPromotionBody = z
     endsAt: z.coerce.date(),
     usageLimit: z.number().int().min(1).max(10_000_000).optional(),
     usageLimitPerUser: z.number().int().min(1).max(10_000).optional(),
+    isArchived: z.boolean().optional(),
   })
   .strict();
 
@@ -49,6 +50,7 @@ export const updatePromotionBody = z
     usageLimit: z.number().int().min(1).max(10_000_000),
     usageLimitPerUser: z.number().int().min(1).max(10_000),
     isActive: z.boolean(),
+    isArchived: z.boolean(),
   })
   .partial()
   .strict()
@@ -59,7 +61,12 @@ export const listPromotionsQuery = paginationQuerySchema.extend({
   q: z.string().trim().max(100).optional(),
   discountType: z.enum([DISCOUNT_TYPE.PERCENT, DISCOUNT_TYPE.FIXED]).optional(),
   applyType: z.enum([PROMOTION_APPLY_TYPE.CODE, PROMOTION_APPLY_TYPE.AUTO_APPLY, PROMOTION_APPLY_TYPE.COLLECTABLE]).optional(),
+  codeType: z.enum([PROMOTION_CODE_TYPE.SHARED, PROMOTION_CODE_TYPE.UNIQUE_BATCH]).optional(),
   isActive: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
+  isArchived: z
     .enum(['true', 'false'])
     .transform((value) => value === 'true')
     .optional(),
@@ -88,6 +95,8 @@ export const generateBatchBody = z.object({
 export const collectVoucherBody = z.object({
   promotionId: idSchema,
 });
+
+export const batchQuery = paginationQuerySchema;
 
 export const promotionIdParams = idParamsSchema;
 

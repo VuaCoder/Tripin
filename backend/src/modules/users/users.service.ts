@@ -21,12 +21,14 @@ import { usersRepository, type UserPatch, type UserRecord, type UsersRepository 
 import {
   AGENCY_VERIFICATION_TRANSITIONS,
   USER_STATUS_TRANSITIONS,
+  DEFAULT_USER_PREFERENCES,
   type AssignAccessInput,
   type ListUsersQuery,
   type PrivateUserDto,
   type PublicAgencyDto,
   type PublicGuideDto,
   type UpdateProfileInput,
+  type UserPreferencesDto,
 } from './users.types';
 
 export interface UserSummary {
@@ -55,6 +57,29 @@ export class UsersService {
   /** Use case "View profile" (Traveler / Agency / Tour guide). */
   async getMe(userId: string): Promise<PrivateUserDto> {
     return toPrivateUserDto(await this.requireUser(userId));
+  }
+
+  async getPreferences(userId: string): Promise<UserPreferencesDto> {
+    const user = await this.requireUser(userId);
+    const prefs = (user.preferences as unknown as UserPreferencesDto | null) ?? DEFAULT_USER_PREFERENCES;
+    return {
+      freeTimeSlots: prefs.freeTimeSlots ?? DEFAULT_USER_PREFERENCES.freeTimeSlots,
+      voucherExpiryAlerts: prefs.voucherExpiryAlerts !== undefined ? prefs.voucherExpiryAlerts : DEFAULT_USER_PREFERENCES.voucherExpiryAlerts,
+      emailAlerts: prefs.emailAlerts !== undefined ? prefs.emailAlerts : DEFAULT_USER_PREFERENCES.emailAlerts,
+    };
+  }
+
+  async updatePreferences(userId: string, input: Partial<UserPreferencesDto> = {}): Promise<UserPreferencesDto> {
+    await this.requireUser(userId);
+    const current = await this.getPreferences(userId);
+    const safeInput = input ?? {};
+    const next: UserPreferencesDto = {
+      freeTimeSlots: safeInput.freeTimeSlots ?? current.freeTimeSlots,
+      voucherExpiryAlerts: safeInput.voucherExpiryAlerts !== undefined ? Boolean(safeInput.voucherExpiryAlerts) : current.voucherExpiryAlerts,
+      emailAlerts: safeInput.emailAlerts !== undefined ? Boolean(safeInput.emailAlerts) : current.emailAlerts,
+    };
+    await this.users.updateById(userId, { preferences: next as any });
+    return next;
   }
 
   /** Use cases "Update profile informations" / "Update Profile". Role-specific sections are only accepted for that role. */

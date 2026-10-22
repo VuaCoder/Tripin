@@ -1,6 +1,8 @@
 import { baseApi } from '@/store/api/baseApi';
 import type { ReviewItemResponse, ReviewListResponse, PublicReview, ReviewSort, TourReviewsPage } from '@/features/review/types';
 
+import type { PromotionDto } from '@/features/traveler-account/api/voucherWalletApi';
+
 export interface PublicProfile {
   id: string;
   fullName: string;
@@ -27,6 +29,12 @@ export const publicProfilesApi = baseApi.injectEndpoints({
       transformResponse: (response: ReviewListResponse<PublicReview>) => ({ items: response.data, meta: response.meta }),
       providesTags: ['Review'],
     }),
+    getAgencyPromotions: build.query<PromotionDto[], string>({
+      query: (agencyId) => `/agencies/${agencyId}/promotions`,
+      transformResponse: (response: { data: PromotionDto[] }) => response.data,
+      providesTags: ['Promotion'],
+    }),
   }),
 });
-export const { useGetPublicProfileQuery, useGetProfileReviewsQuery } = publicProfilesApi;
+export const { useGetPublicProfileQuery, useGetProfileReviewsQuery, useGetAgencyPromotionsQuery } = publicProfilesApi;
+

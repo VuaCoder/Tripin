@@ -30,6 +30,7 @@ export type NewPromotion = Pick<
       | 'applyType'
       | 'codeType'
       | 'isActive'
+      | 'isArchived'
     >
   >;
 
@@ -51,6 +52,7 @@ export type PromotionPatch = Partial<
     | 'usageLimit'
     | 'usageLimitPerUser'
     | 'isActive'
+    | 'isArchived'
   >
 >;
 
@@ -93,7 +95,9 @@ export class PromotionsRepository {
     const where: Prisma.PromotionWhereInput = { scope: filter.scope };
     if (filter.ownerId) where.ownerId = filter.ownerId;
     if (filter.isActive !== undefined) where.isActive = filter.isActive;
+    if (filter.isArchived !== undefined) where.isArchived = filter.isArchived;
     if (filter.applyType) where.applyType = filter.applyType;
+    if (filter.codeType) where.codeType = filter.codeType;
     if (filter.q) where.OR = [{ code: containsText(filter.q) }, { title: containsText(filter.q) }];
     if (filter.discountType) where.discountType = filter.discountType;
     if (filter.from && filter.to) { where.startsAt = { lte: filter.to }; where.endsAt = { gte: filter.from }; }
@@ -130,12 +134,13 @@ export class PromotionsRepository {
 
   async listCodeInstances(promotionId: string, page: PageRequest) {
     const where = { promotionId };
+    const p = page?.page && page?.limit ? page : { page: 1, limit: 20 };
     const [items, total] = await Promise.all([
       prisma.promotionCodeInstance.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        skip: toSkip(page),
-        take: page.limit,
+        skip: toSkip(p),
+        take: p.limit,
       }),
       prisma.promotionCodeInstance.count({ where }),
     ]);
@@ -182,6 +187,21 @@ export class PromotionsRepository {
         status: { not: 'CANCELLED' },
         promotionId,
       },
+    });
+  }
+
+  async findExpiringUserVouchers(windowHours: number = 48, now = new Date()): Promise<UserVoucherRecord[]> {
+    const windowEnd = new Date(now.getTime() + windowHours * 60 * 60 * 1000);
+    return prisma.userVoucher.findMany({
+      where: {
+        isUsed: false,
+        promotion: {
+          isActive: true,
+          startsAt: { lte: now },
+          endsAt: { gt: now, lte: windowEnd },
+        },
+      },
+      include: { promotion: true },
     });
   }
 }

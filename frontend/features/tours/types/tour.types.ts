@@ -126,6 +126,7 @@ export interface ListToursArgs {
   page?: number;
   limit?: number;
   q?: string;
+  agencyId?: string;
   categoryId?: string;
   destination?: string;
   minPrice?: number;

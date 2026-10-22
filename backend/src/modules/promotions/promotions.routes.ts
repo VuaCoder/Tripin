@@ -5,6 +5,7 @@ import { validate } from '../../middlewares/validate';
 import { promotionsController } from './promotions.controller';
 import {
   availableQuery,
+  batchQuery,
   collectVoucherBody,
   createPromotionBody,
   generateBatchBody,
@@ -32,7 +33,7 @@ agencyPromotionsRouter.post(
 );
 agencyPromotionsRouter.get(
   '/:id/batch',
-  validate({ params: promotionIdParams }),
+  validate({ params: promotionIdParams, query: batchQuery }),
   promotionsController.listBatchAgency,
 );
 
@@ -55,7 +56,7 @@ adminPromotionsRouter.post(
 );
 adminPromotionsRouter.get(
   '/:id/batch',
-  validate({ params: promotionIdParams }),
+  validate({ params: promotionIdParams, query: batchQuery }),
   promotionsController.listBatchPlatform,
 );
 

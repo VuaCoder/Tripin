@@ -1,21 +1,26 @@
 -- CreateEnum
-CREATE TYPE "PromotionApplyType" AS ENUM ('CODE', 'AUTO_APPLY', 'COLLECTABLE');
-
--- CreateEnum
-CREATE TYPE "PromotionCodeType" AS ENUM ('SHARED', 'UNIQUE_BATCH');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'PromotionApplyType') THEN
+    CREATE TYPE "PromotionApplyType" AS ENUM ('CODE', 'AUTO_APPLY', 'COLLECTABLE');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'PromotionCodeType') THEN
+    CREATE TYPE "PromotionCodeType" AS ENUM ('SHARED', 'UNIQUE_BATCH');
+  END IF;
+END $$;
 
 -- AlterTable
 ALTER TABLE "Promotion" ALTER COLUMN "code" DROP NOT NULL;
-ALTER TABLE "Promotion" ADD COLUMN "applyType" "PromotionApplyType" NOT NULL DEFAULT 'CODE';
-ALTER TABLE "Promotion" ADD COLUMN "codeType" "PromotionCodeType" NOT NULL DEFAULT 'SHARED';
-ALTER TABLE "Promotion" ADD COLUMN "minParticipants" INTEGER;
-ALTER TABLE "Promotion" ADD COLUMN "daysInAdvance" INTEGER;
-ALTER TABLE "Promotion" ADD COLUMN "firstBookingOnly" BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE "Promotion" ADD COLUMN "targetTourIds" TEXT[] DEFAULT ARRAY[]::TEXT[];
-ALTER TABLE "Promotion" ADD COLUMN "usageLimitPerUser" INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE "Promotion" ADD COLUMN IF NOT EXISTS "applyType" "PromotionApplyType" NOT NULL DEFAULT 'CODE';
+ALTER TABLE "Promotion" ADD COLUMN IF NOT EXISTS "codeType" "PromotionCodeType" NOT NULL DEFAULT 'SHARED';
+ALTER TABLE "Promotion" ADD COLUMN IF NOT EXISTS "minParticipants" INTEGER;
+ALTER TABLE "Promotion" ADD COLUMN IF NOT EXISTS "daysInAdvance" INTEGER;
+ALTER TABLE "Promotion" ADD COLUMN IF NOT EXISTS "firstBookingOnly" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Promotion" ADD COLUMN IF NOT EXISTS "targetTourIds" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "Promotion" ADD COLUMN IF NOT EXISTS "usageLimitPerUser" INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE "Promotion" ADD COLUMN IF NOT EXISTS "isArchived" BOOLEAN NOT NULL DEFAULT false;
 
 -- CreateTable
-CREATE TABLE "PromotionCodeInstance" (
+CREATE TABLE IF NOT EXISTS "PromotionCodeInstance" (
     "id" UUID NOT NULL,
     "promotionId" UUID NOT NULL,
     "code" TEXT NOT NULL,
@@ -29,7 +34,7 @@ CREATE TABLE "PromotionCodeInstance" (
 );
 
 -- CreateTable
-CREATE TABLE "UserVoucher" (
+CREATE TABLE IF NOT EXISTS "UserVoucher" (
     "id" UUID NOT NULL,
     "userId" UUID NOT NULL,
     "promotionId" UUID NOT NULL,
@@ -42,25 +47,32 @@ CREATE TABLE "UserVoucher" (
 );
 
 -- CreateIndex
-CREATE INDEX "Promotion_applyType_isActive_idx" ON "Promotion"("applyType", "isActive");
+CREATE INDEX IF NOT EXISTS "Promotion_applyType_isActive_idx" ON "Promotion"("applyType", "isActive");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "PromotionCodeInstance_code_key" ON "PromotionCodeInstance"("code");
+CREATE INDEX IF NOT EXISTS "Promotion_isArchived_idx" ON "Promotion"("isArchived");
 
 -- CreateIndex
-CREATE INDEX "PromotionCodeInstance_promotionId_isUsed_idx" ON "PromotionCodeInstance"("promotionId", "isUsed");
+CREATE UNIQUE INDEX IF NOT EXISTS "PromotionCodeInstance_code_key" ON "PromotionCodeInstance"("code");
 
 -- CreateIndex
-CREATE INDEX "PromotionCodeInstance_code_idx" ON "PromotionCodeInstance"("code");
+CREATE INDEX IF NOT EXISTS "PromotionCodeInstance_promotionId_isUsed_idx" ON "PromotionCodeInstance"("promotionId", "isUsed");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "UserVoucher_userId_promotionId_key" ON "UserVoucher"("userId", "promotionId");
+CREATE INDEX IF NOT EXISTS "PromotionCodeInstance_code_idx" ON "PromotionCodeInstance"("code");
 
 -- CreateIndex
-CREATE INDEX "UserVoucher_userId_isUsed_idx" ON "UserVoucher"("userId", "isUsed");
+CREATE UNIQUE INDEX IF NOT EXISTS "UserVoucher_userId_promotionId_key" ON "UserVoucher"("userId", "promotionId");
+
+-- CreateIndex
+CREATE INDEX IF NOT EXISTS "UserVoucher_userId_isUsed_idx" ON "UserVoucher"("userId", "isUsed");
 
 -- AddForeignKey
-ALTER TABLE "PromotionCodeInstance" ADD CONSTRAINT "PromotionCodeInstance_promotionId_fkey" FOREIGN KEY ("promotionId") REFERENCES "Promotion"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "UserVoucher" ADD CONSTRAINT "UserVoucher_promotionId_fkey" FOREIGN KEY ("promotionId") REFERENCES "Promotion"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PromotionCodeInstance_promotionId_fkey') THEN
+    ALTER TABLE "PromotionCodeInstance" ADD CONSTRAINT "PromotionCodeInstance_promotionId_fkey" FOREIGN KEY ("promotionId") REFERENCES "Promotion"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserVoucher_promotionId_fkey') THEN
+    ALTER TABLE "UserVoucher" ADD CONSTRAINT "UserVoucher_promotionId_fkey" FOREIGN KEY ("promotionId") REFERENCES "Promotion"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;

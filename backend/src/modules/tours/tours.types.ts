@@ -78,6 +78,7 @@ export interface SearchToursQuery {
   page: number;
   limit: number;
   q?: string;
+  agencyId?: string;
   categoryId?: string;
   destination?: string;
   minPrice?: number;

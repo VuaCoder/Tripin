@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 159 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 162 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -68,6 +68,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | Method | Path | Access |
 |---|---|---|
 | GET | `/api/v1/agencies/:id` | public |
+| GET | `/api/v1/agencies/:id/promotions` | public |
 
 ## `/agency/bookings`
 
@@ -356,6 +357,8 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/users/me/avatar/upload-signature` | `profile:update-own` |
 | POST | `/api/v1/users/me/license-image/complete` | `profile:update-own` |
 | POST | `/api/v1/users/me/license-image/upload-signature` | `profile:update-own` |
+| GET | `/api/v1/users/me/preferences` | `profile:view-own` |
+| PATCH | `/api/v1/users/me/preferences` | `profile:update-own` |
 
 ## `/wishlist`
 

@@ -39,11 +39,12 @@ export const adminApi = baseApi.injectEndpoints({
     generateAdminBatch: build.mutation<{ count: number; codes: string[] }, { id: string; count: number; prefix?: string }>({
       query: ({ id, count, prefix }) => ({ url: `/admin/promotions/${id}/generate-batch`, method: 'POST', body: { count, prefix } }),
       transformResponse: (r: Envelope<{ count: number; codes: string[] }>) => r.data,
-      invalidatesTags: (_r, e) => e ? [] : [adminPromotions],
+      invalidatesTags: (_r, e, { id }) => e ? [] : [adminPromotions, { type: 'Promotion', id: `BATCH_${id}` }],
     }),
     getAdminBatch: build.query<Page<import('@/features/agency-promotions/types').PromotionCodeInstance>, { id: string; page?: number; limit?: number }>({
       query: ({ id, page = 1, limit = 20 }) => ({ url: `/admin/promotions/${id}/batch`, params: { page, limit } }),
       transformResponse: page<import('@/features/agency-promotions/types').PromotionCodeInstance>,
+      providesTags: (_r, _e, { id }) => [{ type: 'Promotion', id: `BATCH_${id}` }],
     }),
     getAdminUsers: build.query<Page<AdminUser>, UsersArgs>({
       query: (params) => ({ url: '/admin/users', params }), transformResponse: page<AdminUser>, providesTags: [users],

@@ -460,6 +460,14 @@ export function Header({ role }: { role?: AppRole }) {
                             <span className="material-symbols-outlined text-[19px] text-primary-container">person</span>
                             <span>Hồ sơ cá nhân</span>
                           </Link>
+                          <Link
+                            href="/settings/vouchers"
+                            onClick={() => setAccountMenuOpen(false)}
+                            className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-surface-container-low"
+                          >
+                            <span className="material-symbols-outlined text-[19px] text-teal-600">confirmation_number</span>
+                            <span>Ví voucher</span>
+                          </Link>
                           <button
                             type="button"
                             onClick={() => {

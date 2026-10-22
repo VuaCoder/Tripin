@@ -68,6 +68,8 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `PROMOTION_FIRST_BOOKING_ONLY` | 409 | The promotion is only valid for a traveler's first booking |
 | `PROMOTION_USER_LIMIT_REACHED` | 409 | The maximum number of redemptions per account for this promotion has been reached |
 | `PROMOTION_CODE_USED` | 409 | The single-use voucher code has already been redeemed |
+| `PROMOTION_ARCHIVED` | 400 | The promotion has been archived and is no longer valid |
+| `PROMOTION_BATCH_PREFIX_NOT_USABLE` | 400 | The promotion is a unique batch and requires an individual issued voucher code |
 
 ## Bookings and payments (`bookings`, `payments`, `reviews`)
 

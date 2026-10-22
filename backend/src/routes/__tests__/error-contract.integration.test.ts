@@ -49,6 +49,12 @@ const COVERED_ELSEWHERE: Record<string, string> = {
   INTERNAL_ERROR: 'security.integration.test.ts (500 envelope)',
   PAYMENT_IN_PROGRESS: 'needs a parallel checkout that is slower than the retry budget',
   AI_EXTRACTION_FAILED: 'tour-document-extraction.service.test.ts verifies provider failure maps to 503 AI_EXTRACTION_FAILED',
+  PROMOTION_TOUR_NOT_ELIGIBLE: 'promotions.service.test.ts verifies promotion tour eligibility checks',
+  PROMOTION_MIN_PARTICIPANTS: 'promotions.service.test.ts verifies min participants restriction',
+  PROMOTION_EARLY_BIRD: 'promotions.service.test.ts verifies advance booking days restriction',
+  PROMOTION_FIRST_BOOKING_ONLY: 'promotions.service.test.ts verifies first booking only restriction',
+  PROMOTION_USER_LIMIT_REACHED: 'promotions.service.test.ts verifies per-user usage limits',
+  PROMOTION_CODE_USED: 'promotions.service.test.ts verifies single-use batch codes',
 };
 
 beforeAll(startDatabase, 120_000);

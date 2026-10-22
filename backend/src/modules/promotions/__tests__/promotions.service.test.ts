@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DISCOUNT_TYPE, PROMOTION_SCOPE, ROLES } from '@travel-platform/constants';
+import { DISCOUNT_TYPE, PROMOTION_CODE_TYPE, PROMOTION_SCOPE, ROLES } from '@travel-platform/constants';
 import { computeDiscount, assertApplicable } from '../promotions.policy';
 import { PromotionsService } from '../promotions.service';
 
@@ -171,3 +171,162 @@ describe('preview / redeem (used by bookings)', () => {
     expect(repo.release).toHaveBeenCalledWith('p1');
   });
 });
+
+describe('sweepExpiringVouchers (smart leisure-slot alert)', () => {
+  it('dispatches notifications during the user leisure time slot', async () => {
+    const notify = vi.fn(async () => undefined);
+    const hasRecentVoucherAlert = vi.fn(async () => false);
+    const users = {
+      getPreferences: vi.fn(async () => ({
+        freeTimeSlots: [{ id: 'slot_1', name: 'Nghỉ trưa', start: '11:45', end: '13:00', enabled: true }],
+        voucherExpiryAlerts: true,
+        emailAlerts: false,
+      })),
+    };
+    const repo = {
+      findExpiringUserVouchers: vi.fn(async () => [
+        {
+          id: 'v1',
+          userId: 'u1',
+          promotion: promo({ title: 'Flash 20%', endsAt: ahead(1) }),
+        },
+      ]),
+    };
+    const service = new PromotionsService(repo as never, {} as never, {} as never, { notify, hasRecentVoucherAlert } as never, users as never);
+
+    // Mock date to 12:15 VN time (UTC 05:15)
+    const testDate = new Date('2026-10-22T05:15:00.000Z');
+    const sent = await service.sweepExpiringVouchers(testDate);
+    expect(sent).toBe(1);
+    expect(notify).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({
+        type: 'VOUCHER_EXPIRING_SOON',
+        title: expect.stringContaining('Ưu đãi giờ rảnh'),
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it('skips dispatching outside user free-time slots when not urgent', async () => {
+    const notify = vi.fn(async () => undefined);
+    const hasRecentVoucherAlert = vi.fn(async () => false);
+    const users = {
+      getPreferences: vi.fn(async () => ({
+        freeTimeSlots: [{ id: 'slot_1', name: 'Nghỉ trưa', start: '11:45', end: '13:00', enabled: true }],
+        voucherExpiryAlerts: true,
+        emailAlerts: false,
+      })),
+    };
+    const repo = {
+      findExpiringUserVouchers: vi.fn(async () => [
+        {
+          id: 'v1',
+          userId: 'u1',
+          promotion: promo({ title: 'Flash 20%', endsAt: ahead(1) }),
+        },
+      ]),
+    };
+    const service = new PromotionsService(repo as never, {} as never, {} as never, { notify, hasRecentVoucherAlert } as never, users as never);
+
+    // Mock date to 09:00 VN time (UTC 02:00)
+    const testDate = new Date('2026-10-22T02:00:00.000Z');
+    const sent = await service.sweepExpiringVouchers(testDate);
+    expect(sent).toBe(0);
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it('triggers urgent alert when voucher expires in less than 3 hours even outside leisure slots', async () => {
+    const notify = vi.fn(async () => undefined);
+    const hasRecentVoucherAlert = vi.fn(async () => false);
+    const users = {
+      getPreferences: vi.fn(async () => ({
+        freeTimeSlots: [{ id: 'slot_1', name: 'Nghỉ trưa', start: '11:45', end: '13:00', enabled: true }],
+        voucherExpiryAlerts: true,
+        emailAlerts: false,
+      })),
+    };
+    const testDate = new Date('2026-10-22T02:00:00.000Z');
+    const repo = {
+      findExpiringUserVouchers: vi.fn(async () => [
+        {
+          id: 'v1',
+          userId: 'u1',
+          promotion: promo({ title: 'Flash 20%', endsAt: new Date(testDate.getTime() + 2 * 60 * 60 * 1000) }),
+        },
+      ]),
+    };
+    const service = new PromotionsService(repo as never, {} as never, {} as never, { notify, hasRecentVoucherAlert } as never, users as never);
+
+    const sent = await service.sweepExpiringVouchers(testDate);
+    expect(sent).toBe(1);
+    expect(notify).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({
+        type: 'VOUCHER_EXPIRING_URGENT',
+        title: expect.stringContaining('Cơ hội cuối'),
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it('lists active public agency promotions for storefront, excluding expired and UNIQUE_BATCH', async () => {
+    const now = new Date();
+    const repo = {
+      list: vi.fn(async () => ({
+        items: [
+          promo({ id: 'p1', ownerId: 'a1', title: 'Agency 10%', isActive: true, codeType: PROMOTION_CODE_TYPE.SHARED, startsAt: new Date(now.getTime() - 10000), endsAt: new Date(now.getTime() + 100000) }),
+          promo({ id: 'p2', ownerId: 'a1', title: 'Expired 20%', isActive: true, codeType: PROMOTION_CODE_TYPE.SHARED, startsAt: new Date(now.getTime() - 20000), endsAt: new Date(now.getTime() - 1000) }),
+          promo({ id: 'p3', ownerId: 'a1', title: 'Batch VIP', isActive: true, codeType: PROMOTION_CODE_TYPE.UNIQUE_BATCH, startsAt: new Date(now.getTime() - 10000), endsAt: new Date(now.getTime() + 100000) }),
+        ],
+        total: 3,
+      })),
+    };
+    const service = new PromotionsService(repo as never, {} as never, {} as never, {} as never, {} as never);
+    const result = await service.listPublicAgencyPromotions('a1');
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.title).toBe('Agency 10%');
+    expect(repo.list).toHaveBeenCalledWith(
+      expect.objectContaining({ scope: 'AGENCY', ownerId: 'a1', isActive: true }),
+      { page: 1, limit: 50 },
+    );
+  });
+
+  it('rejects batch prefix directly without an individual code instance', async () => {
+    const batchPromo = promo({
+      id: 'p-batch',
+      code: 'TEST',
+      codeType: PROMOTION_CODE_TYPE.UNIQUE_BATCH,
+      isActive: true,
+      startsAt: new Date(Date.now() - 10000),
+      endsAt: new Date(Date.now() + 100000),
+    });
+    const repo = {
+      findByCode: vi.fn(async () => ({ promotion: batchPromo })), // no codeInstance
+    };
+    const tours = {
+      getTourFacts: vi.fn(async () => ({ agencyId: 'a1' })),
+    };
+    const service = new PromotionsService(repo as never, tours as never, {} as never, {} as never, {} as never);
+
+    await expect(service.preview('TEST', 'tour-1', 1000000)).rejects.toThrowError(
+      expect.objectContaining({ details: 'PROMOTION_BATCH_PREFIX_NOT_USABLE', statusCode: 400 }),
+    );
+  });
+
+  it('archives a promotion and rejects archived promotion code on resolve', async () => {
+    const { service, repo } = make([promo({ id: 'p1', code: 'OLDPROMO', isArchived: false, isActive: true })]);
+
+    // Archive the promotion
+    const updated = await service.updateForAgency(agency as any, 'p1', { isArchived: true });
+    expect(updated.isArchived).toBe(true);
+    expect(updated.isActive).toBe(false);
+
+    // Resolving archived code should be rejected
+    await expect(service.preview('OLDPROMO', 'tour-1', 500000)).rejects.toThrowError(
+      expect.objectContaining({ details: 'PROMOTION_ARCHIVED', statusCode: 400 }),
+    );
+  });
+});
+

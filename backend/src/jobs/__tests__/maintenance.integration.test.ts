@@ -121,6 +121,7 @@ describe('maintenance jobs (integration)', () => {
       'notifications.purgeOld',
       'payments.expireStale',
       'payments.retryUnfulfilled',
+      'promotions.sweepExpiring',
       'subscriptions.cancelAbandoned',
       'subscriptions.expireEnded',
     ]);

@@ -68,7 +68,8 @@ export class PromotionsController {
   listBatchAgency: RequestHandler = async (req, res) => {
     const { params } = validated<unknown, unknown, IdParams>(req);
     const { query } = validated<unknown, import('../../utils/pagination').PageRequest>(req);
-    const page = await this.service.listCodeInstances(actorOf(req), params.id, query);
+    const pageReq = query?.page && query?.limit ? query : { page: 1, limit: 20 };
+    const page = await this.service.listCodeInstances(actorOf(req), params.id, pageReq);
     sendPaginated(res, page.items, page.meta);
   };
   generateBatchPlatform: RequestHandler = async (req, res) => {
@@ -79,7 +80,8 @@ export class PromotionsController {
   listBatchPlatform: RequestHandler = async (req, res) => {
     const { params } = validated<unknown, unknown, IdParams>(req);
     const { query } = validated<unknown, import('../../utils/pagination').PageRequest>(req);
-    const page = await this.service.listCodeInstances(actorOf(req), params.id, query);
+    const pageReq = query?.page && query?.limit ? query : { page: 1, limit: 20 };
+    const page = await this.service.listCodeInstances(actorOf(req), params.id, pageReq);
     sendPaginated(res, page.items, page.meta);
   };
 
@@ -90,6 +92,10 @@ export class PromotionsController {
   };
   listUserVouchers: RequestHandler = async (req, res) => {
     sendOk(res, await this.service.listUserVouchers(userActor(req).userId));
+  };
+  listPublicAgencyPromotions: RequestHandler = async (req, res) => {
+    const { params } = validated<unknown, unknown, { id: string }>(req);
+    sendOk(res, await this.service.listPublicAgencyPromotions(params.id));
   };
 
   // ---- checkout helper

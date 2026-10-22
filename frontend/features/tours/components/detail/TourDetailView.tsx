@@ -31,6 +31,31 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
     <TourGallery images={images} title={tour.title} />
     <div className={styles.bodyGrid}><div className={styles.mainContent}>
       <div className={styles.facts}><span><MapPin size={19} /><strong>Điểm đến:</strong> {tour.destination}</span><span><Clock3 size={19} />{tour.durationDays} ngày</span>{tour.agency && <span><Building2 size={19} /><Link href={`/agencies/${tour.agency.id}`} className="underline underline-offset-4">{tour.agency.name}</Link></span>}{tour.guide && <span><Link href={`/tour-guides/${tour.guide.id}`} className="underline underline-offset-4">Hướng dẫn viên: {tour.guide.fullName}</Link></span>}</div>
+      {tour.agency && (
+        <div className="my-4 rounded-2xl border border-teal-100 bg-gradient-to-r from-teal-50/70 via-white to-slate-50/60 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white shadow-2xs">
+              <Building2 className="size-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-teal-800 bg-teal-100 px-2 py-0.5 rounded-full">
+                  Nhà cung cấp
+                </span>
+                <span className="text-xs text-slate-500">Đối tác tổ chức</span>
+              </div>
+              <p className="font-bold text-slate-900 text-sm sm:text-base">{tour.agency.name}</p>
+            </div>
+          </div>
+          <Link
+            href={`/agencies/${tour.agency.id}`}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition-colors shrink-0"
+          >
+            <span>Trang nhà cung cấp & Voucher</span>
+            <ChevronRight size={14} />
+          </Link>
+        </div>
+      )}
       {(tour.summary || tour.description) && <section className={styles.overview}><h2><Sparkles size={21} />Hành trình có gì hay?</h2><p>{tour.summary || tour.description}</p></section>}
       <div className={styles.tabs} role="tablist" aria-label="Nội dung tour">{[['lich-trinh', 'Lịch trình'], ['chinh-sach-gia', 'Chính sách giá'], ['huong-dan', 'Hướng dẫn']].map(([id, label], index, tabs) => <button type="button" role="tab" key={id} id={`tab-${id}`} aria-controls={`panel-${id}`} aria-selected={tab === id} tabIndex={tab === id ? 0 : -1} onClick={() => setTab(id)} onKeyDown={event => {
         let next = index;

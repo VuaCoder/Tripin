@@ -21,6 +21,8 @@ const META = { page: 1, limit: 10, total: 1, totalPages: 1 };
 const promotion: AgencyPromotion = {
   id: 'p1',
   scope: 'AGENCY',
+  applyType: 'CODE',
+  codeType: 'SHARED',
   code: 'HE2026',
   title: 'Giảm hè',
   discountType: 'PERCENT',
@@ -30,6 +32,7 @@ const promotion: AgencyPromotion = {
   endsAt: '2099-12-01T01:00:00.000Z',
   usedCount: 2,
   isActive: true,
+  isArchived: false,
   isRunning: true,
 };
 
@@ -91,6 +94,7 @@ describe('AgencyPromotionsPage', () => {
     mockQuery.mockReturnValue(queryResult({ data: { items: [], meta: { ...META, total: 0 } } }));
     render(<AgencyPromotionsPage />);
     fireEvent.click(screen.getAllByText('Tạo khuyến mãi')[0]);
+    fireEvent.click(screen.getByRole('heading', { name: 'Public Promo Code' }));
     fireEvent.click(screen.getByText('Tạo khuyến mãi', { selector: 'button[type="submit"]' }));
 
     expect(mockCreate).not.toHaveBeenCalled();
@@ -132,5 +136,116 @@ describe('AgencyPromotionsPage', () => {
     await waitFor(() => expect(screen.getByText('Không thể tắt')).toBeTruthy());
     expect(mockUpdate).toHaveBeenCalledWith({ id: 'p1', patch: { isActive: false } });
     expect(refetch).toHaveBeenCalled();
+  });
+
+  it('updates query when searching and selecting dropdown filters', async () => {
+    mockQuery.mockReturnValue(queryResult({ data: { items: [promotion], meta: META } }));
+    render(<AgencyPromotionsPage />);
+
+    // Search input
+    const searchInput = screen.getByPlaceholderText(/Tìm theo mã hoặc tiêu đề/);
+    fireEvent.change(searchInput, { target: { value: 'SUMMER' } });
+    fireEvent.submit(searchInput.closest('form')!);
+    expect(mockQuery).toHaveBeenCalledWith(expect.objectContaining({ q: 'SUMMER' }));
+
+    // AntSelect filter dropdown for apply type
+    const typeDropdown = screen.getByLabelText('Lọc theo hình thức');
+    fireEvent.click(typeDropdown);
+    const sharedOption = screen.getByRole('option', { name: /Public Promo Code/ });
+    fireEvent.click(sharedOption);
+    expect(mockQuery).toHaveBeenCalledWith(expect.objectContaining({ applyType: 'CODE', codeType: 'SHARED' }));
+
+    // AntSelect filter dropdown for status
+    const statusDropdown = screen.getByLabelText('Lọc theo trạng thái');
+    fireEvent.click(statusDropdown);
+    const activeOption = screen.getByRole('option', { name: /Đang hoạt động/ });
+    fireEvent.click(activeOption);
+    expect(mockQuery).toHaveBeenCalledWith(expect.objectContaining({ isActive: true }));
+
+    // Quick filter pill
+    const autoApplyPill = screen.getByRole('button', { name: /Auto-Apply/ });
+    fireEvent.click(autoApplyPill);
+    expect(mockQuery).toHaveBeenCalledWith(expect.objectContaining({ applyType: 'AUTO_APPLY' }));
+  });
+
+  it('handles archiving and unarchiving promotions', async () => {
+    mockQuery.mockReturnValue(queryResult({ data: { items: [promotion], meta: META } }));
+    mockUpdate.mockReturnValue(resolving({ ...promotion, isArchived: true, isActive: false }));
+    render(<AgencyPromotionsPage />);
+
+    // Click "Lưu trữ" button on card
+    const archiveBtn = screen.getByTitle('Lưu trữ khuyến mãi');
+    fireEvent.click(archiveBtn);
+
+    // Confirmation modal opens
+    expect(screen.getByText('Xác nhận lưu trữ khuyến mãi')).toBeTruthy();
+    expect(screen.getByText('Hủy bỏ')).toBeTruthy();
+
+    // Confirm archiving
+    const confirmBtn = screen.getByText('Xác nhận lưu trữ');
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => expect(screen.getByText('Đã chuyển khuyến mãi vào mục lưu trữ.')).toBeTruthy());
+    expect(mockUpdate).toHaveBeenCalledWith({ id: 'p1', patch: { isArchived: true, isActive: false } });
+  });
+
+  it('cancels archiving when clicking Hủy bỏ in confirmation modal', () => {
+    mockQuery.mockReturnValue(queryResult({ data: { items: [promotion], meta: META } }));
+    render(<AgencyPromotionsPage />);
+
+    // Click "Lưu trữ" button on card
+    const archiveBtn = screen.getByTitle('Lưu trữ khuyến mãi');
+    fireEvent.click(archiveBtn);
+
+    // Modal appears
+    expect(screen.getByText('Xác nhận lưu trữ khuyến mãi')).toBeTruthy();
+
+    // Click "Hủy bỏ"
+    const cancelBtn = screen.getByText('Hủy bỏ');
+    fireEvent.click(cancelBtn);
+
+    // Modal closes without calling update
+    expect(screen.queryByText('Xác nhận lưu trữ khuyến mãi')).toBeNull();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('filters by archived status via status dropdown and shows distinct archived card', () => {
+    const archivedPromotion: AgencyPromotion = {
+      ...promotion,
+      id: 'p2',
+      title: 'Khuyến mãi cũ',
+      isActive: false,
+      isArchived: true,
+      isRunning: false,
+    };
+    mockQuery.mockReturnValue(queryResult({ data: { items: [archivedPromotion], meta: META } }));
+    render(<AgencyPromotionsPage />);
+
+    // Select "Đã lưu trữ" from status filter dropdown
+    const statusDropdown = screen.getByLabelText('Lọc theo trạng thái');
+    fireEvent.click(statusDropdown);
+    const archivedOption = screen.getByRole('option', { name: /Đã lưu trữ/ });
+    fireEvent.click(archivedOption);
+
+    expect(mockQuery).toHaveBeenCalledWith(expect.objectContaining({ isArchived: true }));
+    expect(screen.getByText('(Đã lưu trữ)')).toBeTruthy();
+    expect(screen.getByText('Bỏ lưu trữ')).toBeTruthy();
+  });
+
+  it('renders inactive promotion with clear (Tạm ngưng) tag and distinct styling', () => {
+    const inactivePromotion: AgencyPromotion = {
+      ...promotion,
+      id: 'p3',
+      title: 'Mã tắt thử nghiệm',
+      isActive: false,
+      isArchived: false,
+      isRunning: false,
+    };
+    mockQuery.mockReturnValue(queryResult({ data: { items: [inactivePromotion], meta: META } }));
+    render(<AgencyPromotionsPage />);
+
+    expect(screen.getByText('(Tạm ngưng)')).toBeTruthy();
+    expect(screen.getByText('Bật')).toBeTruthy();
+    expect(screen.getAllByText('Đã tắt').length).toBeGreaterThanOrEqual(1);
   });
 });
