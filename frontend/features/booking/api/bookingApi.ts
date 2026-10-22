@@ -198,3 +198,6 @@ export const {
   useCancelBookingMutation,
   useCompleteBookingMutation,
 } = bookingApi;
+
+export type { AppliedPromotionPreview, AvailablePromotionsDto } from '../types';
+

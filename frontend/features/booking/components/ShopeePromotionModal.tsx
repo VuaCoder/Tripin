@@ -20,8 +20,7 @@ import {
   handlePromotionCodeChange,
   handlePromotionCodeKeyDown,
 } from '@/features/promotions/codeHelper';
-import type { AppliedPromotionPreview, AvailablePromotionsDto } from '../api/bookingApi';
-import type { UserVoucherDto } from '@/features/traveler-account/api/voucherWalletApi';
+import type { AppliedPromotionPreview, AvailablePromotionsDto, UserVoucherItem } from '../types';
 import type { AgencyPromotion } from '@/features/agency-promotions/types';
 
 const formatVnd = (val: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
@@ -46,8 +45,8 @@ export interface BookingVoucherModalProps {
   onApplyDirectCode: (code: string) => Promise<{ success: boolean; message?: string }>;
   // Available promos & wallet vouchers
   availablePromos?: AvailablePromotionsDto;
-  myAgencyVouchers: UserVoucherDto[];
-  myPlatformVouchers: UserVoucherDto[];
+  myAgencyVouchers: UserVoucherItem[];
+  myPlatformVouchers: UserVoucherItem[];
   isPreviewing: boolean;
 }
 

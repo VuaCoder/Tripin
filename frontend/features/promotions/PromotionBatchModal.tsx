@@ -206,7 +206,7 @@ export function PromotionBatchModal({
           {total > 20 && (
             <div className="pt-2">
               <Pagination
-                page={page}
+                currentPage={page}
                 totalPages={Math.ceil(total / 20)}
                 onPageChange={onPageChange}
               />

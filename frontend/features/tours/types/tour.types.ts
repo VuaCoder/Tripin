@@ -9,6 +9,7 @@ export interface TourAgency {
 /** Card in `GET /tours` (`TourListItemDto`). */
 export interface TourListItem {
   id: string;
+  agencyId?: string;
   title: string;
   summary?: string;
   destination: string;

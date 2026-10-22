@@ -25,6 +25,8 @@ export interface CreateBookingInput {
 
 export interface AvailablePromotionItem {
   id: string;
+  scope?: PromotionScope;
+  ownerId?: string;
   code?: string;
   title: string;
   description?: string;
@@ -37,12 +39,14 @@ export interface AvailablePromotionItem {
   minParticipants?: number;
   daysInAdvance?: number;
   firstBookingOnly?: boolean;
+  targetTourIds?: string[];
   startsAt: string;
   endsAt: string;
   usageLimit?: number;
   usedCount: number;
   isActive: boolean;
   isRunning: boolean;
+  isArchived?: boolean;
 }
 
 export interface AvailablePromotions {
@@ -78,6 +82,9 @@ export interface PromotionPreview {
   discountAmount: number;
   finalAmount: number;
 }
+
+export type AppliedPromotionPreview = PromotionPreview;
+export type AvailablePromotionsDto = AvailablePromotions;
 
 export interface BookingDto {
   guestPricing?: import('@travel-platform/constants').GuestPriceBreakdown;

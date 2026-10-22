@@ -108,11 +108,12 @@ export function BookingEntryPage() {
       if (!promo.isActive) return false;
       if (new Date(promo.endsAt).getTime() <= now) return false;
       if (promo.scope !== 'AGENCY') return false;
-      if (promo.ownerId && tour?.agencyId && promo.ownerId !== tour.agencyId) return false;
+      const currentAgencyId = tour?.agency?.id || tour?.agencyId;
+      if (promo.ownerId && currentAgencyId && promo.ownerId !== currentAgencyId) return false;
       if (promo.targetTourIds?.length && !promo.targetTourIds.includes(tourId)) return false;
       return true;
     });
-  }, [myVouchers, tour?.agencyId, tourId]);
+  }, [myVouchers, tour?.agency?.id, tour?.agencyId, tourId]);
 
   const myPlatformVouchers = useMemo(() => {
     if (!myVouchers) return [];
