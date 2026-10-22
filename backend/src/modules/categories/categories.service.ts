@@ -14,9 +14,10 @@ export class CategoriesService {
     private readonly audit: Pick<AuditService, 'record'> = auditService,
   ) {}
 
-  /** Public list (Guests use it to filter tours): active categories only. */
+  /** Public list (Guests use it to filter tours): active system categories only. */
   async listPublic(): Promise<CategoryDto[]> {
-    return (await this.categories.list({ onlyActive: true })).map(toCategoryDto);
+    const items = await this.categories.list({ onlyActive: true });
+    return items.filter((c) => (c.sortOrder ?? 0) < 200).map(toCategoryDto);
   }
 
   /** Admin list includes deactivated categories. */
@@ -59,6 +60,27 @@ export class CategoriesService {
   }
 
   // ------------------------------------------------ for other modules
+
+  /** Allows adding or re-activating an active category by name (e.g. when agency enters custom category). */
+  async upsertActive(name: string): Promise<CategoryDto> {
+    const trimmed = name.trim();
+    const slug = this.slugOrThrow(trimmed);
+    const existing = await this.categories.findBySlug(slug);
+    if (existing) {
+      if (!existing.isActive) {
+        const reactivated = await this.categories.updateById(existing.id, { isActive: true });
+        return toCategoryDto(reactivated ?? existing);
+      }
+      return toCategoryDto(existing);
+    }
+    const created = await this.categories.create({
+      name: trimmed,
+      slug,
+      isActive: true,
+      sortOrder: 250,
+    });
+    return toCategoryDto(created);
+  }
 
   /** Throws 400 unless every id is an ACTIVE category (used when an agency assigns categories to a tour). */
   async assertActiveIds(ids: string[]): Promise<void> {

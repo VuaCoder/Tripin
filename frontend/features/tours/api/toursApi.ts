@@ -25,7 +25,7 @@ export const toursApi = baseApi.injectEndpoints({
       transformResponse: (response: TourApiResponse<TourCategory[]>) => response.data,
       providesTags: [{ type: 'Category', id: 'LIST' }],
     }),
-    getAgencyTours: build.query<AgencyTourListResult, { page?: number; limit?: number; status?: TourStatus } | void>({
+    getAgencyTours: build.query<AgencyTourListResult, { page?: number; limit?: number; status?: TourStatus; q?: string } | void>({
       query: (args) => ({ url: '/agency/tours', params: { page: 1, limit: 12, ...(args ?? {}) } }),
       transformResponse: (response: TourApiResponse<TourDetail[]>) => ({
         items: response.data,
@@ -51,6 +51,11 @@ export const toursApi = baseApi.injectEndpoints({
     deleteAgencyTour: build.mutation<void, string>({
       query: (id) => ({ url: `/agency/tours/${id}`, method: 'DELETE' }),
       invalidatesTags: [{ type: 'Tour', id: 'AGENCY_LIST' }],
+    }),
+    restoreAgencyTour: build.mutation<TourDetail, string>({
+      query: (id) => ({ url: `/agency/tours/${id}/restore`, method: 'POST' }),
+      transformResponse: (response: TourApiResponse<TourDetail>) => response.data,
+      invalidatesTags: (_result, _error, id) => [{ type: 'Tour', id }, { type: 'Tour', id: 'AGENCY_LIST' }],
     }),
     setAgencyTourItinerary: build.mutation<TourDetail, { id: string; days: TourDetail['itinerary'] }>({
       query: ({ id, days }) => ({ url: `/agency/tours/${id}/itinerary`, method: 'PUT', body: { days } }),
@@ -93,19 +98,51 @@ export const toursApi = baseApi.injectEndpoints({
       transformResponse: (response: TourApiResponse<TourDetail>) => response.data,
       invalidatesTags: (result, _error, { id }) => result ? [{ type: 'Tour', id }, { type: 'Tour', id: 'AGENCY_LIST' }, { type: 'Tour', id: 'GUIDE_ASSIGNED' }] : [],
     }),
+    uploadAgencyTourImage: build.mutation<{ url: string; publicId: string }, File>({
+      query: (file) => {
+        const body = new FormData();
+        body.append('file', file);
+        return { url: '/agency/tours/upload-image', method: 'POST', body };
+      },
+      transformResponse: (response: TourApiResponse<{ url: string; publicId: string }>) => response.data,
+    }),
+    createAgencyCategory: build.mutation<TourCategory, { name: string }>({
+      query: (body) => ({ url: '/agency/tours/categories', method: 'POST', body }),
+      transformResponse: (response: TourApiResponse<TourCategory>) => response.data,
+      invalidatesTags: [{ type: 'Category', id: 'LIST' }],
+    }),
   }),
 });
 
 export const {
   useGetToursQuery, useGetTourDestinationsQuery, useGetTourQuery, useGetTourCategoriesQuery,
   useGetAgencyToursQuery, useGetAgencyTourQuery, useCreateAgencyTourMutation, useUpdateAgencyTourMutation,
-  useDeleteAgencyTourMutation, useSetAgencyTourItineraryMutation, useSetAgencyTourAvailabilityMutation,
+  useDeleteAgencyTourMutation, useRestoreAgencyTourMutation, useSetAgencyTourItineraryMutation, useSetAgencyTourAvailabilityMutation,
   useSubmitAgencyTourMutation, useImportAgencyToursMutation, useExtractAgencyTourDocumentMutation,
   useGetAgencyDashboardQuery,
   useGetAgencyGuidesQuery, useAssignAgencyTourGuideMutation,
+  useUploadAgencyTourImageMutation,
+  useCreateAgencyCategoryMutation,
 } = toursApi;
+
+const TOUR_ERROR_TRANSLATIONS: Record<string, string> = {
+  NO_OPEN_DEPARTURE: 'Vui lòng chuyển sang tab "Khởi hành" và thêm ít nhất một ngày khởi hành trong tương lai đang mở bán trước khi gửi duyệt tour.',
+  'Add at least one open future departure before submitting': 'Vui lòng chuyển sang tab "Khởi hành" và thêm ít nhất một ngày khởi hành trong tương lai đang mở bán trước khi gửi duyệt tour.',
+  'Add at least one category before submitting': 'Vui lòng chọn ít nhất một danh mục cho tour trước khi gửi duyệt.',
+  'The tour was modified, please retry': 'Tour đã được cập nhật bởi một phiên khác, vui lòng làm mới trang.',
+  'Itinerary days or ranges cannot overlap or duplicate': 'Các ngày hoặc khoảng ngày trong lịch trình không được trùng lặp.',
+  'Duplicate departure date': 'Ngày khởi hành này đã tồn tại trong danh sách.',
+};
 
 export function getTourApiMessage(error: unknown, fallback = 'Đã có lỗi xảy ra. Vui lòng thử lại.'): string {
   const result = error as { error?: { data?: TourApiError }; data?: TourApiError } | undefined;
-  return result?.error?.data?.error?.message || result?.data?.error?.message || fallback;
+  const errObj = result?.error?.data?.error || result?.data?.error;
+  if (errObj?.code && TOUR_ERROR_TRANSLATIONS[errObj.code]) {
+    return TOUR_ERROR_TRANSLATIONS[errObj.code];
+  }
+  const rawMsg = errObj?.message;
+  if (rawMsg && TOUR_ERROR_TRANSLATIONS[rawMsg]) {
+    return TOUR_ERROR_TRANSLATIONS[rawMsg];
+  }
+  return rawMsg || fallback;
 }

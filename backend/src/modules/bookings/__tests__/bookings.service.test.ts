@@ -115,7 +115,7 @@ describe('createBooking', () => {
   it('applies a promotion and subtracts it from the total', async () => {
     const { service, repo, promotions } = make();
     await service.createBooking('u1', { ...input, promotionCode: 'SUMMER10' });
-    expect(promotions.redeem).toHaveBeenCalledWith('SUMMER10', 't1', 2_000_000);
+    expect(promotions.redeem).toHaveBeenCalledWith('SUMMER10', 't1', 2_000_000, expect.anything());
     expect(repo.create.mock.calls[0]![0]).toMatchObject({ discountAmount: 200_000, totalAmount: 1_800_000, commissionAmount: 180_000, agencyAmount: 1_620_000 });
   });
 

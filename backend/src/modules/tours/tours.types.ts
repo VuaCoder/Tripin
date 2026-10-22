@@ -15,6 +15,7 @@ export const TOUR_TRANSITIONS: TransitionMap<TourStatus> = {
   [T.APPROVED]: [T.SUSPENDED, T.PENDING_REVIEW, T.ARCHIVED],
   [T.REJECTED]: [T.PENDING_REVIEW, T.ARCHIVED],
   [T.SUSPENDED]: [T.PENDING_REVIEW, T.ARCHIVED],
+  [T.ARCHIVED]: [T.DRAFT],
 };
 
 /** Statuses in which the owning agency may still edit the tour content. PENDING_REVIEW is locked while moderators review. */
@@ -65,6 +66,7 @@ export interface DepartureInput {
 
 export interface ItineraryDayInput {
   day: number;
+  toDay?: number;
   title: string;
   description?: string;
   activities?: string[];
@@ -76,6 +78,7 @@ export interface SearchToursQuery {
   page: number;
   limit: number;
   q?: string;
+  agencyId?: string;
   categoryId?: string;
   destination?: string;
   minPrice?: number;
@@ -139,7 +142,7 @@ export interface TourDetailDto extends TourListItemDto {
   images: string[];
   inclusions: string[];
   exclusions: string[];
-  itinerary: { day: number; title: string; description?: string; activities: string[] }[];
+  itinerary: { day: number; toDay?: number; title: string; description?: string; activities: string[] }[];
   departures: DepartureDto[];
   categories: CategoryDto[];
   guide?: { id: string; fullName: string; avatarUrl?: string };

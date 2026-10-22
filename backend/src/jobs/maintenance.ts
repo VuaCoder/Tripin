@@ -3,6 +3,7 @@ import { authService } from '../modules/auth';
 import { bookingsService } from '../modules/bookings';
 import { notificationsService } from '../modules/notifications';
 import { paymentsService } from '../modules/payments';
+import { promotionsService } from '../modules/promotions';
 import { subscriptionsService } from '../modules/subscriptions';
 
 export interface MaintenanceTask {
@@ -31,6 +32,8 @@ export function defaultTasks(): MaintenanceTask[] {
     // PostgreSQL has no TTL indexes: expired one-time codes / refresh tokens and old notifications are deleted here.
     { name: 'auth.purgeExpired', intervalMs: HOUR, run: () => authService.purgeExpiredCredentials() },
     { name: 'notifications.purgeOld', intervalMs: 6 * HOUR, run: () => notificationsService.purgeOlderThan(NOTIFICATION_RETENTION_DAYS) },
+    // Sweeps vouchers nearing expiration and notifies users according to their 2 preferred leisure time slots.
+    { name: 'promotions.sweepExpiring', intervalMs: 15 * MINUTE, run: () => promotionsService.sweepExpiringVouchers() },
   ];
 }
 

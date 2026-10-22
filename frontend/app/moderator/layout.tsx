@@ -5,7 +5,7 @@ import { RoleGuard } from '@/features/auth';
 
 export default function ModeratorLayout({ children }: { children: ReactNode }) {
   return (
-    <RoleGuard allowedRoles={['MODERATOR']}>
+    <RoleGuard allowedRoles={['MODERATOR', 'SUPER_ADMIN']}>
       {children}
     </RoleGuard>
   );

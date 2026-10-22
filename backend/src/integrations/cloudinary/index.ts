@@ -15,6 +15,7 @@ const PURPOSES = {
   licenseImage: { prefix: 'tripin/guides/licenses', tag: 'tripin_guide_license', label: 'License image' },
   agencyLicenseImage: { prefix: 'tripin/agencies/licenses', tag: 'tripin_agency_license', label: 'Agency license image' },
   reviewImage: { prefix: 'tripin/reviews', tag: 'tripin_review', label: 'Review image' },
+  tourImage: { prefix: 'tripin/tours', tag: 'tripin_tour', label: 'Tour image' },
 } as const;
 
 export type ImagePurpose = keyof typeof PURPOSES;

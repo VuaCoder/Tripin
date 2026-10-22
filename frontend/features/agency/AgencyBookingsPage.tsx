@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { 
@@ -28,13 +28,25 @@ export function AgencyBookingsPage() {
   const canViewTours = useAgencyPermission('tour:update-own');
   const [filters, setFilters] = useState({ status: '', tourId: params.get('tourId') ?? '', from: '', to: '' });
   const [tourPage, setTourPage] = useState(1);
+  const [tourFilterOpened, setTourFilterOpened] = useState(false);
+  const [tourSearch, setTourSearch] = useState('');
+  const [debouncedTourSearch, setDebouncedTourSearch] = useState('');
+  const [selectedTourTitle, setSelectedTourTitle] = useState('');
   const [page, setPage] = useState(1);
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedTourSearch(tourSearch.trim()), 300);
+    return () => window.clearTimeout(timeout);
+  }, [tourSearch]);
   const validDates = !filters.from || !filters.to || filters.from <= filters.to;
   const query: AgencyBookingFilters = { page, limit: 20, ...(filters.status ? { status: filters.status as BookingStatus } : {}), ...(filters.tourId ? { tourId: filters.tourId } : {}), ...(filters.from ? { departureFrom: `${filters.from}T00:00:00.000Z` } : {}), ...(filters.to ? { departureTo: `${filters.to}T23:59:59.999Z` } : {}) };
   const { currentData: data, isLoading, isFetching, error, refetch } = useGetAgencyBookingsQuery(query, { skip: !canView || !validDates, refetchOnFocus: true, refetchOnReconnect: true });
-  const tours = useGetAgencyToursQuery({ page: tourPage, limit: 100 }, { skip: !canView || !canViewTours });
+  const tours = useGetAgencyToursQuery(
+    { page: tourPage, limit: 12, ...(debouncedTourSearch ? { q: debouncedTourSearch } : {}) },
+    { skip: !canView || !canViewTours || !tourFilterOpened },
+  );
+  const tourSearchPending = tourSearch.trim() !== debouncedTourSearch;
   const update = (key: keyof typeof filters, value: string) => { setFilters((previous) => ({ ...previous, [key]: value })); setPage(1); };
-  const clearFilters = () => { setFilters({ status: '', tourId: '', from: '', to: '' }); setPage(1); };
+  const clearFilters = () => { setFilters({ status: '', tourId: '', from: '', to: '' }); setSelectedTourTitle(''); setPage(1); };
   const hasActiveFilters = Boolean(filters.status || filters.tourId || filters.from || filters.to);
 
   if (!canView) return <AgencyDenied />;
@@ -119,13 +131,17 @@ export function AgencyBookingsPage() {
             {canViewTours ? (
               <AntSelect
                 value={filters.tourId}
-                onChange={(value) => update('tourId', value)}
+                onOpen={() => setTourFilterOpened(true)}
+                onChange={(value) => {
+                  setSelectedTourTitle(tours.currentData?.items.find((tour) => tour.id === value)?.title ?? '');
+                  update('tourId', value);
+                }}
                 options={[
                   { value: '', label: 'Tất cả tour' },
-                  ...(filters.tourId && !tours.data?.items.some((tour) => tour.id === filters.tourId)
-                    ? [{ value: filters.tourId, label: 'Tour đang chọn' }]
+                  ...(filters.tourId && !tours.currentData?.items.some((tour) => tour.id === filters.tourId)
+                    ? [{ value: filters.tourId, label: selectedTourTitle || 'Tour đang chọn' }]
                     : []),
-                  ...(tours.data?.items.map((tour) => ({ value: tour.id, label: tour.title })) ?? []),
+                  ...(!tourSearchPending ? tours.currentData?.items.map((tour) => ({ value: tour.id, label: tour.title })) ?? [] : []),
                 ]}
                 prefix={<Compass size={17} />}
                 className="w-full"
@@ -143,7 +159,19 @@ export function AgencyBookingsPage() {
                 />
               </div>
             )}
-            {canViewTours && tours.data && tours.data.meta.totalPages > 1 && (
+            {canViewTours && tourFilterOpened && (
+              <input
+                type="search"
+                aria-label="Tìm tour theo tên"
+                value={tourSearch}
+                maxLength={100}
+                onChange={(event) => { setTourSearch(event.target.value); setTourPage(1); }}
+                placeholder="Tìm tour theo tên..."
+                className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-teal-600"
+              />
+            )}
+            {canViewTours && tourFilterOpened && tours.isFetching && <p className="text-xs text-slate-500">Đang tải tour...</p>}
+            {canViewTours && tourFilterOpened && !tourSearchPending && tours.currentData && tours.currentData.meta.totalPages > 1 && (
               <div className="flex items-center justify-between text-xs text-slate-500 pt-0.5 px-1">
                 <button
                   type="button"
@@ -153,10 +181,10 @@ export function AgencyBookingsPage() {
                 >
                   ← Trước
                 </button>
-                <span>Nhóm tour {tourPage}/{tours.data.meta.totalPages}</span>
+                <span>Nhóm tour {tourPage}/{tours.currentData.meta.totalPages}</span>
                 <button
                   type="button"
-                  disabled={tourPage >= tours.data.meta.totalPages}
+                  disabled={tourPage >= tours.currentData.meta.totalPages}
                   onClick={() => setTourPage((v) => v + 1)}
                   className="hover:text-teal-700 disabled:opacity-40 font-semibold cursor-pointer"
                 >
@@ -164,7 +192,7 @@ export function AgencyBookingsPage() {
                 </button>
               </div>
             )}
-            {tours.error && (
+            {canViewTours && tourFilterOpened && tours.error && (
               <p role="alert" className="text-xs text-red-700">
                 Không tải được tour. <button type="button" onClick={() => void tours.refetch()} className="underline font-semibold">Thử lại</button>
               </p>

@@ -3,6 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ profile: vi.fn(), reviews: vi.fn(), retry: vi.fn() }));
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: 'public-id' }) }));
 vi.mock('../api', () => ({ useGetPublicProfileQuery: mocks.profile, useGetProfileReviewsQuery: mocks.reviews }));
+vi.mock('../components/AgencyVouchersSection', () => ({
+  AgencyVouchersSection: () => <div data-testid="agency-vouchers">Voucher nhà cung cấp</div>,
+}));
+vi.mock('../components/AgencyToursSection', () => ({
+  AgencyToursSection: () => <div data-testid="agency-tours">Tour nhà cung cấp</div>,
+}));
 vi.mock('@/components/shared', () => ({
   LoadingState: ({ label }: { label: string }) => <p>{label}</p>,
   EmptyState: ({ title }: { title: string }) => <p>{title}</p>,

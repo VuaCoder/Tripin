@@ -5,7 +5,7 @@ import { validated } from '../../middlewares/validate';
 import { sendOk, sendPaginated } from '../../utils/api-response';
 import type { IdParams } from '../../utils/id';
 import { usersService, type UsersService } from './users.service';
-import type { AssignAccessBody, CompleteImageUploadBody, ListUsersQueryInput, UpdateProfileBody } from './users.validation';
+import type { AssignAccessBody, CompleteImageUploadBody, ListUsersQueryInput, UpdatePreferencesBody, UpdateProfileBody } from './users.validation';
 
 /** HTTP only; rules live in UsersService. */
 export class UsersController {
@@ -19,6 +19,15 @@ export class UsersController {
 
   getMe: RequestHandler = async (req, res) => {
     sendOk(res, await this.service.getMe(userActor(req).userId));
+  };
+
+  getPreferences: RequestHandler = async (req, res) => {
+    sendOk(res, await this.service.getPreferences(userActor(req).userId));
+  };
+
+  updatePreferences: RequestHandler = async (req, res) => {
+    const { body } = validated<UpdatePreferencesBody>(req);
+    sendOk(res, await this.service.updatePreferences(userActor(req).userId, body ?? {}));
   };
 
   updateMe: RequestHandler = async (req, res) => {

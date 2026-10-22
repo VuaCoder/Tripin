@@ -3,7 +3,7 @@ import { AppError } from '../../utils/app-error';
 import { buildPage, type Page } from '../../utils/pagination';
 import { assertTransition } from '../../utils/state-machine';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
-import { categoriesService, type CategoriesService } from '../categories';
+import { categoriesService, type CategoriesService, type CategoryDto } from '../categories';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
 import { usersService, type UsersService } from '../users';
 import { departurePrice, isBookable } from './tours.mapper';
@@ -28,7 +28,7 @@ type Actor = { userId: string; role: PersistedRole };
 type Repo = Pick<
   ToursRepository,
   | 'create' | 'insertMany' | 'findById' | 'findManyByIds' | 'updateIfStatus' | 'answerGuideAssignment' | 'listByAgency' | 'listByGuide'
-  | 'listForModeration' | 'reserveSeats' | 'releaseSeats' | 'applyDepartures' | 'setRatingStats' | 'countByStatus'
+  | 'listForModeration' | 'reserveSeats' | 'releaseSeats' | 'applyDepartures' | 'setRatingStats' | 'countByStatus' | 'findRecentDraft'
 >;
 
 const ENTITY = 'Tour';
@@ -41,7 +41,7 @@ export class ToursService {
   constructor(
     private readonly tours: Repo = toursRepository,
     private readonly users: Pick<UsersService, 'assertActiveWithRole' | 'assertAgencyVerified'> = usersService,
-    private readonly categories: Pick<CategoriesService, 'assertActiveIds'> = categoriesService,
+    private readonly categories: Pick<CategoriesService, 'assertActiveIds' | 'upsertActive'> = categoriesService,
     private readonly audit: Pick<AuditService, 'record'> = auditService,
     private readonly views: Pick<TourViewBuilder, 'manage' | 'manageMany' | 'guideItems'> = tourViewBuilder,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
@@ -49,9 +49,19 @@ export class ToursService {
 
   // ================================================================ Agency
 
+  /** Allows agency to create or find an active category on-the-fly when typing custom category. */
+  async createCategory(name: string): Promise<CategoryDto> {
+    return this.categories.upsertActive(name);
+  }
+
   /** Use case "Create tour" — always starts as DRAFT. */
   async createTour(agencyId: string, input: TourContentInput): Promise<TourManageDto> {
     await this.categories.assertActiveIds(input.categoryIds);
+    // Anti-duplicate protection: check if an identical draft was just created by this agency within the last 5 seconds
+    if (this.tours.findRecentDraft) {
+      const recent = await this.tours.findRecentDraft(agencyId, input.title.trim(), input.destination.trim(), 5000);
+      if (recent) return this.views.manage(recent);
+    }
     const created = await this.tours.create({ ...input, agencyId });
     return this.views.manage(created);
   }
@@ -65,13 +75,13 @@ export class ToursService {
     return { created: created.length, tours: await this.views.manageMany(created) };
   }
 
-  async listOwn(agencyId: string, query: { page: number; limit: number; status?: TourStatus }): Promise<Page<TourManageDto>> {
+  async listOwn(agencyId: string, query: { page: number; limit: number; status?: TourStatus; q?: string }): Promise<Page<TourManageDto>> {
     const { items, total } = await this.tours.listByAgency(agencyId, query.status, query);
     return buildPage(await this.views.manageMany(items), total, query);
   }
 
   async getOwn(agencyId: string, id: string): Promise<TourManageDto> {
-    return this.views.manage(await this.requireOwned(agencyId, id));
+    return this.views.manage(await this.requireOwned(agencyId, id, true));
   }
 
   /**
@@ -82,7 +92,7 @@ export class ToursService {
     const tour = await this.requireOwned(agencyId, id);
     this.assertAgencyEditable(tour);
     if (input.categoryIds) await this.categories.assertActiveIds(input.categoryIds);
-    if (input.durationDays !== undefined && tour.itinerary.some((day) => day.day > input.durationDays!)) {
+    if (input.durationDays !== undefined && tour.itinerary.some((day) => (day.toDay && day.toDay > day.day ? day.toDay : day.day) > input.durationDays!)) {
       throw AppError.badRequest('durationDays is shorter than the configured itinerary', undefined, 'ITINERARY_EXCEEDS_DURATION');
     }
     return this.applyContentChange(tour, { ...input });
@@ -98,6 +108,15 @@ export class ToursService {
     }
     const updated = await this.tours.updateIfStatus(id, [tour.status as TourStatus], { status: TOUR_STATUS.ARCHIVED });
     if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
+  }
+
+  /** Use case "Restore tour": restores an archived tour back to DRAFT. */
+  async restoreTour(agencyId: string, id: string): Promise<TourManageDto> {
+    const tour = await this.requireOwned(agencyId, id, true);
+    assertTransition(TOUR_TRANSITIONS, tour.status as TourStatus, TOUR_STATUS.DRAFT, ENTITY);
+    const updated = await this.tours.updateIfStatus(id, [TOUR_STATUS.ARCHIVED], { status: TOUR_STATUS.DRAFT });
+    if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
+    return this.views.manage(updated);
   }
 
   /**
@@ -164,12 +183,18 @@ export class ToursService {
   async setItinerary(agencyId: string, id: string, days: ItineraryDayInput[]): Promise<TourManageDto> {
     const tour = await this.requireOwned(agencyId, id);
     this.assertAgencyEditable(tour);
-    if (days.some((day) => day.day > tour.durationDays)) {
+    if (days.some((day) => (day.toDay && day.toDay > day.day ? day.toDay : day.day) > tour.durationDays)) {
       throw AppError.badRequest(`Itinerary days cannot exceed durationDays (${tour.durationDays})`, undefined, 'ITINERARY_EXCEEDS_DURATION');
     }
     const itinerary = [...days]
       .sort((a, b) => a.day - b.day)
-      .map((day) => ({ day: day.day, title: day.title, description: day.description, activities: day.activities ?? [] }));
+      .map((day) => ({
+        day: day.day,
+        toDay: day.toDay && day.toDay > day.day ? day.toDay : undefined,
+        title: day.title,
+        description: day.description,
+        activities: day.activities ?? [],
+      }));
     return this.applyContentChange(tour, { itinerary });
   }
 
@@ -446,9 +471,9 @@ export class ToursService {
   // ================================================================ helpers
 
   /** 404 (never 403) when the tour is not the agency's own, so ids of other agencies are not revealed. */
-  private async requireOwned(agencyId: string, id: string): Promise<TourRecord> {
+  private async requireOwned(agencyId: string, id: string, allowArchived = false): Promise<TourRecord> {
     const tour = await this.tours.findById(id);
-    if (!tour || tour.agencyId !== agencyId || tour.status === TOUR_STATUS.ARCHIVED) {
+    if (!tour || tour.agencyId !== agencyId || (!allowArchived && tour.status === TOUR_STATUS.ARCHIVED)) {
       throw AppError.notFound('Tour not found');
     }
     return tour;

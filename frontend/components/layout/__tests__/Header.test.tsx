@@ -93,13 +93,18 @@ describe('Header Traveler Dropdown & Premium', () => {
     const accountMenu = document.getElementById('account-menu');
     expect(accountMenu).toBeTruthy();
 
-    // Verify EXACTLY 3 items in Traveler dropdown:
+    // Verify items in Traveler dropdown:
     // 1. Hồ sơ cá nhân
     const profileLink = screen.getByRole('link', { name: /hồ sơ cá nhân/i });
     expect(profileLink).toBeTruthy();
     expect(profileLink.getAttribute('href')).toBe('/settings/profile');
 
-    // 2. Premium
+    // 2. Ví voucher
+    const voucherLink = screen.getByRole('link', { name: /ví voucher/i });
+    expect(voucherLink).toBeTruthy();
+    expect(voucherLink.getAttribute('href')).toBe('/settings/vouchers');
+
+    // 3. Premium
     const premiumMenuItem = screen.getByRole('button', { name: /premium/i });
     expect(premiumMenuItem).toBeTruthy();
 

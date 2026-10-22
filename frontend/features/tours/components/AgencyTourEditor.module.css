@@ -1,3 +1,14 @@
 .form :is(input,textarea)[aria-invalid=true] { border-color:#dc2626; }
 .form :is(input,textarea)[aria-invalid=true]:focus { border-color:#b91c1c; box-shadow:0 0 0 3px #fee2e2; }
 .form :is(input,textarea,button):focus-visible { outline:2px solid #087e8b; outline-offset:3px; }
+
+.form input[type="number"]::-webkit-outer-spin-button,
+.form input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+.form input[type="number"] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}

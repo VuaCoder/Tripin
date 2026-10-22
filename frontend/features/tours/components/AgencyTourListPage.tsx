@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState, useId } from 'react';
 import { 
   useDeleteAgencyTourMutation, 
   useGetAgencyToursQuery, 
+  useRestoreAgencyTourMutation,
   useUpdateAgencyTourMutation,
+  useUploadAgencyTourImageMutation,
   getTourApiMessage 
 } from '../api/toursApi';
 import type { TourDetail, TourStatus } from '../types';
@@ -103,6 +106,7 @@ const statuses: { value: TourStatus | ''; label: string }[] = [
   { value: 'APPROVED', label: 'Đã duyệt' },
   { value: 'REJECTED', label: 'Cần chỉnh sửa' },
   { value: 'SUSPENDED', label: 'Đang tạm ẩn' },
+  { value: 'ARCHIVED', label: 'Đã lưu trữ' },
 ];
 
 const statusConfig: Record<TourStatus, { label: string; bg: string; text: string; border: string }> = {
@@ -125,14 +129,18 @@ const PRESET_PHOTOS = [
 ];
 
 export function AgencyTourListPage() {
+  const router = useRouter();
   const [status, setStatus] = useState<TourStatus | undefined>();
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<'box' | 'grid'>('box');
   const { data, isLoading, isFetching, error, refetch } = useGetAgencyToursQuery({ page, limit: 12, status });
   const [deleteTour, deleteState] = useDeleteAgencyTourMutation();
+  const [restoreTour, restoreState] = useRestoreAgencyTourMutation();
   const [updateTour, updateState] = useUpdateAgencyTourMutation();
   const [actionError, setActionError] = useState('');
+  const [actionSuccess, setActionSuccess] = useState('');
   const [archivingTour, setArchivingTour] = useState<{ id: string; title: string } | null>(null);
+  const [restoringTour, setRestoringTour] = useState<{ id: string; title: string } | null>(null);
 
   // Image Upload / Management modal state
   const [editingImageTour, setEditingImageTour] = useState<TourDetail | null>(null);
@@ -141,6 +149,9 @@ export function AgencyTourListPage() {
   const [showModalUrlInput, setShowModalUrlInput] = useState(false);
   const [isModalDragging, setIsModalDragging] = useState(false);
   const [imageSaveMessage, setImageSaveMessage] = useState('');
+  const [modalImageError, setModalImageError] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadTourImage, uploadState] = useUploadAgencyTourImageMutation();
   const imageUploadInputId = useId();
 
   const openImageManager = (tour: TourDetail) => {
@@ -150,10 +161,13 @@ export function AgencyTourListPage() {
     setShowModalUrlInput(false);
     setIsModalDragging(false);
     setImageSaveMessage('');
+    setModalImageError('');
+    setIsUploadingImage(false);
     setActionError('');
   };
 
   const handleAddImageUrl = () => {
+    setModalImageError('');
     if (!newImageUrl.trim()) return;
     try {
       new URL(newImageUrl.trim());
@@ -161,29 +175,36 @@ export function AgencyTourListPage() {
       setNewImageUrl('');
       setShowModalUrlInput(false);
     } catch {
-      alert('Vui lòng nhập đường link URL hợp lệ (ví dụ: https://...)');
+      setModalImageError('Vui lòng nhập đường link URL hợp lệ (ví dụ: https://...)');
     }
   };
 
-  const processImageFiles = (files: FileList | File[]) => {
+  const processImageFiles = async (files: FileList | File[]) => {
+    setModalImageError('');
     const validFiles = Array.from(files).filter((file) => file.type.startsWith('image/'));
     if (!validFiles.length) {
-      alert('Vui lòng chọn hoặc kéo thả định dạng ảnh (JPG, PNG, WebP).');
+      setModalImageError('Vui lòng chọn hoặc kéo thả định dạng ảnh (JPG, PNG, WebP).');
       return;
     }
-    validFiles.forEach((file) => {
+    for (const file of validFiles) {
       if (file.size > 5 * 1024 * 1024) {
-        alert(`Kích thước ảnh ${file.name} vượt quá 5MB.`);
+        setModalImageError(`Kích thước ảnh “${file.name}” vượt quá 5MB.`);
         return;
       }
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setCurrentTourImages((prev) => [...prev, reader.result as string]);
+    }
+    setIsUploadingImage(true);
+    try {
+      for (const file of validFiles) {
+        const res = await uploadTourImage(file).unwrap();
+        if (res.url) {
+          setCurrentTourImages((prev) => [...prev, res.url]);
         }
-      };
-      reader.readAsDataURL(file);
-    });
+      }
+    } catch (err) {
+      setModalImageError(getTourApiMessage(err, 'Không thể tải ảnh lên. Vui lòng thử lại.'));
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -204,10 +225,12 @@ export function AgencyTourListPage() {
   const handleSaveImages = async () => {
     if (!editingImageTour) return;
     setImageSaveMessage('');
+    setActionError('');
     try {
+      const validImages = currentTourImages.filter((img) => img.startsWith('http://') || img.startsWith('https://'));
       await updateTour({
         id: editingImageTour.id,
-        body: { images: currentTourImages }
+        body: { images: validImages }
       }).unwrap();
       setImageSaveMessage('Đã cập nhật ảnh thành công!');
       setTimeout(() => {
@@ -222,12 +245,28 @@ export function AgencyTourListPage() {
   const handleConfirmArchive = async () => {
     if (!archivingTour) return;
     setActionError('');
+    setActionSuccess('');
     try { 
       await deleteTour(archivingTour.id).unwrap(); 
       setArchivingTour(null);
     } catch (e) { 
       setActionError(getTourApiMessage(e, 'Không thể lưu trữ tour.')); 
       setArchivingTour(null);
+    }
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!restoringTour) return;
+    setActionError('');
+    setActionSuccess('');
+    try {
+      await restoreTour(restoringTour.id).unwrap();
+      setActionSuccess(`Đã khôi phục tour “${restoringTour.title}” về bản nháp thành công!`);
+      setRestoringTour(null);
+      setTimeout(() => setActionSuccess(''), 4000);
+    } catch (e) {
+      setActionError(getTourApiMessage(e, 'Không thể khôi phục tour.'));
+      setRestoringTour(null);
     }
   };
 
@@ -324,6 +363,12 @@ export function AgencyTourListPage() {
         </p>
       )}
 
+      {actionSuccess && (
+        <p role="status" className="mb-6 rounded-2xl bg-emerald-50 border border-emerald-200 p-4 text-sm font-semibold text-emerald-800">
+          {actionSuccess}
+        </p>
+      )}
+
       {/* Loading State */}
       {isLoading ? (
         <div className="space-y-4" role="status" aria-label="Đang tải danh sách tour">
@@ -383,7 +428,8 @@ export function AgencyTourListPage() {
                 return (
                   <article 
                     key={tour.id} 
-                    className="group relative flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs hover:border-teal-300 hover:shadow-md transition-all"
+                    onClick={() => router.push(`/agency/tours/${tour.id}`)}
+                    className="group relative flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs hover:border-teal-400 hover:shadow-md transition-all cursor-pointer"
                   >
                     {/* Left: Thumbnail image + Quick photo trigger */}
                     <div className="flex items-center gap-4 min-w-0">
@@ -403,9 +449,12 @@ export function AgencyTourListPage() {
                         {/* Hover button to change/upload photo directly */}
                         <button
                           type="button"
-                          onClick={() => openImageManager(tour)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openImageManager(tour);
+                          }}
                           title="Quản lý ảnh tour"
-                          className="absolute inset-0 flex items-center justify-center bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold gap-1"
+                          className="absolute inset-0 flex items-center justify-center bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold gap-1 cursor-pointer"
                         >
                           <span className="material-symbols-outlined text-[16px]">photo_camera</span>
                           <span>Đổi ảnh</span>
@@ -416,7 +465,13 @@ export function AgencyTourListPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <h2 className="truncate text-base sm:text-lg font-bold text-slate-900 group-hover:text-primary transition-colors" title={tour.title}>
-                            {tour.title}
+                            <Link 
+                              href={`/agency/tours/${tour.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="hover:underline focus:outline-none"
+                            >
+                              {tour.title}
+                            </Link>
                           </h2>
                           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold border ${statusInfo.bg} ${statusInfo.text} ${statusInfo.border}`}>
                             {statusInfo.label}
@@ -447,8 +502,11 @@ export function AgencyTourListPage() {
                           <span>Cập nhật: {new Date(tour.updatedAt).toLocaleDateString('vi-VN')}</span>
                           <button
                             type="button"
-                            onClick={() => openImageManager(tour)}
-                            className="inline-flex items-center gap-1 font-semibold text-teal-700 hover:text-teal-900 underline ml-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openImageManager(tour);
+                            }}
+                            className="inline-flex items-center gap-1 font-semibold text-teal-700 hover:text-teal-900 underline ml-1 cursor-pointer"
                           >
                             <span className="material-symbols-outlined text-[14px]">image</span>
                             {tour.images?.length ? `${tour.images.length} ảnh` : '+ Thêm ảnh'}
@@ -458,38 +516,66 @@ export function AgencyTourListPage() {
                     </div>
 
                     {/* Right: Actions */}
-                    <div className="flex shrink-0 items-center gap-1.5 border-t border-slate-100 pt-3 sm:border-t-0 sm:pt-0">
+                    <div className="flex shrink-0 items-center gap-2 border-t border-slate-100 pt-3 sm:border-t-0 sm:pt-0" onClick={(e) => e.stopPropagation()}>
                       <Link 
                         href={`/agency/tours/${tour.id}`} 
-                        title="Quản lý tour"
-                        aria-label="Quản lý tour"
-                        className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs"
+                        title="Quản lý lịch trình, ngày khởi hành và chỗ ngồi"
+                        aria-label="Quản lý lịch trình & chỗ ngồi"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-colors shadow-2xs"
                       >
-                        <span className="material-symbols-outlined text-[19px]">tune</span>
+                        <span className="material-symbols-outlined text-[17px] text-teal-700">calendar_month</span>
+                        <span className="hidden sm:inline">Lịch trình & Chỗ</span>
                       </Link>
                       <Link 
-                        href={`/agency/tours/${tour.id}/edit`} 
-                        aria-disabled={tour.status === 'PENDING_REVIEW'} 
-                        title="Chỉnh sửa tour"
-                        aria-label="Chỉnh sửa tour"
-                        className={`flex size-9 items-center justify-center rounded-xl border transition-colors shadow-2xs ${
-                          tour.status === 'PENDING_REVIEW' 
+                        href={`/agency/tours/${tour.id}/edit?from=/agency/tours`} 
+                        aria-disabled={tour.status === 'PENDING_REVIEW' || tour.status === 'ARCHIVED'} 
+                        title={
+                          tour.status === 'ARCHIVED' 
+                            ? 'Tour đã lưu trữ không thể chỉnh sửa' 
+                            : tour.status === 'PENDING_REVIEW' 
+                              ? 'Tour đang chờ duyệt' 
+                              : 'Chỉnh sửa thông tin tour'
+                        }
+                        aria-label="Chỉnh sửa thông tin tour"
+                        className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-colors shadow-2xs ${
+                          tour.status === 'PENDING_REVIEW' || tour.status === 'ARCHIVED' 
                             ? 'pointer-events-none border-slate-200 text-slate-300' 
-                            : 'border-teal-600/30 text-teal-700 bg-teal-50/50 hover:bg-teal-100/70 hover:border-teal-600'
+                            : 'border-teal-600/30 text-teal-700 bg-teal-50/60 hover:bg-teal-100/70 hover:border-teal-600'
                         }`}
                       >
-                        <span className="material-symbols-outlined text-[19px]">edit</span>
+                        <span className="material-symbols-outlined text-[17px]">edit</span>
+                        <span className="hidden sm:inline">Sửa thông tin</span>
                       </Link>
-                      <button 
-                        type="button" 
-                        disabled={deleteState.isLoading || tour.status === 'PENDING_REVIEW'} 
-                        onClick={() => setArchivingTour({ id: tour.id, title: tour.title })} 
-                        title="Lưu trữ tour"
-                        aria-label="Lưu trữ tour"
-                        className="flex size-9 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors shadow-2xs disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        <span className="material-symbols-outlined text-[19px]">archive</span>
-                      </button>
+                      {tour.status === 'ARCHIVED' ? (
+                        <button
+                          type="button"
+                          disabled={restoreState.isLoading}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRestoringTour({ id: tour.id, title: tour.title });
+                          }}
+                          title="Khôi phục tour về bản nháp"
+                          aria-label="Khôi phục tour về bản nháp"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">unarchive</span>
+                          <span className="hidden sm:inline">Khôi phục</span>
+                        </button>
+                      ) : (
+                        <button 
+                          type="button" 
+                          disabled={deleteState.isLoading || tour.status === 'PENDING_REVIEW'} 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setArchivingTour({ id: tour.id, title: tour.title });
+                          }} 
+                          title="Lưu trữ tour"
+                          aria-label="Lưu trữ tour"
+                          className="flex size-9 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors shadow-2xs disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">archive</span>
+                        </button>
+                      )}
                     </div>
                   </article>
                 );
@@ -508,7 +594,8 @@ export function AgencyTourListPage() {
                 return (
                   <article 
                     key={tour.id} 
-                    className="group flex flex-col rounded-3xl border border-slate-200/90 bg-white overflow-hidden shadow-xs hover:border-teal-300 hover:shadow-xl transition-all duration-300"
+                    onClick={() => router.push(`/agency/tours/${tour.id}`)}
+                    className="group flex flex-col rounded-3xl border border-slate-200/90 bg-white overflow-hidden shadow-xs hover:border-teal-400 hover:shadow-xl transition-all duration-300 cursor-pointer"
                   >
                     {/* Card Cover Image with Carousel */}
                     <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100">
@@ -537,7 +624,13 @@ export function AgencyTourListPage() {
                       </div>
 
                       <h2 className="text-base font-bold text-slate-900 group-hover:text-primary transition-colors line-clamp-2 min-h-[3rem]" title={tour.title}>
-                        {tour.title}
+                        <Link 
+                          href={`/agency/tours/${tour.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="hover:underline focus:outline-none"
+                        >
+                          {tour.title}
+                        </Link>
                       </h2>
 
                       <div className="mt-3 flex items-baseline justify-between border-t border-slate-100 pt-3">
@@ -553,38 +646,66 @@ export function AgencyTourListPage() {
                       </div>
 
                       {/* Card Footer Actions */}
-                      <div className="mt-5 flex items-center justify-end gap-1.5 border-t border-slate-100 pt-3">
+                      <div className="mt-5 flex items-center justify-between gap-2 border-t border-slate-100 pt-3" onClick={(e) => e.stopPropagation()}>
                         <Link 
                           href={`/agency/tours/${tour.id}`} 
-                          title="Quản lý tour"
-                          aria-label="Quản lý tour"
-                          className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs"
+                          title="Quản lý lịch trình, ngày khởi hành và chỗ ngồi"
+                          aria-label="Quản lý lịch trình & chỗ ngồi"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2 px-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs"
                         >
-                          <span className="material-symbols-outlined text-[19px]">tune</span>
+                          <span className="material-symbols-outlined text-[16px] text-teal-700">calendar_month</span>
+                          <span>Lịch trình</span>
                         </Link>
                         <Link 
-                          href={`/agency/tours/${tour.id}/edit`} 
-                          aria-disabled={tour.status === 'PENDING_REVIEW'} 
-                          title="Chỉnh sửa tour"
-                          aria-label="Chỉnh sửa tour"
-                          className={`flex size-9 items-center justify-center rounded-xl border transition-colors shadow-2xs ${
-                            tour.status === 'PENDING_REVIEW' 
+                          href={`/agency/tours/${tour.id}/edit?from=/agency/tours`} 
+                          aria-disabled={tour.status === 'PENDING_REVIEW' || tour.status === 'ARCHIVED'} 
+                          title={
+                            tour.status === 'ARCHIVED' 
+                              ? 'Tour đã lưu trữ không thể chỉnh sửa' 
+                              : tour.status === 'PENDING_REVIEW' 
+                                ? 'Tour đang chờ duyệt' 
+                                : 'Chỉnh sửa thông tin tour'
+                          }
+                          aria-label="Chỉnh sửa thông tin tour"
+                          className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border py-2 px-2 text-xs font-bold transition-colors shadow-2xs ${
+                            tour.status === 'PENDING_REVIEW' || tour.status === 'ARCHIVED' 
                               ? 'pointer-events-none border-slate-200 text-slate-300' 
-                              : 'border-teal-600/30 text-teal-700 bg-teal-50/50 hover:bg-teal-100/70 hover:border-teal-600'
+                              : 'border-teal-600/30 text-teal-700 bg-teal-50/60 hover:bg-teal-100/70 hover:border-teal-600'
                           }`}
                         >
-                          <span className="material-symbols-outlined text-[19px]">edit</span>
+                          <span className="material-symbols-outlined text-[16px]">edit</span>
+                          <span>Sửa thông tin</span>
                         </Link>
-                        <button 
-                          type="button" 
-                          disabled={deleteState.isLoading || tour.status === 'PENDING_REVIEW'} 
-                          onClick={() => setArchivingTour({ id: tour.id, title: tour.title })} 
-                          title="Lưu trữ tour"
-                          aria-label="Lưu trữ tour"
-                          className="flex size-9 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors shadow-2xs disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          <span className="material-symbols-outlined text-[19px]">archive</span>
-                        </button>
+                        {tour.status === 'ARCHIVED' ? (
+                          <button
+                            type="button"
+                            disabled={restoreState.isLoading}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRestoringTour({ id: tour.id, title: tour.title });
+                            }}
+                            title="Khôi phục tour về bản nháp"
+                            aria-label="Khôi phục tour về bản nháp"
+                            className="inline-flex items-center gap-1 rounded-xl border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">unarchive</span>
+                            <span>Khôi phục</span>
+                          </button>
+                        ) : (
+                          <button 
+                            type="button" 
+                            disabled={deleteState.isLoading || tour.status === 'PENDING_REVIEW'} 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setArchivingTour({ id: tour.id, title: tour.title });
+                            }} 
+                            title="Lưu trữ tour"
+                            aria-label="Lưu trữ tour"
+                            className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors shadow-2xs disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-[17px]">archive</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </article>
@@ -700,31 +821,47 @@ export function AgencyTourListPage() {
                       : 'border-slate-300 bg-slate-50/70 hover:border-teal-500 hover:bg-slate-50'
                   }`}
                 >
-                  <div className="flex size-11 items-center justify-center rounded-2xl bg-teal-100/70 text-teal-700 mb-2">
-                    <span className="material-symbols-outlined text-2xl">cloud_upload</span>
-                  </div>
-                  <p className="text-xs sm:text-sm font-bold text-slate-800">
-                    Kéo & thả ảnh vào đây, hoặc
-                  </p>
-                  <label
-                    htmlFor={imageUploadInputId}
-                    className="mt-1.5 inline-flex items-center gap-1.5 rounded-xl border border-teal-600 bg-white px-3.5 py-1.5 text-xs font-bold text-teal-700 hover:bg-teal-50 cursor-pointer transition-colors shadow-2xs"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">folder_open</span>
-                    <span>Tải ảnh từ máy tính</span>
-                  </label>
-                  <input 
-                    id={imageUploadInputId}
-                    type="file" 
-                    accept="image/png,image/jpeg,image/webp" 
-                    multiple
-                    onChange={handleFileUpload} 
-                    className="hidden" 
-                  />
-                  <p className="mt-2 text-[11px] text-slate-400">
-                    Hỗ trợ định dạng JPG, PNG, WebP (Tối đa 5MB)
-                  </p>
+                  {isUploadingImage ? (
+                    <div className="flex flex-col items-center justify-center py-2">
+                      <div className="size-8 animate-spin rounded-full border-2 border-teal-200 border-t-teal-700 mb-2" />
+                      <p className="text-xs font-bold text-teal-800">Đang tải ảnh lên...</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Vui lòng chờ trong giây lát</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex size-11 items-center justify-center rounded-2xl bg-teal-100/70 text-teal-700 mb-2">
+                        <span className="material-symbols-outlined text-2xl">cloud_upload</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold text-slate-800">
+                        Kéo & thả ảnh vào đây, hoặc
+                      </p>
+                      <label
+                        htmlFor={imageUploadInputId}
+                        className="mt-1.5 inline-flex items-center gap-1.5 rounded-xl border border-teal-600 bg-white px-3.5 py-1.5 text-xs font-bold text-teal-700 hover:bg-teal-50 cursor-pointer transition-colors shadow-2xs"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">folder_open</span>
+                        <span>Tải ảnh từ máy tính</span>
+                      </label>
+                      <input 
+                        id={imageUploadInputId}
+                        type="file" 
+                        accept="image/png,image/jpeg,image/webp" 
+                        multiple
+                        onChange={handleFileUpload} 
+                        className="hidden" 
+                      />
+                      <p className="mt-2 text-[11px] text-slate-400">
+                        Hỗ trợ định dạng JPG, PNG, WebP (Tối đa 5MB)
+                      </p>
+                    </>
+                  )}
                 </div>
+
+                {modalImageError && (
+                  <p role="alert" className="text-xs font-bold text-rose-600">
+                    {modalImageError}
+                  </p>
+                )}
 
                 {/* Thêm ảnh qua đường link ảnh */}
                 <div className="pt-1">
@@ -816,11 +953,11 @@ export function AgencyTourListPage() {
               </button>
               <button
                 type="button"
-                disabled={updateState.isLoading}
+                disabled={updateState.isLoading || isUploadingImage}
                 onClick={() => void handleSaveImages()}
-                className="rounded-xl bg-primary-container px-6 py-2.5 text-sm font-bold text-white hover:bg-primary transition-colors disabled:opacity-50 shadow-md shadow-primary-container/20"
+                className="rounded-xl bg-primary-container px-6 py-2.5 text-sm font-bold text-white hover:bg-primary transition-colors disabled:opacity-50 shadow-md shadow-primary-container/20 cursor-pointer"
               >
-                {updateState.isLoading ? 'Đang lưu ảnh...' : 'Lưu ảnh tour'}
+                {updateState.isLoading ? 'Đang lưu ảnh...' : isUploadingImage ? 'Đang tải ảnh...' : 'Lưu ảnh tour'}
               </button>
             </div>
           </div>
@@ -870,6 +1007,53 @@ export function AgencyTourListPage() {
                 className="rounded-xl border border-teal-600 bg-white px-5 py-2.5 text-sm font-bold text-teal-700 hover:bg-teal-50 transition-colors cursor-pointer"
               >
                 {deleteState.isLoading ? 'Đang lưu trữ...' : 'Tiếp tục'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* RESTORE CONFIRMATION MODAL                                                */}
+      {/* ========================================================================= */}
+      {restoringTour && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200/60 shrink-0">
+                <span className="material-symbols-outlined text-2xl">unarchive</span>
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold text-slate-900">
+                  Khôi phục tour?
+                </h3>
+                <p className="text-xs text-slate-500 truncate">
+                  Tour: <span className="font-semibold text-slate-700">{restoringTour.title}</span>
+                </p>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-600">
+              Tour này sẽ được khôi phục về trạng thái <strong>Bản nháp</strong>. Bạn có thể chỉnh sửa thông tin, lịch trình và gửi duyệt lại khi sẵn sàng.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setRestoringTour(null)}
+                disabled={restoreState.isLoading}
+                className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm cursor-pointer"
+              >
+                Huỷ
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmRestore}
+                disabled={restoreState.isLoading}
+                className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 transition-colors cursor-pointer shadow-sm"
+              >
+                {restoreState.isLoading ? 'Đang khôi phục...' : 'Khôi phục về bản nháp'}
               </button>
             </div>
           </div>

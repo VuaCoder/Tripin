@@ -2,13 +2,22 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import {
+  Heart,
+  CalendarCheck,
+  TicketPercent,
+  Flag,
+  User,
+  ShieldCheck,
+} from 'lucide-react';
 
 const navItems = [
-  { name: 'Danh sách yêu thích', href: '/settings/wishlist', icon: 'favorite' },
-  { name: 'Chuyến đi', href: '/settings/history', icon: 'confirmation_number' },
-  { name: 'Báo cáo của tôi', href: '/settings/reports', icon: 'flag' },
-  { name: 'Hồ sơ', href: '/settings/profile', icon: 'person' },
-  { name: 'Bảo mật & 2FA', href: '/settings/profile/security', icon: 'shield_lock' },
+  { name: 'Ví voucher & Ưu đãi', href: '/settings/vouchers', Icon: TicketPercent },
+  { name: 'Danh sách yêu thích', href: '/settings/wishlist', Icon: Heart },
+  { name: 'Chuyến đi', href: '/settings/history', Icon: CalendarCheck },
+  { name: 'Báo cáo của tôi', href: '/settings/reports', Icon: Flag },
+  { name: 'Hồ sơ', href: '/settings/profile', Icon: User },
+  { name: 'Bảo mật & 2FA', href: '/settings/profile/security', Icon: ShieldCheck },
 ];
 
 export function TravelerAccountNav() {
@@ -23,6 +32,7 @@ export function TravelerAccountNav() {
         const isActive =
           pathname === item.href ||
           (item.href !== '/settings/profile' && pathname.startsWith(item.href));
+        const IconComponent = item.Icon;
 
         return (
           <Link
@@ -35,9 +45,7 @@ export function TravelerAccountNav() {
                 : 'text-slate-600 hover:bg-surface-container-low hover:text-primary-container'
             }`}
           >
-            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
-              {item.icon}
-            </span>
+            <IconComponent className="size-5 shrink-0" aria-hidden="true" />
             <span>{item.name}</span>
           </Link>
         );
@@ -45,3 +53,4 @@ export function TravelerAccountNav() {
     </nav>
   );
 }
+

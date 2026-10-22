@@ -27,6 +27,7 @@ export function AgencyTourImportPage() {
   const [drafts, setDrafts] = useState<TourContentInput[]>([]);
   const [errorText, setErrorText] = useState('');
   const [success, setSuccess] = useState('');
+  const isSubmittingRef = useRef(false);
 
   const extractFile = async (file?: File) => {
     if (!file) return;
@@ -41,16 +42,21 @@ export function AgencyTourImportPage() {
 
   const addManual = () => { setErrorText(''); setSuccess(''); setDrafts((current) => current.length >= 50 ? current : [...current, asEditable()]); };
   const submit = async () => {
+    if (isSubmittingRef.current || importState.isLoading) return;
     setErrorText(''); setSuccess('');
     if (!drafts.length) { setErrorText('Hãy thêm ít nhất một tour.'); return; }
     const invalid = drafts.findIndex((tour) => tour.title.trim().length < 5 || !tour.destination.trim() || tour.durationDays < 1 || !Number.isInteger(tour.basePrice) || tour.basePrice < 0 || tour.categoryIds.length === 0 || tour.categoryIds.length > 10);
     if (invalid >= 0) { setErrorText(`Tour số ${invalid + 1} còn thiếu hoặc sai thông tin bắt buộc. Hãy hoàn thiện tên, điểm đến, thời lượng, giá và danh mục.`); return; }
+    isSubmittingRef.current = true;
     try {
       const result = await importTours(drafts).unwrap();
       setSuccess(`Đã tạo ${result.created} tour ở trạng thái bản nháp.`);
       setDrafts([]);
       window.setTimeout(() => router.push('/agency/tours'), 900);
-    } catch (error) { setErrorText(getTourApiMessage(error, 'Không thể nhập các tour. Hãy kiểm tra lại dữ liệu; chưa có thông báo thành công từ máy chủ.')); }
+    } catch (error) {
+      isSubmittingRef.current = false;
+      setErrorText(getTourApiMessage(error, 'Không thể nhập các tour. Hãy kiểm tra lại dữ liệu; chưa có thông báo thành công từ máy chủ.'));
+    }
   };
 
   return <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">

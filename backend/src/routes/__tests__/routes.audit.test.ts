@@ -13,6 +13,7 @@ const labels = (items: RouteInfo[]) => items.map(label).sort();
 /** Endpoints anybody (GUEST) may call. Mutations here are credential flows or the signed payment webhook. */
 const PUBLIC_ROUTES = [
   'GET /agencies/:id',
+  'GET /agencies/:id/promotions',
   'GET /categories',
   'GET /health',
   'GET /policies',
@@ -60,6 +61,7 @@ const LOGIN_ONLY_ROUTES = [
 /** Mutating routes that carry no JSON body by design (pure actions on the caller's own resource / signed callbacks). */
 const BODYLESS_MUTATIONS = [
   'PATCH /notifications/:id/read',
+  'POST /agency/tours/:id/restore',
   'POST /agency/tours/:id/submit',
   'POST /auth/agency/upload-license',
   'POST /bookings/:id/complete',

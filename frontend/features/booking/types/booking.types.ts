@@ -2,7 +2,7 @@ export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
 
 export type BookingCancelReason = 'TRAVELER_REQUEST' | 'PAYMENT_EXPIRED';
 
-export type PromotionScope = 'ORDER' | 'TOUR';
+export type PromotionScope = 'ORDER' | 'TOUR' | 'AGENCY' | 'PLATFORM';
 
 export interface BookingContact {
   fullName: string;
@@ -17,8 +17,54 @@ export interface CreateBookingInput {
   contact: BookingContact;
   notes?: string;
   promotionCode?: string;
+  agencyPromotionCode?: string;
+  platformPromotionCode?: string;
   /** Optional retry key so a double submit never creates two bookings. */
   clientRequestId?: string;
+}
+
+export interface AvailablePromotionItem {
+  id: string;
+  scope?: PromotionScope;
+  ownerId?: string;
+  code?: string;
+  title: string;
+  description?: string;
+  discountType: 'PERCENT' | 'FIXED';
+  discountValue: number;
+  maxDiscountAmount?: number;
+  minOrderAmount: number;
+  applyType?: 'CODE' | 'AUTO_APPLY' | 'COLLECTABLE';
+  codeType?: 'SHARED' | 'UNIQUE_BATCH';
+  minParticipants?: number;
+  daysInAdvance?: number;
+  firstBookingOnly?: boolean;
+  targetTourIds?: string[];
+  startsAt: string;
+  endsAt: string;
+  usageLimit?: number;
+  usedCount: number;
+  isActive: boolean;
+  isRunning: boolean;
+  isArchived?: boolean;
+}
+
+export interface AvailablePromotions {
+  platform: AvailablePromotionItem[];
+  agency: AvailablePromotionItem[];
+  autoAgency?: AvailablePromotionItem;
+  autoPlatform?: AvailablePromotionItem;
+}
+
+export interface UserVoucherItem {
+  id: string;
+  userId: string;
+  promotionId: string;
+  collectedAt: string;
+  isUsed: boolean;
+  usedAt?: string;
+  bookingId?: string;
+  promotion?: AvailablePromotionItem;
 }
 
 /** Input for the non-mutating promotion estimate endpoint. */
@@ -36,6 +82,9 @@ export interface PromotionPreview {
   discountAmount: number;
   finalAmount: number;
 }
+
+export type AppliedPromotionPreview = PromotionPreview;
+export type AvailablePromotionsDto = AvailablePromotions;
 
 export interface BookingDto {
   guestPricing?: import('@travel-platform/constants').GuestPriceBreakdown;

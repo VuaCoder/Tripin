@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { MapPin, Clock, Check } from 'lucide-react';
+import { formatCategoryName } from '../utils';
 
 interface Props {
   title: string;
@@ -104,7 +105,7 @@ export function AgencyTourLivePreview({
             </div>
             {categoryNames.length > 0 && (
               <span className="rounded-md bg-teal-50 px-2 py-0.5 font-bold text-teal-700 truncate max-w-[140px]">
-                {categoryNames[0]}
+                {formatCategoryName(categoryNames[0])}
               </span>
             )}
           </div>

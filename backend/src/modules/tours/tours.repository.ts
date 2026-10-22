@@ -8,6 +8,7 @@ import { Prisma as PrismaRuntime } from '../../generated/prisma/client';
 
 export interface StoredItineraryDay {
   day: number;
+  toDay?: number | null;
   title: string;
   description?: string | null;
   activities: string[];
@@ -93,6 +94,26 @@ export class ToursRepository {
     return toRecord(await createOne(prisma, data));
   }
 
+  /**
+   * Anti-duplicate guard: finds a draft tour with identical title and destination
+   * created by the same agency within the last `windowMs` milliseconds.
+   */
+  async findRecentDraft(agencyId: string, title: string, destination: string, windowMs = 5000): Promise<TourRecord | null> {
+    const since = new Date(Date.now() - windowMs);
+    const row = await prisma.tour.findFirst({
+      where: {
+        agencyId,
+        title,
+        destination,
+        status: TOUR_STATUS.DRAFT,
+        createdAt: { gte: since },
+      },
+      orderBy: { createdAt: 'desc' },
+      include,
+    });
+    return row ? toRecord(row) : null;
+  }
+
   /** All-or-nothing bulk insert. */
   insertMany(data: NewTour[]): Promise<TourRecord[]> {
     return prisma.$transaction(async (tx) => {
@@ -142,6 +163,7 @@ export class ToursRepository {
   async searchPublic(query: SearchToursQuery): Promise<{ items: TourRecord[]; total: number }> {
     const where: Prisma.TourWhereInput = { status: TOUR_STATUS.APPROVED };
     const and: Prisma.TourWhereInput[] = [];
+    if (query.agencyId) and.push({ agencyId: query.agencyId });
     if (query.q) and.push({ OR: [{ title: containsText(query.q) }, { destination: containsText(query.q) }, { summary: containsText(query.q) }] });
     if (query.destination) and.push({ destination: containsText(query.destination) });
     if (query.categoryId) and.push({ categories: { some: { id: query.categoryId } } });
@@ -161,8 +183,12 @@ export class ToursRepository {
     return this.paginate({ ...where, AND: and }, SORTS[query.sort], query);
   }
 
-  listByAgency(agencyId: string, status: TourStatus | undefined, page: PageRequest) {
-    return this.paginate({ agencyId, status: status ?? { not: TOUR_STATUS.ARCHIVED } }, [{ updatedAt: 'desc' }, { id: 'desc' }], page);
+  listByAgency(agencyId: string, status: TourStatus | undefined, page: PageRequest & { q?: string }) {
+    return this.paginate({
+      agencyId,
+      status: status ?? { not: TOUR_STATUS.ARCHIVED },
+      ...(page.q ? { title: containsText(page.q) } : {}),
+    }, [{ updatedAt: 'desc' }, { id: 'desc' }], page);
   }
 
   listByGuide(guideId: string, page: PageRequest) {

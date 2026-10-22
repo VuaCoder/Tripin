@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -35,7 +35,7 @@ function freePort(): Promise<number> {
 function migrationSql(): string {
   const dir = path.resolve(__dirname, '../../../prisma/migrations');
   return readdirSync(dir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
+    .filter((entry) => entry.isDirectory() && existsSync(path.join(dir, entry.name, 'migration.sql')))
     .map((entry) => entry.name)
     .sort()
     .map((name) => readFileSync(path.join(dir, name, 'migration.sql'), 'utf-8'))

@@ -52,10 +52,10 @@ describe('money invariants (integration)', () => {
     const traveler = await createUser('TRAVELER', 'traveler@example.com');
     const random = rng(20261002);
 
-    await promotion(agency.token, 'PCT7', { discountType: 'PERCENT', discountValue: 7 });
-    await promotion(agency.token, 'PCT33CAP', { discountType: 'PERCENT', discountValue: 33, maxDiscountAmount: 150_000 });
-    await promotion(agency.token, 'FIX120K', { discountType: 'FIXED', discountValue: 120_000 });
-    await promotion(agency.token, 'MIN1M', { discountType: 'PERCENT', discountValue: 15, minOrderAmount: 1_000_000 });
+    await promotion(agency.token, 'PCT7', { discountType: 'PERCENT', discountValue: 7, usageLimitPerUser: 100 });
+    await promotion(agency.token, 'PCT33CAP', { discountType: 'PERCENT', discountValue: 33, maxDiscountAmount: 150_000, usageLimitPerUser: 100 });
+    await promotion(agency.token, 'FIX120K', { discountType: 'FIXED', discountValue: 120_000, usageLimitPerUser: 100 });
+    await promotion(agency.token, 'MIN1M', { discountType: 'PERCENT', discountValue: 15, minOrderAmount: 1_000_000, usageLimitPerUser: 100 });
 
     let checked = 0;
     for (let round = 0; round < 6; round += 1) {
@@ -72,7 +72,7 @@ describe('money invariants (integration)', () => {
           .post('/api/v1/bookings')
           .set(bearer(traveler.token))
           .send({ tourId, departureId, participants, contact, ...(code ? { promotionCode: code } : {}) });
-        if (res.status === 409 && ['PROMOTION_MIN_ORDER'].includes(res.body.error?.code)) continue; // legitimately refused
+        if (res.status === 409 && ['PROMOTION_MIN_ORDER', 'PROMOTION_USER_LIMIT_REACHED'].includes(res.body.error?.code)) continue; // legitimately refused
         expect(res.status, `seed round ${round}/${i}: ${JSON.stringify(res.body)}`).toBe(201);
 
         const b = (await prisma.booking.findUnique({ where: { id: res.body.data.id } }))!;

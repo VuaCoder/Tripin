@@ -7,6 +7,8 @@ import type { AgencyPromotion } from '../types';
 const NOW = new Date('2026-10-16T00:00:00');
 
 const valid: PromotionFormValues = {
+  applyType: 'CODE',
+  codeType: 'SHARED',
   code: 'he2026',
   title: 'Giảm hè',
   description: '',
@@ -14,6 +16,10 @@ const valid: PromotionFormValues = {
   discountValue: '10',
   maxDiscountAmount: '',
   minOrderAmount: '',
+  minParticipants: '',
+  daysInAdvance: '',
+  firstBookingOnly: false,
+  usageLimitPerUser: '1',
   startsAt: '2026-11-01T08:00',
   endsAt: '2026-12-01T08:00',
   usageLimit: '',
@@ -46,6 +52,24 @@ describe('validatePromotionForm', () => {
     expect(validatePromotionForm({ ...valid, discountValue: '1.5' }, { mode: 'create', now: NOW }).discountValue).toBeTruthy();
     expect(validatePromotionForm({ ...valid, usageLimit: '0' }, { mode: 'create', now: NOW }).usageLimit).toBeTruthy();
   });
+
+  it('accepts numbers with Vietnamese thousand separator dots', () => {
+    const fixedWithDots = validatePromotionForm(
+      { ...valid, discountType: 'FIXED', discountValue: '50.000', minOrderAmount: '100.000' },
+      { mode: 'create', now: NOW },
+    );
+    expect(fixedWithDots.discountValue).toBeUndefined();
+    expect(fixedWithDots.minOrderAmount).toBeUndefined();
+  });
+
+  it('allows startsAt and endsAt to be omitted (optional)', () => {
+    const withoutDates = validatePromotionForm(
+      { ...valid, startsAt: '', endsAt: '' },
+      { mode: 'create', now: NOW },
+    );
+    expect(withoutDates.startsAt).toBeUndefined();
+    expect(withoutDates.endsAt).toBeUndefined();
+  });
 });
 
 describe('payload builders', () => {
@@ -56,6 +80,28 @@ describe('payload builders', () => {
     expect(payload).not.toHaveProperty('usageLimit');
     expect(payload).not.toHaveProperty('description');
     expect(payload.startsAt).toBe(new Date('2026-11-01T08:00').toISOString());
+  });
+
+  it('correctly parses dot-formatted monetary amounts into raw numbers in payload', () => {
+    const payload = buildCreatePayload({
+      ...valid,
+      discountType: 'FIXED',
+      discountValue: '20.000',
+      minOrderAmount: '100.000',
+    });
+    expect(payload.discountValue).toBe(20000);
+    expect(payload.minOrderAmount).toBe(100000);
+  });
+
+  it('provides default startsAt (now) and endsAt (future) when omitted', () => {
+    const payload = buildCreatePayload({
+      ...valid,
+      startsAt: '',
+      endsAt: '',
+    });
+    expect(payload.startsAt).toBeTruthy();
+    expect(payload.endsAt).toBeTruthy();
+    expect(new Date(payload.endsAt).getTime()).toBeGreaterThan(new Date(payload.startsAt).getTime());
   });
 
   const original: AgencyPromotion = {
