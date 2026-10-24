@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 162 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 182 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -76,6 +76,17 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/agency/bookings` | `agency:bookings-view` |
 | GET | `/api/v1/agency/bookings/:id` | `agency:bookings-view` |
+
+## `/agency/complaint-tickets`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/agency/complaint-tickets` | `complaint:respond` |
+| GET | `/api/v1/agency/complaint-tickets/:id` | `complaint:respond` |
+| POST | `/api/v1/agency/complaint-tickets/:id/escalate` | `complaint:respond` |
+| POST | `/api/v1/agency/complaint-tickets/:id/messages` | `complaint:respond` |
+| POST | `/api/v1/agency/complaint-tickets/:id/resolve` | `complaint:respond` |
+| POST | `/api/v1/agency/complaint-tickets/images/upload-signature` | `complaint:respond` |
 
 ## `/agency/complaints`
 
@@ -205,6 +216,19 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/chat/conversations/:id/messages` | `chat:use` |
 | POST | `/api/v1/chat/conversations/:id/read` | `chat:use` |
 
+## `/complaints`
+
+| Method | Path | Access |
+|---|---|---|
+| POST | `/api/v1/complaints` | `report:create` |
+| GET | `/api/v1/complaints/:id` | `report:create`, `complaint:respond`, `dispute:resolve` |
+| POST | `/api/v1/complaints/:id/accept-resolution` | `report:create` |
+| POST | `/api/v1/complaints/:id/escalate` | `report:create`, `complaint:respond` |
+| POST | `/api/v1/complaints/:id/feedback` | `report:create` |
+| POST | `/api/v1/complaints/:id/messages` | `report:create`, `complaint:respond`, `dispute:resolve` |
+| POST | `/api/v1/complaints/images/upload-signature` | `report:create`, `complaint:respond`, `dispute:resolve` |
+| GET | `/api/v1/complaints/me` | `report:create` |
+
 ## `/e-tickets`
 
 | Method | Path | Access |
@@ -254,6 +278,17 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/moderation/tours/:id/validate` | `tour:validate` |
 | POST | `/api/v1/moderation/users/:id/ban` | `account:ban` |
 | POST | `/api/v1/moderation/users/:id/unban` | `account:ban` |
+
+## `/moderation/complaint-tickets`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/moderation/complaint-tickets` | `dispute:resolve` |
+| GET | `/api/v1/moderation/complaint-tickets/:id` | `dispute:resolve` |
+| POST | `/api/v1/moderation/complaint-tickets/:id/adjudicate` | `dispute:resolve` |
+| POST | `/api/v1/moderation/complaint-tickets/:id/messages` | `dispute:resolve` |
+| GET | `/api/v1/moderation/complaint-tickets/dashboard/agency-quality` | `dispute:resolve` |
+| POST | `/api/v1/moderation/complaint-tickets/images/upload-signature` | `dispute:resolve` |
 
 ## `/moderation/dashboard`
 

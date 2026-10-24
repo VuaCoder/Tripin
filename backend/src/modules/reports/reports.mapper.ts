@@ -41,7 +41,7 @@ export function toComplaintDto(report: ReportRecord, reporterFullName?: string):
 /** What a report resolves to for display: names instead of ids, plus the review being judged when there is one. */
 export type ReportExtras = Pick<
   ModerationReportDto,
-  'reporterName' | 'targetName' | 'agencyName' | 'tourTitle' | 'bookingCode' | 'review'
+  'reporterName' | 'targetName' | 'agencyName' | 'tourTitle' | 'bookingCode' | 'review' | 'relatedTicket' | 'directChat'
 >;
 
 export function toModerationReportDto(report: ReportRecord, extras: ReportExtras = {}): ModerationReportDto {

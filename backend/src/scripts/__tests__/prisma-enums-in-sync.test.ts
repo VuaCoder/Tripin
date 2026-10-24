@@ -42,6 +42,9 @@ const code: Record<string, readonly string[]> = {
   SubscriptionStatus: Object.values(SUBSCRIPTION_STATUS),
   TicketStatus: Object.values(TICKET_STATUS),
   TicketCategory: Object.values(TICKET_CATEGORY),
+  ComplaintTicketStatus: Object.values(constants.COMPLAINT_TICKET_STATUS),
+  ComplaintTicketPriority: Object.values(constants.COMPLAINT_TICKET_PRIORITY),
+  ComplaintTicketCategory: Object.values(constants.COMPLAINT_TICKET_CATEGORY),
 };
 
 describe('prisma/schema.prisma enums match the code', () => {

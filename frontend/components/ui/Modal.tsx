@@ -28,6 +28,9 @@ export function Modal({
 }: ModalProps) {
   const [mounted, setMounted] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     setMounted(true);
@@ -36,12 +39,25 @@ export function Modal({
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') onCloseRef.current();
     };
     document.addEventListener('keydown', handleKeyDown);
-    closeButtonRef.current?.focus();
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  }, [open]);
+
+  // Focus management: upon opening, focus autofocus element or close button (only once, never on re-render)
+  useEffect(() => {
+    if (!open) return;
+    const timer = setTimeout(() => {
+      const autoFocusEl = dialogRef.current?.querySelector<HTMLElement>('[autofocus]');
+      if (autoFocusEl) {
+        autoFocusEl.focus();
+      } else if (!dialogRef.current?.contains(document.activeElement)) {
+        closeButtonRef.current?.focus();
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [open]);
 
   // Lock background scrolling so page behind does not shift or scroll
   useEffect(() => {
@@ -87,6 +103,7 @@ export function Modal({
       }}
     >
       <section
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="shared-modal-title"

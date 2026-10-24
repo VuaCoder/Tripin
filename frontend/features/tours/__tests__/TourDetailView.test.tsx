@@ -4,6 +4,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('@/store/hooks', () => ({ useAppSelector: () => null }));
 vi.mock('@/features/wishlist', () => ({ WishlistButton: () => <button>Yêu thích</button> }));
 vi.mock('@/features/report', () => ({ ReportButton: () => null }));
+vi.mock('@/features/complaints', () => ({ ComplaintButton: () => null }));
 vi.mock('@/features/chat/StartConversationButton', () => ({ StartConversationButton: () => null }));
 vi.mock('@/features/review', () => ({ RatingStars: () => null, TourReviewsSection: () => <div>Đánh giá</div>, formatVnd: (value: number) => `${value} đ` }));
 import { TourDetailView } from '../components/detail/TourDetailView';

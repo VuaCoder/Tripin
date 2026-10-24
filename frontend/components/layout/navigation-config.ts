@@ -52,6 +52,7 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
     { label: 'Duyệt tour', href: '/moderator/tours', icon: 'tour' },
     { label: 'Xác minh agency', href: '/moderator/agencies', icon: 'domain_verification' },
     { label: 'Báo cáo vi phạm', href: '/moderator/reports', icon: 'report' },
+    { label: 'Tranh chấp & CSAT', href: '/moderator/complaints', icon: 'shield_person' },
     { label: 'Kiểm duyệt đánh giá', href: '/moderator/reviews', icon: 'reviews' },
     { label: 'Khiếu nại hỗ trợ', href: '/moderator/support-tickets', icon: 'support_agent' },
   ],

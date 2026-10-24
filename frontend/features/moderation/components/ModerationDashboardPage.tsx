@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth';
 import { ErrorState, LoadingState } from '@/components/shared';
+import { useGetModeratorComplaintsQuery } from '@/features/complaints/api/complaintsApi';
 import { useGetModerationDashboardQuery } from '../api/moderationApi';
 import { PERMISSION } from '../labels';
 import { dateTime, ModerationDenied, useModerationPermission } from './ModerationUi';
@@ -25,6 +26,7 @@ export function ModerationDashboardPage() {
   const canReports = useModerationPermission(PERMISSION.disputeResolve);
   const canTickets = useModerationPermission(PERMISSION.complaintHandle);
   const { data, isLoading, isError, isFetching, refetch } = useGetModerationDashboardQuery(undefined, { skip: !allowed });
+  const { data: complaintData } = useGetModeratorComplaintsQuery({ status: 'ESCALATED', limit: 1 }, { skip: !canReports });
 
   if (!allowed) return <ModerationDenied />;
 
@@ -32,6 +34,7 @@ export function ModerationDashboardPage() {
     ? [
         { label: 'Tour chờ duyệt', value: data.queues.toursPendingReview, hint: 'Cần quyết định duyệt / từ chối', href: '/moderator/tours?status=PENDING_REVIEW', allowed: canTours },
         { label: 'Agency chờ xác minh', value: data.queues.agenciesPendingVerification, hint: 'Hồ sơ đối tác mới gửi', href: '/moderator/agencies', allowed: canAgencies },
+        { label: 'Tranh chấp khiếu nại', value: complaintData?.meta.total ?? 0, hint: `${complaintData?.meta.total ?? 0} ca khiếu nại tour leo thang`, href: '/moderator/complaints', allowed: canReports },
         { label: 'Báo cáo đang mở', value: data.queues.reportsOpen + data.queues.reportsAwaitingDecision, hint: `${data.queues.reportsAwaitingDecision} chờ quyết định cuối`, href: '/moderator/reports', allowed: canReports },
         { label: 'Khiếu nại hỗ trợ', value: data.queues.supportTicketsOpen + data.queues.supportTicketsInProgress, hint: `${data.queues.supportTicketsInProgress} đang xử lý`, href: '/moderator/support-tickets', allowed: canTickets },
       ]
@@ -46,11 +49,16 @@ export function ModerationDashboardPage() {
             Ban Kiểm Duyệt Nội Dung
           </span>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Xin chào, {user?.fullName || 'Kiểm duyệt viên'}!</h1>
-          <p className="mt-1 max-w-xl text-sm text-slate-600">Theo dõi hàng đợi kiểm duyệt tour và xác minh hồ sơ đối tác.</p>
+          <p className="mt-1 max-w-xl text-sm text-slate-600">Theo dõi hàng đợi kiểm duyệt tour, xác minh hồ sơ đối tác và phân xử khiếu nại.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {canReports && (
+            <Link href="/moderator/complaints" className="rounded-xl bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800 shadow-2xs">
+              Tranh chấp tour ({complaintData?.meta.total ?? 0})
+            </Link>
+          )}
           {canTours && (
-            <Link href="/moderator/tours" className="rounded-xl bg-purple-700 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-800">
+            <Link href="/moderator/tours" className="rounded-xl border border-purple-200 bg-white px-4 py-2 text-sm font-semibold text-purple-800 hover:bg-purple-50">
               Danh sách tour
             </Link>
           )}

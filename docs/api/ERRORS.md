@@ -89,6 +89,9 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | Code | HTTP | Meaning |
 |---|---|---|
 | `REPORT_ALREADY_OPEN` | 409 | The reporter already has an open report about this target |
+| `COMPLAINT_ALREADY_OPEN` | 409 | A complaint ticket for this booking/tour is already open |
+| `FEEDBACK_EXISTS` | 409 | CSAT feedback has already been submitted for this complaint ticket |
+| `TICKET_NOT_CLOSED` | 400 | Feedback can only be submitted after the ticket is closed |
 | `TICKET_CLOSED` | 409 | A closed support ticket accepts nothing |
 | `TICKET_FULL` | 409 | The support ticket reached its message limit |
 | `WISHLIST_FULL` | 409 | The wishlist reached its size limit |

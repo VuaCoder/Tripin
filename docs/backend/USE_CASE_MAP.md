@@ -53,6 +53,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Receive E-ticket | e-tickets | `GET /e-tickets`, `GET /e-tickets/:id`, `GET /e-tickets/booking/:bookingId` (+ email/notification on issue) | eticket:view-own | done |
 | Write a review / View reviews | reviews | `POST /reviews`, `GET /reviews/me`, `POST /reviews/images/upload-signature` | review:create | done |
 | Send report | reports | `POST /reports`, `GET /reports/me`, `GET /reports/:id` | report:create | done |
+| Tour complaint tickets | complaints | `POST /complaints`, `GET /complaints/me`, `GET /complaints/:id`, `POST /complaints/:id/messages`, `POST /complaints/:id/accept-resolution`, `POST /complaints/:id/escalate`, `POST /complaints/:id/feedback`, `POST /complaints/images/upload-signature` | report:create | done |
 | Send ticket (support) | support | `POST /support/tickets`, `GET /support/tickets/me`, `GET /support/tickets/:id`, `POST /support/tickets/:id/messages`, `POST /support/tickets/:id/close` | support:create | done |
 | Make a conversation (with Tour guide) | chat | `POST /chat/conversations`, `GET /chat/conversations`, `GET /chat/conversations/:id`, `GET /chat/conversations/:id/messages`, `POST /chat/conversations/:id/messages`, `POST /chat/conversations/:id/read` + Socket.IO | chat:use | done |
 | Chat with AI (AI Agent) | ai | `POST /ai/chat`, `GET /ai/conversations`, `GET /ai/conversations/:id` | ai:chat | done |
@@ -73,6 +74,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | View bookings status | bookings | `GET /agency/bookings`, `GET /agency/bookings/:id` | agency:bookings-view | done |
 | Export customer PDF | bookings | `GET /agency/tours/:id/customers.pdf` | agency:export-customers | done |
 | Handle tour complaints | reports | `GET /agency/complaints`, `GET /agency/complaints/:id`, `POST /agency/complaints/:id/respond` | complaint:respond | done |
+| Handle complaint tickets | complaints | `GET /agency/complaint-tickets`, `GET /agency/complaint-tickets/:id`, `POST /agency/complaint-tickets/:id/messages`, `POST /agency/complaint-tickets/:id/resolve`, `POST /agency/complaint-tickets/:id/escalate`, `POST /agency/complaint-tickets/images/upload-signature` | complaint:respond | done |
 | Dispute a review | reports | `GET /agency/review-disputes`, `POST /agency/review-disputes/:reviewId` | review:dispute | done |
 | View/Update profile (+ submit for verification) | users | `GET/PATCH /users/me`, `POST /users/me/agency-verification` | profile:* | done |
 
@@ -98,6 +100,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Ban violating account | moderation | `POST /moderation/users/:id/ban`, `POST /moderation/users/:id/unban` | account:ban | done |
 | Resolve disputes | moderation | `GET /moderation/reports`, `GET /moderation/reports/:id`, `POST /moderation/reports/:id/resolve` | dispute:resolve | done |
 | Handle complaints | moderation | `GET /moderation/support-tickets`, `GET /moderation/support-tickets/:id`, `POST /moderation/support-tickets/:id/reply`, `PATCH /moderation/support-tickets/:id/status` | complaint:handle | done |
+| Adjudicate complaints & CSAT dashboard | complaints | `GET /moderation/complaint-tickets`, `GET /moderation/complaint-tickets/:id`, `POST /moderation/complaint-tickets/:id/messages`, `POST /moderation/complaint-tickets/:id/adjudicate`, `GET /moderation/complaint-tickets/dashboard/agency-quality`, `POST /moderation/complaint-tickets/images/upload-signature` | dispute:resolve | done |
 
 ## Super admin
 
