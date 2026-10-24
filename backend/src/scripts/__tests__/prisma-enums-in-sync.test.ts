@@ -31,6 +31,8 @@ const code: Record<string, readonly string[]> = {
   PaymentStatus: Object.values(constants.PAYMENT_STATUS),
   PromotionScope: Object.values(constants.PROMOTION_SCOPE),
   DiscountType: Object.values(constants.DISCOUNT_TYPE),
+  PromotionApplyType: Object.values(constants.PROMOTION_APPLY_TYPE),
+  PromotionCodeType: Object.values(constants.PROMOTION_CODE_TYPE),
   ETicketStatus: Object.values(ETICKET_STATUS),
   NotificationType: Object.values(NOTIFICATION_TYPE),
   ReportTarget: Object.values(REPORT_TARGET),
@@ -40,6 +42,9 @@ const code: Record<string, readonly string[]> = {
   SubscriptionStatus: Object.values(SUBSCRIPTION_STATUS),
   TicketStatus: Object.values(TICKET_STATUS),
   TicketCategory: Object.values(TICKET_CATEGORY),
+  ComplaintTicketStatus: Object.values(constants.COMPLAINT_TICKET_STATUS),
+  ComplaintTicketPriority: Object.values(constants.COMPLAINT_TICKET_PRIORITY),
+  ComplaintTicketCategory: Object.values(constants.COMPLAINT_TICKET_CATEGORY),
 };
 
 describe('prisma/schema.prisma enums match the code', () => {

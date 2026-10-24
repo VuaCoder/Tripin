@@ -18,6 +18,9 @@ vi.mock('../api/moderationApi', () => ({
   useSuspendTourMutation: () => [mockSuspend, { isLoading: false }],
   useVerifyAgencyMutation: () => [mockVerify, { isLoading: false }],
 }));
+vi.mock('@/features/complaints/api/complaintsApi', () => ({
+  useGetModeratorComplaintsQuery: () => ({ data: { items: [], meta: { total: 0 } }, isLoading: false }),
+}));
 vi.mock('../components/ModerationUi', async (orig) => ({
   ...(await orig<typeof import('../components/ModerationUi')>()),
   useModerationPermission: (p: string) => permissions.includes(p),

@@ -27,6 +27,10 @@ vi.mock('../ChatProvider', () => ({ useChat: () => ({ connected: mocks.connected
   typing: vi.fn(), subscribeTyping: mocks.subscribeTyping,
   subscribe: (listener: (message: unknown) => void) => { mocks.listener = listener; return () => { mocks.listener = null; }; },
 }) }));
+vi.mock('@/features/complaints/api/complaintsApi', () => ({
+  useGetMyComplaintsQuery: () => ({ data: { items: [], meta: { page: 1, limit: 10, total: 0, totalPages: 1 } }, isLoading: false }),
+  useGetAgencyComplaintsQuery: () => ({ data: { items: [], meta: { page: 1, limit: 10, total: 0, totalPages: 1 } }, isLoading: false }),
+}));
 import { ConversationPage } from '../ConversationPage';
 const message = (id: string, mine = false) => ({ id, conversationId: 'c1', senderId: mine ? 't1' : 'g1', text: `Tin ${id}`, isMine: mine, createdAt: `2026-10-18T10:00:${id.padStart(2, '0')}Z` });
 beforeEach(() => {
@@ -137,6 +141,15 @@ describe('ConversationPage', () => {
     expect(screen.queryByText('Chưa có cuộc trò chuyện nào khác với hướng dẫn viên.')).toBeNull();
     expect(screen.queryByText('Khám phá tour & liên hệ HDV →')).toBeNull();
   });
+
+  it('displays complaints tab in inbox and switches to complaints view', () => {
+    render(<ConversationPage />);
+    expect(screen.getByText('Trò chuyện trực tiếp')).toBeTruthy();
+    const complaintsTab = screen.getByText('Phiếu khiếu nại');
+    expect(complaintsTab).toBeTruthy();
+    fireEvent.click(complaintsTab);
+    expect(screen.getByText('Hộp thư khiếu nại dịch vụ')).toBeTruthy();
+  });
 });
 
 describe('Typing bubble', () => {
@@ -176,3 +189,4 @@ describe('Typing bubble', () => {
     expect(mocks.send).not.toHaveBeenCalled();
   });
 });
+

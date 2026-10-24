@@ -118,9 +118,11 @@ describe('maintenance jobs (integration)', () => {
       'auth.purgeExpired',
       'bookings.completeFinished',
       'bookings.expirePending',
+      'complaints.autoCloseResolved',
       'notifications.purgeOld',
       'payments.expireStale',
       'payments.retryUnfulfilled',
+      'promotions.sweepExpiring',
       'subscriptions.cancelAbandoned',
       'subscriptions.expireEnded',
     ]);

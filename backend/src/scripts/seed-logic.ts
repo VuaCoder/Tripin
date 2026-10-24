@@ -4,12 +4,25 @@ import { slugify } from '../utils/slug';
 
 /** Tour categories created on first run (the Super admin edits them afterwards). */
 export const DEFAULT_CATEGORIES = [
-  { name: 'Beach & Islands', description: 'Sea, islands and coastal escapes', sortOrder: 10 },
-  { name: 'Mountains & Trekking', description: 'Highlands, hiking and scenic routes', sortOrder: 20 },
-  { name: 'City & Culture', description: 'Cities, heritage sites and local culture', sortOrder: 30 },
-  { name: 'Food & Cuisine', description: 'Culinary and street-food experiences', sortOrder: 40 },
-  { name: 'Adventure', description: 'Active and outdoor experiences', sortOrder: 50 },
-  { name: 'Eco & Nature', description: 'National parks, nature and sustainable travel', sortOrder: 60 },
+  { name: 'Beach & Islands', description: 'Biển, đảo và các kỳ nghỉ ven biển thư giãn', sortOrder: 10 },
+  { name: 'Mountains & Trekking', description: 'Cao nguyên, cung đường leo núi và trekking hùng vĩ', sortOrder: 20 },
+  { name: 'City & Culture', description: 'Thành phố, di sản lịch sử và văn hóa bản địa', sortOrder: 30 },
+  { name: 'Food & Cuisine', description: 'Trải nghiệm tinh hoa ẩm thực và đặc sản vùng miền', sortOrder: 40 },
+  { name: 'Adventure', description: 'Hoạt động dã ngoại, thể thao cảm giác mạnh và mạo hiểm', sortOrder: 50 },
+  { name: 'Eco & Nature', description: 'Vườn quốc gia, khám phá thiên nhiên và du lịch sinh thái', sortOrder: 60 },
+  { name: 'Resort & Wellness', description: 'Nghỉ dưỡng resort, khoáng nóng Onsen, spa và chăm sóc sức khỏe', sortOrder: 70 },
+  { name: 'Cruises & Waterways', description: 'Du thuyền cao cấp vịnh biển, du ngoạn sông nước miệt vườn', sortOrder: 80 },
+  { name: 'Spiritual & Pilgrimage', description: 'Chiêm bái đền chùa, thánh địa tâm linh và hành hương', sortOrder: 90 },
+  { name: 'Family Friendly', description: 'Hành trình nhẹ nhàng, tiện ích phù hợp cho gia đình có trẻ em và người lớn tuổi', sortOrder: 100 },
+  { name: 'Day Tour', description: 'Tour khám phá ngắn trong ngày, city tour linh hoạt', sortOrder: 110 },
+  { name: 'Photography & Cloud Hunting', description: 'Điểm check-in săn mây, ngắm bình minh hoàng hôn và chụp ảnh phong cảnh', sortOrder: 120 },
+  { name: 'Camping & Glamping', description: 'Cắm trại ngoài trời, lều trại cao cấp glamping giữa thiên nhiên', sortOrder: 130 },
+  { name: 'Festivals & Events', description: 'Lễ hội truyền thống, festival âm nhạc và sự kiện đặc sắc', sortOrder: 140 },
+  { name: 'Craft & Agritourism', description: 'Trải nghiệm làng nghề thủ công truyền thống và nông trại miệt vườn', sortOrder: 150 },
+  { name: 'Luxury & Private', description: 'Tour cao cấp, dịch vụ tiêu chuẩn 5 sao và lịch trình riêng tư', sortOrder: 160 },
+  { name: 'MICE & Corporate', description: 'Du lịch kết hợp hội nghị, hội thảo, teambuilding doanh nghiệp', sortOrder: 170 },
+  { name: 'Honeymoon & Romantic', description: 'Kỳ nghỉ lãng mạn dành riêng cho các cặp đôi và tuần trăng mật', sortOrder: 180 },
+  { name: 'Motorbike & Road Trip', description: 'Chinh phục các cung đèo hiểm trở bằng xe máy hoặc tự lái', sortOrder: 190 },
 ] as const;
 
 /**

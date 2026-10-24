@@ -5,7 +5,11 @@ import type { UserActor } from '../types/actor';
 
 /** Metadata attached to guard middlewares so the route table (docs + audit tests) can tell who may call what. */
 export const GUARD_META = Symbol.for('travel.guard');
-export type GuardMeta = { kind: 'auth' } | { kind: 'permission'; permissions: Permission[] } | { kind: 'role'; role: PersistedRole };
+export type GuardMeta =
+  | { kind: 'auth' }
+  | { kind: 'permission'; permissions: Permission[] }
+  | { kind: 'any_permission'; permissions: Permission[] }
+  | { kind: 'role'; role: PersistedRole };
 
 function tag<T extends RequestHandler>(handler: T, meta: GuardMeta): T {
   (handler as unknown as Record<symbol, GuardMeta>)[GUARD_META] = meta;
@@ -29,6 +33,18 @@ export function requirePermission(...permissions: Permission[]): RequestHandler 
     if (!permissions.every((permission) => granted.includes(permission))) return next(AppError.forbidden());
     next();
   }, { kind: 'permission', permissions });
+}
+
+/**
+ * Requires AT LEAST ONE of the listed permissions.
+ */
+export function requireAnyPermission(...permissions: Permission[]): RequestHandler {
+  return tag((req, _res, next) => {
+    if (req.actor.kind !== 'user') return next(AppError.unauthenticated());
+    const granted = req.actor.permissions;
+    if (!permissions.some((permission) => granted.includes(permission))) return next(AppError.forbidden());
+    next();
+  }, { kind: 'any_permission', permissions });
 }
 
 /** Platform administration cannot be delegated through extraPermissions. */

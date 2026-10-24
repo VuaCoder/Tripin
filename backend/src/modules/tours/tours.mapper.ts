@@ -91,7 +91,13 @@ export function toTourDetailDto(tour: TourRecord, context: DetailContext): TourD
     exclusions: tour.exclusions,
     itinerary: [...tour.itinerary]
       .sort((a, b) => a.day - b.day)
-      .map((day) => ({ day: day.day, title: day.title, description: day.description ?? undefined, activities: day.activities })),
+      .map((day) => ({
+        day: day.day,
+        toDay: day.toDay && day.toDay > day.day ? day.toDay : undefined,
+        title: day.title,
+        description: day.description ?? undefined,
+        activities: day.activities,
+      })),
     departures: departures.sort((a, b) => a.date.getTime() - b.date.getTime()).map((d) => toDepartureDto(tour, d)),
     categories: context.categories,
     guide: context.guide ? { id: context.guide.id, fullName: context.guide.fullName, avatarUrl: context.guide.avatarUrl } : undefined,

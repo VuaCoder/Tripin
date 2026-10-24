@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ChevronRight, Printer, MapPin, Clock3, Building2, Sparkles } from 'lucide-react';
 import { WishlistButton } from '@/features/wishlist';
 import { ReportButton } from '@/features/report';
+import { ComplaintButton } from '@/features/complaints';
 import { RatingStars, TourReviewsSection } from '@/features/review';
 import type { TourReviewContext } from '@/features/review/types';
 import { TourGallery } from './TourGallery';
@@ -27,10 +28,35 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
   const images = tour.images?.length ? tour.images : tour.coverImage ? [tour.coverImage] : [];
   return <div className={styles.page}>
     <nav className={styles.breadcrumb} aria-label="Đường dẫn"><Link href="/tours">Khám phá tour</Link><ChevronRight size={14} /><span>{tour.destination}</span></nav>
-    <div className={styles.titleRow}><div><h1>{tour.title}</h1><div className={styles.ratings}><RatingStars value={tour.ratingAvg} count={tour.ratingCount} size="sm" /><a href="#danh-gia" onClick={event => navigateSection(event, 'danh-gia')}>{tour.ratingCount ? `${tour.ratingAvg.toFixed(1)}/5 · ${tour.ratingCount} đánh giá` : 'Chưa có đánh giá'}</a></div></div><div className={styles.titleActions}><WishlistButton tourId={tour.id} /><ReportButton targetType="TOUR" targetId={tour.id} targetLabel={tour.title} /><button type="button" className={styles.outlineButton} onClick={() => window.print()}><Printer size={17} />In chương trình</button></div></div>
+    <div className={styles.titleRow}><div><h1>{tour.title}</h1><div className={styles.ratings}><RatingStars value={tour.ratingAvg} count={tour.ratingCount} size="sm" /><a href="#danh-gia" onClick={event => navigateSection(event, 'danh-gia')}>{tour.ratingCount ? `${tour.ratingAvg.toFixed(1)}/5 · ${tour.ratingCount} đánh giá` : 'Chưa có đánh giá'}</a></div></div><div className={styles.titleActions}><WishlistButton tourId={tour.id} /><ComplaintButton tourId={tour.id} tourTitle={tour.title} /><ReportButton targetType="TOUR" targetId={tour.id} targetLabel={tour.title} /><button type="button" className={styles.outlineButton} onClick={() => window.print()}><Printer size={17} />In chương trình</button></div></div>
     <TourGallery images={images} title={tour.title} />
     <div className={styles.bodyGrid}><div className={styles.mainContent}>
       <div className={styles.facts}><span><MapPin size={19} /><strong>Điểm đến:</strong> {tour.destination}</span><span><Clock3 size={19} />{tour.durationDays} ngày</span>{tour.agency && <span><Building2 size={19} /><Link href={`/agencies/${tour.agency.id}`} className="underline underline-offset-4">{tour.agency.name}</Link></span>}{tour.guide && <span><Link href={`/tour-guides/${tour.guide.id}`} className="underline underline-offset-4">Hướng dẫn viên: {tour.guide.fullName}</Link></span>}</div>
+      {tour.agency && (
+        <div className="my-4 rounded-2xl border border-teal-100 bg-gradient-to-r from-teal-50/70 via-white to-slate-50/60 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white shadow-2xs">
+              <Building2 className="size-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-teal-800 bg-teal-100 px-2 py-0.5 rounded-full">
+                  Nhà cung cấp
+                </span>
+                <span className="text-xs text-slate-500">Đối tác tổ chức</span>
+              </div>
+              <p className="font-bold text-slate-900 text-sm sm:text-base">{tour.agency.name}</p>
+            </div>
+          </div>
+          <Link
+            href={`/agencies/${tour.agency.id}`}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition-colors shrink-0"
+          >
+            <span>Trang nhà cung cấp & Voucher</span>
+            <ChevronRight size={14} />
+          </Link>
+        </div>
+      )}
       {(tour.summary || tour.description) && <section className={styles.overview}><h2><Sparkles size={21} />Hành trình có gì hay?</h2><p>{tour.summary || tour.description}</p></section>}
       <div className={styles.tabs} role="tablist" aria-label="Nội dung tour">{[['lich-trinh', 'Lịch trình'], ['chinh-sach-gia', 'Chính sách giá'], ['huong-dan', 'Hướng dẫn']].map(([id, label], index, tabs) => <button type="button" role="tab" key={id} id={`tab-${id}`} aria-controls={`panel-${id}`} aria-selected={tab === id} tabIndex={tab === id ? 0 : -1} onClick={() => setTab(id)} onKeyDown={event => {
         let next = index;

@@ -40,7 +40,7 @@ export class ToursDiscoveryService {
 
     const isOwner = actor.kind === 'user' && tour.agencyId === actor.userId;
     const isStaff = actor.kind === 'user' && actor.permissions.includes(PERMISSIONS.TOUR_LIST_ALL);
-    if (isStaff || (isOwner && tour.status !== TOUR_STATUS.ARCHIVED)) return this.views.manage(tour);
+    if (isStaff || isOwner) return this.views.manage(tour);
     if (tour.status === TOUR_STATUS.APPROVED) return this.views.publicDetail(tour);
     throw AppError.notFound('Tour not found');
   }

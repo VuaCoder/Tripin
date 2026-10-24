@@ -186,3 +186,17 @@ Khi tham gia phát triển, xin hãy tuân thủ nghiêm ngặt các nguyên t�
 5. **Không lộ Secret Keys**: **KHÔNG BAO GIỜ** đẩy (commit) các thông tin nhạy cảm như JWT Secret, PayOS keys, Database URL lên GitHub. Luôn để trong `.env` / `.env.local`.
 6. **Bảo mật Xác thực**: Phân quyền (Authorization) bắt buộc phải được xử lý ở Backend. Frontend chỉ ẩn/hiện UI để tối ưu trải nghiệm, không đóng vai trò bảo mật chính.
 7. **Luôn tham khảo Thư mục `docs/`**: Các tài liệu thiết kế Use-case, Flow, Architecture đã được định nghĩa chuẩn xác trong thư mục `docs/`. Hãy đọc chúng trước khi bắt đầu code tính năng mới.
+
+---
+
+## Chính sách điều hướng và BoatPreloader (Global Navigation UX)
+
+Trước đây `frontend/components/preloader/RoutePreloader.tsx` tự bật overlay toàn màn hình khi nhấn liên kết giữa các trang chính hoặc dùng Back/Forward. Overlay giữ tối thiểu 380 ms rồi mới chạy hiệu ứng thoát, nên có thể che nội dung đã sẵn sàng. Điều này ảnh hưởng cảm nhận tốc độ, không phải thời gian tải RSC hay API.
+
+Chính sách hiện tại: Guest/Traveler dùng BoatPreloader khi chuyển route chậm (chờ 180 ms trước khi hiển thị), còn route nhanh không bị phủ. Boat bắt đầu thoát ngay khi route commit, không áp dụng minimum 380 ms cho điều hướng thông thường. Luồng gọi tường minh vẫn giữ minimum 380 ms và timeout an toàn 4,5 giây. Agency sidebar giữ nguyên chính sách điều hướng Phase 1.
+
+`BoatPreloader.tsx` vẫn giữ GSAP, reduced-motion và cleanup khi thoát. Các sự kiện `tripri:navigation-start` / `tripri:navigation-end` (hook `usePreloader`) và `tripri:route-navigation-start` tiếp tục hoạt động cho luồng tường minh. Cơ chế tự động bỏ qua Agency và có timeout an toàn 4,5 giây khi điều hướng lỗi/bị hủy.
+
+Thay đổi này chỉ điều chỉnh UX overlay, không chứng minh tốc độ RSC/API tăng. Vẫn cần UAT trình duyệt và đo click-to-content, đặc biệt trên mạng chậm.
+
+Kiểm chứng và bottleneck được ghi tại `docs/performance/boat-navigation-audit.md`.

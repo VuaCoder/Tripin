@@ -3,6 +3,7 @@ import { AppError, ERROR_CODES } from '../../utils/app-error';
 import { buildPage, type Page } from '../../utils/pagination';
 import { toConversationDto, toMessageDto, toSummaryDto } from './ai.mapper';
 import { aiRepository, type AiRepository } from './ai.repository';
+import { logger } from '../../utils/logger';
 import {
   AI_LIMITS,
   AI_SYSTEM_PROMPT,
@@ -75,7 +76,7 @@ export class AiService {
     }
 
     const assistantMessage = saved.messages[saved.messages.length - 1]!;
-    this.publisher?.(userId, saved.id);
+    this.publish(userId, saved.id);
     return { conversationId: saved.id, reply: { ...toMessageDto(assistantMessage), ...(incomplete ? { incomplete: true } : {}) }, messageCount: saved.messageCount };
   }
 
@@ -96,8 +97,13 @@ export class AiService {
   async markRead(userId: string, id: string, throughMessageId: string) {
     const result = await this.conversations.markRead(userId, id, throughMessageId);
     if (!result) throw AppError.notFound('Conversation or message not found');
-    this.publisher?.(userId, id);
+    this.publish(userId, id);
     return result;
+  }
+
+  private publish(userId: string, id: string) {
+    try { this.publisher?.(userId, id); }
+    catch (error) { logger.warn('AI update publisher failed', { message: (error as Error).message }); }
   }
 
   /** 404 for unknown ids and for other users' conversations. */

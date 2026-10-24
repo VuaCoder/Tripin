@@ -4,7 +4,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from './cn';
 
 export interface PaginationProps {
-  currentPage: number;
+  currentPage?: number;
+  page?: number;
   totalPages: number;
   totalItems?: number;
   pageSize?: number;
@@ -16,7 +17,8 @@ export interface PaginationProps {
 }
 
 export function Pagination({
-  currentPage,
+  currentPage: propCurrentPage,
+  page,
   totalPages,
   totalItems,
   pageSize = 10,
@@ -26,6 +28,7 @@ export function Pagination({
   itemLabel = 'kết quả',
   showInfo = false,
 }: PaginationProps) {
+  const currentPage = propCurrentPage ?? page ?? 1;
   // If there is only 1 page or 0 pages, do not render pagination
   if (totalPages <= 1) {
     return null;

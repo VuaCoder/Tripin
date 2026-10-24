@@ -32,6 +32,7 @@ model User {
   bannedAt         DateTime?
   bannedById       String?    @db.Uuid
   banReason        String?
+  preferences      Json?
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
@@ -364,26 +365,70 @@ model Report {
 }
 
 model Promotion {
-  id                String         @id @default(uuid()) @db.Uuid
+  id                String             @id @default(uuid()) @db.Uuid
   scope             PromotionScope
-  ownerId           String?        @db.Uuid
-  code              String         @unique
+  ownerId           String?            @db.Uuid
+  applyType         PromotionApplyType @default(CODE)
+  codeType          PromotionCodeType  @default(SHARED)
+  code              String?            @unique
   title             String
   description       String?
   discountType      DiscountType
   discountValue     Int
   maxDiscountAmount Int?
-  minOrderAmount    Int            @default(0)
+  minOrderAmount    Int                @default(0)
+  minParticipants   Int?
+  daysInAdvance     Int?
+  firstBookingOnly  Boolean            @default(false)
+  targetTourIds     String[]           @default([])
   startsAt          DateTime
   endsAt            DateTime
   usageLimit        Int?
-  usedCount         Int            @default(0)
-  isActive          Boolean        @default(true)
-  createdById       String         @db.Uuid
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  usageLimitPerUser Int                @default(1)
+  usedCount         Int                @default(0)
+  isActive          Boolean            @default(true)
+  isArchived        Boolean            @default(false)
+  createdById       String             @db.Uuid
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  codeInstances     PromotionCodeInstance[]
+  userVouchers      UserVoucher[]
 
   @@index([scope, ownerId, createdAt(sort: Desc)])
+  @@index([applyType, isActive])
+  @@index([isArchived])
+}
+
+model PromotionCodeInstance {
+  id          String    @id @default(uuid()) @db.Uuid
+  promotionId String    @db.Uuid
+  code        String    @unique
+  isUsed      Boolean   @default(false)
+  usedById    String?   @db.Uuid
+  usedAt      DateTime?
+  bookingId   String?   @db.Uuid
+  createdAt   DateTime  @default(now())
+
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@index([promotionId, isUsed])
+  @@index([code])
+}
+
+model UserVoucher {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  promotionId String    @db.Uuid
+  collectedAt DateTime  @default(now())
+  isUsed      Boolean   @default(false)
+  usedAt      DateTime?
+  bookingId   String?   @db.Uuid
+
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, promotionId])
+  @@index([userId, isUsed])
 }
 
 model SubscriptionPlan {
@@ -461,6 +506,71 @@ model SupportTicketMessage {
   ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId, createdAt])
+}
+
+model ComplaintTicket {
+  id                String                  @id @default(uuid()) @db.Uuid
+  ticketCode        String                  @unique
+  travelerId        String                  @db.Uuid
+  agencyId          String                  @db.Uuid
+  tourId            String                  @db.Uuid
+  bookingId         String?                 @db.Uuid
+  category          ComplaintTicketCategory
+  subCategory       String
+  subject           String
+  description       String
+  status            ComplaintTicketStatus   @default(OPEN)
+  priority          ComplaintTicketPriority @default(NORMAL)
+  solutionSummary   String?
+  moderatorDecision String?
+  firstResponseAt   DateTime?
+  resolvedAt        DateTime?
+  closedAt          DateTime?
+  escalatedAt       DateTime?
+  lastMessageAt     DateTime                @default(now())
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  messages          ComplaintTicketMessage[]
+  feedback          ComplaintFeedback?
+
+  @@index([travelerId, createdAt(sort: Desc)])
+  @@index([agencyId, status, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([tourId, createdAt(sort: Desc)])
+}
+
+model ComplaintTicketMessage {
+  id          String   @id @default(uuid()) @db.Uuid
+  ticketId    String   @db.Uuid
+  senderId    String   @db.Uuid
+  /// TRAVELER | AGENCY | MODERATOR | SYSTEM
+  senderRole  String
+  text        String
+  attachments String[] @default([])
+  createdAt   DateTime @default(now())
+
+  ticket      ComplaintTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+}
+
+model ComplaintFeedback {
+  id                String   @id @default(uuid()) @db.Uuid
+  ticketId          String   @unique @db.Uuid
+  agencyId          String   @db.Uuid
+  travelerId        String   @db.Uuid
+  rating            Int
+  speedScore        Int      @default(5)
+  attitudeScore     Int      @default(5)
+  satisfactionScore Int      @default(5)
+  comment           String?
+  createdAt         DateTime @default(now())
+
+  ticket            ComplaintTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId, createdAt(sort: Desc)])
+  @@index([travelerId, createdAt(sort: Desc)])
 }
 
 model Notification {
@@ -666,6 +776,17 @@ enum PromotionScope {
   PLATFORM
 }
 
+enum PromotionApplyType {
+  CODE
+  AUTO_APPLY
+  COLLECTABLE
+}
+
+enum PromotionCodeType {
+  SHARED
+  UNIQUE_BATCH
+}
+
 enum DiscountType {
   PERCENT
   FIXED
@@ -696,10 +817,17 @@ enum NotificationType {
   REPORT_UPDATED
   REPORT_RESOLVED
   COMPLAINT_RECEIVED
+  COMPLAINT_MESSAGE
+  COMPLAINT_RESOLVED
+  COMPLAINT_ESCALATED
+  COMPLAINT_FEEDBACK_REQUESTED
   SUPPORT_REPLIED
   CHAT_MESSAGE
   SUBSCRIPTION_ACTIVATED
   EARNING_RECORDED
+  VOUCHER_COLLECTED
+  VOUCHER_EXPIRING_SOON
+  VOUCHER_EXPIRING_URGENT
 }
 
 enum ReportTarget {
@@ -748,5 +876,29 @@ enum TicketCategory {
   PAYMENT
   ACCOUNT
   TOUR
+  OTHER
+}
+
+enum ComplaintTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  ESCALATED
+}
+
+enum ComplaintTicketPriority {
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum ComplaintTicketCategory {
+  ITINERARY
+  TRANSPORT
+  ACCOMMODATION_DINING
+  GUIDE_SERVICE
+  BILLING_REFUND
+  SAFETY_URGENT
   OTHER
 }

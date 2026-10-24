@@ -5,6 +5,7 @@ import { sendCreated, sendOk, sendPaginated } from '../../utils/api-response';
 import type { IdParams } from '../../utils/id';
 import { promotionsService, type PromotionsService } from './promotions.service';
 import type {
+  AvailableQueryInput,
   CreatePromotionBody,
   ListPromotionsQueryInput,
   PreviewQueryInput,
@@ -58,10 +59,71 @@ export class PromotionsController {
     sendOk(res, await this.service.updateForPlatform(actorOf(req), params.id, body));
   };
 
+  // ---- batch generation
+  generateBatchAgency: RequestHandler = async (req, res) => {
+    const { params } = validated<unknown, unknown, IdParams>(req);
+    const { body } = validated<{ count: number; prefix?: string }>(req);
+    sendOk(res, await this.service.generateCodeBatch(actorOf(req), params.id, body.count, body.prefix));
+  };
+  listBatchAgency: RequestHandler = async (req, res) => {
+    const { params } = validated<unknown, unknown, IdParams>(req);
+    const { query } = validated<unknown, import('../../utils/pagination').PageRequest>(req);
+    const pageReq = query?.page && query?.limit ? query : { page: 1, limit: 20 };
+    const page = await this.service.listCodeInstances(actorOf(req), params.id, pageReq);
+    sendPaginated(res, page.items, page.meta);
+  };
+  generateBatchPlatform: RequestHandler = async (req, res) => {
+    const { params } = validated<unknown, unknown, IdParams>(req);
+    const { body } = validated<{ count: number; prefix?: string }>(req);
+    sendOk(res, await this.service.generateCodeBatch(actorOf(req), params.id, body.count, body.prefix));
+  };
+  listBatchPlatform: RequestHandler = async (req, res) => {
+    const { params } = validated<unknown, unknown, IdParams>(req);
+    const { query } = validated<unknown, import('../../utils/pagination').PageRequest>(req);
+    const pageReq = query?.page && query?.limit ? query : { page: 1, limit: 20 };
+    const page = await this.service.listCodeInstances(actorOf(req), params.id, pageReq);
+    sendPaginated(res, page.items, page.meta);
+  };
+
+  // ---- user vouchers
+  collectVoucher: RequestHandler = async (req, res) => {
+    const { body } = validated<{ promotionId: string }>(req);
+    sendCreated(res, await this.service.collectVoucher(userActor(req).userId, body.promotionId));
+  };
+  listUserVouchers: RequestHandler = async (req, res) => {
+    sendOk(res, await this.service.listUserVouchers(userActor(req).userId));
+  };
+  listPublicAgencyPromotions: RequestHandler = async (req, res) => {
+    const { params } = validated<unknown, unknown, { id: string }>(req);
+    sendOk(res, await this.service.listPublicAgencyPromotions(params.id));
+  };
+
   // ---- checkout helper
   preview: RequestHandler = async (req, res) => {
     const { query } = validated<unknown, PreviewQueryInput>(req);
-    sendOk(res, await this.service.preview(query.code, query.tourId, query.subtotal));
+    const userId = req.actor?.kind === 'user' ? req.actor.userId : undefined;
+    sendOk(
+      res,
+      await this.service.preview(query.code, query.tourId, query.subtotal, {
+        participants: query.participants,
+        departureDate: query.departureDate,
+        userId,
+      }),
+    );
+  };
+
+  available: RequestHandler = async (req, res) => {
+    const { query } = validated<unknown, AvailableQueryInput>(req);
+    const userId = req.actor?.kind === 'user' ? req.actor.userId : undefined;
+    sendOk(
+      res,
+      await this.service.listAvailableForTour(query.tourId, {
+        subtotal: query.subtotal,
+        participants: query.participants,
+        departureDate: query.departureDate,
+        userId,
+      }),
+    );
   };
 }
 

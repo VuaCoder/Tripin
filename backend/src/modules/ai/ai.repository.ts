@@ -5,12 +5,16 @@ import { AI_LIMITS } from './ai.types';
 
 export type AiMessageRecord = AiMessage;
 
-/** A stored conversation. `messages` is loaded by `findOwned`/`create`/`appendMessages` and empty in list results. */
+/** Detail records load the transcript; list records load only the latest message. */
 export type AiConversationRecord = AiConversation & { messages: AiMessageRecord[]; unreadCount?: number };
 
 type NewMessage = { role: 'user' | 'assistant'; content: string };
 
 const withMessages = { messages: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } } satisfies Prisma.AiConversationInclude;
+const withSummary = {
+  messages: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 1 },
+  _count: { select: { messages: { where: { role: 'assistant', readAt: null } } } },
+} satisfies Prisma.AiConversationInclude;
 
 export class AiRepository {
   create(userId: string, title: string, messages: NewMessage[]): Promise<AiConversationRecord> {
@@ -45,7 +49,7 @@ export class AiRepository {
   async listByUser(userId: string, page: PageRequest) {
     const [rows, total] = await Promise.all([
       prisma.aiConversation.findMany({ where: { userId }, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit,
-        include: { messages: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 1 }, _count: { select: { messages: { where: { role: 'assistant', readAt: null } } } } },
+        include: withSummary,
       }),
       prisma.aiConversation.count({ where: { userId } }),
     ]);
@@ -54,10 +58,10 @@ export class AiRepository {
 
   async overview(userId: string) {
     const [latest, unreadCount] = await Promise.all([
-      this.listByUser(userId, { page: 1, limit: 1 }),
+      prisma.aiConversation.findFirst({ where: { userId }, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], include: withSummary }),
       prisma.aiMessage.count({ where: { conversation: { userId }, role: 'assistant', readAt: null } }),
     ]);
-    return { latest: latest.items[0] ?? null, unreadCount };
+    return { latest: latest ? { ...latest, unreadCount: latest._count.messages } : null, unreadCount };
   }
 
   async markRead(userId: string, conversationId: string, throughMessageId: string) {

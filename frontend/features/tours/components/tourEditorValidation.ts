@@ -3,7 +3,7 @@ import type { TourContentInput } from '../types';
 export const editorFields = ['title', 'destination', 'durationDays', 'summary', 'categoryIds', 'basePrice', 'maxGroupSize', 'agePricing'] as const;
 export type EditorField = typeof editorFields[number];
 export type EditorErrors = Partial<Record<EditorField, string>>;
-export const fieldStep = (field: EditorField) => field === 'agePricing' ? 4 : field === 'basePrice' || field === 'maxGroupSize' ? 3 : 1;
+export const fieldStep = (field: EditorField) => field === 'agePricing' || field === 'basePrice' || field === 'maxGroupSize' ? 3 : 1;
 
 export function validateTourEditor(value: TourContentInput): EditorErrors {
   const errors: EditorErrors = {};

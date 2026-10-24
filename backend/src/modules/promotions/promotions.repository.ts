@@ -2,32 +2,89 @@ import { containsText } from '../../utils/search';
 import type { ListPromotionsQuery } from './promotions.types';
 import type { PromotionScope } from '@travel-platform/constants';
 import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
-import type { Promotion } from '../../generated/prisma/client';
+import type { Promotion, PromotionCodeInstance, UserVoucher } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
 
 export type PromotionRecord = Promotion;
+export type PromotionCodeInstanceRecord = PromotionCodeInstance;
+export type UserVoucherRecord = UserVoucher & { promotion?: Promotion };
 
 export type NewPromotion = Pick<
   Promotion,
-  'scope' | 'code' | 'title' | 'discountType' | 'discountValue' | 'startsAt' | 'endsAt' | 'createdById'
+  'scope' | 'title' | 'discountType' | 'discountValue' | 'startsAt' | 'endsAt' | 'createdById'
 > &
-  Partial<Pick<Promotion, 'ownerId' | 'description' | 'maxDiscountAmount' | 'minOrderAmount' | 'usageLimit' | 'isActive'>>;
+  Partial<
+    Pick<
+      Promotion,
+      | 'code'
+      | 'ownerId'
+      | 'description'
+      | 'maxDiscountAmount'
+      | 'minOrderAmount'
+      | 'minParticipants'
+      | 'daysInAdvance'
+      | 'firstBookingOnly'
+      | 'targetTourIds'
+      | 'usageLimit'
+      | 'usageLimitPerUser'
+      | 'applyType'
+      | 'codeType'
+      | 'isActive'
+      | 'isArchived'
+    >
+  >;
 
 export type PromotionPatch = Partial<
-  Pick<Promotion, 'title' | 'description' | 'discountType' | 'discountValue' | 'maxDiscountAmount' | 'minOrderAmount' | 'startsAt' | 'endsAt' | 'usageLimit' | 'isActive'>
+  Pick<
+    Promotion,
+    | 'title'
+    | 'description'
+    | 'discountType'
+    | 'discountValue'
+    | 'maxDiscountAmount'
+    | 'minOrderAmount'
+    | 'minParticipants'
+    | 'daysInAdvance'
+    | 'firstBookingOnly'
+    | 'targetTourIds'
+    | 'startsAt'
+    | 'endsAt'
+    | 'usageLimit'
+    | 'usageLimitPerUser'
+    | 'isActive'
+    | 'isArchived'
+  >
 >;
 
 export class PromotionsRepository {
   create(data: NewPromotion): Promise<PromotionRecord> {
-    return prisma.promotion.create({ data: { ...data, code: data.code.toUpperCase() } });
+    return prisma.promotion.create({
+      data: {
+        ...data,
+        code: data.code ? data.code.toUpperCase() : undefined,
+      },
+    });
   }
 
   findById(id: string): Promise<PromotionRecord | null> {
     return prisma.promotion.findUnique({ where: { id } });
   }
 
-  findByCode(code: string): Promise<PromotionRecord | null> {
-    return prisma.promotion.findUnique({ where: { code: code.toUpperCase() } });
+  async findByCode(
+    code: string,
+  ): Promise<{ promotion: PromotionRecord; codeInstance?: PromotionCodeInstanceRecord } | null> {
+    const upper = code.toUpperCase();
+    const promotion = await prisma.promotion.findUnique({ where: { code: upper } });
+    if (promotion) return { promotion };
+
+    const instance = await prisma.promotionCodeInstance.findUnique({
+      where: { code: upper },
+      include: { promotion: true },
+    });
+    if (instance && instance.promotion) {
+      return { promotion: instance.promotion, codeInstance: instance };
+    }
+    return null;
   }
 
   updateById(id: string, patch: PromotionPatch): Promise<PromotionRecord | null> {
@@ -38,6 +95,9 @@ export class PromotionsRepository {
     const where: Prisma.PromotionWhereInput = { scope: filter.scope };
     if (filter.ownerId) where.ownerId = filter.ownerId;
     if (filter.isActive !== undefined) where.isActive = filter.isActive;
+    if (filter.isArchived !== undefined) where.isArchived = filter.isArchived;
+    if (filter.applyType) where.applyType = filter.applyType;
+    if (filter.codeType) where.codeType = filter.codeType;
     if (filter.q) where.OR = [{ code: containsText(filter.q) }, { title: containsText(filter.q) }];
     if (filter.discountType) where.discountType = filter.discountType;
     if (filter.from && filter.to) { where.startsAt = { lte: filter.to }; where.endsAt = { gte: filter.from }; }
@@ -60,6 +120,91 @@ export class PromotionsRepository {
   async release(id: string): Promise<void> {
     await prisma.promotion.updateMany({ where: { id, usedCount: { gt: 0 } }, data: { usedCount: { decrement: 1 } } });
   }
+
+  // --- Unique Code Instances ---
+  async createCodeInstances(promotionId: string, codes: string[]) {
+    return prisma.promotionCodeInstance.createMany({
+      data: codes.map((c) => ({
+        promotionId,
+        code: c.toUpperCase(),
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  async listCodeInstances(promotionId: string, page: PageRequest) {
+    const where = { promotionId };
+    const p = page?.page && page?.limit ? page : { page: 1, limit: 20 };
+    const [items, total] = await Promise.all([
+      prisma.promotionCodeInstance.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: toSkip(p),
+        take: p.limit,
+      }),
+      prisma.promotionCodeInstance.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  async consumeCodeInstance(instanceId: string, bookingId: string, usedById: string): Promise<boolean> {
+    const changed = await prisma.$executeRaw`
+      UPDATE "PromotionCodeInstance"
+      SET "isUsed" = true, "usedAt" = NOW(), "bookingId" = ${bookingId}::uuid, "usedById" = ${usedById}::uuid
+      WHERE "id" = ${instanceId}::uuid AND NOT "isUsed"`;
+    return changed === 1;
+  }
+
+  async releaseCodeInstance(instanceId: string): Promise<void> {
+    await prisma.promotionCodeInstance.update({
+      where: { id: instanceId },
+      data: { isUsed: false, usedAt: null, bookingId: null, usedById: null },
+    });
+  }
+
+  // --- User Vouchers ---
+  async collectUserVoucher(userId: string, promotionId: string): Promise<UserVoucherRecord> {
+    return prisma.userVoucher.upsert({
+      where: { userId_promotionId: { userId, promotionId } },
+      create: { userId, promotionId },
+      update: {},
+      include: { promotion: true },
+    });
+  }
+
+  async listUserVouchers(userId: string): Promise<UserVoucherRecord[]> {
+    return prisma.userVoucher.findMany({
+      where: { userId },
+      include: { promotion: true },
+      orderBy: { collectedAt: 'desc' },
+    });
+  }
+
+  async countUserUsages(userId: string, promotionId: string): Promise<number> {
+    return prisma.booking.count({
+      where: {
+        travelerId: userId,
+        status: { not: 'CANCELLED' },
+        promotionId,
+      },
+    });
+  }
+
+  async findExpiringUserVouchers(windowHours: number = 48, now = new Date()): Promise<UserVoucherRecord[]> {
+    const windowEnd = new Date(now.getTime() + windowHours * 60 * 60 * 1000);
+    return prisma.userVoucher.findMany({
+      where: {
+        isUsed: false,
+        promotion: {
+          isActive: true,
+          startsAt: { lte: now },
+          endsAt: { gt: now, lte: windowEnd },
+        },
+      },
+      include: { promotion: true },
+    });
+  }
 }
 
 export const promotionsRepository = new PromotionsRepository();
+

@@ -11,6 +11,7 @@ import {
   listUsersQuery,
   listAgencyGuidesQuery,
   publicProfileParams,
+  updatePreferencesBody,
   updateProfileBody,
 } from './users.validation';
 
@@ -19,6 +20,13 @@ export const usersRouter = Router();
 export const agencyGuidesRouter = Router();
 agencyGuidesRouter.get('/', requirePermission(PERMISSIONS.TOUR_ASSIGN_GUIDE), validate({ query: listAgencyGuidesQuery }), usersController.listAgencyGuides);
 usersRouter.get('/me', requirePermission(PERMISSIONS.PROFILE_VIEW_OWN), usersController.getMe);
+usersRouter.get('/me/preferences', requirePermission(PERMISSIONS.PROFILE_VIEW_OWN), usersController.getPreferences);
+usersRouter.patch(
+  '/me/preferences',
+  requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
+  validate({ body: updatePreferencesBody }),
+  usersController.updatePreferences,
+);
 usersRouter.patch(
   '/me',
   requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
@@ -63,6 +71,10 @@ publicGuidesRouter.get('/:id', validate({ params: publicProfileParams }), usersC
 /** Mounted at /api/v1/agencies — public (GUEST) profile. */
 export const publicAgenciesRouter = Router();
 publicAgenciesRouter.get('/:id', validate({ params: publicProfileParams }), usersController.getPublicAgency);
+publicAgenciesRouter.get('/:id/promotions', validate({ params: publicProfileParams }), async (req, res, next) => {
+  const { promotionsController } = await import('../promotions/promotions.controller');
+  return promotionsController.listPublicAgencyPromotions(req, res, next);
+});
 
 /** Mounted at /api/v1/admin/users — SUPER_ADMIN access management. */
 export const adminUsersRouter = Router();

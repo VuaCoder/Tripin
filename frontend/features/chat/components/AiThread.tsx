@@ -170,7 +170,8 @@ export function AiThread() {
     restored.current = true;
     sending.current = true;
     setPendingSend(true);
-    const version = generation.current;
+    // Ignore background history requests that began before this outgoing turn.
+    const version = ++generation.current;
 
     setGlobalError('');
     if (!textToSend) setDraft('');

@@ -5,3 +5,4 @@ export * from './AgencyTourImportPage';
 export * from './AgencyTourListPage';
 export * from './AgencyTourWorkspacePage';
 export * from './AgencyTourLivePreview';
+export * from './TourItemCombobox';

@@ -63,6 +63,14 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `PROMOTION_NOT_APPLICABLE` | 409 | The promotion belongs to another agency |
 | `PROMOTION_MIN_ORDER` | 409 | The order is below the promotion's minimum amount |
 | `PROMOTION_EXHAUSTED` | 409 | Every redemption of the promotion is used |
+| `PROMOTION_TOUR_NOT_ELIGIBLE` | 409 | The promotion does not apply to this specific tour |
+| `PROMOTION_MIN_PARTICIPANTS` | 409 | The group size is below the promotion's minimum participants |
+| `PROMOTION_EARLY_BIRD` | 409 | The departure date is too close to qualify for the early-bird promotion |
+| `PROMOTION_FIRST_BOOKING_ONLY` | 409 | The promotion is only valid for a traveler's first booking |
+| `PROMOTION_USER_LIMIT_REACHED` | 409 | The maximum number of redemptions per account for this promotion has been reached |
+| `PROMOTION_CODE_USED` | 409 | The single-use voucher code has already been redeemed |
+| `PROMOTION_ARCHIVED` | 400 | The promotion has been archived and is no longer valid |
+| `PROMOTION_BATCH_PREFIX_NOT_USABLE` | 400 | The promotion is a unique batch and requires an individual issued voucher code |
 
 ## Bookings and payments (`bookings`, `payments`, `reviews`)
 
@@ -82,6 +90,9 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | Code | HTTP | Meaning |
 |---|---|---|
 | `REPORT_ALREADY_OPEN` | 409 | The reporter already has an open report about this target |
+| `COMPLAINT_ALREADY_OPEN` | 409 | A complaint ticket for this booking/tour is already open |
+| `FEEDBACK_EXISTS` | 409 | CSAT feedback has already been submitted for this complaint ticket |
+| `TICKET_NOT_CLOSED` | 400 | Feedback can only be submitted after the ticket is closed |
 | `TICKET_CLOSED` | 409 | A closed support ticket accepts nothing |
 | `TICKET_FULL` | 409 | The support ticket reached its message limit |
 | `WISHLIST_FULL` | 409 | The wishlist reached its size limit |

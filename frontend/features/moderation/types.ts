@@ -56,7 +56,7 @@ export interface ModerationTour {
   agency?: { id: string; name: string; avatarUrl?: string };
   inclusions?: string[];
   exclusions?: string[];
-  itinerary?: { day: number; title: string; description?: string; activities: string[] }[];
+  itinerary?: { day: number; toDay?: number; title: string; description?: string; activities: string[] }[];
 }
 
 export interface ModerationAgency {
@@ -131,6 +131,36 @@ export interface ModerationReport extends MyReport {
     hiddenReason?: string;
     authorName?: string;
   };
+  relatedTicket?: RelatedTicketInfo;
+  directChat?: DirectChatInfo;
+}
+
+export interface ReportConversationMessage {
+  id: string;
+  senderRole: string;
+  senderName?: string;
+  text: string;
+  attachments?: string[];
+  createdAt: string;
+}
+
+export interface RelatedTicketInfo {
+  id: string;
+  ticketCode: string;
+  status: string;
+  subject: string;
+  messages: ReportConversationMessage[];
+}
+
+export interface DirectChatInfo {
+  id: string;
+  messages: {
+    id: string;
+    senderId: string;
+    senderName?: string;
+    text: string;
+    createdAt: string;
+  }[];
 }
 
 export interface ListModerationReportsArgs {

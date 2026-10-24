@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 149 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 184 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -46,6 +46,8 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/admin/promotions` | role: `SUPER_ADMIN` + `promotion:platform-manage` |
 | GET | `/api/v1/admin/promotions/:id` | role: `SUPER_ADMIN` + `promotion:platform-manage` |
 | PATCH | `/api/v1/admin/promotions/:id` | role: `SUPER_ADMIN` + `promotion:platform-manage` |
+| GET | `/api/v1/admin/promotions/:id/batch` | role: `SUPER_ADMIN` + `promotion:platform-manage` |
+| POST | `/api/v1/admin/promotions/:id/generate-batch` | role: `SUPER_ADMIN` + `promotion:platform-manage` |
 
 ## `/admin/settings`
 
@@ -66,6 +68,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | Method | Path | Access |
 |---|---|---|
 | GET | `/api/v1/agencies/:id` | public |
+| GET | `/api/v1/agencies/:id/promotions` | public |
 
 ## `/agency/bookings`
 
@@ -73,6 +76,17 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/agency/bookings` | `agency:bookings-view` |
 | GET | `/api/v1/agency/bookings/:id` | `agency:bookings-view` |
+
+## `/agency/complaint-tickets`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/agency/complaint-tickets` | `complaint:respond` |
+| GET | `/api/v1/agency/complaint-tickets/:id` | `complaint:respond` |
+| POST | `/api/v1/agency/complaint-tickets/:id/escalate` | `complaint:respond` |
+| POST | `/api/v1/agency/complaint-tickets/:id/messages` | `complaint:respond` |
+| POST | `/api/v1/agency/complaint-tickets/:id/resolve` | `complaint:respond` |
+| POST | `/api/v1/agency/complaint-tickets/images/upload-signature` | `complaint:respond` |
 
 ## `/agency/complaints`
 
@@ -102,6 +116,8 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/agency/promotions` | `promotion:agency-manage` |
 | GET | `/api/v1/agency/promotions/:id` | `promotion:agency-manage` |
 | PATCH | `/api/v1/agency/promotions/:id` | `promotion:agency-manage` |
+| GET | `/api/v1/agency/promotions/:id/batch` | `promotion:agency-manage` |
+| POST | `/api/v1/agency/promotions/:id/generate-batch` | `promotion:agency-manage` |
 
 ## `/agency/review-disputes`
 
@@ -123,9 +139,12 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | GET | `/api/v1/agency/tours/:id/customers.pdf` | `agency:export-customers` |
 | PUT | `/api/v1/agency/tours/:id/guide` | `tour:assign-guide` |
 | PUT | `/api/v1/agency/tours/:id/itinerary` | `tour:configure-itinerary` |
+| POST | `/api/v1/agency/tours/:id/restore` | `tour:update-own` |
 | POST | `/api/v1/agency/tours/:id/submit` | `tour:update-own` |
+| POST | `/api/v1/agency/tours/categories` | `tour:create` |
 | POST | `/api/v1/agency/tours/extract-document` | `tour:import` |
 | POST | `/api/v1/agency/tours/import` | `tour:import` |
+| POST | `/api/v1/agency/tours/upload-image` | `tour:update-own` |
 
 ## `/ai`
 
@@ -134,6 +153,8 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/ai/chat` | `ai:chat` |
 | GET | `/api/v1/ai/conversations` | `ai:chat` |
 | GET | `/api/v1/ai/conversations/:id` | `ai:chat` |
+| POST | `/api/v1/ai/conversations/:id/read` | `ai:chat` |
+| GET | `/api/v1/ai/overview` | `ai:chat` |
 
 ## `/auth`
 
@@ -197,6 +218,19 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/chat/conversations/:id/messages` | `chat:use` |
 | POST | `/api/v1/chat/conversations/:id/read` | `chat:use` |
 
+## `/complaints`
+
+| Method | Path | Access |
+|---|---|---|
+| POST | `/api/v1/complaints` | `report:create` |
+| GET | `/api/v1/complaints/:id` | `report:create`, `complaint:respond`, `dispute:resolve` |
+| POST | `/api/v1/complaints/:id/accept-resolution` | `report:create` |
+| POST | `/api/v1/complaints/:id/escalate` | `report:create`, `complaint:respond` |
+| POST | `/api/v1/complaints/:id/feedback` | `report:create` |
+| POST | `/api/v1/complaints/:id/messages` | `report:create`, `complaint:respond`, `dispute:resolve` |
+| POST | `/api/v1/complaints/images/upload-signature` | `report:create`, `complaint:respond`, `dispute:resolve` |
+| GET | `/api/v1/complaints/me` | `report:create` |
+
 ## `/e-tickets`
 
 | Method | Path | Access |
@@ -247,6 +281,17 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/moderation/users/:id/ban` | `account:ban` |
 | POST | `/api/v1/moderation/users/:id/unban` | `account:ban` |
 
+## `/moderation/complaint-tickets`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/moderation/complaint-tickets` | `dispute:resolve` |
+| GET | `/api/v1/moderation/complaint-tickets/:id` | `dispute:resolve` |
+| POST | `/api/v1/moderation/complaint-tickets/:id/adjudicate` | `dispute:resolve` |
+| POST | `/api/v1/moderation/complaint-tickets/:id/messages` | `dispute:resolve` |
+| GET | `/api/v1/moderation/complaint-tickets/dashboard/agency-quality` | `dispute:resolve` |
+| POST | `/api/v1/moderation/complaint-tickets/images/upload-signature` | `dispute:resolve` |
+
 ## `/moderation/dashboard`
 
 | Method | Path | Access |
@@ -282,6 +327,9 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 
 | Method | Path | Access |
 |---|---|---|
+| GET | `/api/v1/promotions/available` | `booking:create` |
+| POST | `/api/v1/promotions/collect` | `booking:create` |
+| GET | `/api/v1/promotions/my-vouchers` | `booking:create` |
 | GET | `/api/v1/promotions/preview` | `booking:create` |
 
 ## `/reports`
@@ -346,6 +394,8 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/users/me/avatar/upload-signature` | `profile:update-own` |
 | POST | `/api/v1/users/me/license-image/complete` | `profile:update-own` |
 | POST | `/api/v1/users/me/license-image/upload-signature` | `profile:update-own` |
+| GET | `/api/v1/users/me/preferences` | `profile:view-own` |
+| PATCH | `/api/v1/users/me/preferences` | `profile:update-own` |
 
 ## `/wishlist`
 

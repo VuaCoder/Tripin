@@ -144,6 +144,22 @@ export function TourListPage() {
 
   const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category.name])), [categories]);
   const activeCategoryId = searchParams.get('categoryId') ?? '';
+  const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(false);
+  const COLLAPSED_CATEGORIES_LIMIT = 8;
+
+  const displayedCategories = useMemo(() => {
+    if (isCategoriesExpanded || categories.length <= COLLAPSED_CATEGORIES_LIMIT) {
+      return categories;
+    }
+    const top = categories.slice(0, COLLAPSED_CATEGORIES_LIMIT);
+    if (activeCategoryId && !top.some((c) => c.id === activeCategoryId)) {
+      const selected = categories.find((c) => c.id === activeCategoryId);
+      if (selected) {
+        return [...top.slice(0, COLLAPSED_CATEGORIES_LIMIT - 1), selected];
+      }
+    }
+    return top;
+  }, [categories, isCategoriesExpanded, activeCategoryId]);
 
   useEffect(() => () => { if (sliderDebounceRef.current) clearTimeout(sliderDebounceRef.current); }, []);
 
@@ -209,6 +225,53 @@ export function TourListPage() {
         </div>
       </div>
 
+      {/* Danh mục tour */}
+      <div className="mb-6 flex flex-wrap items-center gap-2" aria-label="Thanh danh mục tour">
+        <button
+          type="button"
+          onClick={() => updateQuery({ categoryId: undefined })}
+          className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-bold transition cursor-pointer ${
+            !activeCategoryId
+              ? 'border-primary-container bg-primary-container text-white shadow-xs'
+              : 'border-slate-200 bg-white text-slate-700 hover:border-primary-container'
+          }`}
+        >
+          Tất cả
+        </button>
+        {displayedCategories.map((category) => (
+          <button
+            key={category.id}
+            type="button"
+            onClick={() => updateQuery({ categoryId: category.id })}
+            className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-bold transition cursor-pointer ${
+              activeCategoryId === category.id
+                ? 'border-primary-container bg-primary-container text-white shadow-xs'
+                : 'border-slate-200 bg-white text-slate-700 hover:border-primary-container'
+            }`}
+          >
+            {formatCategoryName(category.name)}
+          </button>
+        ))}
+        {categories.length > COLLAPSED_CATEGORIES_LIMIT && (
+          <button
+            type="button"
+            onClick={() => setIsCategoriesExpanded((prev) => !prev)}
+            className="inline-flex items-center gap-1 shrink-0 rounded-full border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-600 transition hover:border-primary-container hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
+          >
+            {isCategoriesExpanded ? (
+              <>
+                <span>Thu gọn</span>
+                <span className="material-symbols-outlined text-[16px]" aria-hidden="true">expand_less</span>
+              </>
+            ) : (
+              <>
+                <span>+{categories.length - displayedCategories.length} danh mục</span>
+                <span className="material-symbols-outlined text-[16px]" aria-hidden="true">expand_more</span>
+              </>
+            )}
+          </button>
+        )}
+      </div>
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         {/* ======================== BỘ LỌC BÊN TRÁI ======================== */}
         <aside className="h-fit max-h-[calc(100vh-7rem)] overflow-y-auto ant-scrollbar rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">

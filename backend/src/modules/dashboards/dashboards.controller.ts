@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express';
+import { performance } from 'node:perf_hooks';
 import { userActor } from '../../middlewares/authorize';
 import { sendOk } from '../../utils/api-response';
 import { dashboardsService, type DashboardsService } from './dashboards.service';
@@ -10,7 +11,10 @@ export class DashboardsController {
   constructor(private readonly service: DashboardsService = dashboardsService) {}
 
   agency: RequestHandler = async (req, res) => {
-    sendOk(res, await this.service.agencyDashboard(userActor(req).userId));
+    const startedAt = performance.now();
+    const dashboard = await this.service.agencyDashboard(userActor(req).userId);
+    res.setHeader('Server-Timing', `agency-dashboard-service;dur=${(performance.now() - startedAt).toFixed(1)}`);
+    sendOk(res, dashboard);
   };
 
   moderation: RequestHandler = async (_req, res) => {

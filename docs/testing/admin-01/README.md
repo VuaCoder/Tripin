@@ -12,21 +12,21 @@ Ngày kiểm tra: 18/10/2026. **Đã triển khai source; chưa đánh dấu Don
 
 ## Bằng chứng tự động
 
-| Kiểm tra | Kết quả |
-|---|---|
-| Baseline frontend | 46 file / 254 test pass; TypeScript pass |
-| Baseline backend unit | 42 file / 502 test pass |
-| Frontend riêng ADMIN-01 | 5 file / 56 test pass: API, component, layout role guard, validation, search/calendar filters |
-| Backend unit sau thay đổi | 42 file / 512 test pass |
-| Backend integration liên quan ADMIN-01 | 5 file / 29 test pass assertion trên PostgreSQL disposable thật; runner treo sau summary, xem ghi chú teardown |
-| Frontend toàn bộ sau thay đổi | 51 file / 310 test pass; có cảnh báo jsdom navigation từ test booking sẵn có |
-| Frontend TypeScript | Pass |
-| Frontend production build | Pass; sinh đủ sáu route admin, sử dụng `.next-verify` để không đụng dev output |
-| Backend production build | Pass: Prisma generate + tsup |
-| Backend full TypeScript | Còn lỗi baseline tại Cloudinary Buffer/Blob, agency-approval `req.user`/`JWT_SECRET`/nullable và bookings.service.test; không có lỗi type mới trong phần ADMIN-01 |
-| Full backend integration (lượt triển khai trước) | 33 file: 28 pass, 5 fail; 168 test pass, 7 fail. Chưa chạy lại full suite ở lượt bổ sung filter; chi tiết bên dưới |
-| Generated endpoint docs | Đã sinh lại bằng `docs:routes`; docs-in-sync và route audit nằm trong backend unit suite pass |
-| Browser/mobile/keyboard screenshots | Chưa kiểm tra được: browser inventory rỗng; tạo tab iab báo `Browser is not available: iab` |
+| Kiểm tra                                         | Kết quả                                                                                                                                                           |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Baseline frontend                                | 46 file / 254 test pass; TypeScript pass                                                                                                                          |
+| Baseline backend unit                            | 42 file / 502 test pass                                                                                                                                           |
+| Frontend riêng ADMIN-01                          | 5 file / 56 test pass: API, component, layout role guard, validation, search/calendar filters                                                                     |
+| Backend unit sau thay đổi                        | 42 file / 512 test pass                                                                                                                                           |
+| Backend integration liên quan ADMIN-01           | 5 file / 29 test pass assertion trên PostgreSQL disposable thật; runner treo sau summary, xem ghi chú teardown                                                    |
+| Frontend toàn bộ sau thay đổi                    | 51 file / 310 test pass; có cảnh báo jsdom navigation từ test booking sẵn có                                                                                      |
+| Frontend TypeScript                              | Pass                                                                                                                                                              |
+| Frontend production build                        | Pass; sinh đủ sáu route admin, sử dụng `.next-verify` để không đụng dev output                                                                                    |
+| Backend production build                         | Pass: Prisma generate + tsup                                                                                                                                      |
+| Backend full TypeScript                          | Còn lỗi baseline tại Cloudinary Buffer/Blob, agency-approval `req.user`/`JWT_SECRET`/nullable và bookings.service.test; không có lỗi type mới trong phần ADMIN-01 |
+| Full backend integration (lượt triển khai trước) | 33 file: 28 pass, 5 fail; 168 test pass, 7 fail. Chưa chạy lại full suite ở lượt bổ sung filter; chi tiết bên dưới                                                |
+| Generated endpoint docs                          | Đã sinh lại bằng `docs:routes`; docs-in-sync và route audit nằm trong backend unit suite pass                                                                     |
+| Browser/mobile/keyboard screenshots              | Chưa kiểm tra được: browser inventory rỗng; tạo tab iab báo `Browser is not available: iab`                                                                       |
 
 Các integration test liên quan:
 

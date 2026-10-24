@@ -1,5 +1,5 @@
 import type { DateRange } from '../../utils/date-range';
-import { BOOKING_CANCEL_REASON, BOOKING_STATUS, type BookingCancelReason, type BookingStatus } from '@travel-platform/constants';
+import { BOOKING_CANCEL_REASON, BOOKING_STATUS, PROMOTION_SCOPE, type BookingCancelReason, type BookingStatus, type PromotionScope } from '@travel-platform/constants';
 import { isUniqueViolation } from '../../config/database';
 import { AppError } from '../../utils/app-error';
 import { randomInt } from 'node:crypto';
@@ -36,7 +36,7 @@ const MINUTE_MS = 60 * 1000;
 type Repo = Pick<
   BookingsRepository,
   | 'create' | 'findById' | 'findByRequestId' | 'transition' | 'updateById' | 'listByTraveler' | 'listByAgency'
-  | 'findExpiredPending' | 'findDueForCompletion' | 'statusCounts' | 'revenueTotals' | 'dailyNet' | 'monthlyTotals' | 'topTours' | 'listPaidForTour' | 'customerCount'
+  | 'findExpiredPending' | 'findDueForCompletion' | 'statusCounts' | 'revenueTotals' | 'dailyNet' | 'monthlyTotals' | 'topTours' | 'listPaidForTour' | 'customerCount' | 'countByTraveler'
 >;
 
 const AMOUNT_TOO_LOW = () =>
@@ -90,15 +90,45 @@ export class BookingsService {
     if (subtotal < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
 
     await this.tours.reserveSeats(input.tourId, input.departureId, input.participants);
-    let applied: AppliedPromotion | undefined;
+    let appliedAgency: AppliedPromotion | undefined;
+    let appliedPlatform: AppliedPromotion | undefined;
+    const isFirstBooking = (await this.bookings.countByTraveler?.(travelerId)) === 0;
+    const redeemOpts = {
+      participants: input.participants,
+      departureDate: departure.departureDate,
+      userId: travelerId,
+      isFirstBooking,
+    };
     try {
-      if (input.promotionCode) applied = await this.promotions.redeem(input.promotionCode, input.tourId, subtotal);
+      if (input.agencyPromotionCode) {
+        appliedAgency = await this.promotions.redeem(input.agencyPromotionCode, input.tourId, subtotal, redeemOpts);
+        if (appliedAgency.scope !== PROMOTION_SCOPE.AGENCY) {
+          throw AppError.conflict('Promotion code does not apply to this agency', 'PROMOTION_NOT_APPLICABLE');
+        }
+      }
 
-      const discountAmount = applied?.discountAmount ?? 0;
+      if (input.platformPromotionCode) {
+        const remainingSubtotal = Math.max(0, subtotal - (appliedAgency?.discountAmount ?? 0));
+        appliedPlatform = await this.promotions.redeem(input.platformPromotionCode, input.tourId, remainingSubtotal, redeemOpts);
+        if (appliedPlatform.scope !== PROMOTION_SCOPE.PLATFORM) {
+          throw AppError.conflict('Promotion code is not a platform promotion', 'PROMOTION_NOT_APPLICABLE');
+        }
+      }
+
+      if (!appliedAgency && !appliedPlatform && input.promotionCode) {
+        const applied = await this.promotions.redeem(input.promotionCode, input.tourId, subtotal, redeemOpts);
+        if (applied.scope === PROMOTION_SCOPE.AGENCY) appliedAgency = applied;
+        else appliedPlatform = applied;
+      }
+
+      const discountAmount = (appliedAgency?.discountAmount ?? 0) + (appliedPlatform?.discountAmount ?? 0);
       const totalAmount = Math.max(0, subtotal - discountAmount);
       if (totalAmount < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
       const commissionBps = await this.settings.getCommissionBps();
       const commissionAmount = Math.floor((totalAmount * commissionBps) / 10_000);
+
+      const primaryApplied = appliedAgency ?? appliedPlatform;
+      const combinedCode = [appliedAgency?.code, appliedPlatform?.code].filter(Boolean).join(' + ');
 
       const created = await this.createWithUniqueCode({
         travelerId,
@@ -114,7 +144,14 @@ export class BookingsService {
         notes: input.notes,
         unitPrice: departure.unitPrice,
         subtotal,
-        promotion: applied ? { promotionId: applied.promotionId, code: applied.code, scope: applied.scope, discountAmount } : undefined,
+        promotion: primaryApplied
+          ? {
+              promotionId: primaryApplied.promotionId,
+              code: combinedCode || primaryApplied.code,
+              scope: (appliedAgency && appliedPlatform ? PROMOTION_SCOPE.PLATFORM : primaryApplied.scope) as PromotionScope,
+              discountAmount,
+            }
+          : undefined,
         discountAmount,
         totalAmount,
         commissionBps,
@@ -134,7 +171,7 @@ export class BookingsService {
       });
       return toBookingDto(created);
     } catch (error) {
-      await this.compensate(input, applied);
+      await this.compensate(input, appliedAgency, appliedPlatform);
       // Lost a race on the retry key: the other request created the booking, return it.
       if (input.clientRequestId && isDuplicateKey(error, 'clientRequestId')) {
         const existing = await this.bookings.findByRequestId(travelerId, input.clientRequestId);
@@ -434,10 +471,21 @@ export class BookingsService {
     return cancelled;
   }
 
-  private async compensate(input: CreateBookingInput, applied?: AppliedPromotion): Promise<void> {
+  private async compensate(
+    input: CreateBookingInput,
+    appliedAgency?: AppliedPromotion,
+    appliedPlatform?: AppliedPromotion,
+  ): Promise<void> {
     try {
       await this.tours.releaseSeats(input.tourId, input.departureId, input.participants);
-      if (applied) await this.promotions.release(applied.promotionId);
+      if (appliedAgency) {
+        if (appliedAgency.codeInstanceId) await this.promotions.release(appliedAgency.promotionId, appliedAgency.codeInstanceId);
+        else await this.promotions.release(appliedAgency.promotionId);
+      }
+      if (appliedPlatform) {
+        if (appliedPlatform.codeInstanceId) await this.promotions.release(appliedPlatform.promotionId, appliedPlatform.codeInstanceId);
+        else await this.promotions.release(appliedPlatform.promotionId);
+      }
     } catch (error) {
       logger.error('Booking compensation failed (seats/promotion may need manual release)', { message: (error as Error).message });
     }

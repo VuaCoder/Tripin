@@ -74,7 +74,28 @@ export const assignAccessBody = z
   .strict()
   .refine((value) => value.role !== undefined || value.extraPermissions !== undefined, 'role or extraPermissions is required');
 
+export const updatePreferencesBody = z
+  .object({
+    freeTimeSlots: z
+      .array(
+        z.object({
+          id: z.string().trim().max(50),
+          name: z.string().trim().max(100),
+          start: z.string().trim().regex(/^\d{1,2}:\d{2}$/, 'Invalid time format HH:mm'),
+          end: z.string().trim().regex(/^\d{1,2}:\d{2}$/, 'Invalid time format HH:mm'),
+          enabled: z.boolean(),
+        }),
+      )
+      .max(10)
+      .optional(),
+    voucherExpiryAlerts: z.boolean().optional(),
+    emailAlerts: z.boolean().optional(),
+  })
+  .strict();
+
 export type UpdateProfileBody = z.infer<typeof updateProfileBody>;
+export type UpdatePreferencesBody = z.infer<typeof updatePreferencesBody>;
 export type CompleteImageUploadBody = z.infer<typeof completeImageUploadBody>;
 export type ListUsersQueryInput = z.infer<typeof listUsersQuery>;
 export type AssignAccessBody = z.infer<typeof assignAccessBody>;
+

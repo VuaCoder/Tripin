@@ -180,6 +180,9 @@ export function BoatPreloader({
       return;
     }
 
+    // The destination is already committed: let the user interact while the boat fades out.
+    gsap.set(overlay, { pointerEvents: 'none' });
+
     const prefersReducedMotion =
       typeof window !== 'undefined' &&
       typeof window.matchMedia === 'function' &&
@@ -193,7 +196,7 @@ export function BoatPreloader({
     };
 
     // Smooth exit timeline
-    gsap.to(overlay, {
+    const exitTween = gsap.to(overlay, {
       opacity: 0,
       duration: prefersReducedMotion ? 0.15 : 0.3,
       ease: 'power2.inOut',
@@ -202,7 +205,10 @@ export function BoatPreloader({
 
     // Fallback timer guarantees overlay cleanly dismisses even if rAF is throttled in background tabs
     const fallbackTimer = setTimeout(safeExited, prefersReducedMotion ? 250 : 450);
-    return () => clearTimeout(fallbackTimer);
+    return () => {
+      clearTimeout(fallbackTimer);
+      exitTween.kill();
+    };
   }, [active, onExited]);
 
   return (

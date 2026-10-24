@@ -16,7 +16,7 @@ fs.mkdirSync(output, { recursive: true });
   try {
     const page = await context.newPage();
     page.on('pageerror', error => errors.push(error.message));
-    await page.goto(`${base}/login`);
+    await page.goto(`${base}/login`, { waitUntil: 'domcontentloaded', timeout: 180000 });
     await page.locator('#user-credential').fill('traveler@chat.test');
     await page.locator('#user-password').fill('ChatSmoke2026!');
     const loginResponse = page.waitForResponse(r => r.url() === `${api}/auth/login` && r.request().method() === 'POST');

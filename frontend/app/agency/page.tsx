@@ -3,10 +3,14 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ConfigProvider, Select } from 'antd';
 import { Users, Wallet, ReceiptText, CalendarCheck, ArrowRight, RotateCw, Map, CalendarDays } from 'lucide-react';
-import { useGetAgencyDashboardQuery, getTourApiMessage } from '@/features/tours/api/toursApi';
+import { toursApi, useGetAgencyDashboardQuery, getTourApiMessage } from '@/features/tours/api/toursApi';
 import { AgencyDenied, AgencyError, AgencyLoading, bookingStatusNames, dateTime, money, useAgencyPermission } from '@/features/agency/AgencyUi';
+import { shouldRefetchAgencyDashboard } from '@/features/agency/dashboardCache';
 import { AgencyRevenueChart, rollingRevenueSeries } from '@/features/agency/components/AgencyRevenueChart';
+import { useAppSelector } from '@/store/hooks';
 import styles from '@/features/agency/components/AgencyDashboard.module.css';
+
+const selectCachedDashboard = toursApi.endpoints.getAgencyDashboard.select();
 
 function TourCover({ src, title }: { src?: string | null; title: string }) {
   const [failed, setFailed] = useState(false);
@@ -20,7 +24,13 @@ export default function AgencyDashboardPage() {
   const canView = useAgencyPermission('agency:dashboard');
   const canViewBookings = useAgencyPermission('agency:bookings-view');
   const canViewTours = useAgencyPermission('tour:update-own');
-  const { data, isLoading, isFetching, error, refetch } = useGetAgencyDashboardQuery(undefined, { skip: !canView, refetchOnMountOrArgChange: true, refetchOnFocus: true, refetchOnReconnect: true });
+  const cachedDashboard = useAppSelector(selectCachedDashboard);
+  const { data, isLoading, isFetching, error, refetch } = useGetAgencyDashboardQuery(undefined, {
+    skip: !canView,
+    refetchOnMountOrArgChange: Boolean(cachedDashboard.error) || shouldRefetchAgencyDashboard(cachedDashboard.data?.generatedAt),
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
   if (!canView) return <AgencyDenied />;
   const series = data ? rollingRevenueSeries(data.generatedAt, data.last30Days) : [];
   const points = range === '6m' ? (data?.last6Months ?? []).map((point) => ({ ...point, date: `${point.month}-01` })) : range === 7 ? series.slice(-7) : series;
@@ -31,10 +41,12 @@ export default function AgencyDashboardPage() {
 
   return <main className={styles.page}>
     <header className={styles.header}><div><h1>Tổng quan</h1><p className={styles.subtitle}>Khách hàng, đặt chỗ và doanh thu của bạn.</p></div><div className={styles.refresh}>
-      {data && !error && <time dateTime={data.generatedAt}>Cập nhật {new Date(data.generatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</time>}
+      {data && <time dateTime={data.generatedAt}>Cập nhật {new Date(data.generatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</time>}
       <button type="button" className="grid size-10 place-items-center rounded-lg border border-slate-200 bg-white text-primary hover:bg-teal-50 disabled:opacity-50" disabled={isFetching} onClick={() => void refetch()} aria-label="Làm mới" title="Làm mới"><RotateCw size={17} className={isFetching ? 'animate-spin motion-reduce:animate-none' : ''} /></button>
     </div></header>
-    {isLoading ? <AgencyLoading label="Đang tải tổng quan…" /> : error ? <AgencyError message={getTourApiMessage(error, 'Không tải được tổng quan. Vui lòng thử lại.')} retry={() => void refetch()} /> : data && <>
+    {data && error && <p role="alert" className={styles.note}>Không thể cập nhật tổng quan. Đang hiển thị số liệu lần gần nhất; hãy thử làm mới.</p>}
+    {!data && (isLoading ? <AgencyLoading label="Đang tải tổng quan…" /> : error ? <AgencyError message={getTourApiMessage(error, 'Không tải được tổng quan. Vui lòng thử lại.')} retry={() => void refetch()} /> : null)}
+    {data && <>
       <div className={styles.bento} aria-busy={isFetching}>
         <section aria-label="Số liệu tổng quan" className={styles.financial}>{[
           { label: 'Khách hàng', value: data.customers === undefined ? '—' : data.customers.toLocaleString('vi-VN'), icon: Users, tone: 'light', note: data.customers === undefined ? 'Chưa có số liệu' : 'Khách đã đặt tour', help: 'Số khách khác nhau có đơn đã xác nhận hoặc hoàn thành, tính từ trước đến nay.' },

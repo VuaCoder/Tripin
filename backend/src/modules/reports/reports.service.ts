@@ -1,6 +1,7 @@
 import { isUniqueViolation } from '../../config/database';
 import { ROLES, type PersistedRole } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
+import { logger } from '../../utils/logger';
 import { buildPage, type Page } from '../../utils/pagination';
 import { assertTransition } from '../../utils/state-machine';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
@@ -24,6 +25,8 @@ import {
   type ModerationReportDto,
   type MyReportDto,
   type ReportStatus,
+  type DirectChatDto,
+  type RelatedTicketDto,
 } from './reports.types';
 
 type Actor = { userId: string; role: PersistedRole };
@@ -34,7 +37,7 @@ export class ReportsService {
     private readonly reports: Pick<
       ReportsRepository,
       'create' | 'findById' | 'findOpenDuplicate' | 'transition' | 'listByReporter' | 'listByAgency' | 'listForModeration' | 'countByStatus' | 'countOpenForAgency'
-    > = reportsRepository,
+    > & Partial<Pick<ReportsRepository, 'findRelatedTicket' | 'findDirectChat' | 'closeRelatedTicket'>> = reportsRepository,
     private readonly tours: Pick<ToursService, 'getTourFacts' | 'getTitles'> = toursService,
     private readonly users: Pick<UsersService, 'getSummaries'> = usersService,
     private readonly reviews: Pick<ReviewsService, 'getFacts'> = reviewsService,
@@ -205,6 +208,41 @@ export class ReportsService {
         data: { reportId: id },
       });
     }
+
+    // Automatically close any related complaint ticket so that both traveler and agency see the ticket closed immediately
+    if (this.reports.findRelatedTicket && this.reports.closeRelatedTicket) {
+      try {
+        const relatedTicket = await this.reports.findRelatedTicket(
+          report.reporterId,
+          report.tourId,
+          report.agencyId,
+          report.bookingId,
+        );
+        if (relatedTicket && relatedTicket.status !== 'CLOSED') {
+          const decisionWord = next === REPORT_STATUS.RESOLVED ? 'Chấp thuận' : 'Bác bỏ';
+          await this.reports.closeRelatedTicket(
+            relatedTicket.id,
+            actor.userId,
+            decisionWord,
+            decision.note,
+          );
+
+          const ticketNotice = {
+            type: NOTIFICATION_TYPE.COMPLAINT_RESOLVED,
+            title: 'Phán quyết từ Kiểm duyệt viên sàn',
+            body: `Kiểm duyệt viên đã phán quyết cho phiếu ${relatedTicket.ticketCode}: ${decisionWord}. ${decision.note}`,
+            data: { ticketId: relatedTicket.id, ticketCode: relatedTicket.ticketCode },
+          };
+          await Promise.all([
+            this.notifications.notify(relatedTicket.travelerId, ticketNotice, { email: true }),
+            this.notifications.notify(relatedTicket.agencyId, ticketNotice, { email: true }),
+          ]);
+        }
+      } catch (err) {
+        logger.warn('Failed to auto-close related complaint ticket for report', { reportId: id, err });
+      }
+    }
+
     return toModerationReportDto(updated, (await this.extrasFor([updated])).get(updated.id));
   }
 
@@ -275,6 +313,66 @@ export class ReportsService {
     ]);
     const codes = new Map(bookings.flatMap((booking) => (booking ? [[booking.id, booking.bookingCode] as const] : [])));
 
+    const relatedTickets = new Map<string, RelatedTicketDto>();
+    const directChats = new Map<string, DirectChatDto>();
+
+    if (this.reports.findRelatedTicket) {
+      await Promise.all(
+        items.map(async (report) => {
+          try {
+            const ticket = await this.reports.findRelatedTicket!(
+              report.reporterId,
+              report.tourId,
+              report.agencyId,
+              report.bookingId,
+            );
+            if (ticket) {
+              relatedTickets.set(report.id, {
+                id: ticket.id,
+                ticketCode: ticket.ticketCode,
+                status: ticket.status,
+                subject: ticket.subject,
+                messages: ticket.messages.map((m) => ({
+                  id: m.id,
+                  senderRole: m.senderRole,
+                  senderName: (m as any).senderName ?? undefined,
+                  text: m.text,
+                  attachments: m.attachments,
+                  createdAt: m.createdAt.toISOString(),
+                })),
+              });
+            }
+          } catch {
+            // graceful fallback
+          }
+        }),
+      );
+    }
+
+    if (this.reports.findDirectChat) {
+      await Promise.all(
+        items.map(async (report) => {
+          if (!report.agencyId) return;
+          try {
+            const chat = await this.reports.findDirectChat!(report.reporterId, report.agencyId);
+            if (chat && chat.messages.length > 0) {
+              directChats.set(report.id, {
+                id: chat.id,
+                messages: chat.messages.map((m) => ({
+                  id: m.id,
+                  senderId: m.senderId,
+                  text: m.text,
+                  createdAt: m.createdAt.toISOString(),
+                })),
+              });
+            }
+          } catch {
+            // graceful fallback
+          }
+        }),
+      );
+    }
+
     const accountName = (id?: string | null) => {
       const account = id ? people.get(id) : undefined;
       return account ? (account.companyName ?? account.fullName) : undefined;
@@ -308,6 +406,8 @@ export class ReportsService {
                   authorName: people.get(facts.travelerId)?.fullName,
                 }
               : undefined,
+            relatedTicket: relatedTickets.get(report.id),
+            directChat: directChats.get(report.id),
           },
         ];
       }),

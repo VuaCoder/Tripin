@@ -17,6 +17,8 @@ export const createBookingBody = z
     contact: z.object({ fullName: z.string().trim().min(2).max(120), phone }).strict(),
     notes: z.string().trim().max(500).optional(),
     promotionCode: z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,30}$/).optional(),
+    agencyPromotionCode: z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,30}$/).optional(),
+    platformPromotionCode: z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,30}$/).optional(),
     /** Optional retry key (UUID or similar); the same key never creates two bookings. */
     clientRequestId: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/).optional(),
   })

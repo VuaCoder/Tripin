@@ -9,6 +9,7 @@ export interface TourAgency {
 /** Card in `GET /tours` (`TourListItemDto`). */
 export interface TourListItem {
   id: string;
+  agencyId?: string;
   title: string;
   summary?: string;
   destination: string;
@@ -58,7 +59,7 @@ export interface TourDetail extends TourListItem {
 }
 
 export type TourStatus = 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'ARCHIVED';
-export interface TourItineraryDay { day: number; title: string; description?: string; activities: string[]; }
+export interface TourItineraryDay { day: number; toDay?: number; title: string; description?: string; activities: string[]; }
 export interface TourContentInput {
   agePricing?: import('@travel-platform/constants').AgePricing | null;
   childPricingPolicy?: string;
@@ -126,6 +127,7 @@ export interface ListToursArgs {
   page?: number;
   limit?: number;
   q?: string;
+  agencyId?: string;
   categoryId?: string;
   destination?: string;
   minPrice?: number;

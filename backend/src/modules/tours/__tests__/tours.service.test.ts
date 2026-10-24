@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { GUIDE_ASSIGNMENT_STATUS, ROLES, TOUR_STATUS } from '@travel-platform/constants';
 import { ERROR_CODES } from '../../../utils/app-error';
 import { ToursService } from '../tours.service';
+import { agencyToursQuery } from '../tours.validation';
 
 const DAY = 24 * 60 * 60 * 1000;
 const future = (days: number) => new Date(Date.now() + days * DAY);
@@ -95,9 +96,33 @@ describe('create / import', () => {
     expect(repo.insertMany).toHaveBeenCalledOnce();
     expect(repo.insertMany.mock.calls[0]![0].every((t: AnyTour) => t.status === undefined)).toBe(true);
   });
+
+  it('deduplicates tour creation when identical draft was created recently', async () => {
+    const existing = { id: 'existing-draft-id', title: 'Ha Long 3D2N', destination: 'Quang Ninh', status: 'DRAFT' };
+    const repo = {
+      create: vi.fn(),
+      findRecentDraft: vi.fn(async () => existing),
+    };
+    const views = { manage: vi.fn((t: any) => ({ id: t.id })) };
+    const categories = { assertActiveIds: vi.fn(async () => undefined) };
+    const service = new ToursService(repo as never, {} as never, categories as never, {} as never, views as never, {} as never);
+
+    const result = await service.createTour('a1', content);
+    expect(result).toEqual({ id: 'existing-draft-id' });
+    expect(repo.findRecentDraft).toHaveBeenCalledWith('a1', 'Ha Long 3D2N', 'Quang Ninh', 5000);
+    expect(repo.create).not.toHaveBeenCalled();
+  });
 });
 
 describe('ownership', () => {
+  it('keeps the optional title search within the owned Agency list and paginates it', async () => {
+    const { service, repo } = setup(null);
+    repo.listByAgency.mockResolvedValue({ items: [], total: 0 });
+    const query = agencyToursQuery.parse({ page: '11', limit: '12', q: '  Ha Long  ' });
+    await service.listOwn('a1', { page: query.page, limit: query.limit, q: query.q });
+    expect(repo.listByAgency).toHaveBeenCalledWith('a1', undefined, { page: 11, limit: 12, q: 'Ha Long' });
+  });
+
   it('returns 404 (not 403) for another agency\'s tour', async () => {
     const { service } = setup(makeTour({ agencyId: 'someone-else' }));
     await expect(service.getOwn('a1', 't1')).rejects.toMatchObject({ statusCode: 404 });
@@ -105,9 +130,17 @@ describe('ownership', () => {
     await expect(service.deleteTour('a1', 't1')).rejects.toMatchObject({ statusCode: 404 });
   });
 
-  it('hides archived tours from their owner', async () => {
+  it('allows owner to view their archived tour in manage view', async () => {
     const { service } = setup(makeTour({ status: TOUR_STATUS.ARCHIVED }));
-    await expect(service.getOwn('a1', 't1')).rejects.toMatchObject({ statusCode: 404 });
+    const result = await service.getOwn('a1', 't1');
+    expect(result.status).toBe(TOUR_STATUS.ARCHIVED);
+  });
+
+  it('restores an archived tour back to DRAFT', async () => {
+    const { service, db } = setup(makeTour({ status: TOUR_STATUS.ARCHIVED }));
+    const result = await service.restoreTour('a1', 't1');
+    expect(result.status).toBe(TOUR_STATUS.DRAFT);
+    expect(db!.status).toBe(TOUR_STATUS.DRAFT);
   });
 });
 
@@ -134,18 +167,33 @@ describe('edit rules', () => {
     await expect(service.updateTour('a1', 't1', { durationDays: 2 })).rejects.toMatchObject({ code: 'ITINERARY_EXCEEDS_DURATION' });
   });
 
+  it('refuses to shorten the tour below the itinerary toDay range', async () => {
+    const { service } = setup(makeTour({ itinerary: [{ day: 1, toDay: 3, title: 'Days 1 to 3' }] }));
+    await expect(service.updateTour('a1', 't1', { durationDays: 2 })).rejects.toMatchObject({ code: 'ITINERARY_EXCEEDS_DURATION' });
+  });
+
   it('rejects itinerary days beyond durationDays', async () => {
     const { service } = setup(makeTour());
     await expect(service.setItinerary('a1', 't1', [{ day: 4, title: 'Day 4' }])).rejects.toMatchObject({ statusCode: 400 });
   });
 
-  it('stores the itinerary sorted by day', async () => {
-    const { service, db } = setup(makeTour());
+  it('rejects itinerary toDay range beyond durationDays', async () => {
+    const { service } = setup(makeTour({ durationDays: 3 }));
+    await expect(service.setItinerary('a1', 't1', [{ day: 1, toDay: 4, title: 'Days 1 to 4' }])).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('stores the itinerary sorted by day and preserves day ranges', async () => {
+    const { service, db } = setup(makeTour({ durationDays: 5 }));
     await service.setItinerary('a1', 't1', [
-      { day: 2, title: 'Second' },
-      { day: 1, title: 'First' },
+      { day: 3, toDay: 4, title: 'Hue' },
+      { day: 1, toDay: 2, title: 'Da Nang' },
+      { day: 5, title: 'Airport' },
     ]);
-    expect(db!.itinerary.map((d: AnyTour) => d.day)).toEqual([1, 2]);
+    expect(db!.itinerary).toEqual([
+      { day: 1, toDay: 2, title: 'Da Nang', description: undefined, activities: [] },
+      { day: 3, toDay: 4, title: 'Hue', description: undefined, activities: [] },
+      { day: 5, toDay: undefined, title: 'Airport', description: undefined, activities: [] },
+    ]);
   });
 });
 

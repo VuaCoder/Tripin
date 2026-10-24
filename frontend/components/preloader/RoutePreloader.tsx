@@ -18,10 +18,15 @@ const navigationSection = (path: string) => {
 
 const MIN_DISPLAY_MS = 380;
 const MAX_SAFETY_TIMEOUT_MS = 4500;
+const AUTOMATIC_DELAY_MS = 180;
+
+function isAgencyPath(pathname: string) {
+  return pathname === '/agency' || pathname.startsWith('/agency/');
+}
 
 /**
  * Inner component wrapped in Suspense that monitors App Router URL mutations.
- * When pathname or searchParams changes, notifies RoutePreloader that destination page is ready.
+ * The URL commit is the earliest reliable completion signal for a route transition.
  */
 function RouteChangeWatcher({ onRouteSettled }: { onRouteSettled: (pathname: string) => void }) {
   const pathname = usePathname();
@@ -40,7 +45,7 @@ function RouteChangeWatcher({ onRouteSettled }: { onRouteSettled: (pathname: str
       return;
     }
 
-    // URL has changed: destination page is mounted and ready!
+    // URL has changed; this does not imply client-side data has finished loading.
     if (previousUrlRef.current !== currentUrl) {
       previousUrlRef.current = currentUrl;
       onRouteSettled(pathname);
@@ -51,13 +56,19 @@ function RouteChangeWatcher({ onRouteSettled }: { onRouteSettled: (pathname: str
 }
 
 /**
- * Global App Router Preloader for tripRI.
- * Intercepts internal link clicks, browser history (popstate), and programmatic route changes,
- * managing the GSAP Boat Preloader lifecycle with anti-flicker minimum duration & safety fallback.
+ * Fast Guest/Traveler transitions stay unobstructed. On a slower transition,
+ * show the branded boat after navigation has already been dispatched.
  */
 export function RoutePreloader() {
   const [isMounted, setIsMounted] = useState(false);
   const [isActive, setIsActive] = useState(false);
+  const [overlayId, setOverlayId] = useState(0);
+  const mountedRef = useRef(false);
+  const activeRef = useRef(false);
+  const overlayIdRef = useRef(0);
+  const modeRef = useRef<'automatic' | 'explicit'>('explicit');
+  const automaticDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastCommittedPathRef = useRef(typeof window === 'undefined' ? '' : window.location.pathname);
 
   const previousPathRef = useRef('');
   const startTimeRef = useRef<number>(0);
@@ -76,16 +87,31 @@ export function RoutePreloader() {
     }
   }, []);
 
+  const clearAutomaticDelay = useCallback(() => {
+    if (automaticDelayRef.current) {
+      clearTimeout(automaticDelayRef.current);
+      automaticDelayRef.current = null;
+    }
+  }, []);
+
   // Trigger preloader start
-  const triggerStart = useCallback(() => {
+  const triggerStart = useCallback((mode: 'automatic' | 'explicit' = 'explicit') => {
     clearTimers();
+    modeRef.current = mode;
+    if (!mountedRef.current || !activeRef.current) {
+      overlayIdRef.current += 1;
+      setOverlayId(overlayIdRef.current);
+    }
     startTimeRef.current = Date.now();
+    mountedRef.current = true;
+    activeRef.current = true;
     setIsMounted(true);
     setIsActive(true);
 
     // Safety recovery timeout: ensures preloader never gets stuck on network failures or aborted transitions
     safetyTimeoutRef.current = setTimeout(() => {
       manualHoldRef.current = false;
+      activeRef.current = false;
       setIsActive(false);
     }, MAX_SAFETY_TIMEOUT_MS);
   }, [clearTimers]);
@@ -93,15 +119,20 @@ export function RoutePreloader() {
   const manualHoldRef = useRef(false);
 
   // Trigger preloader exit
-  const triggerFinish = useCallback(() => {
+  const triggerFinish = useCallback((skipMinimum = false) => {
+    if (!activeRef.current) return;
+    if (minDurationTimerRef.current) clearTimeout(minDurationTimerRef.current);
+    if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current);
     const elapsed = Date.now() - startTimeRef.current;
-    const remaining = Math.max(0, MIN_DISPLAY_MS - elapsed);
+    const remaining = skipMinimum ? 0 : Math.max(0, MIN_DISPLAY_MS - elapsed);
 
     if (remaining > 0) {
       minDurationTimerRef.current = setTimeout(() => {
+        activeRef.current = false;
         setIsActive(false);
       }, remaining);
     } else {
+      activeRef.current = false;
       setIsActive(false);
     }
   }, []);
@@ -109,89 +140,58 @@ export function RoutePreloader() {
   const handleRouteSettled = useCallback(
     (pathname: string) => {
       previousPathRef.current = pathname;
+      lastCommittedPathRef.current = pathname;
+      clearAutomaticDelay();
       // If manualHoldRef is active (e.g. post-payment custom reconciliation flow), do not auto dismiss!
       if (manualHoldRef.current) {
         return;
       }
-      triggerFinish();
+      triggerFinish(modeRef.current === 'automatic');
     },
-    [triggerFinish],
+    [clearAutomaticDelay, triggerFinish],
   );
 
-  // Link click interceptor and history listener
   useEffect(() => {
     previousPathRef.current = window.location.pathname;
-    const handleDocumentClick = (event: MouseEvent) => {
-      // Find nearest anchor
-      const target = event.target as HTMLElement | null;
-      if (!target) return;
-      const anchor = target.closest('a');
-      if (!anchor) return;
-
-      // Ignore special clicks (new tab, modifiers, download, external)
-      if (event.defaultPrevented) return;
-      if (event.button !== 0) return;
-      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      if (anchor.target && anchor.target !== '_self') return;
-      if (anchor.hasAttribute('download')) return;
-      if (anchor.getAttribute('rel')?.includes('external')) return;
-      if (anchor.dataset.noPreloader === 'true' || anchor.closest('[data-no-preloader="true"]')) return;
-
-      const rawHref = anchor.getAttribute('href');
-      if (!rawHref) return;
-
-      // Ignore hash links, javascript:, mailto:, tel:
-      if (rawHref.startsWith('#') || rawHref.startsWith('javascript:') || rawHref.startsWith('mailto:') || rawHref.startsWith('tel:')) {
+    const scheduleAutomaticStart = () => {
+      clearAutomaticDelay();
+      if (activeRef.current || manualHoldRef.current) return;
+      automaticDelayRef.current = setTimeout(() => {
+        automaticDelayRef.current = null;
+        triggerStart('automatic');
+      }, AUTOMATIC_DELAY_MS);
+    };
+    const handleLinkClick = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const link = target.closest('a[href]');
+      if (!(link instanceof HTMLAnchorElement) || link.hasAttribute('download') || link.closest('[data-no-preloader="true"]') || link.rel.includes('external') || (link.target && link.target !== '_self')) return;
+      let url: URL;
+      try {
+        url = new URL(link.href, window.location.href);
+      } catch {
         return;
       }
+      if (url.origin !== window.location.origin || isAgencyPath(window.location.pathname) || isAgencyPath(url.pathname)) return;
+      if (url.pathname === window.location.pathname) return;
 
-      // Check URL
-      try {
-        const url = new URL(anchor.href, window.location.href);
+      const destinationSection = navigationSection(url.pathname);
+      if (destinationSection && destinationSection === navigationSection(window.location.pathname)) return;
 
-        // Ignore different origins
-        if (url.origin !== window.location.origin) return;
-
-        const destinationSection = navigationSection(url.pathname);
-        if (destinationSection) {
-          if (destinationSection !== navigationSection(window.location.pathname)) triggerStart();
-          return;
-        }
-
-        if (anchor.dataset.routePreloader === 'true') {
-          if (url.pathname + url.search !== window.location.pathname + window.location.search) triggerStart();
-          return;
-        }
-
-        // Non-sidebar internal account navigation remains lightweight.
-        if (url.pathname.startsWith('/settings') || url.pathname.startsWith('/traveler') || url.pathname.startsWith('/agency')) {
-          return;
-        }
-
-        // 2. DO NOT show preloader for query-only / in-page changes on the same route
-        // (e.g. changing tabs on /home or typing/filtering search on /tours)
-        if (url.pathname === window.location.pathname) {
-          return;
-        }
-
-        // 3. For navigation between major routes (e.g. / <-> /home <-> /tours <-> /tours/:id), trigger preloader!
-        triggerStart();
-      } catch {
-        // invalid URL: ignore
-      }
+      scheduleAutomaticStart();
     };
-
     const handlePopState = () => {
       const currentPath = window.location.pathname;
       const destinationSection = navigationSection(currentPath);
-      const sourceSection = navigationSection(previousPathRef.current);
+      const sourceSection = navigationSection(previousPathRef.current || lastCommittedPathRef.current);
       previousPathRef.current = currentPath;
       if (destinationSection && destinationSection === sourceSection) return;
-      triggerStart();
+      if (!isAgencyPath(lastCommittedPathRef.current) && !isAgencyPath(window.location.pathname) && lastCommittedPathRef.current !== window.location.pathname) scheduleAutomaticStart();
     };
-
-    // Custom events for programmatic navigation (e.g. post-payment reconciliation)
+    // Custom events for intentional branded flows (e.g. post-payment reconciliation).
     const handleCustomStart = () => {
+      clearAutomaticDelay();
       manualHoldRef.current = true;
       triggerStart();
     };
@@ -199,26 +199,29 @@ export function RoutePreloader() {
       manualHoldRef.current = false;
       triggerFinish();
     };
-    const handleRouteNavigation = () => { manualHoldRef.current = false; triggerStart(); };
+    const handleRouteNavigation = () => { clearAutomaticDelay(); manualHoldRef.current = false; triggerStart(); };
 
-    document.addEventListener('click', handleDocumentClick, { capture: true });
+    document.addEventListener('click', handleLinkClick, true);
     window.addEventListener('popstate', handlePopState);
     window.addEventListener('tripri:navigation-start', handleCustomStart);
     window.addEventListener('tripri:route-navigation-start', handleRouteNavigation);
     window.addEventListener('tripri:navigation-end', handleCustomEnd);
 
     return () => {
-      document.removeEventListener('click', handleDocumentClick, { capture: true });
+      document.removeEventListener('click', handleLinkClick, true);
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('tripri:navigation-start', handleCustomStart);
       window.removeEventListener('tripri:route-navigation-start', handleRouteNavigation);
       window.removeEventListener('tripri:navigation-end', handleCustomEnd);
       clearTimers();
+      clearAutomaticDelay();
     };
-  }, [triggerStart, triggerFinish, clearTimers]);
+  }, [triggerStart, triggerFinish, clearTimers, clearAutomaticDelay]);
 
   // Invoked when GSAP exit fade-out completes
-  const handleExited = useCallback(() => {
+  const handleExited = useCallback((id: number) => {
+    if (id !== overlayIdRef.current) return;
+    mountedRef.current = false;
     setIsMounted(false);
     manualHoldRef.current = false;
     clearTimers();
@@ -232,8 +235,9 @@ export function RoutePreloader() {
 
       {isMounted && (
         <BoatPreloader
+          key={overlayId}
           active={isActive}
-          onExited={handleExited}
+          onExited={() => handleExited(overlayId)}
         />
       )}
     </>

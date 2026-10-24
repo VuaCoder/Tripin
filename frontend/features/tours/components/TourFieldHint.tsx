@@ -1,7 +1,7 @@
 import { CircleAlert } from 'lucide-react';
 
 export function RequiredMark() {
-  return <span className="text-red-600" aria-hidden="true">*</span>;
+  return null;
 }
 
 export function TourFieldHint({ id, message }: { id: string; message?: string }) {

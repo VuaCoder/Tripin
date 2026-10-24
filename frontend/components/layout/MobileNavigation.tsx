@@ -26,6 +26,7 @@ export function MobileNavigation({
   const accountLinks = user?.role === 'TRAVELER'
     ? [
         { label: 'Hồ sơ cá nhân', href: '/settings/profile', icon: 'person' },
+        { label: 'Ví voucher', href: '/settings/vouchers', icon: 'confirmation_number' },
       ]
     : user
       ? [{ label: 'Tổng quan', href: homeForRole(user.role), icon: 'dashboard' }]

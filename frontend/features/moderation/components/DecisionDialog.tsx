@@ -26,6 +26,7 @@ interface DecisionDialogProps {
   isSubmitting: boolean;
   /** Message returned by the backend for the last attempt; keeps the dialog open. */
   serverError?: string | null;
+  className?: string;
   onClose: () => void;
 }
 
@@ -49,7 +50,7 @@ const CLOSE_CLASS =
   'inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 active:translate-y-0 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0';
 
 /** Shared "decide with an optional/required reason" dialog for tour validation, suspension, agency verification, disputes and reviews. */
-export function DecisionDialog({ open, title, reasonLabel, children, actions, isSubmitting, serverError, onClose }: DecisionDialogProps) {
+export function DecisionDialog({ open, title, reasonLabel, children, actions, isSubmitting, serverError, className, onClose }: DecisionDialogProps) {
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -75,7 +76,7 @@ export function DecisionDialog({ open, title, reasonLabel, children, actions, is
   const reasonMax = actions.reduce((max, action) => Math.max(max, action.maxReason ?? REASON_MAX), REASON_MAX);
 
   return (
-    <Modal open={open} onClose={onClose} closeOnBackdrop={!isSubmitting} title={title} className="max-h-[90vh] max-w-xl overflow-y-auto">
+    <Modal open={open} onClose={onClose} closeOnBackdrop={!isSubmitting} title={title} className={className ?? "max-h-[90vh] max-w-xl overflow-y-auto"}>
       <div className="space-y-3 text-sm">
         {serverError && (
           <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">

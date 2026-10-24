@@ -59,6 +59,18 @@ export class NotificationsRepository {
   async deleteOwned(id: string, userId: string): Promise<boolean> {
     return (await prisma.notification.deleteMany({ where: { id, userId } })).count > 0;
   }
+
+  async hasRecentVoucherAlert(userId: string, voucherId: string, since: Date): Promise<boolean> {
+    const found = await prisma.notification.findFirst({
+      where: {
+        userId,
+        type: { in: ['VOUCHER_EXPIRING_SOON', 'VOUCHER_EXPIRING_URGENT'] },
+        createdAt: { gte: since },
+        data: { path: ['voucherId'], equals: voucherId },
+      },
+    });
+    return Boolean(found);
+  }
 }
 
 export const notificationsRepository = new NotificationsRepository();

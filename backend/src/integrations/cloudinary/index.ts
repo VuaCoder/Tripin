@@ -15,6 +15,8 @@ const PURPOSES = {
   licenseImage: { prefix: 'tripin/guides/licenses', tag: 'tripin_guide_license', label: 'License image' },
   agencyLicenseImage: { prefix: 'tripin/agencies/licenses', tag: 'tripin_agency_license', label: 'Agency license image' },
   reviewImage: { prefix: 'tripin/reviews', tag: 'tripin_review', label: 'Review image' },
+  tourImage: { prefix: 'tripin/tours', tag: 'tripin_tour', label: 'Tour image' },
+  complaintImage: { prefix: 'tripin/complaints', tag: 'tripin_complaint', label: 'Complaint image' },
 } as const;
 
 export type ImagePurpose = keyof typeof PURPOSES;
@@ -98,7 +100,7 @@ export function createImageUploadSignature(purpose: ImagePurpose, userId: string
   const timestamp = unixTimestamp();
   const publicId = imagePublicId(purpose, userId);
   const tag = PURPOSES[purpose].tag;
-  const overwrite = purpose !== 'reviewImage';
+  const overwrite = purpose !== 'reviewImage' && purpose !== 'complaintImage';
   const signingParams = { public_id: publicId, overwrite, tags: tag, timestamp };
 
   return {

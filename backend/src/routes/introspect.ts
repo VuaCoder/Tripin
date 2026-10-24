@@ -33,7 +33,9 @@ const validateMetaOf = (handle: unknown): ValidateMeta | undefined =>
   typeof handle === 'function' ? (handle as unknown as Record<symbol, ValidateMeta | undefined>)[VALIDATE_META] : undefined;
 
 function accessOf(guards: GuardMeta[]): Access {
-  const permissions = guards.flatMap((guard) => (guard.kind === 'permission' ? guard.permissions : []));
+  const permissions = guards.flatMap((guard) =>
+    guard.kind === 'permission' || guard.kind === 'any_permission' ? guard.permissions : []
+  );
   if (permissions.length > 0) return Array.from(new Set(permissions));
   return guards.some((guard) => guard.kind === 'auth' || guard.kind === 'role') ? 'login' : 'public';
 }

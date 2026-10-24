@@ -221,9 +221,14 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
               <p className="whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-slate-800">{selected.description || selected.summary}</p>
             ) : null}
             {selected.itinerary && selected.itinerary.length > 0 && (
-              <ol className="list-decimal space-y-1 pl-5 text-slate-700">
-                {selected.itinerary.map((d) => (
-                  <li key={d.day}>{d.title}</li>
+              <ol className="list-none space-y-1 pl-0 text-slate-700">
+                {selected.itinerary.map((d, index) => (
+                  <li key={index} className="flex items-start gap-2 text-sm">
+                    <span className="font-semibold text-slate-800 shrink-0">
+                      {d.toDay && d.toDay > d.day ? `Ngày ${d.day} – ${d.toDay}:` : `Ngày ${d.day}:`}
+                    </span>
+                    <span>{d.title}</span>
+                  </li>
                 ))}
               </ol>
             )}

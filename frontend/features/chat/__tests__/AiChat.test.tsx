@@ -23,6 +23,11 @@ vi.mock('@/store/hooks', () => ({
   useAppDispatch: () => mocks.dispatch,
 }));
 
+vi.mock('@/features/complaints/api/complaintsApi', () => ({
+  useGetMyComplaintsQuery: () => ({ data: { items: [], meta: { page: 1, limit: 10, total: 0, totalPages: 1 } }, isLoading: false }),
+  useGetAgencyComplaintsQuery: () => ({ data: { items: [], meta: { page: 1, limit: 10, total: 0, totalPages: 1 } }, isLoading: false }),
+}));
+
 vi.mock('../api/aiChatApi', () => ({
   useGetAiOverviewQuery: () => ({ data: { latest: null, unreadCount: 0 }, refetch: vi.fn() }),
   useReadAiConversationMutation: () => [(args: unknown) => ({ unwrap: () => mocks.readAi(args) })],
@@ -218,7 +223,7 @@ describe('Chat with AI Integration', () => {
     await screen.findByText('Gợi ý Hội An');
     fireEvent.click(screen.getByTitle('Bắt đầu cuộc trò chuyện mới'));
     expect(screen.queryByText('Gợi ý Hội An')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Lịch sử', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lịch sử' }));
     expect(screen.getByText('AI: Gợi ý Hội An')).toBeTruthy();
     expect(screen.getByLabelText('2 tin chưa đọc')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Chuyến Hội An/ }));

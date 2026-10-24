@@ -8,7 +8,9 @@ Reconnection and visibility restoration synchronize REST history across pages un
 
 Message status: **Đã gửi** means persistence confirmed; **Đã nhận** means a recipient socket acknowledged `chat:message`; **Đã xem** comes from persisted `readAt`. Delivery receipts use `chat:delivered {conversationId,messageId}`, are session-local, and do not survive reload. Seen is refreshed with history, not pushed live. No presence is inferred from socket connection status.
 
-Deployment: forward `/socket.io` (polling and WebSocket upgrade) to the backend origin configured by `NEXT_PUBLIC_API_URL`; allow the frontend origin in backend `CLIENT_URL`. No conversation-room joins or database migrations are needed.
+Deployment: apply migration `20261024000000_ai_message_read_state` with `pnpm --filter backend db:deploy`, regenerate Prisma with `pnpm --filter backend db:generate`, then deploy backend and frontend. The migration preserves history and marks existing AI replies as read. Forward `/socket.io` (polling and WebSocket upgrade) to the backend origin configured by `NEXT_PUBLIC_API_URL`; allow the frontend origin in backend `CLIENT_URL`. No conversation-room joins are needed.
+
+AI: the pinned inbox entry uses `/ai/overview`, independent of the paginated history panel inside the thread. New chat clears local state only; a new record is created after a successful exchange. Assistant unread state is persisted through a displayed message ID, only while the selected thread is visible and at the bottom. `ai:updated` and `chat:updated` invalidate server summaries across devices; they never increment client counters. Offline visible tabs refresh every 30 seconds. Time labels use the device timezone, refresh each minute/on visibility change, and group transcripts by calendar date.
 
 Verification: `pnpm --filter frontend test features/chat`; `pnpm --filter backend exec vitest run src/modules/chat/__tests__`. Manual acceptance should use separate authenticated Traveler/Guide browser sessions, including REST fallback, reconnection, mobile layout, and an unrelated third account.
 
@@ -20,3 +22,5 @@ Verification: `pnpm --filter frontend test features/chat`; `pnpm --filter backen
 4. Stop both test servers after verification. The backend's normal shutdown stops its disposable PostgreSQL server and removes the runtime/data directory.
 
 The regression test covers reconnecting an initially empty conversation after only live messages: an empty REST checkpoint must not stop recovery at the first page.
+
+For AI acceptance, also set `CHAT_SMOKE_AI=1` on the disposable backend and run `node src/test/ai-chat.browser-smoke.cjs`. The local-only model and 22 seeded conversations cover history pagination, previews, unread updates, continuing an old conversation, fresh-chat preservation, reload, and desktop/mobile screenshots in `test-results/ai-chat-browser`.

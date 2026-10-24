@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { Flag, CheckCircle2 } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth';
 import { getApiErrorCode, getApiErrorMessage } from '@/features/auth/utils/apiError';
@@ -18,7 +20,7 @@ interface ReportButtonProps {
 
 /**
  * "Send report" entry point. Hidden for anyone without `report:create` (the backend re-checks it), and the
- * success banner only appears after the backend has confirmed — `unwrap()` throws on any error.
+ * success badge only appears after the backend has confirmed — `unwrap()` throws on any error.
  */
 export function ReportButton({ targetType, targetId, targetLabel, className }: ReportButtonProps) {
   const allowed = useAppSelector(selectUser)?.permissions.includes('report:create') ?? false;
@@ -43,23 +45,30 @@ export function ReportButton({ targetType, targetId, targetLabel, className }: R
 
   return (
     <div className={className}>
-      {sent && (
-        <p role="status" className="mb-2 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-800">
-          Đã gửi báo cáo. Bạn có thể theo dõi tiến trình trong mục “Báo cáo của tôi”.
-        </p>
+      {sent ? (
+        <Link
+          href="/settings/reports"
+          role="status"
+          title="Nhấn để theo dõi tiến trình trong mục Báo cáo của tôi"
+          className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100 shadow-2xs"
+        >
+          <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
+          <span>Đã gửi báo cáo</span>
+        </Link>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            setServerError(null);
+            setSent(false);
+            setOpen(true);
+          }}
+          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
+        >
+          <Flag className="size-4 text-slate-500" />
+          <span>Báo cáo</span>
+        </button>
       )}
-      <button
-        type="button"
-        onClick={() => {
-          setServerError(null);
-          setSent(false);
-          setOpen(true);
-        }}
-        className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-      >
-        <span className="material-symbols-outlined text-[18px]" aria-hidden="true">flag</span>
-        Báo cáo
-      </button>
 
       <ReportDialog
         open={open}

@@ -16,6 +16,21 @@ export const aiChatApi = baseApi.injectEndpoints({
         body,
       }),
       transformResponse: (response: AiApiResponse<AiChatResult>) => response.data,
+      async onQueryStarted(input, { dispatch, queryFulfilled }) {
+        // Preview the outgoing text while the model is working, without creating
+        // a persistent conversation or increasing the incoming unread counter.
+        const updatedAt = new Date().toISOString();
+        const patch = dispatch(aiChatApi.util.updateQueryData('getAiOverview', undefined, draft => {
+          const previous = draft.latest?.id === input.conversationId ? draft.latest : null;
+          draft.latest = {
+            id: input.conversationId ?? '', title: previous?.title ?? input.message.slice(0, 60),
+            messageCount: previous?.messageCount ?? 0, unreadCount: previous?.unreadCount ?? 0, updatedAt,
+            lastMessage: { role: 'user', content: input.message, createdAt: updatedAt, status: 'sending' },
+          };
+        }));
+        try { await queryFulfilled; }
+        catch { patch.undo(); }
+      },
       invalidatesTags: [{ type: 'AiChat', id: 'LIST' }],
     }),
 

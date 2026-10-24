@@ -82,7 +82,7 @@ export interface TourReviewContext {
   agePricing?: import('@travel-platform/constants').AgePricing | null;
   images?: string[];
   summary?: string;
-  itinerary?: Array<{ day: number; title: string; description?: string; activities: string[] }>;
+  itinerary?: Array<{ day: number; toDay?: number; title: string; description?: string; activities: string[] }>;
   inclusions?: string[];
   exclusions?: string[];
   childPricingPolicy?: string;

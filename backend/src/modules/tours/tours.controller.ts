@@ -1,8 +1,11 @@
+import { randomUUID } from 'node:crypto';
 import type { Request, RequestHandler } from 'express';
 import type { TourStatus } from '@travel-platform/constants';
+import { uploadImageBuffer } from '../../integrations/cloudinary';
 import { userActor } from '../../middlewares/authorize';
 import { validated } from '../../middlewares/validate';
 import { sendCreated, sendNoContent, sendOk, sendPaginated } from '../../utils/api-response';
+import { AppError } from '../../utils/app-error';
 import type { IdParams } from '../../utils/id';
 import { pageQueryOf } from './tours.query';
 import { toursDiscoveryService, type ToursDiscoveryService } from './tours-discovery.service';
@@ -45,9 +48,27 @@ export class ToursController {
   };
 
   // ---- agency
+  createCategory: RequestHandler = async (req, res) => {
+    const { body } = validated<{ name: string }>(req);
+    sendCreated(res, await this.service.createCategory(body.name));
+  };
+
   create: RequestHandler = async (req, res) => {
     const { body } = validated<CreateTourBody>(req);
     sendCreated(res, await this.service.createTour(agencyIdOf(req), body));
+  };
+
+  uploadImage: RequestHandler = async (req, res) => {
+    const file = req.file;
+    if (!file) throw AppError.badRequest('Vui lòng chọn file ảnh');
+    const allowedMime = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    if (!allowedMime.has(file.mimetype)) {
+      throw AppError.badRequest('Chỉ hỗ trợ file ảnh định dạng JPG, PNG hoặc WebP');
+    }
+    const agencyId = agencyIdOf(req);
+    const identifier = `${agencyId}/${Date.now()}_${randomUUID()}`;
+    const result = await uploadImageBuffer('tourImage', identifier, file.buffer, file.mimetype);
+    sendOk(res, { url: result.secureUrl, publicId: result.publicId });
   };
 
   importTours: RequestHandler = async (req, res) => {
@@ -57,7 +78,7 @@ export class ToursController {
 
   listOwn: RequestHandler = async (req, res) => {
     const { query } = validated<unknown, AgencyToursQueryInput>(req);
-    const page = await this.service.listOwn(agencyIdOf(req), { ...pageQueryOf(query), status: query.status as TourStatus | undefined });
+    const page = await this.service.listOwn(agencyIdOf(req), { ...pageQueryOf(query), status: query.status as TourStatus | undefined, q: query.q });
     sendPaginated(res, page.items, page.meta);
   };
 
@@ -75,6 +96,11 @@ export class ToursController {
     const { params } = validated<unknown, unknown, IdParams>(req);
     await this.service.deleteTour(agencyIdOf(req), params.id);
     sendNoContent(res);
+  };
+
+  restore: RequestHandler = async (req, res) => {
+    const { params } = validated<unknown, unknown, IdParams>(req);
+    sendOk(res, await this.service.restoreTour(agencyIdOf(req), params.id));
   };
 
   setAvailability: RequestHandler = async (req, res) => {
