@@ -59,7 +59,7 @@ export function ProfileSummary({ user, onEdit }: ProfileSummaryProps) {
             {user.twoFactorEnabled ? 'Đang bật' : 'Đang tắt'}
           </Badge>
           <Link
-            href="/traveler/settings/security"
+            href="/settings/profile/security"
             className="inline-flex items-center gap-1 text-sm font-bold text-primary hover:text-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container"
           >
             Quản lý

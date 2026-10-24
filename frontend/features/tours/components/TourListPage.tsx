@@ -145,7 +145,10 @@ export function TourListPage() {
   const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category.name])), [categories]);
   const activeCategoryId = searchParams.get('categoryId') ?? '';
 
+  useEffect(() => () => { if (sliderDebounceRef.current) clearTimeout(sliderDebounceRef.current); }, []);
+
   const clearFilters = () => {
+    if (sliderDebounceRef.current) clearTimeout(sliderDebounceRef.current);
     setSearchTerm('');
     setLocalMinPrice(PRICE_MIN);
     setLocalMaxPrice(PRICE_MAX);
@@ -174,12 +177,14 @@ export function TourListPage() {
 
   // Active filter count for badge
   const activeFilterCount = [
-    searchParams.get('destination'),
-    searchParams.get('minPrice') || searchParams.get('maxPrice'),
-    searchParams.get('minRating'),
-    searchParams.get('departureFrom') || searchParams.get('departureTo'),
-    searchParams.get('minDays') || searchParams.get('maxDays'),
-    searchParams.get('guests'),
+    Boolean(args.q),
+    Boolean(args.categoryId),
+    Boolean(args.destination),
+    args.minPrice !== undefined && args.minPrice > PRICE_MIN || args.maxPrice !== undefined && args.maxPrice < PRICE_MAX,
+    args.minRating !== undefined && args.minRating > 0,
+    Boolean(args.departureFrom || args.departureTo),
+    Boolean(args.minDays || args.maxDays),
+    positiveIntParam(searchParams.get('guests'), 0) > 0,
   ].filter(Boolean).length;
 
   if (isError && !data) {
@@ -204,14 +209,6 @@ export function TourListPage() {
         </div>
       </div>
 
-      {/* Danh mục tour */}
-      <div className="mb-6 flex flex-wrap gap-2 overflow-x-auto pb-1" aria-label="Danh mục tour">
-        <button type="button" onClick={() => updateQuery({ categoryId: undefined })} className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-bold transition ${!activeCategoryId ? 'border-primary-container bg-primary-container text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-primary-container'}`}>Tất cả</button>
-        {categories.map((category) => (
-          <button key={category.id} type="button" onClick={() => updateQuery({ categoryId: category.id })} className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-bold transition ${activeCategoryId === category.id ? 'border-primary-container bg-primary-container text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-primary-container'}`}>{formatCategoryName(category.name)}</button>
-        ))}
-      </div>
-
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         {/* ======================== BỘ LỌC BÊN TRÁI ======================== */}
         <aside className="h-fit max-h-[calc(100vh-7rem)] overflow-y-auto ant-scrollbar rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">
@@ -220,13 +217,24 @@ export function TourListPage() {
               <span className="material-symbols-outlined text-[20px] text-primary-container" aria-hidden="true">tune</span>
               Bộ lọc
               {activeFilterCount > 0 && (
-                <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary-container text-[10px] font-bold text-white">{activeFilterCount}</span>
+                <span aria-label={`${activeFilterCount} bộ lọc đang áp dụng`} className="inline-flex size-5 items-center justify-center rounded-full bg-primary-container text-[10px] font-bold text-white">{activeFilterCount}</span>
               )}
             </h2>
-            <button type="button" onClick={clearFilters} className="text-xs font-bold text-primary-container hover:text-primary transition-colors cursor-pointer">Xóa tất cả</button>
+            {activeFilterCount > 0 && <button type="button" onClick={clearFilters} className="text-xs font-bold text-primary-container hover:text-primary transition-colors cursor-pointer">Xóa tất cả</button>}
           </div>
 
           <div className="mt-4 space-y-5">
+            <div>
+              <label htmlFor="filter-category" className="mb-1.5 block text-xs font-bold text-slate-700">Danh mục tour</label>
+              <AntSelect
+                id="filter-category"
+                value={activeCategoryId}
+                onChange={value => updateQuery({ categoryId: value || undefined })}
+                options={[{ value: '', label: 'Tất cả' }, ...categories.map(category => ({ value: category.id, label: formatCategoryName(category.name) }))]}
+                className="w-full"
+                size="large"
+              />
+            </div>
             {/* 1. Điểm đến */}
             <div>
               <label className="mb-1.5 block text-xs font-bold text-slate-700" htmlFor="filter-destination">
@@ -427,7 +435,7 @@ export function TourListPage() {
           {isLoading && !data ? (
             <TourGridSkeleton />
           ) : items.length === 0 ? (
-            <EmptyState title="Chưa tìm thấy tour phù hợp" description="Thử thay đổi từ khóa hoặc mở rộng bộ lọc để khám phá thêm lựa chọn." actionLabel="Xóa bộ lọc" onAction={clearFilters} />
+            <EmptyState title="Chưa tìm thấy tour phù hợp" description="Thử thay đổi từ khóa hoặc mở rộng bộ lọc để khám phá thêm lựa chọn." actionLabel={activeFilterCount > 0 ? "Xóa bộ lọc" : undefined} onAction={activeFilterCount > 0 ? clearFilters : undefined} />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {items.map((tour) => <TourCard key={tour.id} tour={tour} categoryName={tour.categoryIds.map((id) => categoryById.get(id)).find(Boolean)} />)}

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { containsProfanity, PROFANITY_ERROR_MESSAGE } from '@travel-platform/constants';
 import { idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 
@@ -6,7 +7,12 @@ export const createReviewBody = z
   .object({
     bookingId: idSchema,
     rating: z.number().int().min(1).max(5),
-    comment: z.string().trim().min(10, 'Please write at least 10 characters').max(2000),
+    comment: z
+      .string()
+      .trim()
+      .min(10, 'Please write at least 10 characters')
+      .max(2000)
+      .refine((val) => !containsProfanity(val), PROFANITY_ERROR_MESSAGE),
     imagePublicIds: z.array(z.string().min(1).max(300)).max(6).refine(ids => new Set(ids).size === ids.length, 'Duplicate images are not allowed').optional(),
   })
   .strict();

@@ -4,6 +4,7 @@ import { createApp } from '../../../app';
 import { aiService } from '..';
 import { AI_LIMITS, AI_SYSTEM_PROMPT } from '../ai.types';
 import type { AiGenerateInput, AiProvider } from '../providers';
+import { DisabledAiProvider } from '../providers/disabled.provider';
 import { bearer, createUser, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
 import { prisma } from '../../../config/database';
 
@@ -31,12 +32,13 @@ function useFakeModel() {
   };
 }
 const restoreRealProvider = () => ((aiService as unknown as { provider: AiProvider }).provider = realProvider);
+afterAll(restoreRealProvider);
 
 const chat = (token: string, body: object) => request(app).post('/api/v1/ai/chat').set(bearer(token)).send(body);
 
 describe('AI assistant (integration)', () => {
-  it('is off by default: 503 and nothing is stored', async () => {
-    restoreRealProvider();
+  it('when disabled: 503 and nothing is stored', async () => {
+    (aiService as unknown as { provider: AiProvider }).provider = new DisabledAiProvider();
     const traveler = await createUser('TRAVELER', 'traveler@example.com');
     const res = await chat(traveler.token, { message: 'Where should I go in May?' });
     expect(res.status).toBe(503);
@@ -45,6 +47,29 @@ describe('AI assistant (integration)', () => {
 
   describe('with a model', () => {
     beforeEach(useFakeModel);
+
+    it('summarizes all pages, reads only through the displayed reply and rejects foreign boundaries', async () => {
+      const owner = await createUser('TRAVELER', 'history-owner@example.com');
+      const stranger = await createUser('TRAVELER', 'history-stranger@example.com');
+      const first = (await chat(owner.token, { message: 'Đà Nẵng' })).body.data;
+      const second = (await chat(owner.token, { conversationId: first.conversationId, message: 'Hội An' })).body.data;
+      const other = (await chat(owner.token, { message: 'Sapa' })).body.data;
+      const overview = () => request(app).get('/api/v1/ai/overview').set(bearer(owner.token));
+      expect((await overview()).body.data.unreadCount).toBe(3);
+      expect((await overview()).body.data.latest.id).toBe(other.conversationId);
+      const read = (token: string, id: string, throughMessageId: string) => request(app).post(`/api/v1/ai/conversations/${id}/read`).set(bearer(token)).send({ throughMessageId });
+      expect((await read(stranger.token, first.conversationId, first.reply.id)).status).toBe(404);
+      expect((await read(owner.token, first.conversationId, other.reply.id)).status).toBe(404);
+      expect((await read(owner.token, first.conversationId, first.reply.id)).body.data.unreadCount).toBe(1);
+      expect((await read(owner.token, first.conversationId, first.reply.id)).body.data.unreadCount).toBe(1);
+      expect((await overview()).body.data.unreadCount).toBe(2);
+      expect((await read(owner.token, first.conversationId, second.reply.id)).body.data.unreadCount).toBe(0);
+      const list = await request(app).get('/api/v1/ai/conversations?page=2&limit=1').set(bearer(owner.token));
+      expect(list.body.data).toHaveLength(1);
+      expect(list.body.data[0].lastMessage.id).toBe(second.reply.id);
+      expect((await overview()).body.data.unreadCount).toBe(1);
+      expect((await request(app).get('/api/v1/ai/overview').set(bearer(stranger.token))).body.data).toEqual({ latest: null, unreadCount: 0 });
+    });
 
     it('starts a conversation, continues it with history, and keeps the exchange private to its owner', async () => {
       const traveler = await createUser('TRAVELER', 'traveler@example.com');
@@ -62,7 +87,7 @@ describe('AI assistant (integration)', () => {
       // The model saw the earlier turn plus the new question, with the fixed system prompt and no tools.
       expect(calls[1]!.system).toBe(AI_SYSTEM_PROMPT);
       expect(calls[1]!.messages.map((m) => m.content)).toEqual(['Where should I go in May?', 'Visit Ha Long Bay in spring.', 'What should I pack?']);
-      expect(Object.keys(calls[1]!).sort()).toEqual(['maxTokens', 'messages', 'system']);
+      expect(Object.keys(calls[1]!).sort()).toEqual(['allowPartial', 'maxTokens', 'messages', 'system']);
 
       expect((await request(app).get(`/api/v1/ai/conversations/${id}`).set(bearer(traveler.token))).body.data.messages).toHaveLength(4);
       expect((await request(app).get(`/api/v1/ai/conversations/${id}`).set(bearer(stranger.token))).status).toBe(404);
@@ -71,7 +96,9 @@ describe('AI assistant (integration)', () => {
 
       const list = await request(app).get('/api/v1/ai/conversations').set(bearer(traveler.token));
       expect(list.body.data).toHaveLength(1);
-      expect(JSON.stringify(list.body.data)).not.toContain('Bring a light jacket'); // lists carry no transcript
+      expect(list.body.data[0].lastMessage.content).toBe('Bring a light jacket.');
+      expect(list.body.data[0].unreadCount).toBe(2);
+      expect(list.body.data[0].messages).toBeUndefined(); // only the preview, not the transcript
       expect((await request(app).get('/api/v1/ai/conversations').set(bearer(stranger.token))).body.data).toHaveLength(0);
     });
 

@@ -3,7 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   dispatch: (action: unknown) => action,
   fetch: vi.fn(), sendRest: vi.fn(), send: vi.fn(), read: vi.fn(), listener: null as null | ((message: unknown) => void),
+  subscribeTyping: vi.fn(),
+  typingListener: null as null | ((event: { conversationId: string; userId: string }) => void),
+  connected: true,
   detailError: undefined as unknown, revision: 0,
+  isListLoading: false,
+  convList: [{ id: 'c1', counterpart: { fullName: 'Guide A' }, lastMessage: { text: 'Xin chào' }, updatedAt: '2026-10-18T10:00:00Z', unreadCount: 2 }],
 }));
 vi.mock('next/link', () => ({ default: ({ href, children, ...props }: any) => <a href={href} {...props}>{children}</a> }));
 vi.mock('@/store/hooks', () => ({
@@ -12,32 +17,36 @@ vi.mock('@/store/hooks', () => ({
 }));
 vi.mock('../api', () => ({
   chatApi: { endpoints: { messages: { initiate: (args: unknown) => ({ unwrap: () => mocks.fetch(args), abort: vi.fn() }) } }, util: { invalidateTags: vi.fn() } },
-  useConversationsQuery: () => ({ data: { data: [{ id: 'c1', counterpart: { fullName: 'Guide A' }, lastMessage: { text: 'Xin chào' }, updatedAt: '2026-10-18T10:00:00Z', unreadCount: 2 }], meta: { totalPages: 2 } }, refetch: vi.fn() }),
+  useConversationsQuery: () => ({ data: { data: mocks.convList, meta: { totalPages: 2 } }, isLoading: mocks.isListLoading, refetch: vi.fn() }),
   useConversationQuery: () => ({ data: { counterpart: { fullName: 'Guide A' } }, error: mocks.detailError, refetch: vi.fn() }),
   useReadConversationMutation: () => [(id: string) => ({ unwrap: () => mocks.read(id) })],
   useSendMessageMutation: () => [(args: unknown) => ({ unwrap: () => mocks.sendRest(args) })],
 }));
-vi.mock('../ChatProvider', () => ({ useChat: () => ({ connected: true, delivered: new Set(), revision: mocks.revision, reconnect: vi.fn(), send: mocks.send,
+vi.mock('../api/aiChatApi', () => ({ useGetAiOverviewQuery: () => ({ data: { latest: null, unreadCount: 0 }, refetch: vi.fn() }) }));
+vi.mock('../ChatProvider', () => ({ useChat: () => ({ connected: mocks.connected, delivered: new Set(), revision: mocks.revision, reconnect: vi.fn(), send: mocks.send,
+  typing: vi.fn(), subscribeTyping: mocks.subscribeTyping,
   subscribe: (listener: (message: unknown) => void) => { mocks.listener = listener; return () => { mocks.listener = null; }; },
 }) }));
 import { ConversationPage } from '../ConversationPage';
 const message = (id: string, mine = false) => ({ id, conversationId: 'c1', senderId: mine ? 't1' : 'g1', text: `Tin ${id}`, isMine: mine, createdAt: `2026-10-18T10:00:${id.padStart(2, '0')}Z` });
 beforeEach(() => {
-  vi.clearAllMocks(); mocks.detailError = undefined; mocks.revision = 0;
+  vi.clearAllMocks(); mocks.connected = true; mocks.detailError = undefined; mocks.revision = 0; mocks.isListLoading = false;
+  mocks.convList = [{ id: 'c1', counterpart: { fullName: 'Guide A' }, lastMessage: { text: 'Xin chào' }, updatedAt: '2026-10-18T10:00:00Z', unreadCount: 2 }];
+  mocks.subscribeTyping.mockImplementation((listener: any) => { mocks.typingListener = listener; return () => { mocks.typingListener = null; }; });
   mocks.fetch.mockResolvedValue({ items: [], hasMore: false }); mocks.read.mockResolvedValue({ unreadCount: 0 }); mocks.send.mockReturnValue(null);
 });
 afterEach(cleanup);
 describe('ConversationPage', () => {
   it('shows inbox preview, unread count and pagination', () => {
     render(<ConversationPage />);
-    expect(screen.getByText('Xin chào')).toBeTruthy();
+    expect(screen.getByText('Guide A: Xin chào')).toBeTruthy();
     expect(screen.getByLabelText('2 tin chưa đọc')).toBeTruthy();
     fireEvent.click(screen.getByText('Sau')); expect(screen.getByText('Trang 2')).toBeTruthy();
   });
   it('sends by REST when the socket is disconnected and renders backend text safely', async () => {
     mocks.sendRest.mockResolvedValue({ ...message('1', true), text: '<script>hello</script>' });
     render(<ConversationPage id="c1" />);
-    await screen.findByText('Chưa có tin nhắn. Hãy gửi lời chào!');
+    await screen.findByText('Cuộc trò chuyện mới cùng Guide A');
     fireEvent.change(screen.getByLabelText('Nội dung tin nhắn'), { target: { value: '<script>hello</script>' } });
     fireEvent.click(screen.getByLabelText('Gửi tin nhắn'));
     await screen.findByText('<script>hello</script>');
@@ -46,7 +55,7 @@ describe('ConversationPage', () => {
   });
   it('merges socket echo and acknowledgment into one bubble', async () => {
     mocks.send.mockImplementation(() => { mocks.listener?.(message('1', true)); return Promise.resolve(message('1', true)); });
-    render(<ConversationPage id="c1" />); await screen.findByText('Chưa có tin nhắn. Hãy gửi lời chào!');
+    render(<ConversationPage id="c1" />); await screen.findByText('Cuộc trò chuyện mới cùng Guide A');
     fireEvent.change(screen.getByLabelText('Nội dung tin nhắn'), { target: { value: 'Tin 1' } });
     fireEvent.click(screen.getByLabelText('Gửi tin nhắn'));
     await waitFor(() => expect(screen.getAllByText('Tin 1')).toHaveLength(1));
@@ -54,7 +63,7 @@ describe('ConversationPage', () => {
   });
   it('keeps draft on uncertain send, synchronizes and does not resend by REST', async () => {
     mocks.send.mockRejectedValue(new Error('Chưa xác nhận được kết quả gửi'));
-    render(<ConversationPage id="c1" />); await screen.findByText('Chưa có tin nhắn. Hãy gửi lời chào!');
+    render(<ConversationPage id="c1" />); await screen.findByText('Cuộc trò chuyện mới cùng Guide A');
     fireEvent.change(screen.getByLabelText('Nội dung tin nhắn'), { target: { value: 'Xin chào' } });
     fireEvent.click(screen.getByLabelText('Gửi tin nhắn'));
     await screen.findByText('Chưa xác nhận được kết quả gửi');
@@ -79,7 +88,7 @@ describe('ConversationPage', () => {
   });
   it('recovers multiple pages after an initially empty conversation received only live messages', async () => {
     const view = render(<ConversationPage id="c1" />);
-    await screen.findByText('Chưa có tin nhắn. Hãy gửi lời chào!');
+    await screen.findByText('Cuộc trò chuyện mới cùng Guide A');
     act(() => mocks.listener?.(message('1')));
     mocks.fetch.mockResolvedValueOnce({ items: [message('4'), message('3')], hasMore: true }).mockResolvedValueOnce({ items: [message('2'), message('1')], hasMore: false });
     mocks.revision++; view.rerender(<ConversationPage id="c1" />);
@@ -87,12 +96,12 @@ describe('ConversationPage', () => {
     expect(mocks.fetch).toHaveBeenLastCalledWith({ id: 'c1', before: '3' });
   });
   it('ignores events for another conversation', async () => {
-    render(<ConversationPage id="c1" />); await screen.findByText('Chưa có tin nhắn. Hãy gửi lời chào!');
+    render(<ConversationPage id="c1" />); await screen.findByText('Cuộc trò chuyện mới cùng Guide A');
     act(() => mocks.listener?.({ ...message('1'), conversationId: 'other' }));
     expect(screen.queryByText('Tin 1')).toBeNull();
   });
   it('does not send whitespace or submit while composing Vietnamese text', async () => {
-    render(<ConversationPage id="c1" />); await screen.findByText('Chưa có tin nhắn. Hãy gửi lời chào!');
+    render(<ConversationPage id="c1" />); await screen.findByText('Cuộc trò chuyện mới cùng Guide A');
     const input = screen.getByLabelText('Nội dung tin nhắn');
     fireEvent.change(input, { target: { value: '   ' } });
     fireEvent.keyDown(input, { key: 'Enter' }); expect(mocks.send).not.toHaveBeenCalled();
@@ -106,5 +115,64 @@ describe('ConversationPage', () => {
     fireEvent.click(screen.getByText('Tải tin cũ')); await screen.findByText('Tin 1');
     expect(mocks.fetch).toHaveBeenLastCalledWith({ id: 'c1', before: '2' });
     expect(screen.queryByText('Tải tin cũ')).toBeNull();
+  });
+
+  it('renders ConversationListSkeleton when conversation list is loading', () => {
+    mocks.isListLoading = true;
+    render(<ConversationPage />);
+    expect(screen.getByLabelText('Đang tải danh sách cuộc trò chuyện')).toBeTruthy();
+  });
+
+  it('keeps the chat frame visible while history is loading', () => {
+    mocks.fetch.mockReturnValue(new Promise(() => {})); // pending promise
+    render(<ConversationPage id="c1" />);
+    expect(screen.queryByLabelText('Đang tải cuộc trò chuyện')).toBeNull();
+    expect(screen.getByLabelText('Lịch sử tin nhắn').getAttribute('aria-busy')).toBe('true');
+    expect(screen.queryByText('Cuộc trò chuyện mới cùng Guide A')).toBeNull();
+  });
+
+  it('omits tour discovery suggestions when only AI is in the sidebar', () => {
+    mocks.convList = [];
+    render(<ConversationPage />);
+    expect(screen.queryByText('Chưa có cuộc trò chuyện nào khác với hướng dẫn viên.')).toBeNull();
+    expect(screen.queryByText('Khám phá tour & liên hệ HDV →')).toBeNull();
+  });
+});
+
+describe('Typing bubble', () => {
+  it('filters conversations, expires after three seconds, and clears on incoming messages or disconnect', async () => {
+    const view = render(<ConversationPage id="c1" />);
+    await screen.findByText('Cuộc trò chuyện mới cùng Guide A');
+    vi.useFakeTimers();
+    try {
+      act(() => mocks.typingListener?.({ conversationId: 'other', userId: 'g1' }));
+      expect(screen.queryByLabelText('Guide A đang nhập tin nhắn')).toBeNull();
+      act(() => mocks.typingListener?.({ conversationId: 'c1', userId: 'g1' }));
+      expect(screen.getByLabelText('Guide A đang nhập tin nhắn').querySelectorAll('span')).toHaveLength(3);
+      act(() => vi.advanceTimersByTime(3001));
+      expect(screen.queryByLabelText('Guide A đang nhập tin nhắn')).toBeNull();
+      act(() => mocks.typingListener?.({ conversationId: 'c1', userId: 'g1' }));
+      act(() => mocks.listener?.(message('1')));
+      expect(screen.queryByLabelText('Guide A đang nhập tin nhắn')).toBeNull();
+      act(() => mocks.typingListener?.({ conversationId: 'c1', userId: 'g1' }));
+      mocks.connected = false;
+      view.rerender(<ConversationPage id="c1" />);
+      expect(screen.queryByLabelText('Guide A đang nhập tin nhắn')).toBeNull();
+    } finally { vi.useRealTimers(); }
+  });
+  it('does not mistake a history failure for a new conversation', async () => {
+    mocks.fetch.mockRejectedValue({ status: 500 });
+    render(<ConversationPage id="c1" />);
+    await screen.findByText('Không thể tải lịch sử. Vui lòng thử lại.');
+    expect(screen.queryByText('Cuộc trò chuyện mới cùng Guide A')).toBeNull();
+  });
+  it('blocks messages containing profanity and displays a friendly warning', async () => {
+    render(<ConversationPage id="c1" />);
+    await screen.findByText('Cuộc trò chuyện mới cùng Guide A');
+    fireEvent.change(screen.getByLabelText('Nội dung tin nhắn'), { target: { value: 'địt mẹ mày' } });
+    fireEvent.click(screen.getByLabelText('Gửi tin nhắn'));
+    expect(await screen.findByText('Tin nhắn chứa từ ngữ không phù hợp hoặc vi phạm tiêu chuẩn cộng đồng')).toBeTruthy();
+    expect(mocks.sendRest).not.toHaveBeenCalled();
+    expect(mocks.send).not.toHaveBeenCalled();
   });
 });

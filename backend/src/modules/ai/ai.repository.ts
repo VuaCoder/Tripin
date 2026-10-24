@@ -6,7 +6,7 @@ import { AI_LIMITS } from './ai.types';
 export type AiMessageRecord = AiMessage;
 
 /** A stored conversation. `messages` is loaded by `findOwned`/`create`/`appendMessages` and empty in list results. */
-export type AiConversationRecord = AiConversation & { messages: AiMessageRecord[] };
+export type AiConversationRecord = AiConversation & { messages: AiMessageRecord[]; unreadCount?: number };
 
 type NewMessage = { role: 'user' | 'assistant'; content: string };
 
@@ -44,11 +44,30 @@ export class AiRepository {
 
   async listByUser(userId: string, page: PageRequest) {
     const [rows, total] = await Promise.all([
-      // Lists only need title/count, so the messages are not loaded.
-      prisma.aiConversation.findMany({ where: { userId }, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit }),
+      prisma.aiConversation.findMany({ where: { userId }, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit,
+        include: { messages: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 1 }, _count: { select: { messages: { where: { role: 'assistant', readAt: null } } } } },
+      }),
       prisma.aiConversation.count({ where: { userId } }),
     ]);
-    return { items: rows.map((row): AiConversationRecord => ({ ...row, messages: [] })), total };
+    return { items: rows.map((row): AiConversationRecord => ({ ...row, unreadCount: row._count.messages })), total };
+  }
+
+  async overview(userId: string) {
+    const [latest, unreadCount] = await Promise.all([
+      this.listByUser(userId, { page: 1, limit: 1 }),
+      prisma.aiMessage.count({ where: { conversation: { userId }, role: 'assistant', readAt: null } }),
+    ]);
+    return { latest: latest.items[0] ?? null, unreadCount };
+  }
+
+  async markRead(userId: string, conversationId: string, throughMessageId: string) {
+    const boundary = await prisma.aiMessage.findFirst({ where: { id: throughMessageId, conversationId, conversation: { userId } } });
+    if (!boundary) return null;
+    await prisma.aiMessage.updateMany({ where: {
+      conversationId, role: 'assistant', readAt: null,
+      OR: [{ createdAt: { lt: boundary.createdAt } }, { createdAt: boundary.createdAt, id: { lte: boundary.id } }],
+    }, data: { readAt: new Date() } });
+    return { unreadCount: await prisma.aiMessage.count({ where: { conversationId, role: 'assistant', readAt: null } }) };
   }
 }
 

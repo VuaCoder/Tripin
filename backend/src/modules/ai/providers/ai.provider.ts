@@ -10,6 +10,7 @@ export interface AiGenerateInput {
   maxTokens: number;
   /** Request JSON output for document extraction; the caller still validates the result. */
   responseFormat?: 'json';
+  allowPartial?: boolean;
 }
 
 /**
@@ -21,5 +22,5 @@ export interface AiProvider {
   /** True when the provider is configured and may be called. */
   readonly enabled: boolean;
   /** Returns plain text. Throws `AppError` 503 when the provider is unavailable. */
-  generate(input: AiGenerateInput): Promise<{ text: string }>;
+  generate(input: AiGenerateInput): Promise<{ text: string; incomplete?: boolean }>;
 }

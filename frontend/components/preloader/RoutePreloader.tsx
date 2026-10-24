@@ -10,6 +10,12 @@ import React, {
 import { usePathname, useSearchParams } from 'next/navigation';
 import { BoatPreloader } from './BoatPreloader';
 
+const navigationSection = (path: string) => {
+  if (path === '/conversations' || path.startsWith('/conversations/')) return 'chat';
+  if (path === '/settings' || path.startsWith('/settings/') || path === '/traveler' || path.startsWith('/traveler/')) return 'account';
+  return undefined;
+};
+
 const MIN_DISPLAY_MS = 380;
 const MAX_SAFETY_TIMEOUT_MS = 4500;
 
@@ -53,6 +59,7 @@ export function RoutePreloader() {
   const [isMounted, setIsMounted] = useState(false);
   const [isActive, setIsActive] = useState(false);
 
+  const previousPathRef = useRef('');
   const startTimeRef = useRef<number>(0);
   const safetyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const minDurationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -100,7 +107,8 @@ export function RoutePreloader() {
   }, []);
 
   const handleRouteSettled = useCallback(
-    () => {
+    (pathname: string) => {
+      previousPathRef.current = pathname;
       // If manualHoldRef is active (e.g. post-payment custom reconciliation flow), do not auto dismiss!
       if (manualHoldRef.current) {
         return;
@@ -112,6 +120,7 @@ export function RoutePreloader() {
 
   // Link click interceptor and history listener
   useEffect(() => {
+    previousPathRef.current = window.location.pathname;
     const handleDocumentClick = (event: MouseEvent) => {
       // Find nearest anchor
       const target = event.target as HTMLElement | null;
@@ -143,6 +152,12 @@ export function RoutePreloader() {
         // Ignore different origins
         if (url.origin !== window.location.origin) return;
 
+        const destinationSection = navigationSection(url.pathname);
+        if (destinationSection) {
+          if (destinationSection !== navigationSection(window.location.pathname)) triggerStart();
+          return;
+        }
+
         if (anchor.dataset.routePreloader === 'true') {
           if (url.pathname + url.search !== window.location.pathname + window.location.search) triggerStart();
           return;
@@ -168,7 +183,10 @@ export function RoutePreloader() {
 
     const handlePopState = () => {
       const currentPath = window.location.pathname;
-      if (currentPath.startsWith('/settings') || currentPath.startsWith('/traveler')) return;
+      const destinationSection = navigationSection(currentPath);
+      const sourceSection = navigationSection(previousPathRef.current);
+      previousPathRef.current = currentPath;
+      if (destinationSection && destinationSection === sourceSection) return;
       triggerStart();
     };
 

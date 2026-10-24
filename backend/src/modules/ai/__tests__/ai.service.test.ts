@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppError } from '../../../utils/app-error';
-import { AiService } from '../ai.service';
+import { AiService, stripEmojis } from '../ai.service';
 import { AI_LIMITS, AI_SYSTEM_PROMPT } from '../ai.types';
 import { AnthropicProvider } from '../providers/anthropic.provider';
 import { DisabledAiProvider } from '../providers/disabled.provider';
@@ -58,6 +58,15 @@ describe('chat', () => {
     expect(messages[0]).toEqual({ role: 'user', content: 'm10' });
   });
 
+  it('returns partial chat text with incomplete metadata and saves the exchange', async () => {
+    const { service, provider, db } = make();
+    provider.generate.mockResolvedValueOnce({ text: 'Partial advice', incomplete: true } as never);
+    const result = await service.chat('u1', { message: 'Plan a long trip' });
+    expect(result.reply).toMatchObject({ content: 'Partial advice', incomplete: true });
+    expect(provider.generate.mock.calls[0]![0]).toMatchObject({ allowPartial: true });
+    expect(db[0]!.messageCount).toBe(2);
+  });
+
   it('does not store anything when the provider fails', async () => {
     const { service, provider, repo } = make();
     provider.generate.mockRejectedValueOnce(AppError.unavailable('down'));
@@ -69,6 +78,16 @@ describe('chat', () => {
     const { service, provider } = make({ enabled: false });
     await expect(service.chat('u1', { message: 'hello' })).rejects.toMatchObject({ statusCode: 503 });
     expect(provider.generate).not.toHaveBeenCalled();
+  });
+
+  it('rejects profanity in user message with 400 and PROFANITY_DETECTED', async () => {
+    const { service, provider, repo } = make();
+    await expect(service.chat('u1', { message: 'địt mẹ mày' })).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'PROFANITY_DETECTED',
+    });
+    expect(provider.generate).not.toHaveBeenCalled();
+    expect(repo.create).not.toHaveBeenCalled();
   });
 
   it('never lets one user continue or read another user\'s conversation', async () => {
@@ -96,11 +115,18 @@ describe('chat', () => {
     expect(db[0]!.messages[1].content).toHaveLength(AI_LIMITS.MAX_STORED_REPLY_LENGTH);
   });
 
-  it('lists summaries and returns a full transcript to its owner', async () => {
-    const { service } = make();
-    await service.chat('u1', { message: 'hello there' });
-    expect((await service.listMine('u1', { page: 1, limit: 20 })).items[0]).toMatchObject({ title: 'hello there', messageCount: 2 });
-    expect((await service.getMine('u1', 'ai1')).messages).toHaveLength(2);
+  it('strips emojis from the assistant reply before storing and returning', async () => {
+    const { service, db } = make({ reply: 'Chào bạn! 😊 Chúc bạn có chuyến đi vui vẻ 🏖️✈️!' });
+    const result = await service.chat('u1', { message: 'Gợi ý du lịch' });
+    expect(result.reply.content).toBe('Chào bạn! Chúc bạn có chuyến đi vui vẻ !');
+    expect(db[0]!.messages[1].content).toBe('Chào bạn! Chúc bạn có chuyến đi vui vẻ !');
+  });
+
+  it('stripEmojis utility removes diverse emoji pictographs and cleans whitespace', () => {
+    expect(stripEmojis('Xin chào 👋 thế giới 🌍')).toBe('Xin chào thế giới');
+    expect(stripEmojis('1️⃣ Điểm đến: 🏖️ Phú Quốc')).toBe('1 Điểm đến: Phú Quốc');
+    expect(stripEmojis('Không có emoji nào')).toBe('Không có emoji nào');
+    expect(stripEmojis('')).toBe('');
   });
 });
 

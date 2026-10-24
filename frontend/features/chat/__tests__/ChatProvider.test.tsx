@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
@@ -8,6 +9,7 @@ vi.mock('socket.io-client', () => ({ io: mocks.io }));
 vi.mock('@/store/hooks', () => ({ useAppDispatch: () => mocks.dispatch, useAppSelector: (selector: Function) => selector({ auth: { user: mocks.user, accessToken: mocks.token } }) }));
 vi.mock('@/store/api/baseApi', () => ({ refreshSession: mocks.refresh }));
 vi.mock('../api', () => ({ chatApi: { util: { invalidateTags: () => ({ type: 'invalidate' }) } } }));
+vi.mock('../api/aiChatApi', () => ({ aiChatApi: { util: { invalidateTags: () => ({ type: 'invalidate-ai' }) } } }));
 import { ChatProvider, useChat } from '../ChatProvider';
 let socket: ReturnType<typeof createSocket>;
 function createSocket() {
@@ -59,5 +61,34 @@ describe('ChatProvider', () => {
     await act(async () => resolve({ user: { id: 't1' }, accessToken: 'late' }));
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(1));
     expect(mocks.dispatch).not.toHaveBeenCalled();
+  });
+});
+
+function TypingConsumer() {
+  const chat = useChat();
+  useEffect(() => chat.subscribeTyping(event => mocks.dispatch(event)), [chat.subscribeTyping]);
+  return <button onClick={() => chat.typing('c1')}>Typing</button>;
+}
+describe('Chat typing events', () => {
+  it('throttles outgoing events and ignores malformed or self typing events', () => {
+    vi.useFakeTimers();
+    try {
+      render(<ChatProvider><TypingConsumer /></ChatProvider>);
+      fireEvent.click(screen.getByText('Typing'));
+      expect(socket.emit).not.toHaveBeenCalled();
+      act(() => { socket.connected = true; socket.handlers.connect(); });
+      mocks.dispatch.mockClear();
+      fireEvent.click(screen.getByText('Typing'));
+      fireEvent.click(screen.getByText('Typing'));
+      expect(socket.emit).toHaveBeenCalledTimes(1);
+      act(() => vi.advanceTimersByTime(2000));
+      fireEvent.click(screen.getByText('Typing'));
+      expect(socket.emit).toHaveBeenCalledTimes(2);
+      act(() => socket.handlers['chat:typing']({ conversationId: 'c1', userId: 't1' }));
+      act(() => socket.handlers['chat:typing']({ conversationId: 'c1' }));
+      expect(mocks.dispatch).not.toHaveBeenCalled();
+      act(() => socket.handlers['chat:typing']({ conversationId: 'c1', userId: 'g1' }));
+      expect(mocks.dispatch).toHaveBeenCalledWith({ conversationId: 'c1', userId: 'g1' });
+    } finally { vi.useRealTimers(); }
   });
 });

@@ -1,16 +1,22 @@
 'use client';
 import Link from 'next/link';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowLeft, Send, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ArrowLeft, Send, ChevronLeft, ChevronRight, Bot, Search } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth/store/authSlice';
 import { getApiErrorMessage } from '@/features/auth/utils/apiError';
+import { containsProfanity, PROFANITY_ERROR_MESSAGE } from '@travel-platform/constants';
 import { chatApi, useConversationsQuery, useConversationQuery, useReadConversationMutation, useSendMessageMutation } from './api';
 import { useChat } from './ChatProvider';
 import { mergeMessages, type Message } from './types';
 import { ConversationWelcome } from './ConversationWelcome';
+import { TypingBubble } from './components/TypingBubble';
+import { AiThread } from './components/AiThread';
+import { ConversationListSkeleton } from './components/ChatSkeleton';
+import { useGetAiOverviewQuery } from './api/aiChatApi';
+import { clockTime, dayLabel, fullTime, inboxTime, preview, sameDay, useChatClock, useOfflineRefresh } from './presentation';
+import { UnreadBadge } from './components/UnreadBadge';
 
-const time = (value: string) => new Date(value).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 const denied = (error: unknown) => [403, 404].includes((error as { status?: number })?.status ?? 0) || ['FORBIDDEN', 'NOT_FOUND'].includes((error as { code?: string })?.code ?? '');
 export function ConversationPage({ id }: { id?: string }) {
   const user = useAppSelector(selectUser);
@@ -20,23 +26,98 @@ export function ConversationPage({ id }: { id?: string }) {
 function ChatWorkspace({ id }: { id?: string }) {
   const user = useAppSelector(selectUser);
   const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
   const { data, isLoading, error, refetch, isFetching } = useConversationsQuery(page, { refetchOnFocus: true, refetchOnReconnect: true });
   const chat = useChat();
+  const now = useChatClock();
+  const [aiEntryVersion, setAiEntryVersion] = useState(0);
+  useOfflineRefresh(chat.connected, refetch);
+
+  const isTraveler = user?.role === 'TRAVELER' || user?.permissions?.includes('ai:chat');
+  const aiOverview = useGetAiOverviewQuery(undefined, { skip: !isTraveler, refetchOnFocus: true, refetchOnReconnect: true });
+  const refreshAi = useCallback(() => { if (isTraveler) void aiOverview.refetch(); }, [isTraveler, aiOverview.refetch]);
+  useOfflineRefresh(chat.connected, refreshAi);
+  const latestAi = aiOverview.data?.latest;
+  const aiUnread = aiOverview.data?.unreadCount ?? 0;
+  const matchesAi = Boolean(
+    isTraveler &&
+      (!searchQuery.trim() ||
+        'trợ lý ai tripri'.includes(searchQuery.toLowerCase()) ||
+        'ai'.includes(searchQuery.toLowerCase()) ||
+        'bot'.includes(searchQuery.toLowerCase())),
+  );
+
+  const filteredItems = (data?.data ?? []).filter(
+    (item) =>
+      !searchQuery.trim() ||
+      item.counterpart?.fullName?.toLowerCase().includes(searchQuery.trim().toLowerCase()),
+  );
+
   return <section aria-label="Tin nhắn" className="w-full">
     <h1 className="mb-4 text-2xl font-bold text-slate-900">Tin nhắn</h1>
     {!chat.connected && <div role="status" className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{chat.status}<button type="button" onClick={chat.reconnect} className="font-semibold underline">Kết nối lại</button></div>}
     <div className="grid h-[calc(100vh-13rem)] min-h-[550px] overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[360px_minmax(0,1fr)]">
       <aside aria-label="Danh sách cuộc trò chuyện" className={`${id ? 'hidden md:flex' : 'flex'} flex-col border-r border-slate-200/80 bg-slate-50/40`}>
-        <h2 className="border-b border-slate-200/80 p-4 font-bold text-slate-900">Cuộc trò chuyện</h2>
+        <div className="border-b border-slate-200/80 p-3 sm:p-4">
+          <h2 className="font-bold text-slate-900 text-base">Cuộc trò chuyện</h2>
+          {/* Search Box */}
+          <div className="relative mt-2">
+            <Search size={15} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm kiếm cuộc trò chuyện hoặc AI..."
+              className="w-full rounded-xl border border-slate-200 bg-white py-1.5 pl-8 pr-3 text-xs text-slate-800 placeholder-slate-400 focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-500/20"
+            />
+          </div>
+        </div>
+
         {isLoading ? (
-          <p role="status" className="p-4 text-sm text-slate-500">Đang tải…</p>
+          <ConversationListSkeleton />
         ) : error ? (
           <div role="alert" className="p-4 text-sm text-red-600">Không thể tải danh sách. <button onClick={() => void refetch()} className="underline">Thử lại</button></div>
-        ) : !data?.data.length ? (
+        ) : !filteredItems.length && !matchesAi ? (
           <div className="flex-1"><p className="hidden px-5 py-6 text-sm leading-6 text-slate-500 md:block">Chưa có cuộc trò chuyện nào.</p>{!id && <div className="h-full md:hidden"><ConversationWelcome guide={user?.role === 'TOUR_GUIDE'} /></div>}</div>
         ) : (
           <nav className="flex-1 overflow-y-auto ant-scrollbar">
-            {data.data.map(item => (
+            {/* Pinned AI Assistant Entry for Traveler */}
+            {matchesAi && (
+              <Link
+                href="/conversations/ai"
+                onClick={() => setAiEntryVersion(value => value + 1)}
+                aria-current={id === 'ai' ? 'page' : undefined}
+                className={`block border-b border-slate-100 p-3.5 transition-colors hover:bg-slate-100/70 ${
+                  id === 'ai'
+                    ? 'bg-teal-50/90 font-medium border-l-4 border-l-primary-container'
+                    : 'bg-gradient-to-r from-teal-50/50 to-indigo-50/20'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="relative flex size-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-teal-600 via-primary-container to-indigo-600 text-white shadow-xs">
+                    <Bot size={20} />
+                    <span className="absolute -bottom-0.5 -right-0.5 flex size-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="truncate font-bold text-slate-900 flex items-center gap-1.5 text-sm">
+                        Trợ lý AI Tripri
+                        <span className="rounded-full bg-teal-100/90 px-1.5 py-0.2 text-[10px] font-bold text-primary-container">
+                          AI
+                        </span>
+                      </span>
+                      <UnreadBadge count={aiUnread} />
+                    </div>
+                    <p className={`mt-0.5 truncate text-xs ${aiUnread ? 'font-bold text-slate-900' : 'text-slate-500'}`}>
+                      {latestAi?.lastMessage ? `${latestAi.lastMessage.role === 'user' ? 'Bạn' : 'AI'}: ${preview(latestAi.lastMessage.content)}` : 'Chưa có tin nhắn'}
+                    </p>
+                    {latestAi?.lastMessage && <time dateTime={latestAi.lastMessage.createdAt} title={fullTime(latestAi.lastMessage.createdAt)} aria-label={fullTime(latestAi.lastMessage.createdAt)} className="mt-1 block text-xs text-slate-500">{inboxTime(latestAi.lastMessage.createdAt, now)}</time>}
+                  </div>
+                </div>
+              </Link>
+            )}
+
+            {filteredItems.map(item => (
               <Link
                 key={item.id}
                 href={`/conversations/${item.id}`}
@@ -44,17 +125,15 @@ function ChatWorkspace({ id }: { id?: string }) {
                 className={`block border-b border-slate-100 p-4 transition-colors hover:bg-slate-100/70 ${id === item.id ? 'bg-teal-50/80 font-medium' : ''}`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-semibold text-slate-900">{item.counterpart?.fullName || 'Tài khoản không còn khả dụng'}</span>
-                  {item.unreadCount > 0 && (
-                    <span aria-label={`${item.unreadCount} tin chưa đọc`} className="rounded-full bg-primary-container px-2 py-0.5 text-xs font-bold text-white shadow-sm">
-                      {item.unreadCount}
-                    </span>
-                  )}
+                  <span className={`truncate text-slate-900 ${item.unreadCount ? 'font-bold' : 'font-medium'}`}>{item.counterpart?.fullName || 'Tài khoản không còn khả dụng'}</span>
+                  <UnreadBadge count={item.unreadCount} />
                 </div>
-                <p className="mt-1 truncate text-sm text-slate-500">{item.lastMessage?.text || 'Chưa có tin nhắn'}</p>
-                <time className="mt-1 block text-xs text-slate-400">{time(item.updatedAt)}</time>
+                <p className={`mt-1 truncate text-sm ${item.unreadCount ? 'font-bold text-slate-900' : 'text-slate-500'}`}>{item.lastMessage ? `${item.lastMessage.senderId === user?.id ? 'Bạn' : item.counterpart?.fullName || 'Người gửi'}: ${preview(item.lastMessage.text)}` : 'Chưa có tin nhắn'}</p>
+                <time dateTime={item.lastMessage?.sentAt || item.updatedAt} title={fullTime(item.lastMessage?.sentAt || item.updatedAt)} aria-label={fullTime(item.lastMessage?.sentAt || item.updatedAt)} className="mt-1 block text-xs text-slate-500">{inboxTime(item.lastMessage?.sentAt || item.updatedAt, now)}</time>
               </Link>
             ))}
+
+
           </nav>
         )}
         {Boolean(data && data.meta.totalPages > 1) && (
@@ -83,7 +162,9 @@ function ChatWorkspace({ id }: { id?: string }) {
           </div>
         )}
       </aside>
-      {id ? (
+      {id === 'ai' ? (
+        <AiThread key={aiEntryVersion} />
+      ) : id ? (
         <Thread key={id} id={id} />
       ) : (
         <div className="hidden min-w-0 md:block">{!isLoading && !error && <ConversationWelcome guide={user?.role === 'TOUR_GUIDE'} recent={data?.data[0] ? { id: data.data[0].id, name: data.data[0].counterpart?.fullName || 'người đồng hành' } : undefined} />}</div>
@@ -92,6 +173,7 @@ function ChatWorkspace({ id }: { id?: string }) {
   </section>;
 }
 function Thread({ id }: { id: string }) {
+  const now = useChatClock();
   const dispatch = useAppDispatch();
   const chat = useChat();
   const detail = useConversationQuery(id);
@@ -104,10 +186,23 @@ function Thread({ id }: { id: string }) {
   const synchronizedIds = useRef(new Set<string>());
   const historyLoaded = useRef(false);
   const [hasMore, setHasMore] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimer = useRef<ReturnType<typeof setTimeout>>();
+  const clearTyping = useCallback(() => { clearTimeout(typingTimer.current); setIsTyping(false); }, []);
+  useEffect(() => {
+    if (!chat.connected || blocked) { clearTyping(); return; }
+    const unsubscribe = chat.subscribeTyping(event => {
+      if (event.conversationId !== id) return;
+      clearTimeout(typingTimer.current);
+      setIsTyping(true);
+      typingTimer.current = setTimeout(() => setIsTyping(false), 3000);
+    });
+    return () => { unsubscribe(); clearTimeout(typingTimer.current); };
+  }, [chat.connected, chat.subscribeTyping, id, clearTyping, blocked]);
   const [loading, setLoading] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [historyError, setHistoryError] = useState('');
-  const [blocked, setBlocked] = useState(false);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
@@ -167,13 +262,15 @@ function Thread({ id }: { id: string }) {
     syncQueue.current = syncQueue.current.then(run, run);
     return syncQueue.current;
   }, [add, block, fetchPage]);
+  useOfflineRefresh(chat.connected, synchronize);
   useEffect(() => { if (!blocked) void synchronize(); }, [chat.revision, retrySync, blocked, synchronize]);
   useEffect(() => { if (denied(detail.error)) block(); }, [detail.error, block]);
   useEffect(() => chat.subscribe(message => {
     if (message.conversationId !== id || blocked) return;
     if (!stick.current) setNewMessages(true);
+    clearTyping();
     add([message]);
-  }), [chat.subscribe, id, blocked, add]);
+  }), [chat.subscribe, id, blocked, add, clearTyping]);
   useEffect(() => {
     const change = () => setVisible(document.visibilityState === 'visible');
     change(); document.addEventListener('visibilitychange', change);
@@ -184,7 +281,7 @@ function Thread({ id }: { id: string }) {
     if (!element) return;
     if (previousHeight.current !== null) { element.scrollTop += element.scrollHeight - previousHeight.current; previousHeight.current = null; }
     else if (stick.current) element.scrollTop = element.scrollHeight;
-  }, [messages]);
+  }, [messages, isTyping]);
   useEffect(() => {
     const element = scroll.current;
     if (!element || typeof ResizeObserver === 'undefined') return;
@@ -222,6 +319,10 @@ function Thread({ id }: { id: string }) {
   async function send() {
     const text = draft.trim();
     if (!text || text.length > 2000 || sendingRef.current || blocked || loading || !!historyError) return;
+    if (containsProfanity(text)) {
+      setSendError(PROFANITY_ERROR_MESSAGE);
+      return;
+    }
     sendingRef.current = true; setSending(true); setSendError('');
     try {
       const request = chat.send(id, text);
@@ -244,23 +345,26 @@ function Thread({ id }: { id: string }) {
     <header className="flex items-center gap-3 border-b p-4"><Link href="/conversations" aria-label="Về danh sách" className="md:hidden"><ArrowLeft size={20} /></Link><h2 className="truncate font-semibold">{detail.data?.counterpart?.fullName || 'Cuộc trò chuyện'}</h2></header>
     {historyError && <div role="alert" className="bg-red-50 p-3 text-sm text-red-800">{historyError} <button onClick={() => setRetrySync(value => value + 1)} className="underline">Thử lại</button></div>}
     {readError && <div role="alert" className="bg-amber-50 p-2 text-sm text-amber-900">{readError} <button className="underline" onClick={() => setReadCycle(value => value + 1)}>Thử lại</button></div>}
-    <div ref={scroll} role="log" aria-label="Lịch sử tin nhắn" className="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-4" onScroll={() => {
+    <div ref={scroll} role="log" aria-label="Lịch sử tin nhắn" aria-busy={loading} className="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-4" onScroll={() => {
       const element = scroll.current!; const bottom = element.scrollHeight - element.scrollTop - element.clientHeight < 80;
       stick.current = bottom; setAtBottom(bottom); if (bottom) setNewMessages(false);
     }}>
-      {loading ? <p role="status">Đang tải tin nhắn…</p> : <>
+      {!loading && <>
         {hasMore && <button disabled={loadingOlder} onClick={() => void older()} className="mx-auto block text-sm font-semibold text-teal-800">{loadingOlder ? 'Đang tải…' : 'Tải tin cũ'}</button>}
-        {!messages.length && !historyError && <p className="py-12 text-center text-sm text-slate-600">Chưa có tin nhắn. Hãy gửi lời chào!</p>}
-        {messages.map(message => <div key={message.id} className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}><div className="max-w-[85%] sm:max-w-[75%]">
+        {!messages.length && !historyError && detail.data?.counterpart && <p className="py-12 text-center text-sm text-slate-600">Cuộc trò chuyện mới cùng {detail.data.counterpart.fullName}</p>}
+        {messages.map((message, index) => <Fragment key={message.id}>
+          {(!index || !sameDay(messages[index - 1].createdAt, message.createdAt)) && <p className="py-2 text-center text-xs font-medium text-slate-600">{dayLabel(message.createdAt, now)}</p>}
+          <div className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}><div className="max-w-[85%] sm:max-w-[75%]">
           <p className={`whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm [overflow-wrap:anywhere] ${message.isMine ? 'rounded-br-sm bg-primary-container text-white' : 'rounded-bl-sm border border-slate-200 bg-white text-slate-900'}`}>{message.text}</p>
-          <div className={`mt-1 text-xs text-slate-600 ${message.isMine ? 'text-right' : ''}`}><time dateTime={message.createdAt}>{time(message.createdAt)}</time>{message.isMine && <span> · {message.readAt ? 'Đã xem' : chat.delivered.has(message.id) ? 'Đã nhận' : 'Đã gửi'}</span>}</div>
-        </div></div>)}
+          <div className={`mt-1 text-xs text-slate-600 ${message.isMine ? 'text-right' : ''}`}><time dateTime={message.createdAt} title={fullTime(message.createdAt)} aria-label={fullTime(message.createdAt)}>{clockTime(message.createdAt)}</time>{message.isMine && <span> · {message.readAt ? 'Đã xem' : chat.delivered.has(message.id) ? 'Đã nhận' : 'Đã gửi'}</span>}</div>
+        </div></div></Fragment>)}
       </>}
+      {isTyping && <TypingBubble label={`${detail.data?.counterpart?.fullName || 'Người nhận'} đang nhập tin nhắn`} />}
     </div>
     {newMessages && <button onClick={() => { stick.current = true; setAtBottom(true); setNewMessages(false); if (scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight; }} className="bg-teal-50 p-2 text-sm font-semibold text-teal-900">Tin nhắn mới</button>}
     <form className="border-t p-4" onSubmit={event => { event.preventDefault(); void send(); }}>
       {sendError && <p role="alert" className="mb-2 text-sm text-red-700">{sendError}</p>}
-      <div className="flex items-end gap-2"><textarea aria-label="Nội dung tin nhắn" placeholder="Nhập tin nhắn…" maxLength={2000} rows={2} value={draft} disabled={sending || loading || !detail.data} onChange={event => setDraft(event.target.value)} onKeyDown={event => {
+      <div className="flex items-end gap-2"><textarea aria-label="Nội dung tin nhắn" placeholder="Nhập tin nhắn…" maxLength={2000} rows={2} value={draft} disabled={sending || loading || !detail.data} onChange={event => { setDraft(event.target.value); if (sendError) setSendError(''); if (event.target.value.trim()) chat.typing(id); }} onKeyDown={event => {
         if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) { event.preventDefault(); void send(); }
       }} className="min-w-0 flex-1 resize-none rounded-lg border border-slate-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-700" /><button aria-label="Gửi tin nhắn" disabled={sending || loading || !detail.data || !draft.trim() || !!historyError} className="rounded-lg bg-primary-container p-3 text-white disabled:opacity-40"><Send size={20} /></button></div>
       <p className="mt-1 text-right text-xs text-slate-500">{draft.length}/2000 · Shift+Enter để xuống dòng</p>

@@ -12,7 +12,7 @@ import { BoatIllustration } from '../BoatIllustration';
 import { BoatPreloader } from '../BoatPreloader';
 import { RoutePreloader } from '../RoutePreloader';
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); window.history.replaceState({}, '', '/'); });
 
 describe('BoatIllustration', () => {
   it('renders SVG with boat group, mast, sails, and 3 wave layers', () => {
@@ -87,6 +87,33 @@ describe('BoatPreloader', () => {
 });
 
 describe('RoutePreloader', () => {
+  it('does not cover AI, person chat, or chat browser history with a preloader', () => {
+    window.history.replaceState({}, '', '/conversations');
+    render(<><RoutePreloader /><a href="/conversations/ai">AI chat</a><a href="/conversations/person">Person chat</a></>);
+    fireEvent.click(screen.getByText('AI chat'));
+    expect(screen.queryByRole('status')).toBeNull();
+    fireEvent.click(screen.getByText('Person chat'));
+    expect(screen.queryByRole('status')).toBeNull();
+    window.history.pushState({}, '', '/conversations/ai');
+    fireEvent.popState(window);
+    expect(screen.queryByRole('status')).toBeNull();
+    window.history.replaceState({}, '', '/');
+  });
+  it.each(['/conversations', '/conversations/ai', '/settings/profile', '/settings/history'])('loads %s when entering from outside', href => {
+    render(<><RoutePreloader /><a href={href}>Enter section</a></>);
+    fireEvent.click(screen.getByText('Enter section'));
+    expect(screen.getByRole('status')).toBeDefined();
+  });
+  it('keeps history navigation inside the account lightweight but loads external entry', () => {
+    window.history.replaceState({}, '', '/settings/profile');
+    render(<RoutePreloader />);
+    window.history.pushState({}, '', '/settings/security');
+    fireEvent.popState(window);
+    expect(screen.queryByRole('status')).toBeNull();
+    window.history.pushState({}, '', '/home');
+    fireEvent.popState(window);
+    expect(screen.getByRole('status')).toBeDefined();
+  });
   it('loads Agency sidebar destinations but exempts notifications', () => {
     render(<><RoutePreloader /><a href="/agency/tours" data-route-preloader="true">Quản lý tour Agency</a><a href="/agency/notifications" data-no-preloader="true">Mở thông báo</a></>);
     fireEvent.click(screen.getByText('Mở thông báo'));
@@ -102,7 +129,8 @@ describe('RoutePreloader', () => {
     vi.useRealTimers();
   });
 
-  it('does NOT trigger preloader on settings link clicks or same-page links', () => {
+  it('does not trigger a preloader between account sections', () => {
+    window.history.replaceState({}, '', '/settings/profile');
     render(
       <div>
         <RoutePreloader />
