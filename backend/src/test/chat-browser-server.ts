@@ -8,6 +8,8 @@ import { connectDatabase, disconnectDatabase, prisma } from '../config/database'
 import { createApp } from '../app';
 import { attachChatGateway } from '../modules/chat';
 import { bookingsService } from '../modules/bookings';
+import { aiService } from '../modules/ai';
+import type { AiProvider } from '../modules/ai/providers';
 
 async function main() {
   let adminUrl = '';
@@ -20,6 +22,23 @@ async function main() {
     passwordHash, role, status: 'ACTIVE', emailVerifiedAt: new Date(),
     ...(role === 'AGENCY' ? { agencyProfile: { create: { companyName: 'Chat Test Agency', verificationStatus: 'VERIFIED' } } } : {}),
   } })));
+  if (process.env.CHAT_SMOKE_AI === '1') {
+    // Local acceptance only: never call a paid model or seed the application's DB.
+    (aiService as unknown as { provider: AiProvider }).provider = {
+      name: 'browser-fixture', enabled: true,
+      generate: async () => ({ text: 'Bạn có thể ghé Hội An và dạo phố cổ vào buổi chiều.' }),
+    };
+    for (let index = 0; index < 22; index++) {
+      const date = new Date(); date.setDate(date.getDate() - index); date.setMilliseconds(0);
+      await prisma.aiConversation.create({ data: {
+        userId: users[0]!.id, title: index ? `Lịch trình ngày ${index}` : 'Kế hoạch Hội An', messageCount: 2, updatedAt: date,
+        messages: { create: [
+          { role: 'user', content: 'Tôi muốn đi Hội An', createdAt: new Date(date.getTime() - 1) },
+          { role: 'assistant', content: index ? `Gợi ý cho ngày ${index}` : '**Hội An** có phố cổ và nhiều món ngon.', createdAt: date, readAt: index ? date : null },
+        ] },
+      } });
+    }
+  }
   const category = await prisma.category.create({ data: { name: 'Khám phá văn hóa', slug: 'test-cultural-tour' } });
   const tour = await prisma.tour.create({ data: {
     categories: { connect: { id: category.id } },

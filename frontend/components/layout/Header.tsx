@@ -12,7 +12,7 @@ import { Container } from './Container';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, selectIsAuthenticated, useLogout } from '@/features/auth';
 import { homeForRole } from '@/features/auth/utils/roles';
-import { PremiumComingSoonModal } from '@/components/shared';
+import { PremiumComingSoonModal, Dropdown } from '@/components/shared';
 import { AgencyRightSidebar } from '@/features/agency/AgencyUi';
 import { cn } from '../ui/cn';
 
@@ -117,8 +117,6 @@ export function Header({ role }: { role?: AppRole }) {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [premiumModalOpen, setPremiumModalOpen] = useState(false);
-  const accountMenuRef = useRef<HTMLDivElement>(null);
-  const notificationRef = useRef<HTMLDivElement>(null);
 
   const [avatarFailed, setAvatarFailed] = useState(false);
 
@@ -186,32 +184,6 @@ export function Header({ role }: { role?: AppRole }) {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isHome]);
-
-  useEffect(() => {
-    if (!accountMenuOpen && !notificationOpen) return;
-
-    const closeOnOutsideClick = (event: MouseEvent) => {
-      if (accountMenuOpen && !accountMenuRef.current?.contains(event.target as Node)) {
-        setAccountMenuOpen(false);
-      }
-      if (notificationOpen && !notificationRef.current?.contains(event.target as Node)) {
-        setNotificationOpen(false);
-      }
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setAccountMenuOpen(false);
-        setNotificationOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', closeOnOutsideClick);
-    document.addEventListener('keydown', closeOnEscape);
-    return () => {
-      document.removeEventListener('mousedown', closeOnOutsideClick);
-      document.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [accountMenuOpen, notificationOpen]);
 
   const isTransparent = isHome && !isScrolled;
   const effectiveRole: AppRole = role || (isAuthenticated && user?.role ? (user.role as AppRole) : 'PUBLIC');
@@ -286,35 +258,19 @@ export function Header({ role }: { role?: AppRole }) {
 
           {isAuthenticated && user ? (
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Nút Chuông thông báo 🔔 */}
-              <div ref={notificationRef} className="relative">
-                <button
-                  type="button"
-                  aria-label="Thông báo"
-                  title="Thông báo"
-                  onClick={() => {
-                    setNotificationOpen((prev) => !prev);
-                    setAccountMenuOpen(false);
-                  }}
-                  className={cn(
-                    'relative flex size-10 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container cursor-pointer',
-                    isTransparent
-                      ? 'text-white hover:bg-white/15'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-                  )}
-                >
-                  <span className="material-symbols-outlined text-[22px]">notifications</span>
-                  {unreadNotifCount > 0 && (
-                    <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
-                      {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
-                    </span>
-                  )}
-                </button>
-
-                {notificationOpen && (
+              {/* Nút Chuông thông báo 🔔 sử dụng Ant Design Dropdown */}
+              <Dropdown
+                open={notificationOpen}
+                onOpenChange={(open) => {
+                  setNotificationOpen(open);
+                  if (open) setAccountMenuOpen(false);
+                }}
+                trigger={['click']}
+                placement="bottomRight"
+                popupContent={
                   <div
                     id="notification-menu"
-                    className="absolute right-0 top-[calc(100%+0.625rem)] w-80 sm:w-96 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-3 shadow-2xl shadow-slate-900/15 animate-fadeInScale z-50 text-slate-800"
+                    className="w-80 sm:w-96 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-3 shadow-2xl shadow-slate-900/15 text-slate-800"
                   >
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 px-2">
                       <div className="flex items-center gap-2">
@@ -375,8 +331,27 @@ export function Header({ role }: { role?: AppRole }) {
                       )}
                     </div>
                   </div>
-                )}
-              </div>
+                }
+              >
+                <button
+                  type="button"
+                  aria-label="Thông báo"
+                  title="Thông báo"
+                  className={cn(
+                    'relative flex size-10 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container cursor-pointer',
+                    isTransparent
+                      ? 'text-white hover:bg-white/15'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                  )}
+                >
+                  <span className="material-symbols-outlined text-[22px]">notifications</span>
+                  {unreadNotifCount > 0 && (
+                    <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+                      {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                    </span>
+                  )}
+                </button>
+              </Dropdown>
 
               {/* Nút Bong bóng chat / Tin nhắn 💬 */}
               <Link
@@ -398,56 +373,19 @@ export function Header({ role }: { role?: AppRole }) {
                 )}
               </Link>
 
-              {/* Nút Tài khoản người dùng (Giữ nguyên giao diện đẹp ban đầu) */}
-              <div ref={accountMenuRef} className="relative">
-                <button
-                  type="button"
-                  aria-expanded={accountMenuOpen}
-                  aria-controls="account-menu"
-                  onClick={() => {
-                    setAccountMenuOpen((open) => !open);
-                    setNotificationOpen(false);
-                  }}
-                  className={cn(
-                    'flex items-center gap-2 rounded-full px-2 py-1.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container cursor-pointer',
-                    isTransparent
-                      ? 'text-white hover:bg-white/15'
-                      : 'text-slate-800 hover:bg-slate-100',
-                  )}
-                >
-                  <span className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-container text-xs font-bold text-white shadow-sm ring-1 ring-black/5">
-                    {user.avatarUrl && !avatarFailed ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={user.avatarUrl}
-                        alt={user.fullName || user.email}
-                        className="size-full object-cover"
-                        referrerPolicy="no-referrer"
-                        onError={() => setAvatarFailed(true)}
-                      />
-                    ) : (
-                      <span>{user.fullName ? user.fullName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}</span>
-                    )}
-                  </span>
-                  <span className={cn('hidden max-w-[140px] truncate text-sm font-semibold leading-tight sm:block', isTransparent ? 'text-white' : 'text-slate-900')}>
-                    {user.fullName || user.email}
-                  </span>
-                  <span
-                    className={cn(
-                      'material-symbols-outlined hidden text-[18px] transition-transform sm:block',
-                      isTransparent ? 'text-white/80' : 'text-slate-500',
-                      accountMenuOpen ? 'rotate-180' : '',
-                    )}
-                    aria-hidden="true"
-                  >
-                    expand_more
-                  </span>
-                </button>
-
-                {accountMenuOpen && (
+              {/* Nút Tài khoản người dùng sử dụng Ant Design Dropdown */}
+              <Dropdown
+                open={accountMenuOpen}
+                onOpenChange={(open) => {
+                  setAccountMenuOpen(open);
+                  if (open) setNotificationOpen(false);
+                }}
+                trigger={['click']}
+                placement="bottomRight"
+                popupContent={
                   <div
                     id="account-menu"
-                    className="absolute right-0 top-[calc(100%+0.625rem)] w-56 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-900/15 animate-fadeInScale z-50"
+                    className="w-56 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-900/15"
                   >
                     <div className="p-1.5">
                       {effectiveRole === 'TRAVELER' ? (
@@ -514,8 +452,48 @@ export function Header({ role }: { role?: AppRole }) {
                       </button>
                     </div>
                   </div>
-                )}
-              </div>
+                }
+              >
+                <button
+                  type="button"
+                  aria-expanded={accountMenuOpen}
+                  aria-controls="account-menu"
+                  className={cn(
+                    'flex items-center gap-2 rounded-full px-2 py-1.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container cursor-pointer',
+                    isTransparent
+                      ? 'text-white hover:bg-white/15'
+                      : 'text-slate-800 hover:bg-slate-100',
+                  )}
+                >
+                  <span className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-container text-xs font-bold text-white shadow-sm ring-1 ring-black/5">
+                    {user.avatarUrl && !avatarFailed ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={user.avatarUrl}
+                        alt={user.fullName || user.email}
+                        className="size-full object-cover"
+                        referrerPolicy="no-referrer"
+                        onError={() => setAvatarFailed(true)}
+                      />
+                    ) : (
+                      <span>{user.fullName ? user.fullName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}</span>
+                    )}
+                  </span>
+                  <span className={cn('hidden max-w-[140px] truncate text-sm font-semibold leading-tight sm:block', isTransparent ? 'text-white' : 'text-slate-900')}>
+                    {user.fullName || user.email}
+                  </span>
+                  <span
+                    className={cn(
+                      'material-symbols-outlined hidden text-[18px] transition-transform sm:block',
+                      isTransparent ? 'text-white/80' : 'text-slate-500',
+                      accountMenuOpen ? 'rotate-180' : '',
+                    )}
+                    aria-hidden="true"
+                  >
+                    expand_more
+                  </span>
+                </button>
+              </Dropdown>
             </div>
           ) : (
             <div className="flex items-center gap-2">

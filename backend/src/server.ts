@@ -12,7 +12,7 @@ async function bootstrap(): Promise<void> {
   const app = createApp();
   // Created explicitly (instead of app.listen) so Socket.IO can attach to the same HTTP server (chat module).
   const server = http.createServer(app);
-  const io = attachChatGateway(server); // realtime chat + live notifications (Socket.IO on the same port)
+  const io = attachChatGateway(server); // realtime chat + live notifications (Socket.IO on the same port) - AI Provider: Gemini
 
   const stopJobs = env.JOBS_ENABLED ? startMaintenanceJobs() : () => undefined;
 

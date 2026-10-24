@@ -38,7 +38,10 @@ const omitPassword = { passwordHash: true } as const;
 
 function toData(patch: UserPatch): Prisma.UserUncheckedUpdateInput {
   const { agencyProfile, guideProfile, ...scalars } = patch;
-  const data: Prisma.UserUncheckedUpdateInput = { ...scalars };
+  const data: Prisma.UserUncheckedUpdateInput = {
+    ...scalars,
+    ...(scalars.preferences !== undefined ? { preferences: (scalars.preferences ?? null) as any } : {}),
+  } as Prisma.UserUncheckedUpdateInput;
   if (agencyProfile) data.agencyProfile = { upsert: { create: agencyProfile, update: agencyProfile } };
   if (guideProfile) data.guideProfile = { upsert: { create: guideProfile, update: guideProfile } };
   return data;
@@ -88,10 +91,10 @@ export class UsersRepository {
         email: data.email.toLowerCase(),
         ...(agencyProfile ? { agencyProfile: { create: agencyProfile } } : {}),
         ...(guideProfile ? { guideProfile: { create: guideProfile } } : {}),
-      },
+      } as any,
       include,
       omit: omitPassword,
-    });
+    }) as unknown as Promise<UserRecord>;
   }
 
   updateById(id: string, patch: UserPatch): Promise<UserRecord | null> {

@@ -1,15 +1,26 @@
 import { z } from 'zod';
+import { containsProfanity, PROFANITY_ERROR_MESSAGE } from '@travel-platform/constants';
 import { idParamsSchema, idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 import { SUPPORT_LIMITS, TICKET_CATEGORY, TICKET_STATUS } from './support.types';
 
-const text = z.string().trim().min(2).max(SUPPORT_LIMITS.MAX_TEXT_LENGTH);
+const text = z
+  .string()
+  .trim()
+  .min(2)
+  .max(SUPPORT_LIMITS.MAX_TEXT_LENGTH)
+  .refine((val) => !containsProfanity(val), PROFANITY_ERROR_MESSAGE);
 const status = z.enum(Object.values(TICKET_STATUS) as [string, ...string[]]);
 const category = z.enum(Object.values(TICKET_CATEGORY) as [string, ...string[]]);
 
 export const createTicketBody = z
   .object({
-    subject: z.string().trim().min(5).max(200),
+    subject: z
+      .string()
+      .trim()
+      .min(5)
+      .max(200)
+      .refine((val) => !containsProfanity(val), PROFANITY_ERROR_MESSAGE),
     category,
     message: text.min(10),
     bookingId: idSchema.optional(),

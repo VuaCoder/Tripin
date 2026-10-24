@@ -36,7 +36,7 @@ const MINUTE_MS = 60 * 1000;
 type Repo = Pick<
   BookingsRepository,
   | 'create' | 'findById' | 'findByRequestId' | 'transition' | 'updateById' | 'listByTraveler' | 'listByAgency'
-  | 'findExpiredPending' | 'findDueForCompletion' | 'statusCounts' | 'revenueTotals' | 'dailyNet' | 'monthlyTotals' | 'topTours' | 'listPaidForTour' | 'customerCount'
+  | 'findExpiredPending' | 'findDueForCompletion' | 'statusCounts' | 'revenueTotals' | 'dailyNet' | 'monthlyTotals' | 'topTours' | 'listPaidForTour' | 'customerCount' | 'countByTraveler'
 >;
 
 const AMOUNT_TOO_LOW = () =>

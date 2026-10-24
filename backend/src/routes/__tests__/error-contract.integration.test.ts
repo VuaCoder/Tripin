@@ -55,6 +55,20 @@ const COVERED_ELSEWHERE: Record<string, string> = {
   PROMOTION_FIRST_BOOKING_ONLY: 'promotions.service.test.ts verifies first booking only restriction',
   PROMOTION_USER_LIMIT_REACHED: 'promotions.service.test.ts verifies per-user usage limits',
   PROMOTION_CODE_USED: 'promotions.service.test.ts verifies single-use batch codes',
+  PROFANITY_DETECTED: 'profanity.test.ts and chat.service.test.ts verify profanity rejection',
+  PROMOTION_ARCHIVED: 'promotions.service.test.ts verifies archived promotion rejection',
+  PROMOTION_BATCH_PREFIX_NOT_USABLE: 'promotions.service.test.ts verifies prefix usability',
+  COMPLAINT_ALREADY_OPEN: 'complaints.service.test.ts verifies only one active ticket per booking',
+  FEEDBACK_EXISTS: 'complaints.service.test.ts verifies single feedback submission',
+  TICKET_NOT_CLOSED: 'complaints.service.test.ts verifies feedback requires closed ticket',
+  AI_NOT_CONFIGURED: 'ai.service.test.ts verifies disabled provider maps to 503 AI_NOT_CONFIGURED',
+  AI_QUOTA_EXCEEDED: 'ai.service.test.ts verifies provider 429 maps to 429 AI_QUOTA_EXCEEDED',
+  AI_TIMEOUT: 'ai.service.test.ts verifies abort timeout maps to 504 AI_TIMEOUT',
+  AI_UNREACHABLE: 'ai.service.test.ts verifies network failure maps to 502 AI_UNREACHABLE',
+  AI_TEMPORARILY_UNAVAILABLE: 'ai.service.test.ts verifies provider 5xx maps to 503 AI_TEMPORARILY_UNAVAILABLE',
+  AI_CONTENT_BLOCKED: 'ai.service.test.ts verifies safety block maps to 422 AI_CONTENT_BLOCKED',
+  AI_EMPTY_RESPONSE: 'ai.service.test.ts verifies empty response maps to 502 AI_EMPTY_RESPONSE',
+  AI_INCOMPLETE_RESPONSE: 'ai.service.test.ts verifies token truncation maps to 502 AI_INCOMPLETE_RESPONSE',
 };
 
 beforeAll(startDatabase, 120_000);

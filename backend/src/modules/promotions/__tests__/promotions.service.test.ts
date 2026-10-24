@@ -316,7 +316,7 @@ describe('sweepExpiringVouchers (smart leisure-slot alert)', () => {
   });
 
   it('archives a promotion and rejects archived promotion code on resolve', async () => {
-    const { service, repo } = make([promo({ id: 'p1', code: 'OLDPROMO', isArchived: false, isActive: true })]);
+    const { service } = make([promo({ id: 'p1', code: 'OLDPROMO', isArchived: false, isActive: true })]);
 
     // Archive the promotion
     const updated = await service.updateForAgency(agency as any, 'p1', { isArchived: true });

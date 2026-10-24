@@ -56,7 +56,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Tour complaint tickets | complaints | `POST /complaints`, `GET /complaints/me`, `GET /complaints/:id`, `POST /complaints/:id/messages`, `POST /complaints/:id/accept-resolution`, `POST /complaints/:id/escalate`, `POST /complaints/:id/feedback`, `POST /complaints/images/upload-signature` | report:create | done |
 | Send ticket (support) | support | `POST /support/tickets`, `GET /support/tickets/me`, `GET /support/tickets/:id`, `POST /support/tickets/:id/messages`, `POST /support/tickets/:id/close` | support:create | done |
 | Make a conversation (with Tour guide) | chat | `POST /chat/conversations`, `GET /chat/conversations`, `GET /chat/conversations/:id`, `GET /chat/conversations/:id/messages`, `POST /chat/conversations/:id/messages`, `POST /chat/conversations/:id/read` + Socket.IO | chat:use | done |
-| Chat with AI (AI Agent) | ai | `POST /ai/chat`, `GET /ai/conversations`, `GET /ai/conversations/:id` | ai:chat | done |
+| Chat with AI (AI Agent) | ai | `POST /ai/chat`, `GET /ai/conversations`, `GET /ai/conversations/:id`, `GET /ai/overview`, `POST /ai/conversations/:id/read` | ai:chat | done |
 | (supporting) notifications | notifications | `GET /notifications`, `GET /notifications/unread-count`, `PATCH /notifications/:id/read`, `POST /notifications/read-all`, `DELETE /notifications/:id` | auth; owner-scoped | done |
 
 ## Agency

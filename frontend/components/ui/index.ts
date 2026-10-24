@@ -8,3 +8,4 @@ export * from './Pagination';
 export * from './AntSelect';
 export * from './AntDatePicker';
 export * from './AntDateRangePicker';
+export * from '../shared/Dropdown';

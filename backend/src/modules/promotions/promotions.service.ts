@@ -1,13 +1,12 @@
 import { DISCOUNT_TYPE, PROMOTION_APPLY_TYPE, PROMOTION_CODE_TYPE, PROMOTION_SCOPE, type PersistedRole, type PromotionScope } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
-import { prisma } from '../../config/database';
 import { buildPage, type Page, type PageRequest } from '../../utils/pagination';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
 import { toursService, type ToursService } from '../tours';
 import { notificationsService, type NotificationsService, NOTIFICATION_TYPE } from '../notifications';
 import { usersService, type UsersService } from '../users';
 import type { FreeTimeSlot } from '../users/users.types';
-import type { PromotionCodeInstanceRecord, PromotionRecord, UserVoucherRecord } from './promotions.repository';
+import type { PromotionCodeInstanceRecord, PromotionRecord } from './promotions.repository';
 import { toPromotionDto } from './promotions.mapper';
 import { assertApplicable, computeDiscount, isApplicable } from './promotions.policy';
 import { promotionsRepository, type PromotionsRepository } from './promotions.repository';
@@ -246,7 +245,7 @@ export class PromotionsService {
       if (!slot.enabled) return false;
       const [startH, startM] = slot.start.split(':').map(Number);
       const [endH, endM] = slot.end.split(':').map(Number);
-      if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) return false;
+      if (startH === undefined || startM === undefined || endH === undefined || endM === undefined || isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) return false;
       const startMin = startH * 60 + startM;
       const endMin = endH * 60 + endM;
       return currentMinutes >= startMin && currentMinutes <= endMin;

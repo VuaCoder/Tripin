@@ -12,8 +12,11 @@ import { BoatIllustration } from '../BoatIllustration';
 import { BoatPreloader } from '../BoatPreloader';
 import { RoutePreloader } from '../RoutePreloader';
 
-afterEach(cleanup);
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  cleanup();
+  window.history.replaceState({}, '', '/');
+  vi.unstubAllGlobals();
+});
 
 describe('BoatIllustration', () => {
   it('renders SVG with boat group, mast, sails, and 3 wave layers', () => {
@@ -113,6 +116,23 @@ describe('RoutePreloader', () => {
     }
   });
 
+  it('does not cover AI, person chat, or chat browser history with a preloader', () => {
+    const previousUrl = window.location.href;
+    window.history.replaceState({}, '', '/conversations');
+    try {
+      render(<><RoutePreloader /><a href="/conversations/ai">AI chat</a><a href="/conversations/person">Person chat</a></>);
+      fireEvent.click(screen.getByText('AI chat'));
+      expect(screen.queryByRole('status')).toBeNull();
+      fireEvent.click(screen.getByText('Person chat'));
+      expect(screen.queryByRole('status')).toBeNull();
+      window.history.pushState({}, '', '/conversations/ai');
+      fireEvent.popState(window);
+      expect(screen.queryByRole('status')).toBeNull();
+    } finally {
+      window.history.replaceState({}, '', previousUrl);
+    }
+  });
+
   it('keeps Agency links lightweight even if an old opt-in attribute remains', () => {
     render(<><RoutePreloader /><a href="/agency/tours" data-route-preloader="true">Quản lý tour Agency</a><a href="/agency/notifications" data-no-preloader="true">Mở thông báo</a></>);
     fireEvent.click(screen.getByText('Mở thông báo'));
@@ -128,7 +148,8 @@ describe('RoutePreloader', () => {
     vi.useRealTimers();
   });
 
-  it('does NOT trigger preloader on settings link clicks or same-page links', () => {
+  it('does not trigger a preloader between account sections', () => {
+    window.history.replaceState({}, '', '/settings/profile');
     render(
       <div>
         <RoutePreloader />

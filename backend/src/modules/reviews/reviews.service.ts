@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { isUniqueViolation } from '../../config/database';
 import { createImageUploadSignature, imagePublicId, verifyImageUpload } from '../../integrations/cloudinary';
-import { BOOKING_STATUS, type PersistedRole } from '@travel-platform/constants';
-import { AppError } from '../../utils/app-error';
+import { BOOKING_STATUS, containsProfanity, PROFANITY_ERROR_MESSAGE, type PersistedRole } from '@travel-platform/constants';
+import { AppError, ERROR_CODES } from '../../utils/app-error';
 import { buildPage, type Page } from '../../utils/pagination';
 import { assertTransition } from '../../utils/state-machine';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
@@ -66,6 +66,9 @@ export class ReviewsService {
 
   async createReview(travelerId: string, input: CreateReviewInput): Promise<MyReviewDto> {
     const booking = await this.reviewableBooking(travelerId, input.bookingId);
+    if (containsProfanity(input.comment)) {
+      throw AppError.badRequest(PROFANITY_ERROR_MESSAGE, undefined, ERROR_CODES.PROFANITY_DETECTED);
+    }
     const ids = input.imagePublicIds ?? [];
     if (ids.length > 6 || new Set(ids).size !== ids.length) throw AppError.badRequest('Maximum 6 unique review images');
     const prefix = `${imagePublicId('reviewImage', `${travelerId}/${booking.id}`)}/`;

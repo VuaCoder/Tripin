@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 182 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 184 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -153,6 +153,8 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/ai/chat` | `ai:chat` |
 | GET | `/api/v1/ai/conversations` | `ai:chat` |
 | GET | `/api/v1/ai/conversations/:id` | `ai:chat` |
+| POST | `/api/v1/ai/conversations/:id/read` | `ai:chat` |
+| GET | `/api/v1/ai/overview` | `ai:chat` |
 
 ## `/auth`
 

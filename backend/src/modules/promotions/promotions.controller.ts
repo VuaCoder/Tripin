@@ -101,25 +101,27 @@ export class PromotionsController {
   // ---- checkout helper
   preview: RequestHandler = async (req, res) => {
     const { query } = validated<unknown, PreviewQueryInput>(req);
+    const userId = req.actor?.kind === 'user' ? req.actor.userId : undefined;
     sendOk(
       res,
       await this.service.preview(query.code, query.tourId, query.subtotal, {
         participants: query.participants,
         departureDate: query.departureDate,
-        userId: req.user?.id,
+        userId,
       }),
     );
   };
 
   available: RequestHandler = async (req, res) => {
     const { query } = validated<unknown, AvailableQueryInput>(req);
+    const userId = req.actor?.kind === 'user' ? req.actor.userId : undefined;
     sendOk(
       res,
       await this.service.listAvailableForTour(query.tourId, {
         subtotal: query.subtotal,
         participants: query.participants,
         departureDate: query.departureDate,
-        userId: req.user?.id,
+        userId,
       }),
     );
   };

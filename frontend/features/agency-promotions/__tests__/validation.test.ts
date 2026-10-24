@@ -107,6 +107,8 @@ describe('payload builders', () => {
   const original: AgencyPromotion = {
     id: 'p1',
     scope: 'AGENCY',
+    applyType: 'CODE',
+    codeType: 'SHARED',
     code: 'HE2026',
     title: 'Giảm hè',
     discountType: 'PERCENT',
@@ -116,6 +118,7 @@ describe('payload builders', () => {
     endsAt: new Date('2026-12-01T08:00').toISOString(),
     usedCount: 0,
     isActive: true,
+    isArchived: false,
     isRunning: false,
   };
 

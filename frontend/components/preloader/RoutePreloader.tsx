@@ -10,6 +10,12 @@ import React, {
 import { usePathname, useSearchParams } from 'next/navigation';
 import { BoatPreloader } from './BoatPreloader';
 
+const navigationSection = (path: string) => {
+  if (path === '/conversations' || path.startsWith('/conversations/')) return 'chat';
+  if (path === '/settings' || path.startsWith('/settings/') || path === '/traveler' || path.startsWith('/traveler/')) return 'account';
+  return undefined;
+};
+
 const MIN_DISPLAY_MS = 380;
 const MAX_SAFETY_TIMEOUT_MS = 4500;
 const AUTOMATIC_DELAY_MS = 180;
@@ -64,6 +70,7 @@ export function RoutePreloader() {
   const automaticDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastCommittedPathRef = useRef(typeof window === 'undefined' ? '' : window.location.pathname);
 
+  const previousPathRef = useRef('');
   const startTimeRef = useRef<number>(0);
   const safetyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const minDurationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -132,6 +139,7 @@ export function RoutePreloader() {
 
   const handleRouteSettled = useCallback(
     (pathname: string) => {
+      previousPathRef.current = pathname;
       lastCommittedPathRef.current = pathname;
       clearAutomaticDelay();
       // If manualHoldRef is active (e.g. post-payment custom reconciliation flow), do not auto dismiss!
@@ -144,6 +152,7 @@ export function RoutePreloader() {
   );
 
   useEffect(() => {
+    previousPathRef.current = window.location.pathname;
     const scheduleAutomaticStart = () => {
       clearAutomaticDelay();
       if (activeRef.current || manualHoldRef.current) return;
@@ -166,9 +175,18 @@ export function RoutePreloader() {
       }
       if (url.origin !== window.location.origin || isAgencyPath(window.location.pathname) || isAgencyPath(url.pathname)) return;
       if (url.pathname === window.location.pathname) return;
+
+      const destinationSection = navigationSection(url.pathname);
+      if (destinationSection && destinationSection === navigationSection(window.location.pathname)) return;
+
       scheduleAutomaticStart();
     };
     const handlePopState = () => {
+      const currentPath = window.location.pathname;
+      const destinationSection = navigationSection(currentPath);
+      const sourceSection = navigationSection(previousPathRef.current || lastCommittedPathRef.current);
+      previousPathRef.current = currentPath;
+      if (destinationSection && destinationSection === sourceSection) return;
       if (!isAgencyPath(lastCommittedPathRef.current) && !isAgencyPath(window.location.pathname) && lastCommittedPathRef.current !== window.location.pathname) scheduleAutomaticStart();
     };
     // Custom events for intentional branded flows (e.g. post-payment reconciliation).
