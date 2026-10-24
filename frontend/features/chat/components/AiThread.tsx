@@ -146,7 +146,7 @@ export function AiThread() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, busy, scrollToBottom]);
+  }, [messages, busy, historyOpen, scrollToBottom]);
 
   const handleStartNewChat = () => {
     if (sending.current) return;
@@ -157,6 +157,7 @@ export function AiThread() {
     setMessages([]);
     setGlobalError('');
     setDraft('');
+    setHistoryPage(1);
     setReadError(''); setHistoryOpen(false); stickRef.current = true; setAtBottom(true);
   };
 
@@ -269,12 +270,12 @@ export function AiThread() {
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col bg-white">
       {/* Header */}
-      <header className="flex items-center justify-between border-b border-slate-200/90 px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-3 min-w-0">
+      <header className="flex items-center justify-between gap-2 border-b border-slate-200/90 px-4 py-3 sm:px-6">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
           <Link
             href="/conversations"
             aria-label="Về danh sách"
-            className="rounded-lg p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 md:hidden"
+            className="shrink-0 rounded-lg p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 md:hidden"
           >
             <ArrowLeft size={20} />
           </Link>
@@ -287,7 +288,7 @@ export function AiThread() {
               <h2 className="truncate text-sm sm:text-base font-bold text-slate-900">
                 Trợ lý AI Tripri
               </h2>
-              <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-primary-container border border-teal-200/60">
+              <span className="hidden shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-primary-container border border-teal-200/60 sm:inline-flex">
                 <Sparkles size={11} className="text-teal-600" />
                 AI Agent
               </span>

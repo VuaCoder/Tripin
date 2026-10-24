@@ -40,7 +40,7 @@ vi.mock('../api/aiChatApi', () => ({
     (body: any) => ({ unwrap: () => mocks.chatWithAi(body) }),
     { isLoading: false },
   ],
-  useGetAiConversationsQuery: () => mocks.getAiConversations(),
+  useGetAiConversationsQuery: (params: unknown) => mocks.getAiConversations(params),
   useLazyGetAiConversationQuery: () => [
     (id: string) => ({ unwrap: () => mocks.getAiConversation(id) }),
   ],
@@ -231,6 +231,25 @@ describe('Chat with AI Integration', () => {
     fireEvent.change(screen.getByLabelText('Nhập câu hỏi cho Trợ lý AI'), { target: { value: 'Đi tiếp ở đâu?' } });
     fireEvent.click(screen.getByLabelText('Gửi câu hỏi'));
     await waitFor(() => expect(mocks.chatWithAi).toHaveBeenCalledWith({ conversationId: 'saved', message: 'Đi tiếp ở đâu?' }));
+  });
+
+  it('returns history to the newest page after starting a fresh chat from page two', async () => {
+    const summary = (id: string, title: string) => ({ id, title, unreadCount: 0, updatedAt: new Date().toISOString(), lastMessage: null });
+    mocks.getAiConversations.mockImplementation(({ page }: { page: number }) => ({
+      data: { data: [page === 1 ? summary('newest', 'Đoạn mới nhất') : summary('oldest', 'Đoạn cũ nhất')], meta: { totalPages: 2 } }, isLoading: false,
+    }));
+    mocks.getAiConversation.mockImplementation(async (id: string) => ({ id, messages: [] }));
+    render(<AiThread />);
+    await waitFor(() => expect(mocks.getAiConversation).toHaveBeenCalledWith('newest'));
+    fireEvent.click(screen.getByRole('button', { name: 'Lịch sử' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sau' }));
+    fireEvent.click(screen.getByRole('button', { name: /Đoạn cũ nhất/ }));
+    await waitFor(() => expect(mocks.getAiConversation).toHaveBeenCalledWith('oldest'));
+    fireEvent.click(screen.getByTitle('Bắt đầu cuộc trò chuyện mới'));
+    fireEvent.click(screen.getByRole('button', { name: 'Lịch sử' }));
+    expect(screen.getByText('Đoạn mới nhất')).toBeTruthy();
+    expect(screen.getByText('Trang 1/2')).toBeTruthy();
+    expect(screen.queryByText('Đoạn cũ nhất')).toBeNull();
   });
 
   it('does not mark a reply read in a hidden tab, and reads it when visible', async () => {

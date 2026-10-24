@@ -30,6 +30,10 @@ fs.mkdirSync(output, { recursive: true });
       const page = await context.newPage();
       page.on('pageerror', error => errors.push(error.message));
       await page.goto(`${base}/login`, { waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(() => {
+        const form = document.querySelector('form[data-purpose="login-form"]');
+        return form && Object.keys(form).some(key => key.startsWith('__reactProps$') && typeof form[key]?.onSubmit === 'function');
+      });
       await page.locator('#user-credential').fill(email);
       await page.locator('#user-password').fill('ChatSmoke2026!');
       const response = page.waitForResponse(response => response.url() === `${api}/auth/login` && response.request().method() === 'POST');

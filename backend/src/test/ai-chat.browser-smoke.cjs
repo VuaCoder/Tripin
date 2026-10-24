@@ -17,6 +17,10 @@ fs.mkdirSync(output, { recursive: true });
     const page = await context.newPage();
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(`${base}/login`, { waitUntil: 'domcontentloaded', timeout: 180000 });
+    await page.waitForFunction(() => {
+      const form = document.querySelector('form[data-purpose="login-form"]');
+      return form && Object.keys(form).some(key => key.startsWith('__reactProps$') && typeof form[key]?.onSubmit === 'function');
+    });
     await page.locator('#user-credential').fill('traveler@chat.test');
     await page.locator('#user-password').fill('ChatSmoke2026!');
     const loginResponse = page.waitForResponse(r => r.url() === `${api}/auth/login` && r.request().method() === 'POST');
@@ -75,5 +79,12 @@ fs.mkdirSync(output, { recursive: true });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, 'mobile horizontal overflow');
     assert.deepEqual(errors, []);
     console.log(JSON.stringify({ passed: true, checks: ['preview and unread', 'history pagination', 'old date groups', 'continue old chat', 'new chat preserves history', 'reload', 'socket update from another device', 'desktop and mobile'], output }));
+  } catch (error) {
+    const page = context.pages()[0];
+    if (page) {
+      await page.screenshot({ path: path.join(output, 'failure.png'), fullPage: true }).catch(() => {});
+      console.log(`Browser at ${page.url()}: ${(await page.locator('body').innerText().catch(() => '')).slice(-3500)}`);
+    }
+    throw error;
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
