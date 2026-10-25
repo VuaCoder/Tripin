@@ -216,6 +216,7 @@ model Booking {
   promotionCode    String?
   promotionScope   PromotionScope?
   discountAmount   Int             @default(0)
+  premiumVoucherId String?         @db.Uuid
   totalAmount      Int
   commissionBps    Int
   commissionAmount Int
@@ -441,10 +442,15 @@ model SubscriptionPlan {
   benefits     String[] @default([])
   isActive     Boolean  @default(true)
   sortOrder    Int      @default(0)
+  isPremium    Boolean  @default(false)
+  audience     Role     @default(TOUR_GUIDE)
+  version      Int      @default(1)
+  published    Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   subscriptions Subscription[]
+  premiumVouchers PremiumPlanVoucher[]
 
   @@index([isActive, sortOrder])
 }
@@ -457,6 +463,12 @@ model Subscription {
   planName     String
   price        Int
   durationDays Int
+  isPremium    Boolean            @default(false)
+  audience     Role               @default(TOUR_GUIDE)
+  planVersion  Int                @default(1)
+  entitlementSnapshot Json        @default("{}")
+  revokedAt    DateTime?
+  benefitsGrantedAt DateTime?
   status       SubscriptionStatus @default(PENDING_PAYMENT)
   startsAt     DateTime?
   endsAt       DateTime?
@@ -464,12 +476,112 @@ model Subscription {
   updatedAt    DateTime           @updatedAt
 
   plan SubscriptionPlan @relation(fields: [planId], references: [id])
+  premiumReservations PremiumReservation[]
+  premiumVouchers PremiumVoucher[]
+  premiumRefund PremiumRefund?
 
   // Also in the migration SQL: UNIQUE ("userId", "planId") WHERE status = 'PENDING_PAYMENT'.
   @@index([userId, status, endsAt(sort: Desc)])
   @@index([userId, createdAt(sort: Desc)])
   @@index([status, endsAt])
   @@index([status, createdAt])
+}
+
+// Premium commitments are independent of editable promotions: sold terms are immutable.
+model PremiumContribution {
+  id String @id @default(uuid()) @db.Uuid
+  agencyId String @db.Uuid
+  title String
+  tourIds String[]
+  discountType DiscountType
+  discountValue Int
+  maxDiscountAmount Int?
+  minOrderAmount Int @default(0)
+  capacity Int
+  reserved Int @default(0)
+  status String @default("PENDING")
+  acceptingNew Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  plans PremiumPlanVoucher[]
+  reservations PremiumReservation[]
+  @@index([agencyId, createdAt])
+}
+
+model PremiumPlanVoucher {
+  id String @id @default(uuid()) @db.Uuid
+  planId String @db.Uuid
+  contributionId String @db.Uuid
+  quantity Int
+  plan SubscriptionPlan @relation(fields: [planId], references: [id])
+  contribution PremiumContribution @relation(fields: [contributionId], references: [id])
+  @@unique([planId, contributionId])
+}
+
+model PremiumReservation {
+  id String @id @default(uuid()) @db.Uuid
+  subscriptionId String @db.Uuid
+  contributionId String @db.Uuid
+  quantity Int
+  terms Json
+  state String @default("HELD")
+  expiresAt DateTime
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+  contribution PremiumContribution @relation(fields: [contributionId], references: [id])
+  @@unique([subscriptionId, contributionId])
+  @@index([state, expiresAt])
+}
+
+model PremiumVoucher {
+  id String @id @default(uuid()) @db.Uuid
+  subscriptionId String @db.Uuid
+  userId String @db.Uuid
+  contributionId String @db.Uuid
+  ordinal Int
+  terms Json
+  startsAt DateTime
+  endsAt DateTime
+  bookingId String? @unique @db.Uuid
+  heldAt DateTime?
+  leaseToken String? @db.Uuid
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+  @@unique([subscriptionId, contributionId, ordinal])
+  @@index([userId, endsAt])
+}
+
+model PremiumRefund {
+  id String @id @default(uuid()) @db.Uuid
+  subscriptionId String @unique @db.Uuid
+  userId String @db.Uuid
+  amount Int
+  reason String
+  status String @default("REQUESTED")
+  decisionNote String?
+  reviewedBy String? @db.Uuid
+  transferReference String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+  @@index([status, createdAt])
+}
+
+model PremiumGuideProfile {
+  userId String @id @db.Uuid
+  introduction String @default("")
+  portfolio Json @default("[]")
+  certificates Json @default("[]")
+  updatedAt DateTime @updatedAt
+}
+
+model PremiumGuideActivity {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  tourId String @db.Uuid
+  tourTitle String
+  action String
+  bookingId String? @unique @db.Uuid
+  occurredAt DateTime @default(now())
+  @@index([userId, occurredAt])
 }
 
 model SupportTicket {

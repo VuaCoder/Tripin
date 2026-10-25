@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   payment: vi.fn(),
   history: vi.fn(),
   current: vi.fn(),
+  premiumPeriod: vi.fn(),
   checkout: vi.fn(),
   open: vi.fn(),
   paymentId: 'pay-1',
@@ -34,6 +35,12 @@ vi.mock('@/features/guide/api/subscriptionsApi', () => ({
     mocks.current(...args),
 }));
 vi.mock('../utils/checkout', () => ({ openCheckout: mocks.open }));
+vi.mock('@/features/premium/api', () => ({
+  usePremiumPeriodQuery: (...args: unknown[]) => mocks.premiumPeriod(...args),
+}));
+vi.mock('@/store/hooks', () => ({
+  useAppSelector: () => ({ id: 'premium-user', role: 'TRAVELER' }),
+}));
 import { PaymentReturnContent } from '../components/PaymentReturnPage';
 
 const payment = {
@@ -45,6 +52,15 @@ const payment = {
   expiresAt: '2026-10-01T00:30:00Z',
 };
 beforeEach(() => {
+  mocks.premiumPeriod.mockReturnValue(
+    queryResult({
+      id: 'sub-1',
+      status: 'PENDING_PAYMENT',
+      startsAt: null,
+      endsAt: null,
+      revokedAt: null,
+    }),
+  );
   mocks.paymentId = 'pay-1';
   mocks.payment.mockReturnValue(queryResult(payment));
   mocks.history.mockReturnValue(queryResult({ items: [subscription], meta }));
@@ -59,6 +75,61 @@ afterEach(() => {
 });
 
 describe('payment callbacks', () => {
+  it('reads the exact Premium period and waits for verified activation before announcing it', () => {
+    mocks.payment.mockReturnValue(
+      queryResult({ ...payment, premium: true, status: 'PAID' }),
+    );
+    const view = render(<PaymentReturnContent />);
+    expect(screen.getByText(/Đang đồng bộ quyền lợi Premium/)).toBeTruthy();
+    expect(
+      screen.getByRole('link', { name: 'Xem Premium' }).getAttribute('href'),
+    ).toBe('/premium');
+    expect(mocks.premiumPeriod.mock.calls[0]![0]).toEqual({
+      userId: 'premium-user',
+      id: 'sub-1',
+    });
+    mocks.premiumPeriod.mockReturnValue(
+      queryResult({
+        id: 'sub-1',
+        status: 'ACTIVE',
+        startsAt: new Date(Date.now() - 86400000).toISOString(),
+        endsAt: new Date(Date.now() + 86400000).toISOString(),
+        revokedAt: null,
+      }),
+    );
+    view.rerender(<PaymentReturnContent />);
+    expect(screen.getByText(/Premium đã được kích hoạt/)).toBeTruthy();
+    expect(mocks.checkout).not.toHaveBeenCalled();
+  });
+  it('shows a revoked Premium refund obligation instead of activation success', () => {
+    mocks.payment.mockReturnValue(
+      queryResult({ ...payment, premium: true, status: 'PAID' }),
+    );
+    mocks.premiumPeriod.mockReturnValue(
+      queryResult({ status: 'CANCELLED', revokedAt: new Date().toISOString() }),
+    );
+    render(<PaymentReturnContent />);
+    expect(
+      screen.getByText(/đã được thu hồi hoặc đang chờ hoàn tiền/),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Premium đã được kích hoạt/)).toBeNull();
+  });
+  it('recognizes an old Premium receipt whose paid period has expired', () => {
+    mocks.payment.mockReturnValue(
+      queryResult({ ...payment, premium: true, status: 'PAID' }),
+    );
+    mocks.premiumPeriod.mockReturnValue(
+      queryResult({
+        status: 'EXPIRED',
+        endsAt: '2020-01-01T00:00:00Z',
+        revokedAt: null,
+      }),
+    );
+    render(<PaymentReturnContent />);
+    expect(
+      screen.getByText('Kỳ Premium đã thanh toán và hiện đã hết hạn.'),
+    ).toBeTruthy();
+  });
   it('does not trust a cancel callback to declare cancellation, and never calls booking checkout for a subscription', () => {
     render(<PaymentReturnContent cancelled />);
     expect(

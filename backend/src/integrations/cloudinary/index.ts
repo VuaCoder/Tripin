@@ -11,6 +11,7 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
  * target the caller's own slot and verification can prove the asset belongs to them.
  */
 const PURPOSES = {
+  premiumImage: { prefix: 'tripin/guides/premium', tag: 'tripin_premium', label: 'Premium image' },
   avatar: { prefix: 'tripin/travelers/avatars', tag: 'tripin_avatar', label: 'Avatar' },
   licenseImage: { prefix: 'tripin/guides/licenses', tag: 'tripin_guide_license', label: 'License image' },
   agencyLicenseImage: { prefix: 'tripin/agencies/licenses', tag: 'tripin_agency_license', label: 'Agency license image' },

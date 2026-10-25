@@ -49,6 +49,7 @@ export interface PrivateUserDto {
 
 /** "View public tour guide profile" — no email/phone/status. */
 export interface PublicGuideDto {
+  premiumActive?: boolean;
   id: string;
   fullName: string;
   avatarUrl?: string;

@@ -1,4 +1,5 @@
 'use client';
+import { OwnPremiumIdentity, PremiumStatusText, useOwnPremium } from '@/features/premium/PremiumIdentity';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -20,14 +21,12 @@ export function MobileNavigation({
   const activeHref = getActiveNavigationHref(usePathname(), items);
   const [accountOpen, setAccountOpen] = useState(false);
   const user = useAppSelector(selectUser);
+  const premium = useOwnPremium(user?.id);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const logout = useLogout();
 
   const accountLinks = user?.role === 'TRAVELER'
-    ? [
-        { label: 'Hồ sơ cá nhân', href: '/settings/profile', icon: 'person' },
-        { label: 'Ví voucher', href: '/settings/vouchers', icon: 'confirmation_number' },
-      ]
+    ? [{ label: 'Hồ sơ cá nhân', href: '/settings/profile', icon: 'person' }]
     : user
       ? [{ label: 'Tổng quan', href: homeForRole(user.role), icon: 'dashboard' }]
       : [];
@@ -108,7 +107,7 @@ export function MobileNavigation({
           </div>
 
           <div className="flex flex-col gap-2 border-t border-surface-container pt-3">
-            <button
+            {(!isAuthenticated || !user || !['TRAVELER','TOUR_GUIDE'].includes(user.role)) && <button
               type="button"
               onClick={() => {
                 closeMenu();
@@ -125,7 +124,7 @@ export function MobileNavigation({
               </span>
               <span className="text-amber-950">Khám phá Tripri Premium</span>
               <span className="material-symbols-outlined text-[15px] text-amber-900/80">auto_awesome</span>
-            </button>
+            </button>}
 
             <Link
               href="/custom-trip"
@@ -144,9 +143,7 @@ export function MobileNavigation({
                   aria-expanded={accountOpen}
                   className="flex w-full items-center gap-3 rounded-xl border border-surface-container bg-surface-container-low p-2.5 text-left"
                 >
-                  <span className="flex size-9 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-white shadow-sm">
-                    {user.fullName ? user.fullName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
-                  </span>
+                  <OwnPremiumIdentity userId={user.id} url={user.avatarUrl} name={user.fullName || user.email} size="sm" showStatus={false} />
                   <span className="flex min-w-0 flex-1 flex-col text-left">
                     <span className="truncate text-xs font-bold text-slate-900">{user.fullName || user.email}</span>
                     <span className="text-[10px] font-semibold uppercase text-primary-container">{user.role}</span>
@@ -169,7 +166,8 @@ export function MobileNavigation({
                         {item.label}
                       </Link>
                     ))}
-                    {user.role === 'TRAVELER' && (
+                    {premium.isError && ['TRAVELER','TOUR_GUIDE'].includes(user.role) && <PremiumStatusText error onRetry={() => void premium.refetch()} />}
+                    {['TRAVELER','TOUR_GUIDE'].includes(user.role) && (
                       <button
                         type="button"
                         onClick={() => {
@@ -184,7 +182,7 @@ export function MobileNavigation({
                         >
                           workspace_premium
                         </span>
-                        <span className="flex-1 font-bold">Premium</span>
+                        <span className="flex-1">{premium.premium?.active ? <PremiumStatusText status={premium.premium} /> : <span className="font-bold">Premium</span>}</span>
                         <span className="material-symbols-outlined text-[14px] text-amber-500">auto_awesome</span>
                       </button>
                     )}

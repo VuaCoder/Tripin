@@ -1,4 +1,5 @@
 import type { DateRange } from '../../utils/date-range';
+import { premiumRepository } from '../premium/premium.repository';
 import { BOOKING_CANCEL_REASON, BOOKING_STATUS, PROMOTION_SCOPE, type BookingCancelReason, type BookingStatus, type PromotionScope } from '@travel-platform/constants';
 import { isUniqueViolation } from '../../config/database';
 import { AppError } from '../../utils/app-error';
@@ -76,6 +77,7 @@ export class BookingsService {
   }
 
   private async createBookingOnce(travelerId: string, input: CreateBookingInput): Promise<BookingDto> {
+    if (input.premiumVoucherId && (input.promotionCode || input.agencyPromotionCode || input.platformPromotionCode)) throw AppError.badRequest('Voucher Premium không cộng với mã khác');
     if (input.clientRequestId) {
       const duplicate = await this.bookings.findByRequestId(travelerId, input.clientRequestId);
       if (duplicate) return toBookingDto(duplicate);
@@ -92,6 +94,8 @@ export class BookingsService {
     await this.tours.reserveSeats(input.tourId, input.departureId, input.participants);
     let appliedAgency: AppliedPromotion | undefined;
     let appliedPlatform: AppliedPromotion | undefined;
+    let premium: { id: string; token: string; discountAmount: number } | undefined;
+    let saved = false;
     const isFirstBooking = (await this.bookings.countByTraveler?.(travelerId)) === 0;
     const redeemOpts = {
       participants: input.participants,
@@ -100,6 +104,7 @@ export class BookingsService {
       isFirstBooking,
     };
     try {
+      if (input.premiumVoucherId) premium = await premiumRepository.reserveVoucher(input.premiumVoucherId, travelerId, departure.agencyId, input.tourId, subtotal);
       if (input.agencyPromotionCode) {
         appliedAgency = await this.promotions.redeem(input.agencyPromotionCode, input.tourId, subtotal, redeemOpts);
         if (appliedAgency.scope !== PROMOTION_SCOPE.AGENCY) {
@@ -121,7 +126,7 @@ export class BookingsService {
         else appliedPlatform = applied;
       }
 
-      const discountAmount = (appliedAgency?.discountAmount ?? 0) + (appliedPlatform?.discountAmount ?? 0);
+      const discountAmount = (premium?.discountAmount ?? 0) + (appliedAgency?.discountAmount ?? 0) + (appliedPlatform?.discountAmount ?? 0);
       const totalAmount = Math.max(0, subtotal - discountAmount);
       if (totalAmount < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
       const commissionBps = await this.settings.getCommissionBps();
@@ -131,6 +136,7 @@ export class BookingsService {
       const combinedCode = [appliedAgency?.code, appliedPlatform?.code].filter(Boolean).join(' + ');
 
       const created = await this.createWithUniqueCode({
+        ...(premium ? { premiumVoucherId: premium.id, premiumVoucherToken: premium.token } : {}),
         travelerId,
         agencyId: departure.agencyId,
         tourId: input.tourId,
@@ -163,6 +169,7 @@ export class BookingsService {
         clientRequestId: input.clientRequestId,
       });
 
+      saved = true;
       await this.notifications.notify(travelerId, {
         type: NOTIFICATION_TYPE.BOOKING_CREATED,
         title: 'Booking created',
@@ -171,6 +178,8 @@ export class BookingsService {
       });
       return toBookingDto(created);
     } catch (error) {
+      if (saved) throw error;
+      if (premium) await premiumRepository.releaseVoucher(premium.id, premium.token);
       await this.compensate(input, appliedAgency, appliedPlatform);
       // Lost a race on the retry key: the other request created the booking, return it.
       if (input.clientRequestId && isDuplicateKey(error, 'clientRequestId')) {
@@ -464,6 +473,8 @@ export class BookingsService {
       paymentExpiresAt: null,
     });
     if (!cancelled) return null;
+
+    if (booking.premiumVoucherId) await premiumRepository.releaseBookingVoucher(booking.id);
 
     await this.tours.releaseSeats(booking.tourId, booking.departureId, booking.participants);
     if (booking.promotion) await this.promotions.release(booking.promotion.promotionId);

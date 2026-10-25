@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 184 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 211 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -37,6 +37,21 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | Method | Path | Access |
 |---|---|---|
 | PUT | `/api/v1/admin/policies/:key` | role: `SUPER_ADMIN` + `policy:configure` |
+
+## `/admin/premium`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/admin/premium/contributions` | role: `SUPER_ADMIN` + `premium:manage` |
+| PATCH | `/api/v1/admin/premium/contributions/:id` | role: `SUPER_ADMIN` + `premium:manage` |
+| GET | `/api/v1/admin/premium/flags` | role: `SUPER_ADMIN` + `premium:manage` |
+| PUT | `/api/v1/admin/premium/flags` | role: `SUPER_ADMIN` + `premium:manage` |
+| GET | `/api/v1/admin/premium/operations` | role: `SUPER_ADMIN` + `premium:manage` |
+| GET | `/api/v1/admin/premium/plans` | role: `SUPER_ADMIN` + `premium:manage` |
+| POST | `/api/v1/admin/premium/plans` | role: `SUPER_ADMIN` + `premium:manage` |
+| PATCH | `/api/v1/admin/premium/plans/:id` | role: `SUPER_ADMIN` + `premium:manage` |
+| GET | `/api/v1/admin/premium/refunds` | role: `SUPER_ADMIN` + `premium:manage` |
+| PATCH | `/api/v1/admin/premium/refunds/:id` | role: `SUPER_ADMIN` + `premium:manage` |
 
 ## `/admin/promotions`
 
@@ -107,6 +122,15 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | Method | Path | Access |
 |---|---|---|
 | GET | `/api/v1/agency/guides` | `tour:assign-guide` |
+
+## `/agency/premium`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/agency/premium/contributions` | `premium:contribute` |
+| POST | `/api/v1/agency/premium/contributions` | `premium:contribute` |
+| POST | `/api/v1/agency/premium/contributions/:id/stop` | `premium:contribute` |
+| GET | `/api/v1/agency/premium/usage` | `premium:contribute` |
 
 ## `/agency/promotions`
 
@@ -322,6 +346,24 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/policies` | public |
 | GET | `/api/v1/policies/:key` | public |
+
+## `/premium`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/premium/guide/analytics` | `profile:view-own` |
+| POST | `/api/v1/premium/guide/images/complete` | `profile:view-own` |
+| POST | `/api/v1/premium/guide/images/signature` | `profile:view-own` |
+| GET | `/api/v1/premium/guide/profile` | `profile:view-own` |
+| PUT | `/api/v1/premium/guide/profile` | `profile:view-own` |
+| GET | `/api/v1/premium/guides/:id` | public |
+| GET | `/api/v1/premium/me` | `profile:view-own` |
+| GET | `/api/v1/premium/me/history` | `profile:view-own` |
+| GET | `/api/v1/premium/me/vouchers` | `profile:view-own` |
+| GET | `/api/v1/premium/plans` | public |
+| POST | `/api/v1/premium/subscribe` | `profile:view-own`, `premium:subscribe` |
+| GET | `/api/v1/premium/subscriptions/:id` | `profile:view-own` |
+| POST | `/api/v1/premium/subscriptions/:id/refunds` | `profile:view-own` |
 
 ## `/promotions`
 

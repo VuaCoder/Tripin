@@ -1,4 +1,5 @@
 'use client';
+import { usePremiumVouchersQuery } from '@/features/premium/api';
 import { calculateGuestPrice, guestTotal, type GuestCounts } from '@travel-platform/constants';
 import { TourGuestSelector } from '@/features/tours/components/detail/TourGuestSelector';
 
@@ -56,6 +57,8 @@ export function BookingEntryPage() {
   const router = useRouter();
   const params = useSearchParams();
   const user = useAppSelector(selectUser);
+  const premiumVouchers = usePremiumVouchersQuery(user?.id ?? '',{ skip: !user || user.role !== 'TRAVELER' });
+  const [premiumVoucherId,setPremiumVoucherId] = useState('');
   const tourId = params.get('tourId') ?? '';
   const departureId = params.get('departureId') ?? '';
   const participantsParam = Number(params.get('participants'));
@@ -179,6 +182,7 @@ export function BookingEntryPage() {
         return false;
       }
       setAgencyPromotionCode(code);
+      setPremiumVoucherId('');
       setAgencyPromotionPreview(preview);
       setAgencyPromotionError(null);
       return true;
@@ -215,6 +219,7 @@ export function BookingEntryPage() {
         return false;
       }
       setPlatformPromotionCode(code);
+      setPremiumVoucherId('');
       setPlatformPromotionPreview(preview);
       setPlatformPromotionError(null);
       return true;
@@ -239,7 +244,8 @@ export function BookingEntryPage() {
           return { success: false, message: 'Mã giảm giá khiến tổng thanh toán không hợp lệ.' };
         }
         setAgencyPromotionCode(cleanCode);
-        setAgencyPromotionPreview(preview);
+        setPremiumVoucherId('');
+      setAgencyPromotionPreview(preview);
         setAgencyPromotionError(null);
         return { success: true, message: `Đã áp dụng mã nhà cung cấp ${cleanCode} (-${formatVnd(preview.discountAmount)})` };
       } else {
@@ -249,6 +255,7 @@ export function BookingEntryPage() {
           return { success: false, message: 'Mã giảm giá khiến tổng thanh toán không hợp lệ.' };
         }
         setPlatformPromotionCode(cleanCode);
+        setPremiumVoucherId('');
         setPlatformPromotionPreview(platformPreview);
         setPlatformPromotionError(null);
         return { success: true, message: `Đã áp dụng mã toàn sàn Tripin ${cleanCode} (-${formatVnd(platformPreview.discountAmount)})` };
@@ -324,7 +331,9 @@ export function BookingEntryPage() {
 
   const agencyDiscount = agencyPromotionPreview?.discountAmount ?? 0;
   const platformDiscount = platformPromotionPreview?.discountAmount ?? 0;
-  const totalDiscount = agencyDiscount + platformDiscount;
+  const chosenPremium = premiumVouchers.currentData?.find(v => v.id === premiumVoucherId && !v.heldAt && v.terms.tourIds.includes(tourId) && new Date(v.endsAt) > new Date() && subtotal >= v.terms.minOrderAmount);
+  const premiumDiscount = chosenPremium ? Math.min(subtotal,chosenPremium.terms.discountType === 'PERCENT' ? Math.min(Math.floor(subtotal * chosenPremium.terms.discountValue / 100), chosenPremium.terms.maxDiscountAmount ?? subtotal) : chosenPremium.terms.discountValue) : 0;
+  const totalDiscount = premiumVoucherId ? premiumDiscount : agencyDiscount + platformDiscount;
   const finalEstimate = Math.max(0, subtotal - totalDiscount);
 
   const maxParticipants = Math.min(MAX_PARTICIPANTS, departure.remaining);
@@ -371,9 +380,10 @@ export function BookingEntryPage() {
     try { latestSubtotal = calculateGuestPrice(latestUnitPrice, participants, guestCounts, latestAgePricing).subtotal; }
     catch { setErrors({ general: 'Chính sách giá đã thay đổi. Vui lòng chọn lại hành khách.' }); return; }
 
-    if (agencyPromotionCode.trim() && !(await checkAgencyPromotion(agencyPromotionCode.trim(), latestSubtotal))) return;
+    if (premiumVoucherId && (!chosenPremium || agencyPromotionCode.trim() || platformPromotionCode.trim())) { setErrors({ general:'Voucher Premium không cộng với mã khác. Hãy xóa mã hoặc bỏ chọn voucher.' }); return; }
+    if (!premiumVoucherId && agencyPromotionCode.trim() && !(await checkAgencyPromotion(agencyPromotionCode.trim(), latestSubtotal))) return;
     const subtotalAfterAgency = Math.max(0, latestSubtotal - (agencyPromotionPreview?.discountAmount ?? 0));
-    if (platformPromotionCode.trim() && !(await checkPlatformPromotion(platformPromotionCode.trim(), subtotalAfterAgency))) return;
+    if (!premiumVoucherId && platformPromotionCode.trim() && !(await checkPlatformPromotion(platformPromotionCode.trim(), subtotalAfterAgency))) return;
 
     try {
       const created = await createBooking({
@@ -383,8 +393,9 @@ export function BookingEntryPage() {
         ...(tour.agePricing ? { guestCounts } : {}),
         contact: { fullName: fullName.trim(), phone: phone.trim() },
         ...(notes.trim() ? { notes: notes.trim() } : {}),
-        ...(agencyPromotionPreview ? { agencyPromotionCode: agencyPromotionPreview.code } : {}),
-        ...(platformPromotionPreview ? { platformPromotionCode: platformPromotionPreview.code } : {}),
+        ...(premiumVoucherId ? { premiumVoucherId } : {}),
+        ...(!premiumVoucherId && agencyPromotionPreview ? { agencyPromotionCode: agencyPromotionPreview.code } : {}),
+        ...(!premiumVoucherId && platformPromotionPreview ? { platformPromotionCode: platformPromotionPreview.code } : {}),
         clientRequestId: clientRequestId.current,
       }).unwrap();
       router.replace(`/settings/history/${created.id}`);
@@ -396,6 +407,7 @@ export function BookingEntryPage() {
   return (
     <div className="grid gap-6 pb-12 lg:grid-cols-[minmax(0,1fr)_340px]">
       <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6" noValidate>
+        <div className="space-y-2 border-b border-amber-200 pb-4"><label htmlFor="premium-booking-voucher" className="text-sm font-semibold text-amber-900">Voucher Premium</label>{premiumVouchers.isError ? <p role="alert" className="text-sm text-red-800">Không tải được voucher. <button type="button" className="underline" onClick={() => void premiumVouchers.refetch()}>Thử lại</button></p> : <select id="premium-booking-voucher" className="w-full rounded-lg border border-amber-300 bg-white p-3 text-sm" value={premiumVoucherId} onChange={e => { setPremiumVoucherId(e.target.value); if(e.target.value) { clearAgencyPromotion();clearPlatformPromotion(); } }}><option value="">Không dùng voucher Premium</option>{premiumVouchers.currentData?.filter(v => !v.heldAt && v.terms.tourIds.includes(tourId) && new Date(v.endsAt) > new Date() && subtotal >= v.terms.minOrderAmount).map(v => <option key={v.id} value={v.id}>{v.terms.title} · Hạn {new Date(v.endsAt).toLocaleDateString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}</option>)}</select>}<p className="text-xs text-slate-600">Mỗi đơn dùng một voucher Premium, không cộng với mã khác.{premiumVoucherId && ` Giảm dự kiến ${formatVnd(premiumDiscount)}.`}</p></div>
         <div>
           <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Hoàn tất thông tin đặt chỗ</h1>
           <p className="mt-1 text-sm text-slate-500">Thông tin liên hệ dùng để xác nhận chuyến đi của bạn.</p>

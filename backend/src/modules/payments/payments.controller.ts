@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express';
+import { prisma } from '../../config/database';
 import { userActor } from '../../middlewares/authorize';
 import { validated } from '../../middlewares/validate';
 import { sendCreated, sendOk } from '../../utils/api-response';
@@ -17,7 +18,9 @@ export class PaymentsController {
 
   getMine: RequestHandler = async (req, res) => {
     const { params } = validated<unknown, unknown, IdParams>(req);
-    sendOk(res, await this.service.getMine(userActor(req).userId, params.id));
+    const payment = await this.service.getMine(userActor(req).userId, params.id);
+    const subscription = payment.purpose === 'SUBSCRIPTION' ? await prisma.subscription.findUnique({ where: { id: payment.referenceId, userId: userActor(req).userId }, select: { isPremium: true } }) : null;
+    sendOk(res, { ...payment, ...(subscription ? { premium: subscription.isPremium } : {}) });
   };
 
   /** Public endpoint called by PayOS. Trust comes from the signature, checked in the provider. */

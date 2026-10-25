@@ -52,7 +52,14 @@ export class UsersRepository {
   async listActiveGuides(q: string | undefined, page: PageRequest): Promise<{ items: PublicGuideRecord[]; total: number }> {
     const where: Prisma.UserWhereInput = { role: 'TOUR_GUIDE', status: 'ACTIVE', ...(q ? { fullName: containsText(q) } : {}) };
     const [items, total] = await Promise.all([
-      prisma.user.findMany({ where, select: { id: true, fullName: true, avatarUrl: true, guideProfile: { select: { bio: true, languages: true, specialties: true, experienceYears: true } } }, orderBy: [{ fullName: 'asc' }, { id: 'asc' }], skip: toSkip(page), take: page.limit }),
+      (async () => {
+        const now = new Date();
+        // Apply membership ranking in SQL before LIMIT/OFFSET; escape wildcard input for literal search.
+        const pattern = '%' + (q ?? '').replace(/[\\%_]/g, '\\$&') + '%';
+        const ids = await prisma.$queryRaw<{ id: string; premiumActive: boolean }[]>`SELECT u.id, EXISTS (SELECT 1 FROM "Subscription" s WHERE s."userId" = u.id AND s."isPremium" = true AND s.audience = 'TOUR_GUIDE' AND s.status = 'ACTIVE' AND s."revokedAt" IS NULL AND s."startsAt" <= ${now} AND s."endsAt" > ${now}) AS "premiumActive" FROM "User" u WHERE u.role = 'TOUR_GUIDE' AND u.status = 'ACTIVE' AND u."fullName" ILIKE ${pattern} ORDER BY "premiumActive" DESC, u."fullName" ASC, u.id ASC OFFSET ${toSkip(page)} LIMIT ${page.limit}`;
+        const users = await prisma.user.findMany({ where: { id: { in: ids.map(x => x.id) } }, select: { id: true, fullName: true, avatarUrl: true, guideProfile: { select: { bio: true, languages: true, specialties: true, experienceYears: true } } } });
+        return ids.map(row => ({ ...users.find(user => user.id === row.id)!, premiumActive: row.premiumActive }));
+      })(),
       prisma.user.count({ where }),
     ]);
     return { items, total };

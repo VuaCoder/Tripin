@@ -46,6 +46,7 @@ export class SubscriptionsService {
   async subscribe(userId: string, planId: string): Promise<SubscribeResultDto> {
     const plan = await this.subscriptions.findPlanById(planId);
     if (!plan || !plan.isActive) throw AppError.notFound('Plan not found');
+    if (plan.isPremium) return (await import('../premium/premium.service')).premiumService.subscribe(userId, planId).then(result => ({ subscription: toSubscriptionDto(result.subscription), checkout: result.checkout }));
 
     const subscription = (await this.subscriptions.findPending(userId, planId)) ?? (await this.createPending(userId, plan));
 
@@ -110,6 +111,10 @@ export class SubscriptionsService {
     const subscription = await this.subscriptions.findById(payment.referenceId);
     if (!subscription || subscription.userId !== payment.userId) {
       throw new Error(`Subscription ${payment.referenceId} not found for payment ${payment.id}`);
+    }
+    if (subscription.isPremium) {
+      await (await import('../premium/premium.service')).premiumService.activate(payment);
+      return;
     }
     if (subscription.status === SUBSCRIPTION_STATUS.ACTIVE || subscription.status === SUBSCRIPTION_STATUS.EXPIRED) return;
 

@@ -1,4 +1,5 @@
 import { mount } from './registry';
+import { premiumRouter, agencyPremiumRouter, adminPremiumRouter } from '../modules/premium/premium.routes';
 import { auditRouter } from '../modules/audit';
 import { authRouter } from '../modules/auth';
 import { adminCategoriesRouter, publicCategoriesRouter } from '../modules/categories';
@@ -62,6 +63,9 @@ mount('/payments', paymentsRouter);
 mount('/e-tickets', eTicketsRouter);
 mount('/reviews', reviewsRouter);
 mount('/subscriptions', subscriptionsRouter);
+mount('/premium', premiumRouter);
+mount('/agency/premium', agencyPremiumRouter);
+mount('/admin/premium', adminPremiumRouter);
 mount('/earnings', earningsRouter);
 mount('/chat', chatRouter);
 mount('/ai', aiRouter);

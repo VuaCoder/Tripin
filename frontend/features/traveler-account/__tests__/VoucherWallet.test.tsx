@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { VoucherCard } from '../components/VoucherCard';
+vi.mock('@/features/premium/PremiumWalletSection',() => ({PremiumWalletSection:() => null}));
 import type { UserVoucherItem } from '../api/voucherWalletApi';
 
 vi.mock('next/link', async () => {

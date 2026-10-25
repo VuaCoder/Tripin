@@ -18,7 +18,7 @@ describe('Agency guide directory and assignment', () => {
     const first = await request(app).get('/api/v1/agency/guides').query({ q: 'GUIDE', limit: 1 }).set(bearer(agency.token));
     expect(first.status).toBe(200);
     expect(first.body.meta).toMatchObject({ page: 1, total: 2, totalPages: 2 });
-    expect(first.body.data[0]).toEqual({ id: a.id, fullName: 'An Guide', bio: 'Huong dan vien', languages: ['Vietnamese'], specialties: ['Culture'] });
+    expect(first.body.data[0]).toEqual({ id: a.id, fullName: 'An Guide', bio: 'Huong dan vien', languages: ['Vietnamese'], specialties: ['Culture'], premiumActive:false });
     expect(JSON.stringify(first.body.data)).not.toMatch(/private-a|0901234567|SECRET-LICENSE|passwordHash|extraPermissions/);
     const second = await request(app).get('/api/v1/agency/guides').query({ q: 'guide', limit: 1, page: 2 }).set(bearer(agency.token));
     expect(second.body.data[0].id).toBe(b.id);
