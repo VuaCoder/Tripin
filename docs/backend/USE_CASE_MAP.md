@@ -123,3 +123,22 @@ contains only a README explaining the intended boundary. `carts` was approved by
 
 ## ADMIN-01 reporting/filter extension
 Admin dashboard accepts paired `from`/`to` (max 366 days), returns previous-period comparison and a bounded zero-filled UTC monthly series. Admin user list supports createdAt date filters; promotion lists support literal q, discountType and overlapping validity bounds. All filtering happens before pagination and uses the original admin role/permission guards.
+
+## Premium (owner-approved extension)
+
+| Use case | Actor | Endpoint | Permission | Status |
+|---|---|---|---|---|
+| Inspect published Premium plans and Guide identity | Public | `GET /premium/plans`, `GET /premium/guides/:id` | GUEST | implemented |
+| View own membership, periods and wallet | Traveler / Guide | `GET /premium/me`, `GET /premium/me/history`, `GET /premium/me/vouchers`, `GET /premium/subscriptions/:id` | profile:view-own | implemented |
+| Buy or renew matching-role Premium | Traveler / Guide | `POST /premium/subscribe` | premium:subscribe | implemented |
+| Request refund of an unstarted paid period | Traveler / Guide | `POST /premium/subscriptions/:id/refunds` | profile:view-own + ownership | implemented |
+| Read/write advanced Guide profile | Guide | `GET/PUT /premium/guide/profile` | profile:view-own + Guide; writes require Premium | implemented |
+| Upload portfolio/certificate image | Guide | `POST /premium/guide/images/signature`, `POST /premium/guide/images/complete` | profile:view-own + Guide Premium | implemented |
+| Advanced income, assignment and activity analytics | Guide | `GET /premium/guide/analytics` | profile:view-own + Guide Premium | implemented |
+| Contribute committed Agency-funded vouchers | Agency | `GET/POST /agency/premium/contributions`, `POST /agency/premium/contributions/:id/stop`, `GET /agency/premium/usage` | premium:contribute + Agency | implemented |
+| Create/publish immutable Premium editions | Super Admin | `GET/POST /admin/premium/plans`, `PATCH /admin/premium/plans/:id` | premium:manage + Super Admin | implemented |
+| Approve voucher supply | Super Admin | `GET /admin/premium/contributions`, `PATCH /admin/premium/contributions/:id` | premium:manage + Super Admin | implemented |
+| Review and record manual refunds | Super Admin | `GET /admin/premium/refunds`, `PATCH /admin/premium/refunds/:id` | premium:manage + Super Admin | implemented |
+| Control sales per role and monitor fulfilment | Super Admin | `GET/PUT /admin/premium/flags`, `GET /admin/premium/operations` | premium:manage + Super Admin | implemented |
+
+Legacy Guide subscription endpoints remain available. Premium authorization is derived server-side from current-role, non-revoked, time-effective periods; paid future periods do not grant early access. See `backend/src/modules/premium/README.md` for inventory, late-payment and refund rules.

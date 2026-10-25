@@ -4,7 +4,8 @@ import { useState } from 'react';
 import type { UserProfile } from '@/features/auth/types';
 import { Badge, Button } from '@/components/ui';
 import { ErrorState } from '@/components/shared';
-import { AvatarPreview, ProfileSkeleton } from '@/features/traveler-account/components';
+import { ProfileSkeleton } from '@/features/traveler-account/components';
+import { OwnPremiumIdentity, OwnPremiumStatus } from '@/features/premium/PremiumIdentity';
 import {
   useCompleteLicenseUploadMutation,
   useCreateLicenseUploadSignatureMutation,
@@ -131,9 +132,10 @@ function GuideProfileSummary({
       )}
 
       <div className="flex flex-col gap-5 rounded-2xl border border-slate-100 bg-gradient-to-r from-slate-50 to-white p-5 sm:flex-row sm:items-center sm:p-6">
-        <AvatarPreview url={user.avatarUrl} name={user.fullName} />
+        <OwnPremiumIdentity userId={user.id} url={user.avatarUrl} name={user.fullName} showStatus={false} />
         <div className="min-w-0">
           <div className="truncate text-xl font-extrabold text-slate-900 sm:text-2xl">{user.fullName}</div>
+          <OwnPremiumStatus userId={user.id}/>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge variant="primary">Hướng dẫn viên</Badge>
             <Badge variant={user.emailVerifiedAt ? 'success' : 'warning'}>

@@ -27,7 +27,7 @@ export type NewBooking = Pick<
   | 'bookingCode' | 'travelerId' | 'agencyId' | 'tourId' | 'departureId' | 'tourTitle' | 'departureDate' | 'endDate'
   | 'participants' | 'unitPrice' | 'subtotal' | 'totalAmount' | 'commissionBps' | 'commissionAmount' | 'agencyAmount'
 > &
-  Partial<BookingScalars> & { contact: { fullName: string; phone: string }; promotion?: PromotionSnapshot };
+  Partial<BookingScalars> & { contact: { fullName: string; phone: string }; promotion?: PromotionSnapshot; premiumVoucherToken?: string };
 
 /** Plain-field changes (`null` clears a nullable column). */
 export type BookingPatch = Partial<BookingScalars>;
@@ -49,8 +49,8 @@ const NEWEST_FIRST: Prisma.BookingOrderByWithRelationInput[] = [{ createdAt: 'de
 
 export class BookingsRepository {
   async create(data: NewBooking): Promise<BookingRecord> {
-    const { contact, promotion, ...scalars } = data;
-    const row = await prisma.booking.create({
+    const { contact, promotion, premiumVoucherToken, ...scalars } = data;
+    const createData = {
       data: {
         ...scalars,
         contactName: contact.fullName,
@@ -59,7 +59,13 @@ export class BookingsRepository {
           ? { promotionId: promotion.promotionId, promotionCode: promotion.code, promotionScope: promotion.scope, discountAmount: promotion.discountAmount }
           : {}),
       },
-    });
+    };
+    const row = data.premiumVoucherId ? await prisma.$transaction(async tx => {
+      const booking = await tx.booking.create(createData);
+      const claimed = await tx.premiumVoucher.updateMany({ where: { id: data.premiumVoucherId!, userId: data.travelerId, leaseToken: premiumVoucherToken, bookingId: null, endsAt: { gt: new Date() } }, data: { bookingId: booking.id } });
+      if (claimed.count !== 1) throw new Error('Premium voucher lease lost');
+      return booking;
+    }) : await prisma.booking.create(createData);
     return toRecord(row);
   }
 

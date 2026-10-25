@@ -88,6 +88,7 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
       { href: '/agency/tours/import', label: 'Nhập tour / AI', icon: Sparkles, permission: 'tour:import' },
     ] },
     { label: 'Chăm sóc & Ưu đãi', items: [
+      { href: '/agency/premium', label: 'Voucher Premium', icon: Ticket, permission: 'promotion:agency-manage' },
       { href: '/agency/promotions', label: 'Khuyến mãi', icon: Ticket, permission: 'promotion:agency-manage' },
       { href: '/agency/complaints', label: 'Khiếu nại', icon: MessageSquareWarning, permission: 'complaint:respond' },
     ] },

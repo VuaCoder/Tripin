@@ -22,6 +22,8 @@ import {
   useGetPaymentQuery,
 } from '../api/paymentApi';
 import { openCheckout } from '../utils/checkout';
+import { usePremiumPeriodQuery } from '@/features/premium/api';
+import { premiumDate } from '@/features/premium/ui';
 
 /** Both gateway callbacks read server state. The callback path/query never establishes a result. */
 export function PaymentReturnPage({
@@ -112,7 +114,9 @@ function PaymentResult({
 
   const subscription = payment.purpose === 'SUBSCRIPTION';
   const destination = subscription
-    ? '/guide/subscriptions'
+    ? payment.premium
+      ? '/premium'
+      : '/guide/subscriptions'
     : `/settings/history/${payment.referenceId}`;
   const paid = payment.status === 'PAID';
   const pending = payment.status === 'PENDING';
@@ -161,7 +165,11 @@ function PaymentResult({
       </h1>
       {paid ? (
         subscription ? (
-          <SubscriptionActivation subscriptionId={payment.referenceId} />
+          payment.premium ? (
+            <PremiumActivation subscriptionId={payment.referenceId} />
+          ) : (
+            <SubscriptionActivation subscriptionId={payment.referenceId} />
+          )
         ) : (
           <p className="text-sm text-slate-600">
             Hệ thống đã xác nhận thanh toán. Xem chi tiết chuyến đi và vé điện
@@ -229,8 +237,12 @@ function PaymentResult({
         >
           {subscription
             ? paid
-              ? 'Xem gói dịch vụ'
-              : 'Quay lại gói dịch vụ / Thanh toán tiếp'
+              ? payment.premium
+                ? 'Xem Premium'
+                : 'Xem gói dịch vụ'
+              : payment.premium
+                ? 'Quay lại Premium'
+                : 'Quay lại gói dịch vụ / Thanh toán tiếp'
             : 'Chi tiết chuyến đi'}
         </Link>
         {paid && !subscription && (
@@ -331,6 +343,79 @@ function SubscriptionActivation({
           </Button>
         </>
       )}
+    </div>
+  );
+}
+
+function PremiumActivation({ subscriptionId }: { subscriptionId: string }) {
+  const user = useAppSelector(selectUser);
+  const [polling, setPolling] = useState(true);
+  const history = usePremiumPeriodQuery(
+    { userId: user?.id ?? '', id: subscriptionId },
+    {
+      skip: !user,
+      pollingInterval: polling ? 2500 : 0,
+      refetchOnMountOrArgChange: true,
+    },
+  );
+  const period = history.currentData;
+  useEffect(() => {
+    const timeout = setTimeout(() => setPolling(false), 20_000);
+    return () => clearTimeout(timeout);
+  }, []);
+  useEffect(() => {
+    if (
+      period?.status === 'ACTIVE' ||
+      period?.status === 'EXPIRED' ||
+      period?.revokedAt ||
+      history.isError
+    )
+      setPolling(false);
+  }, [period?.status, period?.revokedAt, history.isError]);
+  if (history.isError)
+    return (
+      <ErrorState
+        title="Đã thanh toán, chưa tải được trạng thái Premium"
+        onAction={() => void history.refetch()}
+      />
+    );
+  if (period?.revokedAt)
+    return (
+      <p role="status" className="text-sm text-amber-800">
+        Kỳ Premium đã được thu hồi hoặc đang chờ hoàn tiền. Xem chi tiết tại
+        trang Premium.
+      </p>
+    );
+  if (
+    period?.status === 'EXPIRED' ||
+    (period?.status === 'ACTIVE' &&
+      period.endsAt &&
+      new Date(period.endsAt) <= new Date())
+  )
+    return (
+      <p role="status" className="text-sm text-slate-600">
+        Kỳ Premium đã thanh toán và hiện đã hết hạn.
+      </p>
+    );
+  if (period?.status === 'ACTIVE')
+    return (
+      <p role="status" className="text-sm text-teal-800">
+        {period.startsAt && new Date(period.startsAt) > new Date()
+          ? `Đã thanh toán. Kỳ Premium bắt đầu ${premiumDate(period.startsAt)}.`
+          : `Premium đã được kích hoạt. Hoạt động đến ${premiumDate(period.endsAt)}.`}
+      </p>
+    );
+  return (
+    <div className="space-y-3">
+      <p role="status" className="text-sm text-amber-800">
+        Đã thanh toán. Đang đồng bộ quyền lợi Premium.
+      </p>
+      <button
+        className="text-sm font-semibold text-teal-800 underline"
+        onClick={() => void history.refetch()}
+      >
+        Kiểm tra lại trạng thái Premium
+      </button>
     </div>
   );
 }

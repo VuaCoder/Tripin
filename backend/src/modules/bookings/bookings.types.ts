@@ -1,6 +1,7 @@
 import type { BookingCancelReason, BookingStatus, PromotionScope } from '@travel-platform/constants';
 
 export interface CreateBookingInput {
+  premiumVoucherId?: string;
   guestCounts?: import('@travel-platform/constants').GuestCounts;
   tourId: string;
   departureId: string;
@@ -27,6 +28,7 @@ export interface ListAgencyBookingsQuery extends ListBookingsQuery {
 
 /** What the traveler sees. No commission data. */
 export interface BookingDto {
+  premiumVoucherId?: string;
   guestPricing?: import('@travel-platform/constants').GuestPriceBreakdown;
   id: string;
   bookingCode: string;

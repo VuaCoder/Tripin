@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { UserProfile } from '@/features/auth/types';
 import { Badge, Button } from '@/components/ui';
-import { AvatarPreview } from './AvatarPreview';
+import { OwnPremiumIdentity, OwnPremiumStatus } from '@/features/premium/PremiumIdentity';
 
 interface ProfileSummaryProps {
   user: UserProfile;
@@ -30,9 +30,10 @@ export function ProfileSummary({ user, onEdit }: ProfileSummaryProps) {
       </div>
 
       <div className="flex flex-col gap-5 rounded-2xl border border-surface-container bg-gradient-to-r from-surface-container-low to-white p-5 sm:flex-row sm:items-center sm:p-6">
-        <AvatarPreview url={user.avatarUrl} name={user.fullName} />
+        <OwnPremiumIdentity userId={user.id} url={user.avatarUrl} name={user.fullName} showStatus={false} />
         <div className="min-w-0">
           <div className="truncate text-xl font-extrabold text-on-surface sm:text-2xl">{user.fullName}</div>
+          <OwnPremiumStatus userId={user.id}/>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge variant="primary">Traveler</Badge>
             <Badge variant={user.emailVerifiedAt ? 'success' : 'warning'}>
@@ -48,6 +49,22 @@ export function ProfileSummary({ user, onEdit }: ProfileSummaryProps) {
         <ProfileDetail icon="calendar_month" label="Ngày tham gia" value={joinedAt} />
         <ProfileDetail icon="verified_user" label="Trạng thái tài khoản" value={user.status === 'ACTIVE' ? 'Đang hoạt động' : user.status} />
       </dl>
+
+      <div className="flex flex-col gap-4 border-t border-surface-container pt-6 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-bold text-on-surface">Ví voucher & Ưu đãi</p>
+          <p className="mt-1 text-sm text-on-surface-variant">Quản lý và sử dụng các mã giảm giá cho chuyến đi của bạn.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/settings/vouchers"
+            className="inline-flex items-center gap-1 text-sm font-bold text-primary hover:text-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container"
+          >
+            Quản lý ví voucher
+            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_forward</span>
+          </Link>
+        </div>
+      </div>
 
       <div className="flex flex-col gap-4 border-t border-surface-container pt-6 sm:flex-row sm:items-center sm:justify-between">
         <div>

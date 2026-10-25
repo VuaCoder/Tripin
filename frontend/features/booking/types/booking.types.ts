@@ -10,6 +10,7 @@ export interface BookingContact {
 }
 
 export interface CreateBookingInput {
+  premiumVoucherId?: string;
   guestCounts?: import('@travel-platform/constants').GuestCounts;
   tourId: string;
   departureId: string;

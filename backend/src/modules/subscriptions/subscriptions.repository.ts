@@ -17,7 +17,7 @@ export type SubscriptionPatch = Partial<Pick<Subscription, 'status' | 'startsAt'
 export class SubscriptionsRepository {
   // ---- plans
   listActivePlans(): Promise<PlanRecord[]> {
-    return prisma.subscriptionPlan.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: 'asc' }, { price: 'asc' }] });
+    return prisma.subscriptionPlan.findMany({ where: { isActive: true, isPremium: false }, orderBy: [{ sortOrder: 'asc' }, { price: 'asc' }] });
   }
 
   findPlanById(id: string): Promise<PlanRecord | null> {

@@ -11,6 +11,9 @@ import type { ReviewSort } from '@/features/review/types';
 import { useGetPublicProfileQuery, useGetProfileReviewsQuery, type ProfileKind } from './api';
 import { AgencyVouchersSection } from './components/AgencyVouchersSection';
 import { AgencyToursSection } from './components/AgencyToursSection';
+import { PremiumFrame } from '@/features/premium/PremiumIdentity';
+import { usePublicGuidePremiumQuery } from '@/features/premium/api';
+import { PublicPremiumPortfolio } from '@/features/premium/PublicPremiumPortfolio';
 
 export function safeWebsite(value?: string): string | undefined {
   try {
@@ -59,6 +62,7 @@ function PublicReviews({ kind, id }: { kind: ProfileKind; id: string }) {
 
 export function PublicProfilePage({ kind }: { kind: ProfileKind }) {
   const { id } = useParams<{ id: string }>();
+  const premium = usePublicGuidePremiumQuery(id,{ skip:kind !== 'guide' || !id, pollingInterval:30_000 });
   const { currentData: profile, isLoading, isFetching, error, refetch } = useGetPublicProfileQuery({ kind, id }, { skip: !id });
   if (isLoading || (isFetching && !profile)) return <LoadingState label="Đang tải hồ sơ…" />;
   if (error || !profile) {
@@ -72,7 +76,7 @@ export function PublicProfilePage({ kind }: { kind: ProfileKind }) {
   return <div className="mx-auto max-w-5xl pb-8">
     <nav aria-label="Đường dẫn" className="mb-8 flex flex-wrap items-center gap-2 text-sm text-slate-600"><Link href="/tours" className="hover:text-teal-800 hover:underline">Khám phá tour</Link><ChevronRight size={14} /><span>{name}</span></nav>
     <header className="flex flex-col gap-6 border-b border-slate-200 pb-8 sm:flex-row sm:items-center">
-      <ProfileAvatar key={profile.avatarUrl ?? profile.id} name={name} url={profile.avatarUrl} />
+      <PremiumFrame active={!premium.isError && premium.currentData?.active} rounded><ProfileAvatar key={profile.avatarUrl ?? profile.id} name={name} url={profile.avatarUrl} /></PremiumFrame>
       <div className="min-w-0"><h1 className="break-words text-3xl font-extrabold leading-tight text-slate-900 sm:text-4xl">{name}</h1><p className="mt-3 flex items-center gap-2 text-slate-600"><Icon size={18} />{kind === 'agency' ? 'Đơn vị tổ chức tour' : 'Hướng dẫn viên du lịch'}</p>
         {kind === 'agency' && profile.verified && <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-teal-800"><BadgeCheck size={18} />Đối tác đã xác minh</p>}
       </div>
@@ -96,6 +100,7 @@ export function PublicProfilePage({ kind }: { kind: ProfileKind }) {
         <AgencyToursSection agencyId={id} agencyName={name} />
       </>
     )}
+    {kind === 'guide' && !premium.isError && premium.currentData?.active && premium.currentData.profile && <PublicPremiumPortfolio profile={premium.currentData.profile} />}
     <PublicReviews key={`${kind}-${id}`} kind={kind} id={id} />
   </div>;
 }

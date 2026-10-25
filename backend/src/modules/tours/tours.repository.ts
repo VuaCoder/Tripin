@@ -137,8 +137,12 @@ export class ToursRepository {
     try {
       return await prisma.$transaction(async (tx) => {
         // Removing the assignment happens first; if the status guard below fails (P2025) the whole transaction rolls back.
-        if (patch.guide === null) await tx.tourGuideAssignment.deleteMany({ where: { tourId: id } });
-        return toRecord(await tx.tour.update({ where: { id, status: { in: [...expected] } }, data: writeData(patch), include }));
+          const previous = patch.guide !== undefined ? await tx.tourGuideAssignment.findUnique({ where: { tourId: id } }) : null;
+          if (patch.guide === null) await tx.tourGuideAssignment.deleteMany({ where: { tourId: id } });
+          const updated = await tx.tour.update({ where: { id, status: { in: [...expected] } }, data: writeData(patch), include });
+          if (previous && (!patch.guide || patch.guide.guideId !== previous.guideId)) await tx.premiumGuideActivity.create({ data: { userId: previous.guideId, tourId: id, tourTitle: updated.title, action: 'UNASSIGNED' } });
+          if (patch.guide) await tx.premiumGuideActivity.create({ data: { userId: patch.guide.guideId, tourId: id, tourTitle: updated.title, action: 'ASSIGNED' } });
+          return toRecord(updated);
       });
     } catch (error) {
       return nullIfNotFound(error);
@@ -151,11 +155,16 @@ export class ToursRepository {
     guideId: string,
     answer: { status: GuideAssignmentStatus; respondedAt: Date; note?: string },
   ): Promise<TourRecord | null> {
-    const result = await prisma.tourGuideAssignment.updateMany({
+    return prisma.$transaction(async tx => {
+    const result = await tx.tourGuideAssignment.updateMany({
       where: { tourId, guideId, status: 'PENDING', tour: { is: { status: { not: TOUR_STATUS.ARCHIVED } } } },
       data: answer,
     });
-    return result.count === 1 ? this.findById(tourId) : null;
+    if (!result.count) return null;
+    const tour = await tx.tour.findUniqueOrThrow({ where: { id: tourId }, include });
+    await tx.premiumGuideActivity.create({ data: { userId: guideId, tourId, tourTitle: tour.title, action: answer.status, occurredAt: answer.respondedAt } });
+    return toRecord(tour);
+    });
   }
 
   // ------------------------------------------------------- discovery

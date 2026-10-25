@@ -56,6 +56,7 @@ export function toPrivateUserDto(user: UserRecord): PrivateUserDto {
 export function toPublicGuideDto(user: PublicGuideRecord): PublicGuideDto {
   const guide = user.guideProfile;
   return {
+    ...('premiumActive' in user ? {premiumActive:Boolean(user.premiumActive)} : {}),
     id: user.id,
     fullName: user.fullName,
     avatarUrl: user.avatarUrl ?? undefined,

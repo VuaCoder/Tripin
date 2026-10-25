@@ -93,7 +93,11 @@ export const baseQueryWithReauth: BaseQueryFn<FetchArgs | string, unknown, Fetch
   extraOptions,
 ) => {
   const requestUserId = (api.getState() as RootState).auth.user?.id;
-  const identityChanged = () => (api.getState() as RootState).auth.user?.id !== requestUserId;
+  let requestRole = (api.getState() as RootState).auth.user?.role;
+  const identityChanged = () => {
+    const user = (api.getState() as RootState).auth.user;
+    return user?.id !== requestUserId || user?.role !== requestRole;
+  };
   const superseded = { error: { status: 'CUSTOM_ERROR' as const, error: 'Account changed during request' } };
   const cleanArgs = stripRetryFlag(args);
   let result = await rawBaseQuery(cleanArgs, api, extraOptions);
@@ -110,6 +114,7 @@ export const baseQueryWithReauth: BaseQueryFn<FetchArgs | string, unknown, Fetch
       if (identityChanged()) return superseded;
 
       if (session && (!requestUserId || session.user.id === requestUserId)) {
+        requestRole = session.user.role;
         api.dispatch(setCredentials(session));
         result = await rawBaseQuery(markRetried(cleanArgs), api, extraOptions);
         if (requestUserId && identityChanged()) return superseded;

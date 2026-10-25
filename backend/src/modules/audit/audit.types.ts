@@ -2,6 +2,7 @@ import type { PersistedRole } from '@travel-platform/constants';
 
 /** Every sensitive action that must leave a trace. Add new actions here, never inline strings in services. */
 export const AUDIT_ACTIONS = {
+  PREMIUM_CHANGED: 'premium.changed',
   USER_ACCESS_ASSIGNED: 'user.access_assigned',
   USER_BANNED: 'user.banned',
   USER_UNBANNED: 'user.unbanned',

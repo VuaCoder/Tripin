@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import type { AppRole } from './navigation-config';
 import { navigationByRole } from './navigation-config';
 import { Navigation } from './Navigation';
@@ -12,7 +12,8 @@ import { Container } from './Container';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, selectIsAuthenticated, useLogout } from '@/features/auth';
 import { homeForRole } from '@/features/auth/utils/roles';
-import { PremiumComingSoonModal, Dropdown } from '@/components/shared';
+import { Dropdown } from '@/components/shared';
+import { OwnPremiumIdentity, PremiumStatusText, useOwnPremium } from '@/features/premium/PremiumIdentity';
 import { AgencyRightSidebar } from '@/features/agency/AgencyUi';
 import { cn } from '../ui/cn';
 
@@ -109,6 +110,8 @@ function accountMenuForRole(role: AppRole): AccountMenuItem[] {
 
 export function Header({ role }: { role?: AppRole }) {
   const user = useAppSelector(selectUser);
+  const router = useRouter();
+  const premium = useOwnPremium(user?.id);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const logout = useLogout();
   const pathname = usePathname();
@@ -116,9 +119,7 @@ export function Header({ role }: { role?: AppRole }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
-  const [premiumModalOpen, setPremiumModalOpen] = useState(false);
 
-  const [avatarFailed, setAvatarFailed] = useState(false);
 
   // Tin nhắn: Đếm số lượng tin nhắn chưa đọc
   const { data: conversationsData } = useConversationsQuery(1, { skip: !isAuthenticated });
@@ -169,9 +170,6 @@ export function Header({ role }: { role?: AppRole }) {
     }
   };
 
-  useEffect(() => {
-    setAvatarFailed(false);
-  }, [user?.avatarUrl]);
 
   useEffect(() => {
     if (!isHome) {
@@ -233,7 +231,7 @@ export function Header({ role }: { role?: AppRole }) {
           {!user && (
             <button
               type="button"
-              onClick={() => setPremiumModalOpen(true)}
+              onClick={() => router.push('/premium')}
               aria-label="Khám phá Tripri Premium"
               title="Khám phá đặc quyền Tripri Premium"
               className="group btn-premium-gold relative inline-flex h-10 items-center justify-center gap-1.5 rounded-2xl px-3.5 text-xs sm:text-sm font-bold shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 cursor-pointer"
@@ -329,6 +327,8 @@ export function Header({ role }: { role?: AppRole }) {
                           </Link>
                         ))
                       )}
+                      {effectiveRole === 'TOUR_GUIDE' && <Link href="/premium" onClick={() => setAccountMenuOpen(false)} className="flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm text-amber-800 hover:bg-amber-50"><span className="material-symbols-outlined text-[19px]" aria-hidden="true">workspace_premium</span>{premium.premium?.active ? <PremiumStatusText status={premium.premium} /> : <span className="font-bold">Premium</span>}</Link>}
+                      {premium.isError && ['TRAVELER','TOUR_GUIDE'].includes(effectiveRole) && <div className="p-2"><PremiumStatusText error onRetry={() => void premium.refetch()} /></div>}
                     </div>
                   </div>
                 }
@@ -398,19 +398,11 @@ export function Header({ role }: { role?: AppRole }) {
                             <span className="material-symbols-outlined text-[19px] text-primary-container">person</span>
                             <span>Hồ sơ cá nhân</span>
                           </Link>
-                          <Link
-                            href="/settings/vouchers"
-                            onClick={() => setAccountMenuOpen(false)}
-                            className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-surface-container-low"
-                          >
-                            <span className="material-symbols-outlined text-[19px] text-teal-600">confirmation_number</span>
-                            <span>Ví voucher</span>
-                          </Link>
                           <button
                             type="button"
                             onClick={() => {
                               setAccountMenuOpen(false);
-                              setPremiumModalOpen(true);
+                              router.push('/premium');
                             }}
                             className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-50 cursor-pointer"
                           >
@@ -420,7 +412,7 @@ export function Header({ role }: { role?: AppRole }) {
                             >
                               workspace_premium
                             </span>
-                            <span className="flex-1 font-bold">Premium</span>
+                            <span className="flex-1">{premium.premium?.active ? <PremiumStatusText status={premium.premium} /> : <span className="font-bold">Premium</span>}</span>
                             <span className="material-symbols-outlined text-[14px] text-amber-500">auto_awesome</span>
                           </button>
                         </>
@@ -465,20 +457,7 @@ export function Header({ role }: { role?: AppRole }) {
                       : 'text-slate-800 hover:bg-slate-100',
                   )}
                 >
-                  <span className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-container text-xs font-bold text-white shadow-sm ring-1 ring-black/5">
-                    {user.avatarUrl && !avatarFailed ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={user.avatarUrl}
-                        alt={user.fullName || user.email}
-                        className="size-full object-cover"
-                        referrerPolicy="no-referrer"
-                        onError={() => setAvatarFailed(true)}
-                      />
-                    ) : (
-                      <span>{user.fullName ? user.fullName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}</span>
-                    )}
-                  </span>
+                  <OwnPremiumIdentity userId={user.id} url={user.avatarUrl} name={user.fullName || user.email} size="sm" showStatus={false} />
                   <span className={cn('hidden max-w-[140px] truncate text-sm font-semibold leading-tight sm:block', isTransparent ? 'text-white' : 'text-slate-900')}>
                     {user.fullName || user.email}
                   </span>
@@ -520,15 +499,11 @@ export function Header({ role }: { role?: AppRole }) {
             </div>
           )}
 
-          <MobileNavigation items={items} onOpenPremium={() => setPremiumModalOpen(true)} />
+          <MobileNavigation items={items} onOpenPremium={() => router.push('/premium')} />
         </div>
       </Container>
     </header>
 
-    <PremiumComingSoonModal
-      isOpen={premiumModalOpen}
-      onClose={() => setPremiumModalOpen(false)}
-    />
   </>
 );
 }

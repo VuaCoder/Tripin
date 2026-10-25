@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '@/features/auth/types';
+vi.mock('@/features/premium/api', () => ({ useMyPremiumQuery: () => ({currentData:{active:false,endsAt:null,expired:false},refetch:vi.fn()}) }));
 
 const mockUseGetMeQuery = vi.fn();
 const mockUpdateMe = vi.fn();
