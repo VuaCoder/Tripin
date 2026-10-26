@@ -1,202 +1,266 @@
-# TRIPRI - NỀN TẢNG ĐẶT TOUR TRỰC TUYẾN (TOUR PLATFORM)
+# TRIPRI - NỀN TẢNG DU LỊCH & ĐẶT TOUR TRỰC TUYẾN (TRAVEL PLATFORM)
 
-Chào mừng bạn đến với dự án **TRIPRI** - Nền tảng đặt tour trực tuyến. Đây là tài liệu hướng dẫn tổng quan dành cho tất cả thành viên trong đội ngũ phát triển (Developers), cung cấp các thông tin cần thiết về kiến trúc, công nghệ và cách thiết lập môi trường để bắt đầu làm việc.
+Chào mừng bạn đến với dự án **TRIPRI** – Nền tảng kết nối du khách (Traveler), đại lý du lịch (Agency) và hướng dẫn viên (Tour Guide). Đây là tài liệu tổng quan toàn diện dành cho các nhà phát triển (Developers), cung cấp kiến trúc hệ thống, cấu trúc thư mục, công nghệ sử dụng và hướng dẫn chi tiết cách khởi chạy toàn bộ nền tảng (Frontend, Backend, Mobile).
 
 ---
 
-## 🏗 Cấu trúc dự án (Monorepo)
+## 🏗 Cấu trúc dự án (Monorepo Overview)
 
-Dự án được quản lý dưới dạng **Monorepo** sử dụng `pnpm workspaces`. Mọi mã nguồn đều được tập trung trong một kho lưu trữ duy nhất và chia thành các thư mục rõ ràng:
+Dự án được tổ chức theo mô hình **Monorepo** với `pnpm workspaces`, tập trung mọi thành phần trong một kho mã nguồn duy nhất:
 
 ```text
-TRIPRI/
-├── frontend/        # Ứng dụng Frontend (Next.js, Tailwind CSS)
-├── backend/         # Ứng dụng Backend (Express, Node.js)
-├── packages/        # Các packages dùng chung cho cả frontend và backend
-│   ├── shared-types/      # Định nghĩa các types/interfaces dùng chung
-│   ├── shared-validation/ # Các schema xác thực (validation) dùng chung
-│   └── constants/         # Các hằng số (constants)
-├── prisma/          # Cấu hình CSDL PostgreSQL (Schema, Migrations, Seeding)
-├── .agents/skills/  # Cấu hình Agent Skills (Neon skills, workflow automation)
-├── docs/            # Tài liệu dự án chi tiết (Architecture, Flows, Use-cases, Database)
-├── neon.ts          # Cấu hình Neon Infrastructure-as-Code (Services, Branching)
-├── .env.example     # File mẫu chứa các biến môi trường cần thiết
-└── pnpm-workspace.yaml # File cấu hình workspace của pnpm
+travel-platform/
+├── frontend/             # Ứng dụng Web Client (Next.js 15, Tailwind CSS, Redux Toolkit)
+├── backend/              # Ứng dụng Backend API & Realtime (Node.js, Express, TypeScript, Socket.IO)
+├── mobile/               # Ứng dụng Di động (Flutter - Android / Web / Windows)
+│                         # (Chỉ chứa các file config, thiết lập core và các folder để code)
+├── packages/             # Các thư viện & mã nguồn dùng chung (Monorepo Shared Packages)
+│   ├── shared-types/     # TypeScript interfaces/types đồng bộ giữa Frontend và Backend
+│   ├── shared-validation/# Schema xác thực dữ liệu (Zod)
+│   └── constants/        # Các hằng số dùng chung toàn hệ thống
+├── prisma/               # Cấu trúc CSDL PostgreSQL (schema.prisma, migrations, seeds)
+├── docs/                 # Tài liệu thiết kế hệ thống (Architecture, Flowcharts, Database, API)
+├── .agents/skills/       # Agent skills cấu hình tự động hóa & AI workflow
+├── docker-compose.yml    # File cấu hình chạy PostgreSQL cục bộ qua Docker
+├── neon.ts               # Cấu hình Neon Serverless Postgres (Branching, Services)
+├── .env.example          # Biến môi trường mẫu
+├── package.json          # Quản lý script monorepo
+└── pnpm-workspace.yaml   # Cấu hình workspaces của pnpm
 ```
 
-### Chi tiết các thành phần chính:
-- **`frontend/`**: Giao diện người dùng. Được chia theo tính năng (feature-based) và các thành phần có thể tái sử dụng (components). Sử dụng App Router của Next.js.
-- **`backend/`**: Xử lý logic nghiệp vụ. Được cấu trúc theo mô hình **Layered MVC** và **Domain-first** (tổ chức module theo từng nghiệp vụ như auth, tours, bookings,...).
-- **`prisma/`**: Nơi duy nhất định nghĩa cấu trúc dữ liệu (`schema.prisma`) và quản lý các lịch sử thay đổi (migrations) của CSDL PostgreSQL.
-- **`neon.ts`**: Tệp cấu hình phân nhánh (branching) và dịch vụ đám mây của Neon (Lakebase Postgres, Auth, Functions, Object Storage, AI Gateway).
+### Chi tiết các thư mục chính:
+- **`frontend/`**: Giao diện người dùng web đa phân hệ (Traveler, Agency Portal, Admin Dashboard). Sử dụng App Router của Next.js và Tailwind CSS.
+- **`backend/`**: Máy chủ API phục vụ xác thực, đặt tour, thanh toán, quản lý vé và chat realtime qua Socket.IO. Kiến trúc theo chuẩn Layered MVC (Domain-first).
+- **`mobile/`**: Ứng dụng di động Flutter phục vụ du khách. **Thư mục này được tổ chức chuẩn dạng starter: chỉ chứa file config, thư viện nền tảng và các folder khung để dev tự viết code tính năng, không chứa mã nguồn nghiệp vụ viết sẵn**.
+- **`prisma/`**: Nơi duy nhất định nghĩa mô hình dữ liệu (`schema.prisma`) và quản lý lịch sử migration của PostgreSQL.
+- **`packages/`**: Các gói chia sẻ dùng chung trong monorepo giúp Frontend và Backend luôn đồng bộ kiểu dữ liệu.
 
 ---
 
-## 🛠 Tech Stack (Công nghệ sử dụng)
+## 🛠 Công nghệ sử dụng (Tech Stack)
 
-### Frontend:
-- **Framework**: Next.js (App Router), TypeScript
-- **Styling**: Tailwind CSS (không sử dụng UI Framework nào khác như MUI hay Bootstrap)
-- **State Management**: Redux Toolkit (cho Global State) + RTK Query (cho API Data/Server State)
-- **Real-time**: Socket.IO Client
+### 1. Frontend (Web Application)
+- **Framework**: Next.js 15 (React 19, App Router), TypeScript
+- **Styling**: Tailwind CSS, Lucide Icons, GSAP Animation
+- **State Management**: Redux Toolkit (Global UI state) + RTK Query (Server data caching)
+- **Real-time**: Socket.IO Client (kết nối chat & thông báo trực tiếp)
 
-### Backend:
-- **Framework**: Node.js, Express, TypeScript
-- **Architecture**: Layered MVC (Route -> Middleware -> Controller -> Service -> Repository)
-- **Real-time**: Socket.IO
+### 2. Backend (REST API & Realtime Gateway)
+- **Runtime & Language**: Node.js, Express, TypeScript
+- **Architecture**: Layered MVC (Route → Middleware → Controller → Service → Repository)
+- **Real-time**: Socket.IO (Chat thời gian thực & Push Notifications trên cùng cổng HTTP)
+- **Jobs / Cron**: Xử lý quét bảo trì định kỳ (dọn dẹp phiên hết hạn, đồng bộ trạng thái đơn đặt)
 
-### Cơ sở dữ liệu & Cloud Backend:
-- **Database Engine**: PostgreSQL (Lakebase Postgres)
+### 3. Mobile (Flutter Cross-Platform)
+- **Framework & Language**: Flutter SDK, Dart
+- **Nền tảng hỗ trợ**: Android (tối ưu chính), Web, Windows Desktop
+- **Architecture**: Clean Architecture / Feature-first (Chia theo `core/`, `features/`, `shared/`)
+- **Networking**: `dio` (kèm Interceptor tự động gắn Bearer Token)
+- **State Management**: `flutter_bloc` & `equatable`
+- **Storage**: `flutter_secure_storage` (lưu JWT an toàn), `shared_preferences`
+- **Notification**: `flutter_local_notifications`
+- **UI & Helpers**: `google_fonts` (Inter), `cached_network_image`, `intl`
+
+### 4. Cơ sở dữ liệu & Đám mây (Database & Cloud)
+- **Database Engine**: PostgreSQL
 - **Cloud Database Platform**: [Neon](https://neon.tech) (Serverless Postgres, Instant Branching, Scale-to-zero)
 - **ORM**: Prisma
-
-### Hệ thống / Khác:
-- **Xác thực (Authentication)**: JWT (Access Token + Refresh Token), Google OAuth, Email OTP, 2FA
-- **Thanh toán (Payment)**: PayOS
-- **Quản lý gói (Package Manager)**: pnpm
+- **Lưu trữ tệp tin (Media Storage)**: Cloudinary
+- **Cổng thanh toán**: PayOS
 
 ---
 
-## 👥 Các đối tượng người dùng (Actors)
+## 📱 Cấu trúc thư mục Mobile (`mobile/`)
 
-Hệ thống phục vụ các vai trò sau:
-- **Guest (Khách chưa đăng nhập)**: Chỉ xem các trang công khai (danh sách tour, chi tiết tour, review,...).
-- **Traveler (Khách du lịch)**: Người đặt tour, thanh toán, viết review,...
-- **Agency (Đại lý du lịch)**: Tạo, quản lý tour, quản lý đặt chỗ,...
-- **Tour Guide (Hướng dẫn viên)**: Nhận tour, xem lịch trình, báo cáo thu nhập,...
-- **Moderator (Điều hành viên)**: Kiểm duyệt tour, xử lý khiếu nại (Tài khoản được cấp nội bộ).
-- **Super Admin (Quản trị viên cấp cao)**: Quản lý toàn hệ thống, cấu hình phí, phân quyền (Tài khoản được cấp nội bộ).
+Thư mục `mobile` được chuẩn hóa theo tiêu chí: **Chỉ chứa các file cấu hình và khung thư mục sẵn sàng để code tính năng, không chứa mã nghiệp vụ hoàn chỉnh**:
 
----
-
-## 🚀 Hướng dẫn Cài đặt & Chạy dự án (Getting Started)
-
-### 1. Yêu cầu hệ thống
-- **Git**
-- **Node.js** (Phiên bản LTS - khuyến nghị v20 trở lên)
-- **pnpm** (Cài đặt qua npm: `npm install -g pnpm`)
-- **Neon CLI** (Khuyến nghị: `npm install -g neon@latest`) hoặc **Docker** (nếu chạy Postgres cục bộ)
-
-### 2. Tải mã nguồn về máy
-```bash
-git clone https://github.com/VuaCoder/Tripin.git
-cd travel-platform
+```text
+mobile/
+├── android/                         # Cấu hình Android Native (Gradle, AndroidManifest, Permissions)
+├── web/                             # Cấu hình Web Flutter
+├── windows/                         # Cấu hình Windows Native Desktop
+├── pubspec.yaml                     # Khai báo dependencies (Dio, Bloc, Secure Storage, Notifications,...)
+├── analysis_options.yaml            # Cấu hình linter chuẩn cho Dart
+└── lib/
+    ├── core/                        # [CẤU HÌNH & HẠ TẦNG NỀN TẢNG]
+    │   ├── constants/
+    │   │   ├── api_endpoints.dart   # URL Backend tự động nhận diện thiết bị (localhost / 10.0.2.2)
+    │   │   └── app_colors.dart      # Bộ mã màu chuẩn thương hiệu Tripri
+    │   ├── network/
+    │   │   └── api_client.dart      # Dio Client thiết lập sẵn BaseUrl, Timeout & Token Interceptor
+    │   ├── services/
+    │   │   └── notification_service.dart # Cấu hình thông báo cục bộ flutter_local_notifications
+    │   ├── storage/
+    │   │   └── token_storage.dart   # Quản lý lưu/đọc JWT Token an toàn
+    │   └── theme/
+    │       └── app_theme.dart       # Material 3 Theme & Typography Inter
+    │
+    ├── features/                    # [CÁC FOLDER ĐỂ LẬP TRÌNH TÍNH NĂNG]
+    │   ├── auth/                    # Chứa mã nguồn Đăng nhập, Đăng ký, OTP, Quên mật khẩu
+    │   ├── tours/                   # Chứa mã nguồn Tìm kiếm, Danh sách tour, Chi tiết tour, Đánh giá
+    │   ├── bookings/                # Chứa mã nguồn Đặt tour, Thanh toán, Lịch sử đặt vé
+    │   ├── notifications/           # Chứa mã nguồn Danh sách & Xử lý thông báo
+    │   ├── chat/                    # Chứa mã nguồn Hội thoại & Tin nhắn thời gian thực
+    │   └── profile/                 # Chứa mã nguồn Quản lý tài khoản cá nhân, Voucher
+    │
+    ├── shared/                      # [THÀNH PHẦN DÙNG CHUNG CẦN VIẾT]
+    │   ├── models/                  # Data classes, DTOs, JSON serializers
+    │   └── widgets/                 # Các UI Components tái sử dụng (Button, Input, Card, Dialog,...)
+    │
+    └── main.dart                    # Điểm khởi chạy app, cấu hình Theme & màn hình chẩn đoán kết nối API
 ```
 
-### 3. Cài đặt thư viện (Dependencies)
+---
+
+## 🚀 Hướng dẫn Cài đặt & Khởi chạy Toàn diện
+
+### Yêu cầu tiên quyết (Prerequisites)
+1. **Node.js**: Phiên bản 20 trở lên.
+2. **pnpm**: Cài đặt bằng `npm install -g pnpm`.
+3. **Flutter SDK**: Phiên bản 3.22 trở lên (chạy lệnh `flutter doctor` để kiểm tra môi trường).
+4. **Android Studio**: Đã cài Android SDK, Command-line Tools và máy ảo Android Emulator (hoặc điện thoại thật bật USB Debugging).
+5. **Cơ sở dữ liệu**: Docker (PostgreSQL) hoặc tài khoản Neon Cloud.
+
+---
+
+### Bước 1: Cài đặt Dependencies Monorepo
+Tại thư mục gốc dự án:
 ```bash
-# Ở thư mục gốc (root) của dự án:
 pnpm install
 ```
 
-### 4. Thiết lập Cơ sở dữ liệu & Biến môi trường
+---
 
-Bạn có thể chọn 1 trong 2 cách thiết lập Database bên dưới:
+### Bước 2: Cấu hình Môi trường & Database
 
-#### 👉 Cách 1: Sử dụng Neon Cloud Postgres (Khuyến nghị)
-1. Đăng nhập vào Neon CLI:
+#### Lựa chọn A: Dùng Neon Cloud Postgres (Khuyến nghị)
+1. Đăng nhập Neon CLI:
    ```bash
    neon login
    ```
-2. Liên kết với project Neon của dự án:
+2. Liên kết dự án:
    ```bash
    neon link --project-id super-darkness-97500515 --branch production -y
    ```
-   *Lệnh này sẽ tạo file `.neon` và tự động kéo các biến môi trường (`DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `NEON_BRANCH`) vào `.env.local`.*
-
-3. Sao chép các cấu hình bổ sung từ `.env.example` vào `.env` nếu cần:
+3. Tạo file `.env` từ `.env.example`:
    ```bash
    cp .env.example .env
    ```
 
-#### 👉 Cách 2: Sử dụng Docker PostgreSQL cục bộ
-1. Chạy container PostgreSQL:
+#### Lựa chọn B: Dùng Docker Postgres Cục bộ
+1. Chạy container:
    ```bash
    docker compose up -d
    ```
-2. Sao chép file `.env.example` thành `.env`:
+2. Tạo file `.env`:
    ```bash
    cp .env.example .env
    ```
 
----
-
-### 5. Đồng bộ cấu trúc Database (Prisma Migrations)
-Sau khi có chuỗi kết nối `DATABASE_URL`, tiến hành áp dụng migrations:
+#### Đồng bộ Schema Database:
 ```bash
 pnpm --filter backend db:deploy
 ```
-*Khi chỉnh sửa `prisma/schema.prisma`, dùng `pnpm --filter backend db:migrate` để tạo migration mới. Xem chi tiết tại `docs/database/README.md`.*
 
 ---
 
-### 6. Chạy dự án
-Mở 2 terminal tại thư mục gốc để chạy song song Frontend và Backend:
+### Bước 3: Khởi động Backend & Frontend
 
-**Chạy Frontend:**
+#### Chạy Backend (Cổng 3001):
+```bash
+pnpm run dev:backend
+# hoặc: pnpm --filter backend dev
+```
+> Server sẽ lắng nghe tại: `http://localhost:3001` (Endpoint kiểm tra: `http://localhost:3001/health`).
+
+#### Chạy Frontend (Cổng 3000):
 ```bash
 pnpm run dev:frontend
 ```
-👉 Truy cập: [http://localhost:3000](http://localhost:3000)
+> Truy cập giao diện web tại: `http://localhost:3000`.
 
-**Chạy Backend:**
+---
+
+### Bước 4: Hướng dẫn Chi tiết Khởi chạy Mobile (`mobile/`)
+
+> ⚠️ **LƯU Ý QUAN TRỌNG:** Mobile không tự động bật Backend. Bạn **bắt buộc phải chạy Backend ở Bước 3** trước khi chạy Mobile để ứng dụng có thể kết nối dữ liệu!
+
+#### Cách 1: Mở và chạy qua Android Studio (Khuyên dùng)
+1. Mở **Android Studio**.
+2. Chọn **Open** và trỏ đường dẫn đến thư mục `travel-platform/mobile`.
+3. Chờ Android Studio đồng bộ Gradle và nhận diện Flutter/Dart SDK.
+4. Mở trình quản lý thiết bị ảo (**Device Manager**) và khởi động 1 máy ảo Android (Pixel 7/8 API 34+).
+5. Nhấn nút **Run 'main.dart'** (hoặc tổ hợp phím `Shift + F10`).
+
+#### Cách 2: Chạy trực tiếp qua dòng lệnh (Terminal)
+Mở terminal và di chuyển vào thư mục `mobile`:
 ```bash
-pnpm run dev:backend
+cd mobile
+flutter pub get
 ```
-👉 Backend sẽ chạy ở cổng được cấu hình (mặc định: 3001). Kiểm tra health-check: `GET http://localhost:3001/health`.
 
----
-
-## ⚡ Làm việc với Neon (Neon Workflows)
-
-Dự án đã được tích hợp đầy đủ công cụ của **Neon**:
-
-- **Kiểm tra trạng thái branch**:
+- **Kiểm tra danh sách thiết bị có sẵn:**
   ```bash
-  neon status
+  flutter devices
   ```
-- **Tạo nhánh database riêng cho feature mới (Branch-First Dev)**:
+- **Chạy trên Android Emulator / Thiết bị Android:**
   ```bash
-  neon checkout dev-feature-name --create
+  flutter run
   ```
-  *(Nhánh mới sẽ được tạo ngay lập tức dưới dạng copy-on-write từ nhánh hiện tại và tự động kéo chuỗi kết nối vào môi trường làm việc).*
-- **Đồng bộ / Triển khai cấu hình `neon.ts`**:
+- **Chạy trên trình duyệt Web (Chrome):**
   ```bash
-  neon deploy
+  flutter run -d chrome
   ```
-- **Kéo lại biến môi trường mới nhất**:
+- **Chạy trên Windows Desktop:**
   ```bash
-  neon env pull
-  ```
-- **Cấu hình MCP Server cho AI Agent**:
-  ```bash
-  neon mcp -y
+  flutter run -d windows
   ```
 
 ---
 
-## ⚠️ Các Lưu ý Quan trọng dành cho Team (AI Rules & Guidelines)
+### 🌐 Cơ chế Kết nối Backend từ Mobile (Network & Host Resolution)
 
-Khi tham gia phát triển, xin hãy tuân thủ nghiêm ngặt các nguyên tắc sau đây:
+Được định nghĩa tại `mobile/lib/core/constants/api_endpoints.dart`:
 
-1. **Tuân thủ Kiến trúc có sẵn**: Luôn giữ backend theo cấu trúc *Domain-first* (Mọi Controller, Service, Route liên quan đến nhau phải nằm chung trong `src/modules/{domain}/`). KHÔNG tạo các thư mục global như `controllers/` hay `services/` dùng chung cho toàn dự án.
-2. **Nguyên tắc "Minimal Change"**: Chỉ chỉnh sửa/thêm những phần liên quan trực tiếp đến Task bạn đang làm. Không tự ý refactor những module không liên quan.
-3. **Database & Prisma**: PostgreSQL và Prisma là nguồn duy nhất quản lý CSDL. TUYỆT ĐỐI không sử dụng hay cài đặt MongoDB/Mongoose.
-4. **Không tùy tiện thêm thư viện (Dependencies)**: Kiểm tra kĩ xem thư viện đang cần đã có sẵn chưa. Chỉ cài đặt thư viện mới khi thực sự cần thiết và phải được thống nhất chung.
-5. **Không lộ Secret Keys**: **KHÔNG BAO GIỜ** đẩy (commit) các thông tin nhạy cảm như JWT Secret, PayOS keys, Database URL lên GitHub. Luôn để trong `.env` / `.env.local`.
-6. **Bảo mật Xác thực**: Phân quyền (Authorization) bắt buộc phải được xử lý ở Backend. Frontend chỉ ẩn/hiện UI để tối ưu trải nghiệm, không đóng vai trò bảo mật chính.
-7. **Luôn tham khảo Thư mục `docs/`**: Các tài liệu thiết kế Use-case, Flow, Architecture đã được định nghĩa chuẩn xác trong thư mục `docs/`. Hãy đọc chúng trước khi bắt đầu code tính năng mới.
+| Thiết bị chạy Mobile | Host URL tự động | Giải thích cơ chế |
+| :--- | :--- | :--- |
+| **Android Emulator** | `http://10.0.2.2:3001/api/v1` | `10.0.2.2` là alias đặc biệt của Android Emulator để truy cập vào `localhost` máy tính chủ của bạn. |
+| **Web Browser / Windows Desktop** | `http://localhost:3001/api/v1` | Chạy cùng trên máy chủ nên kết nối trực tiếp qua `localhost`. |
+| **Thiết bị thật (Physical Android Phone)** | *Cần chuyển tiếp cổng hoặc dùng IP LAN* | Xem hướng dẫn bên dưới. |
+
+#### ⚠️ Khi chạy trên Điện thoại Android thật (Physical Device):
+Điện thoại thật coi `localhost` là chính nó chứ không phải máy tính chạy backend. Bạn có 2 cách giải quyết:
+1. **Dùng cáp USB (Khuyên dùng):** Bật USB Debugging trên điện thoại, cắm cáp vào máy tính và chạy lệnh:
+   ```bash
+   adb reverse tcp:3001 tcp:3001
+   ```
+   *(Lệnh này ánh xạ cổng 3001 trên điện thoại về thẳng cổng 3001 trên máy tính).*
+2. **Dùng chung mạng Wi-Fi:** Đổi `baseUrl` trong `mobile/lib/core/constants/api_endpoints.dart` thành IP mạng LAN của máy tính (ví dụ: `http://192.168.1.15:3001/api/v1`).
+
+#### 🔒 Cấu hình cho phép HTTP Cleartext:
+File `mobile/android/app/src/main/AndroidManifest.xml` đã được cấu hình cờ:
+```xml
+android:usesCleartextTraffic="true"
+```
+giúp tránh lỗi bị Android 9+ chặn kết nối `http://` nội bộ khi kiểm thử.
 
 ---
 
-## Chính sách điều hướng và BoatPreloader (Global Navigation UX)
+## 👥 Phân quyền & Tài khoản trong Hệ thống
 
-Trước đây `frontend/components/preloader/RoutePreloader.tsx` tự bật overlay toàn màn hình khi nhấn liên kết giữa các trang chính hoặc dùng Back/Forward. Overlay giữ tối thiểu 380 ms rồi mới chạy hiệu ứng thoát, nên có thể che nội dung đã sẵn sàng. Điều này ảnh hưởng cảm nhận tốc độ, không phải thời gian tải RSC hay API.
+Hệ thống phân tách quyền hạn rõ ràng thông qua JWT Claims:
+- **Traveler**: Người dùng thông thường đặt tour, thanh toán, viết review, chat.
+- **Agency**: Đăng ký đại lý, tạo & quản lý tour, quản lý booking của khách, gán Tour Guide.
+- **Tour Guide**: Hướng dẫn viên nhận tour từ đại lý, theo dõi lịch trình du khách.
+- **Moderator**: Kiểm duyệt nội dung tour, giải quyết khiếu nại tranh chấp.
+- **Super Admin**: Quản trị tài khoản, phân quyền, cấu hình phí hoa hồng toàn sàn.
 
-Chính sách hiện tại: Guest/Traveler dùng BoatPreloader khi chuyển route chậm (chờ 180 ms trước khi hiển thị), còn route nhanh không bị phủ. Boat bắt đầu thoát ngay khi route commit, không áp dụng minimum 380 ms cho điều hướng thông thường. Luồng gọi tường minh vẫn giữ minimum 380 ms và timeout an toàn 4,5 giây. Agency sidebar giữ nguyên chính sách điều hướng Phase 1.
+---
 
-`BoatPreloader.tsx` vẫn giữ GSAP, reduced-motion và cleanup khi thoát. Các sự kiện `tripri:navigation-start` / `tripri:navigation-end` (hook `usePreloader`) và `tripri:route-navigation-start` tiếp tục hoạt động cho luồng tường minh. Cơ chế tự động bỏ qua Agency và có timeout an toàn 4,5 giây khi điều hướng lỗi/bị hủy.
+## 📜 Quy định Đóng góp Mã nguồn (Git Guidelines)
 
-Thay đổi này chỉ điều chỉnh UX overlay, không chứng minh tốc độ RSC/API tăng. Vẫn cần UAT trình duyệt và đo click-to-content, đặc biệt trên mạng chậm.
-
-Kiểm chứng và bottleneck được ghi tại `docs/performance/boat-navigation-audit.md`.
+1. **Nhánh làm việc**: Không commit trực tiếp lên `main`. Tạo nhánh mới theo quy tắc:
+   - `feature/<tên-tính-năng>` (ví dụ: `feature/mobile-starter-setup`)
+   - `fix/<tên-lỗi>`
+2. **Commit Message**: Tuân thủ chuẩn Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`).
+3. **Bảo mật**: Tuyệt đối không commit các khóa bí mật (`JWT_SECRET`, `PAYOS_API_KEY`, `.env`) lên kho lưu trữ.
