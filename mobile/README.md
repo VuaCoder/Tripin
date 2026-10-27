@@ -32,8 +32,8 @@ mobile/
     │       └── app_theme.dart       <-- Cấu hình Material 3 và Google Fonts Inter
     │
     ├── features/                    <-- [CÁC THƯ MỤC ĐỂ BẠN TỰ CODE TÍNH NĂNG - CHỈ TRAVELER & TOUR GUIDE]
-    │   ├── auth/                    <-- [BẠN 1] Đăng ký đa vai trò (Traveler & Tour Guide), Login, OTP, Phân tuyến Role
-    │   ├── profile/                 <-- [BẠN 1] Hồ sơ cá nhân, Upload Avatar, Hồ sơ KYC Hướng dẫn viên (Upload ảnh thẻ HDV)
+    │   ├── auth/                    <-- [BẠN 1] 2 Luồng Đăng ký riêng biệt (Khách & HDV), Login, OTP, Điều hướng Role
+    │   ├── profile/                 <-- [BẠN 1] Hồ sơ cá nhân, Avatar, Hồ sơ nghề nghiệp HDV (Số thẻ, kinh nghiệm, ảnh thẻ)
     │   ├── tours/                   <-- [BẠN 2 & 3] Trang chủ, Danh mục, Tìm kiếm đa tiêu chí, Chi tiết tour & Timeline lịch trình
     │   ├── wishlist/                <-- [BẠN 2] Traveler: Danh sách tour yêu thích
     │   ├── bookings/                <-- [BẠN 4] Đặt tour, Lịch sử đặt chỗ, Vé điện tử QR code & Hủy tour
