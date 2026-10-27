@@ -32,12 +32,17 @@ mobile/
     │       └── app_theme.dart       <-- Cấu hình Material 3 và Google Fonts Inter
     │
     ├── features/                    <-- [CÁC THƯ MỤC ĐỂ BẠN TỰ CODE TÍNH NĂNG]
-    │   ├── auth/                    <-- Màn hình Đăng nhập, Đăng ký, OTP, Quên mật khẩu
-    │   ├── tours/                   <-- Danh sách tour, Chi tiết tour, Tìm kiếm, Đánh giá
-    │   ├── bookings/                <-- Đặt chỗ, Thanh toán, Lịch sử vé
-    │   ├── notifications/           <-- Danh sách thông báo, Chi tiết thông báo
-    │   ├── chat/                    <-- Danh sách hội thoại, Tin nhắn thời gian thực
-    │   └── profile/                 <-- Hồ sơ cá nhân, Đổi mật khẩu, Kho voucher
+    │   ├── auth/                    <-- [BẠN 1] Màn hình Đăng nhập, Đăng ký, OTP
+    │   ├── profile/                 <-- [BẠN 1] Hồ sơ cá nhân, Đổi/Quên mật khẩu
+    │   ├── tours/                   <-- [BẠN 2] Danh sách tour, Chi tiết tour, Tìm kiếm & Lọc
+    │   ├── wishlist/                <-- [BẠN 2] Danh sách tour yêu thích
+    │   ├── bookings/                <-- [BẠN 3] Đặt chỗ, Thanh toán PayOS, Vé điện tử QR
+    │   ├── vouchers/                <-- [BẠN 3] Kho voucher và áp dụng mã ưu đãi
+    │   ├── agency/                  <-- [BẠN 4] Quản lý tour, Phân công Tour Guide
+    │   ├── guide/                   <-- [BẠN 4] Lịch trình phân công, Camera quét QR vé, Thu nhập
+    │   ├── chat/                    <-- [BẠN 5] Trò chuyện Realtime Socket.IO & Chatbot AI
+    │   ├── notifications/           <-- [BẠN 5] Trung tâm thông báo & Thông báo đẩy
+    │   └── admin/                   <-- [BẠN 5] Kiểm duyệt tour & Xử lý khiếu nại tranh chấp
     │
     ├── shared/                      <-- [CÁC THÀNH PHẦN DÙNG CHUNG CẦN VIẾT]
     │   ├── models/                  <-- Models, DTOs, JSON Serializers
