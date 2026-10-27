@@ -185,12 +185,16 @@ pnpm run dev:frontend
 
 > ⚠️ **LƯU Ý QUAN TRỌNG:** Mobile không tự động bật Backend. Bạn **bắt buộc phải chạy Backend ở Bước 3** trước khi chạy Mobile để ứng dụng có thể kết nối dữ liệu!
 
-#### Cách 1: Mở và chạy qua Android Studio (Khuyên dùng)
+#### Cách 1: Chạy Virtual Device trực tiếp bên trong Android Studio (Tab Running Devices)
 1. Mở **Android Studio**.
 2. Chọn **Open** và trỏ đường dẫn đến thư mục `travel-platform/mobile`.
-3. Chờ Android Studio đồng bộ Gradle và nhận diện Flutter/Dart SDK.
-4. Mở trình quản lý thiết bị ảo (**Device Manager**) và khởi động 1 máy ảo Android (Pixel 7/8 API 34+).
-5. Nhấn nút **Run 'main.dart'** (hoặc tổ hợp phím `Shift + F10`).
+3. Kiểm tra cài đặt máy ảo nhúng bên trong:
+   - Vào **File -> Settings** -> **Tools** -> **Emulator** -> Tích chọn **"Launch in the Running Devices tool window"**.
+4. Mở tab **Device Manager** ở thanh công cụ bên phải Android Studio:
+   - Bấm nút **Play (▶)** cạnh máy ảo Android (Pixel 7/8). Máy ảo sẽ khởi động và hiển thị ngay tại tab **Running Devices** bên trong cửa sổ Android Studio (không bị bật ra cửa sổ rời bên ngoài).
+5. Kiểm tra dropdown thiết bị trên thanh Toolbar đã chọn đúng máy ảo đó.
+6. Nhấn nút **Run 'main.dart'** (tam giác xanh hoặc nhấn `Shift + F10`). App sẽ tự build và hiển thị trực tiếp trong Android Studio.
+   *(Lưu ý: Mạng máy ảo bên trong Android Studio vẫn tự động kết nối backend cổng 3001 qua `http://10.0.2.2:3001/api/v1`).*
 
 #### Cách 2: Chạy trực tiếp qua dòng lệnh (Terminal)
 Mở terminal và di chuyển vào thư mục `mobile`:

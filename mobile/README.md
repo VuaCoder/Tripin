@@ -69,12 +69,16 @@ pnpm run dev:backend
 ```
 > Server sẽ chạy tại: `http://localhost:3001`
 
-### 2. Mở dự án trong Android Studio
+### 2. Chạy Virtual Device trực tiếp bên trong Android Studio (Tab Running Devices)
 1. Mở **Android Studio**.
-2. Chọn **Open** và chọn thư mục `travel-platform/mobile`.
-3. Chờ Gradle tải xong và nhận diện thiết bị.
-4. Mở **Device Manager** và bật máy ảo Android Emulator.
-5. Nhấn nút **Run (Shift + F10)**.
+2. Chọn **Open** và trỏ đến thư mục `travel-platform/mobile`.
+3. Kiểm tra cài đặt để máy ảo nhúng bên trong:
+   - Vào **File -> Settings** (Windows) -> **Tools** -> **Emulator** -> Tích chọn **"Launch in the Running Devices tool window"**.
+4. Mở tab **Device Manager** ở thanh công cụ bên phải Android Studio:
+   - Bấm nút **Play (▶)** cạnh tên máy ảo Android của bạn.
+   - Máy ảo sẽ khởi động và hiển thị ngay tại tab **Running Devices** bên trong Android Studio (không bị nhảy ra cửa sổ rời bên ngoài).
+5. Nhìn lên thanh công cụ trên cùng (Toolbar), đảm bảo dropdown thiết bị đã chọn máy ảo đó.
+6. Nhấn nút **Run 'main.dart'** (tam giác xanh hoặc nhấn `Shift + F10`). Ứng dụng sẽ build và hiển thị trực tiếp trong Android Studio.
 
 ### 3. Hoặc chạy qua Terminal
 Tại thư mục `mobile`:
@@ -95,6 +99,20 @@ File cấu hình tại `lib/core/constants/api_endpoints.dart`:
   adb reverse tcp:3001 tcp:3001
   ```
 - **Cho phép HTTP**: Đã cấu hình `android:usesCleartextTraffic="true"` trong `AndroidManifest.xml` để không bị Android 9+ chặn kết nối nội bộ.
+
+---
+
+## ⚡ Lộ trình Thần tốc 1 Tuần (7-Day Sprint)
+
+| Ngày | Trọng tâm công việc cho cả 5 bạn | Kết quả nghiệm thu cuối ngày (EOD) |
+| :--- | :--- | :--- |
+| **Thứ 2 (Day 1)** | Dựng Base UI (Login, Home, Booking form, Guide tours, Chat list) & Models | Mọi màn hình chính có UI tĩnh hoàn chỉnh |
+| **Thứ 3 (Day 2)** | Hoàn thiện UI chi tiết (OTP, Tour Itinerary, Voucher, QR Scanner, Chat bubble) | 100% UI màn hình phụ và điều hướng mượt mà |
+| **Thứ 4 (Day 3)** | Tích hợp API Đợt 1 (Auth, Lấy danh sách Tour thật, Đặt chỗ cơ bản, Socket.IO) | Dữ liệu thật từ backend (3001) hiển thị trên app |
+| **Thứ 5 (Day 4)** | Tích hợp API Đợt 2 (Phân quyền Role, Thanh toán PayOS, Quét QR Check-in, Notif) | Các nút bấm và tương tác nghiệp vụ hoàn tất |
+| **Thứ 6 (Day 5)** | Gộp code chung (Merge Git) & Kiểm thử liên thông chéo giữa 5 bạn | Chạy trọn vẹn kịch bản từ Đặt tour -> Quét QR check-in |
+| **Thứ 7 (Day 6)** | Tối ưu UI/UX, thêm Shimmer loading, xử lý lỗi mất mạng (Offline/Error state) | Giao diện chỉn chu, mượt mà chuẩn demo |
+| **Chủ Nhật (Day 7)** | Chạy test, build file `.apk` cài đặt và đóng gói tài liệu | Xuất bản file APK nộp bài và demo hoàn chỉnh |
 
 ---
 
