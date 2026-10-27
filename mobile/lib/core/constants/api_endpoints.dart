@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 
 class ApiEndpoints {
   ApiEndpoints._();
@@ -28,6 +28,12 @@ class ApiEndpoints {
   static const String resetPassword = '/auth/reset-password';
   static const String me = '/users/me';
   static const String refresh = '/auth/refresh';
+
+  // Users & Profile Uploads (Cloudinary Contract)
+  static const String avatarUploadSignature = '/users/me/avatar/upload-signature';
+  static const String avatarComplete = '/users/me/avatar/complete';
+  static const String licenseImageUploadSignature = '/users/me/license-image/upload-signature';
+  static const String licenseImageComplete = '/users/me/license-image/complete';
 
   // Tours endpoints (PRM393: Product List & Detail)
   static const String tours = '/tours';

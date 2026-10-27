@@ -1,5 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
+import '../bloc/login_bloc.dart';
+import 'login_screen.dart';
 import 'register_guide_screen.dart';
 import 'register_traveler_screen.dart';
 
@@ -147,10 +150,12 @@ class WelcomeAuthScreen extends StatelessWidget {
                   ),
                   GestureDetector(
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Tính năng Đăng nhập đang nằm ở [FLOW-02]!'),
-                          behavior: SnackBarBehavior.floating,
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => BlocProvider(
+                            create: (_) => LoginBloc(),
+                            child: const LoginScreen(),
+                          ),
                         ),
                       );
                     },

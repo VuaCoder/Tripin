@@ -47,6 +47,12 @@ Mỗi khi AI được giao bất kỳ công việc nào, **BẮT BUỘC THỰC H
    - Mở cửa sổ nhúng *Running Devices* trong Android Studio, kết nối backend đang chạy ở máy host.
    - Trực tiếp kiểm thử kịch bản tương tác xem có thỏa mãn đầy đủ AC1 -> AC5 hay không trước khi thông báo hoàn thành cho người dùng.
 
+> [!WARNING]
+> **QUY TẮC QUẢN LÝ GIT (CẤM TỰ ĐỘNG COMMIT & PUSH):**
+> - Tuyệt đối **KHÔNG** tự ý chạy lệnh `git commit` hay `git push` sau khi hoàn thành task.
+> - Toàn bộ code phải để ở local cho người dùng trực tiếp review, chạy thử và nghiệm thu.
+> - **CHỈ** thực hiện commit/push khi người dùng yêu cầu rõ ràng.
+
 ---
 
 ## 🎨 HỆ THỐNG BẢNG MÀU CHUẨN THƯƠNG HIỆU (COLOR PALETTE)
