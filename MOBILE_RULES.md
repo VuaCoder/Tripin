@@ -1,9 +1,80 @@
 # BỘ NGUYÊN TẮC PHÁT TRIỂN MOBILE (MOBILE_RULES.md)
 **DỰ ÁN:** TRIPRI TRAVEL PLATFORM – PHÂN HỆ FLUTTER MOBILE
-**DÀNH CHO:** TOÀN BỘ CÁC AI AGENT & LẬP TRÌNH VIÊN THAM GIA PHÁT TRIỂN
+**DÀNH CHO:** TOÀN BỘ CÁC AI AGENT & LẬP TRÌNH VIÊN THAM GIA DỰ ÁN
 
 > [!CAUTION]
-> **TÍNH TUÂN THỦ TUYỆT ĐỐI:** Bất kỳ AI Agent nào vi phạm các nguyên tắc dưới đây đều bị coi là gây lỗi nghiêm trọng (Hallucination/Architecture Violation). Phải đọc kỹ và tuân thủ 100% trước khi viết mã nguồn hoặc đề xuất phương án.
+> **TÍNH TUÂN THỦ TUYỆT ĐỐI (NON-NEGOTIABLE):** Bất kỳ AI Agent nào vi phạm các nguyên tắc dưới đây đều bị coi là gây lỗi nghiêm trọng (Hallucination/Architecture Violation). Phải đọc kỹ và tuân thủ 100% trước khi viết mã nguồn hoặc đề xuất phương án.
+
+---
+
+## 🛑 BỘ QUY TRÌNH 5 BƯỚC BẮT BUỘC KHI AI NHẬN TASK (MANDATORY WORKFLOW)
+
+Mỗi khi AI được giao bất kỳ công việc nào, **BẮT BUỘC THỰC HIỆN ĐÚNG THỨ TỰ 5 BƯỚC SAU:**
+
+```
+[BƯỚC 1: ĐỌC TÀI LIỆU QUY CHUẨN] 
+   └── Đọc MOBILE_RULES.md, app_colors.dart, api_endpoints.dart
+          │
+[BƯỚC 2: KIỂM TRA TASK & TIÊU CHÍ NGHIỆM THU]
+   └── Tra cứu mã Flow trong plan_mobile_5_members.md, đọc rõ Luồng bước & AC1 -> AC5
+          │
+[BƯỚC 3: THỰC HIỆN CÔ LẬP (STRICT ISOLATION)]
+   └── Chỉ code trong feature của mình. TUYỆT ĐỐI KHÔNG ĐỤNG VÀO CODE CỦA MODULE KHÁC!
+          │
+[BƯỚC 4: TỰ CHẠY KIỂM THỬ (SELF-TESTING)]
+   └── Chạy `flutter test` và `flutter analyze` xác nhận không có lỗi biên dịch / cảnh báo
+          │
+[BƯỚC 5: XÁC MINH TRÊN ANDROID STUDIO VIRTUAL DEVICE]
+   └── Chạy trên máy ảo (tab Running Devices) kết nối backend 10.0.2.2:3001, nghiệm thu đủ ACs
+```
+
+### Chi tiết từng bước:
+1. **Bước 1 (Đọc file quy chuẩn trước tiên):**
+   - Đọc file `MOBILE_RULES.md` này để nắm rõ các giới hạn kiến trúc.
+   - Đọc file `mobile/lib/core/constants/app_colors.dart` để lấy mã màu chuẩn.
+   - Đọc file `mobile/lib/core/constants/api_endpoints.dart` để gọi đúng URL backend.
+2. **Bước 2 (Kiểm tra Task & Phạm vi):**
+   - Tra cứu đúng mã Task được phân công trong [`plan_mobile_5_members.md`](file:///C:/Users/HOANG%20PHUC/.gemini/antigravity-ide/brain/2bd31de8-1745-4139-959b-7c8c64a597e1/plan_mobile_5_members.md).
+   - Đọc kỹ danh sách các bước luồng công việc (Bước 1 -> 4+), bộ tiêu chí nghiệm thu (**AC1 $\rightarrow$ AC5**) và các API Backend liên kết.
+3. **Bước 3 (Thực hiện với tính cô lập cao - ZERO REGRESSION):**
+   - Chỉ tạo/chỉnh sửa file trong đúng thư mục module được giao (ví dụ: `mobile/lib/features/auth/`, `tours/`, `bookings/`,...).
+   - **QUY TẮC CẤM ĐỤNG CODE CŨ:** Tuyệt đối **KHÔNG ĐƯỢC CHỈNH SỬA, XOÁ HOẶC LÀM THAY ĐỔI CÁC FILE CODE CỦA MODULE KHÁC ĐÃ HOÀN THÀNH**. Mỗi module phải hoạt động độc lập qua DI hoặc Interface. Tuyệt đối không để xảy ra tình trạng "xong task này làm hỏng task kia".
+   - Bắt buộc dùng màu từ `AppColors`, không hardcode mã màu hex.
+4. **Bước 4 (Tự động kiểm thử & Phân tích lỗi):**
+   - Chạy lệnh `flutter analyze` trong thư mục `mobile`: Xác nhận **0 error, 0 warning**.
+   - Chạy lệnh `flutter test` trong thư mục `mobile`: Đảm bảo 100% test cases đã có và test case mới đều **PASS**.
+5. **Bước 5 (Kiểm thử thực tế trên Android Studio Virtual Device):**
+   - Mở cửa sổ nhúng *Running Devices* trong Android Studio, kết nối backend đang chạy ở máy host.
+   - Trực tiếp kiểm thử kịch bản tương tác xem có thỏa mãn đầy đủ AC1 -> AC5 hay không trước khi thông báo hoàn thành cho người dùng.
+
+---
+
+## 🎨 HỆ THỐNG BẢNG MÀU CHUẨN THƯƠNG HIỆU (COLOR PALETTE)
+*Được định nghĩa tại: [`mobile/lib/core/constants/app_colors.dart`](file:///d:/fifa/CHUY%C3%8AN%20NG%C3%80NH%208/WDP302/travel-platform/mobile/lib/core/constants/app_colors.dart)*
+
+> [!IMPORTANT]
+> **CẤM HARDCODE MÃ MÀU HEX!** Mọi Widget trên toàn bộ ứng dụng Mobile BẮT BUỘC sử dụng các hằng số màu từ lớp `AppColors`:
+
+| Tên Hằng Số | Mã Màu Hex | Ý Nghĩa & Ngữ Cảnh Sử Dụng |
+| :--- | :--- | :--- |
+| `AppColors.primary` | `#005A64` | **Màu xanh ngọc chủ đạo (Brand Teal)**: Appbar, nút bấm chính, tab đang chọn. |
+| `AppColors.primaryLight` | `#087E8B` | **Xanh ngọc sáng**: Focus border, icon nổi bật, badge thể loại. |
+| `AppColors.primaryDark` | `#003F46` | **Xanh ngọc đậm**: Trạng thái hover, pressed, container tối. |
+| `AppColors.primarySurface` | `#E6F3F4` | **Nền ngọc nhạt**: Nền icon, chip được chọn, highlight container. |
+| `AppColors.secondary` | `#F5A623` | **Màu cam điểm nhấn (Accent Orange)**: Ngôi sao đánh giá, nút Đặt tour, thẻ Sale. |
+| `AppColors.secondaryDark` | `#E09215` | **Cam đậm**: Trạng thái nhấn nút cam, border nhấn mạnh. |
+| `AppColors.secondarySurface` | `#FEF3C7` | **Cam nhạt**: Nền voucher giảm giá, tag khuyến mãi. |
+| `AppColors.success` | `#10B981` | **Thành công (Xanh lá)**: Vé hợp lệ, thanh toán xong, đã điểm danh. |
+| `AppColors.warning` | `#F59E0B` | **Cảnh báo (Vàng hổ phách)**: Sắp hết hạn, chờ duyệt, lưu ý hoàn hủy. |
+| `AppColors.error` | `#EF4444` | **Lỗi / Thất bại (Đỏ)**: Hủy đơn, sai OTP, vé không hợp lệ, báo sự cố. |
+| `AppColors.background` | `#F8FAFC` | **Nền ứng dụng (Slate 50)**: Nền toàn bộ màn hình, chống mỏi mắt. |
+| `AppColors.backgroundSand` | `#FBF9F5` | **Nền màu cát ấm**: Dùng cho banner tour hoặc section đặc sắc. |
+| `AppColors.surface` | `#FFFFFF` | **Bề mặt trắng**: Thẻ Card tour, Dialog, BottomSheet. |
+| `AppColors.surfaceVariant` | `#F1F5F9` | **Bề mặt phụ (Slate 100)**: Nền ô nhập liệu Input, divider nhẹ. |
+| `AppColors.border` | `#E2E8F0` | **Đường viền (Slate 200)**: Viền thẻ tour, viền ô nhập mặc định. |
+| `AppColors.textPrimary` | `#0F172A` | **Chữ chính (Slate 900)**: Tiêu đề tour, giá tiền, chữ nhấn mạnh. |
+| `AppColors.textSecondary` | `#64748B` | **Chữ phụ (Slate 600)**: Mô tả, địa điểm, phụ đề, nhãn ô nhập. |
+| `AppColors.textMuted` | `#94A3B8` | **Chữ mờ (Slate 400)**: Placeholder, icon không kích hoạt. |
 
 ---
 
@@ -74,6 +145,5 @@
 ## 7. NGUYÊN TẮC CODE VÀ QUẢN LÝ TRẠNG THÁI (CODE CONVENTIONS)
 1. **Kiến trúc thư mục:** Mọi tính năng mới phải nằm trong `mobile/lib/features/<tên_chức_năng>/` gồm: `bloc/` (hoặc `cubit/`), `models/`, `screens/`, `widgets/`.
 2. **Quản lý Token:** Access Token và Refresh Token bắt buộc lưu trữ an toàn bằng `flutter_secure_storage`.
-3. **Màu sắc & Giao diện:** Sử dụng bảng màu thống nhất trong `lib/core/constants/app_colors.dart` (màu chủ đạo Teal & Slate), không hardcode mã màu lung tung.
-4. **Mã vé E-Ticket:** Sử dụng `qr_flutter` để vẽ mã QR của vé điện tử chuẩn từ mã vé (`code` dạng `ET-XXXX-XXXX`), không tự chế format mã vé khác backend.
-5. **Quét mã QR:** Sử dụng `mobile_scanner` để quét vé tại luồng của Hướng dẫn viên, có kiểm soát rung và âm thanh khi quét trúng vé hợp lệ.
+3. **Mã vé E-Ticket:** Sử dụng `qr_flutter` để vẽ mã QR của vé điện tử chuẩn từ mã vé (`code` dạng `ET-XXXX-XXXX`), không tự chế format mã vé khác backend.
+4. **Quét mã QR:** Sử dụng `mobile_scanner` để quét vé tại luồng của Hướng dẫn viên, có kiểm soát rung và âm thanh khi quét trúng vé hợp lệ.
