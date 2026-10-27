@@ -4,6 +4,7 @@ import 'core/constants/app_colors.dart';
 import 'core/network/api_client.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/screens/welcome_auth_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -201,6 +202,33 @@ class _StarterHomePageState extends State<StarterHomePage> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 16),
+
+              // FLOW-01 Demo Action Button
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const WelcomeAuthScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.person_add_alt_1, color: Colors.white, size: 20),
+                  label: const Text(
+                    'Trải nghiệm [FLOW-01]: Đăng ký & OTP',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
