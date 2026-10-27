@@ -32,17 +32,17 @@ mobile/
     │       └── app_theme.dart       <-- Cấu hình Material 3 và Google Fonts Inter
     │
     ├── features/                    <-- [CÁC THƯ MỤC ĐỂ BẠN TỰ CODE TÍNH NĂNG]
-    │   ├── auth/                    <-- [BẠN 1] Màn hình Đăng nhập, Đăng ký, OTP
-    │   ├── profile/                 <-- [BẠN 1] Hồ sơ cá nhân, Đổi/Quên mật khẩu
-    │   ├── tours/                   <-- [BẠN 2] Danh sách tour, Chi tiết tour, Tìm kiếm & Lọc
-    │   ├── wishlist/                <-- [BẠN 2] Danh sách tour yêu thích
-    │   ├── bookings/                <-- [BẠN 3] Đặt chỗ, Thanh toán PayOS, Vé điện tử QR
-    │   ├── vouchers/                <-- [BẠN 3] Kho voucher và áp dụng mã ưu đãi
-    │   ├── agency/                  <-- [BẠN 4] Quản lý tour, Phân công Tour Guide
-    │   ├── guide/                   <-- [BẠN 4] Lịch trình phân công, Camera quét QR vé, Thu nhập
+    │   ├── auth/                    <-- [BẠN 1] Đăng ký đa vai trò (Traveler, Agency KYC, Guide), Login, OTP
+    │   ├── profile/                 <-- [BẠN 1] Hồ sơ cá nhân, Đổi/Quên mật khẩu, Điều hướng Role
+    │   ├── agency/                  <-- [BẠN 2] Agency Portal: Dashboard doanh thu, Tạo & Upload tour, Gán Guide
+    │   ├── guide/                   <-- [BẠN 3] Tour Guide Portal: Lịch dẫn, Camera quét QR vé check-in, Thu nhập
+    │   ├── tours/                   <-- [BẠN 4] Traveler: Trang chủ, Danh sách tour, Chi tiết & Đánh giá
+    │   ├── wishlist/                <-- [BẠN 4] Traveler: Danh sách tour yêu thích
+    │   ├── bookings/                <-- [BẠN 5] Đặt chỗ, Thanh toán PayOS, Vé điện tử QR
+    │   ├── vouchers/                <-- [BẠN 5] Kho voucher và áp dụng mã giảm giá
     │   ├── chat/                    <-- [BẠN 5] Trò chuyện Realtime Socket.IO & Chatbot AI
     │   ├── notifications/           <-- [BẠN 5] Trung tâm thông báo & Thông báo đẩy
-    │   └── admin/                   <-- [BẠN 5] Kiểm duyệt tour & Xử lý khiếu nại tranh chấp
+    │   └── admin/                   <-- [BẠN 5] Admin/Mod: Kiểm duyệt tour, duyệt Agency, xử lý khiếu nại
     │
     ├── shared/                      <-- [CÁC THÀNH PHẦN DÙNG CHUNG CẦN VIẾT]
     │   ├── models/                  <-- Models, DTOs, JSON Serializers
