@@ -60,7 +60,6 @@ mobile/
 - **Thông báo cục bộ (Notifications)**: `flutter_local_notifications`
 - **Lưu trữ dữ liệu an toàn (Storage)**: `flutter_secure_storage`, `shared_preferences`
 - **Giao diện & Tiện ích (UI & Helpers)**: `google_fonts`, `intl`, `cached_network_image`
-- **Bản đồ (Maps)**: `flutter_map`, `latlong2`
 
 ---
 
