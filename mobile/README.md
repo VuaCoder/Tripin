@@ -31,18 +31,16 @@ mobile/
     │   └── theme/
     │       └── app_theme.dart       <-- Cấu hình Material 3 và Google Fonts Inter
     │
-    ├── features/                    <-- [CÁC THƯ MỤC ĐỂ BẠN TỰ CODE TÍNH NĂNG]
-    │   ├── auth/                    <-- [BẠN 1] Đăng ký đa vai trò (Traveler, Agency KYC, Guide), Login, OTP
-    │   ├── profile/                 <-- [BẠN 1] Hồ sơ cá nhân, Đổi/Quên mật khẩu, Điều hướng Role
-    │   ├── agency/                  <-- [BẠN 2] Agency Portal: Dashboard doanh thu, Tạo & Upload tour, Gán Guide
-    │   ├── guide/                   <-- [BẠN 3] Tour Guide Portal: Lịch dẫn, Camera quét QR vé check-in, Thu nhập
-    │   ├── tours/                   <-- [BẠN 4] Traveler: Trang chủ, Danh sách tour, Chi tiết & Đánh giá
-    │   ├── wishlist/                <-- [BẠN 4] Traveler: Danh sách tour yêu thích
-    │   ├── bookings/                <-- [BẠN 5] Đặt chỗ, Thanh toán PayOS, Vé điện tử QR
-    │   ├── vouchers/                <-- [BẠN 5] Kho voucher và áp dụng mã giảm giá
-    │   ├── chat/                    <-- [BẠN 5] Trò chuyện Realtime Socket.IO & Chatbot AI
-    │   ├── notifications/           <-- [BẠN 5] Trung tâm thông báo & Thông báo đẩy
-    │   └── admin/                   <-- [BẠN 5] Admin/Mod: Kiểm duyệt tour, duyệt Agency, xử lý khiếu nại
+    ├── features/                    <-- [CÁC THƯ MỤC ĐỂ BẠN TỰ CODE TÍNH NĂNG - CHỈ TRAVELER & TOUR GUIDE]
+    │   ├── auth/                    <-- [BẠN 1] Đăng ký đa vai trò (Traveler & Tour Guide), Login, OTP, Phân tuyến Role
+    │   ├── profile/                 <-- [BẠN 1] Hồ sơ cá nhân, Upload Avatar, Hồ sơ KYC Hướng dẫn viên (Upload ảnh thẻ HDV)
+    │   ├── tours/                   <-- [BẠN 2 & 3] Trang chủ, Danh mục, Tìm kiếm đa tiêu chí, Chi tiết tour & Timeline lịch trình
+    │   ├── wishlist/                <-- [BẠN 2] Traveler: Danh sách tour yêu thích
+    │   ├── bookings/                <-- [BẠN 4] Đặt tour, Lịch sử đặt chỗ, Vé điện tử QR code & Hủy tour
+    │   ├── vouchers/                <-- [BẠN 4] Ví voucher & Áp dụng mã giảm giá PayOS
+    │   ├── guide/                   <-- [BẠN 5] Tour Guide: Lịch dẫn tour, Xác nhận nhận tour, Quét QR Camera điểm danh, Thu nhập
+    │   ├── chat/                    <-- [BẠN 5] Chat Realtime Socket.IO (Khách - HDV) & Trợ lý ảo AI Assistant
+    │   └── notifications/           <-- [BẠN 5] Trung tâm thông báo push & Báo cáo sự cố tour
     │
     ├── shared/                      <-- [CÁC THÀNH PHẦN DÙNG CHUNG CẦN VIẾT]
     │   ├── models/                  <-- Models, DTOs, JSON Serializers
