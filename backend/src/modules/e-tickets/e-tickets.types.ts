@@ -47,3 +47,30 @@ export interface ListETicketsQuery {
   limit: number;
 }
 
+/** One booking group in a guide's tour roster. The ticket code is deliberately not exposed here. */
+export interface GuideRosterItemDto {
+  ticketId: string;
+  bookingCode: string;
+  holderName: string;
+  participants: number;
+  departureDate: string;
+  checkedIn: boolean;
+  checkedInAt?: string;
+}
+
+export interface GuideRosterDto {
+  tourId: string;
+  tourTitle: string;
+  total: number;
+  checkedIn: number;
+  items: GuideRosterItemDto[];
+}
+
+export interface GuideCheckInDto {
+  ticketId: string;
+  holderName: string;
+  participants: number;
+  tourTitle: string;
+  checkedInAt: string;
+}
+

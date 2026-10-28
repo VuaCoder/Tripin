@@ -1,14 +1,36 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'core/constants/api_endpoints.dart';
 import 'core/constants/app_colors.dart';
 import 'core/network/api_client.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
+import 'features/guide/screens/guide_tours_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService().init();
+  if (kDebugMode) await _devAutoLogin();
   runApp(const TripriApp());
+}
+
+/// Debug-only: the app has no login screen yet, so a local run can seed the guide token.
+/// shortcut: dev login via --dart-define, replace with the real auth flow.
+Future<void> _devAutoLogin() async {
+  const email = String.fromEnvironment('DEV_LOGIN_EMAIL');
+  const password = String.fromEnvironment('DEV_LOGIN_PASSWORD');
+  if (email.isEmpty || password.isEmpty) return;
+  try {
+    final api = ApiClient();
+    final response = await api.post(ApiEndpoints.login, data: {'email': email, 'password': password});
+    final data = (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+    await api.tokenStorage.saveTokens(
+      accessToken: data['accessToken'] as String,
+      refreshToken: data['refreshToken'] as String?,
+    );
+  } catch (error) {
+    debugPrint('[dev-login] failed: $error');
+  }
 }
 
 class TripriApp extends StatelessWidget {
@@ -201,6 +223,15 @@ class _StarterHomePageState extends State<StarterHomePage> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              // shortcut: temporary guide entry until the auth/role navigation exists.
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const GuideToursScreen()),
+                ),
+                icon: const Icon(Icons.qr_code_scanner),
+                label: const Text('HDV: Quét QR Điểm Danh'),
               ),
             ],
           ),

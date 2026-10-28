@@ -6,7 +6,11 @@ class ApiEndpoints {
   /// Tự động nhận diện host phù hợp:
   /// - Android Emulator dùng 10.0.2.2
   /// - Web hoặc Windows desktop dùng localhost
+  /// Máy thật: `--dart-define=API_BASE_URL=http://<IP-LAN>:3001/api/v1`.
+  static const String _overrideBaseUrl = String.fromEnvironment('API_BASE_URL');
+
   static String get baseUrl {
+    if (_overrideBaseUrl.isNotEmpty) return _overrideBaseUrl;
     if (kIsWeb) {
       return 'http://localhost:3001/api/v1';
     }
@@ -52,4 +56,9 @@ class ApiEndpoints {
   // Chat / Messages (PRM393: Messaging)
   static const String conversations = '/chat/conversations';
   static String conversationMessages(String id) => '/chat/conversations/$id/messages';
+
+  // Tour guide: assigned tours + QR check-in
+  static const String guideTours = '/guide/tours';
+  static String guideTicketRoster(String tourId) => '/guide/e-tickets/$tourId';
+  static String guideCheckIn(String tourId) => '/guide/e-tickets/$tourId/check-in';
 }
