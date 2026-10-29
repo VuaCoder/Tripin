@@ -4,6 +4,7 @@ import 'core/constants/app_colors.dart';
 import 'core/network/api_client.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
+import 'features/bookings/screens/my_bookings_screen.dart';
 import 'features/payments/screens/payment_screen.dart';
 
 void main() async {
@@ -231,6 +232,15 @@ class _StarterHomePageState extends State<StarterHomePage> {
                   onPressed: _openPayment,
                   icon: const Icon(Icons.qr_code_2),
                   label: const Text('Tiến hành thanh toán PayOS'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyBookingsScreen())),
+                  icon: const Icon(Icons.receipt_long_outlined),
+                  label: const Text('Đơn đặt của tôi'),
                 ),
               ),
             ],

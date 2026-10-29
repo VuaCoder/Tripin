@@ -38,6 +38,14 @@ class ApiEndpoints {
   static const String bookings = '/bookings';
   static String bookingDetail(String id) => '/bookings/$id';
   static const String myBookings = '/bookings/me';
+  static String cancelBooking(String id) => '/bookings/$id/cancel';
+
+  // E-tickets (vé điện tử QR)
+  static String eTicketByBooking(String bookingId) => '/e-tickets/booking/$bookingId';
+  static String eTicketDetail(String id) => '/e-tickets/$id';
+
+  // Policies (public)
+  static const String cancellationPolicy = '/policies/cancellation';
 
   // Payments (PayOS)
   static String bookingCheckout(String bookingId) => '/payments/bookings/$bookingId/checkout';
