@@ -44,6 +44,8 @@ class ApiEndpoints {
   static const String tours = '/tours';
   static String tourDetail(String id) => '/tours/$id';
   static String tourReviews(String id) => '/tours/$id/reviews';
+  static const String categories = '/categories';
+  static const String promotions = '/promotions';
 
   // Wishlist (Danh sách yêu thích)
   static const String wishlist = '/wishlist';
