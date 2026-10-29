@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../navigation/guide_main_navigation_screen.dart';
@@ -9,6 +9,7 @@ import '../bloc/login_event.dart';
 import '../bloc/login_state.dart';
 import '../widgets/auth_text_field.dart';
 import 'forgot_password_screen.dart';
+import 'verify_otp_screen.dart';
 import 'welcome_auth_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -81,6 +82,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 (route) => false,
               );
             }
+          } else if (state is LoginRequiresOtp) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppColors.info,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => VerifyOtpScreen(
+                  email: state.email,
+                  role: 'TRAVELER',
+                ),
+              ),
+            );
           } else if (state is LoginFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(

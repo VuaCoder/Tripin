@@ -46,12 +46,20 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
 
       if (dioErr.response?.data is Map) {
         final data = dioErr.response!.data as Map;
-        final code = data['code']?.toString();
-        final msg = data['message']?.toString();
+        final errorObj = data['error'] is Map ? data['error'] as Map : null;
+        final code = errorObj?['code']?.toString() ?? data['code']?.toString();
+        final msg = errorObj?['message']?.toString() ?? data['message']?.toString();
 
         if (code == 'EMAIL_ALREADY_REGISTERED' ||
             (msg != null && msg.toLowerCase().contains('already registered'))) {
           errorMessage = 'Email này đã được đăng ký. Vui lòng đăng nhập hoặc dùng email khác.';
+        } else if (code == 'VALIDATION_ERROR' && errorObj?['details'] is List) {
+          final details = errorObj!['details'] as List;
+          if (details.isNotEmpty && details.first is Map && details.first['message'] != null) {
+            errorMessage = details.first['message'].toString();
+          } else if (msg != null && msg.isNotEmpty) {
+            errorMessage = msg;
+          }
         } else if (msg != null && msg.isNotEmpty) {
           errorMessage = msg;
         }

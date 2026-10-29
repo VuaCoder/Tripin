@@ -1,4 +1,4 @@
-﻿class GuideProfileData {
+class GuideProfileData {
   final String? bio;
   final List<String> languages;
   final List<String> specialties;
@@ -48,6 +48,8 @@ class UserProfileModel {
   final String role;
   final String? status;
   final GuideProfileData? guideProfile;
+  final String? emailVerifiedAt;
+  final bool isEmailVerified;
 
   UserProfileModel({
     required this.id,
@@ -58,9 +60,15 @@ class UserProfileModel {
     required this.role,
     this.status,
     this.guideProfile,
+    this.emailVerifiedAt,
+    this.isEmailVerified = false,
   });
 
   factory UserProfileModel.fromJson(Map<String, dynamic> json) {
+    final emailVerifiedAt = json['emailVerifiedAt'] as String?;
+    final status = json['status'] as String?;
+    final isEmailVerified = json['isEmailVerified'] as bool? ??
+        (emailVerifiedAt != null && emailVerifiedAt.isNotEmpty);
     return UserProfileModel(
       id: json['id'] as String? ?? '',
       email: json['email'] as String? ?? '',
@@ -68,21 +76,27 @@ class UserProfileModel {
       phone: json['phone'] as String?,
       avatarUrl: json['avatarUrl'] as String?,
       role: json['role'] as String? ?? 'TRAVELER',
-      status: json['status'] as String?,
+      status: status,
       guideProfile: json['guideProfile'] != null
           ? GuideProfileData.fromJson(json['guideProfile'] as Map<String, dynamic>)
           : null,
+      emailVerifiedAt: emailVerifiedAt,
+      isEmailVerified: isEmailVerified,
     );
   }
 
   bool get isGuide => role == 'TOUR_GUIDE';
   bool get isTraveler => role == 'TRAVELER';
+  bool get isVerified => (isEmailVerified == true) || (emailVerifiedAt != null && emailVerifiedAt!.isNotEmpty);
 
   UserProfileModel copyWith({
     String? fullName,
     String? phone,
     String? avatarUrl,
     GuideProfileData? guideProfile,
+    String? status,
+    String? emailVerifiedAt,
+    bool? isEmailVerified,
   }) {
     return UserProfileModel(
       id: id,
@@ -91,8 +105,10 @@ class UserProfileModel {
       phone: phone ?? this.phone,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       role: role,
-      status: status,
+      status: status ?? this.status,
       guideProfile: guideProfile ?? this.guideProfile,
+      emailVerifiedAt: emailVerifiedAt ?? this.emailVerifiedAt,
+      isEmailVerified: isEmailVerified ?? this.isEmailVerified,
     );
   }
 }

@@ -1,4 +1,4 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/network/api_client.dart';
@@ -43,8 +43,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         emit(const ProfileFailure(error: 'Không thể tải thông tin tài khoản'));
       }
     } on DioException catch (e) {
-      final message = e.response?.data?['message'] ?? e.message ?? 'Lỗi kết nối máy chủ';
-      emit(ProfileFailure(error: message.toString()));
+      final message = _extractErrorMessage(e, 'Lỗi kết nối máy chủ');
+      emit(ProfileFailure(error: message));
     } catch (e) {
       emit(ProfileFailure(error: e.toString()));
     }
@@ -67,8 +67,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         emit(ProfileFailure(error: 'Cập nhật thất bại', currentUser: _currentUser));
       }
     } on DioException catch (e) {
-      final message = e.response?.data?['message'] ?? e.message ?? 'Cập nhật thông tin thất bại';
-      emit(ProfileFailure(error: message.toString(), currentUser: _currentUser));
+      final message = _extractErrorMessage(e, 'Cập nhật thông tin thất bại');
+      emit(ProfileFailure(error: message, currentUser: _currentUser));
     } catch (e) {
       emit(ProfileFailure(error: e.toString(), currentUser: _currentUser));
     }
@@ -90,8 +90,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         emit(ProfileFailure(error: 'Lưu hồ sơ chuyên môn thất bại', currentUser: _currentUser));
       }
     } on DioException catch (e) {
-      final message = e.response?.data?['message'] ?? e.message ?? 'Lỗi cập nhật hồ sơ chuyên môn';
-      emit(ProfileFailure(error: message.toString(), currentUser: _currentUser));
+      final message = _extractErrorMessage(e, 'Lỗi cập nhật hồ sơ chuyên môn');
+      emit(ProfileFailure(error: message, currentUser: _currentUser));
     } catch (e) {
       emit(ProfileFailure(error: e.toString(), currentUser: _currentUser));
     }
@@ -124,8 +124,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         emit(ProfileFailure(error: 'Không thể hoàn tất lưu ảnh', currentUser: _currentUser));
       }
     } on DioException catch (e) {
-      final message = e.response?.data?['message'] ?? e.message ?? 'Tải ảnh đại diện thất bại';
-      emit(ProfileFailure(error: message.toString(), currentUser: _currentUser));
+      final message = _extractErrorMessage(e, 'Tải ảnh đại diện thất bại');
+      emit(ProfileFailure(error: message, currentUser: _currentUser));
     } catch (e) {
       emit(ProfileFailure(error: e.toString(), currentUser: _currentUser));
     }
@@ -158,11 +158,27 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         emit(ProfileFailure(error: 'Không thể lưu ảnh thẻ HDV', currentUser: _currentUser));
       }
     } on DioException catch (e) {
-      final message = e.response?.data?['message'] ?? e.message ?? 'Lỗi tải ảnh thẻ HDV';
-      emit(ProfileFailure(error: message.toString(), currentUser: _currentUser));
+      final message = _extractErrorMessage(e, 'Lỗi tải ảnh thẻ HDV');
+      emit(ProfileFailure(error: message, currentUser: _currentUser));
     } catch (e) {
       emit(ProfileFailure(error: e.toString(), currentUser: _currentUser));
     }
+  }
+
+  String _extractErrorMessage(DioException e, String defaultMessage) {
+    if (e.response?.statusCode == 401) {
+      return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+    }
+    final data = e.response?.data;
+    if (data is Map) {
+      if (data['error'] is Map && data['error']['message'] != null) {
+        return data['error']['message'].toString();
+      }
+      if (data['message'] != null) {
+        return data['message'].toString();
+      }
+    }
+    return defaultMessage;
   }
 
   Future<void> _onLogout(LogoutRequested event, Emitter<ProfileState> emit) async {

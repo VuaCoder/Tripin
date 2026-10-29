@@ -63,13 +63,29 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Lưu token nếu backend trả về token kích hoạt
         final data = response.data;
-        if (data is Map && data['data'] is Map) {
-          final payload = data['data'] as Map;
+        String userRole = 'TRAVELER';
+        String userName = 'Người dùng Tripri';
+
+        if (data is Map) {
+          final payload = data['data'] is Map ? data['data'] as Map : data;
           final accessToken = payload['accessToken']?.toString();
           final refreshToken = payload['refreshToken']?.toString();
-          if (accessToken != null) {
+          final user = payload['user'] is Map ? payload['user'] as Map : null;
+
+          if (user != null) {
+            userRole = user['role']?.toString() ?? userRole;
+            userName = user['fullName']?.toString() ?? userName;
+
+            await tokenStorage.saveUserInfo(
+              id: user['id']?.toString() ?? '',
+              email: user['email']?.toString() ?? event.email,
+              name: userName,
+              role: userRole,
+            );
+          }
+
+          if (accessToken != null && accessToken.isNotEmpty) {
             await tokenStorage.saveTokens(
               accessToken: accessToken,
               refreshToken: refreshToken ?? '',
@@ -80,7 +96,9 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
         emit(state.copyWith(
           isSubmitting: false,
           isSuccess: true,
-          successMessage: 'Kích hoạt tài khoản thành công! Bạn có thể đăng nhập ngay.',
+          userRole: userRole,
+          userName: userName,
+          successMessage: 'Xác thực OTP thành công!',
         ));
       } else {
         emit(state.copyWith(
@@ -93,8 +111,9 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
 
       if (dioErr.response?.data is Map) {
         final data = dioErr.response!.data as Map;
-        final code = data['code']?.toString();
-        final msg = data['message']?.toString();
+        final errorObj = data['error'] is Map ? data['error'] as Map : null;
+        final code = errorObj?['code']?.toString() ?? data['code']?.toString();
+        final msg = errorObj?['message']?.toString() ?? data['message']?.toString();
 
         if (code == 'INVALID_OTP' || (msg != null && msg.toLowerCase().contains('invalid'))) {
           message = 'Mã OTP không chính xác. Vui lòng nhập lại.';

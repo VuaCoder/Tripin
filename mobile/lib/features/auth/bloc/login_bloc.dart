@@ -1,4 +1,4 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/network/api_client.dart';
@@ -49,6 +49,14 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
           role: userRole,
         );
 
+        if (data['twoFactorRequired'] == true) {
+          emit(LoginRequiresOtp(
+            email: event.email,
+            message: 'Tài khoản yêu cầu xác thực 2 bước. Mã OTP đã được gửi về email.',
+          ));
+          return;
+        }
+
         emit(LoginSuccess(role: userRole, fullName: userName));
       } else {
         emit(const LoginFailure('Đăng nhập không thành công, vui lòng thử lại'));
@@ -57,16 +65,21 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       final resData = e.response?.data;
       String message = 'Đăng nhập thất bại';
 
-      if (resData is Map<String, dynamic>) {
-        final code = resData['code'] as String?;
-        final rawMsg = resData['message'] as String?;
+      if (resData is Map) {
+        final errorObj = resData['error'] is Map ? resData['error'] as Map : null;
+        final code = errorObj?['code']?.toString() ?? resData['code']?.toString();
+        final rawMsg = errorObj?['message']?.toString() ?? resData['message']?.toString();
 
-        if (code == 'INVALID_CREDENTIALS' || e.response?.statusCode == 401) {
+        if (code == 'ACCOUNT_NOT_VERIFIED' || code == 'ACCOUNT_UNVERIFIED') {
+          emit(LoginRequiresOtp(
+            email: event.email,
+            message: rawMsg ?? 'Tài khoản chưa kích hoạt. Mã OTP đã được gửi về email của bạn.',
+          ));
+          return;
+        } else if (code == 'INVALID_CREDENTIALS' || e.response?.statusCode == 401) {
           message = 'Email hoặc mật khẩu không chính xác';
-        } else if (code == 'ACCOUNT_LOCKED') {
+        } else if (code == 'ACCOUNT_LOCKED' || code == 'ACCOUNT_BANNED') {
           message = 'Tài khoản đã bị tạm khóa, vui lòng liên hệ hỗ trợ';
-        } else if (code == 'ACCOUNT_UNVERIFIED') {
-          message = 'Tài khoản chưa kích hoạt OTP, vui lòng kiểm tra email';
         } else if (rawMsg != null && rawMsg.isNotEmpty) {
           message = rawMsg;
         }

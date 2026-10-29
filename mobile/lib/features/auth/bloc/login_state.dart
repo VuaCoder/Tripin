@@ -1,4 +1,4 @@
-﻿import 'package:equatable/equatable.dart';
+import 'package:equatable/equatable.dart';
 
 abstract class LoginState extends Equatable {
   const LoginState();
@@ -23,6 +23,19 @@ class LoginSuccess extends LoginState {
 
   @override
   List<Object?> get props => [role, fullName];
+}
+
+class LoginRequiresOtp extends LoginState {
+  final String email;
+  final String message;
+
+  const LoginRequiresOtp({
+    required this.email,
+    this.message = 'Tài khoản chưa kích hoạt. Mã OTP đã được gửi về email của bạn.',
+  });
+
+  @override
+  List<Object?> get props => [email, message];
 }
 
 class LoginFailure extends LoginState {

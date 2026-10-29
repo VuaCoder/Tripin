@@ -8,6 +8,8 @@ class OtpState extends Equatable {
   final String? successMessage;
   final String? errorMessage;
   final String? lastResentMessage;
+  final String? userRole;
+  final String? userName;
 
   const OtpState({
     this.remainingSeconds = 60,
@@ -17,6 +19,8 @@ class OtpState extends Equatable {
     this.successMessage,
     this.errorMessage,
     this.lastResentMessage,
+    this.userRole,
+    this.userName,
   });
 
   bool get canResend => remainingSeconds <= 0 && !isResending && !isSubmitting;
@@ -29,6 +33,8 @@ class OtpState extends Equatable {
     String? successMessage,
     String? errorMessage,
     String? lastResentMessage,
+    String? userRole,
+    String? userName,
     bool clearError = false,
   }) {
     return OtpState(
@@ -39,6 +45,8 @@ class OtpState extends Equatable {
       successMessage: successMessage ?? this.successMessage,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       lastResentMessage: lastResentMessage ?? this.lastResentMessage,
+      userRole: userRole ?? this.userRole,
+      userName: userName ?? this.userName,
     );
   }
 
@@ -51,5 +59,7 @@ class OtpState extends Equatable {
         successMessage,
         errorMessage,
         lastResentMessage,
+        userRole,
+        userName,
       ];
 }

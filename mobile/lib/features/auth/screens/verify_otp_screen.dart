@@ -5,23 +5,31 @@ import '../bloc/otp_bloc.dart';
 import '../bloc/otp_event.dart';
 import '../bloc/otp_state.dart';
 import '../widgets/otp_input_field.dart';
+import '../../navigation/guide_main_navigation_screen.dart';
+import '../../navigation/traveler_main_navigation_screen.dart';
 
 /// Màn hình nhập mã xác thực OTP 6 số (AC3, AC4, AC5)
 class VerifyOtpScreen extends StatelessWidget {
   final String email;
   final String role;
+  final bool returnOnSuccess;
 
   const VerifyOtpScreen({
     super.key,
     required this.email,
     required this.role,
+    this.returnOnSuccess = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => OtpBloc()..add(const OtpStarted(duration: 60)),
-      child: _VerifyOtpView(email: email, role: role),
+      child: _VerifyOtpView(
+        email: email,
+        role: role,
+        returnOnSuccess: returnOnSuccess,
+      ),
     );
   }
 }
@@ -29,8 +37,13 @@ class VerifyOtpScreen extends StatelessWidget {
 class _VerifyOtpView extends StatefulWidget {
   final String email;
   final String role;
+  final bool returnOnSuccess;
 
-  const _VerifyOtpView({required this.email, required this.role});
+  const _VerifyOtpView({
+    required this.email,
+    required this.role,
+    this.returnOnSuccess = false,
+  });
 
   @override
   State<_VerifyOtpView> createState() => _VerifyOtpViewState();
@@ -64,56 +77,33 @@ class _VerifyOtpViewState extends State<_VerifyOtpView> {
     return BlocConsumer<OtpBloc, OtpState>(
       listener: (context, state) {
         if (state.isSuccess) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (ctx) => AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              title: const Row(
-                children: [
-                  Icon(Icons.check_circle, color: AppColors.success, size: 28),
-                  SizedBox(width: 10),
-                  Text(
-                    'Kích hoạt thành công',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-              content: Text(
-                state.successMessage ??
-                    'Tài khoản của bạn đã được kích hoạt thành công! Hãy đăng nhập để bắt đầu trải nghiệm.',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                  height: 1.4,
-                ),
-              ),
-              actions: [
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(ctx).pop(); // Đóng dialog
-                    Navigator.of(context).popUntil((route) => route.isFirst); // Về màn chính
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Đăng nhập ngay',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
+          final targetRole = state.userRole ?? widget.role;
+          final userName = state.userName ?? 'Người dùng Tripri';
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Xác thực thành công! Chào mừng $userName đến với Tripri.'),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
             ),
           );
+
+          if (widget.returnOnSuccess) {
+            Navigator.of(context).pop(true);
+            return;
+          }
+
+          if (targetRole == 'TOUR_GUIDE') {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const GuideMainNavigationScreen()),
+              (route) => false,
+            );
+          } else {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const TravelerMainNavigationScreen()),
+              (route) => false,
+            );
+          }
         }
 
         if (state.lastResentMessage != null) {

@@ -7,6 +7,7 @@ import '../bloc/register_state.dart';
 import '../models/register_request.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/password_strength_bar.dart';
+import 'login_screen.dart';
 import 'verify_otp_screen.dart';
 
 /// [FLOW-01] Luồng 1A: Màn hình Đăng ký Du khách (Traveler)
@@ -72,19 +73,19 @@ class _RegisterTravelerViewState extends State<_RegisterTravelerView> {
       listener: (context, state) {
         if (state is RegisterSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
+            const SnackBar(
+              content: Text('Đăng ký thành công! Vui lòng đăng nhập để tiếp tục.'),
               backgroundColor: AppColors.success,
               behavior: SnackBarBehavior.floating,
             ),
           );
-          Navigator.of(context).push(
+          Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (_) => VerifyOtpScreen(
-                email: state.email,
-                role: state.role,
+              builder: (_) => LoginScreen(
+                prefillEmail: state.email,
               ),
             ),
+            (route) => route.isFirst,
           );
         }
       },

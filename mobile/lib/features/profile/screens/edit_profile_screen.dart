@@ -1,9 +1,12 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/constants/api_endpoints.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/network/api_client.dart';
+import '../../auth/screens/verify_otp_screen.dart';
 import '../../auth/widgets/auth_text_field.dart';
 import '../bloc/profile_bloc.dart';
 import '../bloc/profile_event.dart';
@@ -24,6 +27,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
   final ImagePicker _picker = ImagePicker();
+  bool _isSendingOtp = false;
 
   @override
   void initState() {
@@ -37,6 +41,53 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController.dispose();
     _phoneController.dispose();
     super.dispose();
+  }
+
+  Future<void> _startVerification(UserProfileModel user) async {
+    setState(() => _isSendingOtp = true);
+    try {
+      final apiClient = ApiClient();
+      await apiClient.post(
+        ApiEndpoints.resendOtp,
+        data: {
+          'email': user.email.trim().toLowerCase(),
+          'purpose': 'REGISTER',
+        },
+      );
+      if (!mounted) return;
+      setState(() => _isSendingOtp = false);
+
+      final result = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => VerifyOtpScreen(
+            email: user.email,
+            role: user.role,
+            returnOnSuccess: true,
+          ),
+        ),
+      );
+
+      if (result == true && mounted) {
+        context.read<ProfileBloc>().add(const ProfileLoadRequested());
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Xác thực tài khoản thành công!'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSendingOtp = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Không thể gửi mã xác thực: $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   Future<void> _pickAvatar() async {
@@ -176,6 +227,136 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ),
                     ),
                   ),
+
+                  const SizedBox(height: 16),
+
+                  // Verification Status Banner
+                  if (user.isVerified == true)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECFDF5),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFA7F3D0), width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF64748B).withValues(alpha: 0.08),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.verified_user_rounded, color: AppColors.success, size: 22),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Tài khoản đã xác thực',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF065F46),
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Email của bạn đã được xác thực an toàn.',
+                                  style: TextStyle(fontSize: 12, color: Color(0xFF047857)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFFDE68A), width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF64748B).withValues(alpha: 0.10),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFFEF3C7),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.shield_outlined, color: Color(0xFFD97706), size: 20),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Tài khoản chưa xác thực',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF92400E),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Xác thực email để bảo vệ tài khoản và mở khóa đầy đủ tính năng.',
+                                      style: const TextStyle(fontSize: 12, color: Color(0xFFB45309)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 44,
+                            child: ElevatedButton.icon(
+                              onPressed: _isSendingOtp ? null : () => _startVerification(user),
+                              icon: _isSendingOtp
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : const Icon(Icons.verified_rounded, size: 18, color: Colors.white),
+                              label: Text(
+                                _isSendingOtp ? 'Đang gửi mã...' : 'Xác thực tài khoản',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFD97706),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
                   const SizedBox(height: 24),
 

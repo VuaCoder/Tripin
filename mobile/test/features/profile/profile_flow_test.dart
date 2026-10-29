@@ -1,5 +1,10 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/profile/bloc/profile_bloc.dart';
+import 'package:mobile/features/profile/bloc/profile_state.dart';
 import 'package:mobile/features/profile/models/user_profile_model.dart';
+import 'package:mobile/features/profile/screens/profile_screen.dart';
 
 void main() {
   group('[FLOW-03] UserProfileModel & GuideProfileData Tests', () {
@@ -87,6 +92,39 @@ void main() {
       expect(updated.email, original.email);
       expect(updated.fullName, 'Updated Name');
       expect(updated.phone, '0988888888');
+    });
+
+    testWidgets('ProfileScreen renders menu items without assertion errors', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final user = UserProfileModel(
+        id: '1',
+        email: 'test@tripri.com',
+        fullName: 'Test Traveler',
+        role: 'TRAVELER',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider(
+            create: (_) => ProfileBloc()..emit(ProfileLoaded(user)),
+            child: const ProfileScreen(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hồ sơ'), findsOneWidget);
+      expect(find.text('Cài đặt thông báo'), findsOneWidget);
+      expect(find.text('Đăng nhập & Bảo mật'), findsOneWidget);
+      expect(find.text('Về Tripri Travel'), findsOneWidget);
+      expect(find.text('Đăng xuất'), findsOneWidget);
     });
   });
 }
