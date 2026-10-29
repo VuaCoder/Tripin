@@ -22,8 +22,21 @@ class ApiEndpoints {
   // Auth endpoints
   static const String login = '/auth/login';
   static const String register = '/auth/register';
+  static const String verifyOtp = '/auth/verify-otp';
+  static const String resendOtp = '/auth/resend-otp';
+  static const String forgotPassword = '/auth/forgot-password';
+  static const String resetPassword = '/auth/reset-password';
+  static const String changePassword = '/auth/change-password';
   static const String me = '/users/me';
   static const String refresh = '/auth/refresh';
+
+  // Users & Profile Uploads (Cloudinary Contract)
+  static const String avatarUploadSignature =
+      '/users/me/avatar/upload-signature';
+  static const String avatarComplete = '/users/me/avatar/complete';
+  static const String licenseImageUploadSignature =
+      '/users/me/license-image/upload-signature';
+  static const String licenseImageComplete = '/users/me/license-image/complete';
 
   // Tours endpoints (PRM393: Product List & Detail)
   static const String tours = '/tours';
@@ -41,14 +54,16 @@ class ApiEndpoints {
   static String cancelBooking(String id) => '/bookings/$id/cancel';
 
   // E-tickets (vé điện tử QR)
-  static String eTicketByBooking(String bookingId) => '/e-tickets/booking/$bookingId';
+  static String eTicketByBooking(String bookingId) =>
+      '/e-tickets/booking/$bookingId';
   static String eTicketDetail(String id) => '/e-tickets/$id';
 
   // Policies (public)
   static const String cancellationPolicy = '/policies/cancellation';
 
   // Payments (PayOS)
-  static String bookingCheckout(String bookingId) => '/payments/bookings/$bookingId/checkout';
+  static String bookingCheckout(String bookingId) =>
+      '/payments/bookings/$bookingId/checkout';
   static String paymentDetail(String id) => '/payments/$id';
 
   // Vouchers
@@ -63,7 +78,8 @@ class ApiEndpoints {
 
   // Chat / Messages (PRM393: Messaging)
   static const String conversations = '/chat/conversations';
-  static String conversationMessages(String id) => '/chat/conversations/$id/messages';
+  static String conversationMessages(String id) =>
+      '/chat/conversations/$id/messages';
   static String conversationRead(String id) => '/chat/conversations/$id/read';
 
   /// Gốc của máy chủ (không có `/api/v1`) để kết nối Socket.IO.

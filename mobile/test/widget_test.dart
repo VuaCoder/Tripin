@@ -1,16 +1,21 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/splash/widgets/boat_preloader_widget.dart';
 import 'package:mobile/main.dart';
-import 'helpers/fakes.dart';
 
 void main() {
-  testWidgets('Starter smoke test renders Tripri Starter home page', (WidgetTester tester) async {
-    await tester.pumpWidget(TripriApp(notificationsRepository: FakeNotificationsRepository(), socket: FakeChatSocket()));
+  testWidgets('App smoke test renders Tripri SplashScreen with BoatPreloaderWidget', (WidgetTester tester) async {
+    await tester.pumpWidget(const TripriApp());
     await tester.pump();
 
-    // Verify header title and action buttons
-    expect(find.text('Tripri Flutter Starter'), findsOneWidget);
-    expect(find.text('Dự án Flutter Sẵn Sàng'), findsOneWidget);
-    expect(find.text('Test API Backend'), findsOneWidget);
-    expect(find.text('Test Notification'), findsOneWidget);
+    // Verify Splash branding and BoatPreloader loading state
+    expect(find.text('Tripri Travel'), findsOneWidget);
+    expect(find.text('Khám phá thế giới • Kết nối đồng hành'), findsOneWidget);
+    expect(find.byType(BoatPreloaderWidget), findsOneWidget);
+    expect(find.text('LOADING'), findsOneWidget);
+    expect(find.text('Khám phá hành trình cùng Tripri'), findsOneWidget);
+
+    // Fast-forward through splash delay
+    await tester.pump(const Duration(milliseconds: 2500));
+    await tester.pump(const Duration(milliseconds: 500));
   });
 }
