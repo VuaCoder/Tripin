@@ -128,7 +128,7 @@ class BookingsRepository {
       throw BookingException(switch (status) {
         401 => 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.',
         404 => 'Không tìm thấy đơn đặt chỗ hoặc vé điện tử.',
-        409 => serverMessage ?? 'Đơn vừa thay đổi, vui lòng thử lại.',
+        409 => 'Đơn không thể hủy ở trạng thái hiện tại hoặc vừa thay đổi, vui lòng tải lại.',
         _ => serverMessage ?? 'Đã có lỗi xảy ra, vui lòng thử lại.',
       });
     }
