@@ -132,6 +132,7 @@ model Tour {
   agePricing         Json?
   cancellationPolicy String?
   travelNotes        String?
+  meetingPoint       String?
   requiredDocuments  String?
   destination  String
   durationDays Int

@@ -26,7 +26,7 @@ class _Adapter implements HttpClientAdapter {
         'code': 'ETK-ABCDEFGH12345678',
         'status': 'VALID',
         'booking': {'id': 'b1', 'code': 'TRP-1'},
-        'tour': {'id': 't', 'title': 'Hạ Long', 'destination': 'Quảng Ninh'},
+        'tour': {'id': 't', 'title': 'Hạ Long', 'destination': 'Quảng Ninh', 'meetingPoint': 'Bến Tuần Châu'},
         'departureDate': '2026-12-01T00:00:00.000Z',
         'participants': 2,
         'holderName': 'Nguyen Van A',
@@ -58,6 +58,7 @@ void main() {
     expect(offline.fromCache, isTrue);
     expect(offline.ticket.code, 'ETK-ABCDEFGH12345678');
     expect(offline.ticket.destination, 'Quảng Ninh');
+    expect(offline.ticket.meetingPoint, 'Bến Tuần Châu');
   });
 
   test('offline with no cache surfaces an offline error', () async {

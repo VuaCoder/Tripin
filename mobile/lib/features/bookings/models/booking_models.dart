@@ -109,6 +109,7 @@ class ETicket extends Equatable {
   final String bookingCode;
   final String tourTitle;
   final String? destination;
+  final String? meetingPoint;
   final DateTime departureDate;
   final int participants;
   final String holderName;
@@ -125,6 +126,7 @@ class ETicket extends Equatable {
     required this.participants,
     required this.holderName,
     this.destination,
+    this.meetingPoint,
     this.contactPhone,
   });
 
@@ -139,6 +141,7 @@ class ETicket extends Equatable {
       bookingCode: booking['code'] as String? ?? '',
       tourTitle: tour['title'] as String? ?? '',
       destination: tour['destination'] as String?,
+      meetingPoint: tour['meetingPoint'] as String?,
       departureDate: DateTime.parse(json['departureDate'] as String),
       participants: (json['participants'] as num?)?.toInt() ?? 1,
       holderName: json['holderName'] as String? ?? '',
@@ -152,7 +155,7 @@ class ETicket extends Equatable {
         'code': code,
         'status': status.apiValue,
         'booking': {'id': bookingId, 'code': bookingCode, 'contactPhone': contactPhone},
-        'tour': {'title': tourTitle, 'destination': destination},
+        'tour': {'title': tourTitle, 'destination': destination, 'meetingPoint': meetingPoint},
         'departureDate': departureDate.toIso8601String(),
         'participants': participants,
         'holderName': holderName,
@@ -166,6 +169,7 @@ class ETicket extends Equatable {
         bookingCode: bookingCode,
         tourTitle: tourTitle,
         destination: destination,
+        meetingPoint: meetingPoint,
         departureDate: departureDate,
         participants: participants,
         holderName: holderName,
@@ -174,7 +178,7 @@ class ETicket extends Equatable {
 
   @override
   List<Object?> get props =>
-      [id, code, status, bookingId, bookingCode, tourTitle, destination, departureDate, participants, holderName, contactPhone];
+      [id, code, status, bookingId, bookingCode, tourTitle, destination, meetingPoint, departureDate, participants, holderName, contactPhone];
 }
 
 /// Vé kèm cờ cho biết dữ liệu lấy từ cache offline (không có mạng).

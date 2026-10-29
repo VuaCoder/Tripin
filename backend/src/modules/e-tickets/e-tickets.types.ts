@@ -33,6 +33,7 @@ export interface ETicketDto {
     id: string;
     title: string;
     destination?: string;
+    meetingPoint?: string;
     durationDays?: number;
     coverImage?: string;
   };

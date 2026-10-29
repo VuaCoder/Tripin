@@ -189,6 +189,8 @@ class _TicketCard extends StatelessWidget {
           Text(ticket.tourTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           _InfoRow(icon: Icons.schedule, label: 'Ngày đón', value: dateTimeFmt.format(ticket.departureDate.toLocal())),
+          if (ticket.meetingPoint != null && ticket.meetingPoint!.isNotEmpty)
+            _InfoRow(icon: Icons.flag_outlined, label: 'Điểm tập trung', value: ticket.meetingPoint!),
           if (ticket.destination != null && ticket.destination!.isNotEmpty)
             _InfoRow(icon: Icons.place_outlined, label: 'Điểm đến', value: ticket.destination!),
           _InfoRow(icon: Icons.confirmation_number_outlined, label: 'Mã đặt chỗ', value: ticket.bookingCode),
