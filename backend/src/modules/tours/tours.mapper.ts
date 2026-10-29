@@ -84,6 +84,7 @@ export function toTourDetailDto(tour: TourRecord, context: DetailContext): TourD
     agePricing: tour.agePricing as unknown as AgePricing | null,
     cancellationPolicy: tour.cancellationPolicy || undefined,
     travelNotes: tour.travelNotes || undefined,
+    meetingPoint: tour.meetingPoint || undefined,
     requiredDocuments: tour.requiredDocuments || undefined,
     maxGroupSize: tour.maxGroupSize ?? undefined,
     images: tour.images,

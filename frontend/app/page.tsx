@@ -237,7 +237,7 @@ export default function LandingPage() {
         <div className="min-h-screen w-full bg-[#f4f6f3] text-[#173640] selection:bg-[#087e8b] selection:text-white">
           
           {/* Hero Section */}
-          <section className="relative w-full flex min-h-screen flex-col justify-end px-6 pb-12 pt-20 sm:px-14 lg:px-24 lg:pb-20 overflow-hidden">
+          <section className="relative isolate w-full flex min-h-screen flex-col justify-end px-6 pb-12 pt-20 sm:px-14 lg:px-24 lg:pb-20 overflow-hidden">
             <div className="absolute inset-0 -z-10" data-speed="0.75">
               <Image
                 src="/images/hero-vietnam.png"

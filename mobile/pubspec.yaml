@@ -45,6 +45,10 @@ dependencies:
   flutter_map: ^8.3.2
   latlong2: ^0.10.1
   flutter_local_notifications: ^22.3.3
+  qr_flutter: ^4.1.0
+  url_launcher: ^6.3.3
+  gal: ^2.3.3
+  socket_io_client: ^3.1.6
   image_picker: ^1.2.4
   google_sign_in: ^6.2.2
 

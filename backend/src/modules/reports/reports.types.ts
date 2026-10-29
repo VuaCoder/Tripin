@@ -64,6 +64,8 @@ export interface ListModerationReportsQuery extends ListReportsQuery {
 
 interface ReportBaseDto {
   id: string;
+  /** Lookup code (e.g. `RP-1A2B3C4D`) the reporter can quote to support. */
+  code: string;
   targetType: ReportTarget;
   targetId: string;
   category: ReportCategory;

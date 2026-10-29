@@ -33,9 +33,11 @@ class ApiEndpoints {
   static const String refresh = '/auth/refresh';
 
   // Users & Profile Uploads (Cloudinary Contract)
-  static const String avatarUploadSignature = '/users/me/avatar/upload-signature';
+  static const String avatarUploadSignature =
+      '/users/me/avatar/upload-signature';
   static const String avatarComplete = '/users/me/avatar/complete';
-  static const String licenseImageUploadSignature = '/users/me/license-image/upload-signature';
+  static const String licenseImageUploadSignature =
+      '/users/me/license-image/upload-signature';
   static const String licenseImageComplete = '/users/me/license-image/complete';
 
   // Tours endpoints (PRM393: Product List & Detail)
@@ -50,7 +52,21 @@ class ApiEndpoints {
   // Bookings / Checkout
   static const String bookings = '/bookings';
   static String bookingDetail(String id) => '/bookings/$id';
-  static const String myBookings = '/bookings/my';
+  static const String myBookings = '/bookings/me';
+  static String cancelBooking(String id) => '/bookings/$id/cancel';
+
+  // E-tickets (vé điện tử QR)
+  static String eTicketByBooking(String bookingId) =>
+      '/e-tickets/booking/$bookingId';
+  static String eTicketDetail(String id) => '/e-tickets/$id';
+
+  // Policies (public)
+  static const String cancellationPolicy = '/policies/cancellation';
+
+  // Payments (PayOS)
+  static String bookingCheckout(String bookingId) =>
+      '/payments/bookings/$bookingId/checkout';
+  static String paymentDetail(String id) => '/payments/$id';
 
   // Vouchers
   static const String myVouchers = '/users/me/vouchers';
@@ -64,5 +80,14 @@ class ApiEndpoints {
 
   // Chat / Messages (PRM393: Messaging)
   static const String conversations = '/chat/conversations';
-  static String conversationMessages(String id) => '/chat/conversations/$id/messages';
+  static String conversationMessages(String id) =>
+      '/chat/conversations/$id/messages';
+  static String conversationRead(String id) => '/chat/conversations/$id/read';
+
+  /// Gốc của máy chủ (không có `/api/v1`) để kết nối Socket.IO.
+  static String get socketUrl => baseUrl.replaceFirst(RegExp(r'/api/v1$'), '');
+
+  // Trợ lý AI và báo cáo sự cố
+  static const String aiChat = '/ai/chat';
+  static const String reports = '/reports';
 }

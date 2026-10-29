@@ -4,7 +4,7 @@ import type { TransitionMap } from '../../utils/state-machine';
 /** Tunable booking rules (no magic numbers in the service). */
 export const BOOKING_POLICY = {
   /** How long a PENDING booking holds its seats while waiting for payment. Keep in sync with the payment link expiry. */
-  PENDING_PAYMENT_MINUTES: 30,
+  PENDING_PAYMENT_MINUTES: 15,
   MAX_PARTICIPANTS: 50,
   /** Smallest amount (VND) a booking may ask the traveler to pay: a payment of 0 cannot exist. The gateway may impose a higher floor - verify in the PayOS sandbox (DECISIONS D-40/D-74). */
   MIN_PAYABLE_AMOUNT: 1,
