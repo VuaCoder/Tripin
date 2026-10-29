@@ -4,10 +4,9 @@ import 'core/constants/app_colors.dart';
 import 'core/network/api_client.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
-import 'features/ai/screens/ai_chat_screen.dart';
-import 'features/bookings/screens/my_bookings_screen.dart';
-import 'features/chat/screens/conversations_screen.dart';
-import 'features/notifications/screens/notifications_screen.dart';
+import 'features/chat/bloc/chat_socket.dart';
+import 'features/notifications/bloc/notifications_repository.dart';
+import 'features/shell/main_shell.dart';
 import 'features/payments/screens/payment_screen.dart';
 
 void main() async {
@@ -17,7 +16,11 @@ void main() async {
 }
 
 class TripriApp extends StatelessWidget {
-  const TripriApp({super.key});
+  /// Thay được khi test để không dùng mạng thật.
+  final NotificationsRepository? notificationsRepository;
+  final ChatSocket? socket;
+
+  const TripriApp({super.key, this.notificationsRepository, this.socket});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +28,7 @@ class TripriApp extends StatelessWidget {
       title: 'Tripri Travel Mobile',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const StarterHomePage(),
+      home: MainShell(home: const StarterHomePage(), notificationsRepository: notificationsRepository, socket: socket),
     );
   }
 }
@@ -235,42 +238,6 @@ class _StarterHomePageState extends State<StarterHomePage> {
                   onPressed: _openPayment,
                   icon: const Icon(Icons.qr_code_2),
                   label: const Text('Tiến hành thanh toán PayOS'),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyBookingsScreen())),
-                  icon: const Icon(Icons.receipt_long_outlined),
-                  label: const Text('Đơn đặt của tôi'),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ConversationsScreen())),
-                  icon: const Icon(Icons.chat_bubble_outline_rounded),
-                  label: const Text('Tin nhắn'),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AiChatScreen())),
-                  icon: const Icon(Icons.auto_awesome_rounded),
-                  label: const Text('Trợ lý AI'),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
-                  icon: const Icon(Icons.notifications_none_rounded),
-                  label: const Text('Thông báo'),
                 ),
               ),
             ],

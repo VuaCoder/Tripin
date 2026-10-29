@@ -1,9 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/main.dart';
+import 'helpers/fakes.dart';
 
 void main() {
   testWidgets('Starter smoke test renders Tripri Starter home page', (WidgetTester tester) async {
-    await tester.pumpWidget(const TripriApp());
+    await tester.pumpWidget(TripriApp(notificationsRepository: FakeNotificationsRepository(), socket: FakeChatSocket()));
     await tester.pump();
 
     // Verify header title and action buttons

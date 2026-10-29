@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../bloc/reports_repository.dart';
 import '../models/report_models.dart';
@@ -12,12 +13,16 @@ class ReportScreen extends StatefulWidget {
   final String? bookingId;
   final ReportsRepository? repository;
 
+  /// Chọn ảnh từ thư viện; thay được khi test.
+  final Future<List<ReportPhoto>> Function(int remaining)? pickPhotos;
+
   const ReportScreen({
     super.key,
     required this.tourId,
     required this.tourTitle,
     this.bookingId,
     this.repository,
+    this.pickPhotos,
   });
 
   @override
@@ -26,10 +31,12 @@ class ReportScreen extends StatefulWidget {
 
 class _ReportScreenState extends State<ReportScreen> {
   static const int _minLength = 10;
+  static const int _maxPhotos = 5;
 
   late final ReportsRepository _repo = widget.repository ?? ReportsRepository();
   final TextEditingController _description = TextEditingController();
   ReportCategory _category = ReportCategory.safety;
+  final List<ReportPhoto> _photos = [];
   bool _submitting = false;
   String? _error;
   SubmittedReport? _done;
@@ -42,18 +49,42 @@ class _ReportScreenState extends State<ReportScreen> {
 
   bool get _valid => _description.text.trim().length >= _minLength;
 
+  Future<List<ReportPhoto>> _defaultPick(int remaining) async {
+    final files = await ImagePicker().pickMultiImage(imageQuality: 80, maxWidth: 1600, limit: remaining < 2 ? 2 : remaining);
+    return [for (final f in files.take(remaining)) ReportPhoto(name: f.name, bytes: await f.readAsBytes())];
+  }
+
+  Future<void> _addPhotos() async {
+    final remaining = _maxPhotos - _photos.length;
+    if (remaining <= 0) return;
+    try {
+      final picked = await (widget.pickPhotos ?? _defaultPick)(remaining);
+      if (mounted && picked.isNotEmpty) setState(() => _photos.addAll(picked.take(remaining)));
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Không mở được thư viện ảnh. Hãy cấp quyền truy cập ảnh rồi thử lại.');
+    }
+  }
+
   Future<void> _submit() async {
     setState(() {
       _submitting = true;
       _error = null;
     });
     try {
-      final report = await _repo.reportTour(
-        tourId: widget.tourId,
-        bookingId: widget.bookingId,
-        category: _category,
-        description: _description.text,
-      );
+      final report = _photos.isEmpty
+          ? await _repo.reportTour(
+              tourId: widget.tourId,
+              bookingId: widget.bookingId,
+              category: _category,
+              description: _description.text,
+            )
+          : await _repo.reportTourWithPhotos(
+              tourId: widget.tourId,
+              bookingId: widget.bookingId,
+              category: _category,
+              description: _description.text,
+              photos: List.of(_photos),
+            );
       if (mounted) setState(() => _done = report);
     } on ReportException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -104,6 +135,14 @@ class _ReportScreenState extends State<ReportScreen> {
             border: OutlineInputBorder(),
           ),
         ),
+        const SizedBox(height: 12),
+        _PhotoStrip(
+          photos: _photos,
+          max: _maxPhotos,
+          enabled: !_submitting,
+          onAdd: _addPhotos,
+          onRemove: (i) => setState(() => _photos.removeAt(i)),
+        ),
         if (_error != null)
           Container(
             key: const Key('report-error'),
@@ -118,6 +157,66 @@ class _ReportScreenState extends State<ReportScreen> {
           child: _submitting
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
               : const Text('Gửi báo cáo'),
+        ),
+      ],
+    );
+  }
+}
+
+class _PhotoStrip extends StatelessWidget {
+  final List<ReportPhoto> photos;
+  final int max;
+  final bool enabled;
+  final VoidCallback onAdd;
+  final ValueChanged<int> onRemove;
+
+  const _PhotoStrip({
+    required this.photos,
+    required this.max,
+    required this.enabled,
+    required this.onAdd,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (var i = 0; i < photos.length; i++)
+              Stack(
+                key: Key('photo-$i'),
+                clipBehavior: Clip.none,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.memory(Uint8List.fromList(photos[i].bytes), width: 72, height: 72, fit: BoxFit.cover),
+                  ),
+                  Positioned(
+                    right: -6,
+                    top: -6,
+                    child: GestureDetector(
+                      onTap: enabled ? () => onRemove(i) : null,
+                      child: Semantics(
+                        button: true,
+                        label: 'Xóa ảnh ${i + 1}',
+                        child: const CircleAvatar(radius: 11, backgroundColor: AppColors.error, child: Icon(Icons.close, size: 14, color: Colors.white)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+        if (photos.isNotEmpty) const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: (enabled && photos.length < max) ? onAdd : null,
+          icon: const Icon(Icons.add_photo_alternate_outlined),
+          label: Text('Đính kèm hình ảnh (${photos.length}/$max)'),
         ),
       ],
     );
