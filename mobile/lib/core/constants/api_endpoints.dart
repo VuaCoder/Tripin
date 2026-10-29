@@ -64,4 +64,12 @@ class ApiEndpoints {
   // Chat / Messages (PRM393: Messaging)
   static const String conversations = '/chat/conversations';
   static String conversationMessages(String id) => '/chat/conversations/$id/messages';
+  static String conversationRead(String id) => '/chat/conversations/$id/read';
+
+  /// Gốc của máy chủ (không có `/api/v1`) để kết nối Socket.IO.
+  static String get socketUrl => baseUrl.replaceFirst(RegExp(r'/api/v1$'), '');
+
+  // Trợ lý AI và báo cáo sự cố
+  static const String aiChat = '/ai/chat';
+  static const String reports = '/reports';
 }

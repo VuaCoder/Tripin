@@ -4,7 +4,10 @@ import 'core/constants/app_colors.dart';
 import 'core/network/api_client.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
+import 'features/ai/screens/ai_chat_screen.dart';
 import 'features/bookings/screens/my_bookings_screen.dart';
+import 'features/chat/screens/conversations_screen.dart';
+import 'features/notifications/screens/notifications_screen.dart';
 import 'features/payments/screens/payment_screen.dart';
 
 void main() async {
@@ -241,6 +244,33 @@ class _StarterHomePageState extends State<StarterHomePage> {
                   onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyBookingsScreen())),
                   icon: const Icon(Icons.receipt_long_outlined),
                   label: const Text('Đơn đặt của tôi'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ConversationsScreen())),
+                  icon: const Icon(Icons.chat_bubble_outline_rounded),
+                  label: const Text('Tin nhắn'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AiChatScreen())),
+                  icon: const Icon(Icons.auto_awesome_rounded),
+                  label: const Text('Trợ lý AI'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+                  icon: const Icon(Icons.notifications_none_rounded),
+                  label: const Text('Thông báo'),
                 ),
               ),
             ],

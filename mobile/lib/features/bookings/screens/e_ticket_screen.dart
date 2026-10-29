@@ -9,6 +9,9 @@ import '../bloc/bookings_repository.dart';
 import '../bloc/e_ticket_cubit.dart';
 import '../models/booking_models.dart';
 import '../widgets/booking_card.dart';
+import '../../chat/bloc/chat_repository.dart';
+import '../../chat/screens/chat_screen.dart';
+import '../../reports/screens/report_screen.dart';
 import 'cancel_booking_screen.dart';
 
 /// Vé điện tử: mã vé, thông tin chuyến đi và QR cho HDV quét điểm danh.
@@ -65,6 +68,29 @@ class _ETicketViewState extends State<_ETicketView> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  Future<void> _openChat() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    try {
+      final c = await ChatRepository().startWithGuideOfTour(widget.booking.tourId);
+      navigator.push(MaterialPageRoute(
+        builder: (_) => ChatScreen(conversationId: c.id, title: c.counterpart?.fullName ?? 'Hướng dẫn viên'),
+      ));
+    } on ChatException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  void _report() {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ReportScreen(
+        tourId: widget.booking.tourId,
+        tourTitle: widget.booking.tourTitle,
+        bookingId: widget.booking.id,
+      ),
+    ));
   }
 
   Future<void> _cancel() async {
@@ -136,6 +162,21 @@ class _ETicketViewState extends State<_ETicketView> {
               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
               : const Icon(Icons.download_rounded),
           label: const Text('Lưu vé vào máy'),
+        ),
+        if (active) ...[
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _openChat,
+            icon: const Icon(Icons.chat_bubble_outline_rounded),
+            label: const Text('Nhắn tin với hướng dẫn viên'),
+          ),
+        ],
+        const SizedBox(height: 8),
+        TextButton.icon(
+          onPressed: _report,
+          style: TextButton.styleFrom(foregroundColor: AppColors.error),
+          icon: const Icon(Icons.report_gmailerrorred_rounded),
+          label: const Text('Báo cáo sự cố / Khiếu nại'),
         ),
         if (canCancel) ...[
           const SizedBox(height: 8),
