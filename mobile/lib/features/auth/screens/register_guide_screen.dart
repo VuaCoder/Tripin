@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
+import '../bloc/login_bloc.dart';
 import '../bloc/register_bloc.dart';
 import '../bloc/register_event.dart';
 import '../bloc/register_state.dart';
@@ -80,8 +81,11 @@ class _RegisterGuideViewState extends State<_RegisterGuideView> {
           );
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (_) => LoginScreen(
-                prefillEmail: state.email,
+              builder: (_) => BlocProvider(
+                create: (_) => LoginBloc(),
+                child: LoginScreen(
+                  prefillEmail: state.email,
+                ),
               ),
             ),
             (route) => route.isFirst,

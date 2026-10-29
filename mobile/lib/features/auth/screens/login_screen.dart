@@ -8,9 +8,10 @@ import '../bloc/login_bloc.dart';
 import '../bloc/login_event.dart';
 import '../bloc/login_state.dart';
 import '../widgets/auth_text_field.dart';
+import '../widgets/google_sign_in_button.dart';
 import 'forgot_password_screen.dart';
+import 'register_traveler_screen.dart';
 import 'verify_otp_screen.dart';
-import 'welcome_auth_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final String? prefillEmail;
@@ -120,27 +121,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const SizedBox(height: 10),
 
-                  // Brand Icon & Slogan
+                  // Official Tripri Brand Logo
                   Center(
-                    child: Container(
-                      width: 68,
-                      height: 68,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppColors.primary, AppColors.primaryLight],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.25),
-                            blurRadius: 14,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
+                    child: Image.asset(
+                      'assets/images/tripri-logo.png',
+                      height: 54,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) => const Icon(
+                        Icons.explore_rounded,
+                        size: 48,
+                        color: AppColors.primary,
                       ),
-                      child: const Icon(Icons.flight_takeoff, size: 36, color: Colors.white),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -272,7 +263,39 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
+
+                  // Divider "Hoặc đăng nhập bằng"
+                  Row(
+                    children: [
+                      const Expanded(child: Divider(color: AppColors.border, thickness: 1)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Text(
+                          'Hoặc đăng nhập bằng',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const Expanded(child: Divider(color: AppColors.border, thickness: 1)),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Nút Google Sign In
+                  GoogleSignInButton(
+                    text: 'Đăng nhập bằng Google',
+                    isLoading: isLoading,
+                    onPressed: () {
+                      context.read<LoginBloc>().add(const LoginWithGoogleSubmitted());
+                    },
+                  ),
+
+                  const SizedBox(height: 28),
 
                   // Chưa có tài khoản? Đăng ký ngay
                   Row(
@@ -284,8 +307,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       GestureDetector(
                         onTap: () {
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(builder: (_) => const WelcomeAuthScreen()),
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const RegisterTravelerScreen()),
                           );
                         },
                         child: const Text(

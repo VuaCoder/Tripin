@@ -21,6 +21,8 @@ class ApiEndpoints {
 
   // Auth endpoints
   static const String login = '/auth/login';
+  static const String googleLogin = '/auth/google';
+  static const String googleClientId = '995213432133-q5nlil8mt2svci8uqlom7if5sgukgoa3.apps.googleusercontent.com';
   static const String register = '/auth/register';
   static const String verifyOtp = '/auth/verify-otp';
   static const String resendOtp = '/auth/resend-otp';

@@ -115,45 +115,24 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             children: [
               const SizedBox(height: 32),
 
-              // Brand Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppColors.primary, AppColors.primaryLight],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.25),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.explore,
-                      size: 22,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'Tripri Travel',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.5,
-                      color: AppColors.primaryDark,
-                    ),
-                  ),
-                ],
+              // Official Tripri Brand Logo
+              Center(
+                child: Image.asset(
+                  'assets/images/tripri-logo.png',
+                  height: 54,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Tripri Travel',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
+                  color: AppColors.primaryDark,
+                ),
               ),
               const SizedBox(height: 6),
               const Text(

@@ -4,6 +4,7 @@ import 'package:mobile/features/auth/models/register_request.dart';
 import 'package:mobile/features/auth/models/verify_otp_request.dart';
 import 'package:mobile/features/auth/widgets/password_strength_bar.dart';
 import 'package:mobile/features/auth/widgets/otp_input_field.dart';
+import 'package:mobile/features/auth/screens/register_traveler_screen.dart';
 import 'package:mobile/features/auth/screens/welcome_auth_screen.dart';
 
 void main() {
@@ -96,7 +97,7 @@ void main() {
   });
 
   group('[FLOW-01] WelcomeAuthScreen Navigation Widget Tests', () {
-    testWidgets('renders 2 distinct registration options', (tester) async {
+    testWidgets('renders 2 distinct buttons: Đăng nhập & Đăng ký', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: WelcomeAuthScreen(),
@@ -104,8 +105,25 @@ void main() {
       );
 
       expect(find.text('Tripri Travel'), findsOneWidget);
-      expect(find.text('Đăng ký Khách du lịch'), findsOneWidget);
-      expect(find.text('Trở thành Hướng dẫn viên'), findsOneWidget);
+      expect(find.text('Đăng nhập'), findsOneWidget);
+      expect(find.text('Đăng ký'), findsOneWidget);
+    });
+  });
+
+  group('[FLOW-01] RegisterTravelerScreen Widget Tests', () {
+    testWidgets('renders become guide shortcut and Google sign-up button', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: RegisterTravelerScreen(),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Tạo tài khoản Tripri'), findsOneWidget);
+      expect(find.text('Bạn là Hướng dẫn viên?'), findsOneWidget);
+      expect(find.text('Trở thành HDV'), findsOneWidget);
+      expect(find.text('Đăng ký bằng Google'), findsOneWidget);
+      expect(find.text('Đăng ký tài khoản'), findsOneWidget);
     });
   });
 }
