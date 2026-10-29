@@ -230,8 +230,8 @@ class _StarterHomePageState extends State<StarterHomePage> {
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const GuideToursScreen()),
                 ),
-                icon: const Icon(Icons.qr_code_scanner),
-                label: const Text('HDV: Quét QR Điểm Danh'),
+                icon: const Icon(Icons.calendar_month),
+                label: const Text('HDV: Lịch Tour'),
               ),
             ],
           ),

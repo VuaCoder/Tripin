@@ -59,6 +59,7 @@ class ApiEndpoints {
 
   // Tour guide: assigned tours + QR check-in
   static const String guideTours = '/guide/tours';
+  static String guideVerification(String tourId) => '/guide/tours/$tourId/verification';
   static String guideTicketRoster(String tourId) => '/guide/e-tickets/$tourId';
   static String guideCheckIn(String tourId) => '/guide/e-tickets/$tourId/check-in';
 }

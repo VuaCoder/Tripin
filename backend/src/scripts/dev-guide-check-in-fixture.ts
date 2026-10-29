@@ -98,6 +98,18 @@ async function create() {
         participants: spec.participants,
         contactName: spec.holderName,
         contactPhone: '0900000000',
+        notes: spec.n === 1 ? 'Dị ứng hải sản, cần phòng riêng.' : null,
+        ...(spec.n === 1
+          ? {
+              guestPricing: {
+                guests: { adults: 1, children: 1, infants: 0 },
+                adultUnitPrice: unitPrice,
+                childUnitPrice: unitPrice,
+                infantUnitPrice: 0,
+                subtotal,
+              },
+            }
+          : {}),
         unitPrice,
         subtotal,
         totalAmount: subtotal,

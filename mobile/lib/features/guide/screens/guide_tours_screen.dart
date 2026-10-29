@@ -6,66 +6,192 @@ import '../../../core/constants/app_colors.dart';
 import '../api/guide_check_in_api.dart';
 import '../cubit/guide_tours_cubit.dart';
 import '../models/guide_models.dart';
+import '../utils/guide_format.dart';
+import 'guide_assignment_detail_screen.dart';
 import 'guide_tour_detail_screen.dart';
 
-class GuideToursScreen extends StatelessWidget {
+class GuideToursScreen extends StatefulWidget {
   const GuideToursScreen({super.key, this.api});
 
   /// Injected in tests; production uses the real Dio client.
   final GuideCheckInApi? api;
 
   @override
+  State<GuideToursScreen> createState() => _GuideToursScreenState();
+}
+
+class _GuideToursScreenState extends State<GuideToursScreen> {
+  late final GuideCheckInApi _api = widget.api ?? DioGuideCheckInApi();
+
+  @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => GuideToursCubit(api ?? DioGuideCheckInApi())..load(),
-      child: const _GuideToursView(),
+      create: (_) => GuideToursCubit(_api)..load(),
+      child: _GuideToursView(api: _api),
     );
   }
 }
 
 class _GuideToursView extends StatelessWidget {
-  const _GuideToursView();
+  const _GuideToursView({required this.api});
+
+  final GuideCheckInApi api;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Tour đang dẫn')),
-      body: BlocBuilder<GuideToursCubit, GuideToursState>(
+    return DefaultTabController(
+      length: 2,
+      child: BlocBuilder<GuideToursCubit, GuideToursState>(
         builder: (context, state) {
-          if (state.loading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (state.error != null) {
-            return _ErrorState(
-              message: state.error!,
-              onRetry: () => context.read<GuideToursCubit>().load(),
-            );
-          }
-          if (state.tours.isEmpty) {
-            return const _EmptyState();
-          }
-          return RefreshIndicator(
-            onRefresh: () => context.read<GuideToursCubit>().load(),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: state.tours.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final tour = state.tours[index];
-                return _TourCard(tour: tour);
-              },
+          final pending = state.pendingTours;
+          final upcoming = state.upcomingTours;
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Lịch Tour'),
+              bottom: TabBar(
+                tabs: [
+                  Tab(text: 'Chờ xác nhận (${pending.length})'),
+                  Tab(text: 'Lịch sắp tới (${upcoming.length})'),
+                ],
+              ),
             ),
+            body: _body(context, state, pending, upcoming),
           );
         },
       ),
     );
   }
+
+  Widget _body(
+    BuildContext context,
+    GuideToursState state,
+    List<GuideAssignedTour> pending,
+    List<GuideAssignedTour> upcoming,
+  ) {
+    if (state.loading && state.tours.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (state.error != null) {
+      return _ErrorState(
+        message: state.error!,
+        onRetry: () => context.read<GuideToursCubit>().load(),
+      );
+    }
+    return TabBarView(
+      children: [
+        _TourList(
+          tours: pending,
+          emptyIcon: Icons.mark_email_unread_outlined,
+          emptyTitle: 'Không có yêu cầu phân công mới',
+          emptyDescription: 'Khi đại lý phân công bạn phụ trách một tour, yêu cầu sẽ xuất hiện tại đây.',
+          onOpen: (tour) => _openAssignment(context, tour),
+        ),
+        _TourList(
+          tours: upcoming,
+          emptyIcon: Icons.map_outlined,
+          emptyTitle: 'Chưa có tour sắp tới',
+          emptyDescription:
+              'Tour bạn đã nhận sẽ xuất hiện tại đây kèm danh sách đoàn.',
+          onOpen: (tour) => _openTour(context, tour),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openAssignment(
+    BuildContext context,
+    GuideAssignedTour tour,
+  ) async {
+    final cubit = context.read<GuideToursCubit>();
+    final accepted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider.value(
+          value: cubit,
+          child: GuideAssignmentDetailScreen(tour: tour, api: api),
+        ),
+      ),
+    );
+    if (!context.mounted || accepted == null) return;
+    if (accepted) {
+      DefaultTabController.of(context).animateTo(1);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã nhận tour. Tour đã chuyển sang Lịch sắp tới.'),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Đã từ chối tour.')));
+    }
+  }
+
+  void _openTour(BuildContext context, GuideAssignedTour tour) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => GuideTourDetailScreen(tour: tour, api: api),
+      ),
+    );
+  }
+}
+
+class _TourList extends StatelessWidget {
+  const _TourList({
+    required this.tours,
+    required this.emptyIcon,
+    required this.emptyTitle,
+    required this.emptyDescription,
+    required this.onOpen,
+  });
+
+  final List<GuideAssignedTour> tours;
+  final IconData emptyIcon;
+  final String emptyTitle;
+  final String emptyDescription;
+  final ValueChanged<GuideAssignedTour> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: () => context.read<GuideToursCubit>().load(),
+      child: tours.isEmpty
+          ? LayoutBuilder(
+              builder: (context, constraints) => ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(
+                    height: constraints.maxHeight,
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: _EmptyState(
+                          icon: emptyIcon,
+                          title: emptyTitle,
+                          description: emptyDescription,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: tours.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final tour = tours[index];
+                return _TourCard(tour: tour, onTap: () => onOpen(tour));
+              },
+            ),
+    );
+  }
 }
 
 class _TourCard extends StatelessWidget {
-  const _TourCard({required this.tour});
+  const _TourCard({required this.tour, required this.onTap});
 
   final GuideAssignedTour tour;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -73,9 +199,7 @@ class _TourCard extends StatelessWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => GuideTourDetailScreen(tour: tour)),
-        ),
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -99,13 +223,18 @@ class _TourCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                '${tour.destination} · ${tour.durationDays} ngày',
+                '${tour.destination} · ${tour.durationDays} ngày'
+                '${tour.agencyName == null ? '' : ' · ${tour.agencyName}'}',
                 style: const TextStyle(color: AppColors.textSecondary),
               ),
               const SizedBox(height: 10),
               Row(
                 children: [
-                  const Icon(Icons.event_outlined, size: 16, color: AppColors.primary),
+                  const Icon(
+                    Icons.event_outlined,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     departure == null
@@ -119,6 +248,24 @@ class _TourCard extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.payments_outlined,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Thù lao: ${formatVnd(tour.feePerBooking)}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -128,31 +275,35 @@ class _TourCard extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.map_outlined, size: 56, color: AppColors.textMuted),
-            const SizedBox(height: 16),
-            const Text(
-              'Chưa có tour đang dẫn',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tour cần được đại lý phân công và bạn đã chấp nhận.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, height: 1.4),
-            ),
-          ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 56, color: AppColors.textMuted),
+        const SizedBox(height: 16),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-      ),
+        const SizedBox(height: 8),
+        Text(
+          description,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
+        ),
+      ],
     );
   }
 }
@@ -173,7 +324,11 @@ class _ErrorState extends StatelessWidget {
           children: [
             const Icon(Icons.cloud_off, size: 56, color: AppColors.error),
             const SizedBox(height: 16),
-            Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary)),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: onRetry,

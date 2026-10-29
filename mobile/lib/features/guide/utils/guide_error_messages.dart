@@ -22,6 +22,10 @@ String guideErrorMessage(GuideApiException error) {
       return 'Mã vé không hợp lệ.';
     case 'CONCURRENT_UPDATE':
       return 'Dữ liệu vừa thay đổi, vui lòng thử lại.';
+    case 'INVALID_STATE_TRANSITION':
+      return 'Phân công đã được xử lý trước đó. Vui lòng tải lại danh sách.';
+    case 'CONFLICT':
+      return 'Dữ liệu vừa thay đổi, vui lòng thử lại.';
     case 'NETWORK_ERROR':
       return 'Không kết nối được máy chủ. Kiểm tra mạng và thử lại.';
     default:

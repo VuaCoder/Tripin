@@ -1,3 +1,5 @@
+import type { GuestCounts } from '@travel-platform/constants';
+
 export const ETICKET_STATUS = {
   /** Issued and usable for the trip. */
   VALID: 'VALID',
@@ -53,6 +55,9 @@ export interface GuideRosterItemDto {
   bookingCode: string;
   holderName: string;
   participants: number;
+  contactPhone?: string;
+  guests: GuestCounts;
+  notes?: string;
   departureDate: string;
   checkedIn: boolean;
   checkedInAt?: string;

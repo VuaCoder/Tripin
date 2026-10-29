@@ -52,7 +52,7 @@ class _GuideTourDetailView extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _TourHeader(tour: tour),
+              _TourHeader(tour: tour, roster: roster),
               const SizedBox(height: 16),
               _ProgressCard(roster: roster),
               if (roster?.allCheckedIn ?? false) ...[
@@ -97,13 +97,15 @@ class _GuideTourDetailView extends StatelessWidget {
 }
 
 class _TourHeader extends StatelessWidget {
-  const _TourHeader({required this.tour});
+  const _TourHeader({required this.tour, required this.roster});
 
   final GuideAssignedTour tour;
+  final GuideRoster? roster;
 
   @override
   Widget build(BuildContext context) {
     final departure = tour.nextDepartureDate;
+    final totalGuests = roster?.items.fold<int>(0, (sum, item) => sum + item.participants) ?? 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -121,6 +123,13 @@ class _TourHeader extends StatelessWidget {
           '${tour.agencyName == null ? '' : ' · ${tour.agencyName}'}',
           style: const TextStyle(color: AppColors.textSecondary),
         ),
+        if (totalGuests > 0) ...[
+          const SizedBox(height: 6),
+          Text(
+            'Đoàn: $totalGuests khách',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+          ),
+        ],
         if (departure != null) ...[
           const SizedBox(height: 6),
           Text(
