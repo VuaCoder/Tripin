@@ -37,7 +37,11 @@ class ApiEndpoints {
   // Bookings / Checkout
   static const String bookings = '/bookings';
   static String bookingDetail(String id) => '/bookings/$id';
-  static const String myBookings = '/bookings/my';
+  static const String myBookings = '/bookings/me';
+
+  // Payments (PayOS)
+  static String bookingCheckout(String bookingId) => '/payments/bookings/$bookingId/checkout';
+  static String paymentDetail(String id) => '/payments/$id';
 
   // Vouchers
   static const String myVouchers = '/users/me/vouchers';

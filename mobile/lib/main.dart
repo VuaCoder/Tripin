@@ -4,6 +4,7 @@ import 'core/constants/app_colors.dart';
 import 'core/network/api_client.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
+import 'features/payments/screens/payment_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,6 +64,27 @@ class _StarterHomePageState extends State<StarterHomePage> {
         _isLoading = false;
       });
     }
+  }
+
+  /// Lối vào tạm cho luồng thanh toán cho tới khi có màn hình đặt tour: nhập mã booking đã tạo.
+  Future<void> _openPayment() async {
+    final controller = TextEditingController();
+    final bookingId = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Thanh toán PayOS'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: 'ID đơn đặt chỗ (booking)'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Huỷ')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Tiến hành')),
+        ],
+      ),
+    );
+    if (bookingId == null || bookingId.isEmpty || !mounted) return;
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => PaymentScreen(bookingId: bookingId)));
   }
 
   void _triggerTestNotification() async {
@@ -201,6 +223,15 @@ class _StarterHomePageState extends State<StarterHomePage> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _openPayment,
+                  icon: const Icon(Icons.qr_code_2),
+                  label: const Text('Tiến hành thanh toán PayOS'),
+                ),
               ),
             ],
           ),
