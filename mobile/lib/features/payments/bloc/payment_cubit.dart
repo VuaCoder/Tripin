@@ -63,6 +63,9 @@ class PaymentCubit extends Cubit<PaymentState> {
   Timer? _poller;
   bool _polling = false;
 
+  /// Người dùng bấm "Tôi đã chuyển khoản" lúc một lượt poll đang chạy: báo kết quả khi lượt đó xong.
+  bool _manualQueued = false;
+
   PaymentCubit({
     required this.bookingId,
     PaymentsRepository? repository,
@@ -106,7 +109,14 @@ class PaymentCubit extends Cubit<PaymentState> {
   /// Poll tự động, hoặc nút "Tôi đã chuyển khoản" (`manual: true`).
   Future<void> check({bool manual = false, bool finalCheck = false}) async {
     final s = state;
-    if (s is! PaymentAwaiting || _polling) return;
+    if (s is! PaymentAwaiting) return;
+    if (_polling) {
+      if (manual) {
+        _manualQueued = true;
+        emit(s.copyWith(checking: true, notPaidYet: false));
+      }
+      return;
+    }
     _polling = true;
     if (manual) emit(s.copyWith(checking: true, notPaidYet: false));
     try {
@@ -118,7 +128,7 @@ class PaymentCubit extends Cubit<PaymentState> {
       } else if (snap.status.isFinalFailure || finalCheck) {
         _stopTimers();
         emit(const PaymentExpired());
-      } else if (manual && state is PaymentAwaiting) {
+      } else if ((manual || _manualQueued) && state is PaymentAwaiting) {
         emit((state as PaymentAwaiting).copyWith(checking: false, notPaidYet: true));
       }
     } on PaymentException {
@@ -127,12 +137,13 @@ class PaymentCubit extends Cubit<PaymentState> {
         if (finalCheck) {
           _stopTimers();
           emit(const PaymentExpired());
-        } else if (manual) {
+        } else if (manual || _manualQueued) {
           emit((state as PaymentAwaiting).copyWith(checking: false));
         }
       }
     } finally {
       _polling = false;
+      _manualQueued = false;
     }
   }
 

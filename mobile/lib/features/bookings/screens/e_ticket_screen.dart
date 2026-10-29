@@ -252,7 +252,7 @@ class _InfoRow extends StatelessWidget {
         children: [
           Icon(icon, size: 18, color: AppColors.textSecondary),
           const SizedBox(width: 8),
-          SizedBox(width: 84, child: Text(label, style: const TextStyle(color: AppColors.textSecondary))),
+          SizedBox(width: 108, child: Text(label, style: const TextStyle(color: AppColors.textSecondary))),
           Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600))),
         ],
       ),

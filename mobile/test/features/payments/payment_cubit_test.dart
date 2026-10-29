@@ -7,6 +7,7 @@ class _FakeRepo extends PaymentsRepository {
   PaymentStatus status = PaymentStatus.pending;
   final DateTime expiresAt;
   int polls = 0;
+  Duration latency = Duration.zero;
 
   _FakeRepo(this.expiresAt);
 
@@ -28,6 +29,7 @@ class _FakeRepo extends PaymentsRepository {
   @override
   Future<PaymentSnapshot> getPayment(String paymentId) async {
     polls++;
+    await Future<void>.delayed(latency);
     return PaymentSnapshot(id: paymentId, status: status, expiresAt: expiresAt);
   }
 }
@@ -69,6 +71,18 @@ void main() {
     final cubit = PaymentCubit(bookingId: 'b1', repository: repo, pollInterval: const Duration(minutes: 1));
     await cubit.start();
     await expectLater(cubit.stream, emitsThrough(const PaymentPaid('b1')));
+    await cubit.close();
+  });
+
+  test('"Tôi đã chuyển khoản" pressed during an in-flight poll still gets feedback', () async {
+    final repo = _FakeRepo(DateTime.now().add(const Duration(minutes: 15)))..latency = const Duration(milliseconds: 150);
+    final cubit = PaymentCubit(bookingId: 'b1', repository: repo, pollInterval: const Duration(minutes: 1));
+    await cubit.start();
+    final poll = cubit.check(); // automatic poll in flight
+    await cubit.check(manual: true); // user taps while it runs
+    await poll;
+    expect((cubit.state as PaymentAwaiting).notPaidYet, isTrue);
+    expect((cubit.state as PaymentAwaiting).checking, isFalse);
     await cubit.close();
   });
 }

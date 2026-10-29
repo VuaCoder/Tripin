@@ -86,7 +86,7 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
                             style: const TextStyle(color: AppColors.textSecondary)),
                         const Divider(height: 24),
                         _MoneyRow(label: 'Tổng tiền đã đặt', value: vnd.format(b.totalAmount)),
-                        if (b.status == BookingStatus.confirmed) ...[
+                        if (b.status == BookingStatus.confirmed && preview.canCancel) ...[
                           _MoneyRow(label: 'Phí hủy', value: vnd.format(0)),
                           _MoneyRow(
                             label: 'Số tiền được hoàn',
