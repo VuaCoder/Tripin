@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../navigation/guide_main_navigation_screen.dart';
+import '../../navigation/traveler_main_navigation_screen.dart';
+import '../bloc/login_bloc.dart';
+import '../bloc/login_event.dart';
+import '../bloc/login_state.dart';
 import '../bloc/register_bloc.dart';
 import '../bloc/register_event.dart';
 import '../bloc/register_state.dart';
 import '../models/register_request.dart';
 import '../widgets/auth_text_field.dart';
+import '../widgets/google_sign_in_button.dart';
 import '../widgets/password_strength_bar.dart';
 import 'login_screen.dart';
+import 'register_guide_screen.dart';
 
 /// [FLOW-01] Luồng 1A: Màn hình Đăng ký Du khách (Traveler)
 class RegisterTravelerScreen extends StatelessWidget {
@@ -15,8 +22,11 @@ class RegisterTravelerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => RegisterBloc(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => RegisterBloc()),
+        BlocProvider(create: (_) => LoginBloc()),
+      ],
       child: const _RegisterTravelerView(),
     );
   }
@@ -68,8 +78,40 @@ class _RegisterTravelerViewState extends State<_RegisterTravelerView> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<RegisterBloc, RegisterState>(
-      listener: (context, state) {
+    return BlocListener<LoginBloc, LoginState>(
+      listener: (context, loginState) {
+        if (loginState is LoginSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Chào mừng bạn đến với Tripri, ${loginState.fullName}!'),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+
+          if (loginState.role == 'TOUR_GUIDE') {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const GuideMainNavigationScreen()),
+              (route) => false,
+            );
+          } else {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const TravelerMainNavigationScreen()),
+              (route) => false,
+            );
+          }
+        } else if (loginState is LoginFailure) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(loginState.error),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
+      child: BlocConsumer<RegisterBloc, RegisterState>(
+        listener: (context, state) {
         if (state is RegisterSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -80,8 +122,11 @@ class _RegisterTravelerViewState extends State<_RegisterTravelerView> {
           );
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (_) => LoginScreen(
-                prefillEmail: state.email,
+              builder: (_) => BlocProvider(
+                create: (_) => LoginBloc(),
+                child: LoginScreen(
+                  prefillEmail: state.email,
+                ),
               ),
             ),
             (route) => route.isFirst,
@@ -135,6 +180,83 @@ class _RegisterTravelerViewState extends State<_RegisterTravelerView> {
                         fontSize: 14,
                         color: AppColors.textSecondary,
                         height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Lối tắt: Trở thành Hướng dẫn viên
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primarySurface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.primaryLight.withValues(alpha: 0.25)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.badge_outlined, color: Colors.white, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Bạn là Hướng dẫn viên?',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primaryDark,
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Đăng ký tài khoản chuyên nghiệp',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const RegisterGuideScreen()),
+                              );
+                            },
+                            style: TextButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: const BorderSide(color: AppColors.border),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Trở thành HDV',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                SizedBox(width: 4),
+                                Icon(Icons.arrow_forward_ios_rounded, size: 10, color: AppColors.primary),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -321,6 +443,44 @@ class _RegisterTravelerViewState extends State<_RegisterTravelerView> {
                     ),
                     const SizedBox(height: 20),
 
+                    // Divider "Hoặc đăng ký bằng"
+                    Row(
+                      children: [
+                        const Expanded(child: Divider(color: AppColors.border, thickness: 1)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: Text(
+                            'Hoặc đăng ký bằng',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        const Expanded(child: Divider(color: AppColors.border, thickness: 1)),
+                      ],
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // Nút Đăng ký bằng Google
+                    BlocBuilder<LoginBloc, LoginState>(
+                      builder: (context, loginState) {
+                        final isGoogleLoading = loginState is LoginLoading;
+                        return GoogleSignInButton(
+                          text: 'Đăng ký bằng Google',
+                          isLoading: isGoogleLoading,
+                          onPressed: () {
+                            context.read<LoginBloc>().add(
+                                  const LoginWithGoogleSubmitted(role: 'TRAVELER'),
+                                );
+                          },
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 24),
+
                     // Chuyển sang đăng nhập
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -353,6 +513,7 @@ class _RegisterTravelerViewState extends State<_RegisterTravelerView> {
           ),
         );
       },
-    );
-  }
+    ),
+  );
+}
 }

@@ -2,14 +2,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 
-/// Widget mô phỏng 100% hiệu ứng Boat Preloader thương hiệu của Tripri trên Web.
-/// Bao gồm:
-/// - Thuyền buồm 2D tối giản dập dềnh và lắc lư theo sóng nước.
-/// - Lá cờ đuôi nheo phấp phới trong gió biển.
-/// - 3 tầng sóng nước chuyển động liên tục, mượt mà với các tần số khác nhau.
-/// - Các dải bọt sóng trắng và ánh sáng phản chiếu.
-/// - Chữ LOADING với 3 dấu chấm nảy so le (staggered bounce).
-/// - Phụ đề "Khám phá hành trình cùng Tripri".
+/// Widget mô phỏng hiệu ứng thuyền buồm thương hiệu Tripri.
+/// Thuyền buồm lướt sóng từ trái qua phải như thanh tiến trình (Loading Progress),
+/// với kích thước lớn nổi bật, lắc lư và dập dềnh theo sóng biển sống động.
 class BoatPreloaderWidget extends StatefulWidget {
   final String? subtitle;
   final double size;
@@ -31,10 +26,10 @@ class _BoatPreloaderWidgetState extends State<BoatPreloaderWidget>
   @override
   void initState() {
     super.initState();
-    // Chu kỳ 12 giây để đồng bộ hoàn hảo các bội số tần số sóng (4.4s, 3.3s, 2.4s)
+    // Chu kỳ 3.2s để thuyền lướt từ trái sang phải như một loading bar hoàn hảo
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 12),
+      duration: const Duration(milliseconds: 3200),
     )..repeat();
   }
 
@@ -46,6 +41,8 @@ class _BoatPreloaderWidgetState extends State<BoatPreloaderWidget>
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
@@ -54,55 +51,19 @@ class _BoatPreloaderWidgetState extends State<BoatPreloaderWidget>
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Ambient Radial Glow + Animated Boat Canvas
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                // Soft Ambient Radial Glow Backdrop
-                Container(
-                  width: widget.size * 0.95,
-                  height: widget.size * 0.75,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        AppColors.primaryLight.withValues(alpha: 0.14),
-                        AppColors.secondary.withValues(alpha: 0.09),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.55, 1.0],
-                    ),
-                  ),
+            // Cụm biển và thuyền lướt toàn chiều rộng màn hình
+            SizedBox(
+              width: screenWidth,
+              height: 190,
+              child: CustomPaint(
+                painter: _SailingBoatProgressPainter(
+                  progress: t,
+                  screenWidth: screenWidth,
                 ),
-
-                // ShaderMask làm mờ 2 rìa biên sóng (tương ứng waterFadeMask của Web SVG)
-                ShaderMask(
-                  shaderCallback: (rect) {
-                    return const LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black,
-                        Colors.black,
-                        Colors.transparent,
-                      ],
-                      stops: [0.0, 0.08, 0.92, 1.0],
-                    ).createShader(rect);
-                  },
-                  blendMode: BlendMode.dstIn,
-                  child: SizedBox(
-                    width: widget.size,
-                    height: widget.size * (170.0 / 260.0),
-                    child: CustomPaint(
-                      painter: _BoatPreloaderPainter(progress: t),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
 
             // Typography: LOADING . . .
             Row(
@@ -145,10 +106,8 @@ class _BoatPreloaderWidgetState extends State<BoatPreloaderWidget>
   }
 
   Widget _buildBouncingDot(double t, int index) {
-    // Tần số nảy ~0.9s mỗi chu kỳ, lệch pha 0.16 giữa các dấu chấm
-    final cycle = (t * (12.0 / 0.9) - (index * 0.16)) % 1.0;
+    final cycle = (t * (3.2 / 0.8) - (index * 0.16)) % 1.0;
     final sinVal = math.sin(cycle * math.pi);
-    // Nhảy lên trên tối đa 5px
     final yOffset = sinVal > 0 ? -sinVal * 5.5 : 0.0;
     final opacity = 0.35 + (sinVal > 0 ? sinVal * 0.65 : 0.0);
 
@@ -159,9 +118,9 @@ class _BoatPreloaderWidgetState extends State<BoatPreloaderWidget>
         child: const Text(
           '.',
           style: TextStyle(
-            fontSize: 22,
+            fontSize: 20,
             fontWeight: FontWeight.w900,
-            color: AppColors.primaryDark,
+            color: AppColors.secondary,
             height: 1.0,
           ),
         ),
@@ -170,172 +129,188 @@ class _BoatPreloaderWidgetState extends State<BoatPreloaderWidget>
   }
 }
 
-/// CustomPainter vẽ toàn bộ Thuyền và Sóng chuẩn theo SVG gốc của Web.
-class _BoatPreloaderPainter extends CustomPainter {
+class _SailingBoatProgressPainter extends CustomPainter {
   final double progress;
+  final double screenWidth;
 
-  _BoatPreloaderPainter({required this.progress});
+  const _SailingBoatProgressPainter({
+    required this.progress,
+    required this.screenWidth,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final scale = size.width / 260.0;
-    canvas.save();
-    canvas.scale(scale, scale);
+    final w = screenWidth > 0 ? screenWidth : size.width;
+    final h = size.height;
 
-    final t = progress;
+    // Chiếc thuyền lướt từ trái sang phải qua toàn bộ màn hình
+    // Bắt đầu từ mép trái (-70px) đến mép phải (w + 70px)
+    final boatX = (progress * (w + 140.0)) - 70.0;
 
-    // Kinematics:
-    // Wave back: 4.4s -> shift -130px
-    final dxBack = -((t * (12.0 / 4.4)) % 1.0) * 130.0;
-    // Wave mid: 3.3s -> shift -130px
-    final dxMid = -((t * (12.0 / 3.3)) % 1.0) * 130.0;
-    // Wave front: 2.4s -> shift -130px
-    final dxFront = -((t * (12.0 / 2.4)) % 1.0) * 130.0;
+    // Dao động dập dềnh khi lướt sóng (tần số nhanh tự nhiên)
+    final boatY = math.sin(progress * 2 * math.pi * 5.0) * 4.5;
+    final boatAngle = math.sin(progress * 2 * math.pi * 3.5) * (4.2 * math.pi / 180.0);
 
-    // Boat bobbing (dập dềnh thẳng đứng: +/- 3.5px)
-    final boatY = math.sin(t * 2 * math.pi * (12.0 / 1.5)) * 3.5;
+    // Cờ đuôi nheo phấp phới trong gió biển
+    final flagScaleX = 0.9 + 0.18 * math.sin(progress * 2 * math.pi * 8.0);
 
-    // Boat sway (nghiêng lắc lư: +/- 3.2 độ)
-    final boatAngle = math.sin(t * 2 * math.pi * (12.0 / 2.1)) * (3.2 * math.pi / 180.0);
+    // Trôi dạt sóng nền
+    final waveShiftBack = -((progress * 4.0) % 1.0) * 120.0;
+    final waveShiftMid = -((progress * 5.5) % 1.0) * 120.0;
+    final waveShiftFront = -((progress * 7.0) % 1.0) * 120.0;
 
-    // Pennant Flag flutter (co dãn lá cờ: 0.82 ~ 1.0)
-    final flagScaleX = 0.91 + 0.12 * math.sin(t * 2 * math.pi * (12.0 / 0.42));
+    const baselineY = 135.0;
 
     // =========================================================================
-    // LAYER 1: BACK WATER WAVES
+    // LAYER 0: VỆT NƯỚC TIẾN TRÌNH (WATER TRAIL / LOADING WAKE)
+    // =========================================================================
+    if (boatX > 0) {
+      final trailWidth = boatX.clamp(0.0, w);
+      final trailPaint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            AppColors.primaryLight.withValues(alpha: 0.1),
+            AppColors.secondary.withValues(alpha: 0.35),
+            Colors.white.withValues(alpha: 0.6),
+          ],
+        ).createShader(Rect.fromLTWH(0, baselineY - 4, trailWidth, 8))
+        ..strokeWidth = 3.5
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+
+      final trailPath = Path()
+        ..moveTo(0, baselineY + 2)
+        ..lineTo(trailWidth, baselineY + 2);
+      canvas.drawPath(trailPath, trailPaint);
+    }
+
+    // =========================================================================
+    // LAYER 1: TẦNG SÓNG XA (BACK WATER WAVES)
     // =========================================================================
     final backWavePaint = Paint()
-      ..color = const Color(0xFF79D4E2).withValues(alpha: 0.32)
+      ..color = const Color(0xFF79D4E2).withValues(alpha: 0.35)
       ..style = PaintingStyle.fill;
 
     canvas.save();
-    canvas.translate(dxBack, 0);
-    final backWavePath = _createWavePath(
-      baseline: 110.0,
-      cp1Offset: -6.0,
-      cp2Offset: 6.0,
+    canvas.translate(waveShiftBack, 0);
+    final backWavePath = _buildTiledWavePath(
+      width: w,
+      baseline: baselineY - 8.0,
+      amplitude: 6.0,
+      wavelength: 120.0,
+      bottom: h,
     );
     canvas.drawPath(backWavePath, backWavePaint);
     canvas.restore();
 
     // =========================================================================
-    // LAYER 2: MID WATER WAVES
+    // LAYER 2: TẦNG SÓNG GIỮA (MID WATER WAVES)
     // =========================================================================
     final midWavePaint = Paint()
       ..color = const Color(0xFF087E8B).withValues(alpha: 0.45)
       ..style = PaintingStyle.fill;
 
     canvas.save();
-    canvas.translate(dxMid, 0);
-    final midWavePath = _createWavePath(
-      baseline: 116.0,
-      cp1Offset: 6.0,
-      cp2Offset: -6.0,
+    canvas.translate(waveShiftMid, 0);
+    final midWavePath = _buildTiledWavePath(
+      width: w,
+      baseline: baselineY - 2.0,
+      amplitude: 7.0,
+      wavelength: 110.0,
+      bottom: h,
     );
     canvas.drawPath(midWavePath, midWavePaint);
     canvas.restore();
 
     // =========================================================================
-    // LAYER 3: 2D SAILING BOAT
+    // LAYER 3: CHIẾC THUYỀN BUỒM LỚN NỔI BẬT LƯỚT TỪ TRÁI SANG PHẢI
     // =========================================================================
     canvas.save();
-    // Quay và dao động quanh tâm đáy thuyền (130, 115)
-    canvas.translate(130.0, 115.0 + boatY);
+    // Di chuyển thuyền theo tọa độ boatX trên hành trình lướt sóng
+    canvas.translate(boatX, baselineY - 8.0 + boatY);
     canvas.rotate(boatAngle);
+    // Phóng to kích thước thuyền lên 1.55x để nổi bật, không còn bị nhỏ
+    canvas.scale(1.55, 1.55);
+    // Đưa tâm quay về đáy thuyền (tọa độ gốc thuyền 130, 115)
     canvas.translate(-130.0, -115.0);
 
     _drawSailingBoat(canvas, flagScaleX);
     canvas.restore();
 
     // =========================================================================
-    // LAYER 4: FRONT WATER WAVES (Overlaps lower hull)
+    // LAYER 4: TẦNG SÓNG TRƯỚC (FRONT WATER WAVES - LƯỚT ĐÈ LÊN MẠN THUYỀN)
     // =========================================================================
     final frontWavePaint = Paint()
-      ..shader = const LinearGradient(
+      ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          Color(0xF2087E8B), // 95% opacity
-          Color(0xFA00464D), // 98% opacity
+          const Color(0xF2087E8B), // 95% opacity
+          const Color(0xFA003E44), // 98% opacity
         ],
-      ).createShader(const Rect.fromLTWH(0, 112, 260, 58))
+      ).createShader(Rect.fromLTWH(0, baselineY + 4, w, h - baselineY))
       ..style = PaintingStyle.fill;
 
     canvas.save();
-    canvas.translate(dxFront, 0);
-    final frontWavePath = _createWavePath(
-      baseline: 122.0,
-      cp1Offset: -8.0,
-      cp2Offset: 7.0,
+    canvas.translate(waveShiftFront, 0);
+    final frontWavePath = _buildTiledWavePath(
+      width: w,
+      baseline: baselineY + 5.0,
+      amplitude: 8.0,
+      wavelength: 100.0,
+      bottom: h,
     );
     canvas.drawPath(frontWavePath, frontWavePaint);
 
-    // Bọt sóng trắng & vệt nước gợn sáng
-    final whiteRipplePaint = Paint()
+    // Bọt sóng trắng nổi bật theo mép sóng
+    final foamPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.65)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
+      ..strokeWidth = 2.0
       ..strokeCap = StrokeCap.round;
 
-    final tealRipplePaint = Paint()
-      ..color = const Color(0xFF79D4E2).withValues(alpha: 0.50)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..strokeCap = StrokeCap.round;
-
-    for (double rx = -130; rx <= 390; rx += 130) {
-      final r1 = Path()
-        ..moveTo(rx + 40, 121)
-        ..cubicTo(rx + 52, 117, rx + 78, 117, rx + 90, 121);
-      canvas.drawPath(r1, whiteRipplePaint);
-
-      final r2 = Path()
-        ..moveTo(rx + 170, 121)
-        ..cubicTo(rx + 182, 117, rx + 208, 117, rx + 220, 121);
-      canvas.drawPath(r2, whiteRipplePaint);
-
-      final r3 = Path()
-        ..moveTo(rx + 105, 124)
-        ..cubicTo(rx + 117, 122, rx + 138, 122, rx + 150, 124);
-      canvas.drawPath(r3, tealRipplePaint);
+    for (double x = -100; x <= w + 100; x += 100) {
+      final foamPath = Path()
+        ..moveTo(x + 25, baselineY + 4)
+        ..cubicTo(x + 40, baselineY, x + 65, baselineY, x + 80, baselineY + 4);
+      canvas.drawPath(foamPath, foamPaint);
     }
-
-    canvas.restore();
-
     canvas.restore();
   }
 
-  Path _createWavePath({
+  Path _buildTiledWavePath({
+    required double width,
     required double baseline,
-    required double cp1Offset,
-    required double cp2Offset,
+    required double amplitude,
+    required double wavelength,
+    required double bottom,
   }) {
-    final path = Path()..moveTo(-130, baseline);
+    final path = Path()..moveTo(-140, baseline);
+    final step = wavelength / 2.0;
 
-    // Lặp chu kỳ 130px từ -130 đến 455 (tổng cộng 4.5 bước sóng hoàn hảo)
-    for (double x = -130; x < 455; x += 130) {
-      // Nửa sóng đầu
+    for (double x = -140; x <= width + 140; x += wavelength) {
       path.cubicTo(
-        x + 32.5,
-        baseline + cp1Offset,
-        x + 65.0,
-        baseline + cp1Offset,
-        x + 97.5,
+        x + step * 0.35,
+        baseline - amplitude,
+        x + step * 0.65,
+        baseline - amplitude,
+        x + step,
         baseline,
       );
-      // Nửa sóng sau
       path.cubicTo(
-        x + 130.0,
-        baseline + cp2Offset,
-        x + 162.5,
-        baseline + cp2Offset,
-        x + 195.0 - 65.0,
+        x + step * 1.35,
+        baseline + amplitude,
+        x + step * 1.65,
+        baseline + amplitude,
+        x + wavelength,
         baseline,
       );
     }
 
-    path.lineTo(455, 170);
-    path.lineTo(-130, 170);
+    path.lineTo(width + 140, bottom);
+    path.lineTo(-140, bottom);
     path.close();
     return path;
   }
@@ -343,8 +318,8 @@ class _BoatPreloaderPainter extends CustomPainter {
   void _drawSailingBoat(Canvas canvas, double flagScaleX) {
     // 1. Dây chằng buồm (Rigging wires)
     final wirePaint = Paint()
-      ..color = const Color(0xFF004F57).withValues(alpha: 0.35)
-      ..strokeWidth = 1.2
+      ..color = const Color(0xFF004F57).withValues(alpha: 0.4)
+      ..strokeWidth = 1.3
       ..style = PaintingStyle.stroke;
 
     canvas.drawLine(const Offset(125, 34), const Offset(80, 99), wirePaint);
@@ -367,7 +342,7 @@ class _BoatPreloaderPainter extends CustomPainter {
 
     final sailStrokePaint = Paint()
       ..color = const Color(0xFF004F57)
-      ..strokeWidth = 1.2
+      ..strokeWidth = 1.4
       ..style = PaintingStyle.stroke
       ..strokeJoin = StrokeJoin.round;
 
@@ -395,7 +370,7 @@ class _BoatPreloaderPainter extends CustomPainter {
     // 4. Cột buồm chính (Main mast)
     final mastPaint = Paint()
       ..color = const Color(0xFF00353A)
-      ..strokeWidth = 3.0
+      ..strokeWidth = 3.2
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(const Offset(125, 28), const Offset(125, 100), mastPaint);
 
@@ -405,7 +380,7 @@ class _BoatPreloaderPainter extends CustomPainter {
     canvas.scale(flagScaleX, 1.0);
     final flagPath = Path()
       ..moveTo(0, 0)
-      ..lineTo(15, 5)
+      ..lineTo(16, 5)
       ..lineTo(0, 10)
       ..close();
 
@@ -473,7 +448,7 @@ class _BoatPreloaderPainter extends CustomPainter {
 
     final hullStroke = Paint()
       ..color = const Color(0xFF00353A)
-      ..strokeWidth = 1.5
+      ..strokeWidth = 1.6
       ..style = PaintingStyle.stroke
       ..strokeJoin = StrokeJoin.round;
 
@@ -488,7 +463,7 @@ class _BoatPreloaderPainter extends CustomPainter {
 
     final goldStripePaint = Paint()
       ..color = const Color(0xFFF5A623)
-      ..strokeWidth = 2.2
+      ..strokeWidth = 2.4
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
@@ -496,15 +471,15 @@ class _BoatPreloaderPainter extends CustomPainter {
 
     // 9. Vạch sáng mép boong thuyền (Hull highlight rim)
     final highlightPaint = Paint()
-      ..color = const Color(0xFFE2F0F2).withValues(alpha: 0.75)
-      ..strokeWidth = 1.2
+      ..color = const Color(0xFFE2F0F2).withValues(alpha: 0.8)
+      ..strokeWidth = 1.3
       ..strokeCap = StrokeCap.round;
 
     canvas.drawLine(const Offset(83, 99), const Offset(177, 99), highlightPaint);
   }
 
   @override
-  bool shouldRepaint(covariant _BoatPreloaderPainter oldDelegate) {
-    return oldDelegate.progress != progress;
+  bool shouldRepaint(covariant _SailingBoatProgressPainter oldDelegate) {
+    return oldDelegate.progress != progress || oldDelegate.screenWidth != screenWidth;
   }
 }
