@@ -51,8 +51,9 @@ const PUBLIC_ROUTES = [
 /** Logged-in-only routes WITHOUT a permission: each one is scoped to the caller's own data by the token. */
 const LOGIN_ONLY_ROUTES = [
   'GET /auth/security',
-    'DELETE /notifications/:id',
-    'GET /notifications',
+  'POST /auth/change-password',
+  'DELETE /notifications/:id',
+  'GET /notifications',
   'GET /notifications/unread-count',
   'GET /payments/:id',
   'PATCH /auth/two-factor',
