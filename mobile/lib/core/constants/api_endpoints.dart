@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 
 class ApiEndpoints {
   ApiEndpoints._();
@@ -26,6 +26,7 @@ class ApiEndpoints {
   static const String resendOtp = '/auth/resend-otp';
   static const String forgotPassword = '/auth/forgot-password';
   static const String resetPassword = '/auth/reset-password';
+  static const String changePassword = '/auth/change-password';
   static const String me = '/users/me';
   static const String refresh = '/auth/refresh';
 

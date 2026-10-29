@@ -8,7 +8,6 @@ import '../models/register_request.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/password_strength_bar.dart';
 import 'login_screen.dart';
-import 'verify_otp_screen.dart';
 
 /// [FLOW-01] Luồng 1B: Màn hình Đăng ký Hướng dẫn viên (Tour Guide)
 class RegisterGuideScreen extends StatelessWidget {

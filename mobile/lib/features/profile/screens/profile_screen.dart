@@ -9,6 +9,7 @@ import '../bloc/profile_state.dart';
 import '../models/user_profile_model.dart';
 import 'edit_profile_screen.dart';
 import 'guide_profile_screen.dart';
+import 'user_profile_detail_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -271,28 +272,24 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                           const Divider(height: 1, indent: 64, endIndent: 16),
                         ],
                         _buildMenuItem(
-                          icon: Icons.notifications_none_rounded,
-                          iconBgColor: const Color(0xFFF1F5F9),
-                          iconColor: const Color(0xFF475569),
-                          title: 'Cài đặt thông báo',
-                          subtitle: 'Thông báo tour, trạng thái đơn đặt',
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Hệ thống thông báo cục bộ đã sẵn sàng.'),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          },
-                        ),
-                        const Divider(height: 1, indent: 64, endIndent: 16),
-                        _buildMenuItem(
                           icon: Icons.lock_outline_rounded,
                           iconBgColor: const Color(0xFFF1F5F9),
                           iconColor: const Color(0xFF475569),
                           title: 'Đăng nhập & Bảo mật',
-                          subtitle: 'Đổi mật khẩu, xác thực 2 bước',
-                          onTap: () => _showComingSoonSnackBar(context, 'Quản lý bảo mật'),
+                          subtitle: 'Đổi mật khẩu, bảo mật tài khoản',
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => BlocProvider.value(
+                                  value: context.read<ProfileBloc>(),
+                                  child: EditProfileScreen(
+                                    initialUser: user,
+                                    openChangePasswordDirectly: true,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ]),
 
@@ -493,7 +490,7 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                 MaterialPageRoute(
                   builder: (_) => BlocProvider.value(
                     value: context.read<ProfileBloc>(),
-                    child: EditProfileScreen(initialUser: user),
+                    child: UserProfileDetailScreen(user: user),
                   ),
                 ),
               );
@@ -609,13 +606,6 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                         value: 'Chưa có',
                         icon: Icons.star_rounded,
                         valueColor: AppColors.textSecondary,
-                      ),
-                      Container(height: 28, width: 1, color: AppColors.border),
-                      _buildPassportStat(
-                        title: 'Trạng thái',
-                        value: isVerified ? 'Đã xác thực' : 'Chưa xác thực',
-                        icon: isVerified ? Icons.verified_user_rounded : Icons.info_outline_rounded,
-                        valueColor: isVerified ? AppColors.success : const Color(0xFFE67E22),
                       ),
                     ],
                   ),

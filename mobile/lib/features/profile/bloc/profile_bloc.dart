@@ -25,6 +25,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         super(const ProfileInitial()) {
     on<ProfileLoadRequested>(_onLoadProfile);
     on<ProfileUpdateRequested>(_onUpdateProfile);
+    on<ChangePasswordRequested>(_onChangePassword);
     on<GuideProfileUpdateRequested>(_onUpdateGuideProfile);
     on<AvatarUploadRequested>(_onUploadAvatar);
     on<LicenseImageUploadRequested>(_onUploadLicenseImage);
@@ -61,13 +62,45 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       final response = await apiClient.patch(ApiEndpoints.me, data: body);
       if (response.statusCode == 200 && response.data != null) {
         final data = response.data['data'] as Map<String, dynamic>? ?? response.data as Map<String, dynamic>;
-        _currentUser = UserProfileModel.fromJson(data);
-        emit(ProfileUpdateSuccess(user: _currentUser!, message: 'Cập nhật thông tin thành công!'));
+        var updated = UserProfileModel.fromJson(data);
+        updated = updated.copyWith(
+          bio: event.bio,
+          dreamDestination: event.dreamDestination,
+          work: event.work,
+          skill: event.skill,
+          pets: event.pets,
+        );
+        _currentUser = updated;
+        emit(ProfileUpdateSuccess(user: _currentUser!, message: 'Cập nhật hồ sơ thành công!'));
       } else {
         emit(ProfileFailure(error: 'Cập nhật thất bại', currentUser: _currentUser));
       }
     } on DioException catch (e) {
       final message = _extractErrorMessage(e, 'Cập nhật thông tin thất bại');
+      emit(ProfileFailure(error: message, currentUser: _currentUser));
+    } catch (e) {
+      emit(ProfileFailure(error: e.toString(), currentUser: _currentUser));
+    }
+  }
+
+  Future<void> _onChangePassword(ChangePasswordRequested event, Emitter<ProfileState> emit) async {
+    emit(const ProfileLoading(message: 'Đang đổi mật khẩu...'));
+    try {
+      final body = {
+        'currentPassword': event.currentPassword,
+        'newPassword': event.newPassword,
+      };
+      final response = await apiClient.post(ApiEndpoints.changePassword, data: body);
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        emit(ProfileUpdateSuccess(
+          user: _currentUser ?? UserProfileModel(id: '', email: '', fullName: '', role: 'TRAVELER'),
+          message: 'Đổi mật khẩu thành công!',
+        ));
+      } else {
+        emit(ProfileFailure(error: 'Đổi mật khẩu không thành công', currentUser: _currentUser));
+      }
+    } on DioException catch (e) {
+      final message = _extractErrorMessage(e, 'Đổi mật khẩu không thành công');
       emit(ProfileFailure(error: message, currentUser: _currentUser));
     } catch (e) {
       emit(ProfileFailure(error: e.toString(), currentUser: _currentUser));

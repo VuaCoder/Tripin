@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:equatable/equatable.dart';
 import '../models/user_profile_model.dart';
 
@@ -16,14 +16,37 @@ class ProfileLoadRequested extends ProfileEvent {
 class ProfileUpdateRequested extends ProfileEvent {
   final String fullName;
   final String? phone;
+  final String? bio;
+  final String? dreamDestination;
+  final String? work;
+  final String? skill;
+  final String? pets;
 
   const ProfileUpdateRequested({
     required this.fullName,
     this.phone,
+    this.bio,
+    this.dreamDestination,
+    this.work,
+    this.skill,
+    this.pets,
   });
 
   @override
-  List<Object?> get props => [fullName, phone];
+  List<Object?> get props => [fullName, phone, bio, dreamDestination, work, skill, pets];
+}
+
+class ChangePasswordRequested extends ProfileEvent {
+  final String currentPassword;
+  final String newPassword;
+
+  const ChangePasswordRequested({
+    required this.currentPassword,
+    required this.newPassword,
+  });
+
+  @override
+  List<Object?> get props => [currentPassword, newPassword];
 }
 
 class GuideProfileUpdateRequested extends ProfileEvent {

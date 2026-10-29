@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/constants/app_colors.dart';
 import '../profile/bloc/profile_bloc.dart';
-import '../profile/bloc/profile_event.dart';
 import '../profile/screens/profile_screen.dart';
 
 class _NavItem {

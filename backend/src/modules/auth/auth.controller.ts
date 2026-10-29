@@ -17,6 +17,7 @@ import type {
   TwoFactorBody,
   VerifyOtpBody,
   ResendOtpBody,
+  ChangePasswordBody,
 } from './auth.validation';
 
 const contextOf = (req: Request) => ({ ip: req.ip, userAgent: req.get('user-agent') });
@@ -131,6 +132,12 @@ export class AuthController {
   setTwoFactor: RequestHandler = async (req, res) => {
     const { body } = validated<TwoFactorBody>(req);
     sendOk(res, await this.service.setTwoFactor(userActor(req).userId, body));
+  };
+
+  changePassword: RequestHandler = async (req, res) => {
+    const { body } = validated<ChangePasswordBody>(req);
+    await this.service.changePassword(userActor(req).userId, body);
+    sendOk(res, { message: 'Đổi mật khẩu thành công' });
   };
 }
 
