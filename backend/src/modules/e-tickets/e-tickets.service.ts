@@ -4,10 +4,17 @@ import { AppError } from '../../utils/app-error';
 import { buildPage, type Page } from '../../utils/pagination';
 import type { BookingFacts } from '../bookings';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
-import { toETicketDto } from './e-tickets.mapper';
+import { toETicketDto, toGuideCheckIn, toGuideRosterItem } from './e-tickets.mapper';
 import type { ETicketRecord } from './e-tickets.repository';
 import { eTicketsRepository, type ETicketsRepository } from './e-tickets.repository';
-import { ETICKET_POLICY, ETICKET_STATUS, type ETicketDto, type ListETicketsQuery } from './e-tickets.types';
+import {
+  ETICKET_POLICY,
+  ETICKET_STATUS,
+  type ETicketDto,
+  type GuideCheckInDto,
+  type GuideRosterDto,
+  type ListETicketsQuery,
+} from './e-tickets.types';
 
 export function generateTicketCode(): string {
   const { CODE_ALPHABET, CODE_LENGTH, CODE_PREFIX } = ETICKET_POLICY;
@@ -17,7 +24,10 @@ export function generateTicketCode(): string {
 
 export class ETicketsService {
   constructor(
-    private readonly tickets: Pick<ETicketsRepository, 'create' | 'findById' | 'findByBookingId' | 'transitionByBooking' | 'listByTraveler'> = eTicketsRepository,
+    private readonly tickets: Pick<
+      ETicketsRepository,
+      'create' | 'findById' | 'findByBookingId' | 'transitionByBooking' | 'listByTraveler' | 'findAcceptedAssignment' | 'findByCode' | 'listByTour' | 'markCheckedIn'
+    > = eTicketsRepository,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
   ) {}
 
@@ -84,7 +94,53 @@ export class ETicketsService {
     return toETicketDto(this.assertOwner(travelerId, await this.tickets.findByBookingId(bookingId)));
   }
 
+  // ------------------------------------------------- Tour guide check-in
+
+  /** Use case "Scan QR check-in": the roster of the tour the guide is leading. */
+  async rosterForGuide(guideId: string, tourId: string): Promise<GuideRosterDto> {
+    const assignment = await this.assertGuideTour(guideId, tourId);
+    const items = (await this.tickets.listByTour(tourId)).map(toGuideRosterItem);
+    return {
+      tourId,
+      tourTitle: assignment.tour.title,
+      total: items.length,
+      checkedIn: items.filter((item) => item.checkedIn).length,
+      items,
+    };
+  }
+
+  /**
+   * Validates a ticket code against the guide's tour and stamps `usedAt` once. The ticket stays VALID so the
+   * traveler's e-ticket is not displayed as completed before the trip actually ends.
+   */
+  async checkInForGuide(guideId: string, tourId: string, code: string): Promise<GuideCheckInDto> {
+    const assignment = await this.assertGuideTour(guideId, tourId);
+    const normalized = code.trim().toUpperCase();
+    const ticket = await this.tickets.findByCode(normalized);
+    if (!ticket) throw AppError.notFound('Ticket not found', 'TICKET_NOT_FOUND');
+    if (ticket.tourId !== tourId) throw AppError.conflict('This ticket belongs to another tour', 'TICKET_WRONG_TOUR');
+    if (ticket.status === ETICKET_STATUS.CANCELLED) throw AppError.conflict('This ticket was cancelled', 'TICKET_CANCELLED');
+    if (ticket.status === ETICKET_STATUS.USED || ticket.usedAt) throw AppError.conflict('This ticket was already checked in', 'TICKET_ALREADY_USED');
+
+    const updated = await this.tickets.markCheckedIn(ticket.id);
+    if (!updated) {
+      const current = await this.tickets.findByCode(normalized);
+      if (!current) throw AppError.notFound('Ticket not found', 'TICKET_NOT_FOUND');
+      if (current.status === ETICKET_STATUS.CANCELLED) throw AppError.conflict('This ticket was cancelled', 'TICKET_CANCELLED');
+      if (current.status === ETICKET_STATUS.USED || current.usedAt) throw AppError.conflict('This ticket was already checked in', 'TICKET_ALREADY_USED');
+      throw AppError.conflict('The ticket changed, please retry', 'CONCURRENT_UPDATE');
+    }
+    return toGuideCheckIn(updated, assignment.tour.title);
+  }
+
   // ----------------------------------------------------- helpers
+
+  /** 404 for a tour the guide does not lead (or one that was archived), so assignments are not enumerable. */
+  private async assertGuideTour(guideId: string, tourId: string): Promise<{ tour: { title: string } }> {
+    const assignment = await this.tickets.findAcceptedAssignment(tourId, guideId);
+    if (!assignment) throw AppError.notFound('Assigned tour not found');
+    return assignment;
+  }
 
   /** 404 (never 403) for a missing ticket or somebody else's, so ticket ids are not enumerable. */
   private assertOwner(travelerId: string, ticket: ETicketRecord | null): ETicketRecord {

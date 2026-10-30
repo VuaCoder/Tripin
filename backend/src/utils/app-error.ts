@@ -60,8 +60,8 @@ export class AppError extends Error {
   static forbidden(message = 'You do not have permission to perform this action', code: ErrorCode = ERROR_CODES.FORBIDDEN) {
     return new AppError(403, code, message);
   }
-  static notFound(message = 'Resource not found') {
-    return new AppError(404, ERROR_CODES.NOT_FOUND, message);
+  static notFound(message = 'Resource not found', code: ErrorCode = ERROR_CODES.NOT_FOUND) {
+    return new AppError(404, code, message);
   }
   static conflict(message: string, code: ErrorCode = ERROR_CODES.CONFLICT) {
     return new AppError(409, code, message);

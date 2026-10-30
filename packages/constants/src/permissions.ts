@@ -43,6 +43,7 @@ export const PERMISSIONS = {
   // Tour guide
   GUIDE_TOURS_VIEW: 'guide:tours-view',
   GUIDE_TOURS_VERIFY: 'guide:tours-verify',
+  GUIDE_CHECK_IN: 'guide:check-in',
   SUBSCRIPTION_SUBSCRIBE: 'subscription:subscribe',
   EARNINGS_VIEW: 'earnings:view',
 
@@ -113,6 +114,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     ...ACCOUNT,
     P.GUIDE_TOURS_VIEW,
     P.GUIDE_TOURS_VERIFY,
+    P.GUIDE_CHECK_IN,
     P.SUBSCRIPTION_SUBSCRIBE,
     P.EARNINGS_VIEW,
     P.CHAT_USE,

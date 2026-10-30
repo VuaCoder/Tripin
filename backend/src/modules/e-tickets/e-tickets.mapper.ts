@@ -1,5 +1,5 @@
 import type { ETicketRecord, EnrichedETicketRecord } from './e-tickets.repository';
-import type { ETicketDto, ETicketStatus } from './e-tickets.types';
+import { ETICKET_STATUS, type ETicketDto, type ETicketStatus, type GuideCheckInDto, type GuideRosterItemDto } from './e-tickets.types';
 
 export function toETicketDto(ticket: ETicketRecord | EnrichedETicketRecord): ETicketDto {
   const enriched = ticket as EnrichedETicketRecord;
@@ -36,6 +36,29 @@ export function toETicketDto(ticket: ETicketRecord | EnrichedETicketRecord): ETi
     participants: ticket.participants,
     holderName: ticket.holderName,
     issuedAt: ticket.issuedAt.toISOString(),
+  };
+}
+
+/** Roster row: `usedAt` is the check-in stamp; a USED ticket (trip completed) counts as present too. */
+export function toGuideRosterItem(ticket: ETicketRecord): GuideRosterItemDto {
+  return {
+    ticketId: ticket.id,
+    bookingCode: ticket.bookingCode,
+    holderName: ticket.holderName,
+    participants: ticket.participants,
+    departureDate: ticket.departureDate.toISOString(),
+    checkedIn: ticket.usedAt !== null || ticket.status === ETICKET_STATUS.USED,
+    ...(ticket.usedAt ? { checkedInAt: ticket.usedAt.toISOString() } : {}),
+  };
+}
+
+export function toGuideCheckIn(ticket: ETicketRecord, tourTitle: string): GuideCheckInDto {
+  return {
+    ticketId: ticket.id,
+    holderName: ticket.holderName,
+    participants: ticket.participants,
+    tourTitle,
+    checkedInAt: (ticket.usedAt ?? new Date()).toISOString(),
   };
 }
 
