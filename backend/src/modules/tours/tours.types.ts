@@ -39,6 +39,7 @@ export interface TourContentInput {
   childPricingPolicy?: string;
   cancellationPolicy?: string;
   travelNotes?: string;
+  meetingPoint?: string;
   requiredDocuments?: string;
   title: string;
   summary?: string;
@@ -136,6 +137,7 @@ export interface TourDetailDto extends TourListItemDto {
   childPricingPolicy?: string;
   cancellationPolicy?: string;
   travelNotes?: string;
+  meetingPoint?: string;
   requiredDocuments?: string;
   description?: string;
   maxGroupSize?: number;

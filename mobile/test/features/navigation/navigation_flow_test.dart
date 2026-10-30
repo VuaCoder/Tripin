@@ -28,7 +28,7 @@ void main() {
       expect(find.text('Tài khoản'), findsOneWidget);
 
       // Verify sticky search bar is rendered on Khám phá
-      expect(find.text('Bạn muốn đi đâu?'), findsOneWidget);
+      expect(find.text('Bắt đầu cuộc hành trình'), findsOneWidget);
 
       // Verify active tab (Khám phá at index 0) has primary brand color
       final activeText = tester.widget<Text>(find.text('Khám phá'));

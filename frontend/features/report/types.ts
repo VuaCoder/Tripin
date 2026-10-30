@@ -15,6 +15,8 @@ export type ReportStatus = 'OPEN' | 'AGENCY_RESPONDED' | 'RESOLVED' | 'REJECTED'
 /** What the reporter sees: the backend derives the agency and the tour, never the client. */
 export interface MyReport {
   id: string;
+  /** Lookup code, e.g. `RP-1A2B3C4D`. */
+  code: string;
   targetType: ReportTarget;
   targetId: string;
   category: ReportCategory;

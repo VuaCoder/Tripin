@@ -85,6 +85,15 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `BOOKING_NOT_COMPLETED` | 409 | Only a COMPLETED booking can be reviewed |
 | `REVIEW_EXISTS` | 409 | The booking already has a review |
 
+## E-tickets (`e-tickets`)
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| `TICKET_NOT_FOUND` | 404 | No ticket has this code (fake, mistyped, or not an e-ticket QR) |
+| `TICKET_ALREADY_USED` | 409 | The ticket was already checked in by a guide, or its trip already completed |
+| `TICKET_WRONG_TOUR` | 409 | The ticket belongs to a different tour than the one being checked in |
+| `TICKET_CANCELLED` | 409 | The ticket was cancelled with its booking and cannot be honoured |
+
 ## Community (`reports`, `support`, `wishlists`, `carts`, `ai`)
 
 | Code | HTTP | Meaning |

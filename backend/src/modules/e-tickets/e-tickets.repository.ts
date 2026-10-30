@@ -1,7 +1,8 @@
+import { GUIDE_ASSIGNMENT_STATUS, TOUR_STATUS } from '@travel-platform/constants';
 import { nullIfNotFound, prisma } from '../../config/database';
 import type { ETicket } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
-import type { ETicketStatus } from './e-tickets.types';
+import { ETICKET_STATUS, type ETicketStatus } from './e-tickets.types';
 
 export type ETicketRecord = ETicket;
 
@@ -19,6 +20,7 @@ export interface EnrichedETicketRecord extends ETicketRecord {
     id: string;
     title: string;
     destination: string;
+    meetingPoint: string | null;
     durationDays: number;
     images: string[];
   } | null;
@@ -63,6 +65,7 @@ export class ETicketsRepository {
           id: true,
           title: true,
           destination: true,
+          meetingPoint: true,
           durationDays: true,
           images: true,
         },
@@ -87,6 +90,44 @@ export class ETicketsRepository {
       prisma.eTicket.count({ where: { travelerId } }),
     ]);
     return { items, total };
+  }
+
+  // ------------------------------------------------------- Guide check-in
+
+  /** The tour the guide is actually leading: an ACCEPTED assignment on a non-archived tour. */
+  findAcceptedAssignment(tourId: string, guideId: string): Promise<{ tour: { title: string } } | null> {
+    return prisma.tourGuideAssignment.findFirst({
+      where: {
+        tourId,
+        guideId,
+        status: GUIDE_ASSIGNMENT_STATUS.ACCEPTED,
+        tour: { is: { status: { not: TOUR_STATUS.ARCHIVED } } },
+      },
+      select: { tour: { select: { title: true } } },
+    });
+  }
+
+  findByCode(code: string): Promise<ETicketRecord | null> {
+    return prisma.eTicket.findUnique({ where: { code } });
+  }
+
+  /** Roster of a tour; cancelled tickets are not part of the group. */
+  listByTour(tourId: string): Promise<ETicketRecord[]> {
+    return prisma.eTicket.findMany({
+      where: { tourId, status: { not: ETICKET_STATUS.CANCELLED } },
+      orderBy: [{ departureDate: 'asc' }, { holderName: 'asc' }, { id: 'asc' }],
+    });
+  }
+
+  /**
+   * Stamps the attendance time once. `status` stays VALID so the traveler's ticket is not shown as
+   * completed before the trip; `usedAt` is the check-in marker. Null when it was already stamped
+   * (or the ticket left VALID), so the service can answer with the precise conflict.
+   */
+  markCheckedIn(id: string): Promise<ETicketRecord | null> {
+    return prisma.eTicket
+      .update({ where: { id, status: ETICKET_STATUS.VALID, usedAt: null }, data: { usedAt: new Date() } })
+      .catch(nullIfNotFound);
   }
 }
 

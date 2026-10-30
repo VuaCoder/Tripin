@@ -17,6 +17,7 @@ const tourContentShape = {
   agePricing: agePricingSchema.nullable().optional(),
   cancellationPolicy: text(5000).optional(),
   travelNotes: text(5000).optional(),
+  meetingPoint: text(300).optional(),
   requiredDocuments: text(5000).optional(),
   destination: z.string().trim().min(2).max(120),
   durationDays: z.number().int().min(1).max(365),
