@@ -5,6 +5,9 @@ import '../profile/bloc/profile_bloc.dart';
 import '../profile/screens/profile_screen.dart';
 import '../tours/bloc/home_discovery_cubit.dart';
 import '../tours/screens/home_discovery_screen.dart';
+import '../wishlist/bloc/wishlist_cubit.dart';
+import '../wishlist/bloc/wishlist_state.dart';
+import '../wishlist/screens/wishlist_screen.dart';
 
 class _NavItem {
   final IconData icon;
@@ -67,13 +70,23 @@ class _TravelerMainNavigationScreenState extends State<TravelerMainNavigationScr
     _pageController = PageController(initialPage: _currentIndex);
   }
 
+  WishlistCubit? _localWishlistCubit;
+
   @override
   void dispose() {
     _pageController?.dispose();
+    _localWishlistCubit?.close();
     super.dispose();
   }
 
   void _onTabSelected(int index) {
+    if (index == 1) {
+      try {
+        context.read<WishlistCubit>().markWishlistSeen();
+      } catch (_) {
+        _localWishlistCubit?.markWishlistSeen();
+      }
+    }
     if (_currentIndex == index) return;
     setState(() => _currentIndex = index);
     _controller.animateToPage(
@@ -83,16 +96,13 @@ class _TravelerMainNavigationScreenState extends State<TravelerMainNavigationScr
     );
   }
 
-  List<Widget>? _screens;
-  List<Widget> get _effectiveScreens => _screens ??= [
+  List<Widget> _buildScreens() => [
         BlocProvider(
           create: (_) => HomeDiscoveryCubit()..loadHomeData(),
           child: const HomeDiscoveryScreen(),
         ),
-        _buildTabPlaceholder(
-          title: 'Tour yêu thích',
-          subtitle: 'Danh sách các tour du lịch bạn đã lưu vào Wishlist',
-          icon: Icons.favorite_rounded,
+        WishlistScreen(
+          onExploreTap: () => _onTabSelected(0),
         ),
         _buildTabPlaceholder(
           title: 'Chuyến đi của tôi',
@@ -112,7 +122,14 @@ class _TravelerMainNavigationScreenState extends State<TravelerMainNavigationScr
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    WishlistCubit cubit;
+    try {
+      cubit = context.read<WishlistCubit>();
+    } catch (_) {
+      cubit = _localWishlistCubit ??= (WishlistCubit()..loadWishlist());
+    }
+
+    final scaffold = Scaffold(
       backgroundColor: AppColors.background,
       body: PageView(
         controller: _controller,
@@ -122,7 +139,7 @@ class _TravelerMainNavigationScreenState extends State<TravelerMainNavigationScr
             setState(() => _currentIndex = idx);
           }
         },
-        children: _effectiveScreens,
+        children: _buildScreens(),
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -140,50 +157,79 @@ class _TravelerMainNavigationScreenState extends State<TravelerMainNavigationScr
           top: false,
           child: SizedBox(
             height: 58,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(_navItems.length, (i) {
-                final item = _navItems[i];
-                final isSelected = _currentIndex == i;
-                return Expanded(
-                  child: InkWell(
-                    onTap: () => _onTabSelected(i),
-                    splashColor: Colors.transparent,
-                    highlightColor: Colors.transparent,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AnimatedScale(
-                          scale: isSelected ? 1.08 : 1.0,
-                          duration: const Duration(milliseconds: 200),
-                          child: Icon(
-                            isSelected ? item.selectedIcon : item.icon,
-                            size: 24,
-                            color: isSelected ? AppColors.primary : const Color(0xFF64748B),
-                          ),
+            child: BlocBuilder<WishlistCubit, WishlistState>(
+              builder: (context, wishlistState) {
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: List.generate(_navItems.length, (i) {
+                    final item = _navItems[i];
+                    final isSelected = _currentIndex == i;
+                    final hasBadge = i == 1 && wishlistState.hasUnseenWishlistBadge;
+
+                    return Expanded(
+                      child: InkWell(
+                        onTap: () => _onTabSelected(i),
+                        splashColor: Colors.transparent,
+                        highlightColor: Colors.transparent,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                AnimatedScale(
+                                  scale: isSelected ? 1.08 : 1.0,
+                                  duration: const Duration(milliseconds: 200),
+                                  child: Icon(
+                                    isSelected ? item.selectedIcon : item.icon,
+                                    size: 24,
+                                    color: isSelected ? AppColors.primary : const Color(0xFF64748B),
+                                  ),
+                                ),
+                                if (hasBadge)
+                                  Positioned(
+                                    top: -1,
+                                    right: -3,
+                                    child: Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.primary,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              item.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                color: isSelected ? AppColors.primary : const Color(0xFF64748B),
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          item.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                            color: isSelected ? AppColors.primary : const Color(0xFF64748B),
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  }),
                 );
-              }),
+              },
             ),
           ),
         ),
       ),
+    );
+
+    return BlocProvider<WishlistCubit>.value(
+      value: cubit,
+      child: scaffold,
     );
   }
 

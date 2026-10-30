@@ -78,6 +78,10 @@ class AppColors {
 
   /// Placeholder, hint text, icon không kích hoạt (Slate 400)
   static const Color textMuted = Color(0xFF94A3B8);
+  static const Color textTertiary = textMuted;
+
+  /// Nền ô nhập liệu tương thích
+  static const Color inputBackground = surfaceVariant;
 
   /// Chữ trắng trên nền tối
   static const Color textOnPrimary = Colors.white;

@@ -9,6 +9,8 @@ import '../models/tour_model.dart';
 import '../widgets/airbnb_search_modal.dart';
 import '../widgets/tour_card_airbnb.dart';
 import '../widgets/tour_filter_bottom_sheet.dart';
+import '../../wishlist/bloc/wishlist_cubit.dart';
+import '../../wishlist/bloc/wishlist_state.dart';
 
 /// Màn hình Danh sách & Tìm kiếm Tour du lịch phong cách Airbnb (Ảnh 1)
 /// - Thanh search dạng Capsule 3D nổi bật đồng bộ với trang khám phá
@@ -127,6 +129,9 @@ class _TourSearchViewState extends State<_TourSearchView> {
   }
 
   void _onTourTap(TourModel tour) {
+    try {
+      context.read<WishlistCubit>().recordRecentlyViewed(tour);
+    } catch (_) {}
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Đang mở chi tiết: ${tour.title}'),
@@ -475,7 +480,7 @@ class _TourSearchViewState extends State<_TourSearchView> {
     }
 
     // Danh sách thẻ Tour lớn Airbnb Listing Card (Ảnh 1)
-    return RefreshIndicator(
+    Widget listView = RefreshIndicator(
       color: AppColors.primary,
       onRefresh: () => cubit.search(isRefresh: true),
       child: ListView.builder(
@@ -498,12 +503,32 @@ class _TourSearchViewState extends State<_TourSearchView> {
           }
 
           final tour = state.tours[index];
+          WishlistCubit? wishlistCubit;
+          try {
+            wishlistCubit = context.read<WishlistCubit>();
+          } catch (_) {}
+
+          final isFav = wishlistCubit?.isFavorite(tour.id) ?? false;
+
           return TourCardAirbnb(
             tour: tour,
+            isFavorite: isFav,
+            onFavoriteTap: () {
+              wishlistCubit?.toggleFavorite(tour: tour, context: context);
+            },
             onTap: () => _onTourTap(tour),
           );
         },
       ),
     );
+
+    try {
+      context.read<WishlistCubit>();
+      return BlocBuilder<WishlistCubit, WishlistState>(
+        builder: (context, _) => listView,
+      );
+    } catch (_) {
+      return listView;
+    }
   }
 }

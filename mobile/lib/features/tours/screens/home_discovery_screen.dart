@@ -13,6 +13,8 @@ import '../widgets/network_error_widget.dart';
 import '../widgets/tour_card_horizontal.dart';
 import '../widgets/tour_card_vertical.dart';
 import '../widgets/tour_shimmer_loading.dart';
+import '../../wishlist/bloc/wishlist_cubit.dart';
+import '../../wishlist/bloc/wishlist_state.dart';
 import 'tour_search_screen.dart';
 
 /// [FLOW-04] Màn hình Khám phá Trang chủ
@@ -43,13 +45,27 @@ class _HomeDiscoveryScreenState extends State<HomeDiscoveryScreen> {
     String? initialQuery,
     List<CategoryModel>? categories,
   }) {
+    WishlistCubit? wishlistCubit;
+    try {
+      wishlistCubit = context.read<WishlistCubit>();
+    } catch (_) {}
+
+    Widget searchScreen = TourSearchScreen(
+      initialCategoryId: categoryId,
+      initialQuery: initialQuery,
+      categories: categories,
+    );
+
+    if (wishlistCubit != null) {
+      searchScreen = BlocProvider.value(
+        value: wishlistCubit,
+        child: searchScreen,
+      );
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => TourSearchScreen(
-          initialCategoryId: categoryId,
-          initialQuery: initialQuery,
-          categories: categories,
-        ),
+        builder: (_) => searchScreen,
       ),
     );
   }
@@ -63,6 +79,9 @@ class _HomeDiscoveryScreenState extends State<HomeDiscoveryScreen> {
   }
 
   void _onTourTap(TourModel tour) {
+    try {
+      context.read<WishlistCubit>().recordRecentlyViewed(tour);
+    } catch (_) {}
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Đang mở chi tiết tour: ${tour.title}'),
@@ -74,7 +93,7 @@ class _HomeDiscoveryScreenState extends State<HomeDiscoveryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         bottom: false,
@@ -107,6 +126,16 @@ class _HomeDiscoveryScreenState extends State<HomeDiscoveryScreen> {
         ),
       ),
     );
+
+    try {
+      context.read<WishlistCubit>();
+      return scaffold;
+    } catch (_) {
+      return BlocProvider(
+        create: (_) => WishlistCubit()..loadWishlist(),
+        child: scaffold,
+      );
+    }
   }
 
   Widget _buildDiscoveryBody(BuildContext context, HomeDiscoveryState state) {
@@ -162,65 +191,74 @@ class _HomeDiscoveryScreenState extends State<HomeDiscoveryScreen> {
   Widget _buildFeaturedToursSection(List<TourModel> tours, List<CategoryModel> categories) {
     if (tours.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Tour Nổi Bật',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.3,
-                ),
-              ),
-              InkWell(
-                onTap: () => _navigateToSearch(categories: categories),
-                borderRadius: BorderRadius.circular(12),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Xem tất cả',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.primary),
-                    ],
+    return BlocBuilder<WishlistCubit, WishlistState>(
+      builder: (context, wishlistState) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Tour Nổi Bật',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                      letterSpacing: -0.3,
+                    ),
                   ),
-                ),
+                  InkWell(
+                    onTap: () => _navigateToSearch(categories: categories),
+                    borderRadius: BorderRadius.circular(12),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Xem tất cả',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.primary),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 260,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            scrollDirection: Axis.horizontal,
-            itemCount: tours.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 16),
-            itemBuilder: (context, index) {
-              final tour = tours[index];
-              return TourCardHorizontal(
-                tour: tour,
-                onTap: () => _onTourTap(tour),
-              );
-            },
-          ),
-        ),
-      ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 260,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                scrollDirection: Axis.horizontal,
+                itemCount: tours.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 16),
+                itemBuilder: (context, index) {
+                  final tour = tours[index];
+                  final isFav = wishlistState.isFavorite(tour.id);
+                  return TourCardHorizontal(
+                    tour: tour,
+                    isFavorite: isFav,
+                    onFavoriteTap: () {
+                      context.read<WishlistCubit>().toggleFavorite(tour: tour, context: context);
+                    },
+                    onTap: () => _onTourTap(tour),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

@@ -40,6 +40,14 @@ class _TourCardAirbnbState extends State<TourCardAirbnb> {
     _isFavorite = widget.isFavorite;
   }
 
+  @override
+  void didUpdateWidget(covariant TourCardAirbnb oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isFavorite != widget.isFavorite) {
+      _isFavorite = widget.isFavorite;
+    }
+  }
+
   bool get _isInTest {
     if (kIsWeb) return false;
     return Platform.environment.containsKey('FLUTTER_TEST');
