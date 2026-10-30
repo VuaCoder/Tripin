@@ -84,6 +84,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | View Profile / Update Profile | users | `GET/PATCH /users/me`, `POST /users/me/license-image/upload-signature`, `POST /users/me/license-image/complete` | profile:* | done |
 | View assigned tours | tours | `GET /guide/tours` | guide:tours-view | done |
 | Verify assigned tours | tours | `POST /guide/tours/:tourId/verification` (accept/decline) | guide:tours-verify | done |
+| Scan QR e-ticket check-in | e-tickets | `GET /guide/e-tickets/:tourId`, `POST /guide/e-tickets/:tourId/check-in` | guide:check-in | done |
 | Subcribe to plan (Payment Gateway) | subscriptions | `GET /subscriptions/plans`, `POST /subscriptions`, `GET /subscriptions/me`, `GET /subscriptions/me/current` | subscription:subscribe | done |
 | View earnings | earnings | `GET /earnings/me`, `GET /earnings/me/summary` | earnings:view | done |
 | Make a conservation (with Traveler) | chat | same as Traveler | chat:use | done |

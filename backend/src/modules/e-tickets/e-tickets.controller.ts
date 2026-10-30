@@ -4,7 +4,7 @@ import { validated } from '../../middlewares/validate';
 import { sendOk, sendPaginated } from '../../utils/api-response';
 import type { IdParams } from '../../utils/id';
 import { eTicketsService, type ETicketsService } from './e-tickets.service';
-import type { BookingParams, ListETicketsQueryInput } from './e-tickets.validation';
+import type { BookingParams, GuideCheckInBodyInput, GuideTourParams, ListETicketsQueryInput } from './e-tickets.validation';
 
 /** HTTP only. Tickets are always looked up for the authenticated traveler. */
 export class ETicketsController {
@@ -24,6 +24,18 @@ export class ETicketsController {
   getByBooking: RequestHandler = async (req, res) => {
     const { params } = validated<unknown, unknown, BookingParams>(req);
     sendOk(res, await this.service.getMineByBooking(userActor(req).userId, params.bookingId));
+  };
+
+  // ---- guide
+
+  rosterForGuide: RequestHandler = async (req, res) => {
+    const { params } = validated<unknown, unknown, GuideTourParams>(req);
+    sendOk(res, await this.service.rosterForGuide(userActor(req).userId, params.tourId));
+  };
+
+  checkInForGuide: RequestHandler = async (req, res) => {
+    const { body, params } = validated<GuideCheckInBodyInput, unknown, GuideTourParams>(req);
+    sendOk(res, await this.service.checkInForGuide(userActor(req).userId, params.tourId, body.code));
   };
 }
 
