@@ -39,7 +39,10 @@ class ApiEndpoints {
   // Tours endpoints (PRM393: Product List & Detail)
   static const String tours = '/tours';
   static String tourDetail(String id) => '/tours/$id';
-  static String tourReviews(String id) => '/tours/$id/reviews';
+  // Reviews endpoints (FLOW-08)
+  static const String reviews = '/reviews';
+  static String tourReviews(String tourId) => '/reviews?tourId=$tourId';
+  static const String myReviews = '/reviews/me';
 
   // Wishlist (Danh sách yêu thích)
   static const String wishlist = '/wishlist';
