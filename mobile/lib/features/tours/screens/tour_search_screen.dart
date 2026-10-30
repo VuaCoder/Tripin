@@ -1,27 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../bloc/tour_search_cubit.dart';
 import '../bloc/tour_search_state.dart';
 import '../models/category_model.dart';
 import '../models/tour_model.dart';
-import '../widgets/tour_card_vertical.dart';
+import '../widgets/airbnb_search_modal.dart';
+import '../widgets/tour_card_airbnb.dart';
+import '../widgets/tour_filter_bottom_sheet.dart';
 
-/// Màn hình Tìm kiếm & Lọc Tour du lịch (AC4)
+/// Màn hình Danh sách & Tìm kiếm Tour du lịch phong cách Airbnb (Ảnh 1)
+/// - Thanh search dạng Capsule 3D nổi bật đồng bộ với trang khám phá
+/// - Nút lọc icon tinh tế, KHÔNG CÓ BACKGROUND
+/// - Danh sách thẻ tour dạng lớn chuẩn Airbnb Listing Card (Ảnh 1)
+/// - Nút nổi "Bản đồ" ở chính giữa cạnh dưới
 class TourSearchScreen extends StatelessWidget {
   final String? initialCategoryId;
   final String? initialQuery;
   final List<CategoryModel>? categories;
+  final TourSearchCubit? cubit;
 
   const TourSearchScreen({
     super.key,
     this.initialCategoryId,
     this.initialQuery,
     this.categories,
+    this.cubit,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (cubit != null) {
+      return BlocProvider<TourSearchCubit>.value(
+        value: cubit!,
+        child: const _TourSearchView(),
+      );
+    }
+
     return BlocProvider(
       create: (_) => TourSearchCubit()
         ..init(
@@ -42,19 +58,72 @@ class _TourSearchView extends StatefulWidget {
 }
 
 class _TourSearchViewState extends State<_TourSearchView> {
-  late TextEditingController _searchController;
+  late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
-    final cubit = context.read<TourSearchCubit>();
-    _searchController = TextEditingController(text: cubit.state.searchQuery);
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    // Tải thêm trang khi còn cách đáy 200px
+    if (currentScroll >= maxScroll - 200) {
+      context.read<TourSearchCubit>().loadMore();
+    }
+  }
+
+  /// Mở AirbnbSearchModal đồng bộ với trang Khám phá
+  Future<void> _openSearchModal() async {
+    final cubit = context.read<TourSearchCubit>();
+    final result = await AirbnbSearchModal.show(
+      context,
+      initialDestination: cubit.state.searchQuery.isNotEmpty ? cubit.state.searchQuery : null,
+    );
+
+    if (result != null) {
+      String? datesSummary;
+      if (result.startDate != null && result.endDate != null) {
+        datesSummary =
+            '${DateFormat('dd/MM').format(result.startDate!)} – ${DateFormat('dd/MM').format(result.endDate!)}';
+      } else if (result.flexibleDuration != null) {
+        datesSummary = result.datePrecisionChip;
+      }
+
+      final guestsSummary =
+          result.guestsSummary != 'Thêm khách' ? result.guestsSummary : null;
+
+      cubit.updateSearchParams(
+        query: result.destination,
+        datesSummary: datesSummary,
+        guestsSummary: guestsSummary,
+      );
+    }
+  }
+
+  /// Mở Bottom Sheet bộ lọc nâng cao (Ảnh 2)
+  void _openFilterBottomSheet() {
+    final cubit = context.read<TourSearchCubit>();
+
+    TourFilterBottomSheet.show(
+      context,
+      initialCriteria: cubit.filterCriteria,
+      categories: cubit.state.categories,
+      matchingCount: cubit.state.tours.length,
+      onApply: (criteria) => cubit.applyFilters(criteria),
+      onReset: () => cubit.resetFilters(),
+    );
   }
 
   void _onTourTap(TourModel tour) {
@@ -62,189 +131,262 @@ class _TourSearchViewState extends State<_TourSearchView> {
       SnackBar(
         content: Text('Đang mở chi tiết: ${tour.title}'),
         duration: const Duration(seconds: 1),
-        behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0.5,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        titleSpacing: 0,
-        title: Padding(
-          padding: const EdgeInsets.only(right: 16),
-          child: Container(
-            height: 42,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(21),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: TextField(
-              controller: _searchController,
-              textInputAction: TextInputAction.search,
-              onSubmitted: (val) => context.read<TourSearchCubit>().search(),
-              onChanged: (val) => context.read<TourSearchCubit>().updateQuery(val),
-              style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
-              decoration: InputDecoration(
-                hintText: 'Tìm kiếm tour, điểm đến...',
-                hintStyle: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 20),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.textSecondary),
-                        onPressed: () {
-                          _searchController.clear();
-                          context.read<TourSearchCubit>().updateQuery('');
-                          context.read<TourSearchCubit>().search();
-                          setState(() {});
+    final cubit = context.read<TourSearchCubit>();
+
+    return BlocBuilder<TourSearchCubit, TourSearchState>(
+      builder: (context, state) {
+        return Scaffold(
+          backgroundColor: Colors.white,
+          body: SafeArea(
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    // 1. Thanh tìm kiếm Capsule 3D đồng bộ với trang khám phá & Nút lọc bỏ background (Ảnh 1)
+                    _buildHeader(context, state, cubit),
+
+                    // 2. Danh sách Tour hiển thị dạng lớn chuẩn Airbnb (Ảnh 1)
+                    // Lưu ý: Đã loại bỏ hoàn toàn hàng Category chips và hàng Active filter chips theo yêu cầu
+                    Expanded(
+                      child: _buildTourListContent(context, state, cubit),
+                    ),
+                  ],
+                ),
+
+                // 3. Nút nổi "Bản đồ" ở chính giữa cạnh dưới (Ảnh 1)
+                if (state.tours.isNotEmpty && state.status == TourSearchStatus.success)
+                  Positioned(
+                    bottom: 20,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: InkWell(
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Chế độ xem bản đồ đang được hoàn thiện'),
+                              duration: Duration(seconds: 1),
+                            ),
+                          );
                         },
-                      )
-                    : null,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
-              ),
-            ),
-          ),
-        ),
-      ),
-      body: BlocBuilder<TourSearchCubit, TourSearchState>(
-        builder: (context, state) {
-          return Column(
-            children: [
-              // 1. Thanh lọc danh mục (Filter Chips)
-              if (state.categories.isNotEmpty) _buildCategoryFilterBar(context, state),
-
-              // 2. Thanh lọc sắp xếp (Sort Bar)
-              _buildSortBar(context, state),
-
-              const Divider(height: 1, color: AppColors.border),
-
-              // 3. Danh sách kết quả tìm kiếm
-              Expanded(
-                child: _buildResultContent(context, state),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildCategoryFilterBar(BuildContext context, TourSearchState state) {
-    return Container(
-      color: AppColors.surface,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: SizedBox(
-        height: 38,
-        child: ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          scrollDirection: Axis.horizontal,
-          itemCount: state.categories.length + 1,
-          separatorBuilder: (_, _) => const SizedBox(width: 8),
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              final isAllSelected = state.selectedCategoryId == null;
-              return FilterChip(
-                label: const Text('Tất cả'),
-                selected: isAllSelected,
-                selectedColor: AppColors.primarySurface,
-                checkmarkColor: AppColors.primary,
-                labelStyle: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isAllSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isAllSelected ? AppColors.primary : AppColors.textSecondary,
-                ),
-                backgroundColor: AppColors.background,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  side: BorderSide(
-                    color: isAllSelected ? AppColors.primary : AppColors.border,
+                        borderRadius: BorderRadius.circular(24),
+                        child: Container(
+                          height: 42,
+                          padding: const EdgeInsets.symmetric(horizontal: 18),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF222222),
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.25),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Bản đồ',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              SizedBox(width: 6),
+                              Icon(Icons.map_rounded, color: Colors.white, size: 16),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                onSelected: (_) => context.read<TourSearchCubit>().selectCategory(null),
-              );
-            }
-
-            final category = state.categories[index - 1];
-            final isSelected = state.selectedCategoryId == category.id;
-
-            return FilterChip(
-              avatar: Icon(
-                category.iconData,
-                size: 15,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
-              ),
-              label: Text(category.name),
-              selected: isSelected,
-              selectedColor: AppColors.primarySurface,
-              checkmarkColor: AppColors.primary,
-              labelStyle: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
-              ),
-              backgroundColor: AppColors.background,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide(
-                  color: isSelected ? AppColors.primary : AppColors.border,
-                ),
-              ),
-              onSelected: (_) => context.read<TourSearchCubit>().selectCategory(category.id),
-            );
-          },
-        ),
-      ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildSortBar(BuildContext context, TourSearchState state) {
+  /// Header gồm Nút Quay lại, Thanh Search Capsule 3D và Nút Bộ lọc không nền (Ảnh 1)
+  Widget _buildHeader(BuildContext context, TourSearchState state, TourSearchCubit cubit) {
+    final activeCount = cubit.activeFilterCount;
+
+    // Dòng 1: Tiêu đề địa điểm (100% tiếng Việt)
+    final titleText = state.searchQuery.isNotEmpty
+        ? state.searchQuery
+        : 'Địa điểm bất kỳ';
+
+    // Dòng 2: Thời gian và khách (100% tiếng Việt)
+    String subtitleText;
+    if (cubit.searchDatesSummary != null || cubit.searchGuestsSummary != null) {
+      final dates = cubit.searchDatesSummary ?? 'Bất kỳ tuần nào';
+      final guests = cubit.searchGuestsSummary ?? 'Thêm khách';
+      subtitleText = '$dates · $guests';
+    } else {
+      subtitleText = 'Bất kỳ tuần nào · Thêm khách';
+    }
+
     return Container(
-      color: AppColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(10, 8, 16, 8),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            '${state.tours.length} tour phù hợp',
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+          // Nút quay lại (Back Button)
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            splashRadius: 22,
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: Color(0xFF222222),
+              size: 22,
             ),
           ),
-          DropdownButton<String>(
-            value: state.selectedSort,
-            underline: const SizedBox.shrink(),
-            isDense: true,
-            icon: const Icon(Icons.swap_vert_rounded, size: 18, color: AppColors.primary),
-            items: const [
-              DropdownMenuItem(value: 'rating', child: Text('Đánh giá cao', style: TextStyle(fontSize: 12.5))),
-              DropdownMenuItem(value: 'newest', child: Text('Mới nhất', style: TextStyle(fontSize: 12.5))),
-              DropdownMenuItem(value: 'price_asc', child: Text('Giá thấp - cao', style: TextStyle(fontSize: 12.5))),
-              DropdownMenuItem(value: 'price_desc', child: Text('Giá cao - thấp', style: TextStyle(fontSize: 12.5))),
-            ],
-            onChanged: (val) {
-              if (val != null) {
-                context.read<TourSearchCubit>().setSort(val);
-              }
-            },
+          const SizedBox(width: 4),
+
+          // Thanh Search dạng Capsule 3D nổi bật đồng bộ với trang khám phá (Ảnh 1)
+          Expanded(
+            child: InkWell(
+              key: const Key('tour_search_capsule_btn'),
+              onTap: _openSearchModal,
+              borderRadius: BorderRadius.circular(32),
+              child: Container(
+                height: 52,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(
+                    color: const Color(0xFFE2E8F0),
+                    width: 1.0,
+                  ),
+                  // Đổ bóng 3D chân thực chuẩn Airbnb
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.search_rounded,
+                      color: Color(0xFF222222),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            titleText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF222222),
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            subtitleText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: Color(0xFF717171),
+                              letterSpacing: -0.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          // NÚT ICON BỘ LỌC (BỎ BACKGROUND, VIỀN MỎNG TINH TẾ - ẢNH 1)
+          InkWell(
+            key: const Key('tour_search_filter_icon_btn'),
+            onTap: _openFilterBottomSheet,
+            borderRadius: BorderRadius.circular(21),
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: Colors.transparent, // BỎ ĐI BACKGROUND HOÀN TOÀN
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: activeCount > 0 ? const Color(0xFF222222) : const Color(0xFFCBD5E1),
+                  width: 1.2,
+                ),
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Icon(
+                    Icons.tune_rounded,
+                    size: 19,
+                    color: Color(0xFF222222),
+                  ),
+                  if (activeCount > 0)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        padding: const EdgeInsets.all(3.5),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF222222),
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '$activeCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildResultContent(BuildContext context, TourSearchState state) {
+  /// Danh sách kết quả hiển thị Thẻ Tour lớn chuẩn Airbnb Listing Card (Ảnh 1)
+  Widget _buildTourListContent(BuildContext context, TourSearchState state, TourSearchCubit cubit) {
     if (state.status == TourSearchStatus.loading) {
       return const Center(
         child: CircularProgressIndicator(color: AppColors.primary),
@@ -267,7 +409,7 @@ class _TourSearchViewState extends State<_TourSearchView> {
               ),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => context.read<TourSearchCubit>().search(),
+                onPressed: () => cubit.search(),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -281,6 +423,7 @@ class _TourSearchViewState extends State<_TourSearchView> {
       );
     }
 
+    // Giao diện Empty State khi không tìm thấy tour phù hợp
     if (state.tours.isEmpty) {
       return Center(
         child: Padding(
@@ -289,28 +432,41 @@ class _TourSearchViewState extends State<_TourSearchView> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 72,
-                height: 72,
+                width: 76,
+                height: 76,
                 decoration: const BoxDecoration(
-                  color: AppColors.surface,
+                  color: Color(0xFFF8FAFC),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.search_off_rounded, size: 36, color: AppColors.textSecondary),
+                child: const Icon(Icons.search_off_rounded, size: 38, color: Color(0xFF94A3B8)),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
               const Text(
                 'Không tìm thấy tour phù hợp',
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF222222),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               const Text(
-                'Hãy thử thay đổi từ khóa hoặc bộ lọc danh mục xem sao nhé!',
+                'Hãy thử thay đổi tiêu chí hoặc đặt lại bộ lọc để khám phá các hành trình hấp dẫn khác nhé!',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                style: TextStyle(fontSize: 13, color: Color(0xFF717171), height: 1.4),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () => cubit.resetFilters(),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Đặt lại bộ lọc'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF222222),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  elevation: 0,
+                ),
               ),
             ],
           ),
@@ -318,17 +474,36 @@ class _TourSearchViewState extends State<_TourSearchView> {
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: state.tours.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final tour = state.tours[index];
-        return TourCardVertical(
-          tour: tour,
-          onTap: () => _onTourTap(tour),
-        );
-      },
+    // Danh sách thẻ Tour lớn Airbnb Listing Card (Ảnh 1)
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: () => cubit.search(isRefresh: true),
+      child: ListView.builder(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        padding: const EdgeInsets.only(top: 4, bottom: 80),
+        itemCount: state.tours.length + (cubit.isLoadingMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == state.tours.length) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary),
+                ),
+              ),
+            );
+          }
+
+          final tour = state.tours[index];
+          return TourCardAirbnb(
+            tour: tour,
+            onTap: () => _onTourTap(tour),
+          );
+        },
+      ),
     );
   }
 }

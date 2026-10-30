@@ -126,26 +126,56 @@ class ToursRepository {
     return PromotionBannerModel.defaultPromotions;
   }
 
-  /// Tìm kiếm & Lọc Tour du lịch
+  /// Tìm kiếm & Lọc Tour du lịch (AC2)
   Future<List<TourModel>> searchTours({
     String? query,
     String? categoryId,
+    Set<String>? categoryIds,
     String? destination,
+    double? minPrice,
+    double? maxPrice,
+    int? minDays,
+    int? maxDays,
+    double? minRating,
     String? sort,
     int page = 1,
     int limit = 20,
   }) async {
+    final effectiveCategoryIds = categoryIds ?? (categoryId != null ? {categoryId} : <String>{});
+
     if (_isInTest) {
       final all = [..._sampleFeaturedTours, ..._sampleLatestTours];
-      return all.where((t) {
-        final matchCat = categoryId == null || t.categoryIds.contains(categoryId);
+      var filtered = all.where((t) {
+        final matchCat = effectiveCategoryIds.isEmpty ||
+            effectiveCategoryIds.any((id) => t.categoryIds.contains(id));
         final matchQuery = query == null ||
             query.trim().isEmpty ||
             t.title.toLowerCase().contains(query.toLowerCase()) ||
             t.destination.toLowerCase().contains(query.toLowerCase());
-        return matchCat && matchQuery;
+        final matchMinPrice = minPrice == null || t.basePrice >= minPrice;
+        final matchMaxPrice = maxPrice == null || t.basePrice <= maxPrice;
+        final matchMinDays = minDays == null || t.durationDays >= minDays;
+        final matchMaxDays = maxDays == null || t.durationDays <= maxDays;
+        final matchRating = minRating == null || t.ratingAvg >= minRating;
+
+        return matchCat && matchQuery && matchMinPrice && matchMaxPrice && matchMinDays && matchMaxDays && matchRating;
       }).toList();
+
+      if (sort == 'price_asc') {
+        filtered.sort((a, b) => a.basePrice.compareTo(b.basePrice));
+      } else if (sort == 'price_desc') {
+        filtered.sort((a, b) => b.basePrice.compareTo(a.basePrice));
+      } else if (sort == 'rating') {
+        filtered.sort((a, b) => b.ratingAvg.compareTo(a.ratingAvg));
+      }
+
+      // Phân trang đơn giản cho test
+      final startIndex = (page - 1) * limit;
+      if (startIndex >= filtered.length) return [];
+      final endIndex = (startIndex + limit).clamp(0, filtered.length);
+      return filtered.sublist(startIndex, endIndex);
     }
+
     try {
       final Map<String, dynamic> queryParams = {
         'page': page,
@@ -156,9 +186,26 @@ class ToursRepository {
       }
       if (categoryId != null && categoryId.isNotEmpty) {
         queryParams['categoryId'] = categoryId;
+      } else if (effectiveCategoryIds.isNotEmpty) {
+        queryParams['categoryId'] = effectiveCategoryIds.first;
       }
       if (destination != null && destination.isNotEmpty) {
         queryParams['destination'] = destination;
+      }
+      if (minPrice != null) {
+        queryParams['minPrice'] = minPrice.toInt();
+      }
+      if (maxPrice != null) {
+        queryParams['maxPrice'] = maxPrice.toInt();
+      }
+      if (minDays != null) {
+        queryParams['minDays'] = minDays;
+      }
+      if (maxDays != null) {
+        queryParams['maxDays'] = maxDays;
+      }
+      if (minRating != null && minRating > 0) {
+        queryParams['minRating'] = minRating;
       }
       if (sort != null && sort.isNotEmpty) {
         queryParams['sort'] = sort;
