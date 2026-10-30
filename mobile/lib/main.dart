@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'core/constants/api_endpoints.dart';
-import 'core/constants/app_colors.dart';
-import 'core/network/api_client.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/guide/screens/guide_tours_screen.dart';
-
+import 'features/splash/screens/splash_screen.dart';
+import 'core/constants/api_endpoints.dart';
+import 'core/constants/app_colors.dart';
+import 'core/network/api_client.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService().init();

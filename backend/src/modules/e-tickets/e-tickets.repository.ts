@@ -20,6 +20,7 @@ export interface EnrichedETicketRecord extends ETicketRecord {
     id: string;
     title: string;
     destination: string;
+    meetingPoint: string | null;
     durationDays: number;
     images: string[];
   } | null;
@@ -72,6 +73,7 @@ export class ETicketsRepository {
           id: true,
           title: true,
           destination: true,
+          meetingPoint: true,
           durationDays: true,
           images: true,
         },

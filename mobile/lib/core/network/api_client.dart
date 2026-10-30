@@ -29,9 +29,53 @@ class ApiClient {
           return handler.next(options);
         },
         onError: (DioException error, handler) async {
-          // Xử lý lỗi tập trung (401 Unauthorized, 403 Forbidden, 500, v.v.)
-          if (error.response?.statusCode == 401) {
-            // Có thể mở rộng logic refresh token hoặc phát sự kiện unauthenticated
+          // Xử lý lỗi 401 Unauthorized tự động làm mới token
+          if (error.response?.statusCode == 401 &&
+              !error.requestOptions.path.contains('/auth/login') &&
+              !error.requestOptions.path.contains('/auth/register') &&
+              !error.requestOptions.path.contains('/auth/refresh')) {
+            final refreshToken = await tokenStorage.getRefreshToken();
+            if (refreshToken != null && refreshToken.isNotEmpty) {
+              try {
+                final refreshDio = Dio(
+                  BaseOptions(
+                    baseUrl: ApiEndpoints.baseUrl,
+                    connectTimeout: const Duration(seconds: 10),
+                    receiveTimeout: const Duration(seconds: 10),
+                  ),
+                );
+                final res = await refreshDio.post(
+                  ApiEndpoints.refresh,
+                  data: {'refreshToken': refreshToken},
+                  options: Options(headers: {'x-refresh-token': refreshToken}),
+                );
+                if (res.statusCode == 200 && res.data != null) {
+                  final data = res.data['data'] as Map<String, dynamic>? ?? res.data as Map<String, dynamic>;
+                  final newAccessToken = data['accessToken'] as String?;
+                  final newRefreshToken = data['refreshToken'] as String?;
+                  if (newAccessToken != null && newAccessToken.isNotEmpty) {
+                    await tokenStorage.saveTokens(
+                      accessToken: newAccessToken,
+                      refreshToken: newRefreshToken ?? refreshToken,
+                    );
+                    final retryOpts = Options(
+                      method: error.requestOptions.method,
+                      headers: Map<String, dynamic>.from(error.requestOptions.headers)
+                        ..['Authorization'] = 'Bearer $newAccessToken',
+                    );
+                    final response = await dio.request(
+                      error.requestOptions.path,
+                      data: error.requestOptions.data,
+                      queryParameters: error.requestOptions.queryParameters,
+                      options: retryOpts,
+                    );
+                    return handler.resolve(response);
+                  }
+                }
+              } catch (_) {
+                await tokenStorage.clearAll();
+              }
+            }
           }
           return handler.next(error);
         },

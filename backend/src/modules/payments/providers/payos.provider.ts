@@ -13,6 +13,16 @@ import type {
 const API_BASE = 'https://api-merchant.payos.vn';
 const REQUEST_TIMEOUT_MS = 15_000;
 
+interface PayosLinkData {
+  paymentLinkId: string;
+  checkoutUrl: string;
+  qrCode?: string;
+  accountNumber?: string;
+  accountName?: string;
+  bin?: string;
+  description?: string;
+}
+
 interface PayosCredentials {
   clientId: string;
   apiKey: string;
@@ -36,7 +46,7 @@ export class PayosProvider implements PaymentProvider {
       credentials.checksumKey,
       `amount=${input.amount}&cancelUrl=${input.cancelUrl}&description=${input.description}&orderCode=${input.orderCode}&returnUrl=${input.returnUrl}`,
     );
-    const response = await this.request<{ code: string; desc: string; data?: { paymentLinkId: string; checkoutUrl: string } }>(
+    const response = await this.request<{ code: string; desc: string; data?: PayosLinkData }>(
       'POST',
       '/v2/payment-requests',
       {
@@ -53,7 +63,18 @@ export class PayosProvider implements PaymentProvider {
       logger.error('PayOS rejected the payment link request', { code: response.code, desc: response.desc });
       throw AppError.unavailable('The payment provider could not create the payment link');
     }
-    return { providerPaymentLinkId: response.data.paymentLinkId, checkoutUrl: response.data.checkoutUrl };
+    const { data } = response;
+    const bank =
+      data.qrCode && data.accountNumber
+        ? {
+            qrCode: data.qrCode,
+            accountNumber: data.accountNumber,
+            accountName: data.accountName ?? '',
+            bin: data.bin ?? '',
+            description: data.description ?? input.description,
+          }
+        : undefined;
+    return { providerPaymentLinkId: data.paymentLinkId, checkoutUrl: data.checkoutUrl, bank };
   }
 
   verifyWebhook(payload: unknown): VerifiedWebhook {

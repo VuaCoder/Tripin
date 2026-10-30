@@ -17,6 +17,7 @@ import type {
   TwoFactorBody,
   VerifyOtpBody,
   ResendOtpBody,
+  ChangePasswordBody,
 } from './auth.validation';
 
 const contextOf = (req: Request) => ({ ip: req.ip, userAgent: req.get('user-agent') });
@@ -105,13 +106,21 @@ export class AuthController {
   };
 
   refresh: RequestHandler = async (req, res) => {
-    const session = await this.service.refresh(req.cookies?.[AUTH_POLICY.REFRESH_COOKIE_NAME], contextOf(req));
+    const rawToken =
+      (req.cookies?.[AUTH_POLICY.REFRESH_COOKIE_NAME] as string | undefined) ??
+      (req.body?.refreshToken as string | undefined) ??
+      (req.headers['x-refresh-token'] as string | undefined);
+    const session = await this.service.refresh(rawToken, contextOf(req));
     setRefreshCookie(res, session);
     sendOk(res, toSessionResponse(session));
   };
 
   logout: RequestHandler = async (req, res) => {
-    await this.service.logout(req.cookies?.[AUTH_POLICY.REFRESH_COOKIE_NAME]);
+    const rawToken =
+      (req.cookies?.[AUTH_POLICY.REFRESH_COOKIE_NAME] as string | undefined) ??
+      (req.body?.refreshToken as string | undefined) ??
+      (req.headers['x-refresh-token'] as string | undefined);
+    await this.service.logout(rawToken);
     clearRefreshCookie(res);
     sendNoContent(res);
   };
@@ -123,6 +132,12 @@ export class AuthController {
   setTwoFactor: RequestHandler = async (req, res) => {
     const { body } = validated<TwoFactorBody>(req);
     sendOk(res, await this.service.setTwoFactor(userActor(req).userId, body));
+  };
+
+  changePassword: RequestHandler = async (req, res) => {
+    const { body } = validated<ChangePasswordBody>(req);
+    await this.service.changePassword(userActor(req).userId, body);
+    sendOk(res, { message: 'Đổi mật khẩu thành công' });
   };
 }
 
