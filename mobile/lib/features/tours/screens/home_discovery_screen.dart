@@ -90,7 +90,7 @@ class _HomeDiscoveryScreenState extends State<HomeDiscoveryScreen> {
                     final result = await AirbnbSearchModal.show(context);
                     if (result != null) {
                       _navigateToSearch(
-                        initialQuery: result.destination == 'Tôi linh hoạt' ? '' : result.destination,
+                        initialQuery: result.destination,
                         categories: categories,
                       );
                     }

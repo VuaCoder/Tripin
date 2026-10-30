@@ -265,10 +265,7 @@ void main() {
       await tester.tap(find.text('Bắt đầu cuộc hành trình'));
       await tester.pumpAndSettle();
 
-      // 2. Modal mở ra hiển thị 3 tab danh mục trên cùng và nút đóng (X)
-      expect(find.text('Chỗ ở'), findsOneWidget);
-      expect(find.text('Trải nghiệm'), findsOneWidget);
-      expect(find.text('Dịch vụ'), findsOneWidget);
+      // 2. Modal mở ra hiển thị nút đóng (X)
       expect(find.byIcon(Icons.close_rounded), findsOneWidget);
 
       // 3. Khối 1 (Điểm đến) đang mở rộng mặc định
@@ -277,6 +274,9 @@ void main() {
       expect(find.text('Điểm đến gợi ý phổ biến'), findsOneWidget);
       expect(find.text('Đà Nẵng'), findsOneWidget);
       expect(find.text('Hà Nội'), findsOneWidget);
+
+      // Nút hành động bên phải luôn luôn là "Tìm kiếm"
+      expect(find.text('Tìm kiếm'), findsOneWidget);
 
       // 4. Khối 2 & 3 đang ở trạng thái thu gọn
       expect(find.text('Thời gian'), findsOneWidget);
@@ -305,8 +305,9 @@ void main() {
       expect(find.text('Tháng'), findsOneWidget);
       expect(find.text('Khi nào bạn muốn đi?'), findsOneWidget);
 
-      // 6. Nhấn nút "Tiếp theo" ở Bottom Bar để chuyển sang Khối 3 (Khách)
-      await tester.tap(find.text('Tiếp theo'));
+      // 6. Chạm vào Khối 3 (Khách) để mở rộng khối Khách
+      await tester.ensureVisible(find.text('Khách'));
+      await tester.tap(find.text('Khách'));
       await tester.pumpAndSettle();
 
       expect(find.text('Ai sẽ đi cùng bạn?'), findsOneWidget);
@@ -320,13 +321,14 @@ void main() {
       expect(find.text('Mang theo thú cưng hỗ trợ?'), findsOneWidget);
 
       // Tăng số người lớn: bấm icon '+' đầu tiên
+      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
       await tester.tap(find.byIcon(Icons.add_rounded).first);
       await tester.pumpAndSettle();
 
       // Kiểm tra bộ đếm tăng lên 1
       expect(find.text('1'), findsWidgets);
 
-      // Ở bước cuối, nút bên phải là "Tìm kiếm" màu hồng/đỏ
+      // Nút bên phải luôn luôn là "Tìm kiếm"
       expect(find.text('Tìm kiếm'), findsOneWidget);
 
       // Nhấn nút Tìm kiếm -> Modal đóng lại và chuyển sang TourSearchScreen

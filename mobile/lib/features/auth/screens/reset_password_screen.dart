@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
 import '../bloc/forgot_password_bloc.dart';
@@ -70,8 +70,21 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Đặt lại mật khẩu', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+          color: AppColors.textPrimary,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Đặt lại mật khẩu',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
       ),
       body: BlocConsumer<ForgotPasswordBloc, ForgotPasswordState>(
         listener: (context, state) {

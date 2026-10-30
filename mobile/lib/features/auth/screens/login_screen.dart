@@ -57,8 +57,21 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Đăng nhập', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+          color: AppColors.textPrimary,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Đăng nhập',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
       ),
       body: BlocConsumer<LoginBloc, LoginState>(
         listener: (context, state) {

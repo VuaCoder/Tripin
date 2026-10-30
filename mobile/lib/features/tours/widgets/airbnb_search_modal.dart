@@ -59,13 +59,16 @@ class AirbnbSearchModal extends StatefulWidget {
     this.onSearch,
   });
 
-  /// Hàm tiện ích mở màn hình tìm kiếm toàn màn hình chuẩn Airbnb Mobile
+  /// Hàm tiện ích mở màn hình tìm kiếm dạng Modal Sheet chuẩn Airbnb Mobile
   static Future<SearchModalResult?> show(
     BuildContext context, {
     String? initialDestination,
   }) {
     return Navigator.of(context).push<SearchModalResult>(
       PageRouteBuilder(
+        opaque: false,
+        barrierDismissible: true,
+        barrierColor: Colors.black.withValues(alpha: 0.5),
         pageBuilder: (context, animation, secondaryAnimation) => AirbnbSearchModal(
           initialDestination: initialDestination,
           onSearch: (result) => Navigator.of(context).pop(result),
@@ -89,7 +92,7 @@ class AirbnbSearchModal extends StatefulWidget {
         },
         transitionDuration: const Duration(milliseconds: 280),
         reverseTransitionDuration: const Duration(milliseconds: 220),
-        fullscreenDialog: true,
+        fullscreenDialog: false,
       ),
     );
   }
@@ -99,17 +102,13 @@ class AirbnbSearchModal extends StatefulWidget {
 }
 
 class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
-  // Tab danh mục trên cùng
-  int _selectedCategoryIndex = 0;
-  final List<String> _categoryTabs = const ['Chỗ ở', 'Trải nghiệm', 'Dịch vụ'];
-
   // Khối Accordion đang mở rộng
   _SearchStep _activeStep = _SearchStep.destination;
 
   // Dữ liệu Khối 1: Điểm đến
   late TextEditingController _destinationController;
-  String _selectedDestination = 'Tôi linh hoạt';
-  double _destinationListHeight = 240.0; // Chiều cao có thể vuốt/kéo (Draggable/Swipe)
+  final FocusNode _destinationFocusNode = FocusNode();
+  String _selectedDestination = '';
 
   // Dữ liệu Khối 2: Thời gian
   _TimeMode _timeMode = _TimeMode.exact;
@@ -126,13 +125,8 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
   int _infants = 0;
   int _pets = 0;
 
-  // Danh sách điểm đến gợi ý kèm icon văn hóa / địa lý tương ứng (fallback về icon địa điểm mặc định)
+  // Danh sách điểm đến gợi ý kèm icon văn hóa / địa lý tương ứng (toàn bộ là địa điểm thực tế)
   static const List<Map<String, dynamic>> _suggestedDestinations = [
-    {
-      'name': 'Tôi linh hoạt',
-      'desc': 'Khám phá mọi miền đất nước',
-      'icon': Icons.travel_explore_rounded,
-    },
     {
       'name': 'Đà Nẵng',
       'desc': 'Bãi biển Mỹ Khê & Cầu Vàng',
@@ -196,25 +190,29 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
     _destinationController = TextEditingController(
       text: widget.initialDestination ?? '',
     );
+    _destinationFocusNode.addListener(_onFocusChange);
     if (widget.initialDestination != null && widget.initialDestination!.isNotEmpty) {
       _selectedDestination = widget.initialDestination!;
     }
-    // Mặc định chọn 2 tháng tiếp theo cho tab linh hoạt
-    final now = DateTime.now();
-    final m1 = DateTime(now.year, now.month + 1);
-    final m2 = DateTime(now.year, now.month + 2);
-    _selectedFlexibleMonths.add('Tháng ${m1.month}');
-    _selectedFlexibleMonths.add('Tháng ${m2.month}');
+    // Không chọn sẵn bất kỳ tháng nào - người dùng tự chọn khi có nhu cầu
+  }
+
+  void _onFocusChange() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
+    _destinationFocusNode.removeListener(_onFocusChange);
+    _destinationFocusNode.dispose();
     _destinationController.dispose();
     super.dispose();
   }
 
   bool get _hasSelections {
-    return _selectedDestination != 'Tôi linh hoạt' ||
+    return _selectedDestination.isNotEmpty ||
         _startDate != null ||
         _selectedFlexibleMonths.isNotEmpty ||
         _adults > 0 ||
@@ -226,7 +224,7 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
   bool get _hasSelectionsInActiveStep {
     switch (_activeStep) {
       case _SearchStep.destination:
-        return _selectedDestination != 'Tôi linh hoạt' || _destinationController.text.isNotEmpty;
+        return _selectedDestination.isNotEmpty || _destinationController.text.isNotEmpty;
       case _SearchStep.time:
         return _startDate != null || _selectedFlexibleMonths.isNotEmpty;
       case _SearchStep.guests:
@@ -239,9 +237,9 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
       case _SearchStep.destination:
         return _startDate != null || _selectedFlexibleMonths.isNotEmpty || _adults > 0 || _children > 0 || _infants > 0 || _pets > 0;
       case _SearchStep.time:
-        return _selectedDestination != 'Tôi linh hoạt' || _adults > 0 || _children > 0 || _infants > 0 || _pets > 0;
+        return _selectedDestination.isNotEmpty || _adults > 0 || _children > 0 || _infants > 0 || _pets > 0;
       case _SearchStep.guests:
-        return _selectedDestination != 'Tôi linh hoạt' || _startDate != null || _selectedFlexibleMonths.isNotEmpty;
+        return _selectedDestination.isNotEmpty || _startDate != null || _selectedFlexibleMonths.isNotEmpty;
     }
   }
 
@@ -249,7 +247,7 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
     setState(() {
       switch (_activeStep) {
         case _SearchStep.destination:
-          _selectedDestination = 'Tôi linh hoạt';
+          _selectedDestination = '';
           _destinationController.clear();
           break;
         case _SearchStep.time:
@@ -270,7 +268,7 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
 
   void _clearAll() {
     setState(() {
-      _selectedDestination = 'Tôi linh hoạt';
+      _selectedDestination = '';
       _destinationController.clear();
       _startDate = null;
       _endDate = null;
@@ -284,28 +282,10 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
     });
   }
 
-  void _nextStep() {
-    setState(() {
-      if (_activeStep == _SearchStep.destination) {
-        _activeStep = _SearchStep.time;
-      } else if (_activeStep == _SearchStep.time) {
-        _activeStep = _SearchStep.guests;
-      }
-    });
-  }
-
-  bool get _isFullyConfigured {
-    return _selectedDestination != 'Tôi linh hoạt' &&
-        (_startDate != null || _selectedFlexibleMonths.isNotEmpty) &&
-        (_adults > 0 || _children > 0);
-  }
-
-  bool get _showSearchButton => _activeStep == _SearchStep.guests || _isFullyConfigured;
-
   void _submitSearch() {
     final result = SearchModalResult(
       destination: _selectedDestination,
-      categoryTab: _categoryTabs[_selectedCategoryIndex],
+      categoryTab: 'Chỗ ở',
       startDate: _startDate,
       endDate: _endDate,
       datePrecisionChip: _selectedPrecisionChip,
@@ -345,7 +325,7 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -385,12 +365,12 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
   }
 
   // ==========================================
-  // 1. TOP HEADER & CATEGORY TABS
+  // 1. TOP HEADER
   // ==========================================
   Widget _buildTopHeader() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-      color: const Color(0xFFF7F7F7),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      color: Colors.transparent,
       child: Row(
         children: [
           // Nút đóng (X) bo tròn chuẩn Airbnb Mobile
@@ -398,65 +378,23 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
             onTap: () => Navigator.of(context).pop(),
             borderRadius: BorderRadius.circular(20),
             child: Container(
-              width: 36,
-              height: 36,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
                 border: Border.all(color: const Color(0xFFE2E8F0)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
               child: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF222222)),
             ),
           ),
-          const SizedBox(width: 8),
-
-          // Tabs danh mục: "Chỗ ở", "Trải nghiệm", "Dịch vụ"
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_categoryTabs.length, (index) {
-                final isSelected = _selectedCategoryIndex == index;
-                return InkWell(
-                  onTap: () => setState(() => _selectedCategoryIndex = index),
-                  borderRadius: BorderRadius.circular(20),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _categoryTabs[index],
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                            color: isSelected ? const Color(0xFF222222) : const Color(0xFF717171),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          height: 2.5,
-                          width: isSelected ? 26 : 0,
-                          decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFF222222) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ),
-          const SizedBox(width: 36), // Cân đối layout với nút đóng
         ],
       ),
     );
@@ -507,11 +445,11 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
               ),
             ),
             Text(
-              _selectedDestination,
-              style: const TextStyle(
+              _selectedDestination.isNotEmpty ? _selectedDestination : 'Bất kỳ đâu',
+              style: TextStyle(
                 fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF222222),
+                fontWeight: _selectedDestination.isNotEmpty ? FontWeight.w700 : FontWeight.w500,
+                color: _selectedDestination.isNotEmpty ? const Color(0xFF222222) : const Color(0xFF717171),
               ),
             ),
           ],
@@ -521,6 +459,8 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
   }
 
   Widget _buildDestinationExpanded() {
+    final isFocused = _destinationFocusNode.hasFocus;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -550,25 +490,43 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
           ),
           const SizedBox(height: 16),
 
-          // Ô tìm kiếm điểm đến
-          Container(
+          // Ô tìm kiếm điểm đến - Viền bo bọc toàn bộ component đồng nhất
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
             height: 52,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF7F7F7),
+              color: isFocused ? Colors.white : const Color(0xFFF7F7F7),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(
+                color: isFocused ? AppColors.primary : const Color(0xFFE2E8F0),
+                width: isFocused ? 1.8 : 1.0,
+              ),
+              boxShadow: isFocused
+                  ? [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
             ),
             child: Row(
               children: [
-                const Icon(Icons.search_rounded, size: 22, color: Color(0xFF222222)),
+                Icon(
+                  Icons.search_rounded,
+                  size: 22,
+                  color: isFocused ? AppColors.primary : const Color(0xFF717171),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
                     controller: _destinationController,
+                    focusNode: _destinationFocusNode,
                     onChanged: (val) {
                       setState(() {
-                        _selectedDestination = val.trim().isNotEmpty ? val.trim() : 'Tôi linh hoạt';
+                        _selectedDestination = val.trim();
                       });
                     },
                     decoration: const InputDecoration(
@@ -579,6 +537,13 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
                         fontWeight: FontWeight.w400,
                       ),
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      focusedErrorBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                      isDense: true,
                     ),
                     style: const TextStyle(
                       fontSize: 14.5,
@@ -588,104 +553,39 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
                   ),
                 ),
                 if (_destinationController.text.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(Icons.cancel_rounded, size: 18, color: Color(0xFF717171)),
-                    onPressed: () {
+                  GestureDetector(
+                    onTap: () {
                       _destinationController.clear();
-                      setState(() => _selectedDestination = 'Tôi linh hoạt');
+                      setState(() => _selectedDestination = '');
                     },
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(Icons.cancel_rounded, size: 18, color: Color(0xFF717171)),
+                    ),
                   ),
               ],
             ),
           ),
           const SizedBox(height: 20),
 
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Điểm đến gợi ý phổ biến',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF717171),
-                ),
-              ),
-              InkWell(
-                onTap: () {
-                  setState(() {
-                    _destinationListHeight = (_destinationListHeight > 260) ? 220.0 : 440.0;
-                  });
-                },
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _destinationListHeight > 260 ? Icons.unfold_less_rounded : Icons.unfold_more_rounded,
-                        size: 16,
-                        color: const Color(0xFF717171),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _destinationListHeight > 260 ? 'Thu gọn' : 'Kéo rộng',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF717171),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // Thanh kéo trượt (Draggable/Swipe Handle)
-          GestureDetector(
-            onVerticalDragUpdate: (details) {
-              setState(() {
-                _destinationListHeight = (_destinationListHeight - details.delta.dy).clamp(180.0, 480.0);
-              });
-            },
-            onVerticalDragEnd: (details) {
-              final velocity = details.primaryVelocity ?? 0;
-              setState(() {
-                if (velocity < -250) {
-                  _destinationListHeight = 440.0;
-                } else if (velocity > 250) {
-                  _destinationListHeight = 220.0;
-                }
-              });
-            },
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              color: Colors.transparent,
-              child: Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
+          const Text(
+            'Điểm đến gợi ý phổ biến',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF717171),
             ),
           ),
+          const SizedBox(height: 10),
 
-          // Danh sách điểm đến gợi ý cuộn mượt mà kèm icon văn hóa / địa lý (có thể vuốt/kéo kích thước)
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            height: _destinationListHeight,
+          // Danh sách điểm đến gợi ý dạng cuộn ngang gọn gàng, không choán hết chiều cao màn hình
+          SizedBox(
+            height: 72,
             child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
               itemCount: _suggestedDestinations.length,
-              separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
               itemBuilder: (context, index) {
                 final item = _suggestedDestinations[index];
                 final name = item['name'] as String;
@@ -697,58 +597,71 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
                   onTap: () {
                     setState(() {
                       _selectedDestination = name;
-                      _destinationController.text = name == 'Tôi linh hoạt' ? '' : name;
+                      _destinationController.text = name;
+                      _destinationFocusNode.unfocus();
                       // Tự động chuyển qua bước tiếp theo
                       _activeStep = _SearchStep.time;
                     });
                   },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    width: 140,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFF222222) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSelected ? const Color(0xFF222222) : const Color(0xFFE2E8F0),
+                        width: isSelected ? 1.5 : 1.0,
+                      ),
+                    ),
                     child: Row(
                       children: [
                         Container(
-                          width: 44,
-                          height: 44,
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFF222222) : const Color(0xFFF7F7F7),
-                            borderRadius: BorderRadius.circular(14),
+                            color: isSelected ? Colors.white.withValues(alpha: 0.15) : Colors.white,
+                            borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: isSelected ? const Color(0xFF222222) : const Color(0xFFE2E8F0),
+                              color: isSelected ? Colors.transparent : const Color(0xFFE2E8F0),
                             ),
                           ),
                           child: Icon(
                             icon,
-                            size: 22,
-                            color: isSelected ? Colors.white : const Color(0xFF222222),
+                            size: 18,
+                            color: isSelected ? Colors.white : AppColors.primary,
                           ),
                         ),
-                        const SizedBox(width: 14),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  fontSize: 14.5,
-                                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                  color: const Color(0xFF222222),
+                                  fontSize: 12.5,
+                                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+                                  color: isSelected ? Colors.white : const Color(0xFF222222),
                                 ),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 desc,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF717171),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: isSelected ? Colors.white70 : const Color(0xFF717171),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        if (isSelected)
-                          const Icon(Icons.check_circle_rounded, size: 20, color: Color(0xFF222222)),
                       ],
                     ),
                   ),
@@ -1471,10 +1384,9 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
   // 3. THANH BOTTOM BAR ĐỒNG BỘ
   // ==========================================
   Widget _buildBottomBar() {
-    final showSearch = _showSearchButton;
-
     String leftText = 'Bỏ qua';
-    VoidCallback leftAction = _nextStep;
+    VoidCallback leftAction = () => Navigator.of(context).pop();
+
     if (_hasSelections) {
       if (_hasSelectionsInActiveStep && !_hasSelectionsOtherSteps) {
         leftText = 'Đặt lại';
@@ -1486,76 +1398,51 @@ class _AirbnbSearchModalState extends State<AirbnbSearchModal> {
     }
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFEBEBEB), width: 0.8)),
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+      color: Colors.transparent,
       child: SafeArea(
         top: false,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Nút bên trái: thay đổi ngữ cảnh linh hoạt ("Xóa tất cả", "Đặt lại", "Bỏ qua")
+            // Nút bên trái: ("Xóa tất cả", "Đặt lại", "Bỏ qua") - Nền trong suốt
             TextButton(
               onPressed: leftAction,
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF222222),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               ),
               child: Text(
                 leftText,
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  decoration: TextDecoration.underline,
-                  color: Color(0xFF222222),
+                  color: Colors.white,
                 ),
               ),
             ),
 
-            // Nút bên phải: "Tiếp theo" hoặc nút "Tìm kiếm" màu hồng/đỏ
-            if (!showSearch)
-              ElevatedButton(
-                onPressed: _nextStep,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF222222),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Tiếp theo',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              )
-            else
-              ElevatedButton.icon(
-                onPressed: _submitSearch,
-                icon: const Icon(Icons.search_rounded, size: 18),
-                label: const Text(
-                  'Tìm kiếm',
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary, // Màu xanh ngọc thương hiệu Tripri (#005A64)
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  elevation: 2,
+            // Nút bên phải: Luôn luôn là "Tìm kiếm" ở tất cả các component theo yêu cầu
+            ElevatedButton.icon(
+              onPressed: _submitSearch,
+              icon: const Icon(Icons.search_rounded, size: 18),
+              label: const Text(
+                'Tìm kiếm',
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary, // Màu xanh ngọc thương hiệu Tripri (#005A64)
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                elevation: 3,
+              ),
+            ),
           ],
         ),
       ),
