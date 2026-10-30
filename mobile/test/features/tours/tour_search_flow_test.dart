@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/storage/search_history_storage.dart';
 import 'package:mobile/features/tours/bloc/tour_search_cubit.dart';
-import 'package:mobile/features/tours/bloc/tour_search_state.dart';
 import 'package:mobile/features/tours/bloc/tours_repository.dart';
 import 'package:mobile/features/tours/models/category_model.dart';
 import 'package:mobile/features/tours/models/tour_filter_criteria.dart';
