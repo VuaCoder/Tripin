@@ -26,6 +26,7 @@ export function toETicketDto(ticket: ETicketRecord | EnrichedETicketRecord): ETi
       ...(enriched.tourDetails
         ? {
             destination: enriched.tourDetails.destination,
+            meetingPoint: enriched.tourDetails.meetingPoint ?? undefined,
             durationDays: enriched.tourDetails.durationDays,
             coverImage: enriched.tourDetails.images?.[0],
           }
