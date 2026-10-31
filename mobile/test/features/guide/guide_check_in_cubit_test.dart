@@ -28,6 +28,13 @@ class FakeGuideCheckInApi implements GuideCheckInApi {
   Future<List<GuideAssignedTour>> fetchAssignedTours() async => tours;
 
   @override
+  Future<void> answerAssignment({required String tourId, required bool accept, String? note}) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<GuideTourPublicDetail> fetchTourDetail(String tourId) async => throw UnimplementedError();
+
+  @override
   Future<GuideRoster> fetchRoster(String tourId) async {
     if (rosterError != null) throw rosterError!;
     return roster ??

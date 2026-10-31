@@ -18,6 +18,10 @@ class GuideApiException implements Exception {
 abstract interface class GuideCheckInApi {
   Future<List<GuideAssignedTour>> fetchAssignedTours();
 
+  Future<void> answerAssignment({required String tourId, required bool accept, String? note});
+
+  Future<GuideTourPublicDetail> fetchTourDetail(String tourId);
+
   Future<GuideRoster> fetchRoster(String tourId);
 
   Future<CheckInResult> checkIn({required String tourId, required String code});
@@ -41,6 +45,34 @@ class DioGuideCheckInApi implements GuideCheckInApi {
       return items
           .map((item) => GuideAssignedTour.fromJson(item as Map<String, dynamic>))
           .toList();
+    } on DioException catch (error) {
+      throw _fromDio(error);
+    }
+  }
+
+  @override
+  Future<void> answerAssignment({required String tourId, required bool accept, String? note}) async {
+    final trimmed = note?.trim();
+    try {
+      await _client.post(
+        ApiEndpoints.guideVerification(tourId),
+        data: {
+          'accept': accept,
+          if (trimmed != null && trimmed.isNotEmpty) 'note': trimmed,
+        },
+      );
+    } on DioException catch (error) {
+      throw _fromDio(error);
+    }
+  }
+
+  @override
+  Future<GuideTourPublicDetail> fetchTourDetail(String tourId) async {
+    try {
+      final response = await _client.get(ApiEndpoints.tourDetail(tourId));
+      final body = response.data as Map<String, dynamic>?;
+      final data = body == null ? null : body['data'];
+      return GuideTourPublicDetail.fromJson(data as Map<String, dynamic>? ?? const {});
     } on DioException catch (error) {
       throw _fromDio(error);
     }

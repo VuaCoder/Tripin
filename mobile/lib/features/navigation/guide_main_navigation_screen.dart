@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/constants/app_colors.dart';
+import '../guide/screens/guide_tours_screen.dart';
 import '../profile/bloc/profile_bloc.dart';
 import '../profile/screens/profile_screen.dart';
 
@@ -83,11 +84,7 @@ class _GuideMainNavigationScreenState extends State<GuideMainNavigationScreen> {
 
   List<Widget>? _screens;
   List<Widget> get _effectiveScreens => _screens ??= [
-        _buildTabPlaceholder(
-          title: 'Lịch Tour HDV',
-          subtitle: 'Danh sách tour được phân công, xác nhận & quản lý đoàn',
-          icon: Icons.calendar_month_outlined,
-        ),
+        const GuideToursScreen(),
         _buildTabPlaceholder(
           title: 'Quét vé QR',
           subtitle: 'Camera quét mã QR vé E-Ticket điểm danh hành khách',

@@ -26,12 +26,16 @@ const stored = (over: T = {}) => ({
   ...over,
 });
 
-function make({ assigned = true, tickets = [] as T[] } = {}) {
+function make({ assigned = true, tickets = [] as T[], bookings = [] as T[] } = {}) {
   const db = [...tickets];
   const repo = {
     findAcceptedAssignment: vi.fn(async () => (assigned ? ASSIGNMENT : null)),
     findByCode: vi.fn(async (code: string) => db.find((ticket) => ticket.code === code) ?? null),
     listByTour: vi.fn(async () => db.filter((ticket) => ticket.tourId === TOUR && ticket.status !== 'CANCELLED')),
+    findRosterBookings: vi.fn(async (ids: string[]) => {
+      const selected = bookings.filter((booking) => ids.includes(booking.id));
+      return new Map(selected.map((booking) => [booking.id, booking]));
+    }),
     markCheckedIn: vi.fn(async (id: string) => {
       const ticket = db.find((item) => item.id === id);
       if (!ticket || ticket.status !== 'VALID' || ticket.usedAt) return null;
@@ -62,6 +66,39 @@ describe('rosterForGuide', () => {
       checkedIn: true,
       checkedInAt: '2026-12-01T08:00:00.000Z',
     });
+  });
+
+  it('adds the booking phone, guest breakdown and notes', async () => {
+    const { service } = make({
+      tickets: [stored()],
+      bookings: [
+        {
+          id: 'b1',
+          contactPhone: '0901234567',
+          notes: 'Dị ứng hải sản',
+          guestPricing: { guests: { adults: 1, children: 1, infants: 0 } },
+        },
+      ],
+    });
+
+    const roster = await service.rosterForGuide(GUIDE, TOUR);
+
+    expect(roster.items[0]).toMatchObject({
+      contactPhone: '0901234567',
+      notes: 'Dị ứng hải sản',
+      guests: { adults: 1, children: 1, infants: 0 },
+    });
+  });
+
+  it('counts every participant as an adult when the booking has no age pricing', async () => {
+    const { service } = make({
+      tickets: [stored()],
+      bookings: [{ id: 'b1', contactPhone: '0901234567', notes: null, guestPricing: null }],
+    });
+
+    const roster = await service.rosterForGuide(GUIDE, TOUR);
+
+    expect(roster.items[0]).toMatchObject({ guests: { adults: 2, children: 0, infants: 0 } });
   });
 
   it('answers 404 when the guide has not accepted the assignment', async () => {
