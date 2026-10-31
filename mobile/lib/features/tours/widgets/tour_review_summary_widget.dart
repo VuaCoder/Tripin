@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import 'precise_rating_stars.dart';
 
 class TourReviewSummaryWidget extends StatelessWidget {
   final double ratingAvg;
@@ -36,18 +37,10 @@ class TourReviewSummaryWidget extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(
-                  5,
-                  (index) => Icon(
-                    index < ratingAvg.round()
-                        ? Icons.star_rounded
-                        : Icons.star_outline_rounded,
-                    size: 18,
-                    color: AppColors.secondary,
-                  ),
-                ),
+              PreciseRatingStars(
+                rating: ratingAvg,
+                size: 18,
+                spacing: 2,
               ),
               const SizedBox(height: 4),
               Text(

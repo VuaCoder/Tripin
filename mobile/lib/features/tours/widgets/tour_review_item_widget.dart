@@ -4,35 +4,66 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../models/tour_review_model.dart';
 
-class TourReviewItemWidget extends StatelessWidget {
+class TourReviewItemWidget extends StatefulWidget {
   final TourReviewModel review;
+  final bool isCard;
+  final double? width;
 
   const TourReviewItemWidget({
     super.key,
     required this.review,
+    this.isCard = false,
+    this.width,
   });
 
   @override
+  State<TourReviewItemWidget> createState() => _TourReviewItemWidgetState();
+}
+
+class _TourReviewItemWidgetState extends State<TourReviewItemWidget> {
+  bool _isExpanded = false;
+
+  String _formatReviewDate(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+
+    if (diff.inDays == 0) {
+      return 'Hôm nay';
+    } else if (diff.inDays == 1) {
+      return 'Hôm qua';
+    } else if (diff.inDays < 7) {
+      return '${diff.inDays} ngày trước';
+    } else {
+      return DateFormat('dd/MM/yyyy').format(date);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final dateFormatter = DateFormat('dd/MM/yyyy');
-    final formattedDate = dateFormatter.format(review.createdAt);
+    final review = widget.review;
+    final dateStr = _formatReviewDate(review.createdAt);
+    final isLongComment = review.comment.length > 90;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      width: widget.width ?? (widget.isCard ? 295 : double.infinity),
+      margin: widget.isCard
+          ? const EdgeInsets.only(right: 14)
+          : const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: const Color(0xFFEBEBEB), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Author Header: Avatar, Name & Rating Stars
+          // 1. Author Header (Avatar & Name + Subtitle) - Chuẩn Ảnh 1
           Row(
             children: [
               CircleAvatar(
-                radius: 18,
+                radius: 19,
                 backgroundColor: AppColors.primarySurface,
                 backgroundImage: review.author.avatarUrl != null
                     ? CachedNetworkImageProvider(review.author.avatarUrl!)
@@ -45,7 +76,7 @@ class TourReviewItemWidget extends StatelessWidget {
                         style: const TextStyle(
                           color: AppColors.primary,
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          fontSize: 15,
                         ),
                       )
                     : null,
@@ -58,84 +89,139 @@ class TourReviewItemWidget extends StatelessWidget {
                     Text(
                       review.author.name,
                       style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF222222),
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      formattedDate,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
+                    const SizedBox(height: 1),
+                    const Text(
+                      'Thành viên Tripri',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Color(0xFF717171),
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],
                 ),
               ),
+            ],
+          ),
 
-              // Rating Stars (AC2 - AppColors.secondary)
+          const SizedBox(height: 10),
+
+          // 2. Stars & Date inline: ★★★★★ · Today (Ảnh 3 & Ảnh 1)
+          Row(
+            children: [
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: List.generate(
                   5,
-                  (index) => Icon(
-                    index < review.rating
-                        ? Icons.star_rounded
-                        : Icons.star_outline_rounded,
-                    size: 16,
-                    color: AppColors.secondary,
-                  ),
+                  (index) {
+                    final isFilled = index < review.rating;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 1.5),
+                      child: Icon(
+                        Icons.star_rounded,
+                        size: 15,
+                        color: isFilled
+                            ? const Color(0xFF222222)
+                            : const Color(0xFFDCDCDC),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                '·',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF222222),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                dateStr,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF222222),
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
-          // Comment content
+          // 3. Comment Content & "Show more" / "Hiển thị thêm" (Ảnh 1)
           Text(
             review.comment,
+            maxLines: (widget.isCard && !_isExpanded) ? 3 : null,
+            overflow: (widget.isCard && !_isExpanded) ? TextOverflow.ellipsis : null,
             style: const TextStyle(
-              fontSize: 14,
-              color: AppColors.textPrimary,
+              fontSize: 13.5,
+              color: Color(0xFF222222),
               height: 1.45,
             ),
           ),
 
-          // Attached Images (AC1)
+          if (isLongComment && widget.isCard && !_isExpanded) ...[
+            const SizedBox(height: 4),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _isExpanded = true;
+                });
+              },
+              child: const Text(
+                'Xem thêm',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF222222),
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
+
+          // 4. Attached Images (nếu có)
           if (review.images.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             SizedBox(
-              height: 72,
+              height: 56,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: review.images.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 6),
                 itemBuilder: (context, index) {
                   final imageUrl = review.images[index];
                   return GestureDetector(
                     onTap: () => _showImageDialog(context, imageUrl),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                       child: CachedNetworkImage(
                         imageUrl: imageUrl,
-                        width: 72,
-                        height: 72,
+                        width: 56,
+                        height: 56,
                         fit: BoxFit.cover,
                         placeholder: (_, _) => Container(
-                          width: 72,
-                          height: 72,
-                          color: AppColors.shimmerBase,
+                          width: 56,
+                          height: 56,
+                          color: const Color(0xFFF0F0F0),
                         ),
                         errorWidget: (_, _, _) => Container(
-                          width: 72,
-                          height: 72,
-                          color: AppColors.surfaceVariant,
+                          width: 56,
+                          height: 56,
+                          color: const Color(0xFFF0F0F0),
                           child: const Icon(
                             Icons.broken_image_rounded,
-                            size: 20,
+                            size: 18,
                             color: AppColors.textMuted,
                           ),
                         ),

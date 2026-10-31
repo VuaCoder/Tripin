@@ -44,6 +44,7 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
         final userEmail = user['email'] as String? ?? event.email;
         final userName = user['fullName'] as String? ?? 'Người dùng Tripri';
         final userRole = user['role'] as String? ?? 'TRAVELER';
+        final userAvatar = user['avatarUrl'] as String?;
 
         // Lưu vào Secure Storage & SharedPreferences
         await tokenStorage.saveTokens(accessToken: accessToken);
@@ -52,6 +53,7 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
           email: userEmail,
           name: userName,
           role: userRole,
+          avatarUrl: userAvatar,
         );
 
         if (data['twoFactorRequired'] == true) {
@@ -131,6 +133,7 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
         final userEmail = user['email'] as String? ?? '';
         final userName = user['fullName'] as String? ?? 'Người dùng Tripri';
         final userRole = user['role'] as String? ?? (event.role ?? 'TRAVELER');
+        final userAvatar = user['avatarUrl'] as String?;
 
         // Lưu vào Secure Storage & SharedPreferences
         await tokenStorage.saveTokens(accessToken: accessToken);
@@ -139,6 +142,7 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
           email: userEmail,
           name: userName,
           role: userRole,
+          avatarUrl: userAvatar,
         );
 
         emit(LoginSuccess(role: userRole, fullName: userName));

@@ -63,6 +63,7 @@ class ApiEndpoints {
   static String bookingDetail(String id) => '/bookings/$id';
   static const String myBookings = '/bookings/me';
   static String cancelBooking(String id) => '/bookings/$id/cancel';
+  static String completeBooking(String id) => '/bookings/$id/complete';
 
   // E-tickets (vé điện tử QR)
   static String eTicketByBooking(String bookingId) =>

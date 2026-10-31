@@ -12,6 +12,8 @@ class ToursRepository {
 
   ToursRepository({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
 
+  ApiClient get apiClient => _apiClient;
+
   bool get _isInTest {
     if (kIsWeb) return false;
     return Platform.environment.containsKey('FLUTTER_TEST');

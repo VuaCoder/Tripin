@@ -31,6 +31,12 @@ class BookingItem extends Equatable {
   final DateTime? paymentExpiresAt;
   final String? cancelReason;
 
+  final String? thumbnailUrl;
+  final String? destination;
+  final String? contactName;
+  final String? customerAvatarUrl;
+  final bool isReviewed;
+
   const BookingItem({
     required this.id,
     required this.bookingCode,
@@ -45,32 +51,106 @@ class BookingItem extends Equatable {
     required this.refundRequired,
     this.paymentExpiresAt,
     this.cancelReason,
+    this.thumbnailUrl,
+    this.destination,
+    this.contactName,
+    this.customerAvatarUrl,
+    this.isReviewed = false,
   });
+
+  BookingItem copyWith({
+    String? id,
+    String? bookingCode,
+    BookingStatus? status,
+    String? tourId,
+    String? tourTitle,
+    DateTime? departureDate,
+    DateTime? endDate,
+    int? participants,
+    int? totalAmount,
+    bool? isPaid,
+    bool? refundRequired,
+    DateTime? paymentExpiresAt,
+    String? cancelReason,
+    String? thumbnailUrl,
+    String? destination,
+    String? contactName,
+    String? customerAvatarUrl,
+    bool? isReviewed,
+  }) =>
+      BookingItem(
+        id: id ?? this.id,
+        bookingCode: bookingCode ?? this.bookingCode,
+        status: status ?? this.status,
+        tourId: tourId ?? this.tourId,
+        tourTitle: tourTitle ?? this.tourTitle,
+        departureDate: departureDate ?? this.departureDate,
+        endDate: endDate ?? this.endDate,
+        participants: participants ?? this.participants,
+        totalAmount: totalAmount ?? this.totalAmount,
+        isPaid: isPaid ?? this.isPaid,
+        refundRequired: refundRequired ?? this.refundRequired,
+        paymentExpiresAt: paymentExpiresAt ?? this.paymentExpiresAt,
+        cancelReason: cancelReason ?? this.cancelReason,
+        thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+        destination: destination ?? this.destination,
+        contactName: contactName ?? this.contactName,
+        customerAvatarUrl: customerAvatarUrl ?? this.customerAvatarUrl,
+        isReviewed: isReviewed ?? this.isReviewed,
+      );
 
   factory BookingItem.fromJson(Map<String, dynamic> json) {
     final tour = json['tour'] as Map<String, dynamic>? ?? const {};
+    final user = json['user'] as Map<String, dynamic>? ?? const {};
     final expires = json['paymentExpiresAt'] as String?;
     return BookingItem(
-      id: json['id'] as String,
+      id: json['id'] as String? ?? '',
       bookingCode: json['bookingCode'] as String? ?? '',
       status: BookingStatus.parse(json['status'] as String?),
-      tourId: tour['id'] as String? ?? '',
-      tourTitle: tour['title'] as String? ?? '',
-      departureDate: DateTime.parse(json['departureDate'] as String),
-      endDate: DateTime.parse(json['endDate'] as String),
+      tourId: tour['id'] as String? ?? json['tourId'] as String? ?? '',
+      tourTitle: tour['title'] as String? ?? json['tourTitle'] as String? ?? '',
+      departureDate: DateTime.tryParse(json['departureDate']?.toString() ?? '') ?? DateTime.now(),
+      endDate: DateTime.tryParse(json['endDate']?.toString() ?? '') ?? DateTime.now(),
       participants: (json['participants'] as num?)?.toInt() ?? 1,
       totalAmount: (json['totalAmount'] as num?)?.toInt() ?? 0,
       isPaid: json['isPaid'] as bool? ?? false,
       refundRequired: json['refundRequired'] as bool? ?? false,
-      paymentExpiresAt: expires == null ? null : DateTime.parse(expires),
+      paymentExpiresAt: expires == null ? null : DateTime.tryParse(expires),
       cancelReason: json['cancelReason'] as String?,
+      thumbnailUrl: json['thumbnailUrl'] as String? ?? tour['coverImageUrl'] as String? ?? tour['thumbnailUrl'] as String?,
+      destination: json['destination'] as String? ?? tour['destination'] as String?,
+      contactName: json['contactName'] as String? ?? user['fullName'] as String?,
+      customerAvatarUrl: json['customerAvatarUrl'] as String? ?? user['avatarUrl'] as String?,
+      isReviewed: json['isReviewed'] as bool? ?? false,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'bookingCode': bookingCode,
+        'status': status.apiValue,
+        'tourId': tourId,
+        'tourTitle': tourTitle,
+        'departureDate': departureDate.toIso8601String(),
+        'endDate': endDate.toIso8601String(),
+        'participants': participants,
+        'totalAmount': totalAmount,
+        'isPaid': isPaid,
+        'refundRequired': refundRequired,
+        if (paymentExpiresAt != null) 'paymentExpiresAt': paymentExpiresAt!.toIso8601String(),
+        if (cancelReason != null) 'cancelReason': cancelReason,
+        if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
+        if (destination != null) 'destination': destination,
+        if (contactName != null) 'contactName': contactName,
+        if (customerAvatarUrl != null) 'customerAvatarUrl': customerAvatarUrl,
+        'isReviewed': isReviewed,
+      };
 
   @override
   List<Object?> get props => [
         id, bookingCode, status, tourId, tourTitle, departureDate, endDate, participants,
         totalAmount, isPaid, refundRequired, paymentExpiresAt, cancelReason,
+        thumbnailUrl, destination, contactName, customerAvatarUrl, isReviewed,
       ];
 }
 
