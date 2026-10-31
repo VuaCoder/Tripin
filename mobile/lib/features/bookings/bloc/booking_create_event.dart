@@ -18,6 +18,7 @@ class BookingCreateInitEvent extends BookingCreateEvent {
   final DateTime? departureDate;
   final String? initialFullName;
   final String? initialPhone;
+  final String? initialEmail;
 
   const BookingCreateInitEvent({
     required this.tourId,
@@ -28,6 +29,7 @@ class BookingCreateInitEvent extends BookingCreateEvent {
     this.departureDate,
     this.initialFullName,
     this.initialPhone,
+    this.initialEmail,
   });
 
   @override
@@ -40,26 +42,45 @@ class BookingCreateInitEvent extends BookingCreateEvent {
         departureDate,
         initialFullName,
         initialPhone,
+        initialEmail,
       ];
 }
 
-/// Người dùng thay đổi thông tin liên hệ
+/// Người dùng thay đổi thông tin liên hệ (Họ tên, SĐT, Email, Ghi chú)
 class BookingCreateContactChangedEvent extends BookingCreateEvent {
   final String? fullName;
   final String? phone;
+  final String? email;
   final String? notes;
 
   const BookingCreateContactChangedEvent({
     this.fullName,
     this.phone,
+    this.email,
     this.notes,
   });
 
   @override
-  List<Object?> get props => [fullName, phone, notes];
+  List<Object?> get props => [fullName, phone, email, notes];
 }
 
-/// Người dùng thay đổi số lượng khách tham gia
+/// [FLOW-09 AC2] Người dùng thay đổi số lượng khách theo từng nhóm đối tượng
+class BookingCreateGuestsChangedEvent extends BookingCreateEvent {
+  final int adults;
+  final int children;
+  final int infants;
+
+  const BookingCreateGuestsChangedEvent({
+    required this.adults,
+    required this.children,
+    required this.infants,
+  });
+
+  @override
+  List<Object?> get props => [adults, children, infants];
+}
+
+/// Người dùng thay đổi tổng số lượng khách tham gia (hỗ trợ tương thích ngược)
 class BookingCreateParticipantsChangedEvent extends BookingCreateEvent {
   final int participants;
 
@@ -103,4 +124,3 @@ class BookingCreateLoadVouchersEvent extends BookingCreateEvent {
 class BookingCreateSubmitEvent extends BookingCreateEvent {
   const BookingCreateSubmitEvent();
 }
-

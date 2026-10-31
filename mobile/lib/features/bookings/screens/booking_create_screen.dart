@@ -19,17 +19,19 @@ class BookingCreateScreen extends StatefulWidget {
   final DateTime? departureDate;
   final String? initialFullName;
   final String? initialPhone;
+  final String? initialEmail;
 
   const BookingCreateScreen({
     super.key,
     required this.tourId,
     required this.departureId,
-    required this.tourTitle,
-    required this.departurePrice,
-    required this.remainingSeats,
+    this.tourTitle = 'Chi tiết chuyến đi',
+    this.departurePrice = 0,
+    this.remainingSeats = 1,
     this.departureDate,
     this.initialFullName,
     this.initialPhone,
+    this.initialEmail,
   });
 
   @override
@@ -52,6 +54,7 @@ class _BookingCreateScreenState extends State<BookingCreateScreen> {
         departureDate: widget.departureDate,
         initialFullName: widget.initialFullName,
         initialPhone: widget.initialPhone,
+        initialEmail: widget.initialEmail,
       ));
   }
 
@@ -124,26 +127,50 @@ class _BookingCreateScreenState extends State<BookingCreateScreen> {
                     _buildTourSummaryCard(currencyFormat),
                     const SizedBox(height: 16),
 
-                    // Form thông tin người liên hệ & số khách
+                    // [FLOW-09 AC2, AC5] Form thông tin người liên hệ & số lượng khách (Người lớn, Trẻ em, Em bé)
                     BookingContactFormWidget(
                       fullName: state.fullName,
                       phone: state.phone,
+                      email: state.email,
                       notes: state.notes,
-                      participants: state.participants,
+                      adults: state.adults,
+                      children: state.children,
+                      infants: state.infants,
                       maxParticipants: state.remainingSeats,
                       fullNameError: state.fullNameError,
                       phoneError: state.phoneError,
+                      emailError: state.emailError,
                       onFullNameChanged: (val) => _bloc.add(BookingCreateContactChangedEvent(fullName: val)),
                       onPhoneChanged: (val) => _bloc.add(BookingCreateContactChangedEvent(phone: val)),
+                      onEmailChanged: (val) => _bloc.add(BookingCreateContactChangedEvent(email: val)),
                       onNotesChanged: (val) => _bloc.add(BookingCreateContactChangedEvent(notes: val)),
-                      onParticipantsChanged: (val) => _bloc.add(BookingCreateParticipantsChangedEvent(val)),
+                      onAdultsChanged: (val) => _bloc.add(BookingCreateGuestsChangedEvent(
+                        adults: val,
+                        children: state.children,
+                        infants: state.infants,
+                      )),
+                      onChildrenChanged: (val) => _bloc.add(BookingCreateGuestsChangedEvent(
+                        adults: state.adults,
+                        children: val,
+                        infants: state.infants,
+                      )),
+                      onInfantsChanged: (val) => _bloc.add(BookingCreateGuestsChangedEvent(
+                        adults: state.adults,
+                        children: state.children,
+                        infants: val,
+                      )),
                     ),
                     const SizedBox(height: 16),
 
-                    // Card tóm tắt chi phí & voucher
+                    // [FLOW-09 AC2, AC3] Card tóm tắt chi phí & voucher
                     BookingPriceSummaryWidget(
                       unitPrice: state.departurePrice,
-                      participants: state.participants,
+                      adults: state.adults,
+                      children: state.children,
+                      infants: state.infants,
+                      adultPrice: state.adultPrice,
+                      childPrice: state.childPrice,
+                      infantPrice: state.infantPrice,
                       subtotal: state.estimatedSubtotal,
                       discountAmount: state.discountAmount,
                       totalAmount: state.estimatedTotal,

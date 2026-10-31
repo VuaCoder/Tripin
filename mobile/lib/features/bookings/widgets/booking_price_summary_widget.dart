@@ -5,7 +5,12 @@ import '../models/booking_voucher_model.dart';
 
 class BookingPriceSummaryWidget extends StatelessWidget {
   final int unitPrice;
-  final int participants;
+  final int adults;
+  final int children;
+  final int infants;
+  final int adultPrice;
+  final int childPrice;
+  final int infantPrice;
   final int subtotal;
   final int discountAmount;
   final int totalAmount;
@@ -14,10 +19,15 @@ class BookingPriceSummaryWidget extends StatelessWidget {
   final VoidCallback onRemoveVoucher;
   final String? voucherError;
 
-  const BookingPriceSummaryWidget({
+  BookingPriceSummaryWidget({
     super.key,
     required this.unitPrice,
-    required this.participants,
+    this.adults = 1,
+    this.children = 0,
+    this.infants = 0,
+    int? adultPrice,
+    int? childPrice,
+    int? infantPrice,
     required this.subtotal,
     required this.discountAmount,
     required this.totalAmount,
@@ -25,7 +35,9 @@ class BookingPriceSummaryWidget extends StatelessWidget {
     required this.onOpenVoucherPicker,
     required this.onRemoveVoucher,
     this.voucherError,
-  });
+  })  : adultPrice = adultPrice ?? unitPrice,
+        childPrice = childPrice ?? ((unitPrice * 0.7).round()),
+        infantPrice = infantPrice ?? 0;
 
   @override
   Widget build(BuildContext context) {
@@ -84,79 +96,133 @@ class BookingPriceSummaryWidget extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // Giá vé × số khách
+          // [FLOW-09 AC2] Chi tiết theo từng đối tượng: Người lớn, Trẻ em, Em bé
           _buildRow(
-            label: 'Đơn giá vé (${currencyFormat.format(unitPrice)} ₫ × $participants khách)',
-            value: '${currencyFormat.format(subtotal)} ₫',
+            label: 'Người lớn (${currencyFormat.format(adultPrice)} ₫ × $adults)',
+            value: '${currencyFormat.format(adults * adultPrice)} ₫',
           ),
+          if (children > 0) ...[
+            const SizedBox(height: 8),
+            _buildRow(
+              label: 'Trẻ em (${currencyFormat.format(childPrice)} ₫ × $children)',
+              value: '${currencyFormat.format(children * childPrice)} ₫',
+            ),
+          ],
+          if (infants > 0) ...[
+            const SizedBox(height: 8),
+            _buildRow(
+              label: 'Em bé (Miễn phí × $infants)',
+              value: '0 ₫',
+              valueColor: AppColors.success,
+            ),
+          ],
           const SizedBox(height: 10),
 
-          // Voucher selector button / applied badge
+          // Nút hoặc thẻ Voucher đã áp dụng
           InkWell(
             onTap: onOpenVoucherPicker,
             borderRadius: BorderRadius.circular(10),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: previewResult != null
-                    ? AppColors.secondarySurface
-                    : AppColors.surface,
+                color: previewResult != null ? AppColors.secondarySurface : AppColors.background,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: previewResult != null
-                      ? AppColors.secondary
-                      : AppColors.border,
+                  color: previewResult != null ? AppColors.secondary : AppColors.border,
                 ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.confirmation_num_outlined, size: 18, color: AppColors.secondary),
+                  Icon(
+                    Icons.confirmation_number_outlined,
+                    size: 18,
+                    color: previewResult != null ? AppColors.secondary : AppColors.textSecondary,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: previewResult != null
-                        ? Text(
-                            'Mã ${previewResult!.code}: -${currencyFormat.format(discountAmount)} ₫',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.secondary,
-                            ),
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    previewResult!.code,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: AppColors.secondary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '(-${currencyFormat.format(discountAmount)} ₫)',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.secondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Text(
+                                'Đã áp dụng mã ưu đãi thành công',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
                           )
                         : const Text(
-                            'Chọn hoặc nhập mã ưu đãi',
+                            'Chọn hoặc nhập mã khuyến mãi',
                             style: TextStyle(
                               fontSize: 13,
-                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                   ),
                   if (previewResult != null)
-                    GestureDetector(
-                      onTap: onRemoveVoucher,
-                      child: const Padding(
-                        padding: EdgeInsets.all(2.0),
-                        child: Icon(Icons.close, size: 16, color: AppColors.error),
-                      ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 16, color: AppColors.textSecondary),
+                      onPressed: onRemoveVoucher,
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     )
                   else
-                    const Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.chevron_right,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
                 ],
               ),
             ),
           ),
 
-          if (voucherError != null) ...[
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.only(left: 4),
+          // Lỗi áp dụng voucher
+          if (voucherError != null && voucherError!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Row(
                 children: [
                   const Icon(Icons.error_outline, size: 14, color: AppColors.error),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       voucherError!,
-                      style: const TextStyle(fontSize: 12, color: AppColors.error),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
@@ -167,10 +233,9 @@ class BookingPriceSummaryWidget extends StatelessWidget {
           if (discountAmount > 0) ...[
             const SizedBox(height: 10),
             _buildRow(
-              label: 'Khuyến mãi giảm giá',
+              label: 'Giảm giá khuyến mãi',
               value: '-${currencyFormat.format(discountAmount)} ₫',
               valueColor: AppColors.secondary,
-              isBold: true,
             ),
           ],
 
@@ -179,24 +244,21 @@ class BookingPriceSummaryWidget extends StatelessWidget {
             child: Divider(height: 1, color: AppColors.border),
           ),
 
-          // Tổng cộng
+          // Tổng thanh toán
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
             children: [
               const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Tổng tiền tạm tính',
+                    'Tổng cộng tạm tính',
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  SizedBox(height: 2),
                   Text(
                     'Đã bao gồm thuế & phí',
                     style: TextStyle(
@@ -209,38 +271,12 @@ class BookingPriceSummaryWidget extends StatelessWidget {
               Text(
                 '${currencyFormat.format(totalAmount)} ₫',
                 style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                   color: AppColors.primary,
                 ),
               ),
             ],
-          ),
-
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.primarySurface,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.info_outline, size: 14, color: AppColors.primary),
-                SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'Giá tạm tính. Hệ thống máy chủ sẽ xác thực tính khả dụng và áp dụng ưu đãi chính thức khi tạo đơn.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.primary,
-                      height: 1.3,
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -250,8 +286,7 @@ class BookingPriceSummaryWidget extends StatelessWidget {
   Widget _buildRow({
     required String label,
     required String value,
-    Color valueColor = AppColors.textPrimary,
-    bool isBold = false,
+    Color? valueColor,
   }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -268,9 +303,9 @@ class BookingPriceSummaryWidget extends StatelessWidget {
         Text(
           value,
           style: TextStyle(
-            fontSize: 14,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-            color: valueColor,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: valueColor ?? AppColors.textPrimary,
           ),
         ),
       ],

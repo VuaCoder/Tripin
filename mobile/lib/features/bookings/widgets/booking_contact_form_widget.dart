@@ -4,30 +4,46 @@ import '../../../core/constants/app_colors.dart';
 class BookingContactFormWidget extends StatelessWidget {
   final String fullName;
   final String phone;
+  final String email;
   final String notes;
-  final int participants;
+  final int adults;
+  final int children;
+  final int infants;
   final int maxParticipants;
   final String? fullNameError;
   final String? phoneError;
+  final String? emailError;
   final ValueChanged<String> onFullNameChanged;
   final ValueChanged<String> onPhoneChanged;
+  final ValueChanged<String> onEmailChanged;
   final ValueChanged<String> onNotesChanged;
-  final ValueChanged<int> onParticipantsChanged;
+  final ValueChanged<int> onAdultsChanged;
+  final ValueChanged<int> onChildrenChanged;
+  final ValueChanged<int> onInfantsChanged;
 
   const BookingContactFormWidget({
     super.key,
     required this.fullName,
     required this.phone,
+    required this.email,
     required this.notes,
-    required this.participants,
+    required this.adults,
+    this.children = 0,
+    this.infants = 0,
     required this.maxParticipants,
     this.fullNameError,
     this.phoneError,
+    this.emailError,
     required this.onFullNameChanged,
     required this.onPhoneChanged,
+    required this.onEmailChanged,
     required this.onNotesChanged,
-    required this.onParticipantsChanged,
+    required this.onAdultsChanged,
+    required this.onChildrenChanged,
+    required this.onInfantsChanged,
   });
+
+  int get totalGuests => adults + children + infants;
 
   @override
   Widget build(BuildContext context) {
@@ -97,81 +113,163 @@ class BookingContactFormWidget extends StatelessWidget {
             prefixIcon: Icons.phone_outlined,
             onChanged: onPhoneChanged,
           ),
+          const SizedBox(height: 14),
+
+          // [FLOW-09 AC5] Email bắt buộc nhận vé điện tử
+          _buildTextField(
+            label: 'Địa chỉ Email *',
+            hint: 'traveler@example.com',
+            initialValue: email,
+            keyboardType: TextInputType.emailAddress,
+            errorText: emailError,
+            prefixIcon: Icons.email_outlined,
+            onChanged: onEmailChanged,
+          ),
+          const SizedBox(height: 18),
+
+          const Divider(height: 1, color: AppColors.border),
           const SizedBox(height: 16),
 
-          // Bộ chọn số lượng khách (Stepper)
+          // [FLOW-09 AC2] Phân loại hành khách 3 nhóm: Người lớn, Trẻ em, Em bé
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Số lượng khách *',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Còn $maxParticipants chỗ trống',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: maxParticipants <= 3 ? AppColors.error : AppColors.textSecondary,
-                      fontWeight: maxParticipants <= 3 ? FontWeight.w600 : FontWeight.normal,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.border),
-                  color: AppColors.surface,
+              const Text(
+                'Hành khách tham gia *',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
                 ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.remove, size: 18),
-                      color: participants > 1 ? AppColors.textPrimary : AppColors.textMuted,
-                      onPressed: participants > 1 ? () => onParticipantsChanged(participants - 1) : null,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    Container(
-                      constraints: const BoxConstraints(minWidth: 32),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '$participants',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.add, size: 18),
-                      color: participants < maxParticipants ? AppColors.primary : AppColors.textMuted,
-                      onPressed: participants < maxParticipants ? () => onParticipantsChanged(participants + 1) : null,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
+              ),
+              Text(
+                'Còn $maxParticipants chỗ',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: maxParticipants <= 3 ? AppColors.error : AppColors.textSecondary,
+                  fontWeight: maxParticipants <= 3 ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 12),
+
+          // 1. Người lớn (>= 12 tuổi)
+          _buildGuestRow(
+            title: 'Người lớn',
+            subtitle: 'Từ 12 tuổi trở lên',
+            count: adults,
+            minCount: 1,
+            canAdd: totalGuests < maxParticipants,
+            onChanged: onAdultsChanged,
+          ),
+          const SizedBox(height: 10),
+
+          // 2. Trẻ em (2 - 11 tuổi)
+          _buildGuestRow(
+            title: 'Trẻ em',
+            subtitle: 'Từ 2 đến dưới 12 tuổi (70% giá)',
+            count: children,
+            minCount: 0,
+            canAdd: totalGuests < maxParticipants,
+            onChanged: onChildrenChanged,
+          ),
+          const SizedBox(height: 10),
+
+          // 3. Em bé (< 2 tuổi)
+          _buildGuestRow(
+            title: 'Em bé',
+            subtitle: 'Dưới 2 tuổi (Miễn phí)',
+            count: infants,
+            minCount: 0,
+            canAdd: totalGuests < maxParticipants,
+            onChanged: onInfantsChanged,
+          ),
+          const SizedBox(height: 16),
+
+          const Divider(height: 1, color: AppColors.border),
           const SizedBox(height: 16),
 
           // Ghi chú
           _buildTextField(
-            label: 'Ghi chú cho chuyến đi (Tùy chọn)',
+            label: 'Ghi chú cho đoàn (Tùy chọn)',
             hint: 'Yêu cầu phòng, dị ứng thức ăn hoặc lưu ý đặc biệt...',
             initialValue: notes,
             maxLines: 2,
             prefixIcon: Icons.notes_outlined,
             onChanged: onNotesChanged,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuestRow({
+    required String title,
+    required String subtitle,
+    required int count,
+    required int minCount,
+    required bool canAdd,
+    required ValueChanged<int> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.remove, size: 18),
+                color: count > minCount ? AppColors.textPrimary : AppColors.textMuted,
+                onPressed: count > minCount ? () => onChanged(count - 1) : null,
+                visualDensity: VisualDensity.compact,
+              ),
+              Container(
+                constraints: const BoxConstraints(minWidth: 28),
+                alignment: Alignment.center,
+                child: Text(
+                  '$count',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.add, size: 18),
+                color: canAdd ? AppColors.primary : AppColors.textMuted,
+                onPressed: canAdd ? () => onChanged(count + 1) : null,
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
           ),
         ],
       ),

@@ -15,6 +15,7 @@ import '../widgets/tour_card_vertical.dart';
 import '../widgets/tour_shimmer_loading.dart';
 import '../../wishlist/bloc/wishlist_cubit.dart';
 import '../../wishlist/bloc/wishlist_state.dart';
+import 'tour_detail_screen.dart';
 import 'tour_search_screen.dart';
 
 /// [FLOW-04] Màn hình Khám phá Trang chủ
@@ -82,11 +83,9 @@ class _HomeDiscoveryScreenState extends State<HomeDiscoveryScreen> {
     try {
       context.read<WishlistCubit>().recordRecentlyViewed(tour);
     } catch (_) {}
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Đang mở chi tiết tour: ${tour.title}'),
-        duration: const Duration(seconds: 1),
-        behavior: SnackBarBehavior.floating,
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TourDetailScreen(tourId: tour.id),
       ),
     );
   }

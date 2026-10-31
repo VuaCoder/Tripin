@@ -18,14 +18,15 @@ class TourReviewFormModal extends StatefulWidget {
   static Future<bool?> show(
     BuildContext context, {
     required String bookingId,
-    required TourReviewBloc bloc,
+    TourReviewBloc? bloc,
   }) {
+    final effectiveBloc = bloc ?? TourReviewBloc();
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => BlocProvider.value(
-        value: bloc,
+        value: effectiveBloc,
         child: TourReviewFormModal(
           bookingId: bookingId,
           onSuccess: () => Navigator.of(ctx).pop(true),

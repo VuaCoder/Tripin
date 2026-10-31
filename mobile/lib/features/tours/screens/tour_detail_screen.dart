@@ -12,6 +12,7 @@ import '../widgets/tour_detail_policies_widget.dart';
 import '../widgets/tour_detail_reviews_section.dart';
 import '../widgets/tour_detail_shimmer_skeleton.dart';
 import '../widgets/tour_detail_timeline_widget.dart';
+import '../../bookings/screens/booking_create_screen.dart';
 
 class TourDetailScreen extends StatelessWidget {
   final String tourId;
@@ -424,6 +425,26 @@ class TourDetailScreen extends StatelessWidget {
                                   ],
                                 ),
                               ),
+                              if (tour.guide != null)
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Bắt đầu nhắn tin với HDV: ${tour.guide!.fullName}'),
+                                        backgroundColor: AppColors.primary,
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 14),
+                                  label: const Text('Nhắn tin', style: TextStyle(fontSize: 12)),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.primary,
+                                    side: const BorderSide(color: AppColors.primary),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -579,13 +600,16 @@ class TourDetailScreen extends StatelessWidget {
                               if (onBookTour != null) {
                                 onBookTour!(tour.id, selectedDeparture.id);
                               } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Đã chọn ngày khởi hành: ${DateFormat('dd/MM/yyyy').format(selectedDeparture.date)}',
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => BookingCreateScreen(
+                                      tourId: tour.id,
+                                      departureId: selectedDeparture.id,
+                                      tourTitle: tour.title,
+                                      departurePrice: state.effectivePrice,
+                                      remainingSeats: selectedDeparture.remaining,
+                                      departureDate: selectedDeparture.date,
                                     ),
-                                    backgroundColor: AppColors.primary,
-                                    duration: const Duration(seconds: 2),
                                   ),
                                 );
                               }

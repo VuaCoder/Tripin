@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/network/api_client.dart';
-import '../../../core/storage/token_storage.dart';
 import '../models/booking_create_model.dart';
 import '../models/booking_voucher_model.dart';
 import 'booking_create_event.dart';
@@ -10,16 +9,14 @@ import 'booking_create_state.dart';
 
 class BookingCreateBloc extends Bloc<BookingCreateEvent, BookingCreateState> {
   final ApiClient apiClient;
-  final TokenStorage tokenStorage;
 
   BookingCreateBloc({
     ApiClient? client,
-    TokenStorage? storage,
   })  : apiClient = client ?? ApiClient(),
-        tokenStorage = storage ?? TokenStorage(),
         super(const BookingCreateState()) {
     on<BookingCreateInitEvent>(_onInit);
     on<BookingCreateContactChangedEvent>(_onContactChanged);
+    on<BookingCreateGuestsChangedEvent>(_onGuestsChanged);
     on<BookingCreateParticipantsChangedEvent>(_onParticipantsChanged);
     on<BookingCreateApplyVoucherCodeEvent>(_onApplyVoucherCode);
     on<BookingCreateSelectVoucherItemEvent>(_onSelectVoucherItem);
@@ -32,7 +29,7 @@ class BookingCreateBloc extends Bloc<BookingCreateEvent, BookingCreateState> {
     BookingCreateInitEvent event,
     Emitter<BookingCreateState> emit,
   ) async {
-    final requestId = BookingCreateRequest.generateClientRequestId();
+    final clientRequestId = BookingCreateRequest.generateClientRequestId();
 
     emit(state.copyWith(
       tourId: event.tourId,
@@ -41,12 +38,17 @@ class BookingCreateBloc extends Bloc<BookingCreateEvent, BookingCreateState> {
       departurePrice: event.departurePrice,
       remainingSeats: event.remainingSeats,
       departureDate: event.departureDate,
-      fullName: event.initialFullName ?? '',
-      phone: event.initialPhone ?? '',
-      clientRequestId: requestId,
+      fullName: event.initialFullName ?? state.fullName,
+      phone: event.initialPhone ?? state.phone,
+      email: event.initialEmail ?? state.email,
+      adults: 1,
+      children: 0,
+      infants: 0,
       participants: 1,
+      clientRequestId: clientRequestId,
       clearFullNameError: true,
       clearPhoneError: true,
+      clearEmailError: true,
       clearGeneralError: true,
       clearVoucherError: true,
     ));
@@ -61,11 +63,34 @@ class BookingCreateBloc extends Bloc<BookingCreateEvent, BookingCreateState> {
     emit(state.copyWith(
       fullName: event.fullName ?? state.fullName,
       phone: event.phone ?? state.phone,
+      email: event.email ?? state.email,
       notes: event.notes ?? state.notes,
       clearFullNameError: event.fullName != null,
       clearPhoneError: event.phone != null,
+      clearEmailError: event.email != null,
       clearGeneralError: true,
     ));
+  }
+
+  Future<void> _onGuestsChanged(
+    BookingCreateGuestsChangedEvent event,
+    Emitter<BookingCreateState> emit,
+  ) async {
+    if (event.adults < 1) return;
+    final total = event.adults + event.children + event.infants;
+    if (total > state.remainingSeats) return;
+
+    emit(state.copyWith(
+      adults: event.adults,
+      children: event.children,
+      infants: event.infants,
+      participants: total,
+      clearGeneralError: true,
+    ));
+
+    if (state.previewResult != null) {
+      await _previewVoucherCode(state.previewResult!.code, emit);
+    }
   }
 
   Future<void> _onParticipantsChanged(
@@ -77,11 +102,13 @@ class BookingCreateBloc extends Bloc<BookingCreateEvent, BookingCreateState> {
     }
 
     emit(state.copyWith(
+      adults: event.participants,
+      children: 0,
+      infants: 0,
       participants: event.participants,
       clearGeneralError: true,
     ));
 
-    // Nếu đang áp dụng voucher, tự động tính lại preview theo subtotal mới
     if (state.previewResult != null) {
       await _previewVoucherCode(state.previewResult!.code, emit);
     }
@@ -100,7 +127,7 @@ class BookingCreateBloc extends Bloc<BookingCreateEvent, BookingCreateState> {
     final codeRegex = RegExp(r'^[A-Z0-9_-]{3,30}$');
     if (!codeRegex.hasMatch(cleanCode)) {
       emit(state.copyWith(
-        voucherError: 'Mã gồm 3–30 ký tự (chữ hoa, số, dấu gạch ngang hoặc gạch dưới).',
+        voucherError: 'Mã khuyến mãi không đúng định dạng (3-30 ký tự chữ cái, số, gạch nối).',
       ));
       return;
     }
@@ -112,8 +139,18 @@ class BookingCreateBloc extends Bloc<BookingCreateEvent, BookingCreateState> {
     BookingCreateSelectVoucherItemEvent event,
     Emitter<BookingCreateState> emit,
   ) async {
-    emit(state.copyWith(selectedVoucher: event.voucher));
-    await _previewVoucherCode(event.voucher.code, emit);
+    final voucher = event.voucher;
+
+    // Kiểm tra điều kiện đơn hàng tối thiểu
+    final currentSubtotal = state.estimatedSubtotal;
+    if (voucher.minOrderAmount > 0 && currentSubtotal < voucher.minOrderAmount) {
+      emit(state.copyWith(
+        voucherError: 'Đơn hàng tạm tính chưa đạt giá trị tối thiểu (${voucher.formattedMinOrderText}) để áp dụng mã ${voucher.code}.',
+      ));
+      return;
+    }
+
+    await _previewVoucherCode(voucher.code, emit);
   }
 
   void _onRemoveVoucher(
@@ -136,19 +173,20 @@ class BookingCreateBloc extends Bloc<BookingCreateEvent, BookingCreateState> {
 
   Future<void> _fetchVouchers(Emitter<BookingCreateState> emit) async {
     emit(state.copyWith(isLoadingVouchers: true));
+
     try {
       final List<VoucherItemModel> collected = [];
 
-      // 1. Lấy danh sách ví voucher của tôi (GET /promotions/my-vouchers)
+      // 1. Lấy danh sách ví voucher của người dùng: GET /promotions/my-vouchers
       try {
-        final myVouchersRes = await apiClient.get(ApiEndpoints.myVouchers);
-        if (myVouchersRes.statusCode == 200 && myVouchersRes.data != null) {
-          final data = myVouchersRes.data['data'];
-          if (data is List) {
-            for (final item in data) {
+        final response = await apiClient.get(ApiEndpoints.myVouchers);
+        if (response.statusCode == 200 && response.data != null) {
+          final rawData = response.data['data'] ?? response.data;
+          if (rawData is List) {
+            for (final item in rawData) {
               if (item is Map<String, dynamic>) {
                 final v = VoucherItemModel.fromJson(item);
-                if (!v.isUsed && v.isActive && !v.isExpired) {
+                if (v.code.isNotEmpty && !collected.any((existing) => existing.code == v.code)) {
                   collected.add(v);
                 }
               }
@@ -156,40 +194,30 @@ class BookingCreateBloc extends Bloc<BookingCreateEvent, BookingCreateState> {
           }
         }
       } catch (_) {
-        // Bỏ qua lỗi ví voucher (ví dụ chưa đăng nhập hoặc mạng yếu)
+        // Tiếp tục lấy từ danh sách công khai
       }
 
-      // 2. Lấy thêm khuyến mãi khả dụng cho tour này (GET /promotions/available?tourId=...)
+      // 2. Lấy voucher khả dụng công khai: GET /promotions/available
       if (state.tourId.isNotEmpty) {
         try {
-          final availableRes = await apiClient.get(
+          final response = await apiClient.get(
             ApiEndpoints.promotionsAvailable,
             queryParameters: {'tourId': state.tourId},
           );
-          if (availableRes.statusCode == 200 && availableRes.data != null) {
-            final data = availableRes.data['data'];
-            if (data is Map<String, dynamic>) {
-              final platformList = data['platform'] as List?;
-              final agencyList = data['agency'] as List?;
-
-              for (final list in [platformList, agencyList]) {
-                if (list != null) {
-                  for (final item in list) {
-                    if (item is Map<String, dynamic>) {
-                      final v = VoucherItemModel.fromJson(item);
-                      if (v.code.isNotEmpty &&
-                          !collected.any((existing) => existing.code == v.code)) {
-                        collected.add(v);
-                      }
-                    }
+          if (response.statusCode == 200 && response.data != null) {
+            final rawData = response.data['data'] ?? response.data;
+            if (rawData is List) {
+              for (final item in rawData) {
+                if (item is Map<String, dynamic>) {
+                  final v = VoucherItemModel.fromJson(item);
+                  if (v.code.isNotEmpty && !collected.any((existing) => existing.code == v.code)) {
+                    collected.add(v);
                   }
                 }
               }
             }
           }
-        } catch (_) {
-          // Bỏ qua nếu endpoint available trả về lỗi
-        }
+        } catch (_) {}
       }
 
       emit(state.copyWith(
@@ -218,7 +246,7 @@ class BookingCreateBloc extends Bloc<BookingCreateEvent, BookingCreateState> {
           'code': code,
           'tourId': state.tourId,
           'subtotal': currentSubtotal,
-          'participants': state.participants,
+          'participants': state.totalGuests,
         },
       );
 
@@ -226,7 +254,6 @@ class BookingCreateBloc extends Bloc<BookingCreateEvent, BookingCreateState> {
         final data = response.data['data'] as Map<String, dynamic>;
         final preview = PromotionPreviewResult.fromJson(data);
 
-        // Tìm voucher tương ứng trong danh sách để gán selectedVoucher (nếu có)
         VoucherItemModel? matched;
         for (final v in state.vouchers) {
           if (v.code.toUpperCase() == code.toUpperCase()) {
@@ -259,7 +286,7 @@ class BookingCreateBloc extends Bloc<BookingCreateEvent, BookingCreateState> {
       emit(state.copyWith(
         isPreviewingVoucher: false,
         clearPreviewResult: true,
-        voucherError: 'Có lỗi xảy ra khi kiểm tra mã khuyến mãi.',
+        voucherError: 'Lỗi kiểm tra mã: $e',
       ));
     }
   }
@@ -271,6 +298,7 @@ class BookingCreateBloc extends Bloc<BookingCreateEvent, BookingCreateState> {
     // 1. Kiểm tra validation form
     String? fullNameErr;
     String? phoneErr;
+    String? emailErr;
     String? generalErr;
 
     if (state.fullName.trim().length < 2) {
@@ -282,14 +310,22 @@ class BookingCreateBloc extends Bloc<BookingCreateEvent, BookingCreateState> {
       phoneErr = 'Số điện thoại không hợp lệ.';
     }
 
-    if (state.participants < 1 || state.participants > state.remainingSeats) {
-      generalErr = 'Số khách phải từ 1 đến ${state.remainingSeats}.';
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegex.hasMatch(state.email.trim())) {
+      emailErr = 'Email không hợp lệ (bắt buộc để nhận vé điện tử).';
     }
 
-    if (fullNameErr != null || phoneErr != null || generalErr != null) {
+    if (state.adults < 1) {
+      generalErr = 'Phải có ít nhất 1 người lớn tham gia chuyến đi.';
+    } else if (state.totalGuests < 1 || state.totalGuests > state.remainingSeats) {
+      generalErr = 'Tổng số khách phải từ 1 đến ${state.remainingSeats}.';
+    }
+
+    if (fullNameErr != null || phoneErr != null || emailErr != null || generalErr != null) {
       emit(state.copyWith(
         fullNameError: fullNameErr,
         phoneError: phoneErr,
+        emailError: emailErr,
         generalError: generalErr,
       ));
       return;
@@ -305,10 +341,12 @@ class BookingCreateBloc extends Bloc<BookingCreateEvent, BookingCreateState> {
       final request = BookingCreateRequest(
         tourId: state.tourId,
         departureId: state.departureId,
-        participants: state.participants,
+        participants: state.totalGuests,
+        guestCounts: state.guestCounts,
         contact: BookingContactModel(
           fullName: state.fullName.trim(),
           phone: state.phone.trim(),
+          email: state.email.trim(),
         ),
         notes: state.notes.trim().isNotEmpty ? state.notes.trim() : null,
         promotionCode: state.previewResult?.code,
@@ -353,57 +391,65 @@ class BookingCreateBloc extends Bloc<BookingCreateEvent, BookingCreateState> {
 
   String _extractErrorMessage(DioException dioErr, String fallback) {
     if (dioErr.type == DioExceptionType.connectionTimeout ||
-        dioErr.type == DioExceptionType.sendTimeout ||
-        dioErr.type == DioExceptionType.receiveTimeout ||
-        dioErr.type == DioExceptionType.connectionError) {
-      return 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.';
+        dioErr.type == DioExceptionType.receiveTimeout) {
+      return 'Kết nối mạng quá hạn. Vui lòng kiểm tra đường truyền và thử lại.';
+    }
+
+    if (dioErr.type == DioExceptionType.connectionError) {
+      return 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng.';
     }
 
     final data = dioErr.response?.data;
     if (data is Map<String, dynamic>) {
-      final errorMap = data['error'];
-      if (errorMap is Map<String, dynamic>) {
-        final code = errorMap['code']?.toString();
-        switch (code) {
-          case 'NOT_ENOUGH_SEATS':
-            return 'Số chỗ trống vừa thay đổi. Hãy giảm số khách hoặc chọn ngày khởi hành khác.';
-          case 'DEPARTURE_UNAVAILABLE':
-            return 'Ngày khởi hành này hiện không còn nhận đặt chỗ hoặc đã diễn ra.';
-          case 'TOUR_UNAVAILABLE':
-            return 'Tour này hiện không còn nhận đặt chỗ.';
-          case 'BOOKING_AMOUNT_TOO_LOW':
-            return 'Tổng giá trị đơn hàng không hợp lệ (tối thiểu 1 ₫). Vui lòng kiểm tra lại mã giảm giá.';
-          case 'PROMOTION_EXHAUSTED':
-            return 'Mã giảm giá đã hết lượt sử dụng.';
-          case 'PROMOTION_INACTIVE':
-          case 'PROMOTION_EXPIRED':
-            return 'Mã giảm giá này đã hết hiệu lực.';
-          case 'PROMOTION_NOT_STARTED':
-            return 'Mã giảm giá này chưa đến thời gian áp dụng.';
-          case 'PROMOTION_NOT_APPLICABLE':
-            return 'Mã giảm giá này không áp dụng cho đơn vị tổ chức hoặc tour đã chọn.';
-          case 'PROMOTION_TOUR_NOT_ELIGIBLE':
-            return 'Mã giảm giá này không áp dụng cho tour này.';
-          case 'PROMOTION_MIN_ORDER':
-            return 'Đơn hàng chưa đạt giá trị tối thiểu để dùng mã giảm giá này.';
-          case 'PROMOTION_MIN_PARTICIPANTS':
-            return 'Số lượng khách chưa đủ điều kiện áp dụng mã giảm giá.';
-          case 'PROMOTION_FIRST_BOOKING_ONLY':
-            return 'Mã giảm giá chỉ áp dụng cho đơn đặt tour đầu tiên của bạn.';
-          case 'PROMOTION_USER_LIMIT_REACHED':
-            return 'Bạn đã dùng hết số lượt cho phép của mã giảm giá này.';
-          case 'PROMOTION_CODE_USED':
-            return 'Mã voucher này đã được sử dụng trước đó.';
-          case 'UNAUTHENTICATED':
-          case 'TOKEN_INVALID':
-            return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
-          default:
-            final msg = errorMap['message']?.toString();
-            if (msg != null && msg.isNotEmpty) return msg;
+      final err = data['error'];
+      if (err is Map<String, dynamic>) {
+        final code = err['code']?.toString().toUpperCase();
+        if (code != null) {
+          switch (code) {
+            case 'NOT_ENOUGH_SEATS':
+            case 'BOOKING_DEPARTURE_FULL':
+              return 'Số chỗ trống vừa thay đổi, chuyến đi không đủ chỗ cho đoàn của bạn.';
+            case 'BOOKING_CAPACITY_EXCEEDED':
+              return 'Số lượng khách bạn đặt vượt quá số chỗ còn lại của chuyến.';
+            case 'BOOKING_AMOUNT_TOO_LOW':
+              return 'Tổng giá trị đơn hàng không hợp lệ (tối thiểu 1.000 ₫).';
+            case 'BOOKING_UNAUTHORIZED':
+            case 'UNAUTHORIZED':
+              return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+            case 'PROMOTION_INVALID':
+            case 'PROMOTION_NOT_FOUND':
+              return 'Mã khuyến mãi không tồn tại hoặc đã hết lượt dùng.';
+            case 'PROMOTION_EXPIRED':
+              return 'Mã khuyến mãi đã hết hạn sử dụng.';
+            case 'PROMOTION_MIN_SPEND_NOT_MET':
+              return 'Giá trị đơn hàng chưa đạt mức tối thiểu để dùng mã này.';
+            case 'PROMOTION_ALREADY_USED':
+              return 'Bạn đã sử dụng mã khuyến mãi này trước đó.';
+          }
+        }
+        if (err['message'] != null && err['message'].toString().trim().isNotEmpty) {
+          return err['message'].toString();
         }
       }
+      if (data['message'] != null && data['message'].toString().trim().isNotEmpty) {
+        return data['message'].toString();
+      }
     }
+
+    final statusCode = dioErr.response?.statusCode;
+    if (statusCode == 401) {
+      return 'Vui lòng đăng nhập để thực hiện đặt tour.';
+    }
+    if (statusCode == 404) {
+      return 'Không tìm thấy tour hoặc chuyến khởi hành yêu cầu.';
+    }
+    if (statusCode == 409) {
+      return 'Yêu cầu đặt tour trùng lặp hoặc chuyến đi vừa hết chỗ.';
+    }
+    if (statusCode != null && statusCode >= 500) {
+      return 'Máy chủ đang bảo trì. Vui lòng thử lại sau ít phút.';
+    }
+
     return fallback;
   }
 }
-

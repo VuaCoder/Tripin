@@ -2,28 +2,74 @@ import 'dart:math';
 import 'package:equatable/equatable.dart';
 import 'package:intl/intl.dart';
 
-/// Thông tin người liên hệ cho đơn đặt tour
+/// [FLOW-09 AC2] Cấu trúc phân loại hành khách theo nhóm tuổi
+class GuestCounts extends Equatable {
+  final int adults; // Người lớn (>= 12 tuổi)
+  final int children; // Trẻ em (2 - 11 tuổi)
+  final int infants; // Em bé (< 2 tuổi)
+
+  const GuestCounts({
+    this.adults = 1,
+    this.children = 0,
+    this.infants = 0,
+  });
+
+  int get total => adults + children + infants;
+
+  Map<String, dynamic> toJson() => {
+        'adults': adults,
+        'children': children,
+        'infants': infants,
+      };
+
+  factory GuestCounts.fromJson(Map<String, dynamic> json) => GuestCounts(
+        adults: (json['adults'] as num?)?.toInt() ?? 1,
+        children: (json['children'] as num?)?.toInt() ?? 0,
+        infants: (json['infants'] as num?)?.toInt() ?? 0,
+      );
+
+  GuestCounts copyWith({
+    int? adults,
+    int? children,
+    int? infants,
+  }) {
+    return GuestCounts(
+      adults: adults ?? this.adults,
+      children: children ?? this.children,
+      infants: infants ?? this.infants,
+    );
+  }
+
+  @override
+  List<Object?> get props => [adults, children, infants];
+}
+
+/// [FLOW-09 AC5] Thông tin người liên hệ cho đơn đặt tour (bắt buộc Họ tên, SĐT, Email)
 class BookingContactModel extends Equatable {
   final String fullName;
   final String phone;
+  final String email;
 
   const BookingContactModel({
     required this.fullName,
     required this.phone,
+    this.email = '',
   });
 
   Map<String, dynamic> toJson() => {
         'fullName': fullName.trim(),
         'phone': phone.trim(),
+        if (email.trim().isNotEmpty) 'email': email.trim(),
       };
 
   factory BookingContactModel.fromJson(Map<String, dynamic> json) => BookingContactModel(
         fullName: (json['fullName'] ?? '').toString(),
         phone: (json['phone'] ?? '').toString(),
+        email: (json['email'] ?? '').toString(),
       );
 
   @override
-  List<Object?> get props => [fullName, phone];
+  List<Object?> get props => [fullName, phone, email];
 }
 
 /// Request body gửi lên backend `POST /api/v1/bookings`.
@@ -32,6 +78,7 @@ class BookingCreateRequest extends Equatable {
   final String tourId;
   final String departureId;
   final int participants;
+  final GuestCounts? guestCounts;
   final BookingContactModel contact;
   final String? notes;
   final String? promotionCode;
@@ -43,6 +90,7 @@ class BookingCreateRequest extends Equatable {
     required this.tourId,
     required this.departureId,
     required this.participants,
+    this.guestCounts,
     required this.contact,
     this.notes,
     this.promotionCode,
@@ -66,13 +114,26 @@ class BookingCreateRequest extends Equatable {
       'tourId': tourId,
       'departureId': departureId,
       'participants': participants,
-      'contact': contact.toJson(),
+      'contact': {
+        'fullName': contact.fullName.trim(),
+        'phone': contact.phone.trim(),
+      },
       'clientRequestId': clientRequestId,
     };
 
-    if (notes != null && notes!.trim().isNotEmpty) {
-      map['notes'] = notes!.trim();
+    if (guestCounts != null) {
+      map['guestCounts'] = guestCounts!.toJson();
     }
+
+    final combinedNotes = [
+      if (notes != null && notes!.trim().isNotEmpty) notes!.trim(),
+      if (contact.email.trim().isNotEmpty) 'Email khách: ${contact.email.trim()}',
+    ].join('\n');
+
+    if (combinedNotes.isNotEmpty) {
+      map['notes'] = combinedNotes;
+    }
+
     if (promotionCode != null && promotionCode!.trim().isNotEmpty) {
       map['promotionCode'] = promotionCode!.trim().toUpperCase();
     }
@@ -91,6 +152,7 @@ class BookingCreateRequest extends Equatable {
         tourId,
         departureId,
         participants,
+        guestCounts,
         contact,
         notes,
         promotionCode,
@@ -215,4 +277,3 @@ class BookingCreatedModel extends Equatable {
         createdAt,
       ];
 }
-

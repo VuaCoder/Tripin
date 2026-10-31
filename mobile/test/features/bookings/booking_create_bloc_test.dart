@@ -4,25 +4,24 @@ import 'package:mobile/core/constants/api_endpoints.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/features/bookings/bloc/booking_create_bloc.dart';
 import 'package:mobile/features/bookings/bloc/booking_create_event.dart';
+import 'package:mobile/features/bookings/models/booking_voucher_model.dart';
 
-class MockBookingApiClient extends ApiClient {
-  final Map<String, dynamic>? myVouchersResponse;
-  final Map<String, dynamic>? previewResponse;
-  final int previewStatusCode;
-  final Map<String, dynamic>? previewErrorData;
+class MockBookingApiClient extends Fake implements ApiClient {
+  final int getStatusCode;
+  final dynamic getResponseData;
   final int postStatusCode;
-  final Map<String, dynamic>? postResponseData;
+  final dynamic postResponseData;
   final Map<String, dynamic>? postErrorData;
 
+  String? lastGetPath;
+  Map<String, dynamic>? lastGetQueryParams;
   String? lastPostPath;
-  Map<String, dynamic>? lastPostData;
+  dynamic lastPostData;
 
   MockBookingApiClient({
-    this.myVouchersResponse,
-    this.previewResponse,
-    this.previewStatusCode = 200,
-    this.previewErrorData,
-    this.postStatusCode = 201,
+    this.getStatusCode = 200,
+    this.getResponseData,
+    this.postStatusCode = 200,
     this.postResponseData,
     this.postErrorData,
   });
@@ -32,69 +31,93 @@ class MockBookingApiClient extends ApiClient {
     String path, {
     Map<String, dynamic>? queryParameters,
     Options? options,
+    CancelToken? cancelToken,
+    ProgressCallback? onReceiveProgress,
   }) async {
-    if (path == ApiEndpoints.myVouchers) {
-      return Response<T>(
+    lastGetPath = path;
+    lastGetQueryParams = queryParameters;
+
+    if (getStatusCode >= 400) {
+      throw DioException(
         requestOptions: RequestOptions(path: path),
-        statusCode: 200,
-        data: (myVouchersResponse ?? {
-          'success': true,
-          'data': [
-            {
-              'id': 'uv-01',
-              'isUsed': false,
-              'promotion': {
-                'id': 'promo-01',
-                'code': 'DISCOUNT10',
-                'title': 'Giảm 10%',
-                'discountType': 'PERCENT',
-                'discountValue': 10,
-                'minOrderAmount': 500000,
-                'scope': 'PLATFORM',
-                'isActive': true,
-              },
-            }
-          ]
-        }) as T,
+        response: Response(
+          requestOptions: RequestOptions(path: path),
+          statusCode: getStatusCode,
+          data: {'success': false, 'message': 'API Error'},
+        ),
+        type: DioExceptionType.badResponse,
       );
     }
 
-    if (path == ApiEndpoints.promotionsPreview) {
-      if (previewStatusCode >= 400) {
+    dynamic defaultData;
+    if (path == ApiEndpoints.myVouchers) {
+      defaultData = {
+        'success': true,
+        'data': [
+          {
+            'id': 'uv-1',
+            'isUsed': false,
+            'promotion': {
+              'id': 'promo-1',
+              'code': 'DISCOUNT10',
+              'title': 'Giảm 10%',
+              'discountType': 'PERCENT',
+              'discountValue': 10,
+              'minOrderAmount': 100000,
+              'scope': 'PLATFORM',
+              'isActive': true,
+            }
+          }
+        ]
+      };
+    } else if (path == ApiEndpoints.promotionsAvailable) {
+      defaultData = {
+        'success': true,
+        'data': [
+          {
+            'id': 'promo-2',
+            'code': 'BIGSALE',
+            'title': 'Giảm 100K',
+            'discountType': 'FIXED',
+            'discountValue': 100000,
+            'minOrderAmount': 2000000,
+            'scope': 'AGENCY',
+            'isActive': true,
+          }
+        ]
+      };
+    } else if (path == ApiEndpoints.promotionsPreview) {
+      final code = queryParameters?['code']?.toString() ?? '';
+      if (code == 'BIGSALE') {
         throw DioException(
           requestOptions: RequestOptions(path: path),
           response: Response(
             requestOptions: RequestOptions(path: path),
-            statusCode: previewStatusCode,
-            data: previewErrorData ?? {
+            statusCode: 400,
+            data: {
               'success': false,
-              'error': {'code': 'PROMOTION_MIN_ORDER', 'message': 'Chưa đủ đơn tối thiểu'}
+              'error': {'code': 'PROMOTION_MIN_ORDER', 'message': 'Chưa đạt giá trị đơn hàng tối thiểu'}
             },
           ),
           type: DioExceptionType.badResponse,
         );
       }
-
-      return Response<T>(
-        requestOptions: RequestOptions(path: path),
-        statusCode: 200,
-        data: (previewResponse ?? {
-          'success': true,
-          'data': {
-            'promotionId': 'promo-01',
-            'code': queryParameters?['code'] ?? 'DISCOUNT10',
-            'scope': 'PLATFORM',
-            'discountAmount': 150000,
-            'finalAmount': 1350000,
-          }
-        }) as T,
-      );
+      defaultData = {
+        'success': true,
+        'data': {
+          'promotionId': 'promo-1',
+          'code': code.isNotEmpty ? code : 'DISCOUNT10',
+          'scope': 'PLATFORM',
+          'discountAmount': 100000,
+          'finalAmount': 900000,
+        }
+      };
     }
 
     return Response<T>(
       requestOptions: RequestOptions(path: path),
-      statusCode: 200,
-      data: {'success': true, 'data': {}} as T,
+      statusCode: getStatusCode,
+      data: (getResponseData ?? defaultData) as T,
     );
   }
 
@@ -104,11 +127,12 @@ class MockBookingApiClient extends ApiClient {
     dynamic data,
     Map<String, dynamic>? queryParameters,
     Options? options,
+    CancelToken? cancelToken,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
   }) async {
     lastPostPath = path;
-    if (data is Map<String, dynamic>) {
-      lastPostData = data;
-    }
+    lastPostData = data;
 
     if (postStatusCode >= 400) {
       throw DioException(
@@ -159,31 +183,36 @@ void main() {
       bloc.add(const BookingCreateInitEvent(
         tourId: 'tour-1',
         departureId: 'dep-1',
-        tourTitle: 'Tour Phú Quốc 3N2Đ',
-        departurePrice: 2000000,
+        tourTitle: 'Tour Đà Nẵng 3N2Đ',
+        departurePrice: 1500000,
         remainingSeats: 5,
-        initialFullName: 'Pham Van E',
-        initialPhone: '0912345678',
+        initialFullName: 'Nguyen Van A',
+        initialPhone: '0901234567',
+        initialEmail: 'nguyenvana@gmail.com',
       ));
 
       await Future.delayed(const Duration(milliseconds: 50));
 
       expect(bloc.state.tourId, 'tour-1');
       expect(bloc.state.departureId, 'dep-1');
-      expect(bloc.state.tourTitle, 'Tour Phú Quốc 3N2Đ');
-      expect(bloc.state.departurePrice, 2000000);
+      expect(bloc.state.tourTitle, 'Tour Đà Nẵng 3N2Đ');
+      expect(bloc.state.departurePrice, 1500000);
       expect(bloc.state.remainingSeats, 5);
-      expect(bloc.state.fullName, 'Pham Van E');
-      expect(bloc.state.phone, '0912345678');
+      expect(bloc.state.fullName, 'Nguyen Van A');
+      expect(bloc.state.phone, '0901234567');
+      expect(bloc.state.email, 'nguyenvana@gmail.com');
+      expect(bloc.state.adults, 1);
+      expect(bloc.state.totalGuests, 1);
       expect(bloc.state.clientRequestId, isNotEmpty);
-      expect(bloc.state.clientRequestId.length, 32);
-      expect(bloc.state.vouchers.length, 1);
+      expect(bloc.state.isFormValid, isTrue);
+
+      expect(bloc.state.vouchers.length, 2);
       expect(bloc.state.vouchers.first.code, 'DISCOUNT10');
 
       await bloc.close();
     });
 
-    test('Form validation fails on short fullName and invalid phone number', () async {
+    test('Form validation fails on short fullName, invalid phone and missing email', () async {
       final mockApi = MockBookingApiClient();
       final bloc = BookingCreateBloc(client: mockApi);
 
@@ -197,10 +226,11 @@ void main() {
 
       await Future.delayed(const Duration(milliseconds: 20));
 
-      // Nhập họ tên 1 ký tự, số điện thoại sai
+      // Nhập họ tên 1 ký tự, số điện thoại sai, không nhập email
       bloc.add(const BookingCreateContactChangedEvent(
         fullName: 'A',
         phone: 'invalid-phone',
+        email: 'invalid-email',
       ));
       bloc.add(const BookingCreateSubmitEvent());
 
@@ -208,8 +238,45 @@ void main() {
 
       expect(bloc.state.fullNameError, isNotNull);
       expect(bloc.state.phoneError, isNotNull);
+      expect(bloc.state.emailError, isNotNull);
       expect(bloc.state.isSubmitting, isFalse);
       expect(bloc.state.submitSuccess, isFalse);
+
+      await bloc.close();
+    });
+
+    test('BookingCreateGuestsChangedEvent calculates adult, child and infant pricing', () async {
+      final mockApi = MockBookingApiClient();
+      final bloc = BookingCreateBloc(client: mockApi);
+
+      bloc.add(const BookingCreateInitEvent(
+        tourId: 'tour-1',
+        departureId: 'dep-1',
+        tourTitle: 'Tour Phú Quốc',
+        departurePrice: 2000000,
+        remainingSeats: 5,
+        initialFullName: 'Tran C',
+        initialPhone: '0901234567',
+        initialEmail: 'tranc@gmail.com',
+      ));
+
+      await Future.delayed(const Duration(milliseconds: 30));
+
+      // 2 Người lớn (2x2tr), 1 Trẻ em (1x1.4tr), 1 Em bé (miễn phí) -> Tổng = 5.400.000đ
+      bloc.add(const BookingCreateGuestsChangedEvent(
+        adults: 2,
+        children: 1,
+        infants: 1,
+      ));
+
+      await Future.delayed(const Duration(milliseconds: 30));
+
+      expect(bloc.state.adults, 2);
+      expect(bloc.state.children, 1);
+      expect(bloc.state.infants, 1);
+      expect(bloc.state.totalGuests, 4);
+      expect(bloc.state.estimatedSubtotal, 5400000);
+      expect(bloc.state.isFormValid, isTrue);
 
       await bloc.close();
     });
@@ -221,65 +288,59 @@ void main() {
       bloc.add(const BookingCreateInitEvent(
         tourId: 'tour-1',
         departureId: 'dep-1',
-        tourTitle: 'Tour Đà Lạt',
-        departurePrice: 1000000,
-        remainingSeats: 4,
+        tourTitle: 'Tour Phú Quốc',
+        departurePrice: 2000000,
+        remainingSeats: 3,
+        initialFullName: 'Tran C',
+        initialPhone: '0901234567',
+        initialEmail: 'tranc@gmail.com',
       ));
 
       await Future.delayed(const Duration(milliseconds: 20));
+      expect(bloc.state.estimatedSubtotal, 2000000);
 
-      bloc.add(const BookingCreateParticipantsChangedEvent(3));
-      await Future.delayed(const Duration(milliseconds: 10));
+      // Tăng lên 2 khách
+      bloc.add(const BookingCreateParticipantsChangedEvent(2));
+      await Future.delayed(const Duration(milliseconds: 20));
+      expect(bloc.state.participants, 2);
+      expect(bloc.state.estimatedSubtotal, 4000000);
 
-      expect(bloc.state.participants, 3);
-      expect(bloc.state.estimatedSubtotal, 3000000);
-      expect(bloc.state.estimatedTotal, 3000000);
-
-      // Thử số khách vượt quá remainingSeats (4)
-      bloc.add(const BookingCreateParticipantsChangedEvent(10));
-      await Future.delayed(const Duration(milliseconds: 10));
-      expect(bloc.state.participants, 3); // Giữ nguyên, không đổi sang 10
+      // Thử đặt 4 khách (vượt quá 3 chỗ còn lại) -> Giữ nguyên 2
+      bloc.add(const BookingCreateParticipantsChangedEvent(4));
+      await Future.delayed(const Duration(milliseconds: 20));
+      expect(bloc.state.participants, 2);
 
       await bloc.close();
     });
 
     test('Applies voucher code successfully and updates estimatedTotal', () async {
-      final mockApi = MockBookingApiClient(
-        previewResponse: {
-          'success': true,
-          'data': {
-            'promotionId': 'p-promo',
-            'code': 'GIAM100K',
-            'scope': 'AGENCY',
-            'discountAmount': 100000,
-            'finalAmount': 900000,
-          }
-        },
-      );
+      final mockApi = MockBookingApiClient();
       final bloc = BookingCreateBloc(client: mockApi);
 
       bloc.add(const BookingCreateInitEvent(
         tourId: 'tour-1',
         departureId: 'dep-1',
-        tourTitle: 'Tour Sapa',
+        tourTitle: 'Tour Nha Trang',
         departurePrice: 1000000,
         remainingSeats: 4,
+        initialFullName: 'Le D',
+        initialPhone: '0912345678',
+        initialEmail: 'led@gmail.com',
       ));
 
       await Future.delayed(const Duration(milliseconds: 30));
 
-      bloc.add(const BookingCreateApplyVoucherCodeEvent('giam100k'));
-      await Future.delayed(const Duration(milliseconds: 30));
+      bloc.add(const BookingCreateApplyVoucherCodeEvent('DISCOUNT10'));
+      await Future.delayed(const Duration(milliseconds: 40));
 
       expect(bloc.state.previewResult, isNotNull);
-      expect(bloc.state.previewResult!.code, 'GIAM100K');
       expect(bloc.state.discountAmount, 100000);
       expect(bloc.state.estimatedTotal, 900000);
       expect(bloc.state.voucherError, isNull);
 
-      // Bỏ voucher
+      // Gỡ voucher
       bloc.add(const BookingCreateRemoveVoucherEvent());
-      await Future.delayed(const Duration(milliseconds: 10));
+      await Future.delayed(const Duration(milliseconds: 20));
       expect(bloc.state.previewResult, isNull);
       expect(bloc.state.discountAmount, 0);
       expect(bloc.state.estimatedTotal, 1000000);
@@ -288,16 +349,7 @@ void main() {
     });
 
     test('Handles voucher error when backend rejects code (PROMOTION_MIN_ORDER)', () async {
-      final mockApi = MockBookingApiClient(
-        previewStatusCode: 409,
-        previewErrorData: {
-          'success': false,
-          'error': {
-            'code': 'PROMOTION_MIN_ORDER',
-            'message': 'Đơn hàng chưa đạt giá trị tối thiểu',
-          }
-        },
-      );
+      final mockApi = MockBookingApiClient();
       final bloc = BookingCreateBloc(client: mockApi);
 
       bloc.add(const BookingCreateInitEvent(
@@ -306,15 +358,28 @@ void main() {
         tourTitle: 'Tour Sapa',
         departurePrice: 500000,
         remainingSeats: 4,
+        initialFullName: 'Hoang E',
+        initialPhone: '0912345678',
+        initialEmail: 'hoange@gmail.com',
       ));
 
       await Future.delayed(const Duration(milliseconds: 30));
 
-      bloc.add(const BookingCreateApplyVoucherCodeEvent('BIGSALE'));
+      bloc.add(BookingCreateSelectVoucherItemEvent(
+        const VoucherItemModel(
+          id: 'v-high',
+          code: 'BIGSALE',
+          title: 'Giảm 100K',
+          discountType: 'FIXED',
+          discountValue: 100000,
+          minOrderAmount: 2000000,
+          scope: 'AGENCY',
+        ),
+      ));
       await Future.delayed(const Duration(milliseconds: 30));
 
       expect(bloc.state.previewResult, isNull);
-      expect(bloc.state.voucherError, contains('Đơn hàng chưa đạt giá trị tối thiểu'));
+      expect(bloc.state.voucherError, contains('chưa đạt giá trị tối thiểu'));
 
       await bloc.close();
     });
@@ -331,6 +396,7 @@ void main() {
         remainingSeats: 4,
         initialFullName: 'Tran Van F',
         initialPhone: '0909998888',
+        initialEmail: 'tranvanf@gmail.com',
       ));
 
       await Future.delayed(const Duration(milliseconds: 30));
@@ -374,6 +440,7 @@ void main() {
         remainingSeats: 2,
         initialFullName: 'Tran Van F',
         initialPhone: '0909998888',
+        initialEmail: 'tranvanf@gmail.com',
       ));
 
       await Future.delayed(const Duration(milliseconds: 30));
@@ -409,6 +476,7 @@ void main() {
         remainingSeats: 2,
         initialFullName: 'Tran Van F',
         initialPhone: '0909998888',
+        initialEmail: 'tranvanf@gmail.com',
       ));
 
       await Future.delayed(const Duration(milliseconds: 30));

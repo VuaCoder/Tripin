@@ -26,6 +26,18 @@ class _TourDetailImageCarouselState extends State<TourDetailImageCarousel> {
     super.dispose();
   }
 
+  void _openFullScreenViewer(BuildContext context, int initialIndex) {
+    if (widget.images.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _FullScreenImageViewer(
+          images: widget.images,
+          initialIndex: initialIndex,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final images = widget.images;
@@ -45,25 +57,28 @@ class _TourDetailImageCarouselState extends State<TourDetailImageCarousel> {
                     setState(() => _currentIndex = index);
                   },
                   itemBuilder: (context, index) {
-                    return CachedNetworkImage(
-                      imageUrl: images[index],
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: AppColors.shimmerBase,
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.primary,
+                    return GestureDetector(
+                      onTap: () => _openFullScreenViewer(context, index),
+                      child: CachedNetworkImage(
+                        imageUrl: images[index],
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: AppColors.shimmerBase,
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primary,
+                            ),
                           ),
                         ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: AppColors.primarySurface,
-                        child: const Center(
-                          child: Icon(
-                            Icons.broken_image_rounded,
-                            size: 48,
-                            color: AppColors.textMuted,
+                        errorWidget: (context, url, error) => Container(
+                          color: AppColors.primarySurface,
+                          child: const Center(
+                            child: Icon(
+                              Icons.broken_image_rounded,
+                              size: 48,
+                              color: AppColors.textMuted,
+                            ),
                           ),
                         ),
                       ),
@@ -185,3 +200,89 @@ class _TourDetailImageCarouselState extends State<TourDetailImageCarousel> {
   }
 }
 
+/// [FLOW-07 AC2] Màn hình xem ảnh toàn màn hình với InteractiveViewer hỗ trợ zoom ảnh
+class _FullScreenImageViewer extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const _FullScreenImageViewer({
+    required this.images,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
+  late int _currentIndex = widget.initialIndex;
+  late final PageController _controller = PageController(initialPage: widget.initialIndex);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _controller,
+            itemCount: widget.images.length,
+            onPageChanged: (idx) => setState(() => _currentIndex = idx),
+            itemBuilder: (context, index) {
+              return InteractiveViewer(
+                minScale: 0.8,
+                maxScale: 4.0,
+                child: Center(
+                  child: CachedNetworkImage(
+                    imageUrl: widget.images[index],
+                    fit: BoxFit.contain,
+                    placeholder: (context, url) => const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                    errorWidget: (context, url, error) => const Center(
+                      child: Icon(Icons.broken_image, color: Colors.white54, size: 48),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Colors.black45,
+                    child: IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black45,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      '${_currentIndex + 1}/${widget.images.length}',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

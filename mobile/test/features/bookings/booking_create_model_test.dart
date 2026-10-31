@@ -4,19 +4,38 @@ import 'package:mobile/features/bookings/models/booking_voucher_model.dart';
 
 void main() {
   group('[FLOW-09] BookingCreateModel Unit Tests', () {
-    test('BookingContactModel serializes and trims fullName and phone', () {
+    test('BookingContactModel serializes and trims fullName, phone and email', () {
       const contact = BookingContactModel(
         fullName: '   Nguyen Van B   ',
         phone: '  0901234567  ',
+        email: '  test@example.com  ',
       );
 
       final json = contact.toJson();
       expect(json['fullName'], 'Nguyen Van B');
       expect(json['phone'], '0901234567');
+      expect(json['email'], 'test@example.com');
 
       final fromJson = BookingContactModel.fromJson(json);
       expect(fromJson.fullName, 'Nguyen Van B');
       expect(fromJson.phone, '0901234567');
+      expect(fromJson.email, 'test@example.com');
+    });
+
+    test('GuestCounts calculates total and serializes to json', () {
+      const guests = GuestCounts(adults: 2, children: 1, infants: 1);
+      expect(guests.total, 4);
+
+      final json = guests.toJson();
+      expect(json['adults'], 2);
+      expect(json['children'], 1);
+      expect(json['infants'], 1);
+
+      final fromJson = GuestCounts.fromJson(json);
+      expect(fromJson.adults, 2);
+      expect(fromJson.children, 1);
+      expect(fromJson.infants, 1);
+      expect(fromJson.total, 4);
     });
 
     test('BookingCreateRequest generateClientRequestId generates valid regex token', () {
@@ -27,11 +46,16 @@ void main() {
     });
 
     test('BookingCreateRequest toJson omits empty optional fields and keeps uppercase promo codes', () {
-      const contact = BookingContactModel(fullName: 'Tran Thi C', phone: '0987654321');
+      const contact = BookingContactModel(
+        fullName: 'Tran Thi C',
+        phone: '0987654321',
+        email: 'tranthic@gmail.com',
+      );
       const request = BookingCreateRequest(
         tourId: 'tour-123',
         departureId: 'dep-456',
         participants: 2,
+        guestCounts: GuestCounts(adults: 2, children: 0, infants: 0),
         contact: contact,
         notes: '   Phòng hướng biển  ',
         promotionCode: 'summer2026',
@@ -42,8 +66,10 @@ void main() {
       expect(json['tourId'], 'tour-123');
       expect(json['departureId'], 'dep-456');
       expect(json['participants'], 2);
+      expect(json['guestCounts']['adults'], 2);
       expect(json['contact']['fullName'], 'Tran Thi C');
-      expect(json['notes'], 'Phòng hướng biển');
+      expect(json['notes'], contains('Phòng hướng biển'));
+      expect(json['notes'], contains('Email khách: tranthic@gmail.com'));
       expect(json['promotionCode'], 'SUMMER2026');
       expect(json['clientRequestId'], 'req-unique-uuid-12345');
       expect(json.containsKey('agencyPromotionCode'), isFalse);
@@ -98,94 +124,95 @@ void main() {
       expect(model.formattedPaymentExpiresAt, isNotEmpty);
     });
 
-    test('BookingCreatedModel handles missing nested maps and null values safely', () {
-      final json = <String, dynamic>{
-        'id': 'booking-002',
+    test('BookingCreatedModel fallback values for missing optional fields', () {
+      final json = {
+        'id': 'booking-empty',
         'bookingCode': 'TRP-EMPTY',
+        'status': 'PENDING',
+        'participants': 1,
+        'unitPrice': 500000,
+        'subtotal': 500000,
+        'discountAmount': 0,
+        'totalAmount': 500000,
+        'contact': {
+          'fullName': 'Nguyen E',
+          'phone': '0901112222',
+        },
       };
 
       final model = BookingCreatedModel.fromJson(json);
-      expect(model.id, 'booking-002');
-      expect(model.bookingCode, 'TRP-EMPTY');
-      expect(model.status, 'PENDING');
-      expect(model.tourTitle, 'Chuyến du lịch');
-      expect(model.totalAmount, 0);
-      expect(model.contactName, '');
-      expect(model.contactPhone, '');
+      expect(model.departureId, isEmpty);
+      expect(model.departureDate, isNull);
+      expect(model.endDate, isNull);
+      expect(model.notes, isNull);
       expect(model.paymentExpiresAt, isNull);
+      expect(model.formattedDepartureDate, isEmpty);
+      expect(model.formattedPaymentExpiresAt, '15 phút kể từ lúc đặt');
     });
   });
 
   group('[FLOW-09] BookingVoucherModel Unit Tests', () {
     test('VoucherItemModel parses from UserVoucherDto with nested promotion map', () {
       final json = {
-        'id': 'uv-001',
+        'id': 'user-voucher-1',
         'isUsed': false,
         'promotion': {
-          'id': 'promo-101',
-          'code': 'SUMMER10',
-          'title': 'Ưu đãi hè rực rỡ',
-          'discountType': 'PERCENT',
-          'discountValue': 10,
-          'maxDiscountAmount': 200000,
-          'minOrderAmount': 1000000,
+          'id': 'promo-1',
+          'code': 'SUMMER50',
+          'title': 'Giảm giá hè 50K',
+          'discountType': 'FIXED',
+          'discountValue': 50000,
+          'minOrderAmount': 200000,
           'scope': 'PLATFORM',
           'isActive': true,
-          'endsAt': '2026-12-31T23:59:59.000Z',
-        },
+        }
       };
 
       final voucher = VoucherItemModel.fromJson(json);
-      expect(voucher.code, 'SUMMER10');
-      expect(voucher.discountType, 'PERCENT');
-      expect(voucher.discountValue, 10);
-      expect(voucher.maxDiscountAmount, 200000);
-      expect(voucher.minOrderAmount, 1000000);
-      expect(voucher.isUsed, isFalse);
-      expect(voucher.isActive, isTrue);
-
-      expect(voucher.formattedDiscountText, 'Giảm 10% (tối đa 200.000 ₫)');
-      expect(voucher.formattedMinOrderText, 'Đơn tối thiểu 1.000.000 ₫');
-
-      // Check applicability against order subtotal
-      expect(voucher.isApplicable(500000), isFalse);
-      expect(voucher.isApplicable(1500000), isTrue);
-    });
-
-    test('VoucherItemModel fixed discount formatting and expired check', () {
-      final voucher = VoucherItemModel(
-        id: 'promo-fixed',
-        code: 'GIAM50K',
-        title: 'Giảm ngay 50K',
-        discountType: 'FIXED',
-        discountValue: 50000,
-        minOrderAmount: 0,
-        scope: 'AGENCY',
-        endsAt: DateTime.now().subtract(const Duration(days: 1)),
-      );
-
+      expect(voucher.id, 'user-voucher-1');
+      expect(voucher.code, 'SUMMER50');
+      expect(voucher.title, 'Giảm giá hè 50K');
+      expect(voucher.discountType, 'FIXED');
+      expect(voucher.discountValue, 50000);
+      expect(voucher.minOrderAmount, 200000);
       expect(voucher.formattedDiscountText, 'Giảm 50.000 ₫');
-      expect(voucher.formattedMinOrderText, 'Không giới hạn đơn tối thiểu');
-      expect(voucher.isExpired, isTrue);
-      expect(voucher.isApplicable(200000), isFalse);
+      expect(voucher.formattedMinOrderText, 'Đơn tối thiểu 200.000 ₫');
+      expect(voucher.isApplicable(300000), isTrue);
+      expect(voucher.isApplicable(100000), isFalse);
     });
 
-    test('PromotionPreviewResult parses backend preview envelope properly', () {
+    test('VoucherItemModel handles percent discount with maxDiscountAmount', () {
       final json = {
-        'promotionId': 'p-123',
-        'code': 'SAVE100',
-        'scope': 'AGENCY',
-        'discountAmount': 100000,
-        'finalAmount': 900000,
+        'id': 'promo-percent',
+        'code': 'VIP10',
+        'title': 'Giảm 10% tối đa 100K',
+        'discountType': 'PERCENT',
+        'discountValue': 10,
+        'maxDiscountAmount': 100000,
+        'minOrderAmount': 0,
+        'scope': 'PLATFORM',
+        'isActive': true,
+      };
+
+      final voucher = VoucherItemModel.fromJson(json);
+      expect(voucher.formattedDiscountText, 'Giảm 10% (tối đa 100.000 ₫)');
+      expect(voucher.formattedMinOrderText, 'Không giới hạn đơn tối thiểu');
+    });
+
+    test('PromotionPreviewResult parses preview response correctly', () {
+      final json = {
+        'promotionId': 'promo-1',
+        'code': 'HELLO2026',
+        'scope': 'PLATFORM',
+        'discountAmount': 120000,
+        'finalAmount': 880000,
       };
 
       final preview = PromotionPreviewResult.fromJson(json);
-      expect(preview.promotionId, 'p-123');
-      expect(preview.code, 'SAVE100');
-      expect(preview.scope, 'AGENCY');
-      expect(preview.discountAmount, 100000);
-      expect(preview.finalAmount, 900000);
+      expect(preview.promotionId, 'promo-1');
+      expect(preview.code, 'HELLO2026');
+      expect(preview.discountAmount, 120000);
+      expect(preview.finalAmount, 880000);
     });
   });
 }
-

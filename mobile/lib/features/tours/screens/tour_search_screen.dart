@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'tour_detail_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
@@ -132,10 +133,9 @@ class _TourSearchViewState extends State<_TourSearchView> {
     try {
       context.read<WishlistCubit>().recordRecentlyViewed(tour);
     } catch (_) {}
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Đang mở chi tiết: ${tour.title}'),
-        duration: const Duration(seconds: 1),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TourDetailScreen(tourId: tour.id),
       ),
     );
   }

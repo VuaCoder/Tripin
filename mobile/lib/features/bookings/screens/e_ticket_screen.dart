@@ -13,6 +13,7 @@ import '../../chat/bloc/chat_repository.dart';
 import '../../chat/screens/chat_screen.dart';
 import '../../reports/screens/report_screen.dart';
 import 'cancel_booking_screen.dart';
+import '../../tours/widgets/tour_review_form_modal.dart';
 
 /// Vé điện tử: mã vé, thông tin chuyến đi và QR cho HDV quét điểm danh.
 /// Pop `true` khi đơn vừa được hủy từ màn này.
@@ -178,6 +179,25 @@ class _ETicketViewState extends State<_ETicketView> {
           icon: const Icon(Icons.report_gmailerrorred_rounded),
           label: const Text('Báo cáo sự cố / Khiếu nại'),
         ),
+        if (widget.booking.status == BookingStatus.completed) ...[
+          const SizedBox(height: 8),
+          ElevatedButton.icon(
+            onPressed: () {
+              TourReviewFormModal.show(
+                context,
+                bookingId: widget.booking.id,
+              );
+            },
+            icon: const Icon(Icons.star_rounded, color: Colors.amber),
+            label: const Text('Đánh giá chuyến đi'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
         if (canCancel) ...[
           const SizedBox(height: 8),
           TextButton(
