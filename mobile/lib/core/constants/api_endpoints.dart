@@ -94,9 +94,15 @@ class ApiEndpoints {
 
   // Tour guide: assigned tours + QR check-in
   static const String guideTours = '/guide/tours';
+  static String guideVerification(String tourId) => '/guide/tours/$tourId/verification';
   static String guideTicketRoster(String tourId) => '/guide/e-tickets/$tourId';
   static String guideCheckIn(String tourId) => '/guide/e-tickets/$tourId/check-in';
+
   static String conversationRead(String id) => '/chat/conversations/$id/read';
+
+  // Tour guide: earnings (thù lao) + payout bank account
+  static const String myEarnings = '/earnings/me';
+  static const String myEarningsSummary = '/earnings/me/summary';
 
   /// Gốc của máy chủ (không có `/api/v1`) để kết nối Socket.IO.
   static String get socketUrl => baseUrl.replaceFirst(RegExp(r'/api/v1$'), '');

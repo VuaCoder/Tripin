@@ -27,7 +27,7 @@ CONFIRMED, follows the booking if it is cancelled or completed, and is delivered
 * 404 for unknown tickets **and** for tickets of other travelers. `code` is the string to put in the QR code (the API does not render images).
 
 **Tour guide** (`guide:check-in`, assignment must be ACCEPTED):
-* `GET /guide/e-tickets/:tourId` → `{ tourId, tourTitle, total, checkedIn, items[] }`; items are `{ ticketId, bookingCode, holderName, participants, departureDate, checkedIn, checkedInAt? }`. Cancelled tickets are excluded; the ticket `code` is not exposed.
+* `GET /guide/e-tickets/:tourId` → `{ tourId, tourTitle, total, checkedIn, items[] }`; items are `{ ticketId, bookingCode, holderName, participants, contactPhone?, guests{adults,children,infants}, notes?, departureDate, checkedIn, checkedInAt? }`. Cancelled tickets are excluded; the ticket `code` is not exposed. `total`/`checkedIn` count ticket groups, not seats.
 * `POST /guide/e-tickets/:tourId/check-in` `{ code }` → `{ ticketId, holderName, participants, tourTitle, checkedInAt }`.
 * Errors: `TICKET_NOT_FOUND` (404), `TICKET_WRONG_TOUR`, `TICKET_CANCELLED`, `TICKET_ALREADY_USED`, `CONCURRENT_UPDATE` (409), `NOT_FOUND` (404, not the guide's tour).
 * The roster is tour-level: a guide assigned to a tour sees its tickets across departures (each row carries `departureDate`).
@@ -42,6 +42,7 @@ There is no create endpoint: tickets exist only as a consequence of a verified p
 5. Issuing notifies the traveler (`ETICKET_ISSUED`, in-app and email).
 6. Guide check-in stamps `usedAt` once (`status` stays VALID), so the traveler's ticket is not shown as completed before the trip. The guide's roster counts `usedAt != null` (or `USED`) as present; a second scan answers `TICKET_ALREADY_USED`. The check-in is a compare-and-set on `{ id, status: VALID, usedAt: null }`.
 7. A guide can only check in tickets of a tour whose assignment is ACCEPTED and not archived; the assignment is verified before the code is looked up.
+8. The roster joins the booking behind each ticket for the contact phone, the adult/child/infant breakdown and the booking notes; a booking without age pricing counts every participant as an adult.
 
 ## State machine
 `VALID → USED` (trip done) · `VALID → CANCELLED` (booking cancelled). `USED` and `CANCELLED` are terminal; each status change is a compare-and-set on `VALID`. Guide check-in is **not** a status change: it stamps `usedAt` while the ticket remains `VALID` until the booking completes.

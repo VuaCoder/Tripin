@@ -13,6 +13,14 @@ const imageUrl = z
   .max(500)
   .refine((val) => val.startsWith('http://') || val.startsWith('https://'), 'URL must start with http:// or https://')
   .nullable();
+const bankAccount = z
+  .object({
+    bankName: z.string().trim().min(2).max(120),
+    accountNumber: z.string().trim().regex(/^\d{6,32}$/, 'Invalid account number'),
+    accountHolder: z.string().trim().min(2).max(120),
+  })
+  .strict()
+  .nullable();
 
 export const updateProfileBody = z
   .object({
@@ -40,6 +48,7 @@ export const updateProfileBody = z
       })
       .partial()
       .strict(),
+    bankAccount,
   })
   .partial()
   .strict()

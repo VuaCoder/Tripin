@@ -26,7 +26,7 @@ export class ETicketsService {
   constructor(
     private readonly tickets: Pick<
       ETicketsRepository,
-      'create' | 'findById' | 'findByBookingId' | 'transitionByBooking' | 'listByTraveler' | 'findAcceptedAssignment' | 'findByCode' | 'listByTour' | 'markCheckedIn'
+      'create' | 'findById' | 'findByBookingId' | 'transitionByBooking' | 'listByTraveler' | 'findAcceptedAssignment' | 'findByCode' | 'listByTour' | 'markCheckedIn' | 'findRosterBookings'
     > = eTicketsRepository,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
   ) {}
@@ -99,7 +99,9 @@ export class ETicketsService {
   /** Use case "Scan QR check-in": the roster of the tour the guide is leading. */
   async rosterForGuide(guideId: string, tourId: string): Promise<GuideRosterDto> {
     const assignment = await this.assertGuideTour(guideId, tourId);
-    const items = (await this.tickets.listByTour(tourId)).map(toGuideRosterItem);
+    const tickets = await this.tickets.listByTour(tourId);
+    const bookings = await this.tickets.findRosterBookings(tickets.map((ticket) => ticket.bookingId));
+    const items = tickets.map((ticket) => toGuideRosterItem(ticket, bookings.get(ticket.bookingId)));
     return {
       tourId,
       tourTitle: assignment.tour.title,

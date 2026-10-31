@@ -60,25 +60,20 @@ export class UsersService {
   }
 
   async getPreferences(userId: string): Promise<UserPreferencesDto> {
-    const user = await this.requireUser(userId);
-    const prefs = (user.preferences as unknown as UserPreferencesDto | null) ?? DEFAULT_USER_PREFERENCES;
-    return {
-      freeTimeSlots: prefs.freeTimeSlots ?? DEFAULT_USER_PREFERENCES.freeTimeSlots,
-      voucherExpiryAlerts: prefs.voucherExpiryAlerts !== undefined ? prefs.voucherExpiryAlerts : DEFAULT_USER_PREFERENCES.voucherExpiryAlerts,
-      emailAlerts: prefs.emailAlerts !== undefined ? prefs.emailAlerts : DEFAULT_USER_PREFERENCES.emailAlerts,
-    };
+    return this.preferencesOf(await this.requireUser(userId));
   }
 
   async updatePreferences(userId: string, input: Partial<UserPreferencesDto> = {}): Promise<UserPreferencesDto> {
-    await this.requireUser(userId);
-    const current = await this.getPreferences(userId);
+    const user = await this.requireUser(userId);
+    const current = this.preferencesOf(user);
     const safeInput = input ?? {};
     const next: UserPreferencesDto = {
       freeTimeSlots: safeInput.freeTimeSlots ?? current.freeTimeSlots,
       voucherExpiryAlerts: safeInput.voucherExpiryAlerts !== undefined ? Boolean(safeInput.voucherExpiryAlerts) : current.voucherExpiryAlerts,
       emailAlerts: safeInput.emailAlerts !== undefined ? Boolean(safeInput.emailAlerts) : current.emailAlerts,
     };
-    await this.users.updateById(userId, { preferences: next as any });
+    // Merge: other stored keys (e.g. a guide's bank account) must survive a preferences update.
+    await this.users.updateById(userId, { preferences: { ...this.storedPreferences(user), ...next } as any });
     return next;
   }
 
@@ -95,6 +90,9 @@ export class UsersService {
     if (input.guideProfile && user.role !== ROLES.TOUR_GUIDE) {
       throw AppError.forbidden('Only tour guides can edit a guide profile');
     }
+    if (input.bankAccount !== undefined && user.role !== ROLES.TOUR_GUIDE) {
+      throw AppError.forbidden('Only tour guides can store a payout account');
+    }
 
     const patch: UserPatch = {};
     if (input.fullName !== undefined) patch.fullName = input.fullName;
@@ -104,6 +102,9 @@ export class UsersService {
     if (agencyFields) patch.agencyProfile = agencyFields;
     const guideFields = definedEntries(input.guideProfile);
     if (guideFields) patch.guideProfile = guideFields;
+    if (input.bankAccount !== undefined) {
+      patch.preferences = { ...this.storedPreferences(user), bankAccount: input.bankAccount } as unknown as UserPatch['preferences'];
+    }
     if (Object.keys(patch).length === 0) return toPrivateUserDto(user);
 
     const clearUploadedLicense =
@@ -417,6 +418,22 @@ export class UsersService {
       throw AppError.notFound(`${role} not found`);
     }
     return user;
+  }
+
+  private preferencesOf(user: UserRecord): UserPreferencesDto {
+    const prefs = this.storedPreferences(user);
+    return {
+      freeTimeSlots: (prefs.freeTimeSlots as UserPreferencesDto['freeTimeSlots'] | undefined) ?? DEFAULT_USER_PREFERENCES.freeTimeSlots,
+      voucherExpiryAlerts:
+        prefs.voucherExpiryAlerts !== undefined ? Boolean(prefs.voucherExpiryAlerts) : DEFAULT_USER_PREFERENCES.voucherExpiryAlerts,
+      emailAlerts: prefs.emailAlerts !== undefined ? Boolean(prefs.emailAlerts) : DEFAULT_USER_PREFERENCES.emailAlerts,
+    };
+  }
+
+  /** The raw `preferences` JSON object, or an empty object when unset/not an object (e.g. legacy rows). */
+  private storedPreferences(user: UserRecord): Record<string, unknown> {
+    const value = user.preferences;
+    return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
   }
 
   private async requireUser(id: string): Promise<UserRecord> {

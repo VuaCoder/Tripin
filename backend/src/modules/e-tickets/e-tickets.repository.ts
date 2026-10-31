@@ -28,6 +28,14 @@ export interface EnrichedETicketRecord extends ETicketRecord {
 
 export type NewETicket = Omit<ETicket, 'id' | 'status' | 'cancelledAt' | 'usedAt' | 'createdAt' | 'updatedAt'> & Partial<Pick<ETicket, 'status'>>;
 
+/** The booking facts a guide needs to contact and brief the group. */
+export interface BookingRosterFacts {
+  id: string;
+  contactPhone: string | null;
+  notes: string | null;
+  guestPricing: unknown;
+}
+
 export class ETicketsRepository {
   create(data: NewETicket): Promise<ETicketRecord> {
     return prisma.eTicket.create({ data });
@@ -109,6 +117,16 @@ export class ETicketsRepository {
 
   findByCode(code: string): Promise<ETicketRecord | null> {
     return prisma.eTicket.findUnique({ where: { code } });
+  }
+
+  /** Contact/guest details of the bookings behind a roster, in one query. */
+  async findRosterBookings(ids: string[]): Promise<Map<string, BookingRosterFacts>> {
+    if (ids.length === 0) return new Map();
+    const rows = await prisma.booking.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, contactPhone: true, notes: true, guestPricing: true },
+    });
+    return new Map(rows.map((row) => [row.id, row]));
   }
 
   /** Roster of a tour; cancelled tickets are not part of the group. */
