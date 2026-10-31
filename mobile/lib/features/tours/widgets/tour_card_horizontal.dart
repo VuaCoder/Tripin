@@ -16,6 +16,9 @@ class TourCardHorizontal extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onFavoriteTap;
   final bool isFavorite;
+  final bool showBadge;
+  final double width;
+  final bool useDestinationTitle;
 
   const TourCardHorizontal({
     super.key,
@@ -23,6 +26,9 @@ class TourCardHorizontal extends StatelessWidget {
     this.onTap,
     this.onFavoriteTap,
     this.isFavorite = false,
+    this.showBadge = true,
+    this.width = 260,
+    this.useDestinationTitle = false,
   });
 
   bool get _isInTest {
@@ -33,7 +39,7 @@ class TourCardHorizontal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 260,
+      width: width,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(24),
@@ -56,11 +62,12 @@ class TourCardHorizontal extends StatelessWidget {
                     child: _buildImage(tour.coverImage),
                   ),
 
-                  // Top-left: White pill badge "Guest favorite"
-                  Positioned(
-                    top: 12,
-                    left: 12,
-                    child: Container(
+                  // Top-left: White pill badge "Guest favorite" (chỉ hiện khi showBadge = true)
+                  if (showBadge)
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -118,24 +125,28 @@ class TourCardHorizontal extends StatelessWidget {
                 children: [
                   // Title: font-semibold, text-base, text-neutral-900, single line truncate
                   Text(
-                    tour.title,
+                    (useDestinationTitle && tour.destination.isNotEmpty)
+                        ? tour.destination
+                        : tour.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: Color(0xFF171717), // text-neutral-900
                       letterSpacing: -0.2,
                     ),
                   ),
                   const SizedBox(height: 3),
 
-                  // Subtitle/Meta line: Price for duration · ★ rating
+                  // Subtitle/Meta line: Price for duration / Duration · ★ rating
                   Row(
                     children: [
                       Flexible(
                         child: Text(
-                          tour.airbnbPriceDuration,
+                          (useDestinationTitle && tour.durationDays > 0)
+                              ? '${tour.durationDays} ngày ${tour.durationDays > 1 ? '${tour.durationDays - 1} đêm' : ''}'.trim()
+                              : tour.airbnbPriceDuration,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/constants/app_colors.dart';
+import '../bookings/screens/trips_screen.dart';
 import '../profile/bloc/profile_bloc.dart';
 import '../profile/screens/profile_screen.dart';
 import '../tours/bloc/home_discovery_cubit.dart';
@@ -104,10 +105,8 @@ class _TravelerMainNavigationScreenState extends State<TravelerMainNavigationScr
         WishlistScreen(
           onExploreTap: () => _onTabSelected(0),
         ),
-        _buildTabPlaceholder(
-          title: 'Chuyến đi của tôi',
-          subtitle: 'Lịch sử các chuyến đi đã tham gia, chi tiết tour & vé điện tử E-Ticket',
-          icon: Icons.history_rounded,
+        TripsScreen(
+          onExploreTap: () => _onTabSelected(0),
         ),
         _buildTabPlaceholder(
           title: 'Tin nhắn & Trò chuyện',

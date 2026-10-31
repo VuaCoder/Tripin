@@ -9,6 +9,7 @@ import '../models/tour_model.dart';
 import '../widgets/airbnb_search_modal.dart';
 import '../widgets/tour_card_airbnb.dart';
 import '../widgets/tour_filter_bottom_sheet.dart';
+import 'tour_detail_screen.dart';
 import '../../wishlist/bloc/wishlist_cubit.dart';
 import '../../wishlist/bloc/wishlist_state.dart';
 
@@ -132,10 +133,9 @@ class _TourSearchViewState extends State<_TourSearchView> {
     try {
       context.read<WishlistCubit>().recordRecentlyViewed(tour);
     } catch (_) {}
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Đang mở chi tiết: ${tour.title}'),
-        duration: const Duration(seconds: 1),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TourDetailScreen(tourId: tour.id),
       ),
     );
   }
