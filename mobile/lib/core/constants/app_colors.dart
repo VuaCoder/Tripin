@@ -28,11 +28,13 @@ class AppColors {
 
   /// Màu cam rất nhạt làm nền cho voucher hoặc badge giảm giá
   static const Color secondarySurface = Color(0xFFFEF3C7);
+  static const Color secondaryLight = secondarySurface;
 
   // --- 3. MÀU TRẠNG THÁI NGHIỆP VỤ (SEMANTIC COLORS) ---
   /// Thành công (Vé hợp lệ, Thanh toán thành công, Đã điểm danh)
   static const Color success = Color(0xFF10B981);
   static const Color successSurface = Color(0xFFD1FAE5);
+  static const Color successLight = successSurface;
 
   /// Cảnh báo (Sắp hết hạn, Chờ thanh toán, Lưu ý hủy tour)
   static const Color warning = Color(0xFFF59E0B);
@@ -41,15 +43,11 @@ class AppColors {
   /// Thất bại / Lỗi (Hủy đơn, Vé không hợp lệ, Sai OTP, Báo cáo sự cố)
   static const Color error = Color(0xFFEF4444);
   static const Color errorSurface = Color(0xFFFEE2E2);
+  static const Color errorLight = errorSurface;
 
   /// Thông tin (Badge, Hướng dẫn, Điểm đón)
   static const Color info = Color(0xFF0284C7);
   static const Color infoSurface = Color(0xFFE0F2FE);
-
-  /// Bí danh nền nhạt cho các màn đang gọi hậu tố `*Light`.
-  static const Color secondaryLight = secondarySurface;
-  static const Color successLight = successSurface;
-  static const Color errorLight = errorSurface;
 
   // --- 4. BỀ MẶT & NỀN (SURFACES & BACKGROUNDS) ---
   /// Nền chính của toàn app (Slate tint nhẹ nhàng, dịu mắt)
@@ -80,6 +78,10 @@ class AppColors {
 
   /// Placeholder, hint text, icon không kích hoạt (Slate 400)
   static const Color textMuted = Color(0xFF94A3B8);
+  static const Color textTertiary = textMuted;
+
+  /// Nền ô nhập liệu tương thích
+  static const Color inputBackground = surfaceVariant;
 
   /// Chữ trắng trên nền tối
   static const Color textOnPrimary = Colors.white;

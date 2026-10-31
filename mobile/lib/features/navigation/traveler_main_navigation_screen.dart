@@ -3,6 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/constants/app_colors.dart';
 import '../profile/bloc/profile_bloc.dart';
 import '../profile/screens/profile_screen.dart';
+import '../tours/bloc/home_discovery_cubit.dart';
+import '../tours/screens/home_discovery_screen.dart';
+import '../wishlist/bloc/wishlist_cubit.dart';
+import '../wishlist/bloc/wishlist_state.dart';
+import '../wishlist/screens/wishlist_screen.dart';
 
 class _NavItem {
   final IconData icon;
@@ -32,8 +37,8 @@ class _TravelerMainNavigationScreenState extends State<TravelerMainNavigationScr
 
   static const List<_NavItem> _navItems = [
     _NavItem(
-      icon: Icons.explore_outlined,
-      selectedIcon: Icons.explore_rounded,
+      icon: Icons.search_rounded,
+      selectedIcon: Icons.search_rounded,
       label: 'Khám phá',
     ),
     _NavItem(
@@ -65,13 +70,23 @@ class _TravelerMainNavigationScreenState extends State<TravelerMainNavigationScr
     _pageController = PageController(initialPage: _currentIndex);
   }
 
+  WishlistCubit? _localWishlistCubit;
+
   @override
   void dispose() {
     _pageController?.dispose();
+    _localWishlistCubit?.close();
     super.dispose();
   }
 
   void _onTabSelected(int index) {
+    if (index == 1) {
+      try {
+        context.read<WishlistCubit>().markWishlistSeen();
+      } catch (_) {
+        _localWishlistCubit?.markWishlistSeen();
+      }
+    }
     if (_currentIndex == index) return;
     setState(() => _currentIndex = index);
     _controller.animateToPage(
@@ -81,13 +96,13 @@ class _TravelerMainNavigationScreenState extends State<TravelerMainNavigationScr
     );
   }
 
-  List<Widget>? _screens;
-  List<Widget> get _effectiveScreens => _screens ??= [
-        _buildExploreScreen(),
-        _buildTabPlaceholder(
-          title: 'Tour yêu thích',
-          subtitle: 'Danh sách các tour du lịch bạn đã lưu vào Wishlist',
-          icon: Icons.favorite_rounded,
+  List<Widget> _buildScreens() => [
+        BlocProvider(
+          create: (_) => HomeDiscoveryCubit()..loadHomeData(),
+          child: const HomeDiscoveryScreen(),
+        ),
+        WishlistScreen(
+          onExploreTap: () => _onTabSelected(0),
         ),
         _buildTabPlaceholder(
           title: 'Chuyến đi của tôi',
@@ -107,7 +122,14 @@ class _TravelerMainNavigationScreenState extends State<TravelerMainNavigationScr
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    WishlistCubit cubit;
+    try {
+      cubit = context.read<WishlistCubit>();
+    } catch (_) {
+      cubit = _localWishlistCubit ??= (WishlistCubit()..loadWishlist());
+    }
+
+    final scaffold = Scaffold(
       backgroundColor: AppColors.background,
       body: PageView(
         controller: _controller,
@@ -117,7 +139,7 @@ class _TravelerMainNavigationScreenState extends State<TravelerMainNavigationScr
             setState(() => _currentIndex = idx);
           }
         },
-        children: _effectiveScreens,
+        children: _buildScreens(),
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -135,280 +157,79 @@ class _TravelerMainNavigationScreenState extends State<TravelerMainNavigationScr
           top: false,
           child: SizedBox(
             height: 58,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(_navItems.length, (i) {
-                final item = _navItems[i];
-                final isSelected = _currentIndex == i;
-                return Expanded(
-                  child: InkWell(
-                    onTap: () => _onTabSelected(i),
-                    splashColor: Colors.transparent,
-                    highlightColor: Colors.transparent,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AnimatedScale(
-                          scale: isSelected ? 1.08 : 1.0,
-                          duration: const Duration(milliseconds: 200),
-                          child: Icon(
-                            isSelected ? item.selectedIcon : item.icon,
-                            size: 24,
-                            color: isSelected ? AppColors.primary : const Color(0xFF64748B),
-                          ),
+            child: BlocBuilder<WishlistCubit, WishlistState>(
+              builder: (context, wishlistState) {
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: List.generate(_navItems.length, (i) {
+                    final item = _navItems[i];
+                    final isSelected = _currentIndex == i;
+                    final hasBadge = i == 1 && wishlistState.hasUnseenWishlistBadge;
+
+                    return Expanded(
+                      child: InkWell(
+                        onTap: () => _onTabSelected(i),
+                        splashColor: Colors.transparent,
+                        highlightColor: Colors.transparent,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                AnimatedScale(
+                                  scale: isSelected ? 1.08 : 1.0,
+                                  duration: const Duration(milliseconds: 200),
+                                  child: Icon(
+                                    isSelected ? item.selectedIcon : item.icon,
+                                    size: 24,
+                                    color: isSelected ? AppColors.primary : const Color(0xFF64748B),
+                                  ),
+                                ),
+                                if (hasBadge)
+                                  Positioned(
+                                    top: -1,
+                                    right: -3,
+                                    child: Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.primary,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              item.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                color: isSelected ? AppColors.primary : const Color(0xFF64748B),
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          item.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                            color: isSelected ? AppColors.primary : const Color(0xFF64748B),
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  }),
                 );
-              }),
+              },
             ),
           ),
         ),
       ),
     );
-  }
 
-  /// Trang Khám phá với Thanh tìm kiếm STICKY cố định trên cùng khi cuộn
-  Widget _buildExploreScreen() {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // Sticky Search Bar Header (Cố định ở trên đỉnh màn hình khi cuộn)
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                border: const Border(bottom: BorderSide(color: AppColors.border, width: 0.8)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.search_rounded, color: AppColors.primary, size: 22),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Bạn muốn đi đâu?',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          SizedBox(height: 1),
-                          Text(
-                            'Mọi điểm đến • Mọi thời điểm • Thêm khách',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.tune_rounded, color: AppColors.textSecondary, size: 20),
-                  ],
-                ),
-              ),
-            ),
-
-            // Scrollable Tours & Highlights
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  // Promotional Hero Banner
-                  Container(
-                    height: 150,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF005A64), Color(0xFF0A7E8C)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.25),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            'ƯU ĐÃI ĐẶC BIỆT',
-                            style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Khám phá miền di sản Việt Nam',
-                          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Giảm đến 30% cho các tour đặt sớm mùa hè này',
-                          style: TextStyle(color: Colors.white70, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Điểm đến thịnh hành',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                  ),
-                  const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildDestinationChip('Đà Nẵng', Icons.location_on_outlined),
-                        const SizedBox(width: 8),
-                        _buildDestinationChip('Phú Quốc', Icons.beach_access_outlined),
-                        const SizedBox(width: 8),
-                        _buildDestinationChip('Hà Giang', Icons.landscape_outlined),
-                        const SizedBox(width: 8),
-                        _buildDestinationChip('Nha Trang', Icons.surfing_outlined),
-                        const SizedBox(width: 8),
-                        _buildDestinationChip('Sa Pa', Icons.cloud_outlined),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Gợi ý tour cho bạn',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTourCardPlaceholder(
-                    'Tour Bà Nà Hills 1 Ngày Trọn Gói',
-                    'Đà Nẵng • Khởi hành hàng ngày',
-                    '1.150.000đ',
-                    '4.9 ★ (128 đánh giá)',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTourCardPlaceholder(
-                    'Khám phá Côn Đảo Huyền Bí 3N2Đ',
-                    'Bà Rịa - Vũng Tàu • Bao vé tàu cao tốc',
-                    '3.490.000đ',
-                    '5.0 ★ (96 đánh giá)',
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDestinationChip(String label, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: AppColors.primary),
-          const SizedBox(width: 6),
-          Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTourCardPlaceholder(String title, String subtitle, String price, String rating) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: AppColors.primarySurface,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.photo_outlined, size: 32, color: AppColors.primary),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary)),
-                const SizedBox(height: 4),
-                Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(price, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.primary)),
-                    Text(rating, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.secondaryDark)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return BlocProvider<WishlistCubit>.value(
+      value: cubit,
+      child: scaffold,
     );
   }
 
