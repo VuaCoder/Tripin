@@ -46,6 +46,11 @@ class AppColors {
   static const Color info = Color(0xFF0284C7);
   static const Color infoSurface = Color(0xFFE0F2FE);
 
+  /// Bí danh nền nhạt cho các màn đang gọi hậu tố `*Light`.
+  static const Color secondaryLight = secondarySurface;
+  static const Color successLight = successSurface;
+  static const Color errorLight = errorSurface;
+
   // --- 4. BỀ MẶT & NỀN (SURFACES & BACKGROUNDS) ---
   /// Nền chính của toàn app (Slate tint nhẹ nhàng, dịu mắt)
   static const Color background = Color(0xFFF8FAFC);
