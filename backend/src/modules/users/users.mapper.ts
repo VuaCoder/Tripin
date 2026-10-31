@@ -12,6 +12,7 @@ const iso = (date?: Date | null) => date?.toISOString();
 export function toPrivateUserDto(user: UserRecord): PrivateUserDto {
   const agency = user.agencyProfile;
   const guide = user.guideProfile;
+  const bankAccount = bankAccountOf(user);
   return {
     id: user.id,
     email: user.email,
@@ -27,6 +28,7 @@ export function toPrivateUserDto(user: UserRecord): PrivateUserDto {
     createdAt: user.createdAt.toISOString(),
     bannedAt: iso(user.bannedAt),
     banReason: user.banReason ?? undefined,
+    bankAccount,
     agencyProfile: agency
       ? {
           companyName: agency.companyName ?? undefined,
@@ -79,4 +81,13 @@ export function toPublicAgencyDto(user: UserRecord): PublicAgencyDto {
     website: agency?.website ?? undefined,
     verified: agency?.verificationStatus === AGENCY_VERIFICATION_STATUS.VERIFIED,
   };
+}
+
+/** Only the three known payout fields, whatever else happens to live in the preferences JSON. */
+function bankAccountOf(user: UserRecord): PrivateUserDto['bankAccount'] {
+  const stored = (user.preferences as { bankAccount?: Record<string, unknown> | null } | null)?.bankAccount;
+  if (!stored || typeof stored !== 'object') return undefined;
+  const { bankName, accountNumber, accountHolder } = stored;
+  if (typeof bankName !== 'string' || typeof accountNumber !== 'string' || typeof accountHolder !== 'string') return undefined;
+  return { bankName, accountNumber, accountHolder };
 }

@@ -99,6 +99,10 @@ class ApiEndpoints {
 
   static String conversationRead(String id) => '/chat/conversations/$id/read';
 
+  // Tour guide: earnings (thù lao) + payout bank account
+  static const String myEarnings = '/earnings/me';
+  static const String myEarningsSummary = '/earnings/me/summary';
+
   /// Gốc của máy chủ (không có `/api/v1`) để kết nối Socket.IO.
   static String get socketUrl => baseUrl.replaceFirst(RegExp(r'/api/v1$'), '');
 

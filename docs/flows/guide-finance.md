@@ -21,6 +21,7 @@ Trạng thái backend: `PENDING_PAYMENT → ACTIVE | CANCELLED`, `CANCELLED → 
 4. Đổi filter/page dùng `currentData`: không hiển thị kết quả của args cũ trong lúc tải args mới. List và summary có loading/error/retry riêng. Không diễn giải API lỗi thành 0.
 5. Chưa có thu nhập và filter không có kết quả có thông báo khác nhau. Mỗi dòng hiển thị bookingCode, tên tour, số tiền VND và thời gian ghi nhận. Không dẫn sang chi tiết booking dành cho Traveler.
 6. Thu nhập được tạo bởi event booking COMPLETED khi phân công Guide ACCEPTED, một lần/booking. Số tiền là phí Guide trên mỗi booking, không nhân số khách. Chưa biểu thị tiền đã chuyển hoặc có thể rút.
+7. Mobile (Flutter): tab **Thu nhập** trong bottom navigation của Guide dùng cùng hai API trên với ba preset **Tháng này / Tháng trước / Toàn bộ** (biên ngày UTC+7, list và summary cùng khoảng). Tab có biểu đồ tròn (donut) tỉ trọng thu nhập từng kỳ, gom từ `byMonth` của summary; nút **Tháng / Quý** chỉ đổi cách gom phía client (cộng dồn tháng thành quý), không gọi thêm API. Tài khoản ngân hàng nhận thù lao được đọc bằng `GET /users/me` và lưu bằng `PATCH /users/me { bankAccount }` (chỉ TOUR_GUIDE; lưu trong `User.preferences`, không migration). Lưu ý backend chưa có payout workflow nên UI không hiển thị số "đã chi trả" hoặc "chờ quyết toán" như một khoản tiền riêng.
 
 ## Cách ly dữ liệu
 

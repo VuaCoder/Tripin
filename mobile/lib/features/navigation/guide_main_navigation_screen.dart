@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/constants/app_colors.dart';
+import '../earnings/screens/earnings_screen.dart';
 import '../guide/screens/guide_tours_screen.dart';
 import '../profile/bloc/profile_bloc.dart';
 import '../profile/screens/profile_screen.dart';
@@ -90,11 +91,7 @@ class _GuideMainNavigationScreenState extends State<GuideMainNavigationScreen> {
           subtitle: 'Camera quét mã QR vé E-Ticket điểm danh hành khách',
           icon: Icons.qr_code_scanner,
         ),
-        _buildTabPlaceholder(
-          title: 'Bảng thu nhập',
-          subtitle: 'Thù lao dẫn tour, lịch sử chi trả và thống kê',
-          icon: Icons.account_balance_wallet_outlined,
-        ),
+        const EarningsScreen(),
         _buildTabPlaceholder(
           title: 'Tin nhắn đoàn',
           subtitle: 'Kênh chat trực tuyến với khách đoàn & điều hành tour',
