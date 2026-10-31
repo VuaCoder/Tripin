@@ -9,6 +9,13 @@ import {
 } from '@travel-platform/constants';
 import type { TransitionMap } from '../../utils/state-machine';
 
+/** Payout details of a tour guide, stored inside `User.preferences` (no schema change). */
+export interface BankAccountDto {
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+}
+
 /** Private representation: returned only to the account owner (and staff where documented). */
 export interface PrivateUserDto {
   id: string;
@@ -45,6 +52,7 @@ export interface PrivateUserDto {
     licenseNumber?: string;
     licenseImageUrl?: string;
   };
+  bankAccount?: BankAccountDto;
 }
 
 /** "View public tour guide profile" — no email/phone/status. */
@@ -92,6 +100,7 @@ export interface UpdateProfileInput {
     licenseNumber?: string;
     licenseImageUrl?: string | null;
   };
+  bankAccount?: BankAccountDto | null;
 }
 
 export interface ListUsersQuery {
