@@ -77,9 +77,11 @@ class ApiEndpoints {
       '/payments/bookings/$bookingId/checkout';
   static String paymentDetail(String id) => '/payments/$id';
 
-  // Vouchers
-  static const String myVouchers = '/users/me/vouchers';
-  static const String collectVoucher = '/users/me/vouchers/collect';
+  // Vouchers / Promotions (FLOW-09)
+  static const String myVouchers = '/promotions/my-vouchers';
+  static const String collectVoucher = '/promotions/collect';
+  static const String promotionsPreview = '/promotions/preview';
+  static const String promotionsAvailable = '/promotions/available';
 
   // Notifications (PRM393: Notifications)
   static const String notifications = '/notifications';
