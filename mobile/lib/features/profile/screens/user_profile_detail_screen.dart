@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/network/api_client.dart';
@@ -26,6 +27,8 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
   bool _isSendingOtp = false;
   int _tripsCount = 0;
   int _reviewsCount = 0;
+  List<BookingItem> _completedTrips = [];
+  List<BookingItem> _reviewedTrips = [];
 
   @override
   void initState() {
@@ -47,13 +50,14 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
       final reviewedIds = await tripsRepo.getReviewedBookingIds();
       final completedTrips = trips.where((t) => t.status == BookingStatus.completed).toList();
       final countOfTrips = completedTrips.isNotEmpty ? completedTrips.length : trips.length;
-      final reviewedTrips = trips.where((t) => t.isReviewed).map((t) => t.id).toSet();
-      reviewedTrips.addAll(reviewedIds);
+      final reviewedTrips = trips.where((t) => t.isReviewed || reviewedIds.contains(t.id) || reviewedIds.contains(t.bookingCode)).toList();
 
       if (mounted) {
         setState(() {
           _tripsCount = countOfTrips;
           _reviewsCount = reviewedTrips.length;
+          _completedTrips = completedTrips;
+          _reviewedTrips = reviewedTrips;
         });
       }
     } catch (_) {}
@@ -442,114 +446,32 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
                 // 3. Section: Tour đã đi (Chuyến đi của tôi)
                 _buildSectionTitle('Tour đã đi'),
                 const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF64748B).withValues(alpha: 0.08),
-                        blurRadius: 14,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                if (_completedTrips.isNotEmpty)
+                  ..._completedTrips.map((trip) => _buildCompletedTripCard(trip))
+                else
+                  _buildDashedEmptyCard(
+                    icon: Icons.luggage_outlined,
+                    iconBgColor: Colors.white,
+                    iconColor: AppColors.primary,
+                    title: 'Chưa có chuyến đi nào',
+                    subtitle: 'Các tour du lịch bạn đã hoàn thành sẽ xuất hiện tại đây để lưu giữ hành trình trải nghiệm.',
                   ),
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppColors.primarySurface,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.luggage_outlined,
-                          size: 32,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Chưa có chuyến đi nào',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Các tour du lịch bạn đã hoàn thành sẽ xuất hiện tại đây để lưu giữ hành trình trải nghiệm.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
 
                 const SizedBox(height: 24),
 
                 // 4. Section: Đánh giá của mình
                 _buildSectionTitle('Đánh giá của tôi'),
                 const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF64748B).withValues(alpha: 0.08),
-                        blurRadius: 14,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                if (_reviewedTrips.isNotEmpty)
+                  ..._reviewedTrips.map((trip) => _buildReviewedTripCard(trip))
+                else
+                  _buildDashedEmptyCard(
+                    icon: Icons.rate_review_outlined,
+                    iconBgColor: Colors.white,
+                    iconColor: AppColors.secondaryDark,
+                    title: 'Chưa có đánh giá nào',
+                    subtitle: 'Sau khi hoàn thành chuyến đi, những phản hồi và đánh giá của bạn sẽ được hiển thị công khai.',
                   ),
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF3C7),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.rate_review_outlined,
-                          size: 32,
-                          color: AppColors.secondaryDark,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Chưa có đánh giá nào',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Sau khi hoàn thành chuyến đi, những phản hồi và đánh giá của bạn sẽ được hiển thị công khai.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
 
                 const SizedBox(height: 36),
               ],
@@ -636,4 +558,317 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
       ],
     );
   }
+
+  /// Thẻ hiển thị tour đã hoàn thành
+  Widget _buildCompletedTripCard(BookingItem trip) {
+    final dateStr = trip.departureDate != null
+        ? DateFormat('dd/MM/yyyy').format(trip.departureDate!)
+        : 'Đã hoàn thành';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF64748B).withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: trip.thumbnailUrl != null && trip.thumbnailUrl!.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: trip.thumbnailUrl!,
+                    width: 72,
+                    height: 72,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(
+                      width: 72,
+                      height: 72,
+                      color: AppColors.primarySurface,
+                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    ),
+                    errorWidget: (_, __, ___) => Container(
+                      width: 72,
+                      height: 72,
+                      color: AppColors.primarySurface,
+                      child: const Icon(Icons.landscape_rounded, color: AppColors.primary),
+                    ),
+                  )
+                : Container(
+                    width: 72,
+                    height: 72,
+                    color: AppColors.primarySurface,
+                    child: const Icon(Icons.landscape_rounded, color: AppColors.primary),
+                  ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  trip.tourTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    const Icon(Icons.calendar_today_rounded, size: 13, color: AppColors.textSecondary),
+                    const SizedBox(width: 5),
+                    Text(
+                      dateStr,
+                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECFDF5),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFA7F3D0)),
+                  ),
+                  child: const Text(
+                    'Đã hoàn thành',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF065F46)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Thẻ hiển thị đánh giá của người dùng
+  Widget _buildReviewedTripCard(BookingItem trip) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF64748B).withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: trip.thumbnailUrl != null && trip.thumbnailUrl!.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: trip.thumbnailUrl!,
+                    width: 72,
+                    height: 72,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(
+                      width: 72,
+                      height: 72,
+                      color: AppColors.primarySurface,
+                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    ),
+                    errorWidget: (_, __, ___) => Container(
+                      width: 72,
+                      height: 72,
+                      color: AppColors.primarySurface,
+                      child: const Icon(Icons.rate_review_rounded, color: AppColors.primary),
+                    ),
+                  )
+                : Container(
+                    width: 72,
+                    height: 72,
+                    color: AppColors.primarySurface,
+                    child: const Icon(Icons.rate_review_rounded, color: AppColors.primary),
+                  ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  trip.tourTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  children: List.generate(
+                    5,
+                    (i) => const Icon(Icons.star_rounded, size: 16, color: AppColors.secondary),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBEB),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFFDE68A)),
+                  ),
+                  child: const Text(
+                    'Đã đánh giá 5 sao',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF92400E)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Thẻ trạng thái trống viền nét đứt và nền màu xanh theo yêu cầu
+  Widget _buildDashedEmptyCard({
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBgColor,
+    required String title,
+    required String subtitle,
+  }) {
+    return CustomPaint(
+      painter: const _DashedRectPainter(
+        color: Color(0xFF99F6E4),
+        strokeWidth: 1.5,
+        dash: 6.0,
+        gap: 4.0,
+        radius: 20.0,
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0FDFA), // Nền màu xanh thanh nhã theo yêu cầu
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: iconBgColor,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                icon,
+                size: 32,
+                color: iconColor,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Painter vẽ viền nét đứt bo góc tròn (Dashed Rounded Rectangle)
+class _DashedRectPainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double dash;
+  final double gap;
+  final double radius;
+
+  const _DashedRectPainter({
+    required this.color,
+    this.strokeWidth = 1.5,
+    this.dash = 6.0,
+    this.gap = 4.0,
+    this.radius = 20.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+        strokeWidth / 2,
+        strokeWidth / 2,
+        size.width - strokeWidth,
+        size.height - strokeWidth,
+      ),
+      Radius.circular(radius),
+    );
+
+    final path = Path()..addRRect(rrect);
+    final metrics = path.computeMetrics();
+
+    for (final metric in metrics) {
+      double distance = 0.0;
+      while (distance < metric.length) {
+        final len = (distance + dash < metric.length) ? dash : metric.length - distance;
+        final extractPath = metric.extractPath(distance, distance + len);
+        canvas.drawPath(extractPath, paint);
+        distance += dash + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedRectPainter oldDelegate) =>
+      color != oldDelegate.color ||
+      strokeWidth != oldDelegate.strokeWidth ||
+      dash != oldDelegate.dash ||
+      gap != oldDelegate.gap ||
+      radius != oldDelegate.radius;
 }
