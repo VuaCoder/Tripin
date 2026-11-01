@@ -202,7 +202,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               children: [
                                 CircleAvatar(
                                   radius: 56,
-                                  backgroundColor: const Color(0xFFDCFCE7),
+                                  backgroundColor: AppColors.primarySurface,
                                   child: ClipOval(
                                     child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
                                         ? CachedNetworkImage(
@@ -571,19 +571,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildInitialAvatar(UserProfileModel user) {
-    final initial = user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : 'H';
     return Container(
       width: 112,
       height: 112,
       alignment: Alignment.center,
-      color: const Color(0xFFDCFCE7),
-      child: Text(
-        initial,
-        style: const TextStyle(
-          fontSize: 48,
-          fontWeight: FontWeight.w700,
-          color: Color(0xFF166534),
-        ),
+      color: AppColors.primarySurface,
+      child: const Icon(
+        Icons.person,
+        size: 54,
+        color: AppColors.primary,
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/constants/app_colors.dart';
 import 'package:mobile/features/chat/bloc/chat_repository.dart';
 import 'package:mobile/features/chat/models/chat_models.dart';
 import 'package:mobile/features/chat/screens/conversations_screen.dart';
@@ -52,7 +53,7 @@ void main() {
       // Kiểm tra màu xanh của nút
       final container = tester.widget<Container>(getStartedFinder);
       final decoration = container.decoration as BoxDecoration;
-      expect(decoration.color, const Color(0xFF10B981));
+      expect(decoration.color, AppColors.primary);
 
       // Không có phần Past conversations theo yêu cầu
       expect(find.text('Past conversations'), findsNothing);

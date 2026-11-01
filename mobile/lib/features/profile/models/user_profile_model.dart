@@ -55,6 +55,7 @@ class UserProfileModel {
   final String? work;
   final String? skill;
   final String? pets;
+  final DateTime? createdAt;
 
   UserProfileModel({
     required this.id,
@@ -72,6 +73,7 @@ class UserProfileModel {
     this.work,
     this.skill,
     this.pets,
+    this.createdAt,
   });
 
   factory UserProfileModel.fromJson(Map<String, dynamic> json) {
@@ -98,6 +100,7 @@ class UserProfileModel {
       work: json['work'] as String? ?? preferences?['work'] as String?,
       skill: json['skill'] as String? ?? preferences?['skill'] as String?,
       pets: json['pets'] as String? ?? preferences?['pets'] as String?,
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
     );
   }
 
@@ -120,6 +123,7 @@ class UserProfileModel {
     String? work,
     String? skill,
     String? pets,
+    DateTime? createdAt,
   }) {
     return UserProfileModel(
       id: id,
@@ -137,6 +141,7 @@ class UserProfileModel {
       work: work ?? this.work,
       skill: skill ?? this.skill,
       pets: pets ?? this.pets,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 

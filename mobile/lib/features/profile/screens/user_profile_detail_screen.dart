@@ -5,6 +5,8 @@ import '../../../core/constants/api_endpoints.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/network/api_client.dart';
 import '../../auth/screens/verify_otp_screen.dart';
+import '../../bookings/bloc/booked_trips_repository.dart';
+import '../../bookings/models/booking_models.dart';
 import '../bloc/profile_bloc.dart';
 import '../bloc/profile_event.dart';
 import '../bloc/profile_state.dart';
@@ -22,6 +24,40 @@ class UserProfileDetailScreen extends StatefulWidget {
 
 class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
   bool _isSendingOtp = false;
+  int _tripsCount = 0;
+  int _reviewsCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
+    BookedTripsRepository.statsNotifier.addListener(_loadStats);
+  }
+
+  @override
+  void dispose() {
+    BookedTripsRepository.statsNotifier.removeListener(_loadStats);
+    super.dispose();
+  }
+
+  Future<void> _loadStats() async {
+    try {
+      final tripsRepo = BookedTripsRepository();
+      final trips = await tripsRepo.getTrips();
+      final reviewedIds = await tripsRepo.getReviewedBookingIds();
+      final completedTrips = trips.where((t) => t.status == BookingStatus.completed).toList();
+      final countOfTrips = completedTrips.isNotEmpty ? completedTrips.length : trips.length;
+      final reviewedTrips = trips.where((t) => t.isReviewed).map((t) => t.id).toSet();
+      reviewedTrips.addAll(reviewedIds);
+
+      if (mounted) {
+        setState(() {
+          _tripsCount = countOfTrips;
+          _reviewsCount = reviewedTrips.length;
+        });
+      }
+    } catch (_) {}
+  }
 
   Future<void> _startVerification(UserProfileModel user) async {
     setState(() => _isSendingOtp = true);
@@ -98,43 +134,49 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
           appBar: AppBar(
             backgroundColor: Colors.white,
             elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            title: const Text(
-              'Hồ sơ của tôi',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+            automaticallyImplyLeading: false,
+            leading: Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Center(
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF1F5F9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.arrow_back_rounded,
+                      size: 20,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
               ),
             ),
-            centerTitle: true,
+            leadingWidth: 54,
+            title: const SizedBox.shrink(),
+            centerTitle: false,
             actions: [
               Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: TextButton(
-                  onPressed: () => _openEditProfile(context, currentUser),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.edit_outlined, size: 16, color: AppColors.primary),
-                      SizedBox(width: 4),
-                      Text(
-                        'Chỉnh sửa',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                        ),
+                padding: const EdgeInsets.only(right: 16),
+                child: Center(
+                  child: TextButton(
+                    onPressed: () => _openEditProfile(context, currentUser),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      splashFactory: NoSplash.splashFactory,
+                    ),
+                    child: const Text(
+                      'Chỉnh sửa',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -307,7 +349,7 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
                       const Divider(height: 1, color: AppColors.border),
                       const SizedBox(height: 16),
 
-                      // Stats Row: Chuyến đi & Đánh giá
+                      // Stats Row: Chuyến đi & Đánh giá (Đồng bộ chuẩn ProfileScreen)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
@@ -316,21 +358,20 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
                             value: isGuide
                                 ? (currentUser.guideProfile?.experienceYears != null
                                     ? '${currentUser.guideProfile!.experienceYears} năm'
-                                    : '0')
-                                : '0',
-                            icon: Icons.flight_takeoff_rounded,
+                                    : '$_tripsCount')
+                                : '$_tripsCount',
                           ),
                           Container(height: 28, width: 1, color: AppColors.border),
                           _buildDetailStat(
                             title: 'Đánh giá',
-                            value: '0',
-                            icon: Icons.star_rounded,
+                            value: '$_reviewsCount',
                           ),
                           Container(height: 28, width: 1, color: AppColors.border),
                           _buildDetailStat(
                             title: 'Tham gia',
-                            value: '2026',
-                            icon: Icons.calendar_today_rounded,
+                            value: currentUser.createdAt != null
+                                ? currentUser.createdAt!.year.toString()
+                                : '2026',
                           ),
                         ],
                       ),
@@ -534,26 +575,18 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
   Widget _buildDetailStat({
     required String title,
     required String value,
-    required IconData icon,
   }) {
     return Column(
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 15, color: AppColors.primary),
-            const SizedBox(width: 4),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ],
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 4),
         Text(
           title,
           style: const TextStyle(

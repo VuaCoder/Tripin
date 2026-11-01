@@ -174,7 +174,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                               color: const Color(0xFFF3F4F6),
                               borderRadius: BorderRadius.circular(24),
                               border: Border.all(
-                                color: const Color(0xFF10B981),
+                                color: AppColors.primary,
                                 width: 1.5,
                               ),
                             ),
@@ -182,7 +182,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                               children: [
                                 const Icon(
                                   Icons.search_rounded,
-                                  color: Color(0xFF10B981),
+                                  color: AppColors.primary,
                                   size: 20,
                                 ),
                                 const SizedBox(width: 8),
@@ -254,12 +254,12 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _load,
-                    color: const Color(0xFF10B981),
+                    color: AppColors.primary,
                     child: allItems == null
                         ? (_error == null
                             ? const Center(
                                 child: CircularProgressIndicator(
-                                  color: Color(0xFF10B981),
+                                  color: AppColors.primary,
                                 ),
                               )
                             : _ErrorMessage(text: _error!, onRetry: _load))
@@ -348,11 +348,11 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                     key: const Key('get-started-button'),
                     padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981), // Màu xanh theo yêu cầu
+                      color: AppColors.primary, // Màu xanh đậm như tab bar theo yêu cầu
                       borderRadius: BorderRadius.circular(28),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.35),
+                          color: AppColors.primary.withValues(alpha: 0.35),
                           blurRadius: 14,
                           offset: const Offset(0, 6),
                         ),
@@ -456,7 +456,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                         width: 13,
                         height: 13,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF10B981),
+                          color: AppColors.primary,
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: Colors.white,
@@ -514,7 +514,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                         fontSize: 12,
                         fontWeight: unread ? FontWeight.w700 : FontWeight.w500,
                         color: unread
-                            ? const Color(0xFF10B981)
+                            ? AppColors.primary
                             : AppColors.textMuted,
                       ),
                     ),
@@ -527,7 +527,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                           vertical: 2.5,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF10B981),
+                          color: AppColors.primary,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
@@ -716,7 +716,7 @@ class _ErrorMessage extends StatelessWidget {
                 ElevatedButton(
                   onPressed: onRetry,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
