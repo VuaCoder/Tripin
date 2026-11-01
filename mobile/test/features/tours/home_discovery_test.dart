@@ -206,8 +206,10 @@ void main() {
       // Voucher banner carousel is rendered
       expect(find.byType(BannerCarouselWidget), findsOneWidget);
 
-      // Tour Mới Nhất header
+      // Tour Mới Nhất header and unified layout check
       expect(find.text('Tour Mới Nhất'), findsOneWidget);
+      // All tour sections (Tour nổi bật & Tour mới nhất) now share the exact same TourCardHorizontal layout
+      expect(find.byType(TourCardHorizontal), findsWidgets);
 
       // Tap circular arrow button in Tour Nổi Bật navigates to TourSearchScreen
       await tester.tap(find.byIcon(Icons.arrow_forward_rounded).first);

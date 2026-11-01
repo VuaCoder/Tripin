@@ -9,6 +9,8 @@ import '../tours/screens/home_discovery_screen.dart';
 import '../wishlist/bloc/wishlist_cubit.dart';
 import '../wishlist/bloc/wishlist_state.dart';
 import '../wishlist/screens/wishlist_screen.dart';
+import '../bookings/bloc/booked_trips_repository.dart';
+import '../chat/screens/conversations_screen.dart';
 
 class _NavItem {
   final IconData icon;
@@ -87,6 +89,8 @@ class _TravelerMainNavigationScreenState extends State<TravelerMainNavigationScr
       } catch (_) {
         _localWishlistCubit?.markWishlistSeen();
       }
+    } else if (index == 4) {
+      BookedTripsRepository.statsNotifier.value++;
     }
     if (_currentIndex == index) return;
     setState(() => _currentIndex = index);
@@ -108,10 +112,8 @@ class _TravelerMainNavigationScreenState extends State<TravelerMainNavigationScr
         TripsScreen(
           onExploreTap: () => _onTabSelected(0),
         ),
-        _buildTabPlaceholder(
-          title: 'Tin nhắn & Trò chuyện',
-          subtitle: 'Kênh chat trực tuyến với Hướng dẫn viên và Điều hành tour',
-          icon: Icons.chat_bubble_rounded,
+        ConversationsScreen(
+          onExploreTap: () => _onTabSelected(0),
         ),
         BlocProvider(
           create: (_) => ProfileBloc(),

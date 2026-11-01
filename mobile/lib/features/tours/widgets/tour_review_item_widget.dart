@@ -55,12 +55,14 @@ class _TourReviewItemWidgetState extends State<TourReviewItemWidget> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFEBEBEB), width: 1),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 1. Author Header (Avatar & Name + Subtitle) - Chuẩn Ảnh 1
-          Row(
+      child: SingleChildScrollView(
+        physics: widget.isCard ? const ClampingScrollPhysics() : const NeverScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 1. Author Header (Avatar & Name + Subtitle) - Chuẩn Ảnh 1
+            Row(
             children: [
               CircleAvatar(
                 radius: 19,
@@ -233,6 +235,7 @@ class _TourReviewItemWidgetState extends State<TourReviewItemWidget> {
             ),
           ],
         ],
+      ),
       ),
     );
   }

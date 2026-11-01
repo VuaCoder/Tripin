@@ -182,18 +182,6 @@ class _CreateWishlistSheetState extends State<CreateWishlistSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            // Home indicator line
-            Center(
-              child: Container(
-                width: 134,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
           ],
         ),
       ),

@@ -106,7 +106,7 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
   ) async {
     emit(const LoginLoading());
     try {
-      final idToken = event.mockIdToken ?? await googleAuthService.signIn();
+      final idToken = event.mockIdToken ?? await googleAuthService.signIn(role: event.role ?? 'TRAVELER');
       if (idToken == null) {
         // Người dùng đã hủy hộp thoại Google Sign-in
         emit(const LoginInitial());

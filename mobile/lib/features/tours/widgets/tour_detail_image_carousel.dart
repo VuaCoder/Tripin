@@ -185,9 +185,10 @@ class _TourDetailImageCarouselState extends State<TourDetailImageCarousel> {
         ),
 
         // Image Counter Badge at Bottom Right (e.g. 1 / 19)
+        // Đặt bottom: 42 để nằm hoàn toàn phía trên thẻ nội dung bo tròn trùm lên (-26px)
         if (hasImages)
           Positioned(
-            bottom: 20,
+            bottom: 42,
             right: 16,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),

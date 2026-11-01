@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/services/notification_service.dart';
 import '../../bookings/bloc/booked_trips_repository.dart';
 import '../../bookings/models/booking_models.dart';
 import '../../bookings/storage/pending_booking_storage.dart';
 import '../../navigation/traveler_main_navigation_screen.dart';
+import '../../notifications/models/notification_models.dart';
+import '../../notifications/services/notifications_storage.dart';
 import '../bloc/payments_repository.dart';
 import '../models/payment_models.dart';
 
@@ -81,6 +84,24 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
     );
     BookedTripsRepository().saveTrip(tripItem);
     PendingBookingStorage().clearDraft();
+
+    // Lưu thông báo thanh toán thành công và kích hoạt notification của flutter
+    final notif = AppNotification(
+      id: 'notif-paid-${widget.bookingId}-${DateTime.now().millisecondsSinceEpoch}',
+      type: 'BOOKING_PAID',
+      title: 'Thanh toán thành công 🎉',
+      body: 'Bạn đã thanh toán thành công cho chuyến đi "${tripItem.tourTitle}". Mã vé điện tử QR đã sẵn sàng trong mục Chuyến đi.',
+      isRead: false,
+      createdAt: DateTime.now(),
+    );
+    NotificationsStorage().addNotification(notif);
+    try {
+      NotificationService().showNotification(
+        id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title: 'Thanh toán thành công 🎉',
+        body: 'Chuyến đi "${tripItem.tourTitle}" đã được xác nhận thành công!',
+      );
+    } catch (_) {}
   }
 
   /// Tải thông tin đơn hàng bảo đảm an toàn tuyệt đối, không gây văng app (crash-proof)

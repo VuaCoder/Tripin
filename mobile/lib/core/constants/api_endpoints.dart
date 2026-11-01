@@ -43,6 +43,9 @@ class ApiEndpoints {
   static const String licenseImageUploadSignature =
       '/users/me/license-image/upload-signature';
   static const String licenseImageComplete = '/users/me/license-image/complete';
+  static const String guideApplication = '/users/me/guide-application';
+  static const String guideApplicationDevAccept = '/users/me/guide-application/dev-accept';
+  static const String guideApplicationDevReject = '/users/me/guide-application/dev-reject';
 
   // Tours endpoints (PRM393: Product List & Detail)
   static const String tours = '/tours';

@@ -181,11 +181,11 @@ async function main() {
     create: {
       id: TOUR_ID,
       agencyId: agency.id,
-      title: `${PREFIX} Khám phá Đà Nẵng – Hội An`,
-      summary: 'Tour mẫu để thử voucher Premium trên môi trường dev.',
+      title: 'Đà Nẵng – Phố Cổ Hội An – Thả Đèn Hoa Đăng 3N2Đ',
+      summary: 'Hành trình di sản kết hợp biển Mỹ Khê và đêm lung linh hoa đăng phố cổ Hội An.',
       description:
-        'Dữ liệu kiểm thử. Không phải sản phẩm du lịch mở bán thực tế.',
-      destination: 'Đà Nẵng',
+        'Khám phá trọn vẹn văn hóa, ẩm thực và cảnh sắc miền Trung cùng hướng dẫn viên bản địa.',
+      destination: 'Đà Nẵng – Quảng Nam',
       durationDays: 2,
       basePrice: 1_200_000,
       maxGroupSize: 20,

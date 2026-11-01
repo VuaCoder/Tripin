@@ -7,9 +7,15 @@ import '../bloc/profile_bloc.dart';
 import '../bloc/profile_event.dart';
 import '../bloc/profile_state.dart';
 import '../models/user_profile_model.dart';
+import 'become_guide_screen.dart';
 import 'edit_profile_screen.dart';
 import 'guide_profile_screen.dart';
 import 'user_profile_detail_screen.dart';
+import '../../vouchers/screens/my_vouchers_screen.dart';
+import '../../bookings/bloc/booked_trips_repository.dart';
+import '../../bookings/models/booking_models.dart';
+import '../../notifications/screens/notifications_screen.dart';
+import '../../notifications/services/notifications_storage.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -22,6 +28,10 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
   @override
   bool get wantKeepAlive => true;
 
+  int _tripsCount = 0;
+  int _reviewsCount = 0;
+  int _unreadNotificationsCount = 0;
+
   @override
   void initState() {
     super.initState();
@@ -29,6 +39,50 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
     if (state is ProfileInitial) {
       context.read<ProfileBloc>().add(const ProfileLoadRequested());
     }
+    _loadStatsAndNotifications();
+    NotificationsStorage.unreadCountNotifier.addListener(_onUnreadNotificationsChanged);
+    BookedTripsRepository.statsNotifier.addListener(_loadStatsAndNotifications);
+  }
+
+  @override
+  void dispose() {
+    NotificationsStorage.unreadCountNotifier.removeListener(_onUnreadNotificationsChanged);
+    BookedTripsRepository.statsNotifier.removeListener(_loadStatsAndNotifications);
+    super.dispose();
+  }
+
+  void _onUnreadNotificationsChanged() {
+    if (mounted) {
+      setState(() {
+        _unreadNotificationsCount = NotificationsStorage.unreadCountNotifier.value;
+      });
+    }
+  }
+
+  Future<void> _loadStatsAndNotifications() async {
+    try {
+      final tripsRepo = BookedTripsRepository();
+      final trips = await tripsRepo.getTrips();
+      final reviewedIds = await tripsRepo.getReviewedBookingIds();
+      final unread = await NotificationsStorage().getUnreadCount();
+
+      // Số lượng chuyến đi đã hoàn thành (theo đúng yêu cầu: nếu có 3 tour hoàn thành thì đếm 3)
+      final completedTrips = trips.where((t) => t.status == BookingStatus.completed).toList();
+      final countOfTrips = completedTrips.isNotEmpty ? completedTrips.length : trips.length;
+
+      // Số lượng đánh giá: các tour đã đánh giá (isReviewed) hoặc nằm trong danh sách reviewedIds
+      final reviewedTrips = trips.where((t) => t.isReviewed).map((t) => t.id).toSet();
+      reviewedTrips.addAll(reviewedIds);
+      final countOfReviews = reviewedTrips.length;
+
+      if (mounted) {
+        setState(() {
+          _tripsCount = countOfTrips;
+          _reviewsCount = countOfReviews;
+          _unreadNotificationsCount = unread;
+        });
+      }
+    } catch (_) {}
   }
 
   void _confirmLogout(BuildContext context) {
@@ -198,30 +252,58 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                               letterSpacing: -0.8,
                             ),
                           ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.border),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.04),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 3),
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: AppColors.border),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.04),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            child: IconButton(
-                              icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textPrimary, size: 22),
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Hệ thống thông báo cục bộ đã sẵn sàng.'),
-                                    behavior: SnackBarBehavior.floating,
+                                child: IconButton(
+                                  icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textPrimary, size: 22),
+                                  onPressed: () async {
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const NotificationsScreen(),
+                                      ),
+                                    );
+                                    _loadStatsAndNotifications();
+                                  },
+                                ),
+                              ),
+                              if (_unreadNotificationsCount > 0)
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEF4444),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: Colors.white, width: 1.5),
+                                    ),
+                                    constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      '$_unreadNotificationsCount',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
                                   ),
-                                );
-                              },
-                            ),
+                                ),
+                            ],
                           ),
                         ],
                       ),
@@ -239,12 +321,15 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
 
                       const SizedBox(height: 24),
 
-                      // --- 2. HOST / TOUR GUIDE BANNER ---
-                      if (!isGuide) ...[
-                        _buildBecomeGuideBanner(context),
+                      // --- 2. HOST / TOUR GUIDE / AGENCY BANNER ---
+                      if (!isGuide && !user.isAgency) ...[
+                        _buildBecomeGuideBanner(context, user),
                         const SizedBox(height: 28),
-                      ] else ...[
+                      ] else if (isGuide) ...[
                         _buildGuideSpecialtyBanner(context, user),
+                        const SizedBox(height: 28),
+                      ] else if (user.isAgency) ...[
+                        _buildAgencyWorkspaceBanner(context, user),
                         const SizedBox(height: 28),
                       ],
 
@@ -304,7 +389,11 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                           iconColor: AppColors.secondaryDark,
                           title: 'Ưu đãi & Voucher của tôi',
                           subtitle: 'Mã giảm giá đặt tour tích lũy',
-                          onTap: () => _showComingSoonSnackBar(context, 'Voucher ưu đãi'),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const MyVouchersScreen()),
+                            );
+                          },
                         ),
                       ]),
 
@@ -570,7 +659,9 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              isGuide ? 'Hướng dẫn viên du lịch' : 'Khách du lịch',
+                              isGuide
+                                  ? 'Hướng dẫn viên du lịch'
+                                  : (user.isAgency ? 'Doanh nghiệp lữ hành (Agency)' : 'Khách du lịch'),
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -589,23 +680,21 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                   const Divider(height: 1, color: AppColors.border),
                   const SizedBox(height: 16),
 
-                  // Passport Stats Row (Airbnb Feature)
+                  // Passport Stats Row (Airbnb Feature) - Dữ liệu thực tế, bỏ icon theo yêu cầu
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _buildPassportStat(
                         title: 'Chuyến đi',
                         value: isGuide
-                            ? (user.guideProfile?.experienceYears != null ? '${user.guideProfile!.experienceYears} năm' : '0')
-                            : '0',
-                        icon: Icons.flight_takeoff_rounded,
+                            ? (user.guideProfile?.experienceYears != null ? '${user.guideProfile!.experienceYears} năm' : '$_tripsCount')
+                            : '$_tripsCount',
                       ),
                       Container(height: 28, width: 1, color: AppColors.border),
                       _buildPassportStat(
                         title: 'Đánh giá',
-                        value: 'Chưa có',
-                        icon: Icons.star_rounded,
-                        valueColor: AppColors.textSecondary,
+                        value: _reviewsCount > 0 ? '$_reviewsCount' : 'Chưa có',
+                        valueColor: _reviewsCount > 0 ? AppColors.textPrimary : AppColors.textSecondary,
                       ),
                     ],
                   ),
@@ -621,31 +710,23 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
   Widget _buildPassportStat({
     required String title,
     required String value,
-    required IconData icon,
     Color? valueColor,
   }) {
     return Column(
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: valueColor ?? AppColors.textPrimary),
-            const SizedBox(width: 4),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                color: valueColor ?? AppColors.textPrimary,
-              ),
-            ),
-          ],
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: valueColor ?? AppColors.textPrimary,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
           title,
           style: const TextStyle(
-            fontSize: 11,
+            fontSize: 12,
             color: AppColors.textSecondary,
             fontWeight: FontWeight.w500,
           ),
@@ -655,7 +736,7 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
   }
 
   /// Banner inviting user to become a Guide (Airbnb Host style)
-  Widget _buildBecomeGuideBanner(BuildContext context) {
+  Widget _buildBecomeGuideBanner(BuildContext context, UserProfileModel user) {
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -677,7 +758,14 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
         child: InkWell(
           borderRadius: BorderRadius.circular(22),
           onTap: () {
-            _showComingSoonSnackBar(context, 'Chương trình đăng ký Hướng dẫn viên');
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => BlocProvider.value(
+                  value: context.read<ProfileBloc>(),
+                  child: BecomeGuideScreen(user: user),
+                ),
+              ),
+            );
           },
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -732,6 +820,100 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Banner hiển thị dành riêng cho tài khoản Doanh nghiệp lữ hành (Agency)
+  Widget _buildAgencyWorkspaceBanner(BuildContext context, UserProfileModel user) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Không gian Doanh nghiệp lữ hành (Agency Portal) khả dụng trên giao diện Web quản trị Tripri.'),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF38BDF8).withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'DOANH NGHIỆP LỮ HÀNH',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF38BDF8),
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Cổng điều hành Tour Agency',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Quản lý sản phẩm tour, điều phối hướng dẫn viên & theo dõi doanh thu đối tác.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF94A3B8),
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.business_center_rounded, color: Colors.white, size: 22),
                 ),
               ],
             ),
