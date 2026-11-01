@@ -7,7 +7,6 @@ import '../bloc/tour_review_event.dart';
 import '../bloc/tour_review_state.dart';
 import 'tour_review_form_modal.dart';
 import 'tour_review_item_widget.dart';
-import 'tour_review_summary_widget.dart';
 
 class TourDetailReviewsSection extends StatelessWidget {
   final String tourId;
@@ -63,55 +62,112 @@ class _TourDetailReviewsView extends StatelessWidget {
         }
       },
       builder: (context, state) {
+        final totalCount = state.total > 0 ? state.total : state.reviews.length;
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Section Header & "Viết đánh giá" Button (AC3)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
+            // 1. Tiêu đề mục Đánh giá
+            const Text(
+              'Đánh giá từ du khách',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF222222),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // 2. Nút "Viết đánh giá" thiết kế trực quan, nổi bật
+            // CHỈ HIỆN KHI NGƯỜI DÙNG ĐÃ CÓ LỊCH SỬ HOÀN THÀNH CHUYẾN ĐI (state.canReview == true)
+            if (state.canReview && state.eligibleBookingId != null) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFE6F3F4), Color(0xFFF0FDF4)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.25), width: 1.2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.06),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
                   children: [
-                    Icon(Icons.rate_review_outlined, color: AppColors.primary, size: 22),
-                    SizedBox(width: 8),
-                    Text(
-                      'Đánh giá & Nhận xét',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.rate_review_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Bạn đã hoàn thành tour này!',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF222222),
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Chia sẻ trải nghiệm chân thực của bạn cho các du khách khác nhé',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () => _handleWriteReview(context, state),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Viết đánh giá',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                TextButton.icon(
-                  onPressed: () => _handleWriteReview(context, state),
-                  icon: const Icon(Icons.edit_note_rounded, size: 18, color: AppColors.primary),
-                  label: const Text(
-                    'Viết đánh giá',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
+              ),
+            ],
 
-            // Rating Summary Card (AC2)
-            TourReviewSummaryWidget(
-              ratingAvg: ratingAvg,
-              ratingCount: ratingCount,
-            ),
-            const SizedBox(height: 16),
-
-            // Loading state (initial)
+            // 3. Trạng thái Loading ban đầu
             if (state.isLoading) ...[
               const Center(
                 child: Padding(
-                  padding: EdgeInsets.all(24),
+                  padding: EdgeInsets.symmetric(vertical: 24),
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     color: AppColors.primary,
@@ -119,24 +175,25 @@ class _TourDetailReviewsView extends StatelessWidget {
                 ),
               ),
             ] else if (state.errorMessage != null && state.reviews.isEmpty) ...[
-              // Error state with retry
+              // Trạng thái Lỗi có nút Thử lại
               Container(
-                padding: const EdgeInsets.all(16),
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFEBEBEB)),
                 ),
                 child: Column(
                   children: [
-                    const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 32),
+                    const Icon(Icons.cloud_off_rounded, color: AppColors.error, size: 32),
                     const SizedBox(height: 8),
                     Text(
                       state.errorMessage!,
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     ElevatedButton.icon(
                       onPressed: () {
                         context
@@ -155,70 +212,82 @@ class _TourDetailReviewsView extends StatelessWidget {
                 ),
               ),
             ] else if (state.isEmpty) ...[
-              // Empty state (AC5)
+              // Trạng thái Chưa có đánh giá
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
+                  color: const Color(0xFFFAFAFA),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFEBEBEB)),
                 ),
                 child: const Column(
                   children: [
-                    Icon(Icons.chat_bubble_outline_rounded, color: AppColors.textMuted, size: 40),
-                    SizedBox(height: 10),
+                    Icon(Icons.chat_bubble_outline_rounded, color: AppColors.textMuted, size: 36),
+                    SizedBox(height: 8),
                     Text(
                       'Chưa có đánh giá nào cho tour này',
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF222222),
                       ),
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'Hãy là người đầu tiên trải nghiệm và chia sẻ cảm nghĩ của bạn!',
+                      'Hãy là người đầu tiên trải nghiệm chuyến đi và chia sẻ cảm nghĩ của bạn!',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                     ),
                   ],
                 ),
               ),
             ] else ...[
-              // Reviews List (AC1)
-              ...state.reviews.map((review) => TourReviewItemWidget(review: review)),
-
-              // Pagination Load More Button (AC1)
-              if (state.hasMore) ...[
-                const SizedBox(height: 8),
-                Center(
-                  child: state.isLoadingMore
-                      ? const CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.primary,
-                        )
-                      : OutlinedButton.icon(
-                          onPressed: () {
-                            context.read<TourReviewBloc>().add(
-                                  TourReviewListLoadRequested(
-                                    tourId,
-                                    page: state.page + 1,
-                                  ),
-                                );
-                          },
-                          icon: const Icon(Icons.expand_more_rounded, size: 18),
-                          label: const Text('Xem thêm đánh giá'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            side: const BorderSide(color: AppColors.primary),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
-                        ),
+              // 4. Danh sách đánh giá ngang chuẩn Airbnb (Ảnh 1)
+              SizedBox(
+                height: 215,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: state.reviews.length,
+                  itemBuilder: (context, index) {
+                    final review = state.reviews[index];
+                    return TourReviewItemWidget(
+                      review: review,
+                      isCard: true,
+                      width: 295,
+                    );
+                  },
                 ),
-              ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // 5. Nút "Show all X reviews" / "Xem tất cả X đánh giá" chuẩn Ảnh 1
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () => _openAllReviewsSheet(context, state),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF2F2F2),
+                    foregroundColor: const Color(0xFF222222),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(color: Color(0xFFE2E2E2), width: 0.8),
+                    ),
+                  ),
+                  child: Text(
+                    'Xem tất cả $totalCount đánh giá',
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF222222),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ],
         );
@@ -235,36 +304,84 @@ class _TourDetailReviewsView extends StatelessWidget {
         bookingId: state.eligibleBookingId!,
         bloc: bloc,
       );
-    } else {
-      final reason = state.eligibilityMessage ??
-          'Bạn cần hoàn thành chuyến đi này để có thể gửi đánh giá.';
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
-            children: [
-              Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 22),
-              SizedBox(width: 8),
-              Text(
-                'Điều kiện đánh giá',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          content: Text(
-            reason,
-            style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Đã hiểu', style: TextStyle(color: AppColors.primary)),
-            ),
-          ],
-        ),
-      );
     }
   }
-}
 
+  /// Modal hiển thị toàn bộ danh sách đánh giá cuộn dọc
+  void _openAllReviewsSheet(BuildContext context, TourReviewState state) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                // Thanh gạt
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 12, bottom: 8),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD6D6D6),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Đánh giá (${state.total > 0 ? state.total : state.reviews.length})',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF222222),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Color(0xFF222222)),
+                        onPressed: () => Navigator.of(ctx).pop(),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, color: Color(0xFFF0F0F0)),
+
+                // Danh sách đầy đủ
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(20),
+                    itemCount: state.reviews.length,
+                    separatorBuilder: (_, index) => const SizedBox(height: 14),
+                    itemBuilder: (ctx, index) {
+                      final review = state.reviews[index];
+                      return TourReviewItemWidget(
+                        review: review,
+                        isCard: false,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}

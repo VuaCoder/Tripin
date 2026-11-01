@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'tour_model.dart';
 
 class TourCategoryModel extends Equatable {
   final String id;
@@ -340,6 +341,22 @@ class TourDetailModel extends Equatable {
       guide: json['guide'] is Map<String, dynamic>
           ? TourGuideModel.fromJson(json['guide'] as Map<String, dynamic>)
           : null,
+    );
+  }
+
+  TourModel toTourModel() {
+    return TourModel(
+      id: id,
+      title: title,
+      summary: summary,
+      destination: destination,
+      durationDays: durationDays,
+      basePrice: basePrice.toDouble(),
+      coverImage: coverImage ?? (images.isNotEmpty ? images.first : null),
+      categoryIds: categoryIds,
+      ratingAvg: ratingAvg,
+      ratingCount: ratingCount,
+      agencyName: agency?.name,
     );
   }
 

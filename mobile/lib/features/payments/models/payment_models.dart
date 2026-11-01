@@ -102,6 +102,9 @@ class BookingSummary extends Equatable {
   final String status;
   final String tourTitle;
   final int totalAmount;
+  final DateTime? departureDate;
+  final int participants;
+  final String? thumbnailUrl;
 
   const BookingSummary({
     required this.id,
@@ -109,18 +112,27 @@ class BookingSummary extends Equatable {
     required this.status,
     required this.tourTitle,
     required this.totalAmount,
+    this.departureDate,
+    this.participants = 1,
+    this.thumbnailUrl,
   });
 
   bool get isConfirmed => status == 'CONFIRMED' || status == 'COMPLETED';
 
-  factory BookingSummary.fromJson(Map<String, dynamic> json) => BookingSummary(
-        id: json['id'] as String,
-        bookingCode: json['bookingCode'] as String? ?? '',
-        status: json['status'] as String? ?? '',
-        tourTitle: (json['tour'] as Map<String, dynamic>?)?['title'] as String? ?? '',
-        totalAmount: (json['totalAmount'] as num?)?.toInt() ?? 0,
-      );
+  factory BookingSummary.fromJson(Map<String, dynamic> json) {
+    final tour = json['tour'] is Map<String, dynamic> ? json['tour'] as Map<String, dynamic> : null;
+    return BookingSummary(
+      id: json['id']?.toString() ?? '',
+      bookingCode: json['bookingCode']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'CONFIRMED',
+      tourTitle: tour?['title']?.toString() ?? json['tourTitle']?.toString() ?? '',
+      totalAmount: (json['totalAmount'] as num?)?.toInt() ?? 0,
+      departureDate: json['departureDate'] != null ? DateTime.tryParse(json['departureDate'].toString()) : null,
+      participants: (json['participants'] as num?)?.toInt() ?? 1,
+      thumbnailUrl: json['thumbnailUrl']?.toString() ?? tour?['coverImageUrl']?.toString() ?? tour?['thumbnailUrl']?.toString(),
+    );
+  }
 
   @override
-  List<Object?> get props => [id, bookingCode, status, tourTitle, totalAmount];
+  List<Object?> get props => [id, bookingCode, status, tourTitle, totalAmount, departureDate, participants, thumbnailUrl];
 }

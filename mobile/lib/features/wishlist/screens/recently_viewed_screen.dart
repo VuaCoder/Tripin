@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../tours/models/tour_model.dart';
+import '../../tours/screens/tour_detail_screen.dart';
 import '../bloc/wishlist_cubit.dart';
 import '../bloc/wishlist_state.dart';
 import '../models/recently_viewed_model.dart';
@@ -278,11 +279,10 @@ class _RecentlyViewedScreenState extends State<RecentlyViewedScreen> {
           return;
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Đang mở chi tiết tour: ${tour.title}'),
-            duration: const Duration(seconds: 1),
-            behavior: SnackBarBehavior.floating,
+        context.read<WishlistCubit>().recordRecentlyViewed(tour);
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => TourDetailScreen(tourId: tour.id),
           ),
         );
       },

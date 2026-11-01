@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/tours/bloc/home_discovery_cubit.dart';
 import 'package:mobile/features/tours/bloc/home_discovery_state.dart';
+import 'package:mobile/features/tours/bloc/tours_repository.dart';
 import 'package:mobile/features/tours/models/category_model.dart';
 import 'package:mobile/features/tours/models/promotion_banner_model.dart';
 import 'package:mobile/features/tours/models/tour_model.dart';
@@ -20,6 +21,9 @@ class FakeHomeDiscoveryCubit extends Cubit<HomeDiscoveryState>
   bool refreshHomeDataCalled = false;
 
   FakeHomeDiscoveryCubit(super.initialState);
+
+  @override
+  ToursRepository get repository => ToursRepository();
 
   @override
   Future<void> loadHomeData() async {
@@ -205,8 +209,8 @@ void main() {
       // Tour Mới Nhất header
       expect(find.text('Tour Mới Nhất'), findsOneWidget);
 
-      // Tap 'Xem tất cả' in Tour Nổi Bật navigates to TourSearchScreen
-      await tester.tap(find.text('Xem tất cả').first);
+      // Tap circular arrow button in Tour Nổi Bật navigates to TourSearchScreen
+      await tester.tap(find.byIcon(Icons.arrow_forward_rounded).first);
       await tester.pumpAndSettle();
 
       expect(find.byType(TourSearchScreen), findsOneWidget);

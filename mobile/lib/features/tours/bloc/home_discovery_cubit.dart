@@ -17,6 +17,8 @@ class HomeDiscoveryCubit extends Cubit<HomeDiscoveryState> {
         _tokenStorage = tokenStorage ?? TokenStorage(),
         super(const HomeDiscoveryInitial());
 
+  ToursRepository get repository => _repository;
+
   /// Tải dữ liệu trang chủ đồng thời (Parallel loading) tối ưu hiệu năng
   Future<void> loadHomeData() async {
     emit(const HomeDiscoveryLoading());

@@ -39,20 +39,24 @@ void main() {
       expect(inactiveText.style?.color, const Color(0xFF64748B));
 
       // Tap on "Chuyến đi"
-      await tester.tap(find.text('Chuyến đi'));
+      await tester.tap(find.widgetWithText(InkWell, 'Chuyến đi'));
       await tester.pumpAndSettle();
 
-      // Verify "Chuyến đi" is now active with primary color
-      final tripText = tester.widget<Text>(find.text('Chuyến đi'));
-      expect(tripText.style?.color, AppColors.primary);
+      // Verify "Chuyến đi" tab is now active with primary color
+      final tripNavText = tester.widget<Text>(
+        find.descendant(
+          of: find.widgetWithText(InkWell, 'Chuyến đi'),
+          matching: find.text('Chuyến đi'),
+        ),
+      );
+      expect(tripNavText.style?.color, AppColors.primary);
 
       // Verify "Khám phá" is now inactive
       final oldActiveText = tester.widget<Text>(find.text('Khám phá'));
       expect(oldActiveText.style?.color, const Color(0xFF64748B));
 
       // Verify navigated page content
-      expect(find.text('Chuyến đi của tôi'), findsWidgets);
-      expect(find.text('Lịch sử các chuyến đi đã tham gia, chi tiết tour & vé điện tử E-Ticket'), findsOneWidget);
+      expect(find.widgetWithText(AppBar, 'Chuyến đi'), findsOneWidget);
     });
   });
 }

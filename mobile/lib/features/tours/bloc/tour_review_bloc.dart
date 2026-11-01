@@ -38,8 +38,9 @@ class TourReviewBloc extends Bloc<TourReviewEvent, TourReviewState> {
 
     try {
       final response = await apiClient.get(
-        ApiEndpoints.tourReviews(event.tourId),
+        ApiEndpoints.reviews,
         queryParameters: {
+          'tourId': event.tourId,
           'page': event.page,
           'limit': 10,
           'sort': 'newest',
@@ -197,11 +198,11 @@ class TourReviewBloc extends Bloc<TourReviewEvent, TourReviewState> {
         ));
       }
     } catch (_) {
-      // Fallback: If network fails or endpoints not available, allow opening form if logged in
+      // If error occurs or user has no eligible booking, do NOT show review button
       emit(state.copyWith(
         isCheckingEligibility: false,
-        canReview: true,
-        eligibilityMessage: null,
+        canReview: false,
+        eligibleBookingId: null,
       ));
     }
   }
@@ -244,7 +245,24 @@ class TourReviewBloc extends Bloc<TourReviewEvent, TourReviewState> {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
+        final raw = response.data is Map<String, dynamic>
+            ? (response.data['data'] as Map<String, dynamic>?)
+            : null;
+        final newReview = TourReviewModel(
+          id: raw?['id'] as String? ?? 'rev_${DateTime.now().millisecondsSinceEpoch}',
+          rating: event.rating,
+          comment: event.comment,
+          tourId: _currentTourId ?? '',
+          author: const TourReviewAuthorModel(name: 'Bạn'),
+          createdAt: DateTime.now(),
+          images: const [],
+        );
+
+        final updatedList = [newReview, ...state.reviews.where((r) => r.id != newReview.id)];
+
         emit(state.copyWith(
+          reviews: updatedList,
+          total: state.total + 1,
           isSubmitting: false,
           submitSuccess: true,
           submitError: null,
@@ -252,7 +270,7 @@ class TourReviewBloc extends Bloc<TourReviewEvent, TourReviewState> {
           eligibilityMessage: 'Bạn đã đánh giá chuyến đi này.',
         ));
 
-        // Reload reviews list
+        // Reload reviews list in background
         if (_currentTourId != null) {
           add(TourReviewListLoadRequested(_currentTourId!, page: 1, refresh: true));
         }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../tours/models/tour_model.dart';
+import '../../tours/screens/tour_detail_screen.dart';
 import '../bloc/wishlist_cubit.dart';
 import '../bloc/wishlist_state.dart';
 import '../models/wishlist_collection_model.dart';
@@ -428,11 +429,9 @@ class _WishlistCollectionDetailScreenState extends State<WishlistCollectionDetai
     return GestureDetector(
       onTap: () {
         context.read<WishlistCubit>().recordRecentlyViewed(tour);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Đang mở chi tiết: ${tour.title}'),
-            duration: const Duration(seconds: 1),
-            behavior: SnackBarBehavior.floating,
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => TourDetailScreen(tourId: tour.id),
           ),
         );
       },

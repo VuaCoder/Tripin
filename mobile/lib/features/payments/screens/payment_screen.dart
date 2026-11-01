@@ -16,20 +16,100 @@ final _vnd = NumberFormat.currency(locale: 'vi_VN', symbol: '₫', decimalDigits
 class PaymentScreen extends StatelessWidget {
   final String bookingId;
   final PaymentsRepository? repository;
+  final String? tourTitle;
+  final String? thumbnailUrl;
+  final DateTime? departureDate;
+  final int? guestsCount;
+  final int? totalAmount;
+  final String? contactName;
+  final String? customerAvatarUrl;
 
-  const PaymentScreen({super.key, required this.bookingId, this.repository});
+  const PaymentScreen({
+    super.key,
+    required this.bookingId,
+    this.repository,
+    this.tourTitle,
+    this.thumbnailUrl,
+    this.departureDate,
+    this.guestsCount,
+    this.totalAmount,
+    this.contactName,
+    this.customerAvatarUrl,
+  });
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => PaymentCubit(bookingId: bookingId, repository: repository)..start(),
-      child: const _PaymentView(),
+      child: _PaymentView(
+        tourTitle: tourTitle,
+        thumbnailUrl: thumbnailUrl,
+        departureDate: departureDate,
+        guestsCount: guestsCount,
+        totalAmount: totalAmount,
+        contactName: contactName,
+        customerAvatarUrl: customerAvatarUrl,
+      ),
     );
   }
 }
 
-class _PaymentView extends StatelessWidget {
-  const _PaymentView();
+class _PaymentView extends StatefulWidget {
+  final String? tourTitle;
+  final String? thumbnailUrl;
+  final DateTime? departureDate;
+  final int? guestsCount;
+  final int? totalAmount;
+  final String? contactName;
+  final String? customerAvatarUrl;
+
+  const _PaymentView({
+    this.tourTitle,
+    this.thumbnailUrl,
+    this.departureDate,
+    this.guestsCount,
+    this.totalAmount,
+    this.contactName,
+    this.customerAvatarUrl,
+  });
+
+  @override
+  State<_PaymentView> createState() => _PaymentViewState();
+}
+
+class _PaymentViewState extends State<_PaymentView> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final cubit = context.read<PaymentCubit>();
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // Khi người dùng chuyển sang app ngân hàng để chuyển tiền,
+      // tạm dừng polling hoàn toàn để tiết kiệm tài nguyên server!
+      cubit.pausePolling();
+    } else if (state == AppLifecycleState.resumed) {
+      // Khi người dùng chuyển tiền xong và mở lại app Tripri,
+      // kích hoạt kiểm tra ngay lập tức 1 lần!
+      cubit.resumePollingAndCheck();
+    }
+  }
+
+  @override
+  Future<bool> didPopRoute() async {
+    // Trả về false để cho phép Navigator back tự nhiên,
+    // đồng thời tránh lỗi type 'Null' is not a subtype of type 'bool' of 'function result'
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +118,16 @@ class _PaymentView extends StatelessWidget {
         if (state is PaymentPaid) {
           // AC4: tự chuyển sang màn hình xác nhận ngay khi thanh toán thành công.
           Navigator.of(context).pushReplacement(MaterialPageRoute(
-            builder: (_) => PaymentSuccessScreen(bookingId: state.bookingId),
+            builder: (_) => PaymentSuccessScreen(
+              bookingId: state.bookingId,
+              tourTitle: widget.tourTitle,
+              thumbnailUrl: widget.thumbnailUrl,
+              departureDate: widget.departureDate,
+              guestsCount: widget.guestsCount,
+              totalAmount: widget.totalAmount,
+              contactName: widget.contactName,
+              customerAvatarUrl: widget.customerAvatarUrl,
+            ),
           ));
         }
       },

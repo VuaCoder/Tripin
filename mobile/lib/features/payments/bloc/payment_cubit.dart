@@ -56,12 +56,13 @@ class PaymentExpired extends PaymentState {
 class PaymentCubit extends Cubit<PaymentState> {
   final PaymentsRepository _repo;
   final String bookingId;
-  final Duration pollInterval;
   final DateTime Function() _now;
 
   Timer? _ticker;
   Timer? _poller;
   bool _polling = false;
+  bool _isPollingPaused = false;
+  DateTime? _startedAt;
 
   /// Người dùng bấm "Tôi đã chuyển khoản" lúc một lượt poll đang chạy: báo kết quả khi lượt đó xong.
   bool _manualQueued = false;
@@ -69,7 +70,7 @@ class PaymentCubit extends Cubit<PaymentState> {
   PaymentCubit({
     required this.bookingId,
     PaymentsRepository? repository,
-    this.pollInterval = const Duration(seconds: 3),
+    Duration? pollInterval, // giữ tương thích tham số cũ
     DateTime Function()? now,
   })  : _repo = repository ?? PaymentsRepository(),
         _now = now ?? DateTime.now,
@@ -81,12 +82,54 @@ class PaymentCubit extends Cubit<PaymentState> {
     try {
       final checkout = await _repo.createCheckout(bookingId);
       if (isClosed) return;
+      _startedAt = _now();
+      _isPollingPaused = false;
       emit(PaymentAwaiting(checkout, _remaining(checkout)));
       _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
-      _poller = Timer.periodic(pollInterval, (_) => check());
+      _scheduleNextPoll();
     } on PaymentException catch (e) {
       if (!isClosed) emit(PaymentFailure(e.message));
     }
+  }
+
+  /// Tạm dừng Polling khi người dùng ẩn app Tripri để mở app ngân hàng
+  void pausePolling() {
+    _isPollingPaused = true;
+    _poller?.cancel();
+    _poller = null;
+  }
+
+  /// Tiếp tục Polling và kiểm tra ngay lập tức khi người dùng quay lại app Tripri
+  void resumePollingAndCheck() {
+    if (isClosed || state is! PaymentAwaiting) return;
+    _isPollingPaused = false;
+    check();
+  }
+
+  /// Tính toán thời gian giãn cách thích ứng (Adaptive Interval):
+  /// - 0 - 15 giây đầu: 5s/lần (người dùng đang thao tác mở ngân hàng)
+  /// - 15 - 60 giây: 3s/lần (thời điểm vàng khách vừa chuyển tiền xong)
+  /// - Sau 60 giây: 8s/lần (giảm tải triệt để cho server)
+  Duration _getAdaptiveInterval() {
+    if (_startedAt == null) return const Duration(seconds: 4);
+    final elapsedSec = _now().difference(_startedAt!).inSeconds;
+    if (elapsedSec < 15) {
+      return const Duration(seconds: 5);
+    } else if (elapsedSec < 60) {
+      return const Duration(seconds: 3);
+    } else {
+      return const Duration(seconds: 8);
+    }
+  }
+
+  void _scheduleNextPoll() {
+    _poller?.cancel();
+    if (_isPollingPaused || isClosed || state is! PaymentAwaiting) return;
+
+    final interval = _getAdaptiveInterval();
+    _poller = Timer(interval, () {
+      check();
+    });
   }
 
   Duration _remaining(CheckoutInfo c) {
@@ -99,17 +142,17 @@ class PaymentCubit extends Cubit<PaymentState> {
     if (s is! PaymentAwaiting) return;
     final left = _remaining(s.checkout);
     if (left == Duration.zero) {
-      // Hết giờ: hỏi server lần cuối để không bỏ sót giao dịch vừa thanh toán.
       check(finalCheck: true);
     } else {
       emit(s.copyWith(remaining: left));
     }
   }
 
-  /// Poll tự động, hoặc nút "Tôi đã chuyển khoản" (`manual: true`).
+  /// Poll kiểm tra trạng thái thanh toán
   Future<void> check({bool manual = false, bool finalCheck = false}) async {
     final s = state;
     if (s is! PaymentAwaiting) return;
+
     if (_polling) {
       if (manual) {
         _manualQueued = true;
@@ -117,11 +160,14 @@ class PaymentCubit extends Cubit<PaymentState> {
       }
       return;
     }
+
     _polling = true;
     if (manual) emit(s.copyWith(checking: true, notPaidYet: false));
+
     try {
       final snap = await _repo.getPayment(s.checkout.paymentId);
       if (isClosed) return;
+
       if (snap.status == PaymentStatus.paid) {
         _stopTimers();
         emit(PaymentPaid(bookingId));
@@ -132,7 +178,6 @@ class PaymentCubit extends Cubit<PaymentState> {
         emit((state as PaymentAwaiting).copyWith(checking: false, notPaidYet: true));
       }
     } on PaymentException {
-      // Lỗi mạng thoáng qua: giữ nguyên màn hình, lần poll sau sẽ thử lại.
       if (!isClosed && state is PaymentAwaiting) {
         if (finalCheck) {
           _stopTimers();
@@ -144,6 +189,9 @@ class PaymentCubit extends Cubit<PaymentState> {
     } finally {
       _polling = false;
       _manualQueued = false;
+      if (!isClosed && state is PaymentAwaiting && !_isPollingPaused) {
+        _scheduleNextPoll();
+      }
     }
   }
 

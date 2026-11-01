@@ -5,11 +5,15 @@ import '../../../core/constants/app_colors.dart';
 class TourDetailImageCarousel extends StatefulWidget {
   final List<String> images;
   final VoidCallback? onBack;
+  final bool isFavorite;
+  final VoidCallback? onFavoriteTap;
 
   const TourDetailImageCarousel({
     super.key,
     required this.images,
     this.onBack,
+    this.isFavorite = false,
+    this.onFavoriteTap,
   });
 
   @override
@@ -35,7 +39,7 @@ class _TourDetailImageCarouselState extends State<TourDetailImageCarousel> {
       children: [
         // Carousel or Empty Placeholder
         SizedBox(
-          height: 300,
+          height: 340,
           width: double.infinity,
           child: hasImages
               ? PageView.builder(
@@ -95,19 +99,19 @@ class _TourDetailImageCarouselState extends State<TourDetailImageCarousel> {
                 ),
         ),
 
-        // Gradient overlay at top for back button contrast
+        // Gradient overlay at top for button contrast
         Positioned(
           top: 0,
           left: 0,
           right: 0,
-          height: 90,
+          height: 100,
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withValues(alpha: 0.45),
+                  Colors.black.withValues(alpha: 0.4),
                   Colors.transparent,
                 ],
               ),
@@ -115,67 +119,89 @@ class _TourDetailImageCarouselState extends State<TourDetailImageCarousel> {
           ),
         ),
 
-        // Floating Action Buttons (Back & Image Counter)
+        // Floating Action Buttons (Back on Left, Share & Heart on Right)
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                CircleAvatar(
-                  backgroundColor: AppColors.surface.withValues(alpha: 0.9),
-                  radius: 20,
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      size: 18,
-                      color: AppColors.textPrimary,
+                // Back Button
+                GestureDetector(
+                  onTap: widget.onBack ?? () => Navigator.of(context).pop(),
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    onPressed: widget.onBack ?? () => Navigator.of(context).pop(),
+                    child: const Icon(
+                      Icons.arrow_back_rounded,
+                      size: 20,
+                      color: Color(0xFF222222),
+                    ),
                   ),
                 ),
-                if (hasImages && images.length > 1)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      '${_currentIndex + 1}/${images.length}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+
+                // Top Right Action Button (Heart Favorite)
+                GestureDetector(
+                  onTap: widget.onFavoriteTap,
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.12),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          widget.isFavorite
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          size: 20,
+                          color: widget.isFavorite
+                              ? const Color(0xFFFF385C)
+                              : const Color(0xFF222222),
+                        ),
                       ),
                     ),
-                  ),
               ],
             ),
           ),
         ),
 
-        // Dots Indicator at Bottom Center
-        if (hasImages && images.length > 1)
+        // Image Counter Badge at Bottom Right (e.g. 1 / 19)
+        if (hasImages)
           Positioned(
-            bottom: 12,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                images.length,
-                (index) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: _currentIndex == index ? 20 : 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: _currentIndex == index
-                        ? AppColors.surface
-                        : AppColors.surface.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
+            bottom: 20,
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.68),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '${_currentIndex + 1} / ${images.length}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
                 ),
               ),
             ),
