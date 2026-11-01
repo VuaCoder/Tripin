@@ -193,7 +193,6 @@ class _BannerWidgetState extends State<_BannerWidget> with SingleTickerProviderS
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
-                            decoration: TextDecoration.underline,
                           ),
                         ),
                       ),

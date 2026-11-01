@@ -76,45 +76,46 @@ class _TourCardAirbnbState extends State<TourCardAirbnb> {
                     child: _buildImage(tour.coverImage),
                   ),
 
-                  // Góc trên bên trái: Badge "Khách yêu thích" (Guest favorite)
-                  Positioned(
-                    top: 14,
-                    left: 14,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.12),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.workspace_premium_rounded,
-                            size: 15,
-                            color: Color(0xFFD97706), // Amber bronze
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            'Khách yêu thích',
-                            style: TextStyle(
-                              color: Color(0xFF222222),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.2,
+                  // Góc trên bên trái: Badge "Khách yêu thích" (Chỉ đạt được khi > 4.5 sao và có đánh giá từ 10 lần trở lên)
+                  if (tour.ratingAvg > 4.5 && tour.ratingCount >= 10)
+                    Positioned(
+                      top: 14,
+                      left: 14,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.12),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.workspace_premium_rounded,
+                              size: 15,
+                              color: Color(0xFFD97706), // Amber bronze
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'Khách yêu thích',
+                              style: TextStyle(
+                                color: Color(0xFF222222),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
 
                   // Góc trên bên phải: Nút Trái tim Wishlist
                   Positioned(
@@ -137,36 +138,6 @@ class _TourCardAirbnbState extends State<TourCardAirbnb> {
                           ),
                         ],
                       ),
-                    ),
-                  ),
-
-                  // Đáy ảnh: Dots indicator (Các dấu chấm phân trang ảnh)
-                  Positioned(
-                    bottom: 12,
-                    left: 0,
-                    right: 0,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(5, (index) {
-                        final isActive = index == _activeImageIndex;
-                        return Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 2.5),
-                          width: isActive ? 6.5 : 5.5,
-                          height: isActive ? 6.5 : 5.5,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isActive
-                                ? Colors.white
-                                : Colors.white.withValues(alpha: 0.55),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.25),
-                                blurRadius: 2,
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
                     ),
                   ),
                 ],
@@ -205,7 +176,7 @@ class _TourCardAirbnbState extends State<TourCardAirbnb> {
                     ),
                     const SizedBox(width: 2),
                     Text(
-                      '${tour.ratingAvg > 0 ? tour.ratingAvg.toStringAsFixed(1) : '5.0'} (${tour.ratingCount > 0 ? tour.ratingCount : 19})',
+                      '${tour.ratingAvg > 0 ? tour.ratingAvg.toStringAsFixed(1) : '5.0'} (${tour.ratingCount})',
                       style: const TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w600,
@@ -257,7 +228,7 @@ class _TourCardAirbnbState extends State<TourCardAirbnb> {
 
             const SizedBox(height: 5),
 
-            // Dòng 5: Giá tiền nổi bật có gạch chân nhẹ
+            // Dòng 5: Giá tiền (bỏ gạch chân theo yêu cầu)
             RichText(
               text: TextSpan(
                 children: [
@@ -267,7 +238,6 @@ class _TourCardAirbnbState extends State<TourCardAirbnb> {
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
                       color: Color(0xFF222222),
-                      decoration: TextDecoration.underline,
                     ),
                   ),
                   TextSpan(
@@ -284,14 +254,13 @@ class _TourCardAirbnbState extends State<TourCardAirbnb> {
 
             const SizedBox(height: 3),
 
-            // Dòng 6: Chính sách hủy phòng
+            // Dòng 6: Chính sách hủy phòng (bỏ gạch chân theo yêu cầu)
             const Text(
               'Miễn phí hủy',
               style: TextStyle(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF222222),
-                decoration: TextDecoration.underline,
               ),
             ),
           ],

@@ -124,9 +124,9 @@ void main() {
       await tester.tap(find.text('Chỉnh sửa'));
       await tester.pumpAndSettle();
 
-      // Nút chuyển thành "Xong" và xuất hiện nút xoá
+      // Nút chuyển thành "Xong" và xuất hiện nút xoá dạng (x) trắng
       expect(find.text('Xong'), findsOneWidget);
-      expect(find.byIcon(Icons.remove_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.close_rounded), findsOneWidget);
     });
 
     testWidgets('When all custom wishlists are deleted, Chỉnh sửa button disappears', (tester) async {
@@ -152,8 +152,8 @@ void main() {
       await tester.tap(find.text('Chỉnh sửa'));
       await tester.pumpAndSettle();
 
-      // Bấm vào nút xoá (icon remove_rounded) trên card "ngu"
-      await tester.tap(find.byIcon(Icons.remove_rounded));
+      // Bấm vào nút xoá (icon close_rounded) trên card "ngu"
+      await tester.tap(find.byIcon(Icons.close_rounded));
       await tester.pumpAndSettle();
 
       // Xác nhận xoá trong Dialog

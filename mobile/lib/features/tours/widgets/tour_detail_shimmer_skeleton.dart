@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class ShimmerAnimationWidget extends StatefulWidget {
@@ -13,13 +15,21 @@ class _ShimmerAnimationWidgetState extends State<ShimmerAnimationWidget>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
+  bool get _isInTest {
+    if (kIsWeb) return false;
+    return Platform.environment.containsKey('FLUTTER_TEST');
+  }
+
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
-    )..repeat();
+    );
+    if (!_isInTest) {
+      _controller.repeat();
+    }
   }
 
   @override
@@ -30,6 +40,10 @@ class _ShimmerAnimationWidgetState extends State<ShimmerAnimationWidget>
 
   @override
   Widget build(BuildContext context) {
+    if (_isInTest) {
+      return widget.child;
+    }
+
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
@@ -84,8 +98,43 @@ class ShimmerBox extends StatelessWidget {
   }
 }
 
+/// Shimmer Skeleton chuẩn 1:1 cho màn hình Chi tiết Tour
+/// Khớp chính xác với cấu trúc TourDetailScreen:
+/// 1. Top Image Carousel (cao 340px)
+/// 2. Floating Header: Nút back tròn + Nút tim tròn
+/// 3. Main Content Card (Bo góc 28px trùm lên ảnh -26px):
+///    - Tên tour & Địa điểm & Thời lượng
+///    - Khối đánh giá 2 cột phong cách Airbnb (Điểm số / 5 sao | Số lượt / Đánh giá)
+///    - Host section ("Thuộc về..." + Avatar tròn 52px)
+///    - Điểm nổi bật chuyến đi (4 dòng icon + tiêu đề) + Mô tả
+///    - 2 Dropdown Accordion (Lịch trình & Chính sách)
+///    - Danh sách đánh giá mẫu
+/// 4. Sticky Bottom Bar: Cột giá + Nút đặt tour
 class TourDetailShimmerSkeleton extends StatelessWidget {
   const TourDetailShimmerSkeleton({super.key});
+
+  Widget _buildHighlightRowSkeleton() {
+    return const Padding(
+      padding: EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ShimmerBox(width: 24, height: 24, borderRadius: 12),
+          SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ShimmerBox(width: 180, height: 16, borderRadius: 4),
+                SizedBox(height: 6),
+                ShimmerBox(width: double.infinity, height: 13, borderRadius: 4),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -112,48 +161,82 @@ class TourDetailShimmerSkeleton extends StatelessWidget {
                     decoration: const BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 10,
+                          offset: Offset(0, -3),
+                        ),
+                      ],
                     ),
-                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Tiêu đề tour
-                        const ShimmerBox(width: double.infinity, height: 26, borderRadius: 6),
+                        // Tiêu đề tour (2 dòng)
+                        const ShimmerBox(width: double.infinity, height: 24, borderRadius: 6),
                         const SizedBox(height: 8),
-                        const ShimmerBox(width: 240, height: 26, borderRadius: 6),
+                        const ShimmerBox(width: 220, height: 24, borderRadius: 6),
                         const SizedBox(height: 14),
 
-                        // Subtitle: Điểm đến & Thời lượng
-                        const ShimmerBox(width: 160, height: 16, borderRadius: 4),
+                        // Subtitle: Điểm đến & Thời lượng / Quy mô khách
+                        const ShimmerBox(width: 150, height: 15, borderRadius: 4),
                         const SizedBox(height: 6),
-                        const ShimmerBox(width: 220, height: 14, borderRadius: 4),
+                        const ShimmerBox(width: 230, height: 13.5, borderRadius: 4),
                         const SizedBox(height: 20),
 
-                        // Khối Đánh giá Skeleton đồng bộ 1:1 với giao diện thật (Bỏ khung xám)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 2),
+                        // Khối Đánh giá Skeleton 2 cột chuẩn 1:1 Airbnb với viền và nền sáng
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFAFAFA),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFEEEEEE), width: 1),
+                          ),
                           child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              ShimmerBox(width: 95, height: 16, borderRadius: 4),
-                              SizedBox(width: 10),
-                              ShimmerBox(width: 28, height: 16, borderRadius: 4),
-                              SizedBox(width: 8),
-                              ShimmerBox(width: 80, height: 16, borderRadius: 4),
+                              // Cột 1: Điểm đánh giá & 5 sao
+                              Expanded(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: const [
+                                    ShimmerBox(width: 44, height: 22, borderRadius: 4),
+                                    SizedBox(height: 6),
+                                    ShimmerBox(width: 80, height: 12, borderRadius: 3),
+                                  ],
+                                ),
+                              ),
+                              // Đường kẻ phân cách ở giữa
+                              Container(
+                                height: 38,
+                                width: 1,
+                                color: const Color(0xFFE5E7EB),
+                              ),
+                              // Cột 2: Số lượt đánh giá & nhãn
+                              Expanded(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: const [
+                                    ShimmerBox(width: 38, height: 22, borderRadius: 4),
+                                    SizedBox(height: 6),
+                                    ShimmerBox(width: 60, height: 12, borderRadius: 3),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
 
                         const SizedBox(height: 20),
-                        const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                        const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
                         const SizedBox(height: 20),
 
-                        // Host section Skeleton
+                        // Host section Skeleton ("Thuộc về..." + Avatar)
                         Row(
                           children: [
                             Container(
-                              width: 50,
-                              height: 50,
+                              width: 52,
+                              height: 52,
                               decoration: const BoxDecoration(
                                 color: Color(0xFFEDEDED),
                                 shape: BoxShape.circle,
@@ -164,9 +247,9 @@ class TourDetailShimmerSkeleton extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  ShimmerBox(width: 160, height: 16, borderRadius: 4),
+                                  ShimmerBox(width: 170, height: 16, borderRadius: 4),
                                   SizedBox(height: 6),
-                                  ShimmerBox(width: 100, height: 13, borderRadius: 4),
+                                  ShimmerBox(width: 220, height: 13, borderRadius: 4),
                                 ],
                               ),
                             ),
@@ -174,23 +257,28 @@ class TourDetailShimmerSkeleton extends StatelessWidget {
                         ),
 
                         const SizedBox(height: 20),
-                        const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                        const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
                         const SizedBox(height: 20),
 
-                        // Điểm nổi bật & Mô tả
-                        const ShimmerBox(width: 180, height: 18, borderRadius: 4),
-                        const SizedBox(height: 12),
+                        // Điểm nổi bật chuyến đi (4 dòng highlight chuẩn)
+                        _buildHighlightRowSkeleton(),
+                        _buildHighlightRowSkeleton(),
+                        _buildHighlightRowSkeleton(),
+                        _buildHighlightRowSkeleton(),
+
+                        // Tóm tắt & Mô tả tour
+                        const SizedBox(height: 8),
                         const ShimmerBox(width: double.infinity, height: 14, borderRadius: 4),
                         const SizedBox(height: 6),
                         const ShimmerBox(width: double.infinity, height: 14, borderRadius: 4),
                         const SizedBox(height: 6),
-                        const ShimmerBox(width: 260, height: 14, borderRadius: 4),
+                        const ShimmerBox(width: 240, height: 14, borderRadius: 4),
 
                         const SizedBox(height: 24),
-                        const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                        const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
                         const SizedBox(height: 18),
 
-                        // Accordion Lịch trình & Chính sách
+                        // Accordion 1: Lịch trình cụ thể
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           decoration: BoxDecoration(
@@ -200,12 +288,14 @@ class TourDetailShimmerSkeleton extends StatelessWidget {
                           child: const Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              ShimmerBox(width: 140, height: 16, borderRadius: 4),
+                              ShimmerBox(width: 150, height: 16, borderRadius: 4),
                               ShimmerBox(width: 18, height: 18, borderRadius: 9),
                             ],
                           ),
                         ),
                         const SizedBox(height: 12),
+
+                        // Accordion 2: Thông tin & Chính sách
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           decoration: BoxDecoration(
@@ -215,24 +305,24 @@ class TourDetailShimmerSkeleton extends StatelessWidget {
                           child: const Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              ShimmerBox(width: 140, height: 16, borderRadius: 4),
+                              ShimmerBox(width: 160, height: 16, borderRadius: 4),
                               ShimmerBox(width: 18, height: 18, borderRadius: 9),
                             ],
                           ),
                         ),
 
                         const SizedBox(height: 24),
-                        const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                        const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
                         const SizedBox(height: 20),
 
-                        // Reviews section cards Skeleton (Chiều cao 215px chuẩn Ảnh 1)
-                        const ShimmerBox(width: 170, height: 18, borderRadius: 4),
+                        // Đánh giá từ khách hàng Skeleton
+                        const ShimmerBox(width: 180, height: 18, borderRadius: 4),
                         const SizedBox(height: 14),
                         Row(
                           children: [
                             Expanded(
                               child: Container(
-                                height: 190,
+                                height: 180,
                                 padding: const EdgeInsets.all(14),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(16),
@@ -243,24 +333,24 @@ class TourDetailShimmerSkeleton extends StatelessWidget {
                                   children: [
                                     Row(
                                       children: [
-                                        ShimmerBox(width: 38, height: 38, borderRadius: 19),
+                                        ShimmerBox(width: 36, height: 36, borderRadius: 18),
                                         SizedBox(width: 10),
                                         Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            ShimmerBox(width: 80, height: 14, borderRadius: 4),
+                                            ShimmerBox(width: 75, height: 13, borderRadius: 4),
                                             SizedBox(height: 4),
-                                            ShimmerBox(width: 60, height: 12, borderRadius: 4),
+                                            ShimmerBox(width: 55, height: 11, borderRadius: 4),
                                           ],
                                         ),
                                       ],
                                     ),
                                     SizedBox(height: 12),
-                                    ShimmerBox(width: 100, height: 14, borderRadius: 4),
-                                    SizedBox(height: 10),
-                                    ShimmerBox(width: double.infinity, height: 12, borderRadius: 4),
+                                    ShimmerBox(width: 90, height: 13, borderRadius: 4),
+                                    SizedBox(height: 8),
+                                    ShimmerBox(width: double.infinity, height: 11, borderRadius: 4),
                                     SizedBox(height: 6),
-                                    ShimmerBox(width: 180, height: 12, borderRadius: 4),
+                                    ShimmerBox(width: 120, height: 11, borderRadius: 4),
                                   ],
                                 ),
                               ),
@@ -268,7 +358,7 @@ class TourDetailShimmerSkeleton extends StatelessWidget {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Container(
-                                height: 190,
+                                height: 180,
                                 padding: const EdgeInsets.all(14),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(16),
@@ -279,24 +369,24 @@ class TourDetailShimmerSkeleton extends StatelessWidget {
                                   children: [
                                     Row(
                                       children: [
-                                        ShimmerBox(width: 38, height: 38, borderRadius: 19),
+                                        ShimmerBox(width: 36, height: 36, borderRadius: 18),
                                         SizedBox(width: 10),
                                         Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            ShimmerBox(width: 80, height: 14, borderRadius: 4),
+                                            ShimmerBox(width: 75, height: 13, borderRadius: 4),
                                             SizedBox(height: 4),
-                                            ShimmerBox(width: 60, height: 12, borderRadius: 4),
+                                            ShimmerBox(width: 55, height: 11, borderRadius: 4),
                                           ],
                                         ),
                                       ],
                                     ),
                                     SizedBox(height: 12),
-                                    ShimmerBox(width: 100, height: 14, borderRadius: 4),
-                                    SizedBox(height: 10),
-                                    ShimmerBox(width: double.infinity, height: 12, borderRadius: 4),
+                                    ShimmerBox(width: 90, height: 13, borderRadius: 4),
+                                    SizedBox(height: 8),
+                                    ShimmerBox(width: double.infinity, height: 11, borderRadius: 4),
                                     SizedBox(height: 6),
-                                    ShimmerBox(width: 180, height: 12, borderRadius: 4),
+                                    ShimmerBox(width: 120, height: 11, borderRadius: 4),
                                   ],
                                 ),
                               ),
@@ -312,7 +402,7 @@ class TourDetailShimmerSkeleton extends StatelessWidget {
           ),
         ),
 
-        // 3. Floating Header (Nút Back hoạt động ngay lập tức + Nút Heart, ĐÃ BỎ NÚT SHARE)
+        // 3. Floating Header (Nút Back hoạt động ngay lập tức + Nút Heart)
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -344,7 +434,7 @@ class TourDetailShimmerSkeleton extends StatelessWidget {
                   ),
                 ),
 
-                // Nút Heart (Đã bỏ nút share hoàn toàn theo yêu cầu Ảnh 1)
+                // Nút Heart
                 Container(
                   width: 38,
                   height: 38,
@@ -370,7 +460,7 @@ class TourDetailShimmerSkeleton extends StatelessWidget {
           ),
         ),
 
-        // 4. Bottom Sticky Bar Skeleton (Giá & Nút xanh)
+        // 4. Bottom Sticky Bar Skeleton (Giá & Nút đặt tour)
         Positioned(
           left: 0,
           right: 0,
@@ -379,10 +469,11 @@ class TourDetailShimmerSkeleton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.white,
+              border: const Border(top: BorderSide(color: Color(0xFFEBEBEB), width: 1)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 12,
                   offset: const Offset(0, -3),
                 ),
               ],
@@ -396,12 +487,12 @@ class TourDetailShimmerSkeleton extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ShimmerBox(width: 50, height: 12, borderRadius: 3),
+                      ShimmerBox(width: 45, height: 12, borderRadius: 3),
                       SizedBox(height: 4),
                       ShimmerBox(width: 120, height: 22, borderRadius: 4),
                     ],
                   ),
-                  ShimmerBox(width: 130, height: 48, borderRadius: 12),
+                  ShimmerBox(width: 140, height: 48, borderRadius: 12),
                 ],
               ),
             ),

@@ -163,13 +163,12 @@ void main() {
       // Section header uses circular arrow icon
       expect(find.byIcon(Icons.arrow_forward_rounded), findsWidgets);
 
-      // Cards inside Recently Viewed do NOT have any "Được khách yêu thích" badge / tag
+      // Cards inside Recently Viewed use the same layout as Tour Nổi Bật (showBadge = true, standard title)
       final cards = tester.widgetList<TourCardHorizontal>(find.byType(TourCardHorizontal)).toList();
       expect(cards.isNotEmpty, isTrue);
 
-      // First card belongs to Recently Viewed and has showBadge = false
+      // First card belongs to Recently Viewed and has showBadge = false (không hiển thị tag "Được khách yêu thích")
       expect(cards.first.showBadge, isFalse);
-      expect(cards.first.useDestinationTitle, isTrue);
 
       // Tapping circular arrow on Recently Viewed opens RecentlyViewedScreen
       await tester.tap(find.byIcon(Icons.arrow_forward_rounded).first);

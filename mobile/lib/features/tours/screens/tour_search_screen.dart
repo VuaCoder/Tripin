@@ -17,7 +17,6 @@ import '../../wishlist/bloc/wishlist_state.dart';
 /// - Thanh search dạng Capsule 3D nổi bật đồng bộ với trang khám phá
 /// - Nút lọc icon tinh tế, KHÔNG CÓ BACKGROUND
 /// - Danh sách thẻ tour dạng lớn chuẩn Airbnb Listing Card (Ảnh 1)
-/// - Nút nổi "Bản đồ" ở chính giữa cạnh dưới
 class TourSearchScreen extends StatelessWidget {
   final String? initialCategoryId;
   final String? initialQuery;
@@ -164,56 +163,6 @@ class _TourSearchViewState extends State<_TourSearchView> {
                   ],
                 ),
 
-                // 3. Nút nổi "Bản đồ" ở chính giữa cạnh dưới (Ảnh 1)
-                if (state.tours.isNotEmpty && state.status == TourSearchStatus.success)
-                  Positioned(
-                    bottom: 20,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: InkWell(
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Chế độ xem bản đồ đang được hoàn thiện'),
-                              duration: Duration(seconds: 1),
-                            ),
-                          );
-                        },
-                        borderRadius: BorderRadius.circular(24),
-                        child: Container(
-                          height: 42,
-                          padding: const EdgeInsets.symmetric(horizontal: 18),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF222222),
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.25),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'Bản đồ',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              SizedBox(width: 6),
-                              Icon(Icons.map_rounded, color: Colors.white, size: 16),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),

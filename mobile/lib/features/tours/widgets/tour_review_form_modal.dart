@@ -83,6 +83,15 @@ class _TourReviewFormModalState extends State<TourReviewFormModal> {
             ),
           );
           widget.onSuccess?.call();
+        } else if (state.submitError != null &&
+            state.submitError!.contains('đã được đánh giá trước đó')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Chuyến đi này đã có đánh giá. Trạng thái đã được cập nhật: Đã đánh giá.'),
+              backgroundColor: Color(0xFF0F766E),
+            ),
+          );
+          widget.onSuccess?.call();
         }
       },
       builder: (context, state) {

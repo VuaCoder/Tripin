@@ -103,12 +103,14 @@ class UserProfileModel {
 
   bool get isGuide => role == 'TOUR_GUIDE';
   bool get isTraveler => role == 'TRAVELER';
+  bool get isAgency => role == 'AGENCY';
   bool get isVerified => (isEmailVerified == true) || (emailVerifiedAt != null && emailVerifiedAt!.isNotEmpty);
 
   UserProfileModel copyWith({
     String? fullName,
     String? phone,
     String? avatarUrl,
+    String? role,
     GuideProfileData? guideProfile,
     String? status,
     String? emailVerifiedAt,
@@ -125,7 +127,7 @@ class UserProfileModel {
       fullName: fullName ?? this.fullName,
       phone: phone ?? this.phone,
       avatarUrl: avatarUrl ?? this.avatarUrl,
-      role: role,
+      role: role ?? this.role,
       status: status ?? this.status,
       guideProfile: guideProfile ?? this.guideProfile,
       emailVerifiedAt: emailVerifiedAt ?? this.emailVerifiedAt,

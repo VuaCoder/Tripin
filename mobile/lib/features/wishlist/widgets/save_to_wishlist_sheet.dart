@@ -227,19 +227,6 @@ class SaveToWishlistSheet extends StatelessWidget {
                 ),
               ),
             ),
-
-            // Home indicator line
-            Center(
-              child: Container(
-                width: 134,
-                height: 5,
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
           ],
         ),
       ),

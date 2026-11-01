@@ -177,6 +177,131 @@ export class UsersService {
     return toPrivateUserDto(updated);
   }
 
+  /** Traveler requests to become a Tour Guide (stores in user preferences and returns pending application). */
+  async applyGuide(
+    userId: string,
+    input: {
+      licenseNumber: string;
+      experienceYears?: number;
+      languages?: string[];
+      specialties?: string[];
+      bio?: string;
+      licenseImageUrl?: string;
+    },
+  ) {
+    const user = await this.requireUser(userId);
+    if (user.role === ROLES.AGENCY) {
+      throw AppError.forbidden('Tài khoản Doanh nghiệp lữ hành (Agency) không thể đăng ký làm Hướng dẫn viên');
+    }
+    if (user.role === ROLES.TOUR_GUIDE) {
+      throw AppError.badRequest('Tài khoản của bạn đã là Hướng dẫn viên du lịch');
+    }
+    if (!input.licenseNumber || !input.licenseNumber.trim()) {
+      throw AppError.badRequest('Vui lòng cung cấp số thẻ hành nghề hướng dẫn viên');
+    }
+
+    const currentPrefs = (user.preferences as Record<string, any>) ?? {};
+    const application = {
+      status: 'PENDING',
+      licenseNumber: input.licenseNumber.trim(),
+      experienceYears: input.experienceYears ?? 1,
+      languages: input.languages && input.languages.length > 0 ? input.languages : ['Tiếng Việt'],
+      specialties: input.specialties ?? [],
+      bio: input.bio?.trim() ?? '',
+      licenseImageUrl: input.licenseImageUrl ?? null,
+      submittedAt: new Date().toISOString(),
+      verificationNote: null,
+    };
+
+    await this.users.updateById(userId, {
+      preferences: {
+        ...currentPrefs,
+        guideApplication: application,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Hồ sơ đã được gửi thành công và đang chờ ban quản trị xét duyệt theo thời gian thực.',
+      application,
+    };
+  }
+
+  async getGuideApplication(userId: string) {
+    const user = await this.requireUser(userId);
+    if (user.role === ROLES.TOUR_GUIDE) {
+      return {
+        status: 'APPROVED',
+        role: user.role,
+        guideProfile: user.guideProfile,
+      };
+    }
+    const currentPrefs = (user.preferences as Record<string, any>) ?? {};
+    const app = currentPrefs.guideApplication;
+    if (!app) {
+      return { status: 'NOT_SUBMITTED' };
+    }
+    return app;
+  }
+
+  async devAcceptGuide(userId: string) {
+    const user = await this.requireUser(userId);
+    const currentPrefs = (user.preferences as Record<string, any>) ?? {};
+    const app = currentPrefs.guideApplication ?? {};
+
+    const updated = await this.users.updateById(userId, {
+      role: ROLES.TOUR_GUIDE,
+      guideProfile: {
+        licenseNumber: app.licenseNumber || 'HDV-VN-VERIFIED',
+        experienceYears: Number(app.experienceYears) || 1,
+        languages: app.languages || ['Tiếng Việt'],
+        specialties: app.specialties || ['Tour văn hóa'],
+        bio: app.bio || '',
+        licenseImageUrl: app.licenseImageUrl || null,
+      },
+      preferences: {
+        ...currentPrefs,
+        guideApplication: {
+          ...app,
+          status: 'APPROVED',
+          verifiedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Hồ sơ hướng dẫn viên đã được phê duyệt thành công theo thời gian thực!',
+      user: toPrivateUserDto(updated ?? user),
+    };
+  }
+
+  async devRejectGuide(userId: string, reason?: string) {
+    const user = await this.requireUser(userId);
+    const currentPrefs = (user.preferences as Record<string, any>) ?? {};
+    const app = currentPrefs.guideApplication ?? {};
+
+    const updatedApp = {
+      ...app,
+      status: 'REJECTED',
+      verificationNote: reason?.trim() || 'Thông tin thẻ hành nghề hoặc giấy phép chưa hợp lệ. Vui lòng kiểm tra lại ảnh chụp thẻ.',
+      rejectedAt: new Date().toISOString(),
+    };
+
+    await this.users.updateById(userId, {
+      preferences: {
+        ...currentPrefs,
+        guideApplication: updatedApp,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Đã từ chối hồ sơ hướng dẫn viên.',
+      application: updatedApp,
+    };
+  }
+
   // ----------------------------------------------------- Public profiles
   async listAgencyGuides(query: { q?: string; page: number; limit: number }): Promise<Page<PublicGuideDto>> {
     const { items, total } = await this.users.listActiveGuides(query.q, query);

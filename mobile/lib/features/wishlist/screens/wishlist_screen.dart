@@ -240,10 +240,9 @@ class _WishlistScreenState extends State<WishlistScreen> {
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               ),
                             ),
-                            errorWidget: (context, url, error) => const Icon(
-                              Icons.image_outlined,
-                              size: 32,
-                              color: AppColors.textMuted,
+                            errorWidget: (context, url, error) => CachedNetworkImage(
+                              imageUrl: 'https://images.unsplash.com/photo-1560113855-2ea616c915ee?auto=format&fit=crop&w=800&q=78',
+                              fit: BoxFit.cover,
                             ),
                           )
                         : const Center(
@@ -284,17 +283,18 @@ class _WishlistScreenState extends State<WishlistScreen> {
             ],
           ),
 
-          // Nút xoá màu đỏ xuất hiện khi đang ở chế độ Chỉnh sửa
+          // Nút xoá (x) tròn màu trắng xuất hiện khi đang ở chế độ Chỉnh sửa (Ảnh 2)
           if (isEditing)
             Positioned(
               top: 8,
-              right: 8,
+              left: 8,
               child: GestureDetector(
                 onTap: () => _confirmDeleteWishlist(context, collection),
                 child: Container(
-                  padding: const EdgeInsets.all(6),
+                  width: 28,
+                  height: 28,
                   decoration: const BoxDecoration(
-                    color: AppColors.error,
+                    color: Colors.white,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
@@ -305,9 +305,9 @@ class _WishlistScreenState extends State<WishlistScreen> {
                     ],
                   ),
                   child: const Icon(
-                    Icons.remove_rounded,
-                    color: Colors.white,
-                    size: 18,
+                    Icons.close_rounded,
+                    size: 16,
+                    color: Color(0xFF222222),
                   ),
                 ),
               ),

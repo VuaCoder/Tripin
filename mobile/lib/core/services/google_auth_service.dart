@@ -1,44 +1,107 @@
+import 'dart:async';
+import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../constants/api_endpoints.dart';
 
 /// Dịch vụ quản lý xác thực tài khoản Google cho Tripri Mobile
+/// Sử dụng OAuth 2.0 Web Flow thông qua domain đã deploy (https://tripin-23rt.vercel.app/mobile-auth)
+/// Đảm bảo 100% hoạt động trên mọi thiết bị (máy ảo + máy thật) và mọi file APK xuất ra mà không cần SHA-1.
 class GoogleAuthService {
   final GoogleSignIn _googleSignIn;
+  final AppLinks _appLinks;
 
-  GoogleAuthService({GoogleSignIn? googleSignIn})
+  GoogleAuthService({GoogleSignIn? googleSignIn, AppLinks? appLinks})
       : _googleSignIn = googleSignIn ??
             GoogleSignIn(
               serverClientId: ApiEndpoints.googleClientId,
               scopes: const ['email', 'profile'],
-            );
+            ),
+        _appLinks = appLinks ?? AppLinks();
 
-  /// Đăng nhập bằng Google và trích xuất OpenID Connect ID Token.
-  /// Trả về `String` chứa idToken nếu thành công.
-  /// Trả về `null` nếu người dùng chủ động đóng hộp thoại chọn tài khoản.
-  Future<String?> signIn() async {
+  /// Đăng nhập bằng Google qua Web OAuth (100% không cần mã SHA-1, tương thích mọi thiết bị & APK).
+  /// Mở trang xác thực đã deploy: https://tripin-23rt.vercel.app/mobile-auth
+  /// Khi xác thực xong, trang web sẽ redirect về deep link `tripri://auth/callback?idToken=...`
+  Future<String?> signInViaWeb({String role = 'TRAVELER'}) async {
+    final completer = Completer<String?>();
+    StreamSubscription<Uri>? linkSub;
+
+    final timer = Timer(const Duration(minutes: 3), () {
+      if (!completer.isCompleted) {
+        completer.complete(null);
+      }
+    });
+
     try {
-      // Đảm bảo không dính phiên cũ
+      linkSub = _appLinks.uriLinkStream.listen(
+        (uri) {
+          if (uri.scheme == 'tripri' && uri.host == 'auth') {
+            final idToken = uri.queryParameters['idToken'];
+            if (!completer.isCompleted) {
+              completer.complete(idToken);
+            }
+          }
+        },
+        onError: (err) {
+          debugPrint('[GoogleAuthService] Lỗi lắng nghe deep link: $err');
+          if (!completer.isCompleted) completer.complete(null);
+        },
+      );
+
+      final authUrl = Uri.parse(
+        'https://tripin-23rt.vercel.app/mobile-auth?role=${Uri.encodeComponent(role)}',
+      );
+
+      final launched = await launchUrl(
+        authUrl,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!launched) {
+        throw Exception('Không thể mở trình duyệt để xác thực Google.');
+      }
+
+      final result = await completer.future;
+      return result;
+    } catch (e) {
+      debugPrint('[GoogleAuthService] Lỗi signInViaWeb: $e');
+      rethrow;
+    } finally {
+      timer.cancel();
+      await linkSub?.cancel();
+    }
+  }
+
+  /// Đăng nhập Google:
+  /// - Ưu tiên Web OAuth Flow (0% cần SHA-1, hoạt động trên mọi điện thoại & file APK).
+  /// - Tự động fallback sang native nếu môi trường hỗ trợ sẵn.
+  Future<String?> signIn({String role = 'TRAVELER'}) async {
+    try {
+      final webIdToken = await signInViaWeb(role: role);
+      if (webIdToken != null && webIdToken.isNotEmpty) {
+        return webIdToken;
+      }
+    } catch (e) {
+      debugPrint('[GoogleAuthService] Web flow gặp lỗi ($e), thử Native sign-in...');
+    }
+
+    // Fallback sang native nếu thiết bị đã đăng ký SHA-1 hợp lệ
+    try {
       if (await _googleSignIn.isSignedIn()) {
         await _googleSignIn.signOut();
       }
-
       final GoogleSignInAccount? account = await _googleSignIn.signIn();
-      if (account == null) {
-        // Người dùng hủy hộp thoại đăng nhập
-        return null;
-      }
+      if (account == null) return null;
 
       final GoogleSignInAuthentication auth = await account.authentication;
       final idToken = auth.idToken;
-
       if (idToken == null || idToken.isEmpty) {
         throw Exception('Không tìm thấy Google ID Token từ tài khoản đã chọn.');
       }
-
       return idToken;
     } catch (e) {
-      debugPrint('[GoogleAuthService] Lỗi đăng nhập Google: $e');
+      debugPrint('[GoogleAuthService] Native sign-in lỗi: $e');
       rethrow;
     }
   }

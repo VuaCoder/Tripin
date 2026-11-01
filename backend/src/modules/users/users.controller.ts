@@ -61,6 +61,22 @@ export class UsersController {
     sendOk(res, await this.service.requestAgencyVerification(userActor(req).userId), 202);
   };
 
+  applyGuide: RequestHandler = async (req, res) => {
+    sendOk(res, await this.service.applyGuide(userActor(req).userId, req.body));
+  };
+
+  getGuideApplication: RequestHandler = async (req, res) => {
+    sendOk(res, await this.service.getGuideApplication(userActor(req).userId));
+  };
+
+  devAcceptGuide: RequestHandler = async (req, res) => {
+    sendOk(res, await this.service.devAcceptGuide(userActor(req).userId));
+  };
+
+  devRejectGuide: RequestHandler = async (req, res) => {
+    sendOk(res, await this.service.devRejectGuide(userActor(req).userId, req.body.reason));
+  };
+
   getPublicGuide: RequestHandler = async (req, res) => {
     const { params } = validated<unknown, unknown, IdParams>(req);
     sendOk(res, await this.service.getPublicGuide(params.id));

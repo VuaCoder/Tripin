@@ -18,13 +18,22 @@ class AppNotification extends Equatable {
   });
 
   factory AppNotification.fromJson(Map<String, dynamic> json) => AppNotification(
-        id: json['id'] as String,
+        id: json['id'] as String? ?? 'notif-${DateTime.now().millisecondsSinceEpoch}',
         type: json['type'] as String? ?? '',
         title: json['title'] as String? ?? '',
         body: json['body'] as String? ?? '',
         isRead: json['isRead'] as bool? ?? false,
         createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '')?.toLocal() ?? DateTime.now(),
       );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'type': type,
+        'title': title,
+        'body': body,
+        'isRead': isRead,
+        'createdAt': createdAt.toIso8601String(),
+      };
 
   AppNotification asRead() => AppNotification(
         id: id,
@@ -36,7 +45,7 @@ class AppNotification extends Equatable {
       );
 
   bool get isChat => type == 'CHAT_MESSAGE';
-  bool get isBooking => type.startsWith('BOOKING_');
+  bool get isBooking => type.startsWith('BOOKING_') || type == 'TOUR_COMPLETED' || type == 'BOOKING_PAID';
 
   @override
   List<Object?> get props => [id, type, title, body, isRead, createdAt];

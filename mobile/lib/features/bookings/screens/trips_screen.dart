@@ -1,8 +1,13 @@
+import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/services/notification_service.dart';
+import '../../notifications/models/notification_models.dart';
+import '../../notifications/services/notifications_storage.dart';
 import '../../tours/bloc/tour_review_bloc.dart';
 import '../../tours/widgets/tour_review_form_modal.dart';
 import '../bloc/booked_trips_repository.dart';
@@ -23,40 +28,37 @@ class TripsScreen extends StatefulWidget {
 class _TripsScreenState extends State<TripsScreen> {
   late final BookedTripsRepository _repo = widget.repository ?? BookedTripsRepository();
   List<BookingItem> _trips = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _trips = widget.initialTrips ?? [
-      BookingItem(
-        id: 'trip-dalat-demo-1',
-        bookingCode: 'TRP-DLT8920',
-        status: BookingStatus.confirmed,
-        tourId: 'tour-dalat-1',
-        tourTitle: 'Dalat',
-        departureDate: DateTime(2026, 8, 18),
-        endDate: DateTime(2026, 8, 20),
-        participants: 4,
-        totalAmount: 3200000,
-        isPaid: true,
-        refundRequired: false,
-        thumbnailUrl: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=600&auto=format&fit=crop&q=80',
-        destination: 'Dalat',
-        contactName: 'Hoàng Phúc',
-      ),
-    ];
-    _loadTrips();
+    if (widget.initialTrips != null) {
+      _trips = widget.initialTrips!;
+      _isLoading = false;
+    } else {
+      _trips = [];
+      _isLoading = true;
+      _loadTrips();
+    }
   }
 
   Future<void> _loadTrips() async {
     try {
       final trips = await _repo.getTrips();
-      if (mounted && trips.isNotEmpty) {
+      if (mounted) {
         setState(() {
           _trips = trips;
+          _isLoading = false;
         });
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _showQrDialog(BookingItem trip) {
@@ -93,6 +95,25 @@ class _TripsScreenState extends State<TripsScreen> {
 
     if (confirmed == true) {
       await _repo.markCompleted(trip.id);
+
+      // Lưu thông báo hoàn thành tour và xin cảm nghĩ
+      final notif = AppNotification(
+        id: 'notif-completed-${trip.id}-${DateTime.now().millisecondsSinceEpoch}',
+        type: 'TOUR_COMPLETED',
+        title: 'Chuyến đi hoàn thành! 🎉',
+        body: 'Chúc mừng bạn đã hoàn thành tour "${trip.tourTitle}". Hãy cho chúng tôi xin cảm nghĩ và đánh giá của bạn nhé!',
+        isRead: false,
+        createdAt: DateTime.now(),
+      );
+      await NotificationsStorage().addNotification(notif);
+      try {
+        await NotificationService().showNotification(
+          id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          title: 'Chuyến đi hoàn thành! 🎉',
+          body: 'Chúc mừng bạn đã hoàn thành tour "${trip.tourTitle}". Hãy cho chúng tôi xin cảm nghĩ nhé!',
+        );
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           _trips = _trips.map((t) => t.id == trip.id ? t.copyWith(status: BookingStatus.completed) : t).toList();
@@ -108,7 +129,14 @@ class _TripsScreenState extends State<TripsScreen> {
     }
   }
 
+  final Set<String> _inProgressReviewBookingIds = {};
+
   Future<void> _handleWriteReview(BookingItem trip) async {
+    // Đánh dấu người dùng đã mở ô viết đánh giá
+    setState(() {
+      _inProgressReviewBookingIds.add(trip.id);
+    });
+
     final result = await TourReviewFormModal.show(
       context,
       bookingId: trip.id,
@@ -119,7 +147,8 @@ class _TripsScreenState extends State<TripsScreen> {
       await _repo.markReviewed(trip.id);
       if (mounted) {
         setState(() {
-          _trips = _trips.map((t) => t.id == trip.id ? t.copyWith(isReviewed: true) : t).toList();
+          _inProgressReviewBookingIds.remove(trip.id);
+          _trips = _trips.map((t) => (t.id == trip.id || t.bookingCode == trip.bookingCode) ? t.copyWith(isReviewed: true) : t).toList();
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -129,18 +158,25 @@ class _TripsScreenState extends State<TripsScreen> {
         );
         await _loadTrips();
       }
+    } else {
+      // Người dùng đã bấm vào ô đánh giá nhưng dừng lại / chưa gửi: giữ màu vàng cho tick thứ 2
+      if (mounted) {
+        setState(() {});
+      }
     }
   }
 
   String _formatDateRange(DateTime start, DateTime end) {
     try {
-      final startStr = DateFormat('dd').format(start);
-      final endDay = DateFormat('dd').format(end);
-      final endMonthYear = DateFormat('MMM yyyy', 'en_US').format(end);
+      final startDay = start.day.toString().padLeft(2, '0');
+      final endDay = end.day.toString().padLeft(2, '0');
       if (start.month == end.month && start.year == end.year) {
-        return '$startStr – $endDay $endMonthYear';
+        return '$startDay – $endDay thg ${start.month}, ${start.year}';
       }
-      return '${DateFormat('dd MMM', 'en_US').format(start)} – $endDay $endMonthYear';
+      if (start.year == end.year) {
+        return '$startDay thg ${start.month} – $endDay thg ${end.month}, ${start.year}';
+      }
+      return '$startDay thg ${start.month}, ${start.year} – $endDay thg ${end.month}, ${end.year}';
     } catch (_) {
       return '${start.day}/${start.month} – ${end.day}/${end.month}/${end.year}';
     }
@@ -165,9 +201,11 @@ class _TripsScreenState extends State<TripsScreen> {
         ),
       ),
       body: SafeArea(
-        child: _trips.isEmpty
-            ? _EmptyTripsView(onExploreTap: widget.onExploreTap)
-            : RefreshIndicator(
+        child: _isLoading
+            ? const _TripsSkeletonLoading()
+            : (_trips.isEmpty
+                ? _EmptyTripsView(onExploreTap: widget.onExploreTap)
+                : RefreshIndicator(
                     onRefresh: _loadTrips,
                     color: AppColors.primary,
                     child: ListView.separated(
@@ -182,22 +220,24 @@ class _TripsScreenState extends State<TripsScreen> {
                           onViewQr: () => _showQrDialog(trip),
                           onComplete: () => _handleCompleteTrip(trip),
                           onWriteReview: () => _handleWriteReview(trip),
+                          isInProgressReview: _inProgressReviewBookingIds.contains(trip.id),
                         );
                       },
                     ),
-                  ),
+                  )),
       ),
     );
   }
 }
 
-/// Thẻ chuyến đi thiết kế chuẩn Ảnh 3
+/// Thẻ chuyến đi thiết kế chuẩn Ảnh 3 với circular tick overlapping
 class _TripCard extends StatelessWidget {
   final BookingItem trip;
   final String dateRangeText;
   final VoidCallback onViewQr;
   final VoidCallback onComplete;
   final VoidCallback onWriteReview;
+  final bool isInProgressReview;
 
   const _TripCard({
     required this.trip,
@@ -205,14 +245,15 @@ class _TripCard extends StatelessWidget {
     required this.onViewQr,
     required this.onComplete,
     required this.onWriteReview,
+    this.isInProgressReview = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Tên điểm đến / tên chuyến đi
-    final title = trip.destination?.isNotEmpty == true
-        ? trip.destination!
-        : trip.tourTitle.split('–').first.trim();
+    // Tên chuyến đi (luôn ưu tiên tên tour đầy đủ, không lấy tên điểm đến đè lên)
+    final title = trip.tourTitle.trim().isNotEmpty
+        ? trip.tourTitle.trim()
+        : (trip.destination?.trim().isNotEmpty == true ? trip.destination!.trim() : 'Chuyến đi');
 
     // Số khách đi cùng ngoài người đặt (nếu 3 người thì +2)
     final additionalGuests = trip.participants > 1 ? trip.participants - 1 : 0;
@@ -288,32 +329,11 @@ class _TripCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
 
-                    // Nhóm Avatar người đặt + số lượng khách đi cùng (+X)
-                    Row(
-                      children: [
-                        // Avatar người dùng đặt tour (ảnh đại diện người dùng hoặc chữ cái đầu)
-                        _buildUserAvatar(trip.customerAvatarUrl, avatarLetter),
-
-                        // Huy hiệu số khách còn lại (+X)
-                        if (additionalGuests > 0) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '+$additionalGuests',
-                              style: const TextStyle(
-                                color: Color(0xFF334155),
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
+                    // Nhóm Avatar người đặt + số lượng khách đi cùng (+X) lồng nhau: bên trái đè lên bên phải
+                    _buildGuestGroupAvatar(
+                      additionalGuests: additionalGuests,
+                      avatarUrl: trip.customerAvatarUrl,
+                      fallbackLetter: avatarLetter,
                     ),
                   ],
                 ),
@@ -325,136 +345,62 @@ class _TripCard extends StatelessWidget {
           const Divider(height: 1, color: Color(0xFFF1F5F9)),
           const SizedBox(height: 10),
 
-          // Khu vực hành động dưới thẻ (Mã + Trạng thái hoàn thành + Nút Đánh giá / Hoàn thành + Nút Xem QR)
+          // Khu vực hành động dưới thẻ (Đã bỏ mã, hiện icon tick tròn theo Ảnh 3, nút Đã đánh giá / Viết đánh giá, nút Xem QR)
           Row(
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Mã: ${trip.bookingCode}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF94A3B8),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (trip.status == BookingStatus.completed) ...[
-                      const SizedBox(height: 3),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFDCFCE7),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.check_rounded, size: 12, color: Color(0xFF15803D)),
-                            SizedBox(width: 2),
-                            Text(
-                              'Đã hoàn thành',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF15803D),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
+              // Bên trái: 2 ô tick overlapping theo prompt "Use circular tick overlapping through compact negative spacing"
+              // Tick 1 đại diện cho tour (Vàng nếu đã xác nhận, Xanh nếu hoàn thành)
+              // Tick 2 đại diện cho đánh giá (Xám nếu chưa đánh giá, Vàng nếu đang đánh giá, Xanh nếu đã đánh giá)
+              _buildOverlappingTicks(),
+              const Spacer(),
 
-              // Nút Hoàn thành HOẶC Viết đánh giá HOẶC Đã đánh giá
+              // Nút Hoàn thành HOẶC Viết đánh giá
+              // Nếu đã đánh giá: Không hiện nút (vì đã có 2 tick xanh bên trái đại diện)
               if (trip.status != BookingStatus.completed)
                 InkWell(
                   onTap: onComplete,
                   borderRadius: BorderRadius.circular(10),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                     decoration: BoxDecoration(
                       color: const Color(0xFFECFDF5),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFFA7F3D0)),
                     ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.check_circle_outline_rounded, size: 15, color: Color(0xFF059669)),
-                        SizedBox(width: 4),
-                        Text(
-                          'Hoàn thành',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF059669),
-                          ),
-                        ),
-                      ],
+                    child: const Text(
+                      'Hoàn thành',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF059669),
+                      ),
                     ),
                   ),
                 )
-              else if (trip.isReviewed)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.star_rounded, size: 15, color: Color(0xFFF59E0B)),
-                      SizedBox(width: 4),
-                      Text(
-                        'Đã đánh giá',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF475569),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
+              else if (!trip.isReviewed)
                 InkWell(
                   onTap: onWriteReview,
                   borderRadius: BorderRadius.circular(10),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFFBEB),
+                      color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFFDE68A)),
+                      border: Border.all(color: const Color(0xFFCBD5E1)),
                     ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.rate_review_outlined, size: 15, color: Color(0xFFD97706)),
-                        SizedBox(width: 4),
-                        Text(
-                          'Viết đánh giá',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFFD97706),
-                          ),
-                        ),
-                      ],
+                    child: const Text(
+                      'Viết đánh giá',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF334155),
+                      ),
                     ),
                   ),
                 ),
 
-              const SizedBox(width: 8),
+              if (trip.status != BookingStatus.completed || !trip.isReviewed)
+                const SizedBox(width: 8),
 
               // Nút Xem QR
               InkWell(
@@ -491,6 +437,124 @@ class _TripCard extends StatelessWidget {
     );
   }
 
+  /// Thiết kế 2 ô tick lồng nhẹ lên nhau: "Use circular tick overlapping through compact negative spacing"
+  /// - Ô tick 1: Đại diện cho Tour:
+  ///     + Đã xác nhận: Màu vàng (yellow/amber)
+  ///     + Đã hoàn thành: Màu xanh lá (green)
+  /// - Ô tick 2: Đại diện cho Đánh giá:
+  ///     + Chưa đánh giá: Màu xám
+  ///     + Đang đánh giá (bấm vào ô nhưng dừng lại/chưa gửi): Màu vàng
+  ///     + Đã đánh giá: Màu xanh lá
+  Widget _buildOverlappingTicks() {
+    final bool isCompleted = trip.status == BookingStatus.completed;
+    final Color tourColor = isCompleted
+        ? const Color(0xFF16A34A) // Xanh lá
+        : const Color(0xFFEAB308); // Vàng
+    final Color tourBgColor = isCompleted
+        ? const Color(0xFFDCFCE7)
+        : const Color(0xFFFEF9C3);
+
+    final Color reviewColor;
+    final Color reviewBgColor;
+    if (trip.isReviewed) {
+      reviewColor = const Color(0xFF16A34A); // Xanh lá
+      reviewBgColor = const Color(0xFFDCFCE7);
+    } else if (isInProgressReview) {
+      reviewColor = const Color(0xFFEAB308); // Vàng
+      reviewBgColor = const Color(0xFFFEF9C3);
+    } else {
+      reviewColor = const Color(0xFF94A3B8); // Xám
+      reviewBgColor = const Color(0xFFF1F5F9);
+    }
+
+    final String tourTooltip = isCompleted ? 'Đã hoàn thành chuyến đi' : 'Đã xác nhận chuyến đi';
+    final String reviewTooltip = trip.isReviewed
+        ? 'Đã đánh giá chuyến đi'
+        : (isInProgressReview ? 'Đang viết đánh giá' : 'Chưa đánh giá chuyến đi');
+
+    return SizedBox(
+      height: 29,
+      width: 45, // 26px + 26px - 7px (compact negative spacing)
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.centerLeft,
+        children: [
+          // Ô tick 1: Tour status (Vàng nếu đã xác nhận, Xanh nếu hoàn thành)
+          Positioned(
+            left: 0,
+            child: Tooltip(
+              message: tourTooltip,
+              child: _buildTickBadge(
+                color: tourColor,
+                bgColor: tourBgColor,
+                hasWhiteSeparation: false,
+              ),
+            ),
+          ),
+          // Ô tick 2: Review status (Xám nếu chưa đánh giá, Vàng nếu đang đánh giá, Xanh nếu đã đánh giá)
+          // Luôn có viền màu sắc nét, kèm viền trắng halo 1.5px phân tách khi đè lên tick 1
+          Positioned(
+            left: 17,
+            child: Tooltip(
+              message: reviewTooltip,
+              child: _buildTickBadge(
+                color: reviewColor,
+                bgColor: reviewBgColor,
+                hasWhiteSeparation: true,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTickBadge({
+    required Color color,
+    required Color bgColor,
+    required bool hasWhiteSeparation,
+  }) {
+    final badge = Container(
+      width: 26,
+      height: 26,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: bgColor,
+        border: Border.all(
+          color: color,
+          width: 1.8,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Icon(
+          Icons.check_rounded,
+          size: 15,
+          color: color,
+        ),
+      ),
+    );
+
+    if (hasWhiteSeparation) {
+      return Container(
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white,
+        ),
+        padding: const EdgeInsets.all(1.5),
+        child: badge,
+      );
+    }
+
+    return badge;
+  }
+
   Widget _buildFallbackImage() => Container(
         width: 90,
         height: 90,
@@ -498,19 +562,90 @@ class _TripCard extends StatelessWidget {
         child: const Icon(Icons.apartment_rounded, color: Colors.white, size: 36),
       );
 
+  /// Thiết kế nhóm avatar khách lồng nhau (+1, +2, +3...):
+  /// "phần bên trái phải đè phía trên, phần bên phải nằm phía dưới"
+  Widget _buildGuestGroupAvatar({
+    required int additionalGuests,
+    required String? avatarUrl,
+    required String fallbackLetter,
+  }) {
+    final avatar = _buildUserAvatar(avatarUrl, fallbackLetter);
+    if (additionalGuests <= 0) {
+      return avatar;
+    }
+
+    final plusBadge = Container(
+      width: 26,
+      height: 26,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: const Color(0xFFF1F5F9),
+        border: Border.all(
+          color: const Color(0xFF94A3B8),
+          width: 1.6,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        '+$additionalGuests',
+        style: const TextStyle(
+          color: Color(0xFF334155),
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+
+    // Thiết kế giống 2 tick lồng nhau: bên trái đè phía trên, bên phải nằm phía dưới
+    return SizedBox(
+      height: 29,
+      width: 45, // 26px + 26px - 7px
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.centerLeft,
+        children: [
+          // Bên phải (+X) nằm phía dưới
+          Positioned(
+            left: 17,
+            child: plusBadge,
+          ),
+          // Bên trái (Avatar người dùng) đè phía trên, bọc viền halo trắng 1.5px để phân tách viền sắc nét
+          Positioned(
+            left: 0,
+            child: Container(
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+              ),
+              padding: const EdgeInsets.all(1.5),
+              child: avatar,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildUserAvatar(String? avatarUrl, String fallbackLetter) {
     if (avatarUrl != null && avatarUrl.isNotEmpty && avatarUrl.startsWith('http')) {
       return Container(
-        width: 28,
-        height: 28,
+        width: 26,
+        height: 26,
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
         ),
         child: ClipOval(
           child: CachedNetworkImage(
             imageUrl: avatarUrl,
-            width: 28,
-            height: 28,
+            width: 26,
+            height: 26,
             fit: BoxFit.cover,
             placeholder: (context, url) => Container(
               color: const Color(0xFFD1FAE5),
@@ -519,7 +654,7 @@ class _TripCard extends StatelessWidget {
                 fallbackLetter,
                 style: const TextStyle(
                   color: Color(0xFF065F46),
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -531,7 +666,7 @@ class _TripCard extends StatelessWidget {
                 fallbackLetter,
                 style: const TextStyle(
                   color: Color(0xFF065F46),
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -542,8 +677,8 @@ class _TripCard extends StatelessWidget {
     }
 
     return Container(
-      width: 28,
-      height: 28,
+      width: 26,
+      height: 26,
       decoration: const BoxDecoration(
         color: Color(0xFFD1FAE5),
         shape: BoxShape.circle,
@@ -553,7 +688,7 @@ class _TripCard extends StatelessWidget {
         fallbackLetter,
         style: const TextStyle(
           color: Color(0xFF065F46),
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -755,3 +890,129 @@ class _EmptyTripsView extends StatelessWidget {
     );
   }
 }
+
+/// Shimmer / Skeleton Loading cho màn hình danh sách Chuyến đi
+/// Khớp 1:1 bố cục thẻ _TripCard:
+/// - Ảnh thumbnail 90x90 bo góc 18px
+/// - Tiêu đề tour + ngày tháng + avatar người đặt
+/// - Đường phân cách
+/// - 2 tick overlapping + nút hành động
+class _TripsSkeletonLoading extends StatefulWidget {
+  const _TripsSkeletonLoading();
+
+  @override
+  State<_TripsSkeletonLoading> createState() => _TripsSkeletonLoadingState();
+}
+
+class _TripsSkeletonLoadingState extends State<_TripsSkeletonLoading>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  bool get _isInTest {
+    if (kIsWeb) return false;
+    return Platform.environment.containsKey('FLUTTER_TEST');
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
+    if (!_isInTest) {
+      _controller.repeat(reverse: true);
+    }
+    _animation = Tween<double>(begin: 0.35, end: 0.85).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Widget _buildBox({required double width, required double height, double borderRadius = 6}) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, _) {
+        return Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE2E8F0).withValues(alpha: _animation.value),
+            borderRadius: BorderRadius.circular(borderRadius),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCardSkeleton() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildBox(width: 90, height: 90, borderRadius: 18),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildBox(width: double.infinity, height: 18, borderRadius: 4),
+                    const SizedBox(height: 8),
+                    _buildBox(width: 130, height: 14, borderRadius: 4),
+                    const SizedBox(height: 12),
+                    _buildBox(width: 28, height: 28, borderRadius: 14),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildBox(width: 44, height: 26, borderRadius: 13),
+              const Spacer(),
+              _buildBox(width: 95, height: 32, borderRadius: 10),
+              const SizedBox(width: 8),
+              _buildBox(width: 80, height: 32, borderRadius: 10),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 3,
+      separatorBuilder: (_, _) => const SizedBox(height: 16),
+      itemBuilder: (_, _) => _buildCardSkeleton(),
+    );
+  }
+}
+

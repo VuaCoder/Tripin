@@ -439,12 +439,14 @@ class _WishlistCollectionDetailScreenState extends State<WishlistCollectionDetai
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Khối ảnh tour bo góc 16 (giống bên Gần đây)
+          // Khối ảnh tour bo góc 16 đồng đều kích thước tuyệt đối (giống bên Gần đây)
           Expanded(
             child: Stack(
+              fit: StackFit.expand,
               children: [
                 Container(
                   width: double.infinity,
+                  height: double.infinity,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
                     color: const Color(0xFFF3F4F6),
@@ -454,6 +456,8 @@ class _WishlistCollectionDetailScreenState extends State<WishlistCollectionDetai
                     child: tour.coverImage != null && tour.coverImage!.isNotEmpty
                         ? CachedNetworkImage(
                             imageUrl: tour.coverImage!,
+                            width: double.infinity,
+                            height: double.infinity,
                             fit: BoxFit.cover,
                             placeholder: (context, url) => const Center(
                               child: SizedBox(
@@ -462,10 +466,12 @@ class _WishlistCollectionDetailScreenState extends State<WishlistCollectionDetai
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               ),
                             ),
-                            errorWidget: (context, url, error) => const Icon(
-                              Icons.image_outlined,
-                              size: 28,
-                              color: AppColors.textMuted,
+                            errorWidget: (context, url, error) => const Center(
+                              child: Icon(
+                                Icons.image_outlined,
+                                size: 28,
+                                color: AppColors.textMuted,
+                              ),
                             ),
                           )
                         : const Center(

@@ -62,8 +62,8 @@ class TourCardHorizontal extends StatelessWidget {
                     child: _buildImage(tour.coverImage),
                   ),
 
-                  // Top-left: White pill badge "Guest favorite" (chỉ hiện khi showBadge = true)
-                  if (showBadge)
+                  // Top-left: White pill badge "Guest favorite" (chỉ đạt được khi showBadge = true, ratingAvg > 4.5 và ratingCount >= 10)
+                  if (showBadge && tour.ratingAvg > 4.5 && tour.ratingCount >= 10)
                     Positioned(
                       top: 12,
                       left: 12,

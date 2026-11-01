@@ -63,6 +63,26 @@ usersRouter.post(
   requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
   usersController.requestAgencyVerification,
 );
+usersRouter.post(
+  '/me/guide-application',
+  requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
+  usersController.applyGuide,
+);
+usersRouter.get(
+  '/me/guide-application',
+  requirePermission(PERMISSIONS.PROFILE_VIEW_OWN),
+  usersController.getGuideApplication,
+);
+usersRouter.post(
+  '/me/guide-application/dev-accept',
+  requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
+  usersController.devAcceptGuide,
+);
+usersRouter.post(
+  '/me/guide-application/dev-reject',
+  requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
+  usersController.devRejectGuide,
+);
 
 /** Mounted at /api/v1/tour-guides — public (GUEST) profile. */
 export const publicGuidesRouter = Router();

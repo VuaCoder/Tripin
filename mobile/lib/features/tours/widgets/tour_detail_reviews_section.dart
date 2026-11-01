@@ -245,7 +245,7 @@ class _TourDetailReviewsView extends StatelessWidget {
             ] else ...[
               // 4. Danh sách đánh giá ngang chuẩn Airbnb (Ảnh 1)
               SizedBox(
-                height: 215,
+                height: state.reviews.any((r) => r.images.isNotEmpty) ? 290 : 230,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),

@@ -294,8 +294,8 @@ class _HomeDiscoveryScreenState extends State<HomeDiscoveryScreen> {
 
                   const SizedBox(height: 28),
 
-                  // 6. Rồi đến Tour Mới Nhất
-                  _buildLatestToursSection(state.latestTours, state.categories),
+                  // 6. Rồi đến Tour Mới Nhất (Cùng layout TourCardHorizontal như Tour Nổi Bật)
+                  _buildLatestToursSection(state.latestTours, state.categories, wishlistState),
 
                   const SizedBox(height: 36),
                 ],
@@ -513,9 +513,7 @@ class _HomeDiscoveryScreenState extends State<HomeDiscoveryScreen> {
               return TourCardHorizontal(
                 tour: tour,
                 isFavorite: isFav,
-                showBadge: false, // TUYỆT ĐỐI KHÔNG CÓ BẤT KỲ TAG NÀO THEO ĐÚNG YÊU CẦU ẢNH 3
-                useDestinationTitle: true,
-                width: 220,
+                showBadge: false, // Tour đã xem gần đây không hiển thị tag "Được khách yêu thích"
                 onFavoriteTap: () {
                   context.read<WishlistCubit>().toggleFavorite(tour: tour, context: context);
                 },
@@ -528,7 +526,7 @@ class _HomeDiscoveryScreenState extends State<HomeDiscoveryScreen> {
     );
   }
 
-  /// Mục "Tour Nổi Bật" với nút chuyển trang hình tròn
+  /// Mục "Tour Nổi Bật" với nút chuyển trang hình tròn và tag "Được khách yêu thích"
   Widget _buildFeaturedToursSection(
     List<TourModel> tours,
     List<CategoryModel> categories,
@@ -557,6 +555,7 @@ class _HomeDiscoveryScreenState extends State<HomeDiscoveryScreen> {
               return TourCardHorizontal(
                 tour: tour,
                 isFavorite: isFav,
+                showBadge: true, // Tour Nổi Bật hiển thị tag "Được khách yêu thích"
                 onFavoriteTap: () {
                   context.read<WishlistCubit>().toggleFavorite(tour: tour, context: context);
                 },
@@ -569,8 +568,12 @@ class _HomeDiscoveryScreenState extends State<HomeDiscoveryScreen> {
     );
   }
 
-  /// Mục "Tour Mới Nhất" với nút chuyển trang hình tròn
-  Widget _buildLatestToursSection(List<TourModel> tours, List<CategoryModel> categories) {
+  /// Mục "Tour Mới Nhất" - Thống nhất 1 layout chuẩn Airbnb TourCardHorizontal (không hiển thị tag "Được khách yêu thích")
+  Widget _buildLatestToursSection(
+    List<TourModel> tours,
+    List<CategoryModel> categories,
+    WishlistState wishlistState,
+  ) {
     if (tours.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -581,19 +584,27 @@ class _HomeDiscoveryScreenState extends State<HomeDiscoveryScreen> {
           onAction: () => _navigateToSearch(categories: categories),
         ),
         const SizedBox(height: 12),
-        ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          physics: const NeverScrollableScrollPhysics(),
-          shrinkWrap: true,
-          itemCount: tours.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final tour = tours[index];
-            return TourCardVertical(
-              tour: tour,
-              onTap: () => _onTourTap(tour),
-            );
-          },
+        SizedBox(
+          height: 260,
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            scrollDirection: Axis.horizontal,
+            itemCount: tours.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 16),
+            itemBuilder: (context, index) {
+              final tour = tours[index];
+              final isFav = wishlistState.isFavorite(tour.id);
+              return TourCardHorizontal(
+                tour: tour,
+                isFavorite: isFav,
+                showBadge: false, // Tour Mới Nhất không hiển thị tag "Được khách yêu thích"
+                onFavoriteTap: () {
+                  context.read<WishlistCubit>().toggleFavorite(tour: tour, context: context);
+                },
+                onTap: () => _onTourTap(tour),
+              );
+            },
+          ),
         ),
       ],
     );
