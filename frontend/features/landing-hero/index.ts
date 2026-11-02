@@ -1,1 +1,1 @@
-export { HeroScene, canRunHeroScene } from './HeroScene';
+export { JourneyHero, canRunJourney } from './JourneyHero';

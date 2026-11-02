@@ -1,10 +1,14 @@
+import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 
 // Normalised by the TRIPRI asset pipeline (kept outside the repo): +Y up, water at y = 0, bow toward +X,
-// Meshopt-compressed geometry, WebP textures. Only the models the landing hero actually shows are shipped.
+// Meshopt-compressed geometry, WebP textures. 
 export const MODEL_FILES = {
   junk: 'junk-ship.glb',
+  fishing: 'fishing-boat.glb',
+  ghebien: 'ghe-bien.glb',
+  lighthouse: 'lighthouse.glb',
   pier: 'pier.glb',
   pillar: 'stone-pillar.glb',
   gull: 'seagull.glb',
@@ -42,7 +46,12 @@ export async function precompile(renderer, obj, camera, scene) {
 export function polish(root) {
   root.traverse((o) => {
     if (!o.isMesh) return;
-    for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m.map) m.map.anisotropy = 4;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (m.map) m.map.anisotropy = 4;
+      if (m.name === 'Glass') { // lighthouse lantern: warm glow instead of a dark pane
+        m.emissive = new THREE.Color(0xffd59a); m.emissiveIntensity = 1.4; m.transparent = false; m.opacity = 1;
+      }
+    }
   });
   return root;
 }
