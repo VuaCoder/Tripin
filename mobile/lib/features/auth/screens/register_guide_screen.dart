@@ -4,14 +4,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
-import '../bloc/login_bloc.dart';
 import '../bloc/register_bloc.dart';
 import '../bloc/register_event.dart';
 import '../bloc/register_state.dart';
 import '../models/register_request.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/password_strength_bar.dart';
-import 'login_screen.dart';
+import 'verify_otp_screen.dart';
 
 /// [FLOW-01] Màn hình Đăng ký Hướng dẫn viên chuyên nghiệp theo từng bước (Multi-step Wizard)
 class RegisterGuideScreen extends StatelessWidget {
@@ -222,22 +221,19 @@ class _RegisterGuideViewState extends State<_RegisterGuideView> {
       listener: (context, state) {
         if (state is RegisterSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Đăng ký tài khoản Hướng dẫn viên thành công! Vui lòng đăng nhập để bắt đầu.'),
+            SnackBar(
+              content: Text(state.message),
               backgroundColor: AppColors.success,
               behavior: SnackBarBehavior.floating,
             ),
           );
-          Navigator.of(context).pushAndRemoveUntil(
+          Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => BlocProvider(
-                create: (_) => LoginBloc(),
-                child: LoginScreen(
-                  prefillEmail: state.email,
-                ),
+              builder: (_) => VerifyOtpScreen(
+                email: state.email,
+                role: state.role,
               ),
             ),
-            (route) => route.isFirst,
           );
         }
       },

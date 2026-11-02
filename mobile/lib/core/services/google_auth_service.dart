@@ -89,8 +89,13 @@ class GoogleAuthService {
       }
       return idToken;
     } catch (e) {
-      debugPrint('[GoogleAuthService] Native Google sign-in lỗi: $e');
-      rethrow;
+      debugPrint('[GoogleAuthService] Native Google sign-in lỗi: $e. Tự động chuyển sang Web OAuth fallback...');
+      try {
+        return await signInViaWeb(role: role);
+      } catch (webErr) {
+        debugPrint('[GoogleAuthService] Cả Native và Web fallback đều lỗi: $webErr');
+        rethrow;
+      }
     }
   }
 
