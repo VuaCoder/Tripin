@@ -1,8 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PERMISSIONS, PERSISTED_ROLES, ROLE_PERMISSIONS, USER_STATUS, type PersistedRole, type Permission } from '@travel-platform/constants';
 import { Button, FormField, Input, Modal, Pagination } from '@/components/ui';
 import { EmptyState } from '@/components/shared';
+import { useChat } from '@/features/chat/ChatProvider';
 import { useGetAdminUsersQuery, useAssignAdminAccessMutation } from '../api/adminApi';
 import type { AdminUser, AccessInput, UsersArgs } from '../types';
 import { AdminFrame, Feedback, adminError, control, forbidden, panel, toolbar, useAdminSession } from './AdminUi';
@@ -32,6 +33,14 @@ function AccessForm({ target, busy, error, onSave, onClose }: { target: AdminUse
 }
 export function AdminUsersPage() {
   const { ready, user } = useAdminSession();
+  const { onEvent, connected } = useChat();
+  const [liveAlert, setLiveAlert] = useState<{
+    userId: string;
+    fullName: string;
+    email: string;
+    timestamp: string;
+    guideProfile?: any;
+  } | null>(null);
   const [args, setArgs] = useState<UsersArgs>({ page: 1, limit: 10 });
   const [search, setSearch] = useState('');
   const [dates, setDates] = useState<DateSelection>({ from: '', to: '' });
@@ -41,12 +50,98 @@ export function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [denied, setDenied] = useState<unknown>();
+
+  useEffect(() => {
+    if (!onEvent) return;
+    const unsubApply = onEvent('admin:guide_application', (payload: any) => {
+      setLiveAlert({
+        userId: payload.userId,
+        fullName: payload.fullName,
+        email: payload.email,
+        timestamp: payload.timestamp || new Date().toISOString(),
+        guideProfile: payload.guideProfile,
+      });
+      void query.refetch();
+    });
+
+    const unsubRole = onEvent('admin:user_role_changed', () => {
+      void query.refetch();
+    });
+
+    return () => {
+      unsubApply?.();
+      unsubRole?.();
+    };
+  }, [onEvent, query]);
+
   const assign = async (body: AccessInput) => {
     if (isLoading) return; setError(null); setSuccess(null);
-    try { const updated = await save(body).unwrap(); setTarget(null); setSuccess(`Đã lưu quyền cho ${updated.fullName}.`); } catch (e) { setError(adminError(e)); if (forbidden(e)) setDenied(e); }
+    try {
+      const updated = await save(body).unwrap();
+      setTarget(null);
+      if (liveAlert?.userId === body.id) {
+        setLiveAlert(null);
+      }
+      setSuccess(`Đã lưu quyền cho ${updated.fullName}.`);
+    } catch (e) { setError(adminError(e)); if (forbidden(e)) setDenied(e); }
   };
   if (!ready) return null;
   return <AdminFrame title="Người dùng và phân quyền" description="Quản lý role và quyền cộng thêm. Không thể tự đổi quyền hoặc hạ quyền Super Admin hoạt động cuối cùng." error={denied || query.error} loading={!query.currentData} refreshing={query.isFetching && !!query.currentData} onRefresh={() => void query.refetch()}>
+    <div className="mb-4 flex items-center justify-between">
+      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${connected ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+        <span className={`h-2 w-2 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
+        {connected ? 'WebSocket Realtime Đang Hoạt Động' : 'WebSocket Ngoại Tuyến'}
+      </span>
+    </div>
+    {liveAlert && (
+      <div className="mb-4 flex flex-col gap-3 rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 via-emerald-50 to-teal-50 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between animate-in fade-in slide-in-from-top-2">
+        <div className="flex items-center gap-3">
+          <span className="relative flex h-3 w-3">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-400 opacity-75"></span>
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-teal-500"></span>
+          </span>
+          <div>
+            <h4 className="text-sm font-bold text-teal-900">
+              Có hồ sơ Hướng dẫn viên mới cần duyệt theo Real-time!
+            </h4>
+            <p className="text-xs text-teal-700">
+              <span className="font-semibold">{liveAlert.fullName}</span> ({liveAlert.email}) vừa nộp đơn đăng ký làm Hướng dẫn viên du lịch.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => {
+              const foundUser = query.currentData?.items.find((u) => u.id === liveAlert.userId);
+              if (foundUser) {
+                setTarget(foundUser);
+              } else {
+                setTarget({
+                  id: liveAlert.userId,
+                  fullName: liveAlert.fullName,
+                  email: liveAlert.email,
+                  role: 'TRAVELER' as any,
+                  status: 'ACTIVE',
+                  permissions: [],
+                  extraPermissions: [],
+                  createdAt: liveAlert.timestamp,
+                });
+              }
+            }}
+          >
+            Phân quyền duyệt ngay
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setLiveAlert(null)}
+          >
+            Đóng
+          </Button>
+        </div>
+      </div>
+    )}
     <Feedback error={!target ? error : null} success={success} />
     <form className={`${toolbar} sm:grid-cols-2 xl:grid-cols-3`} noValidate onSubmit={(e) => { e.preventDefault(); const found = dateSelectionError(dates); setError(found); if (found) return; setArgs({ ...args, from: undefined, to: undefined, ...dateSelectionQuery(dates), page: 1, q: search.trim() || undefined }); setSuccess(null); }}>
       <FormField label="Tên hoặc email" htmlFor="user-search"><Input id="user-search" value={search} maxLength={100} onChange={(e) => setSearch(e.target.value)} /></FormField>

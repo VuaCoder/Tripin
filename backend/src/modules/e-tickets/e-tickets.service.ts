@@ -140,7 +140,7 @@ export class ETicketsService {
    * emits completion events which triggers earnings creation for the tour guide and notifies travelers.
    */
   async completeTripForGuide(guideId: string, tourId: string): Promise<{ completedCount: number }> {
-    const assignment = await this.assertGuideTour(guideId, tourId);
+    await this.assertGuideTour(guideId, tourId);
     const tickets = await this.tickets.listByTour(tourId);
     const bookingIds = [...new Set(tickets.map((t) => t.bookingId))];
 

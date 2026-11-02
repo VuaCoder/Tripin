@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 213 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 219 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -194,6 +194,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/auth/agency/resend-otp` | public |
 | POST | `/api/v1/auth/agency/upload-license` | public |
 | POST | `/api/v1/auth/agency/verify-otp` | public |
+| POST | `/api/v1/auth/change-password` | login |
 | POST | `/api/v1/auth/forgot-password` | public |
 | POST | `/api/v1/auth/google` | public |
 | POST | `/api/v1/auth/login` | public |
@@ -276,6 +277,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/guide/e-tickets/:tourId` | `guide:check-in` |
 | POST | `/api/v1/guide/e-tickets/:tourId/check-in` | `guide:check-in` |
+| POST | `/api/v1/guide/e-tickets/:tourId/complete` | `guide:check-in` |
 
 ## `/guide/tours`
 
@@ -441,6 +443,10 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | DELETE | `/api/v1/users/me/avatar` | `profile:update-own` |
 | POST | `/api/v1/users/me/avatar/complete` | `profile:update-own` |
 | POST | `/api/v1/users/me/avatar/upload-signature` | `profile:update-own` |
+| GET | `/api/v1/users/me/guide-application` | `profile:view-own` |
+| POST | `/api/v1/users/me/guide-application` | `profile:update-own` |
+| POST | `/api/v1/users/me/guide-application/dev-accept` | `profile:update-own` |
+| POST | `/api/v1/users/me/guide-application/dev-reject` | `profile:update-own` |
 | POST | `/api/v1/users/me/license-image/complete` | `profile:update-own` |
 | POST | `/api/v1/users/me/license-image/upload-signature` | `profile:update-own` |
 | GET | `/api/v1/users/me/preferences` | `profile:view-own` |

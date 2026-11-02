@@ -5,6 +5,8 @@ import {
   isPermission,
   type PersistedRole,
 } from '@travel-platform/constants';
+import { emitToAdmin, emitToUser } from '../chat/chat.emitter';
+import { NOTIFICATION_TYPE } from '../notifications/notifications.types';
 import { AppError } from '../../utils/app-error';
 import {
   createImageUploadSignature,
@@ -220,6 +222,29 @@ export class UsersService {
       },
     });
 
+    // Bắn realtime websocket event tới tất cả Admin đang kết nối
+    emitToAdmin('admin:guide_application', {
+      userId,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      application,
+    });
+
+    // Tạo notification lưu database cho các Super Admin
+    try {
+      const { notificationsService } = await import('../notifications');
+      const superAdmins = await this.users.list({ role: ROLES.SUPER_ADMIN, status: USER_STATUS.ACTIVE }, { page: 1, limit: 50 });
+      if (superAdmins.items.length > 0) {
+        await notificationsService.notifyMany(superAdmins.items.map((a) => a.id), {
+          type: NOTIFICATION_TYPE.AGENCY_VERIFICATION_DECIDED,
+          title: 'Hồ sơ Hướng dẫn viên mới',
+          body: `${user.fullName} (${user.email}) vừa gửi hồ sơ đăng ký Hướng dẫn viên du lịch và đang chờ xét duyệt.`,
+          data: { userId, type: 'GUIDE_APPLICATION', status: 'PENDING' },
+        });
+      }
+    } catch (_) {}
+
     return {
       success: true,
       message: 'Hồ sơ đã được gửi thành công và đang chờ ban quản trị xét duyệt theo thời gian thực.',
@@ -269,6 +294,16 @@ export class UsersService {
       },
     });
 
+    emitToUser(userId, 'role:updated', {
+      role: ROLES.TOUR_GUIDE,
+      status: 'APPROVED',
+    });
+    emitToAdmin('admin:user_role_changed', {
+      userId,
+      role: ROLES.TOUR_GUIDE,
+      status: 'APPROVED',
+    });
+
     return {
       success: true,
       message: 'Hồ sơ hướng dẫn viên đã được phê duyệt thành công theo thời gian thực!',
@@ -293,6 +328,16 @@ export class UsersService {
         ...currentPrefs,
         guideApplication: updatedApp,
       },
+    });
+
+    emitToUser(userId, 'role:updated', {
+      role: user.role,
+      status: 'REJECTED',
+      reason: updatedApp.verificationNote,
+    });
+    emitToAdmin('admin:user_role_changed', {
+      userId,
+      status: 'REJECTED',
     });
 
     return {
@@ -388,6 +433,41 @@ export class UsersService {
         extraPermissions: patch.extraPermissions ?? undefined,
       },
     });
+
+    if (patch.role === ROLES.TOUR_GUIDE) {
+      const currentPrefs = (target.preferences as Record<string, any>) ?? {};
+      const app = currentPrefs.guideApplication;
+      if (app && app.status === 'PENDING') {
+        await this.users.updateById(targetId, {
+          preferences: {
+            ...currentPrefs,
+            guideApplication: {
+              ...app,
+              status: 'APPROVED',
+              verifiedAt: new Date().toISOString(),
+            },
+          },
+        });
+      }
+      emitToUser(targetId, 'role:updated', {
+        role: ROLES.TOUR_GUIDE,
+        guideProfile: target.guideProfile,
+      });
+      try {
+        const { notificationsService } = await import('../notifications');
+        await notificationsService.notify(targetId, {
+          type: NOTIFICATION_TYPE.AGENCY_VERIFICATION_DECIDED,
+          title: 'Hồ sơ Hướng dẫn viên đã được phê duyệt',
+          body: 'Chúc mừng! Hồ sơ Hướng dẫn viên du lịch của bạn đã được Admin phê duyệt thành công.',
+          data: { role: ROLES.TOUR_GUIDE, status: 'APPROVED' },
+        });
+      } catch (_) {}
+    }
+    emitToAdmin('admin:user_role_changed', {
+      userId: targetId,
+      role: patch.role ?? target.role,
+    });
+
     return toPrivateUserDto(updated ?? target);
   }
 

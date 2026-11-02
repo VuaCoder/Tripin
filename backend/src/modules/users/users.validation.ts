@@ -102,6 +102,18 @@ export const updatePreferencesBody = z
   })
   .strict();
 
+export const applyGuideBody = z
+  .object({
+    bio: trimmed(5000).optional(),
+    experienceYears: z.number().int().min(0).max(80).optional(),
+    specialties: z.array(z.string().trim().min(2).max(60)).max(30).optional(),
+    languages: z.array(z.string().trim().min(2).max(40)).max(20).optional(),
+    licenseNumber: z.string().trim().min(3).max(100).optional(),
+    licenseImageUrl: imageUrl.optional(),
+  })
+  .strict()
+  .optional();
+
 export type UpdateProfileBody = z.infer<typeof updateProfileBody>;
 export type UpdatePreferencesBody = z.infer<typeof updatePreferencesBody>;
 export type CompleteImageUploadBody = z.infer<typeof completeImageUploadBody>;

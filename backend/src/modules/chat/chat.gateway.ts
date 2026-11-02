@@ -16,7 +16,8 @@ type Ack = (response: { ok: true; data?: unknown } | { ok: false; error: { code:
 /** Max messages per socket in a sliding window; the REST endpoint has its own limiter. */
 const RATE = { windowMs: 10_000, max: 20 } as const;
 
-export const userRoom = (userId: string) => `user:${userId}`;
+import { userRoom, adminRoom, getSocketIo, emitToAdmin, emitToUser, setSocketIo } from './chat.emitter';
+export { userRoom, adminRoom, getSocketIo, emitToAdmin, emitToUser };
 
 /**
  * Thin Socket.IO adapter (AI rules §16): authenticate the handshake, validate payloads, call `ChatService`, answer with
@@ -27,7 +28,7 @@ export const userRoom = (userId: string) => `user:${userId}`;
  *   chat:send   { conversationId, text }  -> ack { ok, data: MessageDto }
  *   chat:read   { conversationId }        -> ack { ok, data: { unreadCount } }
  *   chat:typing { conversationId }        -> forwarded to the counterpart as `chat:typing`
- * Server -> client events: `chat:message` { conversationId, message }, `notification:new` NotificationDto.
+ * Server -> client events: `chat:message` { conversationId, message }, `notification:new` NotificationDto, `admin:guide_application`, `role:updated`.
  * Authentication: `io(url, { auth: { token: <access token> } })`.
  */
 export function attachChatGateway(
@@ -41,6 +42,7 @@ export function attachChatGateway(
     path: '/socket.io',
     cors: { origin: env.CLIENT_URL.split(',').map((origin) => origin.trim()), credentials: true },
   });
+  setSocketIo(io);
 
   io.use(async (socket, next) => {
     try {
@@ -58,6 +60,10 @@ export function attachChatGateway(
     const connected = socket.data.actor as UserActor;
     const token = socket.handshake.auth.token as string;
     void socket.join(userRoom(connected.userId));
+    if (connected.role === 'SUPER_ADMIN' || connected.role === 'MODERATOR') {
+      void socket.join('role:admin');
+      void socket.join(`role:${connected.role}`);
+    }
     const bucket: number[] = [];
 
     /**

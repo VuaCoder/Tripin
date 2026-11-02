@@ -13,6 +13,7 @@ import {
   publicProfileParams,
   updatePreferencesBody,
   updateProfileBody,
+  applyGuideBody,
 } from './users.validation';
 
 /** Mounted at /api/v1/users — the logged-in user's own profile. */
@@ -66,6 +67,7 @@ usersRouter.post(
 usersRouter.post(
   '/me/guide-application',
   requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
+  validate({ body: applyGuideBody }),
   usersController.applyGuide,
 );
 usersRouter.get(

@@ -447,7 +447,7 @@ export class AuthService {
   async changePassword(userId: string, input: { currentPassword: string; newPassword: string }): Promise<void> {
     const user = await this.deps.users.findByIdWithPassword(userId);
     if (!user || user.status === USER_STATUS.BANNED) {
-      throw AppError.unauthenticated('Tài khoản không hợp lệ', ERROR_CODES.ACCOUNT_NOT_FOUND);
+      throw AppError.unauthenticated('Tài khoản không hợp lệ', ERROR_CODES.UNAUTHENTICATED);
     }
 
     if (user.passwordHash) {

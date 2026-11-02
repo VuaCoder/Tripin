@@ -16,6 +16,7 @@ interface ChatContextValue {
   subscribe: (listener: (message: Message) => void) => () => void;
   send: (id: string, text: string) => Promise<Message> | null;
   reconnect: () => void;
+  onEvent?: (event: string, listener: (payload: any) => void) => () => void;
 }
 const Context = createContext<ChatContextValue | null>(null);
 export const useChat = () => {
@@ -31,11 +32,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const typingListeners = useRef(new Set<(event: { conversationId: string; userId: string }) => void>());
   const lastTyping = useRef(new Map<string, number>());
   const listeners = useRef(new Set<(message: Message) => void>());
+  const customListeners = useRef(new Map<string, Set<(payload: any) => void>>());
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState('Đang kết nối');
   const [revision, setRevision] = useState(0);
   const [delivered, setDelivered] = useState<Set<string>>(new Set());
-  const eligible = !!user && ['TRAVELER', 'TOUR_GUIDE'].includes(user.role) && user.permissions.includes('chat:use');
+  const eligible = !!user && (
+    (['TRAVELER', 'TOUR_GUIDE'].includes(user.role) && user.permissions.includes('chat:use')) ||
+    ['SUPER_ADMIN', 'MODERATOR'].includes(user.role)
+  );
   useEffect(() => {
     setConnected(false);
     if (!eligible || !token || !user) return;
@@ -85,6 +90,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     socket.on('chat:delivered', (event: { messageId: string }) => {
       if (!disposed && typeof event?.messageId === 'string') setDelivered(previous => new Set([...Array.from(previous).slice(-1999), event.messageId]));
     });
+    customListeners.current.forEach((set, ev) => {
+      set.forEach(cb => socket.on(ev, cb));
+    });
     const visible = () => { if (document.visibilityState === 'visible') { sync(); if (!socket.connected && !refreshing) socket.connect(); } };
     document.addEventListener('visibilitychange', visible);
     window.addEventListener('online', visible);
@@ -98,7 +106,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     typingListeners.current.add(listener);
     return () => { typingListeners.current.delete(listener); };
   }, []);
+  const onEvent = useCallback((event: string, listener: (payload: any) => void) => {
+    let set = customListeners.current.get(event);
+    if (!set) {
+      set = new Set();
+      customListeners.current.set(event, set);
+    }
+    set.add(listener);
+    const socket = socketRef.current;
+    if (socket) {
+      socket.on(event, listener);
+    }
+    return () => {
+      set?.delete(listener);
+      socketRef.current?.off(event, listener);
+    };
+  }, []);
   return <Context.Provider value={{ delivered, connected, status, revision,
+    onEvent,
     typing: id => {
       if (!socketRef.current?.connected) return;
       const now = Date.now();

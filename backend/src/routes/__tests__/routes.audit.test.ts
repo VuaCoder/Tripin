@@ -76,6 +76,7 @@ const BODYLESS_MUTATIONS = [
   'POST /chat/conversations/:id/read',
   'POST /complaints/:id/accept-resolution',
   'POST /complaints/images/upload-signature',
+  'POST /guide/e-tickets/:tourId/complete',
   'POST /moderation/complaint-tickets/images/upload-signature',
   'POST /moderation/users/:id/unban',
   'POST /notifications/read-all',
@@ -83,6 +84,8 @@ const BODYLESS_MUTATIONS = [
   'POST /payments/webhooks/payos',
   'POST /support/tickets/:id/close',
   'POST /users/me/agency-verification',
+  'POST /users/me/guide-application/dev-accept',
+  'POST /users/me/guide-application/dev-reject',
   'POST /wishlist/:tourId',
 ].sort();
 

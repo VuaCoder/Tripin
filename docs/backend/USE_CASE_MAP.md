@@ -23,6 +23,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Agency login (+ 2FA extend) | Agency | `POST /auth/agency/login` | done |
 | Login with Google (+ Authenticate via OAuth) | Guest | `POST /auth/google` | done |
 | Forgot password (+ Verify OTP) | All | `POST /auth/forgot-password`, `POST /auth/reset-password` | done |
+| Change password | authenticated user | `POST /auth/change-password` | done |
 | Log out | All | `POST /auth/logout`, `POST /auth/refresh` (session upkeep) | done |
 | Enable/disable 2FA (supports Verify OTP extend) | auth | `PATCH /auth/two-factor` | done |
 
@@ -82,9 +83,10 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Use case | Module | Endpoint | Permission | Status |
 |---|---|---|---|---|
 | View Profile / Update Profile | users | `GET/PATCH /users/me`, `POST /users/me/license-image/upload-signature`, `POST /users/me/license-image/complete` | profile:* | done |
+| Apply as Tour Guide | users | `GET/POST /users/me/guide-application`, `POST /users/me/guide-application/dev-accept`, `POST /users/me/guide-application/dev-reject` | profile:* | done |
 | View assigned tours | tours | `GET /guide/tours` | guide:tours-view | done |
 | Verify assigned tours | tours | `POST /guide/tours/:tourId/verification` (accept/decline) | guide:tours-verify | done |
-| Scan QR e-ticket check-in | e-tickets | `GET /guide/e-tickets/:tourId`, `POST /guide/e-tickets/:tourId/check-in` | guide:check-in | done |
+| Scan QR e-ticket check-in and complete | e-tickets | `GET /guide/e-tickets/:tourId`, `POST /guide/e-tickets/:tourId/check-in`, `POST /guide/e-tickets/:tourId/complete` | guide:check-in | done |
 | Subcribe to plan (Payment Gateway) | subscriptions | `GET /subscriptions/plans`, `POST /subscriptions`, `GET /subscriptions/me`, `GET /subscriptions/me/current` | subscription:subscribe | done |
 | View earnings | earnings | `GET /earnings/me`, `GET /earnings/me/summary` | earnings:view | done |
 | Make a conservation (with Traveler) | chat | same as Traveler | chat:use | done |
