@@ -254,22 +254,59 @@ class _AwaitingBody extends StatelessWidget {
           icon: const Icon(Icons.account_balance_rounded),
           label: const Text('Mở ứng dụng ngân hàng'),
         ),
-        const SizedBox(height: 8),
-        FilledButton.tonal(
-          onPressed: state.checking ? null : () => cubit.check(manual: true),
-          child: state.checking
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Tôi đã chuyển khoản'),
-        ),
-        if (state.notPaidYet)
-          const Padding(
-            padding: EdgeInsets.only(top: 12),
-            child: Text(
-              'Chưa nhận được thanh toán. Nếu bạn vừa chuyển khoản, vui lòng đợi vài giây rồi thử lại.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0FDF4),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFF86EFAC)),
           ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFDCFCE7),
+                  shape: BoxShape.circle,
+                ),
+                child: const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    color: Color(0xFF16A34A),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tự động kiểm tra giao dịch',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF15803D),
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Hệ thống tự động phát hiện chuyển khoản và xác nhận ngay lập tức, bạn không cần thao tác thêm.',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xFF166534),
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

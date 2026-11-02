@@ -257,9 +257,9 @@ class _RegisterGuideViewState extends State<_RegisterGuideView> {
                 }
               },
             ),
-            title: Text(
-              'Đăng ký Hướng dẫn viên (${_currentStep + 1}/4)',
-              style: const TextStyle(
+            title: const Text(
+              'Đăng ký Hướng dẫn viên',
+              style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
                 color: AppColors.textPrimary,
@@ -420,7 +420,7 @@ class _RegisterGuideViewState extends State<_RegisterGuideView> {
 
         AuthTextField(
           controller: _fullNameController,
-          label: 'Họ và tên (theo CCCD/Thẻ HDV) *',
+          label: 'Họ và tên (theo CCCD/Thẻ HDV)',
           hintText: 'VD: Nguyễn Văn An',
           prefixIcon: Icons.person_outline,
           enabled: !isLoading,
@@ -429,7 +429,7 @@ class _RegisterGuideViewState extends State<_RegisterGuideView> {
 
         AuthTextField(
           controller: _emailController,
-          label: 'Địa chỉ Email làm việc *',
+          label: 'Địa chỉ Email làm việc',
           hintText: 'guide@example.com',
           prefixIcon: Icons.mail_outline,
           keyboardType: TextInputType.emailAddress,
@@ -439,7 +439,7 @@ class _RegisterGuideViewState extends State<_RegisterGuideView> {
 
         AuthTextField(
           controller: _phoneController,
-          label: 'Số điện thoại nhận điều tour *',
+          label: 'Số điện thoại nhận điều tour',
           hintText: 'VD: 0912345678',
           prefixIcon: Icons.phone_outlined,
           keyboardType: TextInputType.phone,
@@ -449,7 +449,7 @@ class _RegisterGuideViewState extends State<_RegisterGuideView> {
 
         AuthTextField(
           controller: _passwordController,
-          label: 'Mật khẩu *',
+          label: 'Mật khẩu',
           hintText: 'Tối thiểu 8 ký tự (chữ & số)',
           prefixIcon: Icons.lock_outline,
           obscureText: _obscurePassword,
@@ -469,7 +469,7 @@ class _RegisterGuideViewState extends State<_RegisterGuideView> {
 
         AuthTextField(
           controller: _confirmPasswordController,
-          label: 'Xác nhận lại mật khẩu *',
+          label: 'Xác nhận lại mật khẩu',
           hintText: 'Nhập lại mật khẩu vừa tạo',
           prefixIcon: Icons.lock_reset_outlined,
           obscureText: _obscureConfirmPassword,
@@ -497,7 +497,7 @@ class _RegisterGuideViewState extends State<_RegisterGuideView> {
 
         AuthTextField(
           controller: _licenseNumberController,
-          label: 'Số thẻ Hướng dẫn viên du lịch *',
+          label: 'Số thẻ Hướng dẫn viên du lịch',
           hintText: 'VD: 10118-HDVQT-0029',
           prefixIcon: Icons.badge_outlined,
           enabled: !isLoading,
