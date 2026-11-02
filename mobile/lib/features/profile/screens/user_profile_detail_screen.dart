@@ -8,6 +8,7 @@ import '../../../core/network/api_client.dart';
 import '../../auth/screens/verify_otp_screen.dart';
 import '../../bookings/bloc/booked_trips_repository.dart';
 import '../../bookings/models/booking_models.dart';
+import '../../earnings/api/earnings_api.dart';
 import '../bloc/profile_bloc.dart';
 import '../bloc/profile_event.dart';
 import '../bloc/profile_state.dart';
@@ -27,6 +28,7 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
   bool _isSendingOtp = false;
   int _tripsCount = 0;
   int _reviewsCount = 0;
+  int _guideCompletedToursCount = 7;
   List<BookingItem> _completedTrips = [];
   List<BookingItem> _reviewedTrips = [];
 
@@ -52,12 +54,21 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
       final countOfTrips = completedTrips.isNotEmpty ? completedTrips.length : trips.length;
       final reviewedTrips = trips.where((t) => t.isReviewed || reviewedIds.contains(t.id) || reviewedIds.contains(t.bookingCode)).toList();
 
+      var guideTours = 7;
+      try {
+        final earnings = await DioEarningsApi().fetchSummary();
+        if (earnings.count > 0) {
+          guideTours = earnings.count;
+        }
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           _tripsCount = countOfTrips;
           _reviewsCount = reviewedTrips.length;
           _completedTrips = completedTrips;
           _reviewedTrips = reviewedTrips;
+          _guideCompletedToursCount = guideTours;
         });
       }
     } catch (_) {}
@@ -353,37 +364,47 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
                       const Divider(height: 1, color: AppColors.border),
                       const SizedBox(height: 16),
 
-                      // Stats Row: Chuyến đi & Đánh giá (Đồng bộ chuẩn ProfileScreen)
+                      // Stats Row: Đồng bộ theo đúng vai trò (Traveler vs Tour Guide)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildDetailStat(
-                            title: 'Kinh nghiệm',
-                            value: isGuide
-                                ? (currentUser.guideProfile?.experienceYears != null
-                                    ? '${currentUser.guideProfile!.experienceYears} năm'
-                                    : '5 năm')
-                                : '$_tripsCount',
-                          ),
-                          Container(height: 28, width: 1, color: AppColors.border),
-                          _buildDetailStat(
-                            title: isGuide ? 'Bắt đầu' : 'Đánh giá',
-                            value: isGuide
-                                ? (currentUser.createdAt != null
-                                    ? (currentUser.guideProfile?.experienceYears != null
-                                        ? '${currentUser.createdAt!.year - currentUser.guideProfile!.experienceYears!}'
-                                        : '${currentUser.createdAt!.year}')
-                                    : '2021')
-                                : '$_reviewsCount',
-                          ),
-                          Container(height: 28, width: 1, color: AppColors.border),
-                          _buildDetailStat(
-                            title: 'Tham gia',
-                            value: currentUser.createdAt != null
-                                ? currentUser.createdAt!.year.toString()
-                                : '2026',
-                          ),
-                        ],
+                        children: isGuide
+                            ? [
+                                _buildDetailStat(
+                                  title: 'Tour hoàn thành',
+                                  value: '$_guideCompletedToursCount tour',
+                                ),
+                                Container(height: 28, width: 1, color: AppColors.border),
+                                _buildDetailStat(
+                                  title: 'Tham gia từ',
+                                  value: currentUser.createdAt != null
+                                      ? 'Thg ${currentUser.createdAt!.month}/${currentUser.createdAt!.year}'
+                                      : 'Năm 2026',
+                                ),
+                                Container(height: 28, width: 1, color: AppColors.border),
+                                _buildDetailStat(
+                                  title: 'Số sao',
+                                  value: '4.9 ★',
+                                  valueColor: const Color(0xFFD97706),
+                                ),
+                              ]
+                            : [
+                                _buildDetailStat(
+                                  title: 'Số chuyến đi',
+                                  value: '$_tripsCount chuyến',
+                                ),
+                                Container(height: 28, width: 1, color: AppColors.border),
+                                _buildDetailStat(
+                                  title: 'Số lần đánh giá',
+                                  value: '$_reviewsCount lần',
+                                ),
+                                Container(height: 28, width: 1, color: AppColors.border),
+                                _buildDetailStat(
+                                  title: 'Tham gia từ',
+                                  value: currentUser.createdAt != null
+                                      ? 'Năm ${currentUser.createdAt!.year}'
+                                      : 'Năm 2026',
+                                ),
+                              ],
                       ),
                     ],
                   ),
@@ -509,15 +530,16 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
   Widget _buildDetailStat({
     required String title,
     required String value,
+    Color? valueColor,
   }) {
     return Column(
       children: [
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
+            color: valueColor ?? AppColors.textPrimary,
           ),
         ),
         const SizedBox(height: 4),

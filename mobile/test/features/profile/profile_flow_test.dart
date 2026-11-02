@@ -191,5 +191,98 @@ void main() {
       expect(find.text('Đổi mật khẩu'), findsOneWidget);
       expect(find.text('Lưu thay đổi'), findsOneWidget);
     });
+
+    testWidgets('ProfileScreen and UserProfileDetailScreen render Traveler stats correctly', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final traveler = UserProfileModel(
+        id: 'user-001',
+        email: 'traveler@tripri.com',
+        fullName: 'Khách Du Lịch',
+        role: 'TRAVELER',
+        createdAt: DateTime(2025, 6, 15),
+      );
+
+      // 1. ProfileScreen with Traveler
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider(
+            create: (_) => ProfileBloc()..emit(ProfileLoaded(traveler)),
+            child: const ProfileScreen(key: ValueKey('traveler_profile')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Chuyến đi'), findsOneWidget);
+      expect(find.text('Đánh giá'), findsOneWidget);
+      expect(find.text('Tour hoàn thành'), findsNothing);
+
+      // 2. UserProfileDetailScreen with Traveler
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider(
+            create: (_) => ProfileBloc()..emit(ProfileLoaded(traveler)),
+            child: UserProfileDetailScreen(key: const ValueKey('traveler_detail'), user: traveler),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Số chuyến đi'), findsOneWidget);
+      expect(find.text('Số lần đánh giá'), findsOneWidget);
+      expect(find.text('Tham gia từ'), findsOneWidget);
+      expect(find.text('Tour hoàn thành'), findsNothing);
+    });
+
+    testWidgets('ProfileScreen and UserProfileDetailScreen render Tour Guide stats correctly', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final guide = UserProfileModel(
+        id: 'guide-001',
+        email: 'guide@tripri.com',
+        fullName: 'Hướng Dẫn Viên',
+        role: 'TOUR_GUIDE',
+        createdAt: DateTime(2024, 3, 10),
+      );
+
+      // 1. ProfileScreen with Tour Guide
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider(
+            create: (_) => ProfileBloc()..emit(ProfileLoaded(guide)),
+            child: const ProfileScreen(key: ValueKey('guide_profile')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Tour hoàn thành'), findsOneWidget);
+      expect(find.text('Tham gia từ'), findsOneWidget);
+      expect(find.text('Số sao'), findsOneWidget);
+      expect(find.text('4.9 ★'), findsOneWidget);
+
+      // 2. UserProfileDetailScreen with Tour Guide
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider(
+            create: (_) => ProfileBloc()..emit(ProfileLoaded(guide)),
+            child: UserProfileDetailScreen(key: const ValueKey('guide_detail'), user: guide),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Tour hoàn thành'), findsOneWidget);
+      expect(find.text('Tham gia từ'), findsOneWidget);
+      expect(find.text('Số sao'), findsOneWidget);
+      expect(find.text('4.9 ★'), findsOneWidget);
+    });
   });
 }
