@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../navigation/traveler_main_navigation_screen.dart';
 import '../models/voucher_model.dart';
 import '../services/voucher_storage_service.dart';
 import '../widgets/voucher_ticket_card.dart';
@@ -236,8 +237,11 @@ class _MyVouchersScreenState extends State<MyVouchersScreen> with SingleTickerPr
           voucher: voucher,
           onUseNow: showUseNow
               ? () {
-                  // Đóng trang voucher để người dùng chọn tour
-                  Navigator.pop(context);
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const TravelerMainNavigationScreen(initialIndex: 0)),
+                    (route) => false,
+                  );
                 }
               : null,
         );

@@ -16,7 +16,6 @@ import '../widgets/banner_carousel_widget.dart';
 import '../widgets/home_search_header.dart';
 import '../widgets/network_error_widget.dart';
 import '../widgets/tour_card_horizontal.dart';
-import '../widgets/tour_card_vertical.dart';
 import '../widgets/tour_shimmer_loading.dart';
 import 'tour_booking_checkout_screen.dart';
 import 'tour_detail_screen.dart';

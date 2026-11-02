@@ -2,9 +2,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/storage/token_storage.dart';
 import '../bloc/chat_repository.dart';
 import '../bloc/chat_socket.dart';
 import '../models/chat_models.dart';
+import '../widgets/conversations_shimmer_loading.dart';
+import '../../ai/models/ai_models.dart';
+import '../../ai/screens/ai_chat_screen.dart';
+import '../../ai/storage/ai_storage.dart';
 import 'chat_screen.dart';
 
 final DateFormat _hm = DateFormat('HH:mm');
@@ -25,24 +30,32 @@ class ConversationsScreen extends StatefulWidget {
   final ChatRepository? repository;
   final ChatSocket? socket;
   final VoidCallback? onExploreTap;
+  final bool showAiOption;
 
   const ConversationsScreen({
     super.key,
     this.repository,
     this.socket,
     this.onExploreTap,
+    this.showAiOption = true,
   });
+
+  @visibleForTesting
+  static void resetCache() {}
 
   @override
   State<ConversationsScreen> createState() => _ConversationsScreenState();
 }
 
 class _ConversationsScreenState extends State<ConversationsScreen> {
+  final TokenStorage _tokenStorage = TokenStorage();
+
   late final ChatRepository _repo = widget.repository ?? ChatRepository();
   late final ChatSocket _socket = widget.socket ?? ChatSocketHub.instance;
   StreamSubscription<ChatMessage>? _sub;
   List<Conversation>? _items;
   String? _error;
+  AiMessage? _lastAiMessage;
 
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
@@ -51,9 +64,42 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   @override
   void initState() {
     super.initState();
-    _socket.connect();
-    _sub = _socket.messages.listen((_) => _load());
-    _load();
+    if (widget.showAiOption) {
+      _loadAiLastMessage();
+    }
+
+    if (widget.repository != null) {
+      _socket.connect();
+      _sub = _socket.messages.listen((_) => _load());
+      _load();
+      return;
+    }
+
+    _tokenStorage.getAccessToken().then((token) {
+      if (token == null || token.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _items = [];
+            _error = null;
+          });
+        }
+      } else {
+        _socket.connect();
+        _sub = _socket.messages.listen((_) => _load());
+        _load();
+      }
+    });
+  }
+
+  Future<void> _loadAiLastMessage() async {
+    try {
+      final storage = AiStorage();
+      final msgs = await storage.getMessages();
+      if (!mounted) return;
+      setState(() {
+        _lastAiMessage = msgs.isNotEmpty ? msgs.last : null;
+      });
+    } catch (_) {}
   }
 
   @override
@@ -65,6 +111,21 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   }
 
   Future<void> _load() async {
+    if (widget.showAiOption) {
+      _loadAiLastMessage();
+    }
+    if (widget.repository == null) {
+      final token = await _tokenStorage.getAccessToken();
+      if (token == null || token.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _items = [];
+          _error = null;
+        });
+        return;
+      }
+    }
+
     try {
       final items = await _repo.listConversations();
       if (!mounted) return;
@@ -73,7 +134,19 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         _error = null;
       });
     } on ChatException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (!mounted) return;
+      // Nếu là lỗi chưa đăng nhập hoặc hết phiên, coi như trống thay vì hiện lỗi
+      if (e.message.contains('đăng nhập') || e.message.contains('hết hạn')) {
+        setState(() {
+          _items = [];
+          _error = null;
+        });
+      } else {
+        setState(() => _error = e.message);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = 'Không thể kết nối máy chủ tin nhắn.');
     }
   }
 
@@ -109,6 +182,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     final query = _searchController.text.trim().toLowerCase();
     final allItems = _items;
     final filteredItems = allItems?.where((c) {
+      if (!widget.showAiOption && c.isAi) return false;
       if (query.isEmpty) return true;
       final name = c.counterpart?.fullName.toLowerCase() ?? '';
       final lastText = c.lastText?.toLowerCase() ?? '';
@@ -116,7 +190,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
         child: Stack(
           children: [
@@ -174,7 +248,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                               color: const Color(0xFFF3F4F6),
                               borderRadius: BorderRadius.circular(24),
                               border: Border.all(
-                                color: const Color(0xFF10B981),
+                                color: AppColors.primary,
                                 width: 1.5,
                               ),
                             ),
@@ -182,7 +256,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                               children: [
                                 const Icon(
                                   Icons.search_rounded,
-                                  color: Color(0xFF10B981),
+                                  color: AppColors.primary,
                                   size: 20,
                                 ),
                                 const SizedBox(width: 8),
@@ -250,22 +324,21 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
 
                 const Divider(height: 1, color: Color(0xFFF1F5F9)),
 
-                // Thân màn hình: Trạng thái trống (Ảnh 3) hoặc Danh sách cuộc trò chuyện Messenger
+                // Thân màn hình: Skeleton Loading hoặc Danh sách cuộc trò chuyện Messenger (luôn có Trợ lý AI ở đầu)
                 Expanded(
                   child: RefreshIndicator(
-                    onRefresh: _load,
-                    color: const Color(0xFF10B981),
+                    onRefresh: () async {
+                      await Future.wait([
+                        _load(),
+                        if (widget.showAiOption) _loadAiLastMessage(),
+                      ]);
+                    },
+                    color: AppColors.primary,
                     child: allItems == null
                         ? (_error == null
-                            ? const Center(
-                                child: CircularProgressIndicator(
-                                  color: Color(0xFF10B981),
-                                ),
-                              )
+                            ? const ConversationsShimmerLoading()
                             : _ErrorMessage(text: _error!, onRetry: _load))
-                        : (allItems.isEmpty
-                            ? _buildEmptyState(context)
-                            : _buildMessengerList(filteredItems ?? [])),
+                        : _buildMessengerList(filteredItems ?? []),
                   ),
                 ),
               ],
@@ -289,122 +362,219 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     );
   }
 
-  /// Trạng thái chưa có tin nhắn: Thiết kế 1:1 theo Ảnh 3
-  /// - Đồ họa 3D bong bóng chat xanh dương & trắng
-  /// - Tiêu đề: "Chưa có cuộc trò chuyện nào"
-  /// - Phụ đề: "Lên kế hoạch cho chuyến đi, trải nghiệm hoặc dịch vụ để kết nối với người tổ chức tại đây."
-  /// - Nút CTA màu xanh: "Bắt đầu khám phá"
-  /// - Không có mục "Past conversations"
-  Widget _buildEmptyState(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-      children: [
-        const SizedBox(height: 60),
-        Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Đồ họa 3D bong bóng chat nổi bật phong cách Airbnb
-                const _ChatBubbles3DGraphic(),
-                const SizedBox(height: 36),
 
-                // Tiêu đề dịch từ "Nothing to see here"
-                const Text(
-                  'Chưa có cuộc trò chuyện nào',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                    letterSpacing: -0.4,
-                  ),
-                ),
-                const SizedBox(height: 12),
+  String _cleanMarkdown(String text) {
+    return text
+        .replaceAll(RegExp(r'[*#_`~>]'), '')
+        .replaceAll(RegExp(r'\n+'), ' ')
+        .trim();
+  }
 
-                // Phụ đề dịch từ "Plan a stay, experience, or service to connect with your host here."
-                const Text(
-                  'Lên kế hoạch cho chuyến đi, trải nghiệm hoặc dịch vụ để kết nối với người tổ chức tại đây.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    color: AppColors.textSecondary,
-                    height: 1.45,
-                  ),
-                ),
-                const SizedBox(height: 32),
+  /// Mục Trợ lý AI Tripri (nằm ngay bên trong danh sách tin nhắn)
+  Widget _buildAiConversationItem() {
+    String previewText;
+    String timeText;
 
-                // Nút CTA đổi sang màu xanh (Green) theo yêu cầu
-                GestureDetector(
-                  onTap: () {
-                    if (widget.onExploreTap != null) {
-                      widget.onExploreTap!();
-                    } else {
-                      Navigator.of(context).popUntil((route) => route.isFirst);
-                    }
-                  },
-                  child: Container(
-                    key: const Key('get-started-button'),
-                    padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981), // Màu xanh theo yêu cầu
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.35),
-                          blurRadius: 14,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: const Text(
-                      'Bắt đầu khám phá',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                  ),
+    if (_lastAiMessage != null) {
+      final msg = _lastAiMessage!;
+      timeText = _when(msg.createdAt);
+      if (msg.role == AiRole.user) {
+        previewText = 'Bạn: ${msg.content}';
+      } else {
+        previewText = 'Trợ lý AI: ${_cleanMarkdown(msg.content)}';
+      }
+    } else {
+      timeText = '24/7';
+      previewText = 'Trợ lý AI: Sẵn sàng tư vấn lịch trình, tour & giải đáp thắc mắc';
+    }
+
+    return InkWell(
+      key: const Key('ai-assistant-conversation-item'),
+      onTap: () async {
+        await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => const AiChatScreen(),
+        ));
+        _loadAiLastMessage();
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          children: [
+            // Avatar AI tròn với gradient và icon lấp lánh (không có chấm xanh online thừa)
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF0D9488),
+                    Color(0xFF2563EB),
+                  ],
                 ),
-                const SizedBox(height: 40),
-              ],
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0D9488).withValues(alpha: 0.2),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: const Icon(
+                Icons.auto_awesome_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
             ),
-          ),
+            const SizedBox(width: 14),
+
+            // Tên & Tin nhắn gần nhất của AI
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'Trợ lý AI Tripri',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF0D9488), Color(0xFF2563EB)],
+                          ),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'AI',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    previewText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _lastAiMessage != null ? AppColors.textSecondary : const Color(0xFF0D9488),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (timeText.isNotEmpty) ...[
+              const SizedBox(width: 12),
+              Text(
+                timeText,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ],
         ),
-      ],
+      ),
     );
+  }
+
+  /// Định dạng nội dung tin nhắn preview:
+  /// - Nếu mình gửi: Bạn: "nội dung..."
+  /// - Nếu đối phương gửi: Tên họ: "abcxyz..."
+  /// - Nếu là AI: Trợ lý AI: "..."
+  String _formatLastMessagePreview(Conversation c) {
+    final text = c.lastText;
+    if (text == null || text.trim().isEmpty) {
+      return 'Chưa có tin nhắn';
+    }
+
+    if (c.isAi) {
+      if (text.startsWith('Bạn: ') || text.startsWith('Trợ lý AI: ')) {
+        return text;
+      }
+      return 'Trợ lý AI: $text';
+    }
+
+    // Nếu đã có sẵn tiền tố 'Bạn: ' hoặc '<Name>: '
+    if (text.startsWith('Bạn: ') || (c.counterpart != null && text.startsWith('${c.counterpart!.fullName}: '))) {
+      return text;
+    }
+
+    if (c.lastSenderId != null && c.counterpart != null) {
+      if (c.lastSenderId == c.counterpart!.id) {
+        return '${c.counterpart!.fullName}: $text';
+      } else {
+        return 'Bạn: $text';
+      }
+    }
+
+    return text;
   }
 
   /// Danh sách cuộc trò chuyện phong cách Messenger khi có tin nhắn
   Widget _buildMessengerList(List<Conversation> items) {
+    final query = _searchController.text.trim().toLowerCase();
+    final showAiItem = widget.showAiOption &&
+        (query.isEmpty ||
+            'trợ lý ai tripri'.contains(query) ||
+            'ai'.contains(query));
+
     if (items.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            'Không tìm thấy cuộc trò chuyện nào phù hợp',
-            style: TextStyle(
-              fontSize: 14.5,
-              color: AppColors.textSecondary,
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        children: [
+          if (showAiItem) ...[
+            _buildAiConversationItem(),
+            const Padding(
+              padding: EdgeInsets.only(left: 82),
+              child: Divider(height: 1, color: Color(0xFFF1F5F9)),
             ),
-          ),
-        ),
+          ],
+          _buildEmptyMessengerState(),
+        ],
       );
     }
+
+    final totalCount = items.length + (showAiItem ? 1 : 0);
 
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
       padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: items.length,
-      separatorBuilder: (_, __) => const Padding(
+      itemCount: totalCount,
+      separatorBuilder: (_, _) => const Padding(
         padding: EdgeInsets.only(left: 82),
         child: Divider(height: 1, color: Color(0xFFF1F5F9)),
       ),
       itemBuilder: (context, i) {
-        final c = items[i];
+        if (showAiItem && i == 0) {
+          return _buildAiConversationItem();
+        }
+        final itemIndex = showAiItem ? i - 1 : i;
+        if (itemIndex < 0 || itemIndex >= items.length) {
+          return const SizedBox.shrink();
+        }
+        final c = items[itemIndex];
         final name = c.counterpart?.fullName ?? 'Người dùng';
         final unread = c.unreadCount > 0;
 
@@ -448,23 +618,6 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                         ),
                       ),
                     ),
-                    // Chấm xanh trạng thái trực tuyến
-                    Positioned(
-                      right: 1,
-                      bottom: 1,
-                      child: Container(
-                        width: 13,
-                        height: 13,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 2.2,
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(width: 14),
@@ -474,20 +627,38 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        name,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: unread ? FontWeight.w800 : FontWeight.w600,
-                          color: AppColors.textPrimary,
-                          letterSpacing: -0.2,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              name,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: unread ? FontWeight.w800 : FontWeight.w600,
+                                color: AppColors.textPrimary,
+                                letterSpacing: -0.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          // Dấu chấm thông báo tin nhắn chưa đọc
+                          if (unread)
+                            Container(
+                              key: Key('unread-dot-${c.id}'),
+                              width: 8,
+                              height: 8,
+                              margin: const EdgeInsets.only(left: 6),
+                              decoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        c.lastText ?? 'Chưa có tin nhắn',
+                        _formatLastMessagePreview(c),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -514,7 +685,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                         fontSize: 12,
                         fontWeight: unread ? FontWeight.w700 : FontWeight.w500,
                         color: unread
-                            ? const Color(0xFF10B981)
+                            ? AppColors.primary
                             : AppColors.textMuted,
                       ),
                     ),
@@ -527,11 +698,11 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                           vertical: 2.5,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF10B981),
+                          color: AppColors.primary,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
-                          '${c.unreadCount}',
+                          c.unreadCount > 5 ? '5+ tin nhắn mới' : '${c.unreadCount}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 11,
@@ -548,6 +719,38 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
       },
     );
   }
+
+  Widget _buildEmptyMessengerState() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const _ChatBubbles3DGraphic(),
+          const SizedBox(height: 24),
+          const Text(
+            'Chưa có tin nhắn nào',
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Khi du khách hoặc hướng dẫn viên nhắn tin, các cuộc trò chuyện sẽ xuất hiện tại đây.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Đồ họa 3D bong bóng chat phong cách Airbnb (Ảnh 3)
@@ -557,17 +760,17 @@ class _ChatBubbles3DGraphic extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 160,
-      height: 150,
+      width: 150,
+      height: 140,
       child: Stack(
         alignment: Alignment.center,
         children: [
           // Bóng đổ phía dưới 3D
           Positioned(
-            bottom: 6,
+            bottom: 4,
             child: Container(
-              width: 110,
-              height: 16,
+              width: 100,
+              height: 14,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(50),
                 boxShadow: [
@@ -584,13 +787,13 @@ class _ChatBubbles3DGraphic extends StatelessWidget {
 
           // Bong bóng xanh dương phía sau (Vibrant Blue 3D Bubble)
           Positioned(
-            top: 10,
-            right: 24,
+            top: 8,
+            right: 20,
             child: Transform.rotate(
               angle: 0.08,
               child: Container(
-                width: 82,
-                height: 86,
+                width: 76,
+                height: 80,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
@@ -602,16 +805,16 @@ class _ChatBubbles3DGraphic extends StatelessWidget {
                     ],
                   ),
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(26),
-                    topRight: Radius.circular(26),
-                    bottomRight: Radius.circular(26),
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                    bottomRight: Radius.circular(24),
                     bottomLeft: Radius.circular(8),
                   ),
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFF0284C7).withValues(alpha: 0.35),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
+                      blurRadius: 14,
+                      offset: const Offset(0, 7),
                     ),
                   ],
                 ),
@@ -621,14 +824,14 @@ class _ChatBubbles3DGraphic extends StatelessWidget {
 
           // Bong bóng trắng phía trước (Glossy White 3D Bubble với 2 vạch tin nhắn xanh)
           Positioned(
-            bottom: 16,
-            left: 20,
+            bottom: 14,
+            left: 18,
             child: Transform.rotate(
               angle: -0.04,
               child: Container(
-                width: 90,
-                height: 94,
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+                width: 84,
+                height: 88,
+                padding: const EdgeInsets.fromLTRB(14, 22, 14, 14),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
@@ -640,21 +843,16 @@ class _ChatBubbles3DGraphic extends StatelessWidget {
                     ],
                   ),
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(28),
-                    topRight: Radius.circular(28),
+                    topLeft: Radius.circular(26),
+                    topRight: Radius.circular(26),
                     bottomLeft: Radius.circular(8),
-                    bottomRight: Radius.circular(28),
+                    bottomRight: Radius.circular(26),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                    BoxShadow(
-                      color: const Color(0xFF0284C7).withValues(alpha: 0.1),
-                      blurRadius: 10,
-                      offset: const Offset(-2, -2),
+                      color: Colors.black.withValues(alpha: 0.14),
+                      blurRadius: 18,
+                      offset: const Offset(0, 9),
                     ),
                   ],
                 ),
@@ -662,20 +860,18 @@ class _ChatBubbles3DGraphic extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Dòng tin nhắn ngắn
                     Container(
-                      width: 40,
-                      height: 6.5,
+                      width: 36,
+                      height: 6,
                       decoration: BoxDecoration(
                         color: const Color(0xFF0284C7),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    // Dòng tin nhắn dài
+                    const SizedBox(height: 7),
                     Container(
-                      width: 54,
-                      height: 6.5,
+                      width: 50,
+                      height: 6,
                       decoration: BoxDecoration(
                         color: const Color(0xFF0284C7),
                         borderRadius: BorderRadius.circular(4),
@@ -716,7 +912,7 @@ class _ErrorMessage extends StatelessWidget {
                 ElevatedButton(
                   onPressed: onRetry,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),

@@ -8,6 +8,7 @@ import '../bloc/profile_bloc.dart';
 import '../bloc/profile_event.dart';
 import '../bloc/profile_state.dart';
 import '../models/user_profile_model.dart';
+import 'guide_profile_screen.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final UserProfileModel initialUser;
@@ -202,7 +203,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               children: [
                                 CircleAvatar(
                                   radius: 56,
-                                  backgroundColor: const Color(0xFFDCFCE7),
+                                  backgroundColor: AppColors.primarySurface,
                                   child: ClipOval(
                                     child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
                                         ? CachedNetworkImage(
@@ -362,6 +363,60 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             controller: _bioController,
                             maxLines: 3,
                           ),
+
+                          if (widget.initialUser.isGuide) ...[
+                            const SizedBox(height: 24),
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.primarySurface,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: 0.12),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.badge_outlined, size: 20, color: AppColors.primaryDark),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Hồ sơ chuyên môn Hướng dẫn viên',
+                                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Số thẻ: ${widget.initialUser.guideProfile?.licenseNumber ?? 'Chưa cập nhật'} • ${widget.initialUser.guideProfile?.experienceYears ?? 0} năm KN',
+                                          style: const TextStyle(fontSize: 12, color: AppColors.primary),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => BlocProvider.value(
+                                            value: context.read<ProfileBloc>(),
+                                            child: GuideProfileScreen(user: widget.initialUser),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text('Chỉnh sửa', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
 
                           const SizedBox(height: 32),
                           const Divider(height: 1, color: Color(0xFFE2E8F0)),
@@ -571,19 +626,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildInitialAvatar(UserProfileModel user) {
-    final initial = user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : 'H';
     return Container(
       width: 112,
       height: 112,
       alignment: Alignment.center,
-      color: const Color(0xFFDCFCE7),
-      child: Text(
-        initial,
-        style: const TextStyle(
-          fontSize: 48,
-          fontWeight: FontWeight.w700,
-          color: Color(0xFF166534),
-        ),
+      color: AppColors.primarySurface,
+      child: const Icon(
+        Icons.person,
+        size: 54,
+        color: AppColors.primary,
       ),
     );
   }

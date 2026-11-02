@@ -18,12 +18,33 @@ class AppTheme {
         brightness: Brightness.light,
       ),
       scaffoldBackgroundColor: AppColors.background,
+      actionIconTheme: ActionIconThemeData(
+        backButtonIconBuilder: (BuildContext context) => Container(
+          width: 36,
+          height: 36,
+          decoration: const BoxDecoration(
+            color: Color(0xFFF1F5F9),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.arrow_back_rounded,
+            size: 19,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
-        centerTitle: true,
-        scrolledUnderElevation: 1,
+        centerTitle: false,
+        scrolledUnderElevation: 0,
+        titleTextStyle: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textPrimary,
+          letterSpacing: -0.3,
+        ),
       ),
       cardTheme: CardThemeData(
         color: Colors.white,

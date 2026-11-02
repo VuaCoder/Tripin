@@ -149,7 +149,8 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('Hồ sơ của tôi'), findsOneWidget);
+      // Thanh top bar theo Ảnh 2: bỏ chữ "Hồ sơ của tôi", có nút Chỉnh sửa cùng hàng
+      expect(find.text('Hồ sơ của tôi'), findsNothing);
       expect(find.text('Chỉnh sửa'), findsOneWidget);
       expect(find.text('Nguyễn Văn Phục'), findsOneWidget);
       expect(find.text('Tour đã đi'), findsOneWidget);

@@ -9,22 +9,31 @@ void main() {
     expect(formatVnd(0).replaceAll('\u00A0', ' '), '0 đ');
   });
 
-  test('this month is the Vietnamese calendar month in UTC bounds', () {
+  test('1 month is the 30-day window in UTC bounds', () {
     final range = earningsRangeFor(
-      EarningsFilter.thisMonth,
+      EarningsFilter.oneMonth,
       now: DateTime.utc(2026, 10, 31, 12),
     );
     expect(range.from, '2026-09-30T17:00:00.000Z');
-    expect(range.to, '2026-10-31T16:59:59.999Z');
+    expect(range.to, '2026-10-31T12:00:00.000Z');
   });
 
-  test('last month covers the previous Vietnamese calendar month', () {
+  test('3 months is the 90-day window in UTC bounds', () {
     final range = earningsRangeFor(
-      EarningsFilter.lastMonth,
+      EarningsFilter.threeMonths,
       now: DateTime.utc(2026, 10, 31, 12),
     );
-    expect(range.from, '2026-08-31T17:00:00.000Z');
-    expect(range.to, '2026-09-30T16:59:59.999Z');
+    expect(range.from, '2026-07-30T17:00:00.000Z');
+    expect(range.to, '2026-10-31T12:00:00.000Z');
+  });
+
+  test('6 months is the 180-day window in UTC bounds', () {
+    final range = earningsRangeFor(
+      EarningsFilter.sixMonths,
+      now: DateTime.utc(2026, 10, 31, 12),
+    );
+    expect(range.from, '2026-04-30T17:00:00.000Z');
+    expect(range.to, '2026-10-31T12:00:00.000Z');
   });
 
   test('all sends no date range', () {

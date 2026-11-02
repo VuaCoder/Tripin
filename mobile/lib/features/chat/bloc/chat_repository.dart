@@ -22,11 +22,18 @@ class ChatRepository {
   ChatRepository({ApiClient? api}) : _api = api ?? ApiClient();
 
   Future<List<Conversation>> listConversations({int page = 1, int limit = 30}) => _guard(() async {
-        final res = await _api.get<Map<String, dynamic>>(
+        final res = await _api.get<dynamic>(
           ApiEndpoints.conversations,
           queryParameters: {'page': page, 'limit': limit},
         );
-        return [for (final j in res.data!['data'] as List) Conversation.fromJson(j as Map<String, dynamic>)];
+        final raw = res.data;
+        final rawData = raw is Map ? raw['data'] : raw;
+        final list = rawData is List
+            ? rawData
+            : (rawData is Map && rawData['items'] is List)
+                ? rawData['items'] as List
+                : const [];
+        return [for (final j in list) Conversation.fromJson(j as Map<String, dynamic>)];
       });
 
   /// `before` là id của tin cũ nhất đang có để lấy trang trước nữa.

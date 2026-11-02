@@ -9,7 +9,6 @@ import '../bloc/profile_state.dart';
 import '../models/user_profile_model.dart';
 import 'become_guide_screen.dart';
 import 'edit_profile_screen.dart';
-import 'guide_profile_screen.dart';
 import 'user_profile_detail_screen.dart';
 import '../../vouchers/screens/my_vouchers_screen.dart';
 import '../../bookings/bloc/booked_trips_repository.dart';
@@ -321,12 +320,9 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
 
                       const SizedBox(height: 24),
 
-                      // --- 2. HOST / TOUR GUIDE / AGENCY BANNER ---
+                      // --- 2. HOST / AGENCY BANNER (Ẩn với Hướng dẫn viên vì đã có Passport card) ---
                       if (!isGuide && !user.isAgency) ...[
                         _buildBecomeGuideBanner(context, user),
-                        const SizedBox(height: 28),
-                      ] else if (isGuide) ...[
-                        _buildGuideSpecialtyBanner(context, user),
                         const SizedBox(height: 28),
                       ] else if (user.isAgency) ...[
                         _buildAgencyWorkspaceBanner(context, user),
@@ -336,26 +332,27 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                       // --- 3. CATEGORY 1: CÀI ĐẶT TÀI KHOẢN ---
                       _buildSectionHeader('CÀI ĐẶT TÀI KHOẢN'),
                       _buildGroupedMenuCard([
-                        if (isGuide) ...[
-                          _buildMenuItem(
-                            icon: Icons.badge_outlined,
-                            iconBgColor: const Color(0xFFFEF3C7),
-                            iconColor: AppColors.secondaryDark,
-                            title: 'Hồ sơ chuyên môn Hướng dẫn viên',
-                            subtitle: 'Số thẻ hành nghề, ngôn ngữ, kinh nghiệm, ảnh thẻ',
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => BlocProvider.value(
-                                    value: context.read<ProfileBloc>(),
-                                    child: GuideProfileScreen(user: user),
+                        _buildMenuItem(
+                          icon: Icons.person_outline_rounded,
+                          iconBgColor: const Color(0xFFE0F2FE),
+                          iconColor: const Color(0xFF0369A1),
+                          title: 'Thông tin cá nhân',
+                          subtitle: 'Họ và tên, số điện thoại, giới thiệu',
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => BlocProvider.value(
+                                  value: context.read<ProfileBloc>(),
+                                  child: EditProfileScreen(
+                                    initialUser: user,
+                                    openChangePasswordDirectly: false,
                                   ),
                                 ),
-                              );
-                            },
-                          ),
-                          const Divider(height: 1, indent: 64, endIndent: 16),
-                        ],
+                              ),
+                            );
+                          },
+                        ),
+                        const Divider(height: 1, indent: 64, endIndent: 16),
                         _buildMenuItem(
                           icon: Icons.lock_outline_rounded,
                           iconBgColor: const Color(0xFFF1F5F9),
@@ -378,24 +375,25 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                         ),
                       ]),
 
-                      const SizedBox(height: 28),
-
-                      // --- 4. CATEGORY 2: ƯU ĐÃI & ĐẶC QUYỀN ---
-                      _buildSectionHeader('ƯU ĐÃI & ĐẶC QUYỀN'),
-                      _buildGroupedMenuCard([
-                        _buildMenuItem(
-                          icon: Icons.card_giftcard_rounded,
-                          iconBgColor: const Color(0xFFFEF3C7),
-                          iconColor: AppColors.secondaryDark,
-                          title: 'Ưu đãi & Voucher của tôi',
-                          subtitle: 'Mã giảm giá đặt tour tích lũy',
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const MyVouchersScreen()),
-                            );
-                          },
-                        ),
-                      ]),
+                      // --- 4. CATEGORY 2: ƯU ĐÃI & ĐẶC QUYỀN (Ẩn với Hướng dẫn viên) ---
+                      if (!isGuide) ...[
+                        const SizedBox(height: 28),
+                        _buildSectionHeader('ƯU ĐÃI & ĐẶC QUYỀN'),
+                        _buildGroupedMenuCard([
+                          _buildMenuItem(
+                            icon: Icons.card_giftcard_rounded,
+                            iconBgColor: const Color(0xFFFEF3C7),
+                            iconColor: AppColors.secondaryDark,
+                            title: 'Ưu đãi & Voucher của tôi',
+                            subtitle: 'Mã giảm giá đặt tour tích lũy',
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const MyVouchersScreen()),
+                              );
+                            },
+                          ),
+                        ]),
+                      ],
 
                       const SizedBox(height: 28),
 
@@ -600,7 +598,7 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: isVerified
-                                    ? (isGuide ? AppColors.secondary : AppColors.primary)
+                                    ? (isGuide ? AppColors.primaryDark : AppColors.primary)
                                     : const Color(0xFFE2E8F0),
                                 width: isVerified ? 2.2 : 1.5,
                               ),
@@ -635,7 +633,7 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                                 child: Icon(
                                   Icons.check_circle_rounded,
                                   size: 20,
-                                  color: isGuide ? AppColors.secondaryDark : AppColors.success,
+                                  color: isGuide ? AppColors.primaryDark : AppColors.success,
                                 ),
                               ),
                             ),
@@ -685,16 +683,22 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _buildPassportStat(
-                        title: 'Chuyến đi',
+                        title: 'Kinh nghiệm',
                         value: isGuide
-                            ? (user.guideProfile?.experienceYears != null ? '${user.guideProfile!.experienceYears} năm' : '$_tripsCount')
-                            : '$_tripsCount',
+                            ? (user.guideProfile?.experienceYears != null ? '${user.guideProfile!.experienceYears} năm' : '5 năm')
+                            : '$_tripsCount chuyến',
                       ),
                       Container(height: 28, width: 1, color: AppColors.border),
                       _buildPassportStat(
-                        title: 'Đánh giá',
-                        value: _reviewsCount > 0 ? '$_reviewsCount' : 'Chưa có',
-                        valueColor: _reviewsCount > 0 ? AppColors.textPrimary : AppColors.textSecondary,
+                        title: isGuide ? 'Bắt đầu' : 'Đánh giá',
+                        value: isGuide
+                            ? (user.createdAt != null
+                                ? (user.guideProfile?.experienceYears != null
+                                    ? '${user.createdAt!.year - user.guideProfile!.experienceYears!}'
+                                    : '${user.createdAt!.year}')
+                                : '2021')
+                            : (_reviewsCount > 0 ? '$_reviewsCount' : 'Chưa có'),
+                        valueColor: AppColors.textPrimary,
                       ),
                     ],
                   ),
@@ -915,87 +919,6 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                   ),
                   child: const Icon(Icons.business_center_rounded, color: Colors.white, size: 22),
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Banner for existing Tour Guides
-  Widget _buildGuideSpecialtyBanner(BuildContext context, UserProfileModel user) {
-    final guideData = user.guideProfile;
-    final licenseNumber = guideData?.licenseNumber ?? 'Chưa cập nhật số thẻ';
-    final experience = guideData?.experienceYears != null ? '${guideData!.experienceYears} năm kinh nghiệm' : 'Chưa cập nhật kinh nghiệm';
-
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFFDE68A)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.amber.withValues(alpha: 0.1),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(22),
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => BlocProvider.value(
-                  value: context.read<ProfileBloc>(),
-                  child: GuideProfileScreen(user: user),
-                ),
-              ),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(Icons.workspace_premium_rounded, color: AppColors.secondaryDark, size: 28),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Hồ sơ Hướng dẫn viên chính thức',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF78350F),
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        'Số thẻ: $licenseNumber • $experience',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF92400E),
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFFB45309)),
               ],
             ),
           ),

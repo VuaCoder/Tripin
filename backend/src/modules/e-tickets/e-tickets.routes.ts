@@ -22,3 +22,8 @@ guideETicketsRouter.post(
   validate({ params: guideTourParams, body: guideCheckInBody }),
   eTicketsController.checkInForGuide,
 );
+guideETicketsRouter.post(
+  '/:tourId/complete',
+  validate({ params: guideTourParams }),
+  eTicketsController.completeTripForGuide,
+);

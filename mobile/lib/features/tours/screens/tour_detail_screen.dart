@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/network/api_client.dart';
+import '../../chat/bloc/chat_repository.dart';
+import '../../chat/screens/chat_screen.dart';
 import '../../wishlist/bloc/wishlist_cubit.dart';
 import '../bloc/tour_detail_bloc.dart';
 import '../bloc/tour_detail_event.dart';
@@ -60,7 +62,12 @@ class _TourDetailScreenState extends State<TourDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
+    WishlistCubit? parentWishlist;
+    try {
+      parentWishlist = context.read<WishlistCubit>();
+    } catch (_) {}
+
+    Widget body = BlocProvider(
       create: (context) => TourDetailBloc(client: widget.apiClient)
         ..add(TourDetailLoadRequested(widget.tourId)),
       child: Scaffold(
@@ -88,6 +95,15 @@ class _TourDetailScreenState extends State<TourDetailScreen> {
         ),
       ),
     );
+
+    if (parentWishlist == null) {
+      return BlocProvider(
+        create: (_) => WishlistCubit()..loadWishlist(),
+        child: body,
+      );
+    }
+
+    return body;
   }
 
   Widget _buildNotFoundState(BuildContext context) {
@@ -228,10 +244,15 @@ class _TourDetailScreenState extends State<TourDetailScreen> {
   Widget _buildLoadedState(BuildContext context, TourDetailLoaded state) {
     final tour = state.tour;
 
-    // Lắng nghe trạng thái yêu thích từ WishlistCubit
-    final isFavorite = context.select<WishlistCubit, bool>(
-      (cubit) => cubit.state.isFavorite(tour.id),
-    );
+    // Lắng nghe trạng thái yêu thích từ WishlistCubit an toàn
+    bool isFavorite = false;
+    try {
+      isFavorite = context.select<WishlistCubit, bool>(
+        (cubit) => cubit.state.isFavorite(tour.id),
+      );
+    } catch (_) {
+      isFavorite = false;
+    }
 
     // Xác định departure được chọn
     final currentDep = _selectedDeparture ?? state.selectedDeparture;
@@ -255,10 +276,12 @@ class _TourDetailScreenState extends State<TourDetailScreen> {
                   images: tour.images,
                   isFavorite: isFavorite,
                   onFavoriteTap: () {
-                    context.read<WishlistCubit>().handleHeartTap(
-                          context: context,
-                          tour: tour.toTourModel(),
-                        );
+                    try {
+                      context.read<WishlistCubit>().handleHeartTap(
+                            context: context,
+                            tour: tour.toTourModel(),
+                          );
+                    } catch (_) {}
                   },
                   onBack: () => Navigator.of(context).pop(),
                 ),
@@ -454,69 +477,185 @@ class _TourDetailScreenState extends State<TourDetailScreen> {
     );
   }
 
-  /// Phần Host: Yêu cầu "thiết kế lại bằng Thuộc về + 'Tên công ty'"
+  /// Phần Đơn vị tổ chức & Hướng dẫn viên (Thiết kế theo Sketch):
+  /// - Card bo tròn (16px) với border nhẹ bao quanh
+  /// - Bên trái: Avatar tròn của HDV (hoặc công ty)
+  /// - Ở giữa:
+  ///   - Dòng trên: Tên công ty (tour.agency?.name)
+  ///   - Dòng dưới: Tên HDV (tour.guide?.fullName) + Sao & điểm đánh giá (★ 4.9)
+  /// - Bên phải: Nút icon tin nhắn (icon-only, không kèm chữ)
   Widget _buildHostSection(TourDetailModel tour) {
     final companyName = tour.agency?.name ?? 'Tripri Travel Partner';
+    final guideName = tour.guide?.fullName ?? 'Hướng dẫn viên bản địa';
+    final avatarUrl = tour.guide?.avatarUrl ?? tour.agency?.avatarUrl;
 
-    return Row(
-      children: [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            CircleAvatar(
-              radius: 26,
-              backgroundColor: const Color(0xFFF3F4F6),
-              backgroundImage: tour.agency?.avatarUrl != null
-                  ? NetworkImage(tour.agency!.avatarUrl!)
-                  : null,
-              child: tour.agency?.avatarUrl == null
-                  ? const Icon(Icons.business_rounded, color: AppColors.primary, size: 26)
-                  : null,
-            ),
-            Positioned(
-              right: -2,
-              bottom: -2,
-              child: Container(
-                padding: const EdgeInsets.all(3),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE00B41),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.verified_rounded,
-                  size: 11,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // 1. Avatar tròn bên trái
+          Stack(
+            clipBehavior: Clip.none,
             children: [
-              Text(
-                'Thuộc về $companyName',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
+              CircleAvatar(
+                radius: 25,
+                backgroundColor: const Color(0xFFF1F5F9),
+                backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                    ? NetworkImage(avatarUrl)
+                    : null,
+                child: avatarUrl == null || avatarUrl.isEmpty
+                    ? const Icon(Icons.person_rounded, color: AppColors.primary, size: 28)
+                    : null,
               ),
-              const SizedBox(height: 3),
-              const Text(
-                'Đơn vị tổ chức chuyên nghiệp · Đối tác xác minh Tripri',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
+              Positioned(
+                right: -1,
+                bottom: -1,
+                child: Container(
+                  padding: const EdgeInsets.all(2.5),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF0D9488),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    size: 10,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(width: 14),
+
+          // 2. Cột thông tin ở giữa (Tên công ty phía trên, Tên guide phía dưới)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Tên công ty
+                Text(
+                  companyName,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF64748B),
+                    letterSpacing: -0.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+
+                // Tên HDV
+                Text(
+                  guideName,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1E293B),
+                    letterSpacing: -0.3,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // 3. Nút tin nhắn bên phải (Icon-only theo sketch)
+          Material(
+            color: const Color(0xFFF0FDFA),
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              key: const Key('btn_chat_guide'),
+              onTap: () => _openChatWithGuide(tour),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.25), width: 1.2),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  color: AppColors.primary,
+                  size: 21,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  /// Mở màn hình trò chuyện 1-1 với hướng dẫn viên của tour
+  Future<void> _openChatWithGuide(TourDetailModel tour) async {
+    final guideName = tour.guide?.fullName ?? tour.agency?.name ?? 'Hướng dẫn viên';
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    // Hiển thị dialog loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+    );
+
+    try {
+      final chatRepo = ChatRepository(api: widget.apiClient);
+      final conversation = await chatRepo.startWithGuideOfTour(tour.id);
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // Đóng loading
+
+      navigator.push(
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            conversationId: conversation.id,
+            title: conversation.counterpart?.fullName ?? guideName,
+            repository: chatRepo,
+          ),
+        ),
+      );
+    } on ChatException catch (e) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // Đóng loading
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: AppColors.textPrimary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // Đóng loading
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng đăng nhập để gửi tin nhắn cho hướng dẫn viên.'),
+          backgroundColor: AppColors.textPrimary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   /// Thông tin chuyến đi & Mô tả (Ảnh 1)
@@ -694,7 +833,7 @@ class _TourDetailScreenState extends State<TourDetailScreen> {
           if (_isItineraryExpanded) ...[
             const Divider(height: 1, color: Color(0xFFEBEBEB)),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
               child: TourDetailTimelineWidget(itinerary: tour.itinerary),
             ),
           ],

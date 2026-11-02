@@ -7,7 +7,7 @@ import '../utils/earnings_format.dart';
 
 class EarningsState extends Equatable {
   const EarningsState({
-    this.filter = EarningsFilter.thisMonth,
+    this.filter = EarningsFilter.oneMonth,
     this.listLoading = false,
     this.loadingMore = false,
     this.summaryLoading = false,

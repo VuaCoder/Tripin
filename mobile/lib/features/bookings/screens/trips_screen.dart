@@ -2,12 +2,15 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/notification_service.dart';
 import '../../notifications/models/notification_models.dart';
 import '../../notifications/services/notifications_storage.dart';
+import '../../profile/bloc/profile_bloc.dart';
+import '../../profile/bloc/profile_state.dart';
 import '../../tours/bloc/tour_review_bloc.dart';
 import '../../tours/widgets/tour_review_form_modal.dart';
 import '../bloc/booked_trips_repository.dart';
@@ -258,10 +261,17 @@ class _TripCard extends StatelessWidget {
     // Số khách đi cùng ngoài người đặt (nếu 3 người thì +2)
     final additionalGuests = trip.participants > 1 ? trip.participants - 1 : 0;
 
-    // Avatar chữ cái của người đặt (mặc định 'H' theo yêu cầu)
-    final avatarLetter = trip.contactName?.trim().isNotEmpty == true
-        ? trip.contactName!.trim()[0].toUpperCase()
-        : 'H';
+    // Lấy avatar người dùng thực tế: ưu tiên từ trip -> người dùng đang đăng nhập -> biểu tượng avatar
+    final profileState = context.watch<ProfileBloc?>()?.state;
+    String? userAvatar;
+    if (profileState is ProfileLoaded) {
+      userAvatar = profileState.user.avatarUrl;
+    } else if (profileState is ProfileUpdateSuccess) {
+      userAvatar = profileState.user.avatarUrl;
+    }
+    final effectiveAvatarUrl = (trip.customerAvatarUrl != null && trip.customerAvatarUrl!.trim().isNotEmpty)
+        ? trip.customerAvatarUrl!.trim()
+        : (userAvatar != null && userAvatar.trim().isNotEmpty ? userAvatar.trim() : null);
 
     return Container(
       decoration: BoxDecoration(
@@ -332,8 +342,8 @@ class _TripCard extends StatelessWidget {
                     // Nhóm Avatar người đặt + số lượng khách đi cùng (+X) lồng nhau: bên trái đè lên bên phải
                     _buildGuestGroupAvatar(
                       additionalGuests: additionalGuests,
-                      avatarUrl: trip.customerAvatarUrl,
-                      fallbackLetter: avatarLetter,
+                      avatarUrl: effectiveAvatarUrl,
+                      fallbackLetter: '',
                     ),
                   ],
                 ),
@@ -648,27 +658,21 @@ class _TripCard extends StatelessWidget {
             height: 26,
             fit: BoxFit.cover,
             placeholder: (context, url) => Container(
-              color: const Color(0xFFD1FAE5),
+              color: AppColors.primarySurface,
               alignment: Alignment.center,
-              child: Text(
-                fallbackLetter,
-                style: const TextStyle(
-                  color: Color(0xFF065F46),
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
+              child: const Icon(
+                Icons.person,
+                size: 15,
+                color: AppColors.primary,
               ),
             ),
             errorWidget: (context, url, error) => Container(
-              color: const Color(0xFFD1FAE5),
+              color: AppColors.primarySurface,
               alignment: Alignment.center,
-              child: Text(
-                fallbackLetter,
-                style: const TextStyle(
-                  color: Color(0xFF065F46),
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
+              child: const Icon(
+                Icons.person,
+                size: 15,
+                color: AppColors.primary,
               ),
             ),
           ),
@@ -680,17 +684,14 @@ class _TripCard extends StatelessWidget {
       width: 26,
       height: 26,
       decoration: const BoxDecoration(
-        color: Color(0xFFD1FAE5),
+        color: AppColors.primarySurface,
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
-      child: Text(
-        fallbackLetter,
-        style: const TextStyle(
-          color: Color(0xFF065F46),
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
+      child: const Icon(
+        Icons.person,
+        size: 15,
+        color: AppColors.primary,
       ),
     );
   }

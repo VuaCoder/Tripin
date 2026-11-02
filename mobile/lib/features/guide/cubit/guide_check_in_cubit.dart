@@ -108,7 +108,14 @@ class GuideCheckInCubit extends Cubit<GuideCheckInState> {
     if (state.allCheckedIn) emit(state.copyWith(tripStarted: true));
   }
 
-  void finishTrip() {
-    if (state.tripStarted) emit(state.copyWith(tripFinished: true));
+  Future<bool> finishTrip() async {
+    try {
+      await _api.completeTour(tourId);
+      emit(state.copyWith(tripFinished: true));
+      return true;
+    } catch (_) {
+      emit(state.copyWith(tripFinished: true));
+      return false;
+    }
   }
 }

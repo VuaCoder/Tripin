@@ -35,6 +35,9 @@ class FakeGuideApi implements GuideCheckInApi {
     required String tourId,
     required String code,
   }) async => throw UnimplementedError();
+
+  @override
+  Future<void> completeTour(String tourId) async {}
 }
 
 const pending = GuideAssignedTour(
@@ -48,30 +51,28 @@ const pending = GuideAssignedTour(
 );
 
 void main() {
-  testWidgets('accepting moves the tour to the upcoming tab', (tester) async {
+  testWidgets('accepting moves the pending invitation to upcoming schedule in todolist', (tester) async {
     final api = FakeGuideApi([pending]);
     await tester.pumpWidget(MaterialApp(home: GuideToursScreen(api: api)));
     await tester.pumpAndSettle();
 
-    expect(find.text('Chờ xác nhận (1)'), findsOneWidget);
-    expect(find.text('Lịch sắp tới (0)'), findsOneWidget);
+    expect(find.text('Lời mời dẫn tour cần duyệt'), findsOneWidget);
+    expect(find.text('Hạ Long 3N2Đ'), findsOneWidget);
 
+    // Bấm Chi tiết phân công
     await tester.tap(find.text('Hạ Long 3N2Đ'));
     await tester.pumpAndSettle();
     expect(find.text('Chi tiết phân công'), findsOneWidget);
 
+    // Chấp nhận và xác nhận nhận tour
     await tester.tap(find.text('Chấp nhận'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Xác nhận nhận tour'));
     await tester.pumpAndSettle();
 
     expect(api.answerCalls, 1);
-    expect(find.text('Chờ xác nhận (0)'), findsOneWidget);
-    expect(find.text('Lịch sắp tới (1)'), findsOneWidget);
+    expect(find.text('Lời mời dẫn tour cần duyệt'), findsNothing);
+    expect(find.text('Lịch trình sắp tới'), findsOneWidget);
     expect(find.text('Hạ Long 3N2Đ'), findsOneWidget);
-    expect(
-      find.text('Đã nhận tour. Tour đã chuyển sang Lịch sắp tới.'),
-      findsOneWidget,
-    );
   });
 }

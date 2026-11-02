@@ -44,6 +44,9 @@ class FakeToursApi implements GuideCheckInApi {
     required String tourId,
     required String code,
   }) async => throw UnimplementedError();
+
+  @override
+  Future<void> completeTour(String tourId) async {}
 }
 
 GuideAssignedTour tour({

@@ -145,6 +145,63 @@ void main() {
       expect(find.text('HOT'), findsOneWidget);
       expect(find.text('Áp dụng'), findsOneWidget);
     });
+
+    testWidgets('VoucherTicketCard renders "Điều kiện" button instead of "Dùng ngay" and opens VoucherDetailBottomSheet', (tester) async {
+      bool useNowCalled = false;
+      final voucher = VoucherModel(
+        id: 'card_v2',
+        code: 'TRIPRI50K',
+        title: 'Giảm 50.000đ cho chuyến đi đầu tiên',
+        description: 'Áp dụng cho mọi tour trải nghiệm bản địa từ 200.000đ',
+        discountType: VoucherDiscountType.fixedAmount,
+        discountValue: 50000,
+        minOrderAmount: 200000,
+        startsAt: DateTime.now().subtract(const Duration(days: 1)),
+        endsAt: DateTime.now().add(const Duration(days: 10)),
+        badgeText: 'Khách mới',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: VoucherTicketCard(
+              voucher: voucher,
+              isSelectable: false,
+              onUseNow: () {
+                useNowCalled = true;
+              },
+            ),
+          ),
+        ),
+      );
+
+      // Nút "Điều kiện" hiển thị thay vì "Dùng ngay" trực tiếp trên card
+      expect(find.text('Điều kiện'), findsOneWidget);
+      expect(find.text('Dùng ngay'), findsNothing);
+
+      // Bấm vào nút "Điều kiện" để mở modal bảng chi tiết
+      await tester.tap(find.text('Điều kiện'));
+      await tester.pumpAndSettle();
+
+      // Kiểm tra modal chi tiết theo chuẩn Shopee & Grab Voucher
+      expect(find.text('Điều kiện sử dụng Voucher'), findsOneWidget);
+      expect(find.text('TRIPRI50K'), findsWidgets);
+      expect(find.text('Sao chép'), findsOneWidget);
+      expect(find.text('Mức giảm giá'), findsOneWidget);
+
+      // Nút "Dùng ngay" nằm cố định ở bottom action bar
+      expect(find.text('Dùng ngay'), findsOneWidget);
+
+      // Cuộn để thấy điều khoản chi tiết
+      await tester.scrollUntilVisible(find.text('QUY ĐỊNH VÀ ĐIỀU KHOẢN KHÁC'), 200);
+      expect(find.text('QUY ĐỊNH VÀ ĐIỀU KHOẢN KHÁC'), findsOneWidget);
+
+      // Bấm nút "Dùng ngay" trong modal
+      await tester.tap(find.text('Dùng ngay'));
+      await tester.pumpAndSettle();
+
+      expect(useNowCalled, isTrue);
+    });
   });
 
   group('TourBookingCheckoutScreen 3-Step Flow with Voucher Tests', () {

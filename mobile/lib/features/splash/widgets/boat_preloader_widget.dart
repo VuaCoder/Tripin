@@ -48,58 +48,65 @@ class _BoatPreloaderWidgetState extends State<BoatPreloaderWidget>
       builder: (context, child) {
         final t = _controller.value;
 
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Cụm biển và thuyền lướt toàn chiều rộng màn hình
-            SizedBox(
-              width: screenWidth,
-              height: 190,
-              child: CustomPaint(
-                painter: _SailingBoatProgressPainter(
-                  progress: t,
-                  screenWidth: screenWidth,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Typography: LOADING . . .
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                const Text(
-                  'LOADING',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 4.5,
-                    color: AppColors.primaryDark,
+        return SizedBox(
+          width: screenWidth,
+          height: 250,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              // Cụm biển và thuyền lướt toàn chiều rộng màn hình, mặt nước lấp đầy toàn bộ tới đáy
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _SailingBoatProgressPainter(
+                    progress: t,
+                    screenWidth: screenWidth,
                   ),
                 ),
-                const SizedBox(width: 2),
-                _buildBouncingDot(t, 0),
-                _buildBouncingDot(t, 1),
-                _buildBouncingDot(t, 2),
-              ],
-            ),
-
-            const SizedBox(height: 8),
-
-            // Subtitle
-            Text(
-              widget.subtitle ?? 'Khám phá hành trình cùng Tripri',
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textSecondary,
-                letterSpacing: 0.3,
               ),
-            ),
-          ],
+
+              // Typography: LOADING . . . đặt nổi bật trên nền nước biển sâu
+              Positioned(
+                bottom: 22,
+                left: 0,
+                right: 0,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        const Text(
+                          'LOADING',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 4.5,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        _buildBouncingDot(t, 0),
+                        _buildBouncingDot(t, 1),
+                        _buildBouncingDot(t, 2),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      widget.subtitle ?? 'Khám phá hành trình cùng Tripri',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withValues(alpha: 0.9),
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         );
       },
     );

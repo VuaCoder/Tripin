@@ -119,7 +119,7 @@ void main() {
     expect(cubit.state.summaryLoading, isFalse);
     expect(cubit.state.bankLoading, isFalse);
     expect(api.lastFrom, '2026-09-30T17:00:00.000Z');
-    expect(api.lastTo, '2026-10-31T16:59:59.999Z');
+    expect(api.lastTo, '2026-10-31T12:00:00.000Z');
   });
 
   test('a summary failure does not empty the list and vice versa', () async {

@@ -28,17 +28,21 @@ class Conversation extends Equatable {
   final String id;
   final Counterpart? counterpart;
   final String? lastText;
+  final String? lastSenderId;
   final DateTime? lastSentAt;
   final int unreadCount;
   final DateTime updatedAt;
+  final bool isAi;
 
   const Conversation({
     required this.id,
     required this.counterpart,
     required this.lastText,
+    this.lastSenderId,
     required this.lastSentAt,
     required this.unreadCount,
     required this.updatedAt,
+    this.isAi = false,
   });
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
@@ -48,14 +52,16 @@ class Conversation extends Equatable {
       id: json['id'] as String,
       counterpart: counterpart == null ? null : Counterpart.fromJson(counterpart),
       lastText: last?['text'] as String?,
+      lastSenderId: last?['senderId'] as String?,
       lastSentAt: last == null ? null : _time(last['sentAt']),
       unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
       updatedAt: _time(json['updatedAt']),
+      isAi: json['isAi'] as bool? ?? false,
     );
   }
 
   @override
-  List<Object?> get props => [id, counterpart, lastText, lastSentAt, unreadCount, updatedAt];
+  List<Object?> get props => [id, counterpart, lastText, lastSenderId, lastSentAt, unreadCount, updatedAt, isAi];
 }
 
 enum MessageStatus { sending, sent, delivered, read, failed }

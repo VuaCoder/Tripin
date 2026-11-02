@@ -233,48 +233,4 @@ class _TravelerMainNavigationScreenState extends State<TravelerMainNavigationScr
       child: scaffold,
     );
   }
-
-  Widget _buildTabPlaceholder({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-  }) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        automaticallyImplyLeading: false,
-      ),
-      backgroundColor: AppColors.background,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: const BoxDecoration(
-                  color: AppColors.primarySurface,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 36, color: AppColors.primary),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

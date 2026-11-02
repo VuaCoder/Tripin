@@ -1,7 +1,8 @@
 /// Time presets of the earnings history (AC3).
 enum EarningsFilter {
-  thisMonth('Tháng này'),
-  lastMonth('Tháng trước'),
+  oneMonth('1 tháng'),
+  threeMonths('3 tháng'),
+  sixMonths('6 tháng'),
   all('Toàn bộ');
 
   const EarningsFilter(this.label);
