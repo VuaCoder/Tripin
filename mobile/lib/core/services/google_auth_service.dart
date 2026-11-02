@@ -80,30 +80,22 @@ class GoogleAuthService {
     }
   }
 
-  /// Đăng nhập Google:
-  /// - Ưu tiên Web OAuth Flow (0% cần SHA-1, tương thích 100% máy ảo, máy thật và file APK).
-  /// - Tự động fallback sang Native nếu thiết bị hỗ trợ sẵn.
+  /// Đăng nhập trực tiếp bằng Google Sign-In Native qua Firebase (mở popup chọn tài khoản Google trực tiếp trên điện thoại)
   Future<String?> signIn({String role = 'TRAVELER'}) async {
-    try {
-      final webIdToken = await signInViaWeb(role: role);
-      if (webIdToken != null && webIdToken.isNotEmpty) {
-        return webIdToken;
-      }
-    } catch (e) {
-      debugPrint('[GoogleAuthService] Web flow gặp lỗi ($e), thử Native sign-in...');
-    }
-
     try {
       if (await _googleSignIn.isSignedIn()) {
         await _googleSignIn.signOut();
       }
       final GoogleSignInAccount? account = await _googleSignIn.signIn();
-      if (account == null) return null;
+      if (account == null) {
+        // Người dùng chủ động đóng hộp thoại chọn tài khoản
+        return null;
+      }
 
       final GoogleSignInAuthentication auth = await account.authentication;
       final idToken = auth.idToken;
       if (idToken == null || idToken.isEmpty) {
-        throw Exception('Không tìm thấy Google ID Token từ tài khoản đã chọn.');
+        throw Exception('Không nhận được Google ID Token từ tài khoản đã chọn.');
       }
       return idToken;
     } catch (e) {

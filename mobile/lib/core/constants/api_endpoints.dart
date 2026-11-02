@@ -32,7 +32,7 @@ class ApiEndpoints {
   static const String login = '/auth/login';
   static const String googleLogin = '/auth/google';
   static const String _envGoogleClientId = String.fromEnvironment('GOOGLE_CLIENT_ID');
-  static const String _defaultGoogleClientId = '995213432133-q5nlil8mt2svci8uqlom7if5sgukgoa3.apps.googleusercontent.com';
+  static const String _defaultGoogleClientId = '46093276475-v14jrskgsti9rpj9fjpijv64ccublmkb.apps.googleusercontent.com';
   static String get googleClientId => _envGoogleClientId.isNotEmpty ? _envGoogleClientId : _defaultGoogleClientId;
   static const String register = '/auth/register';
   static const String verifyOtp = '/auth/verify-otp';
