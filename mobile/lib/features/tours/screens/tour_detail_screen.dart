@@ -62,7 +62,12 @@ class _TourDetailScreenState extends State<TourDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
+    WishlistCubit? parentWishlist;
+    try {
+      parentWishlist = context.read<WishlistCubit>();
+    } catch (_) {}
+
+    Widget body = BlocProvider(
       create: (context) => TourDetailBloc(client: widget.apiClient)
         ..add(TourDetailLoadRequested(widget.tourId)),
       child: Scaffold(
@@ -90,6 +95,15 @@ class _TourDetailScreenState extends State<TourDetailScreen> {
         ),
       ),
     );
+
+    if (parentWishlist == null) {
+      return BlocProvider(
+        create: (_) => WishlistCubit()..loadWishlist(),
+        child: body,
+      );
+    }
+
+    return body;
   }
 
   Widget _buildNotFoundState(BuildContext context) {
@@ -230,10 +244,15 @@ class _TourDetailScreenState extends State<TourDetailScreen> {
   Widget _buildLoadedState(BuildContext context, TourDetailLoaded state) {
     final tour = state.tour;
 
-    // Lắng nghe trạng thái yêu thích từ WishlistCubit
-    final isFavorite = context.select<WishlistCubit, bool>(
-      (cubit) => cubit.state.isFavorite(tour.id),
-    );
+    // Lắng nghe trạng thái yêu thích từ WishlistCubit an toàn
+    bool isFavorite = false;
+    try {
+      isFavorite = context.select<WishlistCubit, bool>(
+        (cubit) => cubit.state.isFavorite(tour.id),
+      );
+    } catch (_) {
+      isFavorite = false;
+    }
 
     // Xác định departure được chọn
     final currentDep = _selectedDeparture ?? state.selectedDeparture;
@@ -257,10 +276,12 @@ class _TourDetailScreenState extends State<TourDetailScreen> {
                   images: tour.images,
                   isFavorite: isFavorite,
                   onFavoriteTap: () {
-                    context.read<WishlistCubit>().handleHeartTap(
-                          context: context,
-                          tour: tour.toTourModel(),
-                        );
+                    try {
+                      context.read<WishlistCubit>().handleHeartTap(
+                            context: context,
+                            tour: tour.toTourModel(),
+                          );
+                    } catch (_) {}
                   },
                   onBack: () => Navigator.of(context).pop(),
                 ),
