@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,6 +31,7 @@ class FakeWishlistRepository extends WishlistRepository {
 class FakeWishlistStorage extends WishlistStorage {
   List<WishlistCollectionModel> storedCollections = [];
   List<RecentlyViewedTourModel> storedRecentlyViewed = [];
+  List<RecentlyViewedTourModel> storedAuditLog = [];
 
   @override
   Future<List<WishlistCollectionModel>> loadCollections({String? userId}) async {
@@ -49,6 +51,23 @@ class FakeWishlistStorage extends WishlistStorage {
   @override
   Future<void> saveRecentlyViewed(List<RecentlyViewedTourModel> items, {String? userId}) async {
     storedRecentlyViewed = items;
+  }
+
+  @override
+  Future<void> recordToAuditLog(List<RecentlyViewedTourModel> items, {String? userId}) async {
+    final map = <String, RecentlyViewedTourModel>{};
+    for (final item in items) {
+      map[item.tour.id] = item;
+    }
+    for (final item in storedAuditLog) {
+      map.putIfAbsent(item.tour.id, () => item);
+    }
+    storedAuditLog = map.values.toList();
+  }
+
+  @override
+  Future<List<RecentlyViewedTourModel>> loadAuditLog({String? userId}) async {
+    return storedAuditLog;
   }
 }
 
@@ -268,6 +287,51 @@ void main() {
 
       expect(find.text('Đổi tên danh sách'), findsOneWidget);
       expect(find.text('Lưu'), findsOneWidget);
+    });
+
+    testWidgets('RecentlyViewedCollageWidget: When only 2 tours exist, displays exactly 2 photos side by side without 4-quadrant duplication', (tester) async {
+      const tour1 = TourModel(
+        id: 't-1',
+        title: 'Tour Hà Nội',
+        destination: 'Hà Nội',
+        durationDays: 1,
+        basePrice: 500000,
+        coverImage: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93',
+      );
+      const tour2 = TourModel(
+        id: 't-2',
+        title: 'Tour Sài Gòn',
+        destination: 'Sài Gòn',
+        durationDays: 2,
+        basePrice: 800000,
+        coverImage: 'https://images.unsplash.com/photo-1528127269322-539801943592',
+      );
+
+      final items = [
+        RecentlyViewedTourModel(tour: tour1, viewedAt: DateTime.now()),
+        RecentlyViewedTourModel(tour: tour2, viewedAt: DateTime.now()),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 300,
+              height: 300,
+              child: RecentlyViewedCollageWidget(items: items),
+            ),
+          ),
+        ),
+      );
+
+      // Khi có đúng 2 tour, widget sử dụng 1 Row duy nhất với 2 Expanded con
+      expect(find.byType(RecentlyViewedCollageWidget), findsOneWidget);
+      // Tìm thấy đúng 2 CachedNetworkImage (không phải 4 như dạng lưới 2x2 lặp lại)
+      final networkImages = find.descendant(
+        of: find.byType(RecentlyViewedCollageWidget),
+        matching: find.byType(CachedNetworkImage),
+      );
+      expect(networkImages, findsNWidgets(2));
     });
   });
 }

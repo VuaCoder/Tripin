@@ -64,9 +64,10 @@ class WishlistCubit extends Cubit<WishlistState> {
   Future<void> loadWishlist() async {
     final userId = await _getUserId();
 
-    // 1. Tải dữ liệu lưu trữ cục bộ (Bộ sưu tập & Xem gần đây) theo userId
+    // 1. Tải dữ liệu lưu trữ cục bộ (Bộ sưu tập & Xem gần đây & Audit Log) theo userId
     var localCollections = await _storage.loadCollections(userId: userId);
     final localRecentlyViewed = await _storage.loadRecentlyViewed(userId: userId);
+    final auditLog = await _storage.loadAuditLog(userId: userId);
 
     final isAuth = await _repository.isAuthenticated();
     if (!isAuth) {
@@ -78,6 +79,7 @@ class WishlistCubit extends Cubit<WishlistState> {
         savedTourIds: localIds,
         collections: localCollections,
         recentlyViewed: localRecentlyViewed,
+        auditLog: auditLog.isNotEmpty ? auditLog : localRecentlyViewed,
         isAuthenticated: false,
       ));
       return;
@@ -132,6 +134,7 @@ class WishlistCubit extends Cubit<WishlistState> {
         savedTourIds: allIds,
         collections: localCollections,
         recentlyViewed: localRecentlyViewed,
+        auditLog: auditLog.isNotEmpty ? auditLog : localRecentlyViewed,
         isAuthenticated: true,
       ));
     } catch (e) {
@@ -141,36 +144,46 @@ class WishlistCubit extends Cubit<WishlistState> {
         errorMessage: 'Không thể tải danh sách yêu thích. Vui lòng thử lại.',
         collections: localCollections,
         recentlyViewed: localRecentlyViewed,
+        auditLog: auditLog.isNotEmpty ? auditLog : localRecentlyViewed,
         savedTourIds: ids,
         isAuthenticated: true,
       ));
     }
   }
 
-  /// Ghi nhận tour vào mục "Recently viewed" (Xem gần đây)
+  /// Ghi nhận tour vào mục "Recently viewed" (Xem gần đây) và Audit Log vĩnh viễn
   void recordRecentlyViewed(TourModel tour) async {
     final now = DateTime.now();
+    final newEntry = RecentlyViewedTourModel(tour: tour, viewedAt: now);
+
     final updated = List<RecentlyViewedTourModel>.from(state.recentlyViewed)
       ..removeWhere((item) => item.tour.id == tour.id);
+    updated.insert(0, newEntry);
 
-    updated.insert(
-      0,
-      RecentlyViewedTourModel(tour: tour, viewedAt: now),
-    );
+    final updatedAudit = List<RecentlyViewedTourModel>.from(state.auditLog)
+      ..removeWhere((item) => item.tour.id == tour.id);
+    updatedAudit.insert(0, newEntry);
 
     // Giới hạn lưu tối đa 40 tour xem gần nhất
     final trimmed = updated.take(40).toList();
-    emit(state.copyWith(recentlyViewed: trimmed));
+    emit(state.copyWith(
+      recentlyViewed: trimmed,
+      auditLog: updatedAudit,
+    ));
     final userId = await _getUserId();
-    _storage.saveRecentlyViewed(trimmed, userId: userId);
+    await _storage.saveRecentlyViewed(trimmed, userId: userId);
+    await _storage.recordToAuditLog(updatedAudit, userId: userId);
   }
 
-  /// Xóa tour khỏi mục "Gần đây"
+  /// Xóa tour khỏi mục "Gần đây" (vẫn bảo tồn trong Audit Log vĩnh viễn để luôn có tour hiển thị)
   Future<void> removeRecentlyViewed(String tourId) async {
+    final userId = await _getUserId();
+    // Đảm bảo Audit Log vẫn giữ lại toàn bộ lịch sử tour người dùng đã xem
+    await _storage.recordToAuditLog(state.recentlyViewed, userId: userId);
+
     final updated = List<RecentlyViewedTourModel>.from(state.recentlyViewed)
       ..removeWhere((item) => item.tour.id == tourId);
     emit(state.copyWith(recentlyViewed: updated));
-    final userId = await _getUserId();
     await _storage.saveRecentlyViewed(updated, userId: userId);
   }
 

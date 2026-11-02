@@ -87,6 +87,13 @@ class _TourDetailScreenState extends State<TourDetailScreen> {
             }
 
             if (state is TourDetailLoaded) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (context.mounted) {
+                  try {
+                    context.read<WishlistCubit>().recordRecentlyViewed(state.tour.toTourModel());
+                  } catch (_) {}
+                }
+              });
               return _buildLoadedState(context, state);
             }
 

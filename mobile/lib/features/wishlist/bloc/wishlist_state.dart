@@ -11,6 +11,7 @@ class WishlistState {
   final Set<String> savedTourIds;
   final List<WishlistCollectionModel> collections;
   final List<RecentlyViewedTourModel> recentlyViewed;
+  final List<RecentlyViewedTourModel> auditLog;
   final bool isEditMode;
   final bool hasUnseenWishlistBadge;
   final String? lastSavedWishlistName;
@@ -24,6 +25,7 @@ class WishlistState {
     this.savedTourIds = const {},
     this.collections = const [],
     this.recentlyViewed = const [],
+    this.auditLog = const [],
     this.isEditMode = false,
     this.hasUnseenWishlistBadge = false,
     this.lastSavedWishlistName,
@@ -31,6 +33,12 @@ class WishlistState {
     this.errorMessage,
     this.isAuthenticated = true,
   });
+
+  /// Danh sách tour xem gần đây hiệu dụng:
+  /// Ưu tiên recentlyViewed, nếu người dùng đã xoá hiển thị thì tự động lấy từ Audit Log
+  /// để luôn lưu giữ và hiển thị các tour đã xem trong ứng dụng!
+  List<RecentlyViewedTourModel> get effectiveRecentlyViewed =>
+      recentlyViewed.isNotEmpty ? recentlyViewed : auditLog;
 
   /// Kiểm tra xem tour đã được lưu (yêu thích) hay chưa
   /// Kiểm tra đồng bộ qua tập hợp ID đã lưu, qua danh sách backend hoặc qua các bộ sưu tập
@@ -52,6 +60,7 @@ class WishlistState {
     Set<String>? savedTourIds,
     List<WishlistCollectionModel>? collections,
     List<RecentlyViewedTourModel>? recentlyViewed,
+    List<RecentlyViewedTourModel>? auditLog,
     bool? isEditMode,
     bool? hasUnseenWishlistBadge,
     String? lastSavedWishlistName,
@@ -65,6 +74,7 @@ class WishlistState {
       savedTourIds: savedTourIds ?? this.savedTourIds,
       collections: collections ?? this.collections,
       recentlyViewed: recentlyViewed ?? this.recentlyViewed,
+      auditLog: auditLog ?? this.auditLog,
       isEditMode: isEditMode ?? this.isEditMode,
       hasUnseenWishlistBadge: hasUnseenWishlistBadge ?? this.hasUnseenWishlistBadge,
       lastSavedWishlistName: lastSavedWishlistName ?? this.lastSavedWishlistName,

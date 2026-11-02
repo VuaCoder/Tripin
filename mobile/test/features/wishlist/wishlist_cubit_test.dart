@@ -54,6 +54,8 @@ class FakeWishlistStorage extends WishlistStorage {
     storedCollections = collections;
   }
 
+  List<RecentlyViewedTourModel> storedAuditLog = [];
+
   @override
   Future<List<RecentlyViewedTourModel>> loadRecentlyViewed({String? userId}) async {
     return storedRecentlyViewed;
@@ -62,6 +64,20 @@ class FakeWishlistStorage extends WishlistStorage {
   @override
   Future<void> saveRecentlyViewed(List<RecentlyViewedTourModel> items, {String? userId}) async {
     storedRecentlyViewed = items;
+  }
+
+  @override
+  Future<void> recordToAuditLog(List<RecentlyViewedTourModel> items, {String? userId}) async {
+    for (final item in items) {
+      if (!storedAuditLog.any((e) => e.tour.id == item.tour.id)) {
+        storedAuditLog.add(item);
+      }
+    }
+  }
+
+  @override
+  Future<List<RecentlyViewedTourModel>> loadAuditLog({String? userId}) async {
+    return storedAuditLog;
   }
 }
 
@@ -184,7 +200,7 @@ void main() {
       expect(cubit.state.recentlyViewed.first.relativeTime, 'Hôm nay');
     });
 
-    test('removeRecentlyViewed removes tour from recently viewed list', () async {
+    test('removeRecentlyViewed removes tour from recently viewed list but retains in Audit Log', () async {
       cubit.recordRecentlyViewed(testTour1);
       cubit.recordRecentlyViewed(testTour2);
 
@@ -192,6 +208,22 @@ void main() {
 
       expect(cubit.state.recentlyViewed.length, 1);
       expect(cubit.state.recentlyViewed.first.tour.id, 'tour-02');
+      // Audit Log luôn ghi nhớ toàn bộ các tour đã xem
+      expect(cubit.state.auditLog.any((item) => item.tour.id == 'tour-01'), isTrue);
+      expect(cubit.state.auditLog.any((item) => item.tour.id == 'tour-02'), isTrue);
+    });
+
+    test('effectiveRecentlyViewed falls back to auditLog when recentlyViewed is cleared so tours remain displayed', () async {
+      cubit.recordRecentlyViewed(testTour1);
+      cubit.recordRecentlyViewed(testTour2);
+
+      await cubit.removeRecentlyViewed('tour-01');
+      await cubit.removeRecentlyViewed('tour-02');
+
+      expect(cubit.state.recentlyViewed, isEmpty);
+      // Khi người dùng xoá lịch sử gần đây, audit log vẫn lưu giữ và effectiveRecentlyViewed dùng audit log để hiển thị
+      expect(cubit.state.effectiveRecentlyViewed.length, 2);
+      expect(fakeStorage.storedAuditLog.length, 2);
     });
 
     testWidgets('Guest user tapping heart shows LoginRequiredDialog', (tester) async {

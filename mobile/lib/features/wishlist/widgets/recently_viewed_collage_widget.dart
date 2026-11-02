@@ -2,8 +2,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../models/recently_viewed_model.dart';
 
-/// Khối hiển thị ảnh ghép 2x2 cho mục "Recently viewed" (Ảnh 5 & Ảnh 1)
-/// Thiết kế tràn hết khung 4 ô, fill đủ ảnh, không bao giờ để ô trống hay icon lỗi
+/// Khối hiển thị ảnh ghép cho mục "Gần đây"
+/// Quy tắc:
+/// - Nếu chỉ có 1 tour: hiển thị đúng 1 ảnh tràn trọn vẹn khung.
+/// - Nếu chỉ có 2 tour: hiển thị đúng 2 ảnh chia đôi 2 cột, không lặp lại ảnh hay nhồi ảnh fallback.
+/// - Nếu có 3 tour: hiển thị 3 ảnh (cột trái 1 ảnh, cột phải 2 ảnh trên dưới).
+/// - Nếu có từ 4 tour trở lên: hiển thị lưới 2x2 gồm 4 ảnh khác nhau.
+/// - Nếu chưa xem tour nào: hiển thị ảnh placeholder du lịch mặc định.
 class RecentlyViewedCollageWidget extends StatelessWidget {
   final List<RecentlyViewedTourModel> items;
 
@@ -21,7 +26,7 @@ class RecentlyViewedCollageWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Thu thập danh sách ảnh bìa hợp lệ từ các tour xem gần đây
+    // Thu thập danh sách ảnh bìa hợp lệ từ các tour xem gần đây (không trùng lặp)
     final validUrls = <String>[];
     for (final item in items) {
       final cover = item.tour.coverImage;
@@ -32,16 +37,68 @@ class RecentlyViewedCollageWidget extends StatelessWidget {
       }
     }
 
-    // Đảm bảo cả 4 ô luôn có ảnh đẹp, tuần hoàn qua các tour đã xem hoặc fallback travel images
-    String getUrlForIndex(int index) {
-      if (validUrls.isNotEmpty) {
-        if (index < validUrls.length) {
-          return validUrls[index];
-        }
-        // Nếu số ảnh ít hơn 4, tuần hoàn từ danh sách đã xem
-        return validUrls[index % validUrls.length];
+    Widget buildContent() {
+      if (validUrls.isEmpty) {
+        return _buildQuadrant(_fallbackImages[0], 0);
       }
-      return _fallbackImages[index % _fallbackImages.length];
+      if (validUrls.length == 1) {
+        return _buildQuadrant(validUrls[0], 0);
+      }
+      if (validUrls.length == 2) {
+        // Đúng yêu cầu: nếu chỉ có 2 thì chỉ có 2 ảnh thôi
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: _buildQuadrant(validUrls[0], 0)),
+            const SizedBox(width: 2.0),
+            Expanded(child: _buildQuadrant(validUrls[1], 1)),
+          ],
+        );
+      }
+      if (validUrls.length == 3) {
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: _buildQuadrant(validUrls[0], 0)),
+            const SizedBox(width: 2.0),
+            Expanded(
+              child: Column(
+                children: [
+                  Expanded(child: _buildQuadrant(validUrls[1], 1)),
+                  const SizedBox(height: 2.0),
+                  Expanded(child: _buildQuadrant(validUrls[2], 2)),
+                ],
+              ),
+            ),
+          ],
+        );
+      }
+      // Từ 4 ảnh trở lên: lưới 2x2 gồm 4 ảnh độc lập
+      return Column(
+        children: [
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: _buildQuadrant(validUrls[0], 0)),
+                const SizedBox(width: 2.0),
+                Expanded(child: _buildQuadrant(validUrls[1], 1)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 2.0),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: _buildQuadrant(validUrls[2], 2)),
+                const SizedBox(width: 2.0),
+                Expanded(child: _buildQuadrant(validUrls[3], 3)),
+              ],
+            ),
+          ),
+        ],
+      );
     }
 
     return Container(
@@ -60,33 +117,7 @@ class RecentlyViewedCollageWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         child: AspectRatio(
           aspectRatio: 1.0,
-          child: Column(
-            children: [
-              // Hàng trên (2 ảnh)
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(child: _buildQuadrant(getUrlForIndex(0), 0)),
-                    const SizedBox(width: 2.0),
-                    Expanded(child: _buildQuadrant(getUrlForIndex(1), 1)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 2.0),
-              // Hàng dưới (2 ảnh)
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(child: _buildQuadrant(getUrlForIndex(2), 2)),
-                    const SizedBox(width: 2.0),
-                    Expanded(child: _buildQuadrant(getUrlForIndex(3), 3)),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          child: buildContent(),
         ),
       ),
     );
@@ -105,7 +136,6 @@ class RecentlyViewedCollageWidget extends StatelessWidget {
           height: double.infinity,
         ),
         errorWidget: (context, errorUrl, error) {
-          // Khi ảnh gốc bị lỗi (404), tự động thay thế bằng ảnh du lịch chất lượng cao, không để icon lỗi
           final fallback = _fallbackImages[fallbackIndex % _fallbackImages.length];
           return CachedNetworkImage(
             imageUrl: fallback,

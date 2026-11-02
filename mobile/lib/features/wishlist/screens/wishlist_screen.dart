@@ -133,9 +133,9 @@ class _WishlistScreenState extends State<WishlistScreen> {
     );
   }
 
-  /// Card "Gần đây" với ảnh ghép 2x2 và thời gian xem tương đối (ví dụ: Hôm nay)
+  /// Card "Gần đây" với ảnh ghép thông minh và thời gian xem tương đối (ví dụ: Hôm nay)
   Widget _buildRecentlyViewedCard(BuildContext context, WishlistState state) {
-    final recentItems = state.recentlyViewed;
+    final recentItems = state.effectiveRecentlyViewed;
     final timeSubtitle = recentItems.isNotEmpty ? recentItems.first.relativeTime : 'Hôm nay';
 
     return GestureDetector(
