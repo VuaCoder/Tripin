@@ -3,10 +3,11 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import React, { useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useLayoutEffect, useState } from 'react';
 import { useAppSelector } from '@/store/hooks';
 import { selectRole } from '@/features/auth';
 import { ArrowDown, ArrowUpRight } from 'lucide-react';
+import { HeroScene, canRunHeroScene } from '@/features/landing-hero';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ScrollSmoother } from 'gsap/ScrollSmoother';
@@ -165,9 +166,155 @@ function Tilt3DButton({
   );
 }
 
+/**
+ * Landing hero with the live 3D scene: the TRIPRI boat at the departure pier under the headline. The copy is plain DOM
+ * (same GSAP scrub / fade-up classes as the static hero) and paints first; the scene streams in behind it. The hero
+ * copy sits on the right like the v5 prototype, the boat on the left.
+ */
+function LandingHero3D({ onUnavailable }: { onUnavailable: () => void }) {
+  const sectionRef = useRef<HTMLElement>(null);
+  const halo = '[text-shadow:0_0_16px_rgba(243,246,244,.95),0_0_5px_rgba(243,246,244,.85)]';
+
+  return (
+    <section
+      ref={sectionRef}
+      className="relative isolate flex min-h-screen w-full flex-col justify-start overflow-hidden px-6 pb-24 pt-24 sm:px-14 lg:px-24 lg:pt-28"
+    >
+      <HeroScene sectionRef={sectionRef} onUnavailable={onUnavailable} className="absolute inset-0 -z-10" />
+
+      <div className="relative z-10 lg:ml-auto lg:w-[52%]">
+        <div className="fade-up-anim mb-4 flex items-center gap-2">
+          <span className="inline-block size-2.5 animate-pulse rounded-full bg-[#c45438]" />
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#c45438]">Một cách khác để đi</p>
+        </div>
+
+        <div className="scrub-title-container">
+          <h1 className="text-[clamp(2.75rem,6vw,6rem)] font-extrabold leading-[0.92] tracking-[-0.05em] text-[#173640]">
+            <ScrubWords text="Đi gần hơn. Sống sâu hơn." />
+          </h1>
+        </div>
+
+        <div className="fade-up-anim mt-6 max-w-2xl">
+          <p className={`text-lg font-bold leading-7 text-[#173640] sm:text-xl ${halo}`}>
+            Tìm điểm đến. Chọn tour. Đặt chỗ. Thanh toán. Nhận e-ticket.
+          </p>
+          <p className={`mt-3 hidden text-base leading-7 text-[#33505a] sm:block ${halo}`}>
+            TRIPRI gom cả hành trình vào một nơi rõ ràng — để bạn dành nhiều thời gian hơn cho trải nghiệm đang chờ phía trước.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <Link
+              href="/home"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#087e8b] px-7 text-base font-semibold text-white shadow-xl shadow-[#087e8b]/30 transition-all hover:-translate-y-0.5 hover:bg-[#00636e]"
+            >
+              <span>Khám phá ngay</span>
+              <ArrowUpRight className="size-5" />
+            </Link>
+            <Link
+              href="/tours"
+              className="inline-flex h-12 items-center rounded-full border border-[#173640]/25 bg-white/70 px-6 text-base font-semibold text-[#173640] backdrop-blur-md transition-colors hover:border-[#087e8b] hover:text-[#087e8b]"
+            >
+              Tìm tour
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-40 bg-gradient-to-t from-[#f4f6f3] via-[#f4f6f3]/60 to-transparent" />
+    </section>
+  );
+}
+
+/** Original photo hero. Fallback for the 3D scene (reduced motion, data saver, slow network, no WebGL). */
+function StaticLandingHero() {
+  return (
+    <section className="relative isolate w-full flex min-h-screen flex-col justify-end px-6 pb-12 pt-20 sm:px-14 lg:px-24 lg:pb-20 overflow-hidden">
+      <div className="absolute inset-0 -z-10" data-speed="0.75">
+        <Image
+          src="/images/hero-vietnam.png"
+          alt="Việt Nam lúc bình minh"
+          fill
+          priority
+          className="object-cover opacity-40 grayscale-[10%]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#f4f6f3] via-[#f4f6f3]/50 to-transparent" />
+      </div>
+
+      {/* --- RIGHT SIDE DECORATIONS (BALLOONS & STAMP) --- */}
+      <div className="absolute right-6 top-32 z-10 hidden w-64 lg:block xl:right-24 pointer-events-none">
+        
+        {/* Balloon 1 (Main) */}
+        <div className="absolute right-0 top-0 animate-float-balloon pointer-events-auto">
+          <svg width="80" height="110" viewBox="0 0 100 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M50 5C25.147 5 5 25.147 5 50C5 74.853 35 110 50 110C65 110 95 74.853 95 50C95 25.147 74.853 5 50 5Z" fill="#c45438" />
+            <path d="M50 5C50 5 35 30 35 50C35 70 50 110 50 110" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.3"/>
+            <path d="M50 5C50 5 65 30 65 50C65 70 50 110 50 110" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.3"/>
+            <path d="M20 25C20 25 45 40 50 50C55 60 75 75 75 75" stroke="white" strokeWidth="2" opacity="0.1"/>
+            <line x1="42" y1="110" x2="40" y2="125" stroke="#5a403d" strokeWidth="2" />
+            <line x1="58" y1="110" x2="60" y2="125" stroke="#5a403d" strokeWidth="2" />
+            <rect x="36" y="125" width="28" height="15" rx="2" fill="#8B6653" />
+            <rect x="36" y="125" width="28" height="4" fill="#6B4B3A" />
+          </svg>
+        </div>
+
+        {/* Balloon 2 (Small) */}
+        <div className="absolute right-24 top-16 opacity-70 animate-drift-balloon pointer-events-auto">
+          <svg width="50" height="70" viewBox="0 0 100 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M50 5C25.147 5 5 25.147 5 50C5 74.853 35 110 50 110C65 110 95 74.853 95 50C95 25.147 74.853 5 50 5Z" fill="#087e8b" />
+            <path d="M50 5C50 5 35 30 35 50C35 70 50 110 50 110" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.3"/>
+            <path d="M50 5C50 5 65 30 65 50C65 70 50 110 50 110" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.3"/>
+            <path d="M20 25C20 25 45 40 50 50C55 60 75 75 75 75" stroke="white" strokeWidth="2" opacity="0.1"/>
+            <line x1="42" y1="110" x2="40" y2="125" stroke="#5a403d" strokeWidth="2" />
+            <line x1="58" y1="110" x2="60" y2="125" stroke="#5a403d" strokeWidth="2" />
+            <rect x="36" y="125" width="28" height="15" rx="2" fill="#8B6653" />
+            <rect x="36" y="125" width="28" height="4" fill="#6B4B3A" />
+          </svg>
+        </div>
+
+        {/* Stamp positioned right below Balloon 1 */}
+        <Link href="/tours" className="hero-stamp liquid-btn group absolute right-[-1rem] top-40 flex size-[150px] cursor-pointer items-center justify-center rounded-full border border-[#173640]/30 bg-[#f4f6f3]/60 shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-105 hover:border-[#087e8b] pointer-events-auto">
+          <div className="relative z-10 text-center text-[12px] font-extrabold uppercase leading-[1.6] tracking-[0.15em] text-[#173640] transition-colors duration-[600ms] group-hover:text-white">
+            Tìm tour<br />đúng với<br />cách bạn đi
+          </div>
+        </Link>
+
+      </div>
+
+      <div className="fade-up-anim flex items-center gap-2 mb-4">
+        <span className="inline-block size-2.5 rounded-full bg-[#c45438] animate-pulse" />
+        <p className="relative z-10 text-xs font-bold uppercase tracking-[0.24em] text-[#c45438]">
+          Một cách khác để đi
+        </p>
+      </div>
+
+      <div className="scrub-title-container relative z-10 max-w-6xl">
+        <h1 className="text-[clamp(3.5rem,9vw,9.5rem)] font-extrabold leading-[0.84] tracking-[-0.06em] text-[#173640]">
+          <ScrubWords text="Đi gần hơn. Sống sâu hơn." />
+        </h1>
+      </div>
+
+      <div className="fade-up-anim relative z-10 mt-16 flex w-full flex-col gap-8 border-t border-[#173640]/25 pt-8">
+        <div className="max-w-4xl">
+          <p className="text-xl font-bold leading-8 text-[#173640] sm:text-2xl lg:whitespace-nowrap">
+            Tìm điểm đến. Chọn tour. Đặt chỗ. Thanh toán. Nhận e-ticket.
+          </p>
+          <p className="mt-3 text-base leading-7 text-[#49636b]">
+            TRIPRI gom cả hành trình vào một nơi rõ ràng — để bạn dành nhiều thời gian hơn cho trải nghiệm đang chờ phía trước.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function LandingPage() {
   const router = useRouter();
   const role = useAppSelector(selectRole);
+  const [scene3d, setScene3d] = useState(true);
+  const disable3d = useCallback(() => setScene3d(false), []);
+
+  useEffect(() => {
+    if (!canRunHeroScene()) setScene3d(false);
+  }, []);
 
   useEffect(() => {
     if (role === 'AGENCY') {
@@ -236,83 +383,8 @@ export default function LandingPage() {
       <div id="smooth-content">
         <div className="min-h-screen w-full bg-[#f4f6f3] text-[#173640] selection:bg-[#087e8b] selection:text-white">
           
-          {/* Hero Section */}
-          <section className="relative isolate w-full flex min-h-screen flex-col justify-end px-6 pb-12 pt-20 sm:px-14 lg:px-24 lg:pb-20 overflow-hidden">
-            <div className="absolute inset-0 -z-10" data-speed="0.75">
-              <Image
-                src="/images/hero-vietnam.png"
-                alt="Việt Nam lúc bình minh"
-                fill
-                priority
-                className="object-cover opacity-40 grayscale-[10%]"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#f4f6f3] via-[#f4f6f3]/50 to-transparent" />
-            </div>
-
-            {/* --- RIGHT SIDE DECORATIONS (BALLOONS & STAMP) --- */}
-            <div className="absolute right-6 top-32 z-10 hidden w-64 lg:block xl:right-24 pointer-events-none">
-              
-              {/* Balloon 1 (Main) */}
-              <div className="absolute right-0 top-0 animate-float-balloon pointer-events-auto">
-                <svg width="80" height="110" viewBox="0 0 100 140" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M50 5C25.147 5 5 25.147 5 50C5 74.853 35 110 50 110C65 110 95 74.853 95 50C95 25.147 74.853 5 50 5Z" fill="#c45438" />
-                  <path d="M50 5C50 5 35 30 35 50C35 70 50 110 50 110" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.3"/>
-                  <path d="M50 5C50 5 65 30 65 50C65 70 50 110 50 110" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.3"/>
-                  <path d="M20 25C20 25 45 40 50 50C55 60 75 75 75 75" stroke="white" strokeWidth="2" opacity="0.1"/>
-                  <line x1="42" y1="110" x2="40" y2="125" stroke="#5a403d" strokeWidth="2" />
-                  <line x1="58" y1="110" x2="60" y2="125" stroke="#5a403d" strokeWidth="2" />
-                  <rect x="36" y="125" width="28" height="15" rx="2" fill="#8B6653" />
-                  <rect x="36" y="125" width="28" height="4" fill="#6B4B3A" />
-                </svg>
-              </div>
-
-              {/* Balloon 2 (Small) */}
-              <div className="absolute right-24 top-16 opacity-70 animate-drift-balloon pointer-events-auto">
-                <svg width="50" height="70" viewBox="0 0 100 140" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M50 5C25.147 5 5 25.147 5 50C5 74.853 35 110 50 110C65 110 95 74.853 95 50C95 25.147 74.853 5 50 5Z" fill="#087e8b" />
-                  <path d="M50 5C50 5 35 30 35 50C35 70 50 110 50 110" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.3"/>
-                  <path d="M50 5C50 5 65 30 65 50C65 70 50 110 50 110" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.3"/>
-                  <path d="M20 25C20 25 45 40 50 50C55 60 75 75 75 75" stroke="white" strokeWidth="2" opacity="0.1"/>
-                  <line x1="42" y1="110" x2="40" y2="125" stroke="#5a403d" strokeWidth="2" />
-                  <line x1="58" y1="110" x2="60" y2="125" stroke="#5a403d" strokeWidth="2" />
-                  <rect x="36" y="125" width="28" height="15" rx="2" fill="#8B6653" />
-                  <rect x="36" y="125" width="28" height="4" fill="#6B4B3A" />
-                </svg>
-              </div>
-
-              {/* Stamp positioned right below Balloon 1 */}
-              <Link href="/tours" className="hero-stamp liquid-btn group absolute right-[-1rem] top-40 flex size-[150px] cursor-pointer items-center justify-center rounded-full border border-[#173640]/30 bg-[#f4f6f3]/60 shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-105 hover:border-[#087e8b] pointer-events-auto">
-                <div className="relative z-10 text-center text-[12px] font-extrabold uppercase leading-[1.6] tracking-[0.15em] text-[#173640] transition-colors duration-[600ms] group-hover:text-white">
-                  Tìm tour<br />đúng với<br />cách bạn đi
-                </div>
-              </Link>
-
-            </div>
-
-            <div className="fade-up-anim flex items-center gap-2 mb-4">
-              <span className="inline-block size-2.5 rounded-full bg-[#c45438] animate-pulse" />
-              <p className="relative z-10 text-xs font-bold uppercase tracking-[0.24em] text-[#c45438]">
-                Một cách khác để đi
-              </p>
-            </div>
-
-            <div className="scrub-title-container relative z-10 max-w-6xl">
-              <h1 className="text-[clamp(3.5rem,9vw,9.5rem)] font-extrabold leading-[0.84] tracking-[-0.06em] text-[#173640]">
-                <ScrubWords text="Đi gần hơn. Sống sâu hơn." />
-              </h1>
-            </div>
-
-            <div className="fade-up-anim relative z-10 mt-16 flex w-full flex-col gap-8 border-t border-[#173640]/25 pt-8">
-              <div className="max-w-4xl">
-                <p className="text-xl font-bold leading-8 text-[#173640] sm:text-2xl lg:whitespace-nowrap">
-                  Tìm điểm đến. Chọn tour. Đặt chỗ. Thanh toán. Nhận e-ticket.
-                </p>
-                <p className="mt-3 text-base leading-7 text-[#49636b]">
-                  TRIPRI gom cả hành trình vào một nơi rõ ràng — để bạn dành nhiều thời gian hơn cho trải nghiệm đang chờ phía trước.
-                </p>
-              </div>
-            </div>
-          </section>
+          {/* Hero Section: 3D scene, or the static photo hero when motion is reduced / WebGL is unavailable */}
+          {scene3d ? <LandingHero3D onUnavailable={disable3d} /> : <StaticLandingHero />}
 
           {/* Storytelling Section */}
           <section id="story" className="relative w-full px-6 pt-28 pb-12 sm:px-14 lg:px-24 lg:pt-40 lg:pb-16">

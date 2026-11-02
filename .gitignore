@@ -66,3 +66,6 @@ backend/.tmp-build-smoke-*/
 # Python bytecode (docs/database/*/generate*.py are checked in, their caches are not)
 __pycache__/
 *.pyc
+
+# 3D hero source assets and build pipeline (kept local; models are copied to frontend/public/models)
+blender/
