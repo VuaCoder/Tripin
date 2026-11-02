@@ -34,20 +34,27 @@ class GoogleAuthService {
     });
 
     try {
-      linkSub = _appLinks.uriLinkStream.listen(
-        (uri) {
-          if (uri.scheme == 'tripri' && uri.host == 'auth') {
-            final idToken = uri.queryParameters['idToken'];
-            if (!completer.isCompleted) {
-              completer.complete(idToken);
-            }
+      void handleUri(Uri uri) {
+        if (uri.scheme == 'tripri' && uri.host == 'auth') {
+          final idToken = uri.queryParameters['idToken'];
+          if (idToken != null && idToken.isNotEmpty && !completer.isCompleted) {
+            completer.complete(idToken);
           }
-        },
+        }
+      }
+
+      linkSub = _appLinks.uriLinkStream.listen(
+        handleUri,
         onError: (err) {
           debugPrint('[GoogleAuthService] Lỗi lắng nghe deep link: $err');
           if (!completer.isCompleted) completer.complete(null);
         },
       );
+
+      // Kiểm tra cả link khởi tạo / resume phòng khi app được mở lại bằng deep link
+      _appLinks.getInitialLink().then((uri) {
+        if (uri != null) handleUri(uri);
+      }).catchError((_) {});
 
       final authUrl = Uri.parse(
         'https://tripin-23rt.vercel.app/mobile-auth?role=${Uri.encodeComponent(role)}',
@@ -73,8 +80,19 @@ class GoogleAuthService {
     }
   }
 
-  /// Đăng nhập trực tiếp bằng Google Sign-In Native (nhanh chóng, mượt mà trên máy thật & máy ảo có Google Play)
+  /// Đăng nhập Google:
+  /// - Ưu tiên Web OAuth Flow (0% cần SHA-1, tương thích 100% máy ảo, máy thật và file APK).
+  /// - Tự động fallback sang Native nếu thiết bị hỗ trợ sẵn.
   Future<String?> signIn({String role = 'TRAVELER'}) async {
+    try {
+      final webIdToken = await signInViaWeb(role: role);
+      if (webIdToken != null && webIdToken.isNotEmpty) {
+        return webIdToken;
+      }
+    } catch (e) {
+      debugPrint('[GoogleAuthService] Web flow gặp lỗi ($e), thử Native sign-in...');
+    }
+
     try {
       if (await _googleSignIn.isSignedIn()) {
         await _googleSignIn.signOut();
@@ -89,13 +107,8 @@ class GoogleAuthService {
       }
       return idToken;
     } catch (e) {
-      debugPrint('[GoogleAuthService] Native Google sign-in lỗi: $e. Tự động chuyển sang Web OAuth fallback...');
-      try {
-        return await signInViaWeb(role: role);
-      } catch (webErr) {
-        debugPrint('[GoogleAuthService] Cả Native và Web fallback đều lỗi: $webErr');
-        rethrow;
-      }
+      debugPrint('[GoogleAuthService] Native Google sign-in lỗi: $e');
+      rethrow;
     }
   }
 
