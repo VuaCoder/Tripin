@@ -33,9 +33,10 @@ class WishlistState {
   });
 
   /// Kiểm tra xem tour đã được lưu (yêu thích) hay chưa
-  /// Nếu không có danh sách nào hoặc danh sách bị xoá hết thì không có tim đỏ
+  /// Kiểm tra đồng bộ qua tập hợp ID đã lưu, qua danh sách backend hoặc qua các bộ sưu tập
   bool isFavorite(String tourId) {
-    if (collections.isEmpty) return false;
+    if (savedTourIds.contains(tourId)) return true;
+    if (items.any((item) => item.tourId == tourId)) return true;
     for (final col in collections) {
       if (col.containsTour(tourId)) return true;
     }

@@ -32,22 +32,22 @@ class FakeWishlistStorage extends WishlistStorage {
   List<RecentlyViewedTourModel> storedRecentlyViewed = [];
 
   @override
-  Future<List<WishlistCollectionModel>> loadCollections() async {
+  Future<List<WishlistCollectionModel>> loadCollections({String? userId}) async {
     return storedCollections;
   }
 
   @override
-  Future<void> saveCollections(List<WishlistCollectionModel> collections) async {
+  Future<void> saveCollections(List<WishlistCollectionModel> collections, {String? userId}) async {
     storedCollections = collections;
   }
 
   @override
-  Future<List<RecentlyViewedTourModel>> loadRecentlyViewed() async {
+  Future<List<RecentlyViewedTourModel>> loadRecentlyViewed({String? userId}) async {
     return storedRecentlyViewed;
   }
 
   @override
-  Future<void> saveRecentlyViewed(List<RecentlyViewedTourModel> items) async {
+  Future<void> saveRecentlyViewed(List<RecentlyViewedTourModel> items, {String? userId}) async {
     storedRecentlyViewed = items;
   }
 }

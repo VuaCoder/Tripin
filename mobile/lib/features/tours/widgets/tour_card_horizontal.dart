@@ -62,8 +62,8 @@ class TourCardHorizontal extends StatelessWidget {
                     child: _buildImage(tour.coverImage),
                   ),
 
-                  // Top-left: White pill badge "Guest favorite" (chỉ đạt được khi showBadge = true, ratingAvg > 4.5 và ratingCount >= 10)
-                  if (showBadge && tour.ratingAvg > 4.5 && tour.ratingCount >= 10)
+                  // Top-left: White pill badge "Được khách yêu thích" (hiển thị khi showBadge = true)
+                  if (showBadge)
                     Positioned(
                       top: 12,
                       left: 12,
@@ -144,9 +144,7 @@ class TourCardHorizontal extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          (useDestinationTitle && tour.durationDays > 0)
-                              ? '${tour.durationDays} ngày ${tour.durationDays > 1 ? '${tour.durationDays - 1} đêm' : ''}'.trim()
-                              : tour.airbnbPriceDuration,
+                          useDestinationTitle ? tour.durationText : tour.airbnbPriceDuration,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(

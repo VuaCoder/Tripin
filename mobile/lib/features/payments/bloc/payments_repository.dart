@@ -18,16 +18,25 @@ class PaymentException implements Exception {
 class PaymentsRepository {
   final ApiClient _api;
 
-  // Cấu hình cổng thanh toán PayOS (được truyền an toàn qua --dart-define hoặc qua backend)
-  static const String _payosClientId = String.fromEnvironment('PAYOS_CLIENT_ID', defaultValue: '');
-  static const String _payosApiKey = String.fromEnvironment('PAYOS_API_KEY', defaultValue: '');
-  static const String _payosChecksumKey = String.fromEnvironment('PAYOS_CHECKSUM_KEY', defaultValue: '');
+  // Cấu hình cổng thanh toán PayOS (lấy từ .env làm mặc định, hỗ trợ ghi đè qua --dart-define)
+  static const String _payosClientId = String.fromEnvironment(
+    'PAYOS_CLIENT_ID',
+    defaultValue: 'a40dca55-8575-4788-ac33-af9d8ebca7af',
+  );
+  static const String _payosApiKey = String.fromEnvironment(
+    'PAYOS_API_KEY',
+    defaultValue: 'cbcd836a-8ed1-458a-a66e-f4684134fd9d',
+  );
+  static const String _payosChecksumKey = String.fromEnvironment(
+    'PAYOS_CHECKSUM_KEY',
+    defaultValue: 'ad571291747997b6c6413aedd01e42055f8a13ef6faa2834e4fa5e6110353b66',
+  );
   static const String _payosApiBase = 'https://api-merchant.payos.vn';
 
   PaymentsRepository({ApiClient? api}) : _api = api ?? ApiClient();
 
   /// Tạo phiên thanh toán: ưu tiên gọi qua backend Tripri, nếu đơn test/chưa có booking DB
-  /// sẽ tự động gọi thẳng PayOS API (nếu có cấu hình key) hoặc tạo VietQR chuẩn Napas 100% quét được qua app ngân hàng!
+  /// sẽ tự động gọi thẳng PayOS API (có cấu hình key từ .env) hoặc tạo VietQR chuẩn Napas 100% quét được qua app ngân hàng!
   Future<CheckoutInfo> createCheckout(String bookingId) async {
     final isUuid = RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(bookingId);
     if (isUuid && !bookingId.startsWith('demo-')) {
@@ -35,11 +44,11 @@ class PaymentsRepository {
         final res = await _api.post<Map<String, dynamic>>(ApiEndpoints.bookingCheckout(bookingId));
         return CheckoutInfo.fromJson(_data(res));
       } catch (e) {
-        debugPrint('[PaymentsRepository] backend checkout failed ($e), falling back to VietQR');
+        debugPrint('[PaymentsRepository] backend checkout failed ($e), falling back to PayOS direct / VietQR');
       }
     }
 
-    // Gọi trực tiếp PayOS API nếu có cấu hình key
+    // Gọi trực tiếp PayOS API với credentials từ .env
     if (_payosApiKey.isNotEmpty && _payosChecksumKey.isNotEmpty) {
       try {
         final code = bookingId.length > 8 ? bookingId.substring(0, 8).toUpperCase() : 'TRP';
@@ -143,14 +152,16 @@ class PaymentsRepository {
   }) {
     final sub00 = '0006$bin';
     final sub01 = '01${accountNumber.length.toString().padLeft(2, '0')}$accountNumber';
-    final sub02 = '0208QRIBFTTA';
-    final tag38Val = '0010A000000727$sub00$sub01$sub02';
+    final subBeneficiary = '$sub00$sub01';
+    final sub01Wrapped = '01${subBeneficiary.length.toString().padLeft(2, '0')}$subBeneficiary';
+    const sub02 = '0208QRIBFTTA';
+    final tag38Val = '0010A000000727$sub01Wrapped$sub02';
     final tag38 = '38${tag38Val.length.toString().padLeft(2, '0')}$tag38Val';
 
-    final tag53 = '5303704';
+    const tag53 = '5303704';
     final amtStr = amount.toString();
     final tag54 = '54${amtStr.length.toString().padLeft(2, '0')}$amtStr';
-    final tag58 = '5802VN';
+    const tag58 = '5802VN';
 
     final sub08 = '08${description.length.toString().padLeft(2, '0')}$description';
     final tag62 = '62${sub08.length.toString().padLeft(2, '0')}$sub08';
@@ -163,10 +174,15 @@ class PaymentsRepository {
   CheckoutInfo _generateDemoCheckout(String bookingId) {
     final now = DateTime.now();
     final code = bookingId.length > 8 ? bookingId.substring(0, 8).toUpperCase() : 'TRP12345';
-    final desc = 'TRP-$code';
+    final desc = 'TRIPRI $code';
+    // Sử dụng tài khoản thụ hưởng MBBank thật từ cổng PayOS để mọi app ngân hàng đều quét & chuyển khoản được
+    const realBin = '970422'; // MBBank
+    const realAccNumber = 'VQRQANHHA2532';
+    const realAccName = 'TRAN THI DIEM KIEU';
+
     final qr = _buildStandardVietQr(
-      bin: '970422', // MBBank
-      accountNumber: '1029384756',
+      bin: realBin,
+      accountNumber: realAccNumber,
       amount: 2000,
       description: desc,
     );
@@ -177,9 +193,9 @@ class PaymentsRepository {
       amount: 2000,
       expiresAt: now.add(const Duration(minutes: 15)),
       bankTransfer: BankTransferInfo(
-        accountName: 'CONG TY DU LICH TRIPRI',
-        accountNumber: '1029384756',
-        bin: '970422',
+        accountName: realAccName,
+        accountNumber: realAccNumber,
+        bin: realBin,
         qrCode: qr,
         description: desc,
       ),

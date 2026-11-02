@@ -10,19 +10,32 @@ import '../widgets/create_wishlist_sheet.dart';
 import '../widgets/login_required_dialog.dart';
 import '../widgets/save_to_wishlist_sheet.dart';
 import '../widgets/saved_to_wishlist_banner.dart';
+import '../../../core/storage/token_storage.dart';
 import 'wishlist_repository.dart';
 import 'wishlist_state.dart';
 
 class WishlistCubit extends Cubit<WishlistState> {
   final WishlistRepository _repository;
   final WishlistStorage _storage;
+  final TokenStorage _tokenStorage;
 
   WishlistCubit({
     WishlistRepository? repository,
     WishlistStorage? storage,
+    TokenStorage? tokenStorage,
   })  : _repository = repository ?? WishlistRepository(),
         _storage = storage ?? WishlistStorage(),
+        _tokenStorage = tokenStorage ?? TokenStorage(),
         super(const WishlistState());
+
+  Future<String?> _getUserId() async {
+    try {
+      final info = await _tokenStorage.getUserInfo();
+      return info['id'];
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Kiểm tra nhanh tour có trong danh sách yêu thích hay không
   bool isFavorite(String tourId) => state.isFavorite(tourId);
@@ -49,9 +62,11 @@ class WishlistCubit extends Cubit<WishlistState> {
 
   /// Tải dữ liệu: Danh sách yêu thích backend + Bộ sưu tập lưu trữ cục bộ + Tour xem gần đây
   Future<void> loadWishlist() async {
-    // 1. Tải dữ liệu lưu trữ cục bộ (Bộ sưu tập & Xem gần đây)
-    final localCollections = await _storage.loadCollections();
-    final localRecentlyViewed = await _storage.loadRecentlyViewed();
+    final userId = await _getUserId();
+
+    // 1. Tải dữ liệu lưu trữ cục bộ (Bộ sưu tập & Xem gần đây) theo userId
+    var localCollections = await _storage.loadCollections(userId: userId);
+    final localRecentlyViewed = await _storage.loadRecentlyViewed(userId: userId);
 
     final isAuth = await _repository.isAuthenticated();
     if (!isAuth) {
@@ -72,12 +87,49 @@ class WishlistCubit extends Cubit<WishlistState> {
 
     try {
       final items = await _repository.getWishlist();
-      final ids = _extractSavedTourIds(localCollections);
+
+      // Đồng bộ: Gom tất cả ID tour từ backend items và local collections
+      final allIds = <String>{
+        ..._extractSavedTourIds(localCollections),
+        ...items.map((i) => i.tourId).where((id) => id.isNotEmpty),
+      };
+
+      // Nếu người dùng có tour lưu trên backend nhưng chưa có trong collection nào (ví dụ vừa login vào thiết bị mới),
+      // gom vào bộ sưu tập "Đã lưu" để người dùng thấy ngay
+      final itemsWithTours = items.where((i) => i.tour != null).map((i) => i.tour!).toList();
+      if (itemsWithTours.isNotEmpty) {
+        final existingTourIds = _extractSavedTourIds(localCollections);
+        final unsortedTours = itemsWithTours.where((t) => !existingTourIds.contains(t.id)).toList();
+
+        if (unsortedTours.isNotEmpty) {
+          final defaultColIndex = localCollections.indexWhere(
+            (c) => c.name == 'Đã lưu' || c.name == 'Danh sách yêu thích',
+          );
+          if (defaultColIndex != -1) {
+            final col = localCollections[defaultColIndex];
+            final updatedTours = [...unsortedTours, ...col.tours];
+            localCollections[defaultColIndex] = col.copyWith(
+              tours: updatedTours,
+              updatedAt: DateTime.now(),
+            );
+          } else {
+            final newCol = WishlistCollectionModel(
+              id: 'col_saved_default_${userId ?? 'user'}',
+              name: 'Đã lưu',
+              tours: unsortedTours,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            );
+            localCollections = [newCol, ...localCollections];
+          }
+          await _storage.saveCollections(localCollections, userId: userId);
+        }
+      }
 
       emit(state.copyWith(
         status: WishlistStatus.success,
         items: items,
-        savedTourIds: ids,
+        savedTourIds: allIds,
         collections: localCollections,
         recentlyViewed: localRecentlyViewed,
         isAuthenticated: true,
@@ -96,7 +148,7 @@ class WishlistCubit extends Cubit<WishlistState> {
   }
 
   /// Ghi nhận tour vào mục "Recently viewed" (Xem gần đây)
-  void recordRecentlyViewed(TourModel tour) {
+  void recordRecentlyViewed(TourModel tour) async {
     final now = DateTime.now();
     final updated = List<RecentlyViewedTourModel>.from(state.recentlyViewed)
       ..removeWhere((item) => item.tour.id == tour.id);
@@ -109,7 +161,8 @@ class WishlistCubit extends Cubit<WishlistState> {
     // Giới hạn lưu tối đa 40 tour xem gần nhất
     final trimmed = updated.take(40).toList();
     emit(state.copyWith(recentlyViewed: trimmed));
-    _storage.saveRecentlyViewed(trimmed);
+    final userId = await _getUserId();
+    _storage.saveRecentlyViewed(trimmed, userId: userId);
   }
 
   /// Xóa tour khỏi mục "Gần đây"
@@ -117,7 +170,8 @@ class WishlistCubit extends Cubit<WishlistState> {
     final updated = List<RecentlyViewedTourModel>.from(state.recentlyViewed)
       ..removeWhere((item) => item.tour.id == tourId);
     emit(state.copyWith(recentlyViewed: updated));
-    await _storage.saveRecentlyViewed(updated);
+    final userId = await _getUserId();
+    await _storage.saveRecentlyViewed(updated, userId: userId);
   }
 
   /// Xử lý bấm Trái tim trên thẻ tour:
@@ -165,7 +219,8 @@ class WishlistCubit extends Cubit<WishlistState> {
         savedTourIds: updatedSavedIds,
       ));
 
-      await _storage.saveCollections(updatedCollections);
+      final userId = await _getUserId();
+      await _storage.saveCollections(updatedCollections, userId: userId);
       _repository.removeFromWishlist(tour.id).catchError((_) {});
 
       if (context.mounted) {
@@ -265,7 +320,8 @@ class WishlistCubit extends Cubit<WishlistState> {
       hasUnseenWishlistBadge: true,
     ));
 
-    await _storage.saveCollections(updatedCollections);
+    final userId = await _getUserId();
+    await _storage.saveCollections(updatedCollections, userId: userId);
     return newCollection;
   }
 
@@ -293,7 +349,8 @@ class WishlistCubit extends Cubit<WishlistState> {
     }).toList();
 
     emit(state.copyWith(collections: updatedCollections));
-    await _storage.saveCollections(updatedCollections);
+    final userId = await _getUserId();
+    await _storage.saveCollections(updatedCollections, userId: userId);
   }
 
   /// Thêm tour vào một wishlist có sẵn
@@ -327,7 +384,8 @@ class WishlistCubit extends Cubit<WishlistState> {
       hasUnseenWishlistBadge: true,
     ));
 
-    await _storage.saveCollections(updatedCollections);
+    final userId = await _getUserId();
+    await _storage.saveCollections(updatedCollections, userId: userId);
     _repository.addToWishlist(tour.id).catchError((_) {});
   }
 
@@ -371,7 +429,8 @@ class WishlistCubit extends Cubit<WishlistState> {
       savedTourIds: updatedSavedIds,
     ));
 
-    await _storage.saveCollections(updatedCollections);
+    final userId = await _getUserId();
+    await _storage.saveCollections(updatedCollections, userId: userId);
 
     if (context != null && context.mounted) {
       if (resolvedTour != null) {
@@ -416,7 +475,8 @@ class WishlistCubit extends Cubit<WishlistState> {
       isEditMode: newEditMode,
     ));
 
-    await _storage.saveCollections(updatedCollections);
+    final userId = await _getUserId();
+    await _storage.saveCollections(updatedCollections, userId: userId);
   }
 
   /// Tương thích ngược với các thành phần cũ

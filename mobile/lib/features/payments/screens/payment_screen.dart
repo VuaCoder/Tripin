@@ -172,7 +172,6 @@ class _AwaitingBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cubit = context.read<PaymentCubit>();
     final bank = state.checkout.bankTransfer;
     final urgent = state.remaining.inMinutes < 3;
 

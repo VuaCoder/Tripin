@@ -114,4 +114,16 @@ class TourModel {
     final dur = durationDays > 1 ? '$nights đêm' : '1 ngày';
     return '₫$amount cho $dur';
   }
+
+  /// Định dạng ngày khởi hành sạch sẽ, chuẩn tiếng Việt (không bao giờ hiện chuỗi ISO thô)
+  String get formattedDepartureDateText {
+    if (nextDepartureDate == null || nextDepartureDate!.isEmpty) {
+      return 'Khởi hành hàng ngày';
+    }
+    final parsed = DateTime.tryParse(nextDepartureDate!);
+    if (parsed != null) {
+      return 'Khởi hành: ${parsed.day} Thg ${parsed.month}';
+    }
+    return 'Khởi hành hàng ngày';
+  }
 }

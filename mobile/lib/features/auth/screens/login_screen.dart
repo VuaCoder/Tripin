@@ -12,6 +12,7 @@ import '../widgets/google_sign_in_button.dart';
 import 'forgot_password_screen.dart';
 import 'register_traveler_screen.dart';
 import 'verify_otp_screen.dart';
+import '../../wishlist/bloc/wishlist_cubit.dart';
 
 class LoginScreen extends StatefulWidget {
   final String? prefillEmail;
@@ -76,6 +77,10 @@ class _LoginScreenState extends State<LoginScreen> {
       body: BlocConsumer<LoginBloc, LoginState>(
         listener: (context, state) {
           if (state is LoginSuccess) {
+            try {
+              context.read<WishlistCubit>().loadWishlist();
+            } catch (_) {}
+
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Chào mừng trở lại, ${state.fullName}!'),

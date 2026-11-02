@@ -8,6 +8,7 @@ import 'package:mobile/features/tours/models/category_model.dart';
 import 'package:mobile/features/tours/models/promotion_banner_model.dart';
 import 'package:mobile/features/tours/models/tour_model.dart';
 import 'package:mobile/features/tours/screens/home_discovery_screen.dart';
+import 'package:mobile/features/tours/screens/tour_listing_grid_screen.dart';
 import 'package:mobile/features/tours/screens/tour_search_screen.dart';
 import 'package:mobile/features/tours/widgets/banner_carousel_widget.dart';
 import 'package:mobile/features/tours/widgets/category_grid_widget.dart';
@@ -211,11 +212,11 @@ void main() {
       // All tour sections (Tour nổi bật & Tour mới nhất) now share the exact same TourCardHorizontal layout
       expect(find.byType(TourCardHorizontal), findsWidgets);
 
-      // Tap circular arrow button in Tour Nổi Bật navigates to TourSearchScreen
+      // Tap circular arrow button in Tour Nổi Bật navigates to TourListingGridScreen (matching RecentlyViewedScreen layout)
       await tester.tap(find.byIcon(Icons.arrow_forward_rounded).first);
       await tester.pumpAndSettle();
 
-      expect(find.byType(TourSearchScreen), findsOneWidget);
+      expect(find.byType(TourListingGridScreen), findsOneWidget);
     });
 
     testWidgets('AC5: NetworkErrorWidget displays error message and Thử lại button calls loadHomeData', (tester) async {

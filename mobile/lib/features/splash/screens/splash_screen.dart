@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/network/api_client.dart';
@@ -6,6 +7,7 @@ import '../../../core/storage/token_storage.dart';
 import '../../auth/screens/welcome_auth_screen.dart';
 import '../../navigation/guide_main_navigation_screen.dart';
 import '../../navigation/traveler_main_navigation_screen.dart';
+import '../../wishlist/bloc/wishlist_cubit.dart';
 import '../widgets/boat_preloader_widget.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -69,6 +71,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             final role = data['role'] as String? ?? 'TRAVELER';
 
             if (!mounted) return;
+
+            try {
+              context.read<WishlistCubit>().loadWishlist();
+            } catch (_) {}
 
             if (role == 'TOUR_GUIDE') {
               _navigateWithFade(const GuideMainNavigationScreen());

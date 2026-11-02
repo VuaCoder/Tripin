@@ -93,25 +93,14 @@ class _TourCardAirbnbState extends State<TourCardAirbnb> {
                             ),
                           ],
                         ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.workspace_premium_rounded,
-                              size: 15,
-                              color: Color(0xFFD97706), // Amber bronze
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Khách yêu thích',
-                              style: TextStyle(
-                                color: Color(0xFF222222),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.2,
-                              ),
-                            ),
-                          ],
+                        child: const Text(
+                          'Được khách yêu thích',
+                          style: TextStyle(
+                            color: Color(0xFF222222),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
+                          ),
                         ),
                       ),
                     ),
@@ -205,7 +194,7 @@ class _TourCardAirbnbState extends State<TourCardAirbnb> {
 
             // Dòng 3: Thời lượng & Tiện ích
             Text(
-              '${tour.durationDays} ngày ${tour.durationDays > 1 ? '${tour.durationDays - 1} đêm' : ''} · Hướng dẫn viên địa phương',
+              '${tour.durationText} · Hướng dẫn viên địa phương',
               style: const TextStyle(
                 fontSize: 13.5,
                 color: Color(0xFF717171),
@@ -216,9 +205,7 @@ class _TourCardAirbnbState extends State<TourCardAirbnb> {
 
             // Dòng 4: Ngày khởi hành
             Text(
-              tour.nextDepartureDate != null
-                  ? 'Khởi hành: ${tour.nextDepartureDate}'
-                  : 'Khởi hành hàng ngày',
+              tour.formattedDepartureDateText,
               style: const TextStyle(
                 fontSize: 13.5,
                 color: Color(0xFF717171),

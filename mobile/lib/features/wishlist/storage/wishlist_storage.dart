@@ -4,6 +4,7 @@ import '../models/recently_viewed_model.dart';
 import '../models/wishlist_collection_model.dart';
 
 /// Lớp quản lý lưu trữ cục bộ các bộ sưu tập Wishlist và lịch sử Xem gần đây
+/// Hỗ trợ lưu trữ bền vững theo User ID để khi đăng nhập lại không bao giờ bị mất!
 class WishlistStorage {
   static const String _keyCollections = 'user_wishlist_collections_v1';
   static const String _keyRecentlyViewed = 'user_recently_viewed_tours_v1';
@@ -16,11 +17,23 @@ class WishlistStorage {
     return prefs ?? await SharedPreferences.getInstance();
   }
 
-  /// Tải danh sách bộ sưu tập đã tạo
-  Future<List<WishlistCollectionModel>> loadCollections() async {
+  String _colKey(String? userId) =>
+      (userId != null && userId.isNotEmpty) ? 'wishlist_collections_uid_$userId' : _keyCollections;
+
+  String _recentKey(String? userId) =>
+      (userId != null && userId.isNotEmpty) ? 'recently_viewed_uid_$userId' : _keyRecentlyViewed;
+
+  /// Tải danh sách bộ sưu tập đã tạo (ưu tiên theo userId, fallback sang toàn cục)
+  Future<List<WishlistCollectionModel>> loadCollections({String? userId}) async {
     try {
-      final prefs = await _getPrefs();
-      final raw = prefs.getStringList(_keyCollections);
+      final p = await _getPrefs();
+      List<String>? raw;
+      if (userId != null && userId.isNotEmpty) {
+        raw = p.getStringList(_colKey(userId));
+      }
+      // Fallback sang kho toàn cục nếu kho theo user chưa có
+      raw ??= p.getStringList(_keyCollections);
+
       if (raw == null || raw.isEmpty) return [];
 
       return raw
@@ -31,20 +44,28 @@ class WishlistStorage {
     }
   }
 
-  /// Lưu danh sách bộ sưu tập
-  Future<void> saveCollections(List<WishlistCollectionModel> collections) async {
+  /// Lưu danh sách bộ sưu tập (lưu cả kho theo user và kho toàn cục)
+  Future<void> saveCollections(List<WishlistCollectionModel> collections, {String? userId}) async {
     try {
-      final prefs = await _getPrefs();
+      final p = await _getPrefs();
       final raw = collections.map((c) => jsonEncode(c.toJson())).toList();
-      await prefs.setStringList(_keyCollections, raw);
+      await p.setStringList(_keyCollections, raw);
+      if (userId != null && userId.isNotEmpty) {
+        await p.setStringList(_colKey(userId), raw);
+      }
     } catch (_) {}
   }
 
-  /// Tải danh sách các tour xem gần đây
-  Future<List<RecentlyViewedTourModel>> loadRecentlyViewed() async {
+  /// Tải danh sách các tour xem gần đây (ưu tiên theo userId, fallback sang toàn cục)
+  Future<List<RecentlyViewedTourModel>> loadRecentlyViewed({String? userId}) async {
     try {
-      final prefs = await _getPrefs();
-      final raw = prefs.getStringList(_keyRecentlyViewed);
+      final p = await _getPrefs();
+      List<String>? raw;
+      if (userId != null && userId.isNotEmpty) {
+        raw = p.getStringList(_recentKey(userId));
+      }
+      raw ??= p.getStringList(_keyRecentlyViewed);
+
       if (raw == null || raw.isEmpty) return [];
 
       return raw
@@ -56,20 +77,19 @@ class WishlistStorage {
   }
 
   /// Lưu danh sách các tour xem gần đây
-  Future<void> saveRecentlyViewed(List<RecentlyViewedTourModel> items) async {
+  Future<void> saveRecentlyViewed(List<RecentlyViewedTourModel> items, {String? userId}) async {
     try {
-      final prefs = await _getPrefs();
+      final p = await _getPrefs();
       final raw = items.map((i) => jsonEncode(i.toJson())).toList();
-      await prefs.setStringList(_keyRecentlyViewed, raw);
+      await p.setStringList(_keyRecentlyViewed, raw);
+      if (userId != null && userId.isNotEmpty) {
+        await p.setStringList(_recentKey(userId), raw);
+      }
     } catch (_) {}
   }
 
-  /// Xóa toàn bộ dữ liệu lưu trữ (khi đăng xuất)
+  /// Không xóa vĩnh viễn dữ liệu người dùng khi logout để giữ nguyên yêu thích khi đăng nhập lại
   Future<void> clearAll() async {
-    try {
-      final prefs = await _getPrefs();
-      await prefs.remove(_keyCollections);
-      await prefs.remove(_keyRecentlyViewed);
-    } catch (_) {}
+    // Giữ nguyên dữ liệu để khi người dùng đăng nhập lại không bị reset!
   }
 }

@@ -19,6 +19,7 @@ import '../widgets/tour_card_horizontal.dart';
 import '../widgets/tour_shimmer_loading.dart';
 import 'tour_booking_checkout_screen.dart';
 import 'tour_detail_screen.dart';
+import 'tour_listing_grid_screen.dart';
 import 'tour_search_screen.dart';
 
 /// [FLOW-04] Màn hình Khám phá Trang chủ
@@ -538,7 +539,25 @@ class _HomeDiscoveryScreenState extends State<HomeDiscoveryScreen> {
       children: [
         _buildSectionHeader(
           title: 'Tour Nổi Bật',
-          onAction: () => _navigateToSearch(categories: categories),
+          onAction: () {
+            WishlistCubit? cubit;
+            try {
+              cubit = context.read<WishlistCubit>();
+            } catch (_) {}
+
+            Widget screen = TourListingGridScreen(
+              title: 'Tour Nổi Bật',
+              tours: tours,
+              isFeatured: true,
+            );
+            if (cubit != null) {
+              screen = BlocProvider.value(value: cubit, child: screen);
+            }
+
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => screen),
+            );
+          },
         ),
         const SizedBox(height: 12),
         SizedBox(
@@ -580,7 +599,25 @@ class _HomeDiscoveryScreenState extends State<HomeDiscoveryScreen> {
       children: [
         _buildSectionHeader(
           title: 'Tour Mới Nhất',
-          onAction: () => _navigateToSearch(categories: categories),
+          onAction: () {
+            WishlistCubit? cubit;
+            try {
+              cubit = context.read<WishlistCubit>();
+            } catch (_) {}
+
+            Widget screen = TourListingGridScreen(
+              title: 'Tour Mới Nhất',
+              tours: tours,
+              isFeatured: false,
+            );
+            if (cubit != null) {
+              screen = BlocProvider.value(value: cubit, child: screen);
+            }
+
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => screen),
+            );
+          },
         ),
         const SizedBox(height: 12),
         SizedBox(
