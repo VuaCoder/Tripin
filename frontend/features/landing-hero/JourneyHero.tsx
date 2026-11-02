@@ -27,11 +27,31 @@ export function canRunJourney(): boolean {
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 /**
- * Scroll distance of the pinned journey, in viewport heights. v5 used 5.4 (a 640vh track) for four short wave texts; the story
- * chapters have paragraphs to read, so the same timeline is stretched.
+ * Scroll-to-journey map. The v5 timeline spends a lot of progress on stretches with no copy (the boat casting off and the
+ * camera tilting, then the swing back and the arrival), so scroll is spent unevenly: each pair is [journey progress, scroll
+ * distance in viewport heights from the start]. Every story block gets the same 1.1 viewport heights; the stretches in
+ * between are compressed. (v5 itself used 5.4 viewport heights with a linear map and four short wave texts.)
  */
-const JOURNEY_SCROLL_VH = 12;
+const JOURNEY_STOPS: ReadonlyArray<readonly [number, number]> = [
+  [0, 0], [0.04, 0.12], [0.22, 1.1],                        // hero copy fades, boat casts off, camera tilts down
+  [0.31, 2.2], [0.41, 3.3], [0.51, 4.4], [0.61, 5.5], [0.71, 6.6],        // intro + 4 chapters
+  [0.93, 7.5], [1, 8.2],                                    // camera swings back, arrival, final CTA
+];
+const JOURNEY_SCROLL_VH = JOURNEY_STOPS[JOURNEY_STOPS.length - 1][1];
 const V5_SCROLL_VH = 5.4;
+
+/** Pin progress (0..1, linear in scroll) -> journey progress (0..1, the v5 timeline). */
+function scrollToJourney(s: number): number {
+  const vh = Math.min(1, Math.max(0, s)) * JOURNEY_SCROLL_VH;
+  for (let i = 1; i < JOURNEY_STOPS.length; i++) {
+    const [p1, v1] = JOURNEY_STOPS[i];
+    if (vh <= v1) {
+      const [p0, v0] = JOURNEY_STOPS[i - 1];
+      return p0 + ((vh - v0) / (v1 - v0)) * (p1 - p0);
+    }
+  }
+  return 1;
+}
 
 // Story blocks shown beside the boat while the camera looks down on the bay (journey progress 0..1, inside v5's top-down
 // stretch .13-.70). The intro comes first, then the four chapters; text and image alternate sides.
@@ -96,8 +116,8 @@ export function JourneyHero({ onUnavailable }: JourneyHeroProps) {
       pin: true,
       anticipatePin: 1,
       invalidateOnRefresh: true,
-      onUpdate: (self) => { progress = self.progress; },
-      onRefresh: (self) => { progress = self.progress; },
+      onUpdate: (self) => { progress = scrollToJourney(self.progress); },
+      onRefresh: (self) => { progress = scrollToJourney(self.progress); },
     });
     pinRef.current = pin;
     ScrollTrigger.refresh();
