@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../../../core/constants/api_endpoints.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../core/storage/token_storage.dart';
 import '../models/chat_models.dart';
 
@@ -67,18 +68,41 @@ class SocketIoChatSocket implements ChatSocket {
   @override
   Stream<Map<String, dynamic>> get notifications => _notifications.stream;
 
+  String? _connectedToken;
+
   @override
   Future<void> connect() async {
-    if (_socket != null) return;
     final token = await _tokens.getAccessToken();
+    if (token == null || token.isEmpty) {
+      // Khi chưa đăng nhập / chưa có token: tuyệt đối không kết nối Socket.
+      // Tránh việc socket.io thử reconnect liên tục làm nghẽn toàn bộ server và mạng.
+      if (_socket != null) {
+        _socket?.dispose();
+        _socket = null;
+        _connectedToken = null;
+      }
+      return;
+    }
+
+    if (_socket != null) {
+      if (_connectedToken == token && _socket!.connected) {
+        return;
+      }
+      _socket?.dispose();
+      _socket = null;
+      _connectedToken = null;
+    }
+
+    _connectedToken = token;
     final socket = io.io(
       ApiEndpoints.socketUrl,
       io.OptionBuilder()
           .setTransports(['websocket'])
           .setAuth({'token': token})
           .enableReconnection()
-          .setReconnectionDelay(1000)
-          .setReconnectionDelayMax(10000)
+          .setReconnectionAttempts(5)
+          .setReconnectionDelay(3000)
+          .setReconnectionDelayMax(15000)
           .enableAutoConnect()
           .build(),
     );
@@ -86,25 +110,61 @@ class SocketIoChatSocket implements ChatSocket {
 
     socket.onConnect((_) => _connection.add(true));
     socket.onDisconnect((_) => _connection.add(false));
-    socket.onConnectError((_) => _connection.add(false));
+    socket.onConnectError((err) {
+      _connection.add(false);
+      // Ngừng kết nối lại nếu bị từ chối xác thực (token rỗng / hết hạn)
+      final errStr = err.toString().toUpperCase();
+      if (errStr.contains('UNAUTHENTICATED') || errStr.contains('TOKEN') || errStr.contains('AUTH')) {
+        socket.disconnect();
+      }
+    });
+
     // Đọc lại token ở mỗi lần thử kết nối lại để dùng bản mới nhất sau khi làm mới phiên.
     socket.io.on('reconnect_attempt', (_) async {
-      socket.auth = {'token': await _tokens.getAccessToken()};
+      final freshToken = await _tokens.getAccessToken();
+      if (freshToken == null || freshToken.isEmpty) {
+        socket.disconnect();
+        return;
+      }
+      socket.auth = {'token': freshToken};
     });
 
     socket.on('chat:message', (data) {
       final event = unpackEvent(data);
       final map = event.payload as Map;
-      _messages.add(ChatMessage.fromJson(Map<String, dynamic>.from(map['message'] as Map)));
+      final msg = ChatMessage.fromJson(Map<String, dynamic>.from(map['message'] as Map));
+      _messages.add(msg);
       // Ack `true` để backend báo "đã nhận" cho người gửi.
       event.ack?.call(true);
+
+      // Hiển thị thông báo Flutter khi nhận tin nhắn từ người dùng khác (chỉ khi chat với người dùng)
+      if (!msg.isMine) {
+        NotificationService().showNotification(
+          id: msg.id.hashCode,
+          title: 'Tin nhắn mới',
+          body: msg.text,
+          payload: msg.conversationId,
+        );
+      }
     });
     socket.on('chat:typing', (data) => _typing.add((unpackEvent(data).payload as Map)['conversationId'] as String));
     socket.on('chat:delivered', (data) {
       final map = unpackEvent(data).payload as Map;
       _delivered.add((conversationId: map['conversationId'] as String, messageId: map['messageId'] as String));
     });
-    socket.on('notification:new', (data) => _notifications.add(Map<String, dynamic>.from(unpackEvent(data).payload as Map)));
+    socket.on('notification:new', (data) {
+      final payload = Map<String, dynamic>.from(unpackEvent(data).payload as Map);
+      _notifications.add(payload);
+
+      final title = payload['title'] as String? ?? 'Thông báo mới';
+      final body = payload['message'] as String? ?? payload['body'] as String? ?? '';
+      NotificationService().showNotification(
+        id: (payload['id'] as String? ?? DateTime.now().millisecondsSinceEpoch.toString()).hashCode,
+        title: title,
+        body: body,
+        payload: payload['id'] as String?,
+      );
+    });
   }
 
   @override
@@ -147,4 +207,8 @@ class ChatSocketHub {
   ChatSocketHub._();
   static ChatSocket? _instance;
   static ChatSocket get instance => _instance ??= SocketIoChatSocket();
+  static void reset() {
+    _instance?.dispose();
+    _instance = null;
+  }
 }

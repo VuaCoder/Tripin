@@ -73,9 +73,8 @@ void main() {
     expect(find.text('Thu nhập'), findsOneWidget);
     expect(find.textContaining('1.500.000'), findsWidgets);
     expect(find.text('Hạ Long 3N2Đ'), findsOneWidget);
-    expect(find.text('Tháng này'), findsOneWidget);
-    expect(find.text('Tháng trước'), findsOneWidget);
-    expect(find.text('Toàn bộ'), findsOneWidget);
+    expect(find.textContaining('+750.000'), findsOneWidget);
+    expect(find.text('1 tháng'), findsWidgets);
     expect(find.textContaining('Chưa cập nhật tài khoản'), findsOneWidget);
   });
 
@@ -89,13 +88,15 @@ void main() {
 
     expect(find.text('Không có thu nhập trong kỳ này'), findsOneWidget);
 
-    await tester.tap(find.text('Toàn bộ'));
+    await tester.tap(find.text('1 tháng').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Toàn bộ').last);
     await tester.pumpAndSettle();
 
     expect(find.text('Chưa có thu nhập'), findsOneWidget);
   });
 
-  testWidgets('draws the earnings pie and regroups it by quarter', (tester) async {
+  testWidgets('draws the earnings pie and switches filter via dropdown', (tester) async {
     await _pump(
       tester,
       _FakeApi(
@@ -118,12 +119,11 @@ void main() {
     expect(find.text('67%'), findsOneWidget);
     expect(find.text('33%'), findsOneWidget);
 
-    await tester.tap(find.text('Quý'));
+    await tester.tap(find.text('1 tháng').first);
     await tester.pumpAndSettle();
-
-    expect(find.text('Q3/26'), findsOneWidget);
-    expect(find.text('Q4/26'), findsOneWidget);
-    expect(find.text('10/26'), findsNothing);
+    await tester.tap(find.text('3 tháng').last);
+    await tester.pumpAndSettle();
+    expect(find.text('3 tháng'), findsWidgets);
   });
 
   testWidgets('saves the payout account through the bank sheet', (tester) async {

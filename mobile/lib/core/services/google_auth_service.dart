@@ -73,20 +73,8 @@ class GoogleAuthService {
     }
   }
 
-  /// Đăng nhập Google:
-  /// - Ưu tiên Web OAuth Flow (0% cần SHA-1, hoạt động trên mọi điện thoại & file APK).
-  /// - Tự động fallback sang native nếu môi trường hỗ trợ sẵn.
+  /// Đăng nhập trực tiếp bằng Google Sign-In Native (nhanh chóng, mượt mà trên máy thật & máy ảo có Google Play)
   Future<String?> signIn({String role = 'TRAVELER'}) async {
-    try {
-      final webIdToken = await signInViaWeb(role: role);
-      if (webIdToken != null && webIdToken.isNotEmpty) {
-        return webIdToken;
-      }
-    } catch (e) {
-      debugPrint('[GoogleAuthService] Web flow gặp lỗi ($e), thử Native sign-in...');
-    }
-
-    // Fallback sang native nếu thiết bị đã đăng ký SHA-1 hợp lệ
     try {
       if (await _googleSignIn.isSignedIn()) {
         await _googleSignIn.signOut();
@@ -101,7 +89,7 @@ class GoogleAuthService {
       }
       return idToken;
     } catch (e) {
-      debugPrint('[GoogleAuthService] Native sign-in lỗi: $e');
+      debugPrint('[GoogleAuthService] Native Google sign-in lỗi: $e');
       rethrow;
     }
   }

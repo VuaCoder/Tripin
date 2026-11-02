@@ -46,7 +46,20 @@ class _EarningsView extends StatelessWidget {
         final busy = state.listLoading || state.summaryLoading;
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Thu nhập'),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            centerTitle: false,
+            toolbarHeight: 64,
+            title: const Text(
+              'Thu nhập',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+                letterSpacing: -0.6,
+              ),
+            ),
             actions: [
               IconButton(
                 onPressed: busy ? null : () => context.read<EarningsCubit>().refresh(),
@@ -66,8 +79,6 @@ class _EarningsView extends StatelessWidget {
                   const SizedBox(height: 8),
                 ],
                 _SummaryCard(state: state),
-                const SizedBox(height: 16),
-                _FilterChips(state: state),
                 if (state.summary != null && state.summary!.byMonth.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   _EarningsChart(summary: state.summary!),
@@ -200,38 +211,6 @@ class _Metric extends StatelessWidget {
   }
 }
 
-class _FilterChips extends StatelessWidget {
-  const _FilterChips({required this.state});
-
-  final EarningsState state;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: EarningsFilter.values.map((filter) {
-        final selected = filter == state.filter;
-        return ChoiceChip(
-          label: Text(filter.label),
-          selected: selected,
-          showCheckmark: false,
-          onSelected: (_) => context.read<EarningsCubit>().selectFilter(filter),
-          backgroundColor: AppColors.surface,
-          selectedColor: AppColors.primarySurface,
-          side: BorderSide(color: selected ? AppColors.primary : AppColors.border),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          labelStyle: TextStyle(
-            fontSize: 13,
-            color: selected ? AppColors.primaryDark : AppColors.textSecondary,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
-
 class _EarningsChart extends StatefulWidget {
   const _EarningsChart({required this.summary});
 
@@ -252,7 +231,7 @@ class _EarningsChartState extends State<_EarningsChart> {
     AppColors.warning,
   ];
 
-  bool _quarterly = false;
+  static const bool _quarterly = false;
 
   @override
   Widget build(BuildContext context) {
@@ -274,16 +253,40 @@ class _EarningsChartState extends State<_EarningsChart> {
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                 ),
               ),
-              _ChartModeChip(
-                label: 'Tháng',
-                selected: !_quarterly,
-                onTap: () => setState(() => _quarterly = false),
-              ),
-              const SizedBox(width: 6),
-              _ChartModeChip(
-                label: 'Quý',
-                selected: _quarterly,
-                onTap: () => setState(() => _quarterly = true),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primarySurface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _safeFilterValue(context.watch<EarningsCubit>().state.filter),
+                    icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.primaryDark, size: 20),
+                    isDense: true,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryDark,
+                    ),
+                    onChanged: (newFilterName) {
+                      if (newFilterName != null) {
+                        final selected = EarningsFilter.values.firstWhere(
+                          (f) => f.name == newFilterName,
+                          orElse: () => EarningsFilter.oneMonth,
+                        );
+                        context.read<EarningsCubit>().selectFilter(selected);
+                      }
+                    },
+                    items: EarningsFilter.values.map((f) {
+                      return DropdownMenuItem<String>(
+                        value: f.name,
+                        child: Text(f.label),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ),
             ],
           ),
@@ -374,34 +377,6 @@ class _PieLegend extends StatelessWidget {
   }
 }
 
-class _ChartModeChip extends StatelessWidget {
-  const _ChartModeChip({required this.label, required this.selected, required this.onTap});
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      showCheckmark: false,
-      onSelected: (_) => onTap(),
-      visualDensity: VisualDensity.compact,
-      backgroundColor: AppColors.surface,
-      selectedColor: AppColors.primarySurface,
-      side: BorderSide(color: selected ? AppColors.primary : AppColors.border),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      labelStyle: TextStyle(
-        fontSize: 11.5,
-        color: selected ? AppColors.primaryDark : AppColors.textSecondary,
-        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-      ),
-    );
-  }
-}
-
 class _HistorySection extends StatelessWidget {
   const _HistorySection({required this.state});
 
@@ -464,11 +439,41 @@ class _HistorySection extends StatelessWidget {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                 ),
               ),
-              if (state.items.isNotEmpty)
-                Text(
-                  '${state.items.length} mục',
-                  style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _safeFilterValue(state.filter),
+                    icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textPrimary, size: 18),
+                    isDense: true,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                    onChanged: (newFilterName) {
+                      if (newFilterName != null) {
+                        final selected = EarningsFilter.values.firstWhere(
+                          (f) => f.name == newFilterName,
+                          orElse: () => EarningsFilter.oneMonth,
+                        );
+                        context.read<EarningsCubit>().selectFilter(selected);
+                      }
+                    },
+                    items: EarningsFilter.values.map((f) {
+                      return DropdownMenuItem<String>(
+                        value: f.name,
+                        child: Text(f.label),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -510,7 +515,7 @@ class _EarningTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${earning.bookingCode} · ${formatEarnedAt(earning.earnedAt)}',
+                  formatEarnedAt(earning.earnedAt),
                   style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary, height: 1.35),
                 ),
               ],
@@ -518,7 +523,7 @@ class _EarningTile extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            formatVnd(earning.amount),
+            '+${formatVnd(earning.amount)}',
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
           ),
         ],
@@ -695,10 +700,12 @@ class _InlineError extends StatelessWidget {
 
 String _periodLabel(EarningsFilter filter) {
   switch (filter) {
-    case EarningsFilter.thisMonth:
-      return 'tháng này';
-    case EarningsFilter.lastMonth:
-      return 'tháng trước';
+    case EarningsFilter.oneMonth:
+      return '1 tháng';
+    case EarningsFilter.threeMonths:
+      return '3 tháng';
+    case EarningsFilter.sixMonths:
+      return '6 tháng';
     case EarningsFilter.all:
       return 'toàn bộ';
   }
@@ -709,3 +716,13 @@ final BoxDecoration _cardDecoration = BoxDecoration(
   borderRadius: BorderRadius.circular(20),
   border: Border.all(color: AppColors.border),
 );
+
+String _safeFilterValue(EarningsFilter? filter) {
+  if (filter == null) return EarningsFilter.oneMonth.name;
+  try {
+    for (final f in EarningsFilter.values) {
+      if (f.name == filter.name) return f.name;
+    }
+  } catch (_) {}
+  return EarningsFilter.oneMonth.name;
+}

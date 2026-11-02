@@ -31,7 +31,6 @@ class TourCardAirbnb extends StatefulWidget {
 
 class _TourCardAirbnbState extends State<TourCardAirbnb> {
   late bool _isFavorite;
-  final int _activeImageIndex = 0;
   final _currencyFormat = NumberFormat('#,###', 'vi_VN');
 
   @override

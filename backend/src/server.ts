@@ -16,7 +16,7 @@ async function bootstrap(): Promise<void> {
 
   const stopJobs = env.JOBS_ENABLED ? startMaintenanceJobs() : () => undefined;
 
-  server.listen(env.PORT, () => {
+  server.listen(env.PORT, '0.0.0.0', () => {
     logger.info(`API listening on http://localhost:${env.PORT} (${env.NODE_ENV})`);
   });
 

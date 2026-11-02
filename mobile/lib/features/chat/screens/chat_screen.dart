@@ -124,7 +124,7 @@ class _ChatViewState extends State<_ChatView> {
                 return ListView.builder(
                   controller: _scroll,
                   reverse: true,
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   itemCount: state.messages.length + (state.loadingMore ? 1 : 0),
                   itemBuilder: (context, i) {
                     if (i >= state.messages.length) {
@@ -134,9 +134,18 @@ class _ChatViewState extends State<_ChatView> {
                       );
                     }
                     final m = state.messages[i];
-                    return _Bubble(
-                      message: m,
-                      onRetry: m.status == MessageStatus.failed ? () => context.read<ChatCubit>().retry(m.id) : null,
+                    final showDate = i == state.messages.length - 1 ||
+                        !_isSameDay(m.createdAt, state.messages[i + 1].createdAt);
+
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (showDate) _buildDateChip(m.createdAt),
+                        _Bubble(
+                          message: m,
+                          onRetry: m.status == MessageStatus.failed ? () => context.read<ChatCubit>().retry(m.id) : null,
+                        ),
+                      ],
                     );
                   },
                 );
@@ -182,12 +191,81 @@ class _ChatViewState extends State<_ChatView> {
   }
 }
 
+bool _isSameDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
+
+Widget _buildDateChip(DateTime date) {
+  final now = DateTime.now();
+  final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
+  final yesterday = now.subtract(const Duration(days: 1));
+  final isYesterday = date.year == yesterday.year && date.month == yesterday.month && date.day == yesterday.day;
+
+  String label;
+  if (isToday) {
+    label = 'Hôm nay';
+  } else if (isYesterday) {
+    label = 'Hôm qua';
+  } else if (date.year == now.year) {
+    label = DateFormat('dd/MM').format(date);
+  } else {
+    label = DateFormat('dd/MM/yyyy').format(date);
+  }
+
+  return Center(
+    child: Container(
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF64748B),
+        ),
+      ),
+    ),
+  );
+}
+
 String _statusLabel(MessageStatus s) => switch (s) {
       MessageStatus.sending => 'Đang gửi…',
       MessageStatus.sent => 'Đã gửi',
       MessageStatus.delivered => 'Đã nhận',
-      MessageStatus.read => 'Đã đọc',
-      MessageStatus.failed => 'Gửi lỗi · Chạm để thử lại',
+      MessageStatus.read => 'Đã xem',
+      MessageStatus.failed => 'Gửi lỗi · Thử lại',
+    };
+
+Widget _buildStatusIcon(MessageStatus s) => switch (s) {
+      MessageStatus.sending => const SizedBox(
+          width: 10,
+          height: 10,
+          child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white70),
+        ),
+      MessageStatus.sent => const Icon(
+          Icons.check_rounded,
+          size: 13,
+          color: Colors.white70,
+        ),
+      MessageStatus.delivered => const Icon(
+          Icons.done_all_rounded,
+          size: 14,
+          color: Colors.white70,
+        ),
+      MessageStatus.read => const Icon(
+          Icons.done_all_rounded,
+          size: 14,
+          color: Color(0xFF67E8F9),
+        ),
+      MessageStatus.failed => const Icon(
+          Icons.error_outline_rounded,
+          size: 13,
+          color: Colors.amberAccent,
+        ),
     };
 
 class _Bubble extends StatelessWidget {
@@ -199,34 +277,71 @@ class _Bubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final mine = message.isMine;
     final failed = message.status == MessageStatus.failed;
+    final timeStr = _hm.format(message.createdAt);
+
     return Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
         onTap: onRetry,
         child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 3),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
           decoration: BoxDecoration(
-            color: mine ? AppColors.primary : Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: mine ? null : Border.all(color: AppColors.border),
+            gradient: mine
+                ? const LinearGradient(
+                    colors: [Color(0xFF0D9488), Color(0xFF0F766E)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: mine ? null : Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(18),
+              topRight: const Radius.circular(18),
+              bottomLeft: Radius.circular(mine ? 18 : 4),
+              bottomRight: Radius.circular(mine ? 4 : 18),
+            ),
+            border: mine ? null : Border.all(color: const Color(0xFFE2E8F0), width: 1.1),
+            boxShadow: [
+              BoxShadow(
+                color: mine ? const Color(0x180D9488) : Colors.black.withValues(alpha: 0.04),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(message.text, style: TextStyle(color: mine ? Colors.white : AppColors.textPrimary, height: 1.3)),
-              ),
-              const SizedBox(height: 2),
               Text(
-                mine ? '${_hm.format(message.createdAt)} · ${_statusLabel(message.status)}' : _hm.format(message.createdAt),
+                message.text,
                 style: TextStyle(
-                  fontSize: 11,
-                  color: failed ? Colors.redAccent.shade100 : (mine ? Colors.white70 : AppColors.textSecondary),
+                  color: mine ? Colors.white : AppColors.textPrimary,
+                  fontSize: 15,
+                  height: 1.35,
                 ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    mine ? '$timeStr · ${_statusLabel(message.status)}' : timeStr,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: failed
+                          ? Colors.redAccent.shade100
+                          : (mine ? Colors.white70 : AppColors.textMuted),
+                    ),
+                  ),
+                  if (mine) ...[
+                    const SizedBox(width: 4),
+                    _buildStatusIcon(message.status),
+                  ],
+                ],
               ),
             ],
           ),

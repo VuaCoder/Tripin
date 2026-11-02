@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -114,9 +114,16 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
       appBar: AppBar(
         title: const Text(
           'Hồ sơ chuyên môn Hướng dẫn viên',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+            color: AppColors.textPrimary,
+          ),
         ),
-        centerTitle: true,
+        centerTitle: false,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
       ),
       body: BlocConsumer<ProfileBloc, ProfileState>(
         listener: (context, state) {

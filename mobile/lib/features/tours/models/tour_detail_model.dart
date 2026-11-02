@@ -56,11 +56,15 @@ class TourGuideModel extends Equatable {
   final String id;
   final String fullName;
   final String? avatarUrl;
+  final double? ratingAvg;
+  final int? ratingCount;
 
   const TourGuideModel({
     required this.id,
     required this.fullName,
     this.avatarUrl,
+    this.ratingAvg,
+    this.ratingCount,
   });
 
   factory TourGuideModel.fromJson(Map<String, dynamic> json) {
@@ -68,6 +72,8 @@ class TourGuideModel extends Equatable {
       id: json['id'] as String? ?? '',
       fullName: json['fullName'] as String? ?? '',
       avatarUrl: json['avatarUrl'] as String?,
+      ratingAvg: (json['ratingAvg'] as num?)?.toDouble() ?? (json['rating'] as num?)?.toDouble(),
+      ratingCount: (json['ratingCount'] as num?)?.toInt() ?? (json['reviewCount'] as num?)?.toInt(),
     );
   }
 
@@ -75,10 +81,12 @@ class TourGuideModel extends Equatable {
         'id': id,
         'fullName': fullName,
         if (avatarUrl != null) 'avatarUrl': avatarUrl,
+        if (ratingAvg != null) 'ratingAvg': ratingAvg,
+        if (ratingCount != null) 'ratingCount': ratingCount,
       };
 
   @override
-  List<Object?> get props => [id, fullName, avatarUrl];
+  List<Object?> get props => [id, fullName, avatarUrl, ratingAvg, ratingCount];
 }
 
 class TourDepartureModel extends Equatable {

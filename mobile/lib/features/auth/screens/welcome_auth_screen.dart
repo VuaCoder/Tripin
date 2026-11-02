@@ -177,30 +177,15 @@ class _WelcomeAuthScreenState extends State<WelcomeAuthScreen> {
                             ),
                           ],
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Image.asset(
-                              'assets/images/tripri-logo.png',
-                              height: 30,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, _, _) => const Icon(
-                                Icons.explore_rounded,
-                                size: 24,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'Tripri Travel',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.primary,
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                          ],
+                        child: Image.asset(
+                          'assets/images/tripri-logo.png',
+                          height: 30,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, _, _) => const Icon(
+                            Icons.explore_rounded,
+                            size: 24,
+                            color: AppColors.primary,
+                          ),
                         ),
                       ),
                     ],

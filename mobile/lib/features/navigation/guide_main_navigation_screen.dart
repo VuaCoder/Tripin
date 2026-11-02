@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/constants/app_colors.dart';
+import '../chat/screens/conversations_screen.dart';
 import '../earnings/screens/earnings_screen.dart';
 import '../guide/screens/guide_tours_screen.dart';
 import '../profile/bloc/profile_bloc.dart';
@@ -35,27 +36,22 @@ class _GuideMainNavigationScreenState extends State<GuideMainNavigationScreen> {
   static const List<_NavItem> _navItems = [
     _NavItem(
       icon: Icons.calendar_month_outlined,
-      selectedIcon: Icons.calendar_month,
+      selectedIcon: Icons.calendar_month_rounded,
       label: 'Lịch tour',
     ),
     _NavItem(
-      icon: Icons.qr_code_scanner,
-      selectedIcon: Icons.qr_code_scanner,
-      label: 'Quét QR',
-    ),
-    _NavItem(
       icon: Icons.account_balance_wallet_outlined,
-      selectedIcon: Icons.account_balance_wallet,
+      selectedIcon: Icons.account_balance_wallet_rounded,
       label: 'Thu nhập',
     ),
     _NavItem(
-      icon: Icons.chat_bubble_outline,
-      selectedIcon: Icons.chat_bubble,
+      icon: Icons.chat_bubble_outline_rounded,
+      selectedIcon: Icons.chat_bubble_rounded,
       label: 'Tin nhắn',
     ),
     _NavItem(
-      icon: Icons.person_outline,
-      selectedIcon: Icons.person,
+      icon: Icons.person_outline_rounded,
+      selectedIcon: Icons.person_rounded,
       label: 'Tài khoản',
     ),
   ];
@@ -78,24 +74,18 @@ class _GuideMainNavigationScreenState extends State<GuideMainNavigationScreen> {
     setState(() => _currentIndex = index);
     _controller.animateToPage(
       index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOutCubic,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
     );
   }
 
   List<Widget>? _screens;
   List<Widget> get _effectiveScreens => _screens ??= [
         const GuideToursScreen(),
-        _buildTabPlaceholder(
-          title: 'Quét vé QR',
-          subtitle: 'Camera quét mã QR vé E-Ticket điểm danh hành khách',
-          icon: Icons.qr_code_scanner,
-        ),
         const EarningsScreen(),
-        _buildTabPlaceholder(
-          title: 'Tin nhắn đoàn',
-          subtitle: 'Kênh chat trực tuyến với khách đoàn & điều hành tour',
-          icon: Icons.chat_bubble_outline,
+        ConversationsScreen(
+          onExploreTap: () => _onTabSelected(0),
+          showAiOption: false,
         ),
         BlocProvider(
           create: (_) => ProfileBloc(),
@@ -106,6 +96,7 @@ class _GuideMainNavigationScreenState extends State<GuideMainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: PageView(
         controller: _controller,
         physics: const ClampingScrollPhysics(),
@@ -131,111 +122,49 @@ class _GuideMainNavigationScreenState extends State<GuideMainNavigationScreen> {
         child: SafeArea(
           top: false,
           child: SizedBox(
-            height: 62,
+            height: 58,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: List.generate(_navItems.length, (i) {
                 final item = _navItems[i];
                 final isSelected = _currentIndex == i;
+
                 return Expanded(
                   child: InkWell(
                     onTap: () => _onTabSelected(i),
-                    borderRadius: BorderRadius.circular(16),
                     splashColor: Colors.transparent,
                     highlightColor: Colors.transparent,
-                    child: Center(
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeInOut,
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isSelected ? AppColors.secondaryDark : Colors.transparent,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: AppColors.secondaryDark.withValues(alpha: 0.25),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
-                              : null,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedScale(
+                          scale: isSelected ? 1.08 : 1.0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Icon(
+                            isSelected ? item.selectedIcon : item.icon,
+                            size: 24,
+                            color: isSelected ? AppColors.primary : const Color(0xFF64748B),
+                          ),
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              isSelected ? item.selectedIcon : item.icon,
-                              size: 22,
-                              color: isSelected ? Colors.white : const Color(0xFF64748B),
-                            ),
-                            const SizedBox(height: 3),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                item.label,
-                                maxLines: 1,
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                  color: isSelected ? Colors.white : const Color(0xFF64748B),
-                                  letterSpacing: -0.2,
-                                ),
-                              ),
-                            ),
-                          ],
+                        const SizedBox(height: 3),
+                        Text(
+                          item.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected ? AppColors.primary : const Color(0xFF64748B),
+                            letterSpacing: -0.2,
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                 );
               }),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTabPlaceholder({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-  }) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        automaticallyImplyLeading: false,
-      ),
-      backgroundColor: AppColors.background,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: const BoxDecoration(
-                  color: AppColors.secondarySurface,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 36, color: AppColors.secondaryDark),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
-              ),
-            ],
           ),
         ),
       ),

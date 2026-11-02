@@ -50,6 +50,12 @@ class FakeGuideCheckInApi implements GuideCheckInApi {
     return checkInResult ??
         const CheckInResult(ticketId: 'e1', holderName: 'Ann', participants: 2, tourTitle: 'Tour');
   }
+
+  int completeTourCalls = 0;
+  @override
+  Future<void> completeTour(String tourId) async {
+    completeTourCalls++;
+  }
 }
 
 GuideRosterItem item({String id = 'e1', bool checkedIn = false}) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/constants/app_colors.dart';
 import 'package:mobile/features/navigation/traveler_main_navigation_screen.dart';
+import 'package:mobile/features/navigation/guide_main_navigation_screen.dart';
 
 void main() {
   group('TravelerMainNavigationScreen Widget Tests', () {
@@ -57,6 +58,41 @@ void main() {
 
       // Verify navigated page content
       expect(find.widgetWithText(AppBar, 'Chuyến đi'), findsOneWidget);
+    });
+
+    testWidgets('GuideMainNavigationScreen strictly renders 4 tabs: Lịch tour, Thu nhập, Tin nhắn, Tài khoản', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: GuideMainNavigationScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Check strictly 4 tabs exist in correct order on the navigation bar
+      expect(find.descendant(of: find.byType(SafeArea), matching: find.text('Lịch tour')), findsAtLeastNWidgets(1));
+      expect(find.text('Thu nhập'), findsOneWidget);
+      expect(find.text('Tin nhắn'), findsOneWidget);
+      expect(find.text('Tài khoản'), findsOneWidget);
+
+      // Verify QR tab and Ưu đãi HDV tab do not exist on the bottom bar
+      expect(find.text('Quét mã'), findsNothing);
+      expect(find.text('Ưu đãi HDV'), findsNothing);
+
+      // Verify initial tab (Lịch tour) is active in bottom bar
+      final activeTourText = tester.widgetList<Text>(find.text('Lịch tour')).last;
+      expect(activeTourText.style?.color, AppColors.primary);
+
+      // Tap on "Tin nhắn" tab
+      await tester.tap(find.text('Tin nhắn'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
     });
   });
 }

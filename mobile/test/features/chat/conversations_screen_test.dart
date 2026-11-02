@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/constants/app_colors.dart';
 import 'package:mobile/features/chat/bloc/chat_repository.dart';
 import 'package:mobile/features/chat/models/chat_models.dart';
 import 'package:mobile/features/chat/screens/conversations_screen.dart';
+import 'package:mobile/features/chat/widgets/conversations_shimmer_loading.dart';
 
 class _FakeChatRepo extends ChatRepository {
   final List<Conversation> stub;
@@ -13,8 +15,20 @@ class _FakeChatRepo extends ChatRepository {
   Future<List<Conversation>> listConversations({int page = 1, int limit = 30}) async => stub;
 }
 
+class _DelayedChatRepo extends ChatRepository {
+  final Future<List<Conversation>> future;
+  _DelayedChatRepo(this.future);
+
+  @override
+  Future<List<Conversation>> listConversations({int page = 1, int limit = 30}) async => future;
+}
+
 void main() {
   group('ConversationsScreen Tests (Image 3 Design & Messenger Style)', () {
+    setUp(() {
+      ConversationsScreen.resetCache();
+    });
+
     testWidgets('Renders Empty State matching Screenshot 3 with 3D bubbles and green button', (tester) async {
       bool exploreTapped = false;
       final repo = _FakeChatRepo([]);
@@ -36,32 +50,14 @@ void main() {
       // Nút settings không xuất hiện (đã bỏ theo yêu cầu)
       expect(find.byIcon(Icons.settings), findsNothing);
 
-      // Các đoạn text dịch tiếng Việt chuẩn theo Ảnh 3
-      expect(find.text('Chưa có cuộc trò chuyện nào'), findsOneWidget);
-      expect(
-        find.text(
-          'Lên kế hoạch cho chuyến đi, trải nghiệm hoặc dịch vụ để kết nối với người tổ chức tại đây.',
-        ),
-        findsOneWidget,
-      );
-
-      // Nút CTA màu xanh: "Bắt đầu khám phá"
-      final getStartedFinder = find.byKey(const Key('get-started-button'));
-      expect(getStartedFinder, findsOneWidget);
-      expect(find.text('Bắt đầu khám phá'), findsOneWidget);
-
-      // Kiểm tra màu xanh của nút
-      final container = tester.widget<Container>(getStartedFinder);
-      final decoration = container.decoration as BoxDecoration;
-      expect(decoration.color, AppColors.primary);
+      // Màn hình trống đã được bỏ theo yêu cầu, Trợ lý AI luôn hiện ngay đầu danh sách
+      expect(find.text('Chưa có cuộc trò chuyện nào'), findsNothing);
+      expect(find.byKey(const Key('ai-assistant-conversation-item')), findsOneWidget);
+      expect(find.text('Trợ lý AI Tripri'), findsOneWidget);
 
       // Không có phần Past conversations theo yêu cầu
       expect(find.text('Past conversations'), findsNothing);
       expect(find.text('Cuộc trò chuyện trước đây'), findsNothing);
-
-      // Bấm nút CTA
-      await tester.tap(getStartedFinder);
-      expect(exploreTapped, isTrue);
     });
 
     testWidgets('Expanding Search bar opens on tap and closes on close button', (tester) async {
@@ -147,6 +143,29 @@ void main() {
 
       expect(find.text('Nguyễn Văn Hướng Dẫn'), findsOneWidget);
       expect(find.text('Trần Thị Hướng Dẫn'), findsNothing);
+    });
+
+    testWidgets('Renders ConversationsShimmerLoading instead of CircularProgressIndicator while fetching', (tester) async {
+      final completer = Completer<List<Conversation>>();
+      final delayedRepo = _DelayedChatRepo(completer.future);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ConversationsScreen(repository: delayedRepo),
+        ),
+      );
+      await tester.pump();
+
+      // Kiểm tra có ConversationsShimmerLoading và không dùng CircularProgressIndicator
+      expect(find.byType(ConversationsShimmerLoading), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+
+      completer.complete([]);
+      await tester.pumpAndSettle();
+
+      // Sau khi tải xong mà rỗng: lập tức hiện danh sách với Trợ lý AI
+      expect(find.byType(ConversationsShimmerLoading), findsNothing);
+      expect(find.byKey(const Key('ai-assistant-conversation-item')), findsOneWidget);
     });
   });
 }

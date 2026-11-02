@@ -260,10 +260,29 @@ class _TripActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (state.tripStarted) {
-      return ElevatedButton.icon(
-        onPressed: () => _finishTrip(context),
-        icon: const Icon(Icons.flag_outlined),
-        label: const Text('Hoàn thành chuyến đi'),
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0FDF4),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFBBF7D0)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.directions_run_rounded, color: AppColors.success, size: 24),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Chuyến đi đang diễn ra. Chuyến đi sẽ được kết thúc tự động khi hoàn thành lịch trình.',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF166534),
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -276,11 +295,11 @@ class _TripActions extends StatelessWidget {
           icon: const Icon(Icons.play_arrow),
           label: const Text('Bắt đầu chuyến đi'),
         ),
-        if (!state.allCheckedIn && roster != null)
+        if (!state.allCheckedIn && roster != null && remaining > 0)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
-              remaining > 0 ? 'Còn $remaining vé chưa điểm danh.' : 'Chưa có vé để bắt đầu.',
+              'Còn $remaining vé chưa điểm danh.',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
@@ -305,35 +324,6 @@ class _TripActions extends StatelessWidget {
       // shortcut: local UI state only; persist it when the backend exposes a trip state.
       context.read<GuideCheckInCubit>().startTrip();
     }
-  }
-
-  Future<void> _finishTrip(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Hoàn thành chuyến đi?'),
-        content: const Text('Xác nhận chuyến đi đã kết thúc.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Hủy')),
-          ElevatedButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Hoàn thành')),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-
-    // shortcut: local UI state only; the backend has no trip-state field yet.
-    context.read<GuideCheckInCubit>().finishTrip();
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Đã hoàn thành chuyến đi'),
-        content: Text('Đoàn ${roster?.total ?? 0} vé đã điểm danh đủ.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Đóng')),
-        ],
-      ),
-    );
-    if (context.mounted) Navigator.of(context).pop();
   }
 }
 

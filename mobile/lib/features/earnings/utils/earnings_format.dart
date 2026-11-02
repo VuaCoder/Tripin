@@ -22,15 +22,17 @@ EarningsRange earningsRangeFor(EarningsFilter filter, {DateTime? now}) {
       vnWallTime.subtract(_vnOffset).toIso8601String();
 
   switch (filter) {
-    case EarningsFilter.thisMonth:
-      final start = DateTime.utc(vnNow.year, vnNow.month, 1);
-      final end = DateTime.utc(vnNow.year, vnNow.month + 1, 1)
-          .subtract(const Duration(milliseconds: 1));
+    case EarningsFilter.oneMonth:
+      final start = DateTime.utc(vnNow.year, vnNow.month - 1, vnNow.day);
+      final end = vnNow;
       return EarningsRange(from: iso(start), to: iso(end));
-    case EarningsFilter.lastMonth:
-      final start = DateTime.utc(vnNow.year, vnNow.month - 1, 1);
-      final end = DateTime.utc(vnNow.year, vnNow.month, 1)
-          .subtract(const Duration(milliseconds: 1));
+    case EarningsFilter.threeMonths:
+      final start = DateTime.utc(vnNow.year, vnNow.month - 3, vnNow.day);
+      final end = vnNow;
+      return EarningsRange(from: iso(start), to: iso(end));
+    case EarningsFilter.sixMonths:
+      final start = DateTime.utc(vnNow.year, vnNow.month - 6, vnNow.day);
+      final end = vnNow;
       return EarningsRange(from: iso(start), to: iso(end));
     case EarningsFilter.all:
       return const EarningsRange();

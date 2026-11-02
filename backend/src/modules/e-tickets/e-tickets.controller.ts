@@ -37,6 +37,11 @@ export class ETicketsController {
     const { body, params } = validated<GuideCheckInBodyInput, unknown, GuideTourParams>(req);
     sendOk(res, await this.service.checkInForGuide(userActor(req).userId, params.tourId, body.code));
   };
+
+  completeTripForGuide: RequestHandler = async (req, res) => {
+    const { params } = validated<unknown, unknown, GuideTourParams>(req);
+    sendOk(res, await this.service.completeTripForGuide(userActor(req).userId, params.tourId));
+  };
 }
 
 export const eTicketsController = new ETicketsController();

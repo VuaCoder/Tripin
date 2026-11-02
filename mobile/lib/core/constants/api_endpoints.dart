@@ -16,7 +16,8 @@ class ApiEndpoints {
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        return 'http://10.0.2.2:3001/api/v1';
+        // Mặc định kết nối backend Render đã deploy để cài và chạy APK trên mọi thiết bị
+        return 'https://tripin-fydg.onrender.com/api/v1';
       case TargetPlatform.windows:
       default:
         return 'http://localhost:3001/api/v1';
@@ -26,7 +27,9 @@ class ApiEndpoints {
   // Auth endpoints
   static const String login = '/auth/login';
   static const String googleLogin = '/auth/google';
-  static const String googleClientId = '995213432133-q5nlil8mt2svci8uqlom7if5sgukgoa3.apps.googleusercontent.com';
+  static const String _envGoogleClientId = String.fromEnvironment('GOOGLE_CLIENT_ID');
+  static const String _defaultGoogleClientId = '46093276475-v14jrskgsti9rpj9fjpijv64ccublmkb.apps.googleusercontent.com';
+  static String get googleClientId => _envGoogleClientId.isNotEmpty ? _envGoogleClientId : _defaultGoogleClientId;
   static const String register = '/auth/register';
   static const String verifyOtp = '/auth/verify-otp';
   static const String resendOtp = '/auth/resend-otp';
@@ -100,6 +103,7 @@ class ApiEndpoints {
   static String guideVerification(String tourId) => '/guide/tours/$tourId/verification';
   static String guideTicketRoster(String tourId) => '/guide/e-tickets/$tourId';
   static String guideCheckIn(String tourId) => '/guide/e-tickets/$tourId/check-in';
+  static String guideCompleteTour(String tourId) => '/guide/e-tickets/$tourId/complete';
 
   static String conversationRead(String id) => '/chat/conversations/$id/read';
 

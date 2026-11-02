@@ -43,6 +43,7 @@ class TourDetailTimelineWidget extends StatelessWidget {
     }
 
     return ListView.separated(
+      padding: EdgeInsets.zero,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: itinerary.length,

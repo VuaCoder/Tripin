@@ -8,8 +8,16 @@ import 'features/wishlist/bloc/wishlist_cubit.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('vi', null);
-  await NotificationService().init();
+  try {
+    await initializeDateFormatting('vi', null);
+  } catch (e) {
+    debugPrint('Date formatting initialization failed: $e');
+  }
+  try {
+    await NotificationService().init();
+  } catch (e) {
+    debugPrint('Notification service initialization failed: $e');
+  }
   runApp(const TripriApp());
 }
 

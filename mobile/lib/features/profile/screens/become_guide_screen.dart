@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -133,7 +132,7 @@ class _BecomeGuideScreenState extends State<BecomeGuideScreen> {
       }
     } catch (_) {
       final prefs = await SharedPreferences.getInstance();
-      final localStatus = prefs.getString('${_storagePrefix}${widget.user.id}_status');
+      final localStatus = prefs.getString('$_storagePrefix${widget.user.id}_status');
       if (localStatus != null && mounted) {
         setState(() {
           _applicationStatus = localStatus;
@@ -275,7 +274,7 @@ class _BecomeGuideScreenState extends State<BecomeGuideScreen> {
         final app = data['application'] as Map<String, dynamic>? ?? payload;
 
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('${_storagePrefix}${widget.user.id}_status', 'PENDING');
+        await prefs.setString('$_storagePrefix${widget.user.id}_status', 'PENDING');
 
         if (mounted) {
           setState(() {
@@ -301,7 +300,7 @@ class _BecomeGuideScreenState extends State<BecomeGuideScreen> {
       }
     } catch (e) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('${_storagePrefix}${widget.user.id}_status', 'PENDING');
+      await prefs.setString('$_storagePrefix${widget.user.id}_status', 'PENDING');
       if (mounted) {
         setState(() {
           _applicationStatus = 'PENDING';
@@ -321,7 +320,7 @@ class _BecomeGuideScreenState extends State<BecomeGuideScreen> {
       if (res.statusCode == 200) {
         _realtimeTimer?.cancel();
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('${_storagePrefix}${widget.user.id}_status', 'APPROVED');
+        await prefs.setString('$_storagePrefix${widget.user.id}_status', 'APPROVED');
 
         if (mounted) {
           setState(() {
@@ -389,7 +388,7 @@ class _BecomeGuideScreenState extends State<BecomeGuideScreen> {
         if (res.statusCode == 200) {
           _realtimeTimer?.cancel();
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('${_storagePrefix}${widget.user.id}_status', 'REJECTED');
+          await prefs.setString('$_storagePrefix${widget.user.id}_status', 'REJECTED');
 
           if (mounted) {
             setState(() {
@@ -598,7 +597,6 @@ class _BecomeGuideScreenState extends State<BecomeGuideScreen> {
           final stageIndex = index ~/ 2;
           final isCompleted = stageIndex < _activeStep;
           final isCurrent = stageIndex == _activeStep;
-          final isUpcoming = stageIndex > _activeStep;
 
           return InkWell(
             onTap: () {
@@ -740,15 +738,11 @@ class _BecomeGuideScreenState extends State<BecomeGuideScreen> {
         _buildSectionTitle('2. Giấy phép & Kinh nghiệm'),
         const SizedBox(height: 10),
         _buildCardContainer([
-          TextFormField(
+          _buildTextFormField(
             controller: _licenseNumberController,
-            decoration: const InputDecoration(
-              labelText: 'Số thẻ Hướng dẫn viên du lịch *',
-              hintText: 'VD: 10118-HDVQT-0029',
-              prefixIcon: Icon(Icons.badge_outlined, color: Color(0xFF0F766E)),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            ),
+            label: 'Số thẻ Hướng dẫn viên du lịch *',
+            icon: Icons.badge_outlined,
+            hint: 'VD: 10118-HDVQT-0029',
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập số thẻ hành nghề' : null,
           ),
           const Divider(height: 1),
@@ -1696,34 +1690,93 @@ class _BecomeGuideScreenState extends State<BecomeGuideScreen> {
     required IconData icon,
     required String hint,
     TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
   }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        prefixIcon: Icon(icon, color: const Color(0xFF0F766E)),
-        border: InputBorder.none,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(icon, color: const Color(0xFF0F766E), size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF64748B),
+                    letterSpacing: 0.1,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                TextFormField(
+                  controller: controller,
+                  keyboardType: keyboardType,
+                  validator: validator,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E293B),
+                  ),
+                  decoration: InputDecoration(
+                    hintText: hint,
+                    hintStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.normal,
+                      color: Color(0xFF94A3B8),
+                    ),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    focusedErrorBorder: InputBorder.none,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildReadOnlyField(String label, String value, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xFF94A3B8), size: 20),
+          Icon(icon, color: const Color(0xFF0F766E), size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF64748B),
+                    letterSpacing: 0.1,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
               ],
             ),
           ),

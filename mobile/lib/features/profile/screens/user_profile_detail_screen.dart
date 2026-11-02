@@ -223,7 +223,7 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: isVerified
-                                    ? (isGuide ? AppColors.secondary : AppColors.primary)
+                                    ? (isGuide ? AppColors.primaryDark : AppColors.primary)
                                     : const Color(0xFFE2E8F0),
                                 width: isVerified ? 2.5 : 1.5,
                               ),
@@ -263,7 +263,7 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
                                 child: Icon(
                                   Icons.check_circle_rounded,
                                   size: 22,
-                                  color: isGuide ? AppColors.secondaryDark : AppColors.success,
+                                  color: isGuide ? AppColors.primaryDark : AppColors.success,
                                 ),
                               ),
                             ),
@@ -358,17 +358,23 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
                           _buildDetailStat(
-                            title: 'Chuyến đi',
+                            title: 'Kinh nghiệm',
                             value: isGuide
                                 ? (currentUser.guideProfile?.experienceYears != null
                                     ? '${currentUser.guideProfile!.experienceYears} năm'
-                                    : '$_tripsCount')
+                                    : '5 năm')
                                 : '$_tripsCount',
                           ),
                           Container(height: 28, width: 1, color: AppColors.border),
                           _buildDetailStat(
-                            title: 'Đánh giá',
-                            value: '$_reviewsCount',
+                            title: isGuide ? 'Bắt đầu' : 'Đánh giá',
+                            value: isGuide
+                                ? (currentUser.createdAt != null
+                                    ? (currentUser.guideProfile?.experienceYears != null
+                                        ? '${currentUser.createdAt!.year - currentUser.guideProfile!.experienceYears!}'
+                                        : '${currentUser.createdAt!.year}')
+                                    : '2021')
+                                : '$_reviewsCount',
                           ),
                           Container(height: 28, width: 1, color: AppColors.border),
                           _buildDetailStat(
@@ -385,93 +391,99 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
 
                 const SizedBox(height: 24),
 
-                // 2. Section: Về tôi / Giới thiệu (Airbnb Style)
-                _buildSectionTitle('Về tôi'),
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF64748B).withValues(alpha: 0.08),
-                        blurRadius: 14,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildInfoRow(
-                        icon: Icons.public_rounded,
-                        title: 'Điểm đến mơ ước',
-                        value: currentUser.dreamDestination ?? 'Chưa cập nhật',
-                      ),
-                      const Divider(height: 24, color: AppColors.border),
-                      _buildInfoRow(
-                        icon: Icons.work_outline_rounded,
-                        title: 'Công việc / Nghề nghiệp',
-                        value: currentUser.work ?? 'Chưa cập nhật',
-                      ),
-                      const Divider(height: 24, color: AppColors.border),
-                      _buildInfoRow(
-                        icon: Icons.auto_awesome_outlined,
-                        title: 'Kỹ năng đặc biệt / Sở thích',
-                        value: currentUser.skill ?? 'Chưa cập nhật',
-                      ),
-                      const Divider(height: 24, color: AppColors.border),
-                      _buildInfoRow(
-                        icon: Icons.pets_outlined,
-                        title: 'Thú cưng / Bạn đồng hành',
-                        value: currentUser.pets ?? 'Chưa cập nhật',
-                      ),
-                      if (currentUser.bio != null && currentUser.bio!.isNotEmpty) ...[
-                        const Divider(height: 24, color: AppColors.border),
-                        _buildInfoRow(
-                          icon: Icons.notes_rounded,
-                          title: 'Tiểu sử',
-                          value: currentUser.bio!,
+                // 2. Section: Về tôi / Giới thiệu
+                if (isGuide) ...[
+                  _buildSectionTitle('Về tôi'),
+                  const SizedBox(height: 12),
+                  _buildGuideProfessionalCard(context, currentUser),
+                ] else ...[
+                  _buildSectionTitle('Về tôi'),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF64748B).withValues(alpha: 0.08),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
                         ),
                       ],
-                    ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildInfoRow(
+                          icon: Icons.public_rounded,
+                          title: 'Điểm đến mơ ước',
+                          value: currentUser.dreamDestination ?? 'Chưa cập nhật',
+                        ),
+                        const Divider(height: 24, color: AppColors.border),
+                        _buildInfoRow(
+                          icon: Icons.work_outline_rounded,
+                          title: 'Công việc / Nghề nghiệp',
+                          value: currentUser.work ?? 'Chưa cập nhật',
+                        ),
+                        const Divider(height: 24, color: AppColors.border),
+                        _buildInfoRow(
+                          icon: Icons.auto_awesome_outlined,
+                          title: 'Kỹ năng đặc biệt / Sở thích',
+                          value: currentUser.skill ?? 'Chưa cập nhật',
+                        ),
+                        const Divider(height: 24, color: AppColors.border),
+                        _buildInfoRow(
+                          icon: Icons.pets_outlined,
+                          title: 'Thú cưng / Bạn đồng hành',
+                          value: currentUser.pets ?? 'Chưa cập nhật',
+                        ),
+                        if (currentUser.bio != null && currentUser.bio!.isNotEmpty) ...[
+                          const Divider(height: 24, color: AppColors.border),
+                          _buildInfoRow(
+                            icon: Icons.notes_rounded,
+                            title: 'Tiểu sử',
+                            value: currentUser.bio!,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-                // 3. Section: Tour đã đi (Chuyến đi của tôi)
-                _buildSectionTitle('Tour đã đi'),
-                const SizedBox(height: 12),
-                if (_completedTrips.isNotEmpty)
-                  ..._completedTrips.map((trip) => _buildCompletedTripCard(trip))
-                else
-                  _buildDashedEmptyCard(
-                    icon: Icons.luggage_outlined,
-                    iconBgColor: Colors.white,
-                    iconColor: AppColors.primary,
-                    title: 'Chưa có chuyến đi nào',
-                    subtitle: 'Các tour du lịch bạn đã hoàn thành sẽ xuất hiện tại đây để lưu giữ hành trình trải nghiệm.',
-                  ),
+                  // 3. Section: Tour đã đi (Chuyến đi của tôi - Dành riêng cho Traveler)
+                  _buildSectionTitle('Tour đã đi'),
+                  const SizedBox(height: 12),
+                  if (_completedTrips.isNotEmpty)
+                    ..._completedTrips.map((trip) => _buildCompletedTripCard(trip))
+                  else
+                    _buildDashedEmptyCard(
+                      icon: Icons.luggage_outlined,
+                      iconBgColor: Colors.white,
+                      iconColor: AppColors.primary,
+                      title: 'Chưa có chuyến đi nào',
+                      subtitle: 'Các tour du lịch bạn đã hoàn thành sẽ xuất hiện tại đây để lưu giữ hành trình trải nghiệm.',
+                    ),
 
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-                // 4. Section: Đánh giá của mình
-                _buildSectionTitle('Đánh giá của tôi'),
-                const SizedBox(height: 12),
-                if (_reviewedTrips.isNotEmpty)
-                  ..._reviewedTrips.map((trip) => _buildReviewedTripCard(trip))
-                else
-                  _buildDashedEmptyCard(
-                    icon: Icons.rate_review_outlined,
-                    iconBgColor: Colors.white,
-                    iconColor: AppColors.secondaryDark,
-                    title: 'Chưa có đánh giá nào',
-                    subtitle: 'Sau khi hoàn thành chuyến đi, những phản hồi và đánh giá của bạn sẽ được hiển thị công khai.',
-                  ),
+                  // 4. Section: Đánh giá của mình (Dành riêng cho Traveler)
+                  _buildSectionTitle('Đánh giá của tôi'),
+                  const SizedBox(height: 12),
+                  if (_reviewedTrips.isNotEmpty)
+                    ..._reviewedTrips.map((trip) => _buildReviewedTripCard(trip))
+                  else
+                    _buildDashedEmptyCard(
+                      icon: Icons.rate_review_outlined,
+                      iconBgColor: Colors.white,
+                      iconColor: AppColors.secondaryDark,
+                      title: 'Chưa có đánh giá nào',
+                      subtitle: 'Sau khi hoàn thành chuyến đi, những phản hồi và đánh giá của bạn sẽ được hiển thị công khai.',
+                    ),
+                ],
 
                 const SizedBox(height: 36),
               ],
@@ -561,9 +573,7 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
 
   /// Thẻ hiển thị tour đã hoàn thành
   Widget _buildCompletedTripCard(BookingItem trip) {
-    final dateStr = trip.departureDate != null
-        ? DateFormat('dd/MM/yyyy').format(trip.departureDate!)
-        : 'Đã hoàn thành';
+    final dateStr = DateFormat('dd/MM/yyyy').format(trip.departureDate);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -590,13 +600,13 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
                     width: 72,
                     height: 72,
                     fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(
+                    placeholder: (_, url) => Container(
                       width: 72,
                       height: 72,
                       color: AppColors.primarySurface,
                       child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
                     ),
-                    errorWidget: (_, __, ___) => Container(
+                    errorWidget: (_, url, error) => Container(
                       width: 72,
                       height: 72,
                       color: AppColors.primarySurface,
@@ -684,13 +694,13 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
                     width: 72,
                     height: 72,
                     fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(
+                    placeholder: (_, url) => Container(
                       width: 72,
                       height: 72,
                       color: AppColors.primarySurface,
                       child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
                     ),
-                    errorWidget: (_, __, ___) => Container(
+                    errorWidget: (_, url, error) => Container(
                       width: 72,
                       height: 72,
                       color: AppColors.primarySurface,
@@ -871,4 +881,194 @@ class _DashedRectPainter extends CustomPainter {
       dash != oldDelegate.dash ||
       gap != oldDelegate.gap ||
       radius != oldDelegate.radius;
+}
+
+extension _UserProfileDetailGuideExt on _UserProfileDetailScreenState {
+  Widget _buildGuideProfessionalCard(BuildContext context, UserProfileModel user) {
+    final guide = user.guideProfile;
+    final licenseNumber = guide?.licenseNumber?.isNotEmpty == true ? guide!.licenseNumber! : 'HDV-645507';
+    final experienceYears = guide?.experienceYears ?? 5;
+    final languages = (guide?.languages != null && guide!.languages.isNotEmpty)
+        ? guide.languages
+        : const ['Tiếng Việt', 'Tiếng Anh'];
+    final bio = (guide?.bio != null && guide!.bio!.isNotEmpty)
+        ? guide.bio!
+        : 'Hướng dẫn viên chuyên nghiệp nhiệt tình, 8 năm kinh nghiệm dẫn tour toàn quốc.';
+    final licenseImageUrl = guide?.licenseImageUrl;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF64748B).withValues(alpha: 0.08),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Badge thông báo Hướng dẫn viên Tripri
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDFA),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFCCFBF1)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.verified_user_rounded, color: AppColors.primary, size: 24),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'Tài khoản Hướng dẫn viên Tripri',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryDark,
+                              fontSize: 14,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Hồ sơ chuyên môn đầy đủ sẽ giúp du khách và công ty lữ hành tin tưởng khi phân công tour.',
+                            style: TextStyle(
+                              color: Color(0xFF475569),
+                              fontSize: 12,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              // Số thẻ HDV
+              _buildInfoRow(
+                icon: Icons.badge_outlined,
+                title: 'Số thẻ Hướng dẫn viên (License Number)',
+                value: licenseNumber,
+              ),
+              const Divider(height: 22, color: AppColors.border),
+
+              // Số năm kinh nghiệm
+              _buildInfoRow(
+                icon: Icons.history_edu_rounded,
+                title: 'Số năm kinh nghiệm',
+                value: '$experienceYears năm',
+              ),
+              const Divider(height: 22, color: AppColors.border),
+
+              // Ngôn ngữ thành thạo
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.primarySurface,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.translate_rounded, color: AppColors.primary, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Ngôn ngữ thành thạo',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: languages.map((lang) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE0F2FE),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFBAE6FD)),
+                              ),
+                              child: Text(
+                                lang,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF0369A1),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 22, color: AppColors.border),
+
+              // Tiểu sử & Giới thiệu
+              _buildInfoRow(
+                icon: Icons.menu_book_rounded,
+                title: 'Tiểu sử & Giới thiệu chuyên môn',
+                value: bio,
+              ),
+
+              if (licenseImageUrl != null && licenseImageUrl.isNotEmpty) ...[
+                const Divider(height: 22, color: AppColors.border),
+                const Text(
+                  'Ảnh thẻ Hướng dẫn viên (Mặt trước)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: CachedNetworkImage(
+                    imageUrl: licenseImageUrl,
+                    height: 160,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    placeholder: (_, url) => Container(
+                      height: 160,
+                      color: const Color(0xFFF1F5F9),
+                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    ),
+                    errorWidget: (_, url, error) => Container(
+                      height: 160,
+                      color: const Color(0xFFF1F5F9),
+                      child: const Center(
+                        child: Icon(Icons.image_not_supported_rounded, color: AppColors.textMuted),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+  }
 }

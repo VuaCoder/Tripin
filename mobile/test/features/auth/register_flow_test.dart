@@ -104,7 +104,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Tripri Travel'), findsOneWidget);
+      expect(find.byType(Image), findsWidgets);
       expect(find.text('Đăng nhập'), findsOneWidget);
       expect(find.text('Đăng ký'), findsOneWidget);
     });

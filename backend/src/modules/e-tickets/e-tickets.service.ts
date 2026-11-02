@@ -135,6 +135,43 @@ export class ETicketsService {
     return toGuideCheckIn(updated, assignment.tour.title);
   }
 
+  /**
+   * Complete trip for the tour: transitions all CONFIRMED bookings of this tour to COMPLETED,
+   * emits completion events which triggers earnings creation for the tour guide and notifies travelers.
+   */
+  async completeTripForGuide(guideId: string, tourId: string): Promise<{ completedCount: number }> {
+    const assignment = await this.assertGuideTour(guideId, tourId);
+    const tickets = await this.tickets.listByTour(tourId);
+    const bookingIds = [...new Set(tickets.map((t) => t.bookingId))];
+
+    let count = 0;
+    const { bookingsRepository } = await import('../bookings/bookings.repository');
+    const { bookingEvents } = await import('../bookings/bookings.events');
+    const { toBookingFacts } = await import('../bookings/bookings.mapper');
+
+    for (const bookingId of bookingIds) {
+      const booking = await bookingsRepository.findById(bookingId);
+      if (booking && booking.status === 'CONFIRMED') {
+        const done = await bookingsRepository.transition(booking.id, ['CONFIRMED'], {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+        });
+        if (done) {
+          count++;
+          const facts = toBookingFacts(done);
+          await this.notifications.notify(facts.travelerId, {
+            type: NOTIFICATION_TYPE.BOOKING_COMPLETED,
+            title: 'Chuyến đi đã hoàn thành!',
+            body: `Chuyến đi "${facts.tourTitle}" của bạn đã hoàn tất. Cảm ơn bạn đã đồng hành cùng HDV!`,
+            data: { bookingId: facts.id, tourId: facts.tourId },
+          });
+          await bookingEvents.emitCompleted(facts);
+        }
+      }
+    }
+    return { completedCount: count };
+  }
+
   // ----------------------------------------------------- helpers
 
   /** 404 for a tour the guide does not lead (or one that was archived), so assignments are not enumerable. */
