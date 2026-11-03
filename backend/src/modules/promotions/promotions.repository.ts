@@ -3,7 +3,7 @@ export type ConsumePromotionResult = { success: true } | { success: false; reaso
 import { containsText } from '../../utils/search';
 import type { ListPromotionsQuery } from './promotions.types';
 import type { PromotionScope } from '@travel-platform/constants';
-import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
+import { nullIfNotFound, prisma, type DbExecutor, type Prisma } from '../../config/database';
 import type { Promotion as StoredPromotion, PromotionCodeInstance, UserVoucher } from '../../generated/prisma/client';
 import { numericRecord, type NumericRecord } from '../../utils/money';
 type Promotion = NumericRecord<StoredPromotion>;
@@ -77,12 +77,13 @@ export class PromotionsRepository {
 
   async findByCode(
     code: string,
+    db: DbExecutor = prisma,
   ): Promise<{ promotion: PromotionRecord; codeInstance?: PromotionCodeInstanceRecord } | null> {
     const upper = code.toUpperCase();
-    const promotion = await prisma.promotion.findUnique({ where: { code: upper } });
+    const promotion = await db.promotion.findUnique({ where: { code: upper } });
     if (promotion) return { promotion: numericRecord(promotion) };
 
-    const instance = await prisma.promotionCodeInstance.findUnique({
+    const instance = await db.promotionCodeInstance.findUnique({
       where: { code: upper },
       include: { promotion: true },
     });
@@ -115,8 +116,8 @@ export class PromotionsRepository {
   }
 
   /** Atomically takes one redemption; enforces global quota and user usage limit in a single transaction with row locking. */
-  async consume(id: string, userId?: string): Promise<ConsumePromotionResult> {
-    return prisma.$transaction(async (tx) => {
+  async consume(id: string, userId?: string, db?: DbExecutor): Promise<ConsumePromotionResult> {
+    const work = async (tx: DbExecutor): Promise<ConsumePromotionResult> => {
       const rows = await tx.$queryRaw<
         Array<{ id: string; usedCount: number; usageLimit: number | null; usageLimitPerUser: number | null; isActive: boolean }>
       >`
@@ -163,12 +164,34 @@ export class PromotionsRepository {
       `;
 
       return { success: true };
-    });
+    };
+    return db ? work(db) : prisma.$transaction(work);
+
   }
 
   /** Gives a redemption back (booking cancelled / payment expired). Never goes below 0. */
-  async release(id: string): Promise<void> {
-    await prisma.promotion.updateMany({ where: { id, usedCount: { gt: 0 } }, data: { usedCount: { decrement: 1 } } });
+  async release(id: string, db: DbExecutor = prisma): Promise<void> {
+    await db.promotion.updateMany({ where: { id, usedCount: { gt: 0 } }, data: { usedCount: { decrement: 1 } } });
+  }
+
+  /** Lock parents in one deterministic order before touching instances or counters. */
+  async lockPromotions(ids: readonly string[], db: DbExecutor): Promise<void> {
+    for (const id of [...new Set(ids)].sort()) {
+      await db.$queryRaw`SELECT "id" FROM "Promotion" WHERE "id" = ${id}::uuid FOR UPDATE`;
+    }
+  }
+
+  findUsedCodesByBooking(bookingId: string, db: DbExecutor): Promise<PromotionCodeInstanceRecord[]> {
+    return db.promotionCodeInstance.findMany({ where: { bookingId, isUsed: true }, orderBy: [{ promotionId: 'asc' }, { id: 'asc' }] });
+  }
+
+  findRedemptionsByBooking(bookingId: string, db: DbExecutor) {
+    return db.promotionRedemption.findMany({ where: { bookingId }, select: { promotionId: true, codeInstanceId: true } });
+  }
+
+  async isUniqueBatch(id: string, db: DbExecutor): Promise<boolean> {
+    const row = await db.promotion.findUnique({ where: { id }, select: { codeType: true } });
+    return row?.codeType === 'UNIQUE_BATCH';
   }
 
   // --- Unique Code Instances ---
@@ -197,19 +220,20 @@ export class PromotionsRepository {
     return { items, total };
   }
 
-  async consumeCodeInstance(instanceId: string, bookingId: string, usedById: string): Promise<boolean> {
-    const changed = await prisma.$executeRaw`
+  async consumeCodeInstance(instanceId: string, bookingId: string, usedById: string, db: DbExecutor): Promise<boolean> {
+    const changed = await db.$executeRaw`
       UPDATE "PromotionCodeInstance"
       SET "isUsed" = true, "usedAt" = NOW(), "bookingId" = ${bookingId}::uuid, "usedById" = ${usedById}::uuid
       WHERE "id" = ${instanceId}::uuid AND NOT "isUsed"`;
     return changed === 1;
   }
 
-  async releaseCodeInstance(instanceId: string): Promise<void> {
-    await prisma.promotionCodeInstance.update({
-      where: { id: instanceId },
+  async releaseCodeInstance(instanceId: string, bookingId: string, db: DbExecutor): Promise<boolean> {
+    const result = await db.promotionCodeInstance.updateMany({
+      where: { id: instanceId, bookingId, isUsed: true },
       data: { isUsed: false, usedAt: null, bookingId: null, usedById: null },
     });
+    return result.count === 1;
   }
 
   // --- User Vouchers ---
@@ -232,9 +256,9 @@ export class PromotionsRepository {
     return rows.map((row) => ({ ...row, promotion: numericRecord(row.promotion) }));
   }
 
-  async countUserUsages(userId: string, promotionId: string): Promise<number> {
+  async countUserUsages(userId: string, promotionId: string, db: DbExecutor = prisma): Promise<number> {
     const [redemptionCount, legacyBookingCount] = await Promise.all([
-      prisma.promotionRedemption.count({
+      db.promotionRedemption.count({
         where: {
           promotionId,
           booking: {
@@ -243,7 +267,7 @@ export class PromotionsRepository {
           },
         },
       }),
-      prisma.booking.count({
+      db.booking.count({
         where: {
           travelerId: userId,
           status: { not: 'CANCELLED' },
@@ -253,6 +277,7 @@ export class PromotionsRepository {
       }),
     ]);
     return redemptionCount + legacyBookingCount;
+
   }
 
   async findExpiringUserVouchers(windowHours: number = 48, now = new Date()): Promise<UserVoucherRecord[]> {

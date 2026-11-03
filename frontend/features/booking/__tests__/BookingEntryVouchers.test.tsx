@@ -191,4 +191,16 @@ describe('BookingEntryPage Shopee-style Voucher Selector', () => {
     // Applied platform voucher shows on the page
     expect(screen.getByText('PLATFORM50')).toBeDefined();
   });
+
+  it('explains a previously used unique voucher in Vietnamese', async () => {
+    mockPreviewPromotion.mockReturnValue({
+      unwrap: vi.fn(async () => { throw { status: 409, data: { error: { code: 'PROMOTION_CODE_USED', message: 'This voucher code has already been used' } } }; }),
+    });
+    render(<BookingEntryPage />);
+    fireEvent.click(screen.getByText('Chọn hoặc nhập mã'));
+    fireEvent.click(screen.getByText('Voucher đại lý 10%'));
+    await waitFor(() => {
+      expect(screen.getByText('Mã giảm giá này đã được sử dụng. Vui lòng chọn mã khác.')).toBeDefined();
+    });
+  });
 });

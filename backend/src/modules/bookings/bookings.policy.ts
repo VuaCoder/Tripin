@@ -15,6 +15,9 @@ export const BOOKING_POLICY = {
   /** No 0/O/1/I so codes are easy to read out loud. */
   CODE_ALPHABET: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789',
   CODE_MAX_ATTEMPTS: 5,
+  /** A same-key request can be waiting for the first booking's transaction to commit. */
+  IDEMPOTENCY_WAIT_ATTEMPTS: 20,
+  IDEMPOTENCY_WAIT_MS: 50,
 } as const;
 
 const S = BOOKING_STATUS;

@@ -440,7 +440,7 @@ model PromotionRedemption {
   promotionId    String         @db.Uuid
   scope          PromotionScope
   code           String
-  discountAmount Int
+  discountAmount BigInt
   codeInstanceId String?        @db.Uuid
   createdAt      DateTime       @default(now())
 

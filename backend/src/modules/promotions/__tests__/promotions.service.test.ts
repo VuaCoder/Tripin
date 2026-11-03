@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DISCOUNT_TYPE, PROMOTION_CODE_TYPE, PROMOTION_SCOPE, ROLES } from '@travel-platform/constants';
 import { computeDiscount, assertApplicable } from '../promotions.policy';
 import { PromotionsService } from '../promotions.service';
+import type { ConsumePromotionResult } from '../promotions.repository';
 
 const DAY = 24 * 60 * 60 * 1000;
 const ago = (d: number) => new Date(Date.now() - d * DAY);
@@ -43,7 +44,7 @@ function make(seed: P[] = [], tourAgency = 'a1') {
       return doc ?? null;
     }),
     list: vi.fn(async () => ({ items: db, total: db.length })),
-    consume: vi.fn(async () => true),
+    consume: vi.fn(async (): Promise<boolean | ConsumePromotionResult> => true),
     release: vi.fn(async () => undefined),
     countUserUsages: vi.fn(async () => 0),
   };

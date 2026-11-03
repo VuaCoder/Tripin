@@ -1,7 +1,9 @@
 import type { DateRange } from '../../utils/date-range';
 import { BOOKING_STATUS, type BookingStatus, type PromotionScope } from '@travel-platform/constants';
-import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
-import type { Booking as StoredBooking, PromotionRedemption } from '../../generated/prisma/client';
+import { nullIfNotFound, prisma, type DbExecutor, type Prisma } from '../../config/database';
+import type { Booking as StoredBooking, PromotionRedemption as StoredRedemption } from '../../generated/prisma/client';
+type PromotionRedemption = NumericRecord<StoredRedemption>;
+
 import { numericRecord, type NumericRecord } from '../../utils/money';
 import { safeVndNumber } from '@travel-platform/constants';
 type Booking = NumericRecord<StoredBooking>;
@@ -39,12 +41,13 @@ export type NewBooking = Pick<
   | 'bookingCode' | 'travelerId' | 'agencyId' | 'tourId' | 'departureId' | 'tourTitle' | 'departureDate' | 'endDate'
   | 'participants' | 'unitPrice' | 'subtotal' | 'totalAmount' | 'commissionBps' | 'commissionAmount' | 'agencyAmount'
 > &
-  Partial<BookingScalars> & { contact: { fullName: string; phone: string }; promotion?: PromotionSnapshot; redemptions?: PromotionRedemptionInput[] };
+  Partial<BookingScalars> & { id?: string; contact: { fullName: string; phone: string }; promotion?: PromotionSnapshot; redemptions?: PromotionRedemptionInput[] };
+
 
 /** Plain-field changes (`null` clears a nullable column). */
 export type BookingPatch = Partial<BookingScalars>;
 
-function toRecord(stored: StoredBooking & { redemptions?: PromotionRedemption[] }): BookingRecord {
+function toRecord(stored: StoredBooking & { redemptions?: StoredRedemption[] }): BookingRecord {
   const row = numericRecord(stored);
   const { contactName, contactPhone, promotionId, promotionCode, promotionScope, redemptions, ...rest } = row;
   return {
@@ -54,7 +57,7 @@ function toRecord(stored: StoredBooking & { redemptions?: PromotionRedemption[] 
       promotionId && promotionCode && promotionScope
         ? { promotionId, code: promotionCode, scope: promotionScope, discountAmount: row.discountAmount }
         : undefined,
-    ...(redemptions ? { redemptions } : {}),
+    ...(redemptions ? { redemptions: redemptions.map(numericRecord) } : {}),
   };
 }
 
@@ -62,9 +65,10 @@ const PAID = { in: [BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.COMPLETED] };
 const NEWEST_FIRST: Prisma.BookingOrderByWithRelationInput[] = [{ createdAt: 'desc' }, { id: 'desc' }];
 
 export class BookingsRepository {
-  async create(data: NewBooking): Promise<BookingRecord> {
+  async create(data: NewBooking, db: DbExecutor = prisma): Promise<BookingRecord> {
     const { contact, promotion, redemptions, ...scalars } = data;
-    const row = await prisma.booking.create({
+    const row = await db.booking.create({
+
       data: {
         ...scalars,
         contactName: contact.fullName,
@@ -96,18 +100,19 @@ export class BookingsRepository {
     return row ? toRecord(row) : null;
   }
 
-  async findRedemptions(bookingId: string): Promise<PromotionRedemption[]> {
-    return prisma.promotionRedemption.findMany({ where: { bookingId } });
+  async findRedemptions(bookingId: string, db: DbExecutor = prisma): Promise<PromotionRedemption[]> {
+    return (await db.promotionRedemption.findMany({ where: { bookingId } })).map(numericRecord);
   }
 
-  async findByRequestId(travelerId: string, clientRequestId: string): Promise<BookingRecord | null> {
-    const row = await prisma.booking.findUnique({ where: { travelerId_clientRequestId: { travelerId, clientRequestId } } });
+  async findByRequestId(travelerId: string, clientRequestId: string, db: DbExecutor = prisma): Promise<BookingRecord | null> {
+    const row = await db.booking.findUnique({ where: { travelerId_clientRequestId: { travelerId, clientRequestId } }, include: { redemptions: true } });
+
     return row ? toRecord(row) : null;
   }
 
   /** Compare-and-set on status: returns null when the booking is no longer in one of the expected statuses. */
-  async transition(id: string, expected: readonly BookingStatus[], patch: BookingPatch): Promise<BookingRecord | null> {
-    const row = await prisma.booking.update({ where: { id, status: { in: [...expected] } }, data: patch }).catch(nullIfNotFound);
+  async transition(id: string, expected: readonly BookingStatus[], patch: BookingPatch, db: DbExecutor = prisma): Promise<BookingRecord | null> {
+    const row = await db.booking.update({ where: { id, status: { in: [...expected] } }, data: patch }).catch(nullIfNotFound);
     return row ? toRecord(row) : null;
   }
 
@@ -120,8 +125,8 @@ export class BookingsRepository {
     return this.paginate({ travelerId, ...(status ? { status } : {}) }, NEWEST_FIRST, page);
   }
 
-  async countByTraveler(travelerId: string): Promise<number> {
-    return prisma.booking.count({ where: { travelerId, status: { not: 'CANCELLED' } } });
+  async countByTraveler(travelerId: string, db: DbExecutor = prisma): Promise<number> {
+    return db.booking.count({ where: { travelerId, status: { not: 'CANCELLED' } } });
   }
 
   listByAgency(agencyId: string, query: ListAgencyBookingsQuery) {

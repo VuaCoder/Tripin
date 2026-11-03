@@ -3,6 +3,7 @@ import { BOOKING_CANCEL_REASON, BOOKING_STATUS } from '@travel-platform/constant
 import { bookingEvents } from '../bookings.events';
 import { BookingsService, generateBookingCode } from '../bookings.service';
 import { BOOKING_POLICY } from '../bookings.policy';
+import type { DbExecutor, TransactionRunner } from '../../../config/database';
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -54,7 +55,7 @@ function make(seed: B[] = [], opts: { commissionBps?: number; windowHours?: numb
   const db = [...seed];
   const repo = {
     create: vi.fn(async (data: B) => {
-      const doc = booking({ ...data, id: `b${db.length + 1}` });
+      const doc = booking({ ...data, id: data.id ?? `b${db.length + 1}` });
       db.push(doc);
       return doc;
     }),
@@ -87,14 +88,21 @@ function make(seed: B[] = [], opts: { commissionBps?: number; windowHours?: numb
   };
   const promotions = {
     redeem: vi.fn(async () => ({ promotionId: 'p1', code: 'SUMMER10', scope: 'AGENCY', discountAmount: 200_000 })),
-    release: vi.fn(async () => undefined),
+    lockForBooking: vi.fn(async () => undefined),
+    releaseForBooking: vi.fn(async () => undefined),
   };
   const settings = {
     getCommissionBps: vi.fn(async () => opts.commissionBps ?? 1000),
     getPolicyNumber: vi.fn(async () => ('windowHours' in opts ? opts.windowHours : 24)),
   };
   const notifications = { notify: vi.fn(async () => undefined) };
-  return { service: new BookingsService(repo as never, tours as never, promotions as never, settings as never, notifications), repo, tours, promotions, settings, notifications, db };
+  const tx = {} as DbExecutor;
+  const transact: TransactionRunner = async (work) => {
+    const before = structuredClone(db);
+    try { return await work(tx); }
+    catch (error) { db.splice(0, db.length, ...before); throw error; }
+  };
+  return { service: new BookingsService(repo as never, tours as never, promotions as never, settings as never, notifications, transact), repo, tours, promotions, settings, notifications, db, tx };
 }
 
 const input = {
@@ -158,12 +166,12 @@ describe('createBooking', () => {
     expect(tours.releaseSeats).toHaveBeenCalledWith('t1', 'd1', 2);
   });
 
-  it('gives seats AND the promotion back if saving fails', async () => {
+  it('gives seats back after a failed transaction without separately releasing rolled-back vouchers', async () => {
     const { service, tours, promotions, repo } = make();
     repo.create.mockRejectedValueOnce(new Error('db down'));
     await expect(service.createBooking('u1', { ...input, promotionCode: 'SUMMER10' })).rejects.toThrow('db down');
     expect(tours.releaseSeats).toHaveBeenCalledOnce();
-    expect(promotions.release).toHaveBeenCalledWith('p1');
+    expect(promotions.releaseForBooking).not.toHaveBeenCalled();
   });
 
   it('is idempotent with clientRequestId: the retry returns the first booking and reserves nothing', async () => {
@@ -178,6 +186,32 @@ describe('createBooking', () => {
     repo.create.mockRejectedValueOnce(Object.assign(new Error('dup'), { code: 'P2002', meta: { target: ['bookingCode'] } }) as never);
     await expect(service.createBooking('u1', input)).resolves.toMatchObject({ status: 'PENDING' });
     expect(repo.create).toHaveBeenCalledTimes(2);
+  });
+
+  it('passes the internal booking UUID and the same transaction into redemption and persistence', async () => {
+    const { service, repo, promotions, tx } = make();
+    await service.createBooking('u1', { ...input, promotionCode: 'SUMMER10' });
+    const data = repo.create.mock.calls[0]![0];
+    expect(promotions.redeem).toHaveBeenCalledWith('SUMMER10', 't1', 2_000_000, expect.objectContaining({ bookingId: data.id, userId: 'u1', tx }));
+    expect(repo.create).toHaveBeenCalledWith(expect.anything(), tx);
+  });
+
+  it('keeps a committed booking and its seats when notification fails', async () => {
+    const { service, tours, notifications, db } = make();
+    notifications.notify.mockRejectedValueOnce(new Error('mail unavailable'));
+    await expect(service.createBooking('u1', input)).resolves.toMatchObject({ status: 'PENDING' });
+    expect(db).toHaveLength(1);
+    expect(tours.releaseSeats).not.toHaveBeenCalled();
+  });
+
+  it('retries transient write conflicts without reserving seats again', async () => {
+    const { service, repo, tours, promotions } = make();
+    repo.create.mockRejectedValueOnce(Object.assign(new Error('write conflict'), { code: 'P2034' }));
+    await expect(service.createBooking('u1', { ...input, promotionCode: 'SUMMER10' })).resolves.toMatchObject({ status: 'PENDING' });
+    expect(repo.create).toHaveBeenCalledTimes(2);
+    expect(promotions.redeem).toHaveBeenCalledTimes(2);
+    expect(tours.reserveSeats).toHaveBeenCalledOnce();
+    expect(tours.releaseSeats).not.toHaveBeenCalled();
   });
 
   it('generates readable codes', () => {
@@ -206,12 +240,12 @@ describe('ownership', () => {
 describe('cancelMine', () => {
   it('cancels a PENDING booking, releases seats and the promotion, and tells the agency', async () => {
     const promotion = { promotionId: 'p1', code: 'X', scope: 'AGENCY', discountAmount: 1 };
-    const { service, tours, promotions, notifications, db } = make([booking({ promotion })]);
+    const { service, tours, promotions, notifications, db, tx } = make([booking({ promotion })]);
     const dto = await service.cancelMine('u1', 'b1', 'changed my mind');
     expect(dto.status).toBe('CANCELLED');
     expect(db[0]!.cancelReason).toBe(BOOKING_CANCEL_REASON.TRAVELER_REQUEST);
     expect(tours.releaseSeats).toHaveBeenCalledWith('t1', 'd1', 2);
-    expect(promotions.release).toHaveBeenCalledWith('p1');
+    expect(promotions.releaseForBooking).toHaveBeenCalledWith('b1', 'p1', tx);
     expect(notifications.notify).toHaveBeenCalledWith('a1', expect.objectContaining({ type: 'BOOKING_CANCELLED' }));
   });
 
@@ -224,8 +258,7 @@ describe('cancelMine', () => {
 
     await service.cancelMine('u1', 'b1', 'cancelled');
 
-    expect(promotions.release).toHaveBeenCalledWith('p-agency', undefined);
-    expect(promotions.release).toHaveBeenCalledWith('p-platform', 'inst-1');
+    expect(promotions.releaseForBooking).toHaveBeenCalledWith('b1', undefined, expect.anything());
   });
 
   it('emits the cancelled event so e-tickets can be invalidated', async () => {

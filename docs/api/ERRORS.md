@@ -56,6 +56,7 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `CATEGORY_EXISTS` | 409 | A category with the same slug exists |
 | `PROMOTION_CODE_EXISTS` | 409 | The promotion code is already used |
 | `PROMOTION_IN_USE` | 409 | The discount of a promotion that has been used cannot change |
+| `PROMOTION_ACTIVE_LOCKED` | 400 | Discount terms and start date cannot change after a promotion has started |
 | `PROMOTION_INACTIVE` | 409 | The promotion is switched off |
 | `PROMOTION_NOT_STARTED` | 409 | The promotion has not started |
 | `PROMOTION_EXPIRED` | 409 | The promotion has ended |

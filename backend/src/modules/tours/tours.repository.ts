@@ -125,8 +125,8 @@ export class ToursRepository {
     });
   }
 
-  async findById(id: string): Promise<TourRecord | null> {
-    const row = await prisma.tour.findUnique({ where: { id }, include });
+  async findById(id: string, db: DbExecutor = prisma): Promise<TourRecord | null> {
+    const row = await db.tour.findUnique({ where: { id }, include });
     return row ? toRecord(row) : null;
   }
 
