@@ -75,6 +75,10 @@ function make(seed: B[] = [], opts: { commissionBps?: number; windowHours?: numb
     listByAgency: vi.fn(async () => ({ items: db, total: db.length })),
     findExpiredPending: vi.fn(async () => db.filter((b) => b.status === 'PENDING' && b.paymentExpiresAt < new Date())),
     findDueForCompletion: vi.fn(async () => db.filter((b) => b.status === 'CONFIRMED' && b.endDate < new Date())),
+    findRedemptions: vi.fn(async (bookingId: string) => {
+      const doc = db.find((b) => b.id === bookingId);
+      return (doc as any)?.redemptions ?? [];
+    }),
   };
   const tours = {
     getBookableDeparture: vi.fn(async () => departure()),
@@ -117,6 +121,27 @@ describe('createBooking', () => {
     await service.createBooking('u1', { ...input, promotionCode: 'SUMMER10' });
     expect(promotions.redeem).toHaveBeenCalledWith('SUMMER10', 't1', 2_000_000, expect.anything());
     expect(repo.create.mock.calls[0]![0]).toMatchObject({ discountAmount: 200_000, totalAmount: 1_800_000, commissionAmount: 180_000, agencyAmount: 1_620_000 });
+  });
+
+  it('records separate PromotionRedemption instances for stacked agency and platform vouchers (PAY-001, PAY-014)', async () => {
+    const { service, repo, promotions } = make();
+    promotions.redeem
+      .mockResolvedValueOnce({ promotionId: 'p-agency', code: 'AGENCY10', scope: 'AGENCY', discountAmount: 100_000 })
+      .mockResolvedValueOnce({ promotionId: 'p-platform', code: 'PLATFORM20', scope: 'PLATFORM', discountAmount: 200_000 });
+
+    await service.createBooking('u1', {
+      ...input,
+      agencyPromotionCode: 'AGENCY10',
+      platformPromotionCode: 'PLATFORM20',
+    });
+
+    expect(repo.create).toHaveBeenCalledOnce();
+    const createPayload = repo.create.mock.calls[0]![0];
+    expect(createPayload.discountAmount).toBe(300_000);
+    expect(createPayload.redemptions).toEqual([
+      { promotionId: 'p-agency', scope: 'AGENCY', code: 'AGENCY10', discountAmount: 100_000, codeInstanceId: undefined },
+      { promotionId: 'p-platform', scope: 'PLATFORM', code: 'PLATFORM20', discountAmount: 200_000, codeInstanceId: undefined },
+    ]);
   });
 
   it('refuses more participants than free seats before touching inventory', async () => {
@@ -188,6 +213,19 @@ describe('cancelMine', () => {
     expect(tours.releaseSeats).toHaveBeenCalledWith('t1', 'd1', 2);
     expect(promotions.release).toHaveBeenCalledWith('p1');
     expect(notifications.notify).toHaveBeenCalledWith('a1', expect.objectContaining({ type: 'BOOKING_CANCELLED' }));
+  });
+
+  it('releases all stacked promotions when cancelling a booking with multiple redemptions (PAY-001, PAY-014)', async () => {
+    const redemptions = [
+      { id: 'r1', bookingId: 'b1', promotionId: 'p-agency', scope: 'AGENCY' as const, code: 'AGENCY10', discountAmount: 100_000, codeInstanceId: null, createdAt: new Date() },
+      { id: 'r2', bookingId: 'b1', promotionId: 'p-platform', scope: 'PLATFORM' as const, code: 'PLATFORM20', discountAmount: 200_000, codeInstanceId: 'inst-1', createdAt: new Date() },
+    ];
+    const { service, promotions } = make([booking({ redemptions })]);
+
+    await service.cancelMine('u1', 'b1', 'cancelled');
+
+    expect(promotions.release).toHaveBeenCalledWith('p-agency', undefined);
+    expect(promotions.release).toHaveBeenCalledWith('p-platform', 'inst-1');
   });
 
   it('emits the cancelled event so e-tickets can be invalidated', async () => {

@@ -237,6 +237,8 @@ model Booking {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  redemptions     PromotionRedemption[]
+
   @@unique([travelerId, clientRequestId])
   @@index([travelerId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([agencyId, status, createdAt(sort: Desc), id(sort: Desc)])
@@ -396,6 +398,7 @@ model Promotion {
 
   codeInstances     PromotionCodeInstance[]
   userVouchers      UserVoucher[]
+  redemptions       PromotionRedemption[]
 
   @@index([scope, ownerId, createdAt(sort: Desc)])
   @@index([applyType, isActive])
@@ -431,6 +434,23 @@ model UserVoucher {
 
   @@unique([userId, promotionId])
   @@index([userId, isUsed])
+}
+
+model PromotionRedemption {
+  id             String         @id @default(uuid()) @db.Uuid
+  bookingId      String         @db.Uuid
+  promotionId    String         @db.Uuid
+  scope          PromotionScope
+  code           String
+  discountAmount Int
+  codeInstanceId String?        @db.Uuid
+  createdAt      DateTime       @default(now())
+
+  booking        Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  promotion      Promotion      @relation(fields: [promotionId], references: [id], onDelete: Restrict)
+
+  @@index([bookingId])
+  @@index([promotionId])
 }
 
 model SubscriptionPlan {

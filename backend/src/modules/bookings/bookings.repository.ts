@@ -1,7 +1,7 @@
 import type { DateRange } from '../../utils/date-range';
 import { BOOKING_STATUS, type BookingStatus, type PromotionScope } from '@travel-platform/constants';
 import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
-import type { Booking } from '../../generated/prisma/client';
+import type { Booking, PromotionRedemption } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
 import type { ListAgencyBookingsQuery, RevenueTotals } from './bookings.types';
 
@@ -12,12 +12,21 @@ export interface PromotionSnapshot {
   discountAmount: number;
 }
 
+export interface PromotionRedemptionInput {
+  promotionId: string;
+  scope: PromotionScope;
+  code: string;
+  discountAmount: number;
+  codeInstanceId?: string;
+}
+
 type FlattenedColumns = 'contactName' | 'contactPhone' | 'promotionId' | 'promotionCode' | 'promotionScope';
 
 /** A stored booking; the contact and the applied-promotion snapshot are exposed as nested objects. */
 export type BookingRecord = Omit<Booking, FlattenedColumns> & {
   contact: { fullName: string; phone: string };
   promotion?: PromotionSnapshot;
+  redemptions?: PromotionRedemption[];
 };
 
 type BookingScalars = Omit<Booking, 'id' | 'createdAt' | 'updatedAt' | 'guestPricing' | FlattenedColumns> & { guestPricing: Prisma.InputJsonValue };
@@ -27,13 +36,13 @@ export type NewBooking = Pick<
   | 'bookingCode' | 'travelerId' | 'agencyId' | 'tourId' | 'departureId' | 'tourTitle' | 'departureDate' | 'endDate'
   | 'participants' | 'unitPrice' | 'subtotal' | 'totalAmount' | 'commissionBps' | 'commissionAmount' | 'agencyAmount'
 > &
-  Partial<BookingScalars> & { contact: { fullName: string; phone: string }; promotion?: PromotionSnapshot; premiumVoucherToken?: string };
+  Partial<BookingScalars> & { contact: { fullName: string; phone: string }; promotion?: PromotionSnapshot; redemptions?: PromotionRedemptionInput[]; premiumVoucherToken?: string };
 
 /** Plain-field changes (`null` clears a nullable column). */
 export type BookingPatch = Partial<BookingScalars>;
 
-function toRecord(row: Booking): BookingRecord {
-  const { contactName, contactPhone, promotionId, promotionCode, promotionScope, ...rest } = row;
+function toRecord(row: Booking & { redemptions?: PromotionRedemption[] }): BookingRecord {
+  const { contactName, contactPhone, promotionId, promotionCode, promotionScope, redemptions, ...rest } = row;
   return {
     ...rest,
     contact: { fullName: contactName, phone: contactPhone },
@@ -41,6 +50,7 @@ function toRecord(row: Booking): BookingRecord {
       promotionId && promotionCode && promotionScope
         ? { promotionId, code: promotionCode, scope: promotionScope, discountAmount: row.discountAmount }
         : undefined,
+    ...(redemptions ? { redemptions } : {}),
   };
 }
 
@@ -49,7 +59,7 @@ const NEWEST_FIRST: Prisma.BookingOrderByWithRelationInput[] = [{ createdAt: 'de
 
 export class BookingsRepository {
   async create(data: NewBooking): Promise<BookingRecord> {
-    const { contact, promotion, premiumVoucherToken, ...scalars } = data;
+    const { contact, promotion, redemptions, premiumVoucherToken, ...scalars } = data;
     const createData = {
       data: {
         ...scalars,
@@ -58,7 +68,21 @@ export class BookingsRepository {
         ...(promotion
           ? { promotionId: promotion.promotionId, promotionCode: promotion.code, promotionScope: promotion.scope, discountAmount: promotion.discountAmount }
           : {}),
+        ...(redemptions && redemptions.length > 0
+          ? {
+              redemptions: {
+                create: redemptions.map((r) => ({
+                  promotionId: r.promotionId,
+                  scope: r.scope,
+                  code: r.code,
+                  discountAmount: r.discountAmount,
+                  codeInstanceId: r.codeInstanceId,
+                })),
+              },
+            }
+          : {}),
       },
+      include: { redemptions: true },
     };
     const row = data.premiumVoucherId ? await prisma.$transaction(async tx => {
       const booking = await tx.booking.create(createData);
@@ -70,8 +94,12 @@ export class BookingsRepository {
   }
 
   async findById(id: string): Promise<BookingRecord | null> {
-    const row = await prisma.booking.findUnique({ where: { id } });
+    const row = await prisma.booking.findUnique({ where: { id }, include: { redemptions: true } });
     return row ? toRecord(row) : null;
+  }
+
+  async findRedemptions(bookingId: string): Promise<PromotionRedemption[]> {
+    return prisma.promotionRedemption.findMany({ where: { bookingId } });
   }
 
   async findByRequestId(travelerId: string, clientRequestId: string): Promise<BookingRecord | null> {

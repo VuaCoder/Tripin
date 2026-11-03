@@ -69,3 +69,7 @@ __pycache__/
 
 # 3D hero source assets and build pipeline (kept local; models are copied to frontend/public/models)
 blender/
+
+
+# Local planning & task assignment docs
+BUG_FIX_ASSIGNMENT_AND_COMMIT_PLAN.md
