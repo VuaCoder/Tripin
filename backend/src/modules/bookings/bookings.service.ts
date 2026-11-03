@@ -129,6 +129,15 @@ export class BookingsService {
 
       const primaryApplied = appliedAgency ?? appliedPlatform;
       const combinedCode = [appliedAgency?.code, appliedPlatform?.code].filter(Boolean).join(' + ');
+      const redemptions: PromotionRedemptionInput[] = [appliedAgency, appliedPlatform]
+        .filter((p): p is AppliedPromotion => Boolean(p))
+        .map((p) => ({
+          promotionId: p.promotionId,
+          scope: p.scope,
+          code: p.code,
+          discountAmount: p.discountAmount,
+          codeInstanceId: p.codeInstanceId,
+        }));
 
       const created = await this.createWithUniqueCode({
         travelerId,
@@ -152,6 +161,7 @@ export class BookingsService {
               discountAmount,
             }
           : undefined,
+        redemptions: redemptions.length > 0 ? redemptions : undefined,
         discountAmount,
         totalAmount,
         commissionBps,
@@ -466,7 +476,14 @@ export class BookingsService {
     if (!cancelled) return null;
 
     await this.tours.releaseSeats(booking.tourId, booking.departureId, booking.participants);
-    if (booking.promotion) await this.promotions.release(booking.promotion.promotionId);
+    const redemptions = (await this.bookings.findRedemptions?.(booking.id)) ?? booking.redemptions ?? [];
+    if (redemptions && redemptions.length > 0) {
+      for (const r of redemptions) {
+        await this.promotions.release(r.promotionId, r.codeInstanceId ?? undefined);
+      }
+    } else if (booking.promotion) {
+      await this.promotions.release(booking.promotion.promotionId);
+    }
     await bookingEvents.emitCancelled(toBookingFacts(cancelled));
     return cancelled;
   }

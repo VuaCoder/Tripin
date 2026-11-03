@@ -22,6 +22,15 @@ export function toBookingDto(booking: BookingRecord): BookingDto {
     promotion: booking.promotion
       ? { code: booking.promotion.code, scope: booking.promotion.scope as PromotionScope, discountAmount: booking.promotion.discountAmount }
       : undefined,
+    redemptions: booking.redemptions
+      ? booking.redemptions.map((r) => ({
+          id: r.id,
+          promotionId: r.promotionId,
+          scope: r.scope as PromotionScope,
+          code: r.code,
+          discountAmount: r.discountAmount,
+        }))
+      : undefined,
     totalAmount: booking.totalAmount,
     contact: { fullName: booking.contact.fullName, phone: booking.contact.phone },
     notes: booking.notes ?? undefined,

@@ -26,6 +26,14 @@ export interface ListAgencyBookingsQuery extends ListBookingsQuery {
 }
 
 /** What the traveler sees. No commission data. */
+export interface PromotionRedemptionDto {
+  id: string;
+  promotionId: string;
+  scope: PromotionScope;
+  code: string;
+  discountAmount: number;
+}
+
 export interface BookingDto {
   guestPricing?: import('@travel-platform/constants').GuestPriceBreakdown;
   id: string;
@@ -40,6 +48,7 @@ export interface BookingDto {
   subtotal: number;
   discountAmount: number;
   promotion?: { code: string; scope: PromotionScope; discountAmount: number };
+  redemptions?: PromotionRedemptionDto[];
   totalAmount: number;
   contact: { fullName: string; phone: string };
   notes?: string;

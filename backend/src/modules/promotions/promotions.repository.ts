@@ -187,13 +187,26 @@ export class PromotionsRepository {
   }
 
   async countUserUsages(userId: string, promotionId: string): Promise<number> {
-    return prisma.booking.count({
-      where: {
-        travelerId: userId,
-        status: { not: 'CANCELLED' },
-        promotionId,
-      },
-    });
+    const [redemptionCount, legacyBookingCount] = await Promise.all([
+      prisma.promotionRedemption.count({
+        where: {
+          promotionId,
+          booking: {
+            travelerId: userId,
+            status: { not: 'CANCELLED' },
+          },
+        },
+      }),
+      prisma.booking.count({
+        where: {
+          travelerId: userId,
+          status: { not: 'CANCELLED' },
+          promotionId,
+          redemptions: { none: {} },
+        },
+      }),
+    ]);
+    return redemptionCount + legacyBookingCount;
   }
 
   async findExpiringUserVouchers(windowHours: number = 48, now = new Date()): Promise<UserVoucherRecord[]> {
