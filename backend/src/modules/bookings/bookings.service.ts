@@ -1,5 +1,5 @@
 import type { DateRange } from '../../utils/date-range';
-import { BOOKING_CANCEL_REASON, BOOKING_STATUS, PROMOTION_SCOPE, type BookingCancelReason, type BookingStatus, type PromotionScope } from '@travel-platform/constants';
+import { BOOKING_CANCEL_REASON, BOOKING_STATUS, PROMOTION_SCOPE, ratioVnd, sumVnd, type BookingCancelReason, type BookingStatus, type PromotionScope } from '@travel-platform/constants';
 import { isUniqueViolation } from '../../config/database';
 import { AppError } from '../../utils/app-error';
 import { randomInt } from 'node:crypto';
@@ -121,11 +121,11 @@ export class BookingsService {
         else appliedPlatform = applied;
       }
 
-      const discountAmount = (appliedAgency?.discountAmount ?? 0) + (appliedPlatform?.discountAmount ?? 0);
+      const discountAmount = sumVnd([appliedAgency?.discountAmount ?? 0, appliedPlatform?.discountAmount ?? 0]);
       const totalAmount = Math.max(0, subtotal - discountAmount);
       if (totalAmount < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
       const commissionBps = await this.settings.getCommissionBps();
-      const commissionAmount = Math.floor((totalAmount * commissionBps) / 10_000);
+      const commissionAmount = ratioVnd(totalAmount, commissionBps, 10_000);
 
       const primaryApplied = appliedAgency ?? appliedPlatform;
       const combinedCode = [appliedAgency?.code, appliedPlatform?.code].filter(Boolean).join(' + ');
@@ -422,7 +422,7 @@ export class BookingsService {
     const last6Months = Array.from({ length: 6 }, (_, index) => {
       const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5 + index, 1)).toISOString().slice(0, 7);
       const days = monthlyDays.filter((day) => day.date.startsWith(month) && day.date <= now.toISOString().slice(0, 10));
-      return { month, bookings: days.reduce((sum, day) => sum + day.bookings, 0), net: days.reduce((sum, day) => sum + day.net, 0) };
+      return { month, bookings: days.reduce((sum, day) => sum + day.bookings, 0), net: sumVnd(days.map((day) => day.net)) };
     });
     return { byStatus, totals, last30Days, last6Months, topTours, customers };
   }

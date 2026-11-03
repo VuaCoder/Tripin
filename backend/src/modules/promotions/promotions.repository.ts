@@ -2,7 +2,9 @@ import { containsText } from '../../utils/search';
 import type { ListPromotionsQuery } from './promotions.types';
 import type { PromotionScope } from '@travel-platform/constants';
 import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
-import type { Promotion, PromotionCodeInstance, UserVoucher } from '../../generated/prisma/client';
+import type { Promotion as StoredPromotion, PromotionCodeInstance, UserVoucher } from '../../generated/prisma/client';
+import { numericRecord, type NumericRecord } from '../../utils/money';
+type Promotion = NumericRecord<StoredPromotion>;
 import { toSkip, type PageRequest } from '../../utils/pagination';
 
 export type PromotionRecord = Promotion;
@@ -57,17 +59,18 @@ export type PromotionPatch = Partial<
 >;
 
 export class PromotionsRepository {
-  create(data: NewPromotion): Promise<PromotionRecord> {
-    return prisma.promotion.create({
+  async create(data: NewPromotion): Promise<PromotionRecord> {
+    return numericRecord(await prisma.promotion.create({
       data: {
         ...data,
         code: data.code ? data.code.toUpperCase() : undefined,
       },
-    });
+    }));
   }
 
-  findById(id: string): Promise<PromotionRecord | null> {
-    return prisma.promotion.findUnique({ where: { id } });
+  async findById(id: string): Promise<PromotionRecord | null> {
+    const row = await prisma.promotion.findUnique({ where: { id } });
+    return row ? numericRecord(row) : null;
   }
 
   async findByCode(
@@ -75,20 +78,21 @@ export class PromotionsRepository {
   ): Promise<{ promotion: PromotionRecord; codeInstance?: PromotionCodeInstanceRecord } | null> {
     const upper = code.toUpperCase();
     const promotion = await prisma.promotion.findUnique({ where: { code: upper } });
-    if (promotion) return { promotion };
+    if (promotion) return { promotion: numericRecord(promotion) };
 
     const instance = await prisma.promotionCodeInstance.findUnique({
       where: { code: upper },
       include: { promotion: true },
     });
     if (instance && instance.promotion) {
-      return { promotion: instance.promotion, codeInstance: instance };
+      return { promotion: numericRecord(instance.promotion), codeInstance: instance };
     }
     return null;
   }
 
-  updateById(id: string, patch: PromotionPatch): Promise<PromotionRecord | null> {
-    return prisma.promotion.update({ where: { id }, data: patch }).catch(nullIfNotFound);
+  async updateById(id: string, patch: PromotionPatch): Promise<PromotionRecord | null> {
+    const row = await prisma.promotion.update({ where: { id }, data: patch }).catch(nullIfNotFound);
+    return row ? numericRecord(row) : null;
   }
 
   async list(filter: { scope: PromotionScope; ownerId?: string } & Omit<ListPromotionsQuery, 'page' | 'limit'>, page: PageRequest) {
@@ -105,7 +109,7 @@ export class PromotionsRepository {
       prisma.promotion.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit }),
       prisma.promotion.count({ where }),
     ]);
-    return { items, total };
+    return { items: items.map(numericRecord), total };
   }
 
   /** Atomically takes one redemption; false when the limit is already reached (no over-redeeming under concurrency). */
@@ -164,20 +168,22 @@ export class PromotionsRepository {
 
   // --- User Vouchers ---
   async collectUserVoucher(userId: string, promotionId: string): Promise<UserVoucherRecord> {
-    return prisma.userVoucher.upsert({
+    const row = await prisma.userVoucher.upsert({
       where: { userId_promotionId: { userId, promotionId } },
       create: { userId, promotionId },
       update: {},
       include: { promotion: true },
     });
+    return { ...row, promotion: numericRecord(row.promotion) };
   }
 
   async listUserVouchers(userId: string): Promise<UserVoucherRecord[]> {
-    return prisma.userVoucher.findMany({
+    const rows = await prisma.userVoucher.findMany({
       where: { userId },
       include: { promotion: true },
       orderBy: { collectedAt: 'desc' },
     });
+    return rows.map((row) => ({ ...row, promotion: numericRecord(row.promotion) }));
   }
 
   async countUserUsages(userId: string, promotionId: string): Promise<number> {
@@ -192,7 +198,7 @@ export class PromotionsRepository {
 
   async findExpiringUserVouchers(windowHours: number = 48, now = new Date()): Promise<UserVoucherRecord[]> {
     const windowEnd = new Date(now.getTime() + windowHours * 60 * 60 * 1000);
-    return prisma.userVoucher.findMany({
+    const rows = await prisma.userVoucher.findMany({
       where: {
         isUsed: false,
         promotion: {
@@ -203,6 +209,7 @@ export class PromotionsRepository {
       },
       include: { promotion: true },
     });
+    return rows.map((row) => ({ ...row, promotion: numericRecord(row.promotion) }));
   }
 }
 

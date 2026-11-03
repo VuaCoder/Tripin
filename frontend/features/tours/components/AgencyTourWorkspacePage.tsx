@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { MONEY_LIMITS } from '@travel-platform/constants';
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction, type FormEvent } from 'react';
 import { useParams } from 'next/navigation';
 import { getTourApiMessage, useDeleteAgencyTourMutation, useGetAgencyTourQuery, useRestoreAgencyTourMutation, useSetAgencyTourAvailabilityMutation, useSetAgencyTourItineraryMutation, useSubmitAgencyTourMutation } from '../api/toursApi';
@@ -115,6 +116,10 @@ export function AgencyTourWorkspacePage() {
   };
   const saveDepartures = (event: FormEvent) => {
     event.preventDefault();
+    if (departures.some(({ price }) => !Number.isSafeInteger(price) || price < 0 || price > MONEY_LIMITS.MAX_UNIT_PRICE)) {
+      setErrorText('Giá khởi hành phải là số nguyên không âm và không quá 1 tỷ đồng.');
+      return;
+    }
     const now = Date.now();
     const hasInvalidDate = departures.some((departure) => {
       const original = departure.id ? tour?.departures.find((item) => item.id === departure.id)?.date.slice(0, 10) : undefined;

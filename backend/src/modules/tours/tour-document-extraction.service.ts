@@ -1,4 +1,5 @@
 import { PDFParse } from 'pdf-parse';
+import { MONEY_LIMITS } from '@travel-platform/constants';
 import mammoth from 'mammoth';
 import { z } from 'zod';
 import { AppError, ERROR_CODES } from '../../utils/app-error';
@@ -14,7 +15,7 @@ export const TOUR_DOCUMENT_LIMITS = {
   MAX_OUTPUT_TOKENS: 4096,
 } as const;
 
-const vnd = z.number().int().min(0).max(100_000_000_000);
+const vnd = z.number().int().min(0).max(MONEY_LIMITS.MAX_UNIT_PRICE);
 const strings = (maxItems: number, maxLength: number) => z.array(z.string().trim().min(1).max(maxLength)).max(maxItems);
 const candidateSchema = z.object({
   title: z.string().trim().min(5).max(200).optional(),
@@ -83,7 +84,7 @@ export class TourDocumentExtractionService {
       'Return only one JSON object: {"tours":[...]}. Do not use markdown fences or add commentary.',
       'For categoryIds, use only exact IDs from the supplied active category catalogue; use an empty array if no category clearly fits.',
       `Extract at most ${TOUR_DOCUMENT_LIMITS.MAX_EXTRACTED_TOURS} distinct tours.`,
-      `Each candidate may contain only title (5-200 chars), summary (<=500), description (<=20000), destination (2-120), durationDays (integer 1-365), basePrice (integer VND 0-100000000000), maxGroupSize (integer 1-10000), categoryIds (UUID array <=10), images (URL array <=20), inclusions (string array <=50), exclusions (string array <=50).`,
+      `Each candidate may contain only title (5-200 chars), summary (<=500), description (<=20000), destination (2-120), durationDays (integer 1-365), basePrice (integer VND 0-${MONEY_LIMITS.MAX_UNIT_PRICE}), maxGroupSize (integer 1-10000), categoryIds (UUID array <=10), images (URL array <=20), inclusions (string array <=50), exclusions (string array <=50).`,
       'Use Vietnamese text when the source is Vietnamese. Return missing or uncertain fields as absent.',
     ].join(' ');
     const { text: answer } = await this.provider.generate({

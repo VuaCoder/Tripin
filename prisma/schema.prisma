@@ -1,7 +1,7 @@
 // Single source of truth for the database schema (PostgreSQL). Migrations live in prisma/migrations.
 // Enum values mirror `@travel-platform/constants` and the module `*.types.ts` files; the test
 // `backend/src/scripts/__tests__/prisma-enums-in-sync.test.ts` fails if they drift apart.
-// Money is stored as whole VND (Int). Ids are UUIDs.
+// Money is stored as whole VND (BigInt). Business limits live in packages/constants/src/money.ts.
 
 generator client {
   provider     = "prisma-client"
@@ -135,7 +135,7 @@ model Tour {
   requiredDocuments  String?
   destination  String
   durationDays Int
-  basePrice    Int
+  basePrice    BigInt
   maxGroupSize Int?
   images       String[]   @default([])
   inclusions   String[]   @default([])
@@ -169,7 +169,7 @@ model TourDeparture {
   date          DateTime
   capacity      Int
   remaining     Int
-  priceOverride Int?
+  priceOverride BigInt?
   isOpen        Boolean  @default(true)
 
   tour Tour @relation(fields: [tourId], references: [id], onDelete: Cascade)
@@ -181,7 +181,7 @@ model TourDeparture {
 model TourGuideAssignment {
   tourId        String                @id @db.Uuid
   guideId       String                @db.Uuid
-  feePerBooking Int
+  feePerBooking BigInt
   status        GuideAssignmentStatus @default(PENDING)
   respondedAt   DateTime?
   note          String?
@@ -209,17 +209,17 @@ model Booking {
   contactPhone String
   notes        String?
 
-  unitPrice        Int
-  subtotal         Int
+  unitPrice        BigInt
+  subtotal         BigInt
   /// Snapshot of the applied promotion (all null when none was applied).
   promotionId      String?         @db.Uuid
   promotionCode    String?
   promotionScope   PromotionScope?
-  discountAmount   Int             @default(0)
-  totalAmount      Int
+  discountAmount   BigInt          @default(0)
+  totalAmount      BigInt
   commissionBps    Int
-  commissionAmount Int
-  agencyAmount     Int
+  commissionAmount BigInt
+  agencyAmount     BigInt
 
   status           BookingStatus        @default(PENDING)
   isPaid           Boolean              @default(false)
@@ -251,7 +251,7 @@ model Payment {
   userId                String         @db.Uuid
   /// Booking or Subscription id depending on `purpose` (polymorphic, hence no foreign key).
   referenceId           String         @db.Uuid
-  amount                Int
+  amount                BigInt
   currency              String         @default("VND")
   description           String
   provider              String
@@ -304,7 +304,7 @@ model Earning {
   tourId      String   @db.Uuid
   tourTitle   String
   agencyId    String   @db.Uuid
-  amount      Int
+  amount      BigInt
   earnedAt    DateTime
   createdAt   DateTime @default(now())
 
@@ -374,9 +374,9 @@ model Promotion {
   title             String
   description       String?
   discountType      DiscountType
-  discountValue     Int
-  maxDiscountAmount Int?
-  minOrderAmount    Int                @default(0)
+  discountValue     BigInt
+  maxDiscountAmount BigInt?
+  minOrderAmount    BigInt             @default(0)
   minParticipants   Int?
   daysInAdvance     Int?
   firstBookingOnly  Boolean            @default(false)
@@ -436,7 +436,7 @@ model SubscriptionPlan {
   code         String   @unique
   name         String
   description  String?
-  price        Int
+  price        BigInt
   durationDays Int
   benefits     String[] @default([])
   isActive     Boolean  @default(true)
@@ -455,7 +455,7 @@ model Subscription {
   planId       String             @db.Uuid
   planCode     String
   planName     String
-  price        Int
+  price        BigInt
   durationDays Int
   status       SubscriptionStatus @default(PENDING_PAYMENT)
   startsAt     DateTime?

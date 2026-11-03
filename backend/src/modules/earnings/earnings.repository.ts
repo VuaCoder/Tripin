@@ -1,5 +1,8 @@
 import { prisma, type Prisma } from '../../config/database';
-import type { Earning } from '../../generated/prisma/client';
+import type { Earning as StoredEarning } from '../../generated/prisma/client';
+import { numericRecord, type NumericRecord } from '../../utils/money';
+import { safeVndNumber } from '@travel-platform/constants';
+type Earning = NumericRecord<StoredEarning>;
 import { toSkip, type PageRequest } from '../../utils/pagination';
 import type { EarningsRange } from './earnings.types';
 
@@ -8,12 +11,13 @@ export type EarningRecord = Earning;
 export type NewEarning = Omit<Earning, 'id' | 'createdAt'>;
 
 export class EarningsRepository {
-  create(data: NewEarning): Promise<EarningRecord> {
-    return prisma.earning.create({ data });
+  async create(data: NewEarning): Promise<EarningRecord> {
+    return numericRecord(await prisma.earning.create({ data }));
   }
 
-  findByBookingId(bookingId: string): Promise<EarningRecord | null> {
-    return prisma.earning.findUnique({ where: { bookingId } });
+  async findByBookingId(bookingId: string): Promise<EarningRecord | null> {
+    const row = await prisma.earning.findUnique({ where: { bookingId } });
+    return row ? numericRecord(row) : null;
   }
 
   async listByGuide(guideId: string, range: EarningsRange, page: PageRequest) {
@@ -22,7 +26,7 @@ export class EarningsRepository {
       prisma.earning.findMany({ where, orderBy: [{ earnedAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit }),
       prisma.earning.count({ where }),
     ]);
-    return { items, total };
+    return { items: items.map(numericRecord), total };
   }
 
   /** Totals per calendar month (UTC) inside the range. */
@@ -33,14 +37,15 @@ export class EarningsRepository {
     // casting those to timestamptz would first apply the session timezone.
     const from = range.from?.toISOString() ?? null;
     const to = range.to?.toISOString() ?? null;
-    return prisma.$queryRaw<{ month: string; totalAmount: number; count: number }[]>`
+    const rows = await prisma.$queryRaw<{ month: string; totalAmount: string; count: number }[]>`
       SELECT to_char("earnedAt", 'YYYY-MM') AS "month",
-             COALESCE(SUM("amount"), 0)::float8 AS "totalAmount", COUNT(*)::float8 AS "count"
+             COALESCE(SUM("amount"), 0)::text AS "totalAmount", COUNT(*)::float8 AS "count"
       FROM "Earning"
       WHERE "guideId" = ${guideId}::uuid
         AND (${from}::timestamptz IS NULL OR "earnedAt" >= (${from}::timestamptz AT TIME ZONE 'UTC'))
         AND (${to}::timestamptz IS NULL OR "earnedAt" <= (${to}::timestamptz AT TIME ZONE 'UTC'))
       GROUP BY 1 ORDER BY 1 DESC`;
+    return rows.map((row) => ({ ...row, totalAmount: safeVndNumber(row.totalAmount) }));
   }
 
   private whereOf(guideId: string, range: EarningsRange): Prisma.EarningWhereInput {

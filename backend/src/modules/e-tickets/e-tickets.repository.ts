@@ -1,4 +1,5 @@
 import { nullIfNotFound, prisma } from '../../config/database';
+import { numericRecord } from '../../utils/money';
 import type { ETicket } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
 import type { ETicketStatus } from './e-tickets.types';
@@ -70,7 +71,7 @@ export class ETicketsRepository {
     ]);
     return {
       ...ticket,
-      bookingDetails: booking,
+      bookingDetails: booking ? numericRecord(booking) : null,
       tourDetails: tour,
     };
   }

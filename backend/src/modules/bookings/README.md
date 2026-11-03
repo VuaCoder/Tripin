@@ -36,6 +36,10 @@ payment is pending, cancellation rules, the agency's view of its bookings, and t
 
 ## Business rules
 1. **Pricing is server-side**: `subtotal = departure price × participants`; `total = subtotal − promotion discount`; `commission = floor(total × commissionBps / 10000)`; `agencyAmount = total − commission`. Commission rate and discount are **snapshotted** on the booking.
+   Unit price is capped at 1 billion VND; at most 50 participants gives a 50-billion-VND booking ceiling.
+   Money is stored as `BIGINT`, mapped to checked JSON numbers by repositories. Ratio calculations use bigint
+   intermediates to preserve whole-VND rounding. Report totals can exceed a booking's ceiling but must remain
+   exactly representable by the current number-based API.
 2. **No overselling**: seats are reserved with one atomic update before the booking is saved; any later failure releases the seats and the promotion redemption (compensation).
 2b. **Nothing free**: the amount to pay must be at least `MIN_PAYABLE_AMOUNT` (1 VND). A free departure, or a promotion that would bring the total to 0, is refused with `409 BOOKING_AMOUNT_TOO_LOW` before anything is reserved (seats and redemption given back). There is no free-booking flow in the diagram, and a payment of 0 cannot exist.
 3. **Retry safety**: `clientRequestId` (unique per traveler) makes a repeated request return the first booking and reserve nothing.

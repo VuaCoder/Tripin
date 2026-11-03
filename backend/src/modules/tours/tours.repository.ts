@@ -1,6 +1,8 @@
 import { TOUR_STATUS, type TourStatus } from '@travel-platform/constants';
 import { nullIfNotFound, prisma, type DbExecutor, type Prisma } from '../../config/database';
-import type { GuideAssignmentStatus, Tour, TourDeparture, TourGuideAssignment } from '../../generated/prisma/client';
+import type { GuideAssignmentStatus, Tour as StoredTour, TourDeparture, TourGuideAssignment } from '../../generated/prisma/client';
+import { numericRecord, type NumericRecord } from '../../utils/money';
+type Tour = NumericRecord<StoredTour>;
 import { toSkip, type PageRequest } from '../../utils/pagination';
 import { containsText } from '../../utils/search';
 import type { ListTourFilter, SearchToursQuery, TourSort } from './tours.types';
@@ -14,8 +16,8 @@ export interface StoredItineraryDay {
   activities: string[];
 }
 
-export type DepartureRecord = TourDeparture;
-export type GuideAssignmentRecord = TourGuideAssignment;
+export type DepartureRecord = NumericRecord<TourDeparture>;
+export type GuideAssignmentRecord = NumericRecord<TourGuideAssignment>;
 
 /** A stored tour with its categories (ids), departures and guide assignment flattened onto one object. */
 export type TourRecord = Omit<Tour, 'itinerary'> & {
@@ -64,8 +66,8 @@ const include = {
 type Row = Prisma.TourGetPayload<{ include: typeof include }>;
 
 function toRecord(row: Row): TourRecord {
-  const { categories, guideAssignment, itinerary, ...tour } = row;
-  return { ...tour, itinerary: itinerary as unknown as StoredItineraryDay[], categoryIds: categories.map((c) => c.id), guide: guideAssignment ?? undefined };
+  const { categories, guideAssignment, itinerary, departures, ...tour } = row;
+  return { ...numericRecord(tour), departures: departures.map(numericRecord), itinerary: itinerary as unknown as StoredItineraryDay[], categoryIds: categories.map((c) => c.id), guide: guideAssignment ? numericRecord(guideAssignment) : undefined };
 }
 
 const toRecords = (rows: Row[]): TourRecord[] => rows.map(toRecord);

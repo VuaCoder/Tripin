@@ -66,3 +66,8 @@ backend/.tmp-build-smoke-*/
 # Python bytecode (docs/database/*/generate*.py are checked in, their caches are not)
 __pycache__/
 *.pyc
+
+# Local Codex-generated planning/specification documents
+BUG_FIX_ASSIGNMENT_AND_COMMIT_PLAN.md
+UC*_Codebase_Gaps.md
+UC*_SRS_Updated.md

@@ -1,7 +1,10 @@
 import type { DateRange } from '../../utils/date-range';
 import { BOOKING_STATUS, type BookingStatus, type PromotionScope } from '@travel-platform/constants';
 import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
-import type { Booking } from '../../generated/prisma/client';
+import type { Booking as StoredBooking } from '../../generated/prisma/client';
+import { numericRecord, type NumericRecord } from '../../utils/money';
+import { safeVndNumber } from '@travel-platform/constants';
+type Booking = NumericRecord<StoredBooking>;
 import { toSkip, type PageRequest } from '../../utils/pagination';
 import type { ListAgencyBookingsQuery, RevenueTotals } from './bookings.types';
 
@@ -32,7 +35,8 @@ export type NewBooking = Pick<
 /** Plain-field changes (`null` clears a nullable column). */
 export type BookingPatch = Partial<BookingScalars>;
 
-function toRecord(row: Booking): BookingRecord {
+function toRecord(stored: StoredBooking): BookingRecord {
+  const row = numericRecord(stored);
   const { contactName, contactPhone, promotionId, promotionCode, promotionScope, ...rest } = row;
   return {
     ...rest,
@@ -145,40 +149,43 @@ export class BookingsRepository {
     });
     return {
       bookings: total._count._all,
-      gross: total._sum.totalAmount ?? 0,
-      commission: total._sum.commissionAmount ?? 0,
-      net: total._sum.agencyAmount ?? 0,
+      gross: safeVndNumber(total._sum.totalAmount ?? 0n),
+      commission: safeVndNumber(total._sum.commissionAmount ?? 0n),
+      net: safeVndNumber(total._sum.agencyAmount ?? 0n),
     };
   }
 
   async dailyNet(agencyId: string, since: Date, until = new Date()): Promise<{ date: string; bookings: number; net: number }[]> {
-    return prisma.$queryRaw<{ date: string; bookings: number; net: number }[]>`
+    const rows = await prisma.$queryRaw<{ date: string; bookings: number; net: string }[]>`
       SELECT to_char("confirmedAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS "date",
-             COUNT(*)::float8 AS "bookings", COALESCE(SUM("agencyAmount"), 0)::float8 AS "net"
+             COUNT(*)::float8 AS "bookings", COALESCE(SUM("agencyAmount"), 0)::text AS "net"
       FROM "Booking"
       WHERE "agencyId" = ${agencyId}::uuid AND "status" IN ('CONFIRMED', 'COMPLETED') AND "confirmedAt" >= ${since} AND "confirmedAt" <= ${until}
       GROUP BY 1 ORDER BY 1`;
+    return rows.map((row) => ({ ...row, net: safeVndNumber(row.net) }));
   }
 
   async monthlyTotals(since: Date, until?: Date): Promise<{ month: string; bookings: number; gross: number; commission: number }[]> {
-    return prisma.$queryRaw<{ month: string; bookings: number; gross: number; commission: number }[]>`
+    const rows = await prisma.$queryRaw<{ month: string; bookings: number; gross: string; commission: string }[]>`
       SELECT to_char("confirmedAt", 'YYYY-MM') AS "month",
-             COUNT(*)::float8 AS "bookings", COALESCE(SUM("totalAmount"), 0)::float8 AS "gross",
-             COALESCE(SUM("commissionAmount"), 0)::float8 AS "commission"
+             COUNT(*)::float8 AS "bookings", COALESCE(SUM("totalAmount"), 0)::text AS "gross",
+             COALESCE(SUM("commissionAmount"), 0)::text AS "commission"
       FROM "Booking"
       WHERE "status" IN ('CONFIRMED', 'COMPLETED') AND "confirmedAt" >= ${since}
         AND (${until ?? null}::timestamp IS NULL OR "confirmedAt" <= ${until ?? null})
       GROUP BY 1 ORDER BY 1`;
+    return rows.map((row) => ({ ...row, gross: safeVndNumber(row.gross), commission: safeVndNumber(row.commission) }));
   }
 
   async topTours(agencyId: string, limit: number): Promise<{ tourId: string; title: string; coverImage: string | null; bookings: number; net: number }[]> {
-    return prisma.$queryRaw<{ tourId: string; title: string; coverImage: string | null; bookings: number; net: number }[]>`
+    const rows = await prisma.$queryRaw<{ tourId: string; title: string; coverImage: string | null; bookings: number; net: string }[]>`
       SELECT "tourId"::text AS "tourId", (ARRAY_AGG("tourTitle" ORDER BY "createdAt" DESC))[1] AS "title",
              (SELECT "images"[1] FROM "Tour" WHERE "Tour"."id" = "Booking"."tourId" AND "Tour"."agencyId" = ${agencyId}::uuid) AS "coverImage",
-             COUNT(*)::float8 AS "bookings", COALESCE(SUM("agencyAmount"), 0)::float8 AS "net"
+             COUNT(*)::float8 AS "bookings", COALESCE(SUM("agencyAmount"), 0)::text AS "net"
       FROM "Booking"
       WHERE "agencyId" = ${agencyId}::uuid AND "status" IN ('CONFIRMED', 'COMPLETED')
-      GROUP BY "tourId" ORDER BY "net" DESC, "bookings" DESC LIMIT ${limit}`;
+      GROUP BY "tourId" ORDER BY COALESCE(SUM("agencyAmount"), 0) DESC, "bookings" DESC LIMIT ${limit}`;
+    return rows.map((row) => ({ ...row, net: safeVndNumber(row.net) }));
   }
 
   private async paginate(where: Prisma.BookingWhereInput, orderBy: Prisma.BookingOrderByWithRelationInput[], page: PageRequest) {
