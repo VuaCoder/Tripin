@@ -511,6 +511,22 @@ export class PromotionsService {
     if (current.usedCount > 0 && input.discountValue !== undefined && input.discountValue !== current.discountValue) {
       throw AppError.conflict('The discount of a promotion that has been used cannot change; create a new one', 'PROMOTION_IN_USE');
     }
+
+    const hasStarted = current.startsAt <= new Date();
+    if (hasStarted) {
+      const isDiscountModified = input.discountValue !== undefined && input.discountValue !== current.discountValue;
+      const isMinOrderModified = input.minOrderAmount !== undefined && input.minOrderAmount !== current.minOrderAmount;
+      const isDiscountTypeModified = (input as any).discountType !== undefined && (input as any).discountType !== current.discountType;
+      const isStartsAtModified = input.startsAt !== undefined && new Date(input.startsAt).getTime() !== current.startsAt.getTime();
+
+      if (isDiscountModified || isMinOrderModified || isDiscountTypeModified || isStartsAtModified) {
+        throw AppError.badRequest(
+          'Cannot modify discount value, discount type, min order amount or start date for an active started promotion',
+          undefined,
+          'PROMOTION_ACTIVE_LOCKED' as any,
+        );
+      }
+    }
     if (input.usageLimit !== undefined && input.usageLimit < current.usedCount) {
       throw AppError.badRequest(`usageLimit cannot be below the ${current.usedCount} redemptions already used`);
     }

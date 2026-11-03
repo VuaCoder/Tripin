@@ -135,6 +135,43 @@ describe('create / update', () => {
   it('validates the merged window on update', async () => {
     const { service } = make([promo()]);
     await expect(service.updateForAgency(agency, 'p1', { endsAt: ago(5) })).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('locks immutable fields for active started promotions (PAY-019)', async () => {
+    // Promotion has started (startsAt in past) and 0 usedCount
+    const { service } = make([promo({ startsAt: ago(2), endsAt: ahead(5), usedCount: 0, discountValue: 10, minOrderAmount: 100_000 })]);
+
+    // Modifying discountValue should be rejected with 400 Bad Request
+    await expect(service.updateForAgency(agency, 'p1', { discountValue: 15 })).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'PROMOTION_ACTIVE_LOCKED',
+    });
+
+    // Modifying minOrderAmount should be rejected with 400 Bad Request
+    await expect(service.updateForAgency(agency, 'p1', { minOrderAmount: 200_000 })).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'PROMOTION_ACTIVE_LOCKED',
+    });
+
+    // Modifying startsAt should be rejected with 400 Bad Request
+    await expect(service.updateForAgency(agency, 'p1', { startsAt: ago(3) })).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'PROMOTION_ACTIVE_LOCKED',
+    });
+
+    // Modifying allowed fields (title, endsAt, isActive) should succeed
+    const updated = await service.updateForAgency(agency, 'p1', {
+      title: 'Extended Summer Sale',
+      endsAt: ahead(10),
+      isActive: true,
+    });
+    expect(updated.title).toBe('Extended Summer Sale');
+
+    // Promotion that has NOT started yet (startsAt in future) allows modifying discountValue and minOrderAmount
+    const futureService = make([promo({ id: 'p2', startsAt: ahead(2), endsAt: ahead(10), usedCount: 0, discountValue: 10 })]).service;
+    const futureUpdated = await futureService.updateForAgency(agency, 'p2', { discountValue: 25, minOrderAmount: 50_000 });
+    expect(futureUpdated.discountValue).toBe(25);
+    expect(futureUpdated.minOrderAmount).toBe(50_000);
   });
 });
 
