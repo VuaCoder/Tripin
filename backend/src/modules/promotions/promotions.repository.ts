@@ -1,3 +1,5 @@
+export type ConsumePromotionResult = { success: true } | { success: false; reason: 'EXHAUSTED' | 'USER_LIMIT_REACHED' };
+
 import { containsText } from '../../utils/search';
 import type { ListPromotionsQuery } from './promotions.types';
 import type { PromotionScope } from '@travel-platform/constants';
@@ -112,12 +114,56 @@ export class PromotionsRepository {
     return { items: items.map(numericRecord), total };
   }
 
-  /** Atomically takes one redemption; false when the limit is already reached (no over-redeeming under concurrency). */
-  async consume(id: string): Promise<boolean> {
-    const changed = await prisma.$executeRaw`
-      UPDATE "Promotion" SET "usedCount" = "usedCount" + 1
-      WHERE "id" = ${id}::uuid AND "isActive" AND ("usageLimit" IS NULL OR "usedCount" < "usageLimit")`;
-    return changed === 1;
+  /** Atomically takes one redemption; enforces global quota and user usage limit in a single transaction with row locking. */
+  async consume(id: string, userId?: string): Promise<ConsumePromotionResult> {
+    return prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<
+        Array<{ id: string; usedCount: number; usageLimit: number | null; usageLimitPerUser: number | null; isActive: boolean }>
+      >`
+        SELECT "id", "usedCount", "usageLimit", "usageLimitPerUser", "isActive"
+        FROM "Promotion"
+        WHERE "id" = ${id}::uuid
+        FOR UPDATE
+      `;
+      const promo = rows[0];
+      if (!promo || !promo.isActive) {
+        return { success: false, reason: 'EXHAUSTED' };
+      }
+
+      if (promo.usageLimit != null && promo.usedCount >= promo.usageLimit) {
+        return { success: false, reason: 'EXHAUSTED' };
+      }
+
+      if (userId && promo.usageLimitPerUser != null) {
+        const [redemptionsCount, legacyCount] = await Promise.all([
+          tx.promotionRedemption.count({
+            where: {
+              promotionId: id,
+              booking: { travelerId: userId, status: { not: 'CANCELLED' } },
+            },
+          }),
+          tx.booking.count({
+            where: {
+              travelerId: userId,
+              status: { not: 'CANCELLED' },
+              promotionId: id,
+              redemptions: { none: {} },
+            },
+          }),
+        ]);
+        if (redemptionsCount + legacyCount >= promo.usageLimitPerUser) {
+          return { success: false, reason: 'USER_LIMIT_REACHED' };
+        }
+      }
+
+      await tx.$executeRaw`
+        UPDATE "Promotion"
+        SET "usedCount" = "usedCount" + 1
+        WHERE "id" = ${id}::uuid
+      `;
+
+      return { success: true };
+    });
   }
 
   /** Gives a redemption back (booking cancelled / payment expired). Never goes below 0. */

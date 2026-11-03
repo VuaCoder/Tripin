@@ -335,7 +335,15 @@ export class PromotionsService {
         if (!consumed) throw AppError.conflict('This voucher code has already been used', 'PROMOTION_CODE_USED');
       }
     }
-    if (!(await this.promotions.consume(promotion.id))) {
+    const consumeResult = opts?.userId ? await this.promotions.consume(promotion.id, opts.userId) : await this.promotions.consume(promotion.id);
+    const consumed = typeof consumeResult === 'boolean' ? { success: consumeResult, reason: 'EXHAUSTED' as const } : consumeResult;
+    if (!consumed.success) {
+      if (consumed.reason === 'USER_LIMIT_REACHED') {
+        throw AppError.conflict(
+          `You have reached the limit of ${promotion.usageLimitPerUser ?? 1} redemption(s) for this promotion`,
+          'PROMOTION_USER_LIMIT_REACHED',
+        );
+      }
       throw AppError.conflict('This promotion has been fully redeemed', 'PROMOTION_EXHAUSTED');
     }
     const { finalAmount: _ignored, ...applied } = this.toApplied(promotion, computeDiscount(promotion, subtotal), subtotal);

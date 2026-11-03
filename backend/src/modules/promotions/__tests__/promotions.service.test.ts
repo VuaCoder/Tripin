@@ -45,6 +45,7 @@ function make(seed: P[] = [], tourAgency = 'a1') {
     list: vi.fn(async () => ({ items: db, total: db.length })),
     consume: vi.fn(async () => true),
     release: vi.fn(async () => undefined),
+    countUserUsages: vi.fn(async () => 0),
   };
   const tours = { getTourFacts: vi.fn(async (id: string) => (id === 'ghost' ? null : { id, agencyId: tourAgency })) };
   const audit = { record: vi.fn(async () => undefined) };
@@ -156,6 +157,41 @@ describe('preview / redeem (used by bookings)', () => {
     const { service, repo } = make([promo({ usageLimit: 1 })]);
     repo.consume.mockResolvedValueOnce(false as never);
     await expect(service.redeem('SUMMER10', 't1', 1_000_000)).rejects.toMatchObject({ code: 'PROMOTION_EXHAUSTED' });
+  });
+
+  it('enforces atomic single-winner quota under 20 concurrent requests (PAY-017)', async () => {
+    const { service, repo } = make([promo({ usageLimit: 1, usedCount: 0 })]);
+    let consumedCount = 0;
+    repo.consume.mockImplementation(async () => {
+      if (consumedCount === 0) {
+        consumedCount += 1;
+        return { success: true };
+      }
+      return { success: false, reason: 'EXHAUSTED' };
+    });
+
+    const results = await Promise.allSettled(
+      Array.from({ length: 20 }, () => service.redeem('SUMMER10', 't1', 1_000_000)),
+    );
+
+    const fulfilled = results.filter((r) => r.status === 'fulfilled');
+    const rejected = results.filter((r) => r.status === 'rejected');
+
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(19);
+    for (const r of rejected) {
+      expect((r as PromiseRejectedResult).reason).toMatchObject({ code: 'PROMOTION_EXHAUSTED' });
+    }
+  });
+
+  it('enforces atomic user usage limit in transaction when limit reached (PAY-017)', async () => {
+    const { service, repo } = make([promo({ usageLimitPerUser: 1 })]);
+    repo.consume.mockResolvedValueOnce({ success: false, reason: 'USER_LIMIT_REACHED' });
+
+    await expect(service.redeem('SUMMER10', 't1', 1_000_000, { userId: 'u1' })).rejects.toMatchObject({
+      code: 'PROMOTION_USER_LIMIT_REACHED',
+    });
+    expect(repo.consume).toHaveBeenCalledWith('p1', 'u1');
   });
 
   it('refuses another agency\'s code for this tour, and unknown codes/tours', async () => {
@@ -316,7 +352,7 @@ describe('sweepExpiringVouchers (smart leisure-slot alert)', () => {
   });
 
   it('archives a promotion and rejects archived promotion code on resolve', async () => {
-    const { service, repo } = make([promo({ id: 'p1', code: 'OLDPROMO', isArchived: false, isActive: true })]);
+    const { service } = make([promo({ id: 'p1', code: 'OLDPROMO', isArchived: false, isActive: true })]);
 
     // Archive the promotion
     const updated = await service.updateForAgency(agency as any, 'p1', { isArchived: true });
@@ -329,4 +365,3 @@ describe('sweepExpiringVouchers (smart leisure-slot alert)', () => {
     );
   });
 });
-
