@@ -68,7 +68,6 @@ __pycache__/
 *.pyc
 
 # Local Codex-generated planning/specification documents
-BUG_FIX_ASSIGNMENT_AND_COMMIT_PLAN.md
 UC*_Codebase_Gaps.md
 UC*_SRS_Updated.md
 
