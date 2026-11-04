@@ -52,6 +52,7 @@ const departureShape = z
     capacity: z.number().int().min(1).max(10_000),
     priceOverride: vnd.optional(),
     isOpen: z.boolean().default(true),
+    version: z.number().int().min(0).optional(),
   })
   .strict();
 

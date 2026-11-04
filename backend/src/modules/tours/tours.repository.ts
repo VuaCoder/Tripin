@@ -48,6 +48,7 @@ export type DepartureChange =
       /** What the caller read: the update is refused when the stored capacity (and, when `lockSeats`, remaining) differs. */
       expectedCapacity: number;
       expectedRemaining: number;
+      expectedVersion?: number;
       capacity: number;
       date: Date;
       priceOverride: number | null;
@@ -320,6 +321,7 @@ export class ToursRepository {
                 id: change.id,
                 tourId,
                 capacity: change.expectedCapacity,
+                ...(change.expectedVersion !== undefined ? { version: change.expectedVersion } : {}),
                 ...(change.lockSeats ? { remaining: change.expectedRemaining } : delta < 0 ? { remaining: { gte: -delta } } : {}),
               },
               data: {
@@ -328,6 +330,7 @@ export class ToursRepository {
                 priceOverride: change.priceOverride,
                 isOpen: change.isOpen,
                 remaining: { increment: delta },
+                version: { increment: 1 },
               },
             });
             if (updated.count !== 1) throw conflict;

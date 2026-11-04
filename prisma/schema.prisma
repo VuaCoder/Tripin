@@ -172,6 +172,7 @@ model TourDeparture {
   remaining     Int
   priceOverride BigInt?
   isOpen        Boolean  @default(true)
+  version       Int      @default(0)
 
   tour Tour @relation(fields: [tourId], references: [id], onDelete: Cascade)
 

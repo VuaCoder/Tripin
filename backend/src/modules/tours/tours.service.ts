@@ -167,6 +167,7 @@ export class ToursService {
         id: current.id,
         expectedCapacity: current.capacity,
         expectedRemaining: current.remaining,
+        expectedVersion: input.version !== undefined ? input.version : current.version,
         capacity: input.capacity,
         date: input.date,
         priceOverride: input.priceOverride ?? null,
@@ -176,7 +177,7 @@ export class ToursService {
     }
 
     const updated = await this.tours.applyDepartures(id, changes);
-    if (!updated) throw AppError.conflict('Seats changed while saving, please retry', 'CONCURRENT_UPDATE');
+    if (!updated) throw AppError.conflict('Seats or departure changed while saving, please retry', 'CONCURRENT_UPDATE');
     return this.views.manage(updated);
   }
 

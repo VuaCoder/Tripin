@@ -38,6 +38,7 @@ export function toDepartureDto(tour: Pick<TourRecord, 'basePrice'>, departure: D
     remaining: departure.remaining,
     price: departurePrice(tour, departure),
     isOpen: departure.isOpen,
+    version: departure.version ?? 0,
   };
 }
 

@@ -758,7 +758,8 @@
 
 ---
 
-### [KHOA-15] Khóa phiên bản chống ghi đè khi sửa thông tin Departure đồng thời (TOUR-016)
+### [x] [KHOA-15] Khóa phiên bản chống ghi đè khi sửa thông tin Departure đồng thời (TOUR-016) *(Đã xử lý)*
+- **Trạng thái**: ✅ Đã xử lý
 - **Mô tả**: Hai nhân viên của Agency cùng mở trang sửa ngày khởi hành; người thứ hai lưu sẽ ghi đè giá và số chỗ mà không biết người thứ nhất vừa đổi.
 - **Công việc**:
   - Thêm trường `version` trên bảng `TourDeparture`.

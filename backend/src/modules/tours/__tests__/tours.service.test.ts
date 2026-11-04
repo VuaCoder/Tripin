@@ -23,7 +23,7 @@ function makeTour(overrides: AnyTour = {}): AnyTour {
   };
 }
 
-const departure = (over: AnyTour = {}) => ({ id: 'd1', date: future(10), capacity: 10, remaining: 10, isOpen: true, ...over });
+const departure = (over: AnyTour = {}) => ({ id: 'd1', date: future(10), capacity: 10, remaining: 10, isOpen: true, version: 0, ...over });
 
 function setup(tour: AnyTour | null) {
   const db: AnyTour | null = tour;
@@ -56,7 +56,11 @@ function setup(tour: AnyTour | null) {
         else if (change.kind === 'delete') db.departures = db.departures.filter((d: AnyTour) => d.id !== change.id);
         else {
           const current = db.departures.find((d: AnyTour) => d.id === change.id);
+          if (change.expectedVersion !== undefined && (current.version ?? 0) !== change.expectedVersion) {
+            return null;
+          }
           current.remaining += change.capacity - current.capacity;
+          current.version = (current.version ?? 0) + 1;
           Object.assign(current, { capacity: change.capacity, date: change.date, priceOverride: change.priceOverride, isOpen: change.isOpen });
         }
       }
@@ -266,6 +270,29 @@ describe('availability', () => {
   it('rejects unknown departure ids', async () => {
     const { service } = setup(makeTour());
     await expect(service.setAvailability('a1', 't1', [input({ id: 'ghost' })])).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('implements optimistic concurrency version check for departure updates (TOUR-016)', async () => {
+    const d = departure({ version: 0, capacity: 10, remaining: 10 });
+    const { service, db } = setup(makeTour({ departures: [d] }));
+
+    // Employee 1 updates departure with version 0 -> succeeds and increments to 1
+    await service.setAvailability('a1', 't1', [input({ id: 'd1', date: d.date, capacity: 15, version: 0 })]);
+    expect(db!.departures[0].capacity).toBe(15);
+    expect(db!.departures[0].version).toBe(1);
+
+    // Employee 2 sends update using stale version 0 -> rejected with 409 CONCURRENT_UPDATE
+    await expect(
+      service.setAvailability('a1', 't1', [input({ id: 'd1', date: d.date, capacity: 20, version: 0 })]),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'CONCURRENT_UPDATE',
+    });
+
+    // Employee 2 reloads and sends update with current version 1 -> succeeds and increments to 2
+    await service.setAvailability('a1', 't1', [input({ id: 'd1', date: d.date, capacity: 20, version: 1 })]);
+    expect(db!.departures[0].capacity).toBe(20);
+    expect(db!.departures[0].version).toBe(2);
   });
 });
 

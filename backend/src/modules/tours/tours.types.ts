@@ -63,6 +63,7 @@ export interface DepartureInput {
   capacity: number;
   priceOverride?: number;
   isOpen: boolean;
+  version?: number;
 }
 
 export interface ItineraryDayInput {
@@ -107,6 +108,7 @@ export interface DepartureDto {
   remaining: number;
   price: number;
   isOpen: boolean;
+  version: number;
 }
 
 export interface TourAgencyDto {
