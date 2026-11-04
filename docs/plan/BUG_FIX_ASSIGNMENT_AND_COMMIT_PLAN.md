@@ -703,7 +703,8 @@
 
 ---
 
-### [KHOA-10] Bảo vệ thao tác giải quyết khiếu nại bằng kiểm tra Expected-Status nguyên tử (MOD-002, MOD-006)
+### [x] [KHOA-10] Bảo vệ thao tác giải quyết khiếu nại bằng kiểm tra Expected-Status nguyên tử (MOD-002, MOD-006) *(Đã xử lý)*
+- **Trạng thái**: ✅ Đã xử lý
 - **Mô tả**: Hai Moderator cùng mở một khiếu nại tranh chấp và cùng ấn duyệt giải pháp khác nhau; quyết định sau ghi đè quyết định trước mà không báo lỗi xung đột.
 - **Công việc**:
   - Sử dụng cơ chế Compare-And-Swap (CAS): `UPDATE complaints SET status = 'RESOLVED', resolution = :res WHERE id = :id AND status = 'ESCALATED'`.

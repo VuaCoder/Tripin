@@ -228,12 +228,11 @@ export class ComplaintsRepository {
       escalatedAt?: Date | null;
     },
   ) {
-    const existing = await prisma.complaintTicket.findUnique({ where: { id } });
-    if (!existing || !expectedStatuses.includes(existing.status as ComplaintTicketStatus)) {
-      return null;
-    }
-    return prisma.complaintTicket.update({
-      where: { id },
+    const result = await prisma.complaintTicket.updateMany({
+      where: {
+        id,
+        status: { in: expectedStatuses },
+      },
       data: {
         status: data.status,
         ...(data.solutionSummary !== undefined ? { solutionSummary: data.solutionSummary } : {}),
@@ -242,6 +241,12 @@ export class ComplaintsRepository {
         ...(data.closedAt !== undefined ? { closedAt: data.closedAt } : {}),
         ...(data.escalatedAt !== undefined ? { escalatedAt: data.escalatedAt } : {}),
       },
+    });
+    if (result.count === 0) {
+      return null;
+    }
+    return prisma.complaintTicket.findUnique({
+      where: { id },
       include: {
         messages: { orderBy: { createdAt: 'asc' } },
         feedback: true,

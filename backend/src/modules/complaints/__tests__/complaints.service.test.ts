@@ -235,6 +235,67 @@ describe('ComplaintsService', () => {
     );
   });
 
+  it('bảo vệ giải quyết khiếu nại bằng kiểm tra Expected-Status nguyên tử (MOD-002, MOD-006)', async () => {
+    const ticket = mockTicket({ status: 'ESCALATED' });
+    const { service, repo } = createMockService([ticket]);
+
+    // Moderator 1 adjudicates successfully
+    const firstResult = await service.adjudicateTicket(
+      ticket.id,
+      { userId: 'u_mod1', role: 'MODERATOR' },
+      { decision: 'Chấp nhận khiếu nại', note: 'Hoàn 100%' },
+    );
+    expect(firstResult.status).toBe('CLOSED');
+
+    // Moderator 2 tries to adjudicate the same ticket concurrently
+    await expect(
+      service.adjudicateTicket(
+        ticket.id,
+        { userId: 'u_mod2', role: 'MODERATOR' },
+        { decision: 'Bác bỏ khiếu nại', note: 'Khách sai' },
+      ),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'CONCURRENT_UPDATE',
+      message: 'Khiếu nại này đã được xử lý bởi nhân viên khác',
+    });
+  });
+
+  it('từ chối giải quyết khi phiếu đã thay đổi trạng thái và không còn ở ESCALATED', async () => {
+    const ticket = mockTicket({ status: 'RESOLVED' }); // Not ESCALATED
+    const { service } = createMockService([ticket]);
+
+    await expect(
+      service.adjudicateTicket(
+        ticket.id,
+        { userId: 'u_mod', role: 'MODERATOR' },
+        { decision: 'Quyết định', note: 'Ghi chú' },
+      ),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'CONCURRENT_UPDATE',
+      message: 'Khiếu nại này đã được xử lý bởi nhân viên khác',
+    });
+  });
+
+  it('bảo vệ giải quyết khiếu nại khi câu lệnh updateStatus CAS trả về 0 dòng ảnh hưởng (MOD-002, MOD-006)', async () => {
+    const ticket = mockTicket({ status: 'ESCALATED' });
+    const { service, repo } = createMockService([ticket]);
+    repo.updateStatus.mockResolvedValueOnce(null);
+
+    await expect(
+      service.adjudicateTicket(
+        ticket.id,
+        { userId: 'u_mod', role: 'MODERATOR' },
+        { decision: 'Phán quyết', note: 'Đã xử lý' },
+      ),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'CONCURRENT_UPDATE',
+      message: 'Khiếu nại này đã được xử lý bởi nhân viên khác',
+    });
+  });
+
   it('du khách chấp nhận giải pháp và đóng phiếu (CLOSED), kích hoạt lời mời đánh giá CSAT', async () => {
     const ticket = mockTicket({ status: 'RESOLVED' });
     const { service, notifications } = createMockService([ticket]);

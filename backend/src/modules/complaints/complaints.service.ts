@@ -436,14 +436,16 @@ export class ComplaintsService {
     const ticket = await this.repo.findById(ticketId);
     if (!ticket) throw AppError.notFound('Phiếu khiếu nại không tồn tại');
 
-    assertTransition(COMPLAINT_TRANSITIONS, ticket.status as ComplaintTicketStatus, 'CLOSED', 'ComplaintTicket');
+    if (ticket.status !== 'ESCALATED') {
+      throw AppError.conflict('Khiếu nại này đã được xử lý bởi nhân viên khác', 'CONCURRENT_UPDATE');
+    }
 
     const updated = await this.repo.updateStatus(ticketId, ['ESCALATED'], {
       status: 'CLOSED',
       moderatorDecision: `${input.decision}: ${input.note}`,
       closedAt: new Date(),
     });
-    if (!updated) throw AppError.conflict('Phiếu đã thay đổi trạng thái, vui lòng tải lại', 'CONCURRENT_UPDATE');
+    if (!updated) throw AppError.conflict('Khiếu nại này đã được xử lý bởi nhân viên khác', 'CONCURRENT_UPDATE');
 
     await this.repo.appendMessage({
       ticketId,
