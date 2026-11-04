@@ -37,7 +37,7 @@ payment is pending, cancellation rules, the agency's view of its bookings, and t
 ## Business rules
 Stacked agency/platform vouchers each have a `PromotionRedemption` snapshot (whole-VND `BIGINT`, converted to checked JSON numbers). These rows, quota checks and unique-code ownership commit in the booking transaction. Cancel/expiry releases all recorded vouchers inside the status-transition transaction; the primary-voucher fallback remains for legacy bookings without snapshots.
 
-1. **Pricing is server-side**: `subtotal = departure price × participants`; `total = subtotal − promotion discount`; `commission = floor(total × commissionBps / 10000)`; `agencyAmount = total − commission`. Commission rate and discount are **snapshotted** on the booking.
+1. **Pricing is server-side**: `subtotal = departure price × participants`; `total = subtotal − promotion discount`; `agencyBase = subtotal − agencyDiscount`; `commission = floor(agencyBase × commissionBps / 10000)`; `agencyAmount = agencyBase − commission`. Platform voucher subsidies are borne by the platform and do not decrease agency revenue. Commission rate and discount are **snapshotted** on the booking.
    Unit price is capped at 1 billion VND; at most 50 participants gives a 50-billion-VND booking ceiling.
    Money is stored as `BIGINT`, mapped to checked JSON numbers by repositories. Ratio calculations use bigint
    intermediates to preserve whole-VND rounding. Report totals can exceed a booking's ceiling but must remain

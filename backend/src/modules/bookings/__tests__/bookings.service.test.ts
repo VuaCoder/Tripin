@@ -152,6 +152,80 @@ describe('createBooking', () => {
     ]);
   });
 
+  it('prevents platform discounts from decreasing agency revenue (PAY-012)', async () => {
+    const { service, repo, promotions } = make();
+    // Departure subtotal is 2,000,000 (unitPrice: 1,000,000, participants: 2). Default commission: 10% (1000 bps).
+    // Standard payout without vouchers: subtotal 2,000,000 - 10% commission (200,000) = 1,800,000 agencyAmount.
+    promotions.redeem.mockResolvedValueOnce({
+      promotionId: 'p-platform',
+      code: 'PLATFORM100K',
+      scope: 'PLATFORM',
+      discountAmount: 100_000,
+    });
+
+    await service.createBooking('u1', {
+      ...input,
+      platformPromotionCode: 'PLATFORM100K',
+    });
+
+    expect(repo.create).toHaveBeenCalledOnce();
+    const payload = repo.create.mock.calls[0]![0];
+    expect(payload.subtotal).toBe(2_000_000);
+    expect(payload.discountAmount).toBe(100_000);
+    expect(payload.totalAmount).toBe(1_900_000); // Traveler pays 100k less
+    expect(payload.commissionAmount).toBe(200_000); // Platform commission on agency base (2,000,000 * 10%)
+    expect(payload.agencyAmount).toBe(1_800_000); // Agency revenue is NOT decreased by the 100k platform subsidy
+  });
+
+  it('prevents platform discount from decreasing agency revenue when using legacy promotionCode (PAY-012)', async () => {
+    const { service, repo, promotions } = make();
+    promotions.redeem.mockResolvedValueOnce({
+      promotionId: 'p-platform-legacy',
+      code: 'PLATFORM_LEGACY',
+      scope: 'PLATFORM',
+      discountAmount: 200_000,
+    });
+
+    await service.createBooking('u1', {
+      ...input,
+      promotionCode: 'PLATFORM_LEGACY',
+    });
+
+    expect(repo.create).toHaveBeenCalledOnce();
+    const payload = repo.create.mock.calls[0]![0];
+    expect(payload.subtotal).toBe(2_000_000);
+    expect(payload.discountAmount).toBe(200_000);
+    expect(payload.totalAmount).toBe(1_800_000);
+    expect(payload.commissionAmount).toBe(200_000);
+    expect(payload.agencyAmount).toBe(1_800_000);
+  });
+
+  it('correctly calculates agency revenue when both agency and platform discounts are stacked (PAY-012)', async () => {
+    const { service, repo, promotions } = make();
+    promotions.redeem
+      .mockResolvedValueOnce({ promotionId: 'p-agency', code: 'AGENCY100K', scope: 'AGENCY', discountAmount: 100_000 })
+      .mockResolvedValueOnce({ promotionId: 'p-platform', code: 'PLATFORM200K', scope: 'PLATFORM', discountAmount: 200_000 });
+
+    await service.createBooking('u1', {
+      ...input,
+      agencyPromotionCode: 'AGENCY100K',
+      platformPromotionCode: 'PLATFORM200K',
+    });
+
+    expect(repo.create).toHaveBeenCalledOnce();
+    const payload = repo.create.mock.calls[0]![0];
+    // subtotal = 2,000,000.
+    // agencyDiscount = 100,000 -> agencyBase = 1,900,000.
+    // commissionAmount = 10% of 1,900,000 = 190,000.
+    // agencyAmount = 1,900,000 - 190,000 = 1,710,000.
+    // totalAmount (traveler pays) = 2,000,000 - 300,000 = 1,700,000.
+    expect(payload.subtotal).toBe(2_000_000);
+    expect(payload.discountAmount).toBe(300_000);
+    expect(payload.totalAmount).toBe(1_700_000);
+    expect(payload.commissionAmount).toBe(190_000);
+    expect(payload.agencyAmount).toBe(1_710_000); // Agency only absorbs its own 100k discount, NOT the 200k platform discount
+  });
+
   it('refuses more participants than free seats before touching inventory', async () => {
     const { service, tours } = make();
     tours.getBookableDeparture.mockResolvedValueOnce(departure({ remaining: 1 }) as never);

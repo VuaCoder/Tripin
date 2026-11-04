@@ -148,7 +148,10 @@ export class BookingsService {
             const discountAmount = sumVnd([premium?.discountAmount ?? 0, appliedAgency?.discountAmount ?? 0, appliedPlatform?.discountAmount ?? 0]);
             const totalAmount = Math.max(0, subtotal - discountAmount);
             if (totalAmount < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
-            const commissionAmount = ratioVnd(totalAmount, commissionBps, 10_000);
+            const agencyDiscount = appliedAgency?.discountAmount ?? 0;
+            const agencyBase = Math.max(0, subtotal - agencyDiscount);
+            const commissionAmount = ratioVnd(agencyBase, commissionBps, 10_000);
+            const agencyAmount = Math.max(0, agencyBase - commissionAmount);
             const primaryApplied = appliedAgency ?? appliedPlatform;
             const combinedCode = [appliedAgency?.code, appliedPlatform?.code].filter(Boolean).join(' + ');
             const redemptions: PromotionRedemptionInput[] = [appliedAgency, appliedPlatform]
@@ -182,7 +185,7 @@ export class BookingsService {
               redemptions: redemptions.length ? redemptions : undefined,
               commissionBps,
               commissionAmount,
-              agencyAmount: totalAmount - commissionAmount,
+              agencyAmount,
               status: BOOKING_STATUS.PENDING,
               isPaid: false,
               paymentExpiresAt: new Date(Date.now() + BOOKING_POLICY.PENDING_PAYMENT_MINUTES * MINUTE_MS),

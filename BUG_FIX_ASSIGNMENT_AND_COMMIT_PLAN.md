@@ -681,7 +681,8 @@
 
 ---
 
-### [KHOA-08] Khắc phục lỗi Voucher sàn làm giảm doanh thu thực nhận của Agency (PAY-012)
+### [x] [KHOA-08] Khắc phục lỗi Voucher sàn làm giảm doanh thu thực nhận của Agency (PAY-012) *(Đã xử lý)*
+- **Trạng thái**: ✅ Đã xử lý
 - **Mô tả**: Khi người dùng áp dụng mã giảm giá do sàn tài trợ (Platform Promo), hệ thống lại trừ thẳng vào tiền trả cho Agency thay vì sàn tự bù tiền.
 - **Công việc**:
   - Tách bạch cấu trúc tài chính: `AgencyDiscount` do Agency chịu, `PlatformSubsidy` do sàn tài trợ.
