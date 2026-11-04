@@ -85,6 +85,48 @@ export class BookingsRepository {
     return row ? toRecord(row) : null;
   }
 
+  /**
+   * Atomically cancel a booking and restore inventory (seats + promotion + premium voucher) in one DB transaction
+   * so a mid-flight network failure cannot leave seats/vouchers stuck after status already flipped (PAY-002).
+   */
+  async cancelWithInventoryRelease(input: {
+    id: string;
+    expected: readonly BookingStatus[];
+    patch: BookingPatch;
+    tourId: string;
+    departureId: string;
+    seats: number;
+    promotionId?: string;
+    releasePremiumVoucher: boolean;
+  }): Promise<BookingRecord | null> {
+    return prisma.$transaction(async (tx) => {
+      const row = await tx.booking
+        .update({ where: { id: input.id, status: { in: [...input.expected] } }, data: input.patch })
+        .catch(nullIfNotFound);
+      if (!row) return null;
+
+      await tx.$executeRaw`
+        UPDATE "TourDeparture" SET "remaining" = LEAST("capacity", "remaining" + ${input.seats})
+        WHERE "id" = ${input.departureId}::uuid AND "tourId" = ${input.tourId}::uuid`;
+
+      if (input.promotionId) {
+        await tx.promotion.updateMany({
+          where: { id: input.promotionId, usedCount: { gt: 0 } },
+          data: { usedCount: { decrement: 1 } },
+        });
+      }
+
+      if (input.releasePremiumVoucher) {
+        await tx.premiumVoucher.updateMany({
+          where: { bookingId: input.id },
+          data: { bookingId: null, heldAt: null, leaseToken: null },
+        });
+      }
+
+      return toRecord(row);
+    });
+  }
+
   async updateById(id: string, patch: BookingPatch): Promise<BookingRecord | null> {
     const row = await prisma.booking.update({ where: { id }, data: patch }).catch(nullIfNotFound);
     return row ? toRecord(row) : null;
