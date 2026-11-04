@@ -37,7 +37,18 @@ export const DEFAULT_POLICIES: Record<PolicyKey, Pick<PolicyDto, 'title' | 'cont
     // Hours before departure after which a CONFIRMED booking can no longer be cancelled by the traveler.
     params: { cancellationWindowHours: 24 },
   },
-  refund: { title: 'Refund policy', content: '', params: {} },
+  refund: {
+    title: 'Refund policy',
+    content: '',
+    // Snapshot of refund % by days-before-departure (PAY-009). Consumed by bookings.cancelMine.
+    params: {
+      milestonesJson: JSON.stringify([
+        { daysBefore: 7, percent: 100 },
+        { daysBefore: 3, percent: 50 },
+        { daysBefore: 0, percent: 0 },
+      ]),
+    },
+  },
   terms: { title: 'Terms of service', content: '', params: {} },
   privacy: { title: 'Privacy policy', content: '', params: {} },
 };
