@@ -36,9 +36,34 @@ const MINUTE_MS = 60 * 1000;
 
 type Repo = Pick<
   BookingsRepository,
-  | 'create' | 'findById' | 'findByRequestId' | 'transition' | 'updateById' | 'listByTraveler' | 'listByAgency'
+  | 'create' | 'findById' | 'findByRequestId' | 'transition' | 'updateById' | 'cancelWithInventoryRelease' | 'listByTraveler' | 'listByAgency'
   | 'findExpiredPending' | 'findDueForCompletion' | 'statusCounts' | 'revenueTotals' | 'dailyNet' | 'monthlyTotals' | 'topTours' | 'listPaidForTour' | 'customerCount' | 'countByTraveler'
 >;
+
+/** Structured refund milestones: days before departure → refund percent (PAY-009). */
+export interface RefundMilestone {
+  daysBefore: number;
+  percent: number;
+}
+
+export const DEFAULT_REFUND_MILESTONES: RefundMilestone[] = [
+  { daysBefore: 7, percent: 100 },
+  { daysBefore: 3, percent: 50 },
+  { daysBefore: 0, percent: 0 },
+];
+
+export function calculateRefundAmount(
+  totalAmount: number,
+  departureDate: Date,
+  cancelledAt: Date,
+  milestones: RefundMilestone[] = DEFAULT_REFUND_MILESTONES,
+): number {
+  const daysLeft = (departureDate.getTime() - cancelledAt.getTime()) / DAY_MS;
+  const ordered = [...milestones].sort((a, b) => b.daysBefore - a.daysBefore);
+  const match = ordered.find((m) => daysLeft >= m.daysBefore) ?? ordered[ordered.length - 1];
+  const percent = match?.percent ?? 0;
+  return Math.max(0, Math.floor((totalAmount * percent) / 100));
+}
 
 const AMOUNT_TOO_LOW = () =>
   AppError.conflict('The amount to pay must be at least 1 VND: this tour or promotion cannot be booked online', 'BOOKING_AMOUNT_TOO_LOW');
@@ -48,7 +73,7 @@ export class BookingsService {
     private readonly bookings: Repo = bookingsRepository,
     private readonly tours: Pick<ToursService, 'getBookableDeparture' | 'reserveSeats' | 'releaseSeats' | 'getTourFacts'> = toursService,
     private readonly promotions: Pick<PromotionsService, 'redeem' | 'release'> = promotionsService,
-    private readonly settings: Pick<SystemSettingsService, 'getCommissionBps' | 'getPolicyNumber'> = systemSettingsService,
+    private readonly settings: Pick<SystemSettingsService, 'getCommissionBps' | 'getPolicyNumber' | 'getPolicy'> = systemSettingsService,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
   ) {}
 
@@ -96,14 +121,16 @@ export class BookingsService {
     let appliedPlatform: AppliedPromotion | undefined;
     let premium: { id: string; token: string; discountAmount: number } | undefined;
     let saved = false;
-    const isFirstBooking = (await this.bookings.countByTraveler?.(travelerId)) === 0;
-    const redeemOpts = {
-      participants: input.participants,
-      departureDate: departure.departureDate,
-      userId: travelerId,
-      isFirstBooking,
-    };
+    // Everything after reserveSeats must compensate (release seats / promos) on failure — including
+    // countByTraveler / redeem failures that used to sit outside the try and leak inventory (BOOK-001).
     try {
+      const isFirstBooking = (await this.bookings.countByTraveler?.(travelerId)) === 0;
+      const redeemOpts = {
+        participants: input.participants,
+        departureDate: departure.departureDate,
+        userId: travelerId,
+        isFirstBooking,
+      };
       if (input.premiumVoucherId) premium = await premiumRepository.reserveVoucher(input.premiumVoucherId, travelerId, departure.agencyId, input.tourId, subtotal);
       if (input.agencyPromotionCode) {
         appliedAgency = await this.promotions.redeem(input.agencyPromotionCode, input.tourId, subtotal, redeemOpts);
@@ -201,7 +228,8 @@ export class BookingsService {
 
   /**
    * Cancel as the traveler. PENDING: any time. CONFIRMED: only while the departure is further away than the
-   * `cancellation.cancellationWindowHours` policy; a paid booking is flagged `refundRequired`.
+   * `cancellation.cancellationWindowHours` policy; a paid booking is flagged `refundRequired` with a computed
+   * `refundAmount` from structured refund milestones (PAY-009).
    */
   async cancelMine(travelerId: string, id: string, note?: string): Promise<BookingDto> {
     const booking = await this.requireOwnedByTraveler(travelerId, id);
@@ -218,8 +246,15 @@ export class BookingsService {
       }
     }
 
+    const milestones = await this.loadRefundMilestones();
     // Compare-and-set on the status the rules above were checked against (a payment landing meanwhile must not slip through).
-    const cancelled = await this.cancelInternal(booking, BOOKING_CANCEL_REASON.TRAVELER_REQUEST, [booking.status as BookingStatus], note);
+    const cancelled = await this.cancelInternal(
+      booking,
+      BOOKING_CANCEL_REASON.TRAVELER_REQUEST,
+      [booking.status as BookingStatus],
+      note,
+      milestones,
+    );
     if (!cancelled) throw AppError.conflict('The booking changed, please retry', 'CONCURRENT_UPDATE');
 
     await this.notifications.notify(booking.agencyId, {
@@ -294,6 +329,7 @@ export class BookingsService {
   /**
    * Called by `payments` after a payment has been verified server-side. Idempotent. A payment that arrives after the
    * booking was cancelled/expired cannot revive it: the booking is flagged `refundRequired` instead.
+   * Late settlement on a still-PENDING booking past `paymentExpiresAt` also refuses confirmation (BOOK-002 / BOOK-006).
    */
   async confirmPayment(bookingId: string): Promise<{ outcome: PaymentConfirmationOutcome; booking: BookingFacts }> {
     const booking = await this.bookings.findById(bookingId);
@@ -305,6 +341,24 @@ export class BookingsService {
     if (booking.status === BOOKING_STATUS.CANCELLED) {
       const flagged = await this.bookings.updateById(bookingId, { isPaid: true, refundRequired: true });
       return { outcome: 'REFUND_REQUIRED', booking: toBookingFacts(flagged ?? booking) };
+    }
+
+    // Payment window already over while still PENDING (job may not have swept yet): accept money as refund-only.
+    const expiredHold =
+      booking.status === BOOKING_STATUS.PENDING &&
+      booking.paymentExpiresAt != null &&
+      booking.paymentExpiresAt.getTime() <= Date.now();
+    if (expiredHold) {
+      const late = await this.cancelInternal(
+        booking,
+        BOOKING_CANCEL_REASON.PAYMENT_EXPIRED,
+        [BOOKING_STATUS.PENDING],
+        'Late payment received after hold expired',
+      );
+      if (!late) return this.confirmPayment(bookingId);
+      const flagged =
+        (await this.bookings.updateById(bookingId, { isPaid: true, refundRequired: true })) ?? late;
+      return { outcome: 'REFUND_REQUIRED', booking: toBookingFacts(flagged) };
     }
 
     const confirmed = await this.bookings.transition(bookingId, [BOOKING_STATUS.PENDING], {
@@ -456,30 +510,56 @@ export class BookingsService {
     return booking;
   }
 
-  /** CAS to CANCELLED, then give back seats and the promotion redemption. Null if someone else changed the booking. */
+  /** CAS to CANCELLED and restore seats/voucher/promotion in one transaction. Null if someone else changed the booking. */
   private async cancelInternal(
     booking: BookingRecord,
     reason: BookingCancelReason,
     expected: readonly BookingStatus[],
     note?: string,
+    milestones: RefundMilestone[] = DEFAULT_REFUND_MILESTONES,
   ): Promise<BookingRecord | null> {
     const wasPaid = booking.isPaid;
-    const cancelled = await this.bookings.transition(booking.id, expected, {
-      status: BOOKING_STATUS.CANCELLED,
-      cancelledAt: new Date(),
-      cancelReason: reason,
-      ...(note ? { cancelNote: note } : {}),
-      ...(wasPaid ? { refundRequired: true } : {}),
-      paymentExpiresAt: null,
+    const cancelledAt = new Date();
+    const refundAmount = wasPaid
+      ? calculateRefundAmount(booking.totalAmount, booking.departureDate, cancelledAt, milestones)
+      : undefined;
+    const cancelled = await this.bookings.cancelWithInventoryRelease({
+      id: booking.id,
+      expected,
+      patch: {
+        status: BOOKING_STATUS.CANCELLED,
+        cancelledAt,
+        cancelReason: reason,
+        ...(note ? { cancelNote: note } : {}),
+        ...(wasPaid ? { refundRequired: true, refundAmount: refundAmount ?? 0 } : {}),
+        paymentExpiresAt: null,
+      },
+      tourId: booking.tourId,
+      departureId: booking.departureId,
+      seats: booking.participants,
+      promotionId: booking.promotion?.promotionId,
+      releasePremiumVoucher: Boolean(booking.premiumVoucherId),
     });
     if (!cancelled) return null;
 
-    if (booking.premiumVoucherId) await premiumRepository.releaseBookingVoucher(booking.id);
-
-    await this.tours.releaseSeats(booking.tourId, booking.departureId, booking.participants);
-    if (booking.promotion) await this.promotions.release(booking.promotion.promotionId);
     await bookingEvents.emitCancelled(toBookingFacts(cancelled));
     return cancelled;
+  }
+
+  private async loadRefundMilestones(): Promise<RefundMilestone[]> {
+    try {
+      const policy = await this.settings.getPolicy('refund');
+      const encoded = policy.params.milestonesJson;
+      if (typeof encoded === 'string') {
+        const parsed = JSON.parse(encoded) as RefundMilestone[];
+        if (Array.isArray(parsed) && parsed.every((m) => typeof m.daysBefore === 'number' && typeof m.percent === 'number')) {
+          return parsed;
+        }
+      }
+    } catch {
+      /* use defaults */
+    }
+    return DEFAULT_REFUND_MILESTONES;
   }
 
   private async compensate(
