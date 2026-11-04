@@ -108,6 +108,13 @@ export class UsersRepository {
     return prisma.user.update({ where: { id }, data: toData(patch), include, omit: omitPassword }).catch(nullIfNotFound);
   }
 
+  /** Bumps JWT generation so previously issued access tokens fail authentication. */
+  incrementTokenVersion(id: string): Promise<UserRecord | null> {
+    return prisma.user
+      .update({ where: { id }, data: { tokenVersion: { increment: 1 } }, include, omit: omitPassword })
+      .catch(nullIfNotFound);
+  }
+
   /** Atomic status change guarded by the expected current status (prevents lost updates / double ban). */
   updateStatusIf(id: string, expected: UserStatus, patch: UserPatch): Promise<UserRecord | null> {
     return prisma.user.update({ where: { id, status: expected }, data: toData(patch), include, omit: omitPassword }).catch(nullIfNotFound);

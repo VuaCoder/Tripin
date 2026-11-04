@@ -108,7 +108,7 @@ export async function createUser(
       ...(agencyProfile ? { agencyProfile: { create: agencyProfile } } : {}),
     },
   });
-  return { id: user.id, token: signAccessToken(user.id, user.role as never) };
+  return { id: user.id, token: signAccessToken(user.id, user.role as never, user.tokenVersion) };
 }
 
 /** An APPROVED tour with one departure `daysAhead` days from now. */
