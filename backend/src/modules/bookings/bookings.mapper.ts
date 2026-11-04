@@ -8,6 +8,7 @@ const createdAtOf = (booking: BookingRecord) => booking.createdAt.toISOString();
 export function toBookingDto(booking: BookingRecord): BookingDto {
   return {
     id: booking.id,
+    premiumVoucherId: booking.premiumVoucherId ?? undefined,
     bookingCode: booking.bookingCode,
     status: booking.status as BookingStatus,
     tour: { id: booking.tourId, title: booking.tourTitle },

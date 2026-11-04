@@ -335,7 +335,7 @@ export class ReportsService {
                 messages: ticket.messages.map((m) => ({
                   id: m.id,
                   senderRole: m.senderRole,
-                  senderName: m.senderName ?? undefined,
+                  senderName: (m as any).senderName ?? undefined,
                   text: m.text,
                   attachments: m.attachments,
                   createdAt: m.createdAt.toISOString(),

@@ -41,7 +41,7 @@ export type NewBooking = Pick<
   | 'bookingCode' | 'travelerId' | 'agencyId' | 'tourId' | 'departureId' | 'tourTitle' | 'departureDate' | 'endDate'
   | 'participants' | 'unitPrice' | 'subtotal' | 'totalAmount' | 'commissionBps' | 'commissionAmount' | 'agencyAmount'
 > &
-  Partial<BookingScalars> & { id?: string; contact: { fullName: string; phone: string }; promotion?: PromotionSnapshot; redemptions?: PromotionRedemptionInput[] };
+  Partial<BookingScalars> & { id?: string; contact: { fullName: string; phone: string }; promotion?: PromotionSnapshot; redemptions?: PromotionRedemptionInput[]; premiumVoucherToken?: string };
 
 
 /** Plain-field changes (`null` clears a nullable column). */
@@ -66,7 +66,11 @@ const NEWEST_FIRST: Prisma.BookingOrderByWithRelationInput[] = [{ createdAt: 'de
 
 export class BookingsRepository {
   async create(data: NewBooking, db: DbExecutor = prisma): Promise<BookingRecord> {
-    const { contact, promotion, redemptions, ...scalars } = data;
+    // Standalone callers need the same atomic claim as the booking transaction path.
+    if (data.premiumVoucherId && db === prisma) {
+      return prisma.$transaction((tx) => this.create(data, tx));
+    }
+    const { contact, promotion, redemptions, premiumVoucherToken, ...scalars } = data;
     const row = await db.booking.create({
 
       data: {
@@ -92,6 +96,13 @@ export class BookingsRepository {
       },
       include: { redemptions: true },
     });
+    if (data.premiumVoucherId) {
+      const claimed = await db.premiumVoucher.updateMany({
+        where: { id: data.premiumVoucherId, userId: data.travelerId, leaseToken: premiumVoucherToken, bookingId: null, endsAt: { gt: new Date() } },
+        data: { bookingId: row.id },
+      });
+      if (claimed.count !== 1) throw new Error('Premium voucher lease lost');
+    }
     return toRecord(row);
   }
 

@@ -8,6 +8,9 @@ export const PERMISSIONS = {
   // Account
   PROFILE_VIEW_OWN: 'profile:view-own',
   PROFILE_UPDATE_OWN: 'profile:update-own',
+  PREMIUM_SUBSCRIBE: 'premium:subscribe',
+  PREMIUM_CONTRIBUTE: 'premium:contribute',
+  PREMIUM_MANAGE: 'premium:manage',
 
   // Traveler
   WISHLIST_MANAGE: 'wishlist:manage',
@@ -40,6 +43,7 @@ export const PERMISSIONS = {
   // Tour guide
   GUIDE_TOURS_VIEW: 'guide:tours-view',
   GUIDE_TOURS_VERIFY: 'guide:tours-verify',
+  GUIDE_CHECK_IN: 'guide:check-in',
   SUBSCRIPTION_SUBSCRIBE: 'subscription:subscribe',
   EARNINGS_VIEW: 'earnings:view',
 
@@ -74,6 +78,7 @@ const ACCOUNT: Permission[] = [P.PROFILE_VIEW_OWN, P.PROFILE_UPDATE_OWN];
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   [ROLES.GUEST]: [],
   [ROLES.TRAVELER]: [
+    P.PREMIUM_SUBSCRIBE,
     ...ACCOUNT,
     P.WISHLIST_MANAGE,
     P.CART_MANAGE,
@@ -88,6 +93,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     P.AI_CHAT_USE,
   ],
   [ROLES.AGENCY]: [
+    P.PREMIUM_CONTRIBUTE,
     ...ACCOUNT,
     P.TOUR_CREATE,
     P.TOUR_UPDATE_OWN,
@@ -104,9 +110,11 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     P.REVIEW_DISPUTE,
   ],
   [ROLES.TOUR_GUIDE]: [
+    P.PREMIUM_SUBSCRIBE,
     ...ACCOUNT,
     P.GUIDE_TOURS_VIEW,
     P.GUIDE_TOURS_VERIFY,
+    P.GUIDE_CHECK_IN,
     P.SUBSCRIPTION_SUBSCRIBE,
     P.EARNINGS_VIEW,
     P.CHAT_USE,

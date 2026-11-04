@@ -1,6 +1,6 @@
 import { isUniqueViolation } from '../../config/database';
-import type { PersistedRole } from '@travel-platform/constants';
-import { AppError } from '../../utils/app-error';
+import { containsProfanity, PROFANITY_ERROR_MESSAGE, type PersistedRole } from '@travel-platform/constants';
+import { AppError, ERROR_CODES } from '../../utils/app-error';
 import { logger } from '../../utils/logger';
 import { buildPage, type Page } from '../../utils/pagination';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
@@ -23,6 +23,8 @@ type Actor = { userId: string; role: PersistedRole };
 
 /** All chat rules. Controllers and the socket gateway only translate transport details into calls to this class. */
 export class ChatService {
+  private readPublisher?: (userId: string, conversationId: string) => void;
+  setReadPublisher(publisher: (userId: string, conversationId: string) => void) { this.readPublisher = publisher; }
   private publisher?: ChatPublisher;
 
   constructor(
@@ -99,6 +101,9 @@ export class ChatService {
     const { conversation, side } = await this.requireParticipation(userId, conversationId);
     const clean = text.trim();
     if (!clean) throw AppError.badRequest('Message cannot be empty');
+    if (containsProfanity(clean)) {
+      throw AppError.badRequest(PROFANITY_ERROR_MESSAGE, undefined, ERROR_CODES.PROFANITY_DETECTED);
+    }
 
     const message = await this.chat.createMessage({ conversationId, senderId: userId, text: clean });
     const recipient = otherSide(side);
@@ -128,6 +133,7 @@ export class ChatService {
   async markRead(userId: string, conversationId: string): Promise<{ unreadCount: number }> {
     const { side } = await this.requireParticipation(userId, conversationId);
     await Promise.all([this.chat.markMessagesRead(conversationId, userId), this.chat.resetUnread(conversationId, side)]);
+    this.readPublisher?.(userId, conversationId);
     return { unreadCount: 0 };
   }
 

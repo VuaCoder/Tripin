@@ -18,7 +18,7 @@ import {
   type CreateCheckoutInput,
   type PaymentDto,
 } from './payments.types';
-import type { PaymentProvider } from './providers/payment.provider';
+import type { BankTransferInfo, PaymentProvider } from './providers/payment.provider';
 import { createPayosProviderFromEnv } from './providers/payos.provider';
 import { assertTransition } from '../../utils/state-machine';
 
@@ -30,6 +30,11 @@ type Repo = Pick<
 export class PaymentsService {
   /** paymentId -> time of the last reconciliation request to the gateway (throttle for polling clients). */
   private readonly lastSync = new Map<string, number>();
+  /**
+   * paymentId -> VietQR details. The gateway only returns them when the link is created and the schema has no column for
+   * them, so they live in memory (lost on restart; clients then fall back to `checkoutUrl`).
+   */
+  private readonly bankInfo = new Map<string, BankTransferInfo>();
 
   constructor(
     private readonly payments: Repo = paymentsRepository,
@@ -60,7 +65,7 @@ export class PaymentsService {
   async createCheckout(input: CreateCheckoutInput): Promise<CheckoutDto> {
     for (let round = 0; round < PAYMENT_POLICY.CHECKOUT_MAX_ROUNDS; round += 1) {
       const live = await this.payments.findLivePending(input.purpose, input.referenceId, new Date());
-      if (live?.checkoutUrl) return toCheckoutDto(live);
+      if (live?.checkoutUrl) return toCheckoutDto(live, this.bankInfo.get(live.id));
 
       const created = await this.createPendingPayment(input);
       if (created) return this.attachPaymentLink(created.payment, created.orderCode, input);
@@ -91,7 +96,11 @@ export class PaymentsService {
         providerPaymentLinkId: link.providerPaymentLinkId,
         checkoutUrl: link.checkoutUrl,
       });
-      return toCheckoutDto(updated ?? payment);
+      if (link.bank) {
+        if (this.bankInfo.size >= PAYMENT_POLICY.SYNC_TRACKED_PAYMENTS) this.bankInfo.clear();
+        this.bankInfo.set(payment.id, link.bank);
+      }
+      return toCheckoutDto(updated ?? payment, link.bank);
     } catch (error) {
       await this.payments.transition(payment.id, [PAYMENT_STATUS.PENDING], {
         status: PAYMENT_STATUS.FAILED,
@@ -134,7 +143,7 @@ export class PaymentsService {
     if (payment.status === PAYMENT_STATUS.PENDING && this.syncDue(payment.id)) {
       payment = (await this.syncWithProvider(payment)) ?? payment;
     }
-    return toPaymentDto(payment);
+    return toPaymentDto(payment, this.bankInfo.get(payment.id));
   }
 
   /** True at most once per `SYNC_MIN_INTERVAL_MS` per payment: a client polling in a loop must not become a request storm against the gateway. */

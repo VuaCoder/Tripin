@@ -11,6 +11,7 @@ export const ERROR_CODES = {
   FORBIDDEN: 'FORBIDDEN',
   ACCOUNT_BANNED: 'ACCOUNT_BANNED',
   ACCOUNT_NOT_VERIFIED: 'ACCOUNT_NOT_VERIFIED',
+  ACCOUNT_NOT_FOUND: 'ACCOUNT_NOT_FOUND',
   NOT_FOUND: 'NOT_FOUND',
   CONFLICT: 'CONFLICT',
   INVALID_STATE_TRANSITION: 'INVALID_STATE_TRANSITION',
@@ -21,8 +22,17 @@ export const ERROR_CODES = {
   RATE_LIMITED: 'RATE_LIMITED',
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
   AI_EXTRACTION_FAILED: 'AI_EXTRACTION_FAILED',
+  AI_NOT_CONFIGURED: 'AI_NOT_CONFIGURED',
+  AI_QUOTA_EXCEEDED: 'AI_QUOTA_EXCEEDED',
+  AI_TIMEOUT: 'AI_TIMEOUT',
+  AI_UNREACHABLE: 'AI_UNREACHABLE',
+  AI_TEMPORARILY_UNAVAILABLE: 'AI_TEMPORARILY_UNAVAILABLE',
+  AI_CONTENT_BLOCKED: 'AI_CONTENT_BLOCKED',
+  AI_EMPTY_RESPONSE: 'AI_EMPTY_RESPONSE',
+  AI_INCOMPLETE_RESPONSE: 'AI_INCOMPLETE_RESPONSE',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   TWO_FACTOR_REQUIRES_PASSWORD: 'TWO_FACTOR_REQUIRES_PASSWORD',
+  PROFANITY_DETECTED: 'PROFANITY_DETECTED',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES] | (string & {});
@@ -51,8 +61,8 @@ export class AppError extends Error {
   static forbidden(message = 'You do not have permission to perform this action', code: ErrorCode = ERROR_CODES.FORBIDDEN) {
     return new AppError(403, code, message);
   }
-  static notFound(message = 'Resource not found') {
-    return new AppError(404, ERROR_CODES.NOT_FOUND, message);
+  static notFound(message = 'Resource not found', code: ErrorCode = ERROR_CODES.NOT_FOUND) {
+    return new AppError(404, code, message);
   }
   static conflict(message: string, code: ErrorCode = ERROR_CODES.CONFLICT) {
     return new AppError(409, code, message);

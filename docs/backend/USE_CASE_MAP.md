@@ -23,6 +23,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Agency login (+ 2FA extend) | Agency | `POST /auth/agency/login` | done |
 | Login with Google (+ Authenticate via OAuth) | Guest | `POST /auth/google` | done |
 | Forgot password (+ Verify OTP) | All | `POST /auth/forgot-password`, `POST /auth/reset-password` | done |
+| Change own password | auth | `POST /auth/change-password` | done |
 | Log out | All | `POST /auth/logout`, `POST /auth/refresh` (session upkeep) | done |
 | Enable/disable 2FA (supports Verify OTP extend) | auth | `PATCH /auth/two-factor` | done |
 
@@ -56,7 +57,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Tour complaint tickets | complaints | `POST /complaints`, `GET /complaints/me`, `GET /complaints/:id`, `POST /complaints/:id/messages`, `POST /complaints/:id/accept-resolution`, `POST /complaints/:id/escalate`, `POST /complaints/:id/feedback`, `POST /complaints/images/upload-signature` | report:create | done |
 | Send ticket (support) | support | `POST /support/tickets`, `GET /support/tickets/me`, `GET /support/tickets/:id`, `POST /support/tickets/:id/messages`, `POST /support/tickets/:id/close` | support:create | done |
 | Make a conversation (with Tour guide) | chat | `POST /chat/conversations`, `GET /chat/conversations`, `GET /chat/conversations/:id`, `GET /chat/conversations/:id/messages`, `POST /chat/conversations/:id/messages`, `POST /chat/conversations/:id/read` + Socket.IO | chat:use | done |
-| Chat with AI (AI Agent) | ai | `POST /ai/chat`, `GET /ai/conversations`, `GET /ai/conversations/:id` | ai:chat | done |
+| Chat with AI (AI Agent) | ai | `POST /ai/chat`, `GET /ai/conversations`, `GET /ai/conversations/:id`, `GET /ai/overview`, `POST /ai/conversations/:id/read` | ai:chat | done |
 | (supporting) notifications | notifications | `GET /notifications`, `GET /notifications/unread-count`, `PATCH /notifications/:id/read`, `POST /notifications/read-all`, `DELETE /notifications/:id` | auth; owner-scoped | done |
 
 ## Agency
@@ -84,6 +85,10 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | View Profile / Update Profile | users | `GET/PATCH /users/me`, `POST /users/me/license-image/upload-signature`, `POST /users/me/license-image/complete` | profile:* | done |
 | View assigned tours | tours | `GET /guide/tours` | guide:tours-view | done |
 | Verify assigned tours | tours | `POST /guide/tours/:tourId/verification` (accept/decline) | guide:tours-verify | done |
+| Scan QR e-ticket check-in | e-tickets | `GET /guide/e-tickets/:tourId`, `POST /guide/e-tickets/:tourId/check-in` | guide:check-in | done |
+| Complete guided trip | e-tickets | `POST /guide/e-tickets/:tourId/complete` | guide:check-in | done |
+| Submit/read own Guide application | users | `POST /users/me/guide-application`, `GET /users/me/guide-application` | profile:update-own / profile:view-own | done |
+| Development Guide application decisions | users | `POST /users/me/guide-application/dev-accept`, `POST /users/me/guide-application/dev-reject` | profile:update-own | done |
 | Subcribe to plan (Payment Gateway) | subscriptions | `GET /subscriptions/plans`, `POST /subscriptions`, `GET /subscriptions/me`, `GET /subscriptions/me/current` | subscription:subscribe | done |
 | View earnings | earnings | `GET /earnings/me`, `GET /earnings/me/summary` | earnings:view | done |
 | Make a conservation (with Traveler) | chat | same as Traveler | chat:use | done |
@@ -123,3 +128,22 @@ contains only a README explaining the intended boundary. `carts` was approved by
 
 ## ADMIN-01 reporting/filter extension
 Admin dashboard accepts paired `from`/`to` (max 366 days), returns previous-period comparison and a bounded zero-filled UTC monthly series. Admin user list supports createdAt date filters; promotion lists support literal q, discountType and overlapping validity bounds. All filtering happens before pagination and uses the original admin role/permission guards.
+
+## Premium (owner-approved extension)
+
+| Use case | Actor | Endpoint | Permission | Status |
+|---|---|---|---|---|
+| Inspect published Premium plans and Guide identity | Public | `GET /premium/plans`, `GET /premium/guides/:id` | GUEST | implemented |
+| View own membership, periods and wallet | Traveler / Guide | `GET /premium/me`, `GET /premium/me/history`, `GET /premium/me/vouchers`, `GET /premium/subscriptions/:id` | profile:view-own | implemented |
+| Buy or renew matching-role Premium | Traveler / Guide | `POST /premium/subscribe` | premium:subscribe | implemented |
+| Request refund of an unstarted paid period | Traveler / Guide | `POST /premium/subscriptions/:id/refunds` | profile:view-own + ownership | implemented |
+| Read/write advanced Guide profile | Guide | `GET/PUT /premium/guide/profile` | profile:view-own + Guide; writes require Premium | implemented |
+| Upload portfolio/certificate image | Guide | `POST /premium/guide/images/signature`, `POST /premium/guide/images/complete` | profile:view-own + Guide Premium | implemented |
+| Advanced income, assignment and activity analytics | Guide | `GET /premium/guide/analytics` | profile:view-own + Guide Premium | implemented |
+| Contribute committed Agency-funded vouchers | Agency | `GET/POST /agency/premium/contributions`, `POST /agency/premium/contributions/:id/stop`, `GET /agency/premium/usage` | premium:contribute + Agency | implemented |
+| Create/publish immutable Premium editions | Super Admin | `GET/POST /admin/premium/plans`, `PATCH /admin/premium/plans/:id` | premium:manage + Super Admin | implemented |
+| Approve voucher supply | Super Admin | `GET /admin/premium/contributions`, `PATCH /admin/premium/contributions/:id` | premium:manage + Super Admin | implemented |
+| Review and record manual refunds | Super Admin | `GET /admin/premium/refunds`, `PATCH /admin/premium/refunds/:id` | premium:manage + Super Admin | implemented |
+| Control sales per role and monitor fulfilment | Super Admin | `GET/PUT /admin/premium/flags`, `GET /admin/premium/operations` | premium:manage + Super Admin | implemented |
+
+Legacy Guide subscription endpoints remain available. Premium authorization is derived server-side from current-role, non-revoked, time-effective periods; paid future periods do not grant early access. See `backend/src/modules/premium/README.md` for inventory, late-payment and refund rules.

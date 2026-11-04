@@ -14,9 +14,22 @@ export interface CreatePaymentLinkInput {
   expiresAt: Date;
 }
 
+/** Bank-transfer details of a link (VietQR). Only known when the link is created; the gateway does not return them later. */
+export interface BankTransferInfo {
+  /** VietQR (EMV) payload to render as a QR code. */
+  qrCode: string;
+  accountNumber: string;
+  accountName: string;
+  /** Napas bank identification number. */
+  bin: string;
+  /** Transfer content the customer must keep unchanged. */
+  description: string;
+}
+
 export interface PaymentLink {
   providerPaymentLinkId: string;
   checkoutUrl: string;
+  bank?: BankTransferInfo;
 }
 
 /** A webhook whose signature has been verified. Everything else in the payload must be treated as untrusted. */

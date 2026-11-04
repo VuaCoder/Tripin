@@ -1,5 +1,6 @@
 import { PAYMENT_STATUS, type PaymentPurpose, type PaymentStatus } from '@travel-platform/constants';
 import type { TransitionMap } from '../../utils/state-machine';
+import type { BankTransferInfo } from './providers/payment.provider';
 
 const S = PAYMENT_STATUS;
 /**
@@ -34,6 +35,8 @@ export interface PaymentDto {
   currency: string;
   status: PaymentStatus;
   checkoutUrl?: string;
+  /** VietQR / bank details, only while PENDING and only while this node still remembers them. */
+  bankTransfer?: BankTransferInfo;
   expiresAt: string;
   paidAt?: string;
   createdAt: string;
@@ -42,6 +45,7 @@ export interface PaymentDto {
 export interface CheckoutDto {
   paymentId: string;
   checkoutUrl: string;
+  bankTransfer?: BankTransferInfo;
   amount: number;
   expiresAt: string;
 }

@@ -22,6 +22,7 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `CONCURRENT_UPDATE` | 409 | Somebody changed the record between read and write; reload and retry |
 | `RATE_LIMITED` | 429 | Too many requests from this client |
 | `SERVICE_UNAVAILABLE` | 503 | A required provider (payment, mail, AI, Google) is not configured or not reachable |
+| `PROFANITY_DETECTED` | 400 | The message or content contains vulgar, offensive, or profane language |
 | `INTERNAL_ERROR` | 500 | Unexpected server error; details are only in the server log |
 
 ## Accounts and sessions (`auth`, `users`)
@@ -30,6 +31,7 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 |---|---|---|
 | `ACCOUNT_BANNED` | 403 | The account was banned by a moderator |
 | `ACCOUNT_NOT_VERIFIED` | 403 | The email has not been verified yet (a new code is sent) |
+| `ACCOUNT_NOT_FOUND` | 401 | The authenticated account no longer exists or is banned |
 | `EMAIL_ALREADY_REGISTERED` | 409 | The email belongs to an active account |
 | `AGENCY_PORTAL_REQUIRED` | 403 | Agency accounts must use the dedicated Agency authentication portal |
 | `AGENCY_ONBOARDING_REQUIRED` | 403 | Agency account is missing the required onboarding profile |
@@ -85,6 +87,15 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `BOOKING_NOT_COMPLETED` | 409 | Only a COMPLETED booking can be reviewed |
 | `REVIEW_EXISTS` | 409 | The booking already has a review |
 
+## E-tickets (`e-tickets`)
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| `TICKET_NOT_FOUND` | 404 | No ticket has this code (fake, mistyped, or not an e-ticket QR) |
+| `TICKET_ALREADY_USED` | 409 | The ticket was already checked in by a guide, or its trip already completed |
+| `TICKET_WRONG_TOUR` | 409 | The ticket belongs to a different tour than the one being checked in |
+| `TICKET_CANCELLED` | 409 | The ticket was cancelled with its booking and cannot be honoured |
+
 ## Community (`reports`, `support`, `wishlists`, `carts`, `ai`)
 
 | Code | HTTP | Meaning |
@@ -98,3 +109,11 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `WISHLIST_FULL` | 409 | The wishlist reached its size limit |
 | `CART_FULL` | 409 | The cart reached its limit of distinct departures |
 | `AI_CONVERSATION_FULL` | 409 | The AI conversation reached its message limit; start a new one |
+| `AI_NOT_CONFIGURED` | 503 | AI provider configuration or credentials are invalid |
+| `AI_QUOTA_EXCEEDED` | 503 | AI provider quota or rate limit exceeded |
+| `AI_TIMEOUT` | 503 | AI provider request timed out |
+| `AI_UNREACHABLE` | 503 | AI provider could not be reached |
+| `AI_TEMPORARILY_UNAVAILABLE` | 503 | AI provider is temporarily unavailable |
+| `AI_CONTENT_BLOCKED` | 503 | AI provider blocked the response |
+| `AI_EMPTY_RESPONSE` | 503 | AI provider returned no usable text |
+| `AI_INCOMPLETE_RESPONSE` | 503 | AI output was incomplete and cannot be accepted |

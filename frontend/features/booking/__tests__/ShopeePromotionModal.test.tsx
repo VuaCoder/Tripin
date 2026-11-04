@@ -35,6 +35,8 @@ describe('ShopeePromotionModal', () => {
           scope: 'AGENCY' as const,
           isActive: true,
           agencyId: 'agency-1',
+          usedCount: 0,
+          isRunning: true,
         },
       ],
       platform: [
@@ -49,6 +51,8 @@ describe('ShopeePromotionModal', () => {
           endsAt: new Date(Date.now() + 86400000).toISOString(),
           scope: 'PLATFORM' as const,
           isActive: true,
+          usedCount: 0,
+          isRunning: true,
         },
       ],
     },

@@ -20,6 +20,7 @@ import {
   updateAgencyApplicationBody,
   verifyOtpBody,
   resendOtpBody,
+  changePasswordBody,
 } from './auth.validation';
 
 const upload = multer({
@@ -51,3 +52,4 @@ authRouter.post('/refresh', authController.refresh);
 authRouter.post('/logout', authController.logout);
 authRouter.get('/security', requireAuth, authController.getSecuritySettings);
 authRouter.patch('/two-factor', requireAuth, authRateLimiter, validate({ body: twoFactorBody }), authController.setTwoFactor);
+authRouter.post('/change-password', requireAuth, authRateLimiter, validate({ body: changePasswordBody }), authController.changePassword);

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import type { NavigationItem } from './navigation-config';
 import { getActiveNavigationHref } from './navigation-config';
 import { cn } from '../ui/cn';
+import { Dropdown } from '../shared/Dropdown';
 
 export function Navigation({ items, onNavigate, isTransparent }: { items: NavigationItem[]; onNavigate?: () => void; isTransparent?: boolean }) {
   const pathname = usePathname();
@@ -15,17 +16,45 @@ export function Navigation({ items, onNavigate, isTransparent }: { items: Naviga
       {items.map((item) => {
         const active = item.href === activeHref || Boolean(item.children?.some((child) => child.href === activeHref));
 
-        // Dropdown item (e.g. Khám phá)
+        // Dropdown item (e.g. Khám phá) using Ant Design Dropdown
         if (item.children && item.children.length > 0) {
           return (
-            <div key={item.label} className="relative group">
+            <Dropdown
+              key={item.label}
+              trigger={['hover']}
+              placement="bottomLeft"
+              popupContent={
+                <div className="w-64 overflow-hidden rounded-2xl border border-slate-100 bg-white/95 p-1.5 shadow-xl backdrop-blur-xl">
+                  {item.children.map((child) => (
+                    <Link
+                      key={child.href}
+                      href={child.href}
+                      onClick={onNavigate}
+                      className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 transition-colors hover:bg-slate-50"
+                    >
+                      {child.icon && (
+                        <span className="material-symbols-outlined text-[20px] text-primary-container">
+                          {child.icon}
+                        </span>
+                      )}
+                      <div>
+                        <div className="text-sm font-semibold text-slate-900">{child.label}</div>
+                        {child.description && (
+                          <div className="text-xs text-slate-500">{child.description}</div>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              }
+            >
               <button
                 type="button"
                 className={cn(
-                  'font-medium text-sm transition-colors py-2 px-3.5 rounded-xl flex items-center gap-1',
+                  'group flex items-center gap-1 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors',
                   isTransparent
-                    ? (active ? 'text-white bg-white/20 font-bold' : 'text-white/85 hover:bg-white/10 hover:text-white')
-                    : (active ? 'text-primary-container font-bold hover:bg-slate-100' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'),
+                    ? (active ? 'bg-white/20 font-bold text-white' : 'text-white/85 hover:bg-white/10 hover:text-white')
+                    : (active ? 'font-bold text-primary-container hover:bg-slate-100' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'),
                 )}
               >
                 <span>{item.label}</span>
@@ -33,29 +62,7 @@ export function Navigation({ items, onNavigate, isTransparent }: { items: Naviga
                   expand_more
                 </span>
               </button>
-              <div className="absolute top-full left-0 w-64 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-100 py-2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 z-50 mt-1">
-                {item.children.map((child) => (
-                  <Link
-                    key={child.href}
-                    href={child.href}
-                    onClick={onNavigate}
-                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors rounded-xl mx-1"
-                  >
-                    {child.icon && (
-                      <span className="material-symbols-outlined text-primary-container text-[20px]">
-                        {child.icon}
-                      </span>
-                    )}
-                    <div>
-                      <div className="text-sm font-semibold text-slate-900">{child.label}</div>
-                      {child.description && (
-                        <div className="text-xs text-slate-500">{child.description}</div>
-                      )}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
+            </Dropdown>
           );
         }
 

@@ -443,6 +443,22 @@ export class AuthService {
     return toPrivateUserDto(updated ?? user);
   }
 
+  /** Changes password for an authenticated user. */
+  async changePassword(userId: string, input: { currentPassword: string; newPassword: string }): Promise<void> {
+    const user = await this.deps.users.findByIdWithPassword(userId);
+    if (!user || user.status === USER_STATUS.BANNED) {
+      throw AppError.unauthenticated('Tài khoản không hợp lệ', ERROR_CODES.ACCOUNT_NOT_FOUND);
+    }
+
+    if (user.passwordHash) {
+      const ok = await bcrypt.compare(input.currentPassword, user.passwordHash);
+      if (!ok) throw AppError.badRequest('Mật khẩu hiện tại không chính xác', undefined, ERROR_CODES.INVALID_CREDENTIALS);
+    }
+
+    const passwordHash = await bcrypt.hash(input.newPassword, AUTH_POLICY.BCRYPT_ROUNDS);
+    await this.deps.users.updateById(userId, { passwordHash });
+  }
+
   /** Housekeeping (periodic job): drops expired one-time codes and refresh tokens. Returns the number removed. */
   async purgeExpiredCredentials(now = new Date()): Promise<number> {
     const [codes, tokens] = await Promise.all([this.deps.otp.purgeExpired(now), this.deps.refreshTokens.deleteExpired(now)]);

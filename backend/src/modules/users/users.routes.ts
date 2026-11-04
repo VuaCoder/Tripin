@@ -11,6 +11,8 @@ import {
   listUsersQuery,
   listAgencyGuidesQuery,
   publicProfileParams,
+  guideApplicationBody,
+  rejectGuideApplicationBody,
   updatePreferencesBody,
   updateProfileBody,
 } from './users.validation';
@@ -62,6 +64,28 @@ usersRouter.post(
   '/me/agency-verification',
   requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
   usersController.requestAgencyVerification,
+);
+usersRouter.post(
+  '/me/guide-application',
+  requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
+  validate({ body: guideApplicationBody }),
+  usersController.applyGuide,
+);
+usersRouter.get(
+  '/me/guide-application',
+  requirePermission(PERMISSIONS.PROFILE_VIEW_OWN),
+  usersController.getGuideApplication,
+);
+usersRouter.post(
+  '/me/guide-application/dev-accept',
+  requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
+  usersController.devAcceptGuide,
+);
+usersRouter.post(
+  '/me/guide-application/dev-reject',
+  requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
+  validate({ body: rejectGuideApplicationBody }),
+  usersController.devRejectGuide,
 );
 
 /** Mounted at /api/v1/tour-guides — public (GUEST) profile. */

@@ -11,8 +11,13 @@ export type EarningRecord = Earning;
 export type NewEarning = Omit<Earning, 'id' | 'createdAt'>;
 
 export class EarningsRepository {
-  async create(data: NewEarning): Promise<EarningRecord> {
-    return numericRecord(await prisma.earning.create({ data }));
+  create(data: NewEarning): Promise<EarningRecord> {
+    return prisma.$transaction(async tx => {
+      const earning = await tx.earning.create({ data });
+      const tour = await tx.tour.findUnique({ where: { id: data.tourId }, select: { title: true } });
+      await tx.premiumGuideActivity.create({ data: { userId: data.guideId, tourId: data.tourId, tourTitle: tour?.title ?? 'Tour', action: 'BOOKING_COMPLETED', bookingId: data.bookingId, occurredAt: data.earnedAt } });
+      return numericRecord(earning);
+    });
   }
 
   async findByBookingId(bookingId: string): Promise<EarningRecord | null> {

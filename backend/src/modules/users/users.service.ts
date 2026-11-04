@@ -60,25 +60,20 @@ export class UsersService {
   }
 
   async getPreferences(userId: string): Promise<UserPreferencesDto> {
-    const user = await this.requireUser(userId);
-    const prefs = (user.preferences as unknown as UserPreferencesDto | null) ?? DEFAULT_USER_PREFERENCES;
-    return {
-      freeTimeSlots: prefs.freeTimeSlots ?? DEFAULT_USER_PREFERENCES.freeTimeSlots,
-      voucherExpiryAlerts: prefs.voucherExpiryAlerts !== undefined ? prefs.voucherExpiryAlerts : DEFAULT_USER_PREFERENCES.voucherExpiryAlerts,
-      emailAlerts: prefs.emailAlerts !== undefined ? prefs.emailAlerts : DEFAULT_USER_PREFERENCES.emailAlerts,
-    };
+    return this.preferencesOf(await this.requireUser(userId));
   }
 
   async updatePreferences(userId: string, input: Partial<UserPreferencesDto> = {}): Promise<UserPreferencesDto> {
-    await this.requireUser(userId);
-    const current = await this.getPreferences(userId);
+    const user = await this.requireUser(userId);
+    const current = this.preferencesOf(user);
     const safeInput = input ?? {};
     const next: UserPreferencesDto = {
       freeTimeSlots: safeInput.freeTimeSlots ?? current.freeTimeSlots,
       voucherExpiryAlerts: safeInput.voucherExpiryAlerts !== undefined ? Boolean(safeInput.voucherExpiryAlerts) : current.voucherExpiryAlerts,
       emailAlerts: safeInput.emailAlerts !== undefined ? Boolean(safeInput.emailAlerts) : current.emailAlerts,
     };
-    await this.users.updateById(userId, { preferences: next as any });
+    // Merge: other stored keys (e.g. a guide's bank account) must survive a preferences update.
+    await this.users.updateById(userId, { preferences: { ...this.storedPreferences(user), ...next } as any });
     return next;
   }
 
@@ -95,6 +90,9 @@ export class UsersService {
     if (input.guideProfile && user.role !== ROLES.TOUR_GUIDE) {
       throw AppError.forbidden('Only tour guides can edit a guide profile');
     }
+    if (input.bankAccount !== undefined && user.role !== ROLES.TOUR_GUIDE) {
+      throw AppError.forbidden('Only tour guides can store a payout account');
+    }
 
     const patch: UserPatch = {};
     if (input.fullName !== undefined) patch.fullName = input.fullName;
@@ -104,6 +102,9 @@ export class UsersService {
     if (agencyFields) patch.agencyProfile = agencyFields;
     const guideFields = definedEntries(input.guideProfile);
     if (guideFields) patch.guideProfile = guideFields;
+    if (input.bankAccount !== undefined) {
+      patch.preferences = { ...this.storedPreferences(user), bankAccount: input.bankAccount } as unknown as UserPatch['preferences'];
+    }
     if (Object.keys(patch).length === 0) return toPrivateUserDto(user);
 
     const clearUploadedLicense =
@@ -174,6 +175,131 @@ export class UsersService {
     });
     if (!updated) throw AppError.invalidTransition(current, AGENCY_VERIFICATION_STATUS.PENDING, 'Agency verification');
     return toPrivateUserDto(updated);
+  }
+
+  /** Traveler requests to become a Tour Guide (stores in user preferences and returns pending application). */
+  async applyGuide(
+    userId: string,
+    input: {
+      licenseNumber: string;
+      experienceYears?: number;
+      languages?: string[];
+      specialties?: string[];
+      bio?: string;
+      licenseImageUrl?: string;
+    },
+  ) {
+    const user = await this.requireUser(userId);
+    if (user.role === ROLES.AGENCY) {
+      throw AppError.forbidden('Tài khoản Doanh nghiệp lữ hành (Agency) không thể đăng ký làm Hướng dẫn viên');
+    }
+    if (user.role === ROLES.TOUR_GUIDE) {
+      throw AppError.badRequest('Tài khoản của bạn đã là Hướng dẫn viên du lịch');
+    }
+    if (!input.licenseNumber || !input.licenseNumber.trim()) {
+      throw AppError.badRequest('Vui lòng cung cấp số thẻ hành nghề hướng dẫn viên');
+    }
+
+    const currentPrefs = (user.preferences as Record<string, any>) ?? {};
+    const application = {
+      status: 'PENDING',
+      licenseNumber: input.licenseNumber.trim(),
+      experienceYears: input.experienceYears ?? 1,
+      languages: input.languages && input.languages.length > 0 ? input.languages : ['Tiếng Việt'],
+      specialties: input.specialties ?? [],
+      bio: input.bio?.trim() ?? '',
+      licenseImageUrl: input.licenseImageUrl ?? null,
+      submittedAt: new Date().toISOString(),
+      verificationNote: null,
+    };
+
+    await this.users.updateById(userId, {
+      preferences: {
+        ...currentPrefs,
+        guideApplication: application,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Hồ sơ đã được gửi thành công và đang chờ ban quản trị xét duyệt theo thời gian thực.',
+      application,
+    };
+  }
+
+  async getGuideApplication(userId: string) {
+    const user = await this.requireUser(userId);
+    if (user.role === ROLES.TOUR_GUIDE) {
+      return {
+        status: 'APPROVED',
+        role: user.role,
+        guideProfile: user.guideProfile,
+      };
+    }
+    const currentPrefs = (user.preferences as Record<string, any>) ?? {};
+    const app = currentPrefs.guideApplication;
+    if (!app) {
+      return { status: 'NOT_SUBMITTED' };
+    }
+    return app;
+  }
+
+  async devAcceptGuide(userId: string) {
+    const user = await this.requireUser(userId);
+    const currentPrefs = (user.preferences as Record<string, any>) ?? {};
+    const app = currentPrefs.guideApplication ?? {};
+
+    const updated = await this.users.updateById(userId, {
+      role: ROLES.TOUR_GUIDE,
+      guideProfile: {
+        licenseNumber: app.licenseNumber || 'HDV-VN-VERIFIED',
+        experienceYears: Number(app.experienceYears) || 1,
+        languages: app.languages || ['Tiếng Việt'],
+        specialties: app.specialties || ['Tour văn hóa'],
+        bio: app.bio || '',
+        licenseImageUrl: app.licenseImageUrl || null,
+      },
+      preferences: {
+        ...currentPrefs,
+        guideApplication: {
+          ...app,
+          status: 'APPROVED',
+          verifiedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Hồ sơ hướng dẫn viên đã được phê duyệt thành công theo thời gian thực!',
+      user: toPrivateUserDto(updated ?? user),
+    };
+  }
+
+  async devRejectGuide(userId: string, reason?: string) {
+    const user = await this.requireUser(userId);
+    const currentPrefs = (user.preferences as Record<string, any>) ?? {};
+    const app = currentPrefs.guideApplication ?? {};
+
+    const updatedApp = {
+      ...app,
+      status: 'REJECTED',
+      verificationNote: reason?.trim() || 'Thông tin thẻ hành nghề hoặc giấy phép chưa hợp lệ. Vui lòng kiểm tra lại ảnh chụp thẻ.',
+      rejectedAt: new Date().toISOString(),
+    };
+
+    await this.users.updateById(userId, {
+      preferences: {
+        ...currentPrefs,
+        guideApplication: updatedApp,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Đã từ chối hồ sơ hướng dẫn viên.',
+      application: updatedApp,
+    };
   }
 
   // ----------------------------------------------------- Public profiles
@@ -417,6 +543,22 @@ export class UsersService {
       throw AppError.notFound(`${role} not found`);
     }
     return user;
+  }
+
+  private preferencesOf(user: UserRecord): UserPreferencesDto {
+    const prefs = this.storedPreferences(user);
+    return {
+      freeTimeSlots: (prefs.freeTimeSlots as UserPreferencesDto['freeTimeSlots'] | undefined) ?? DEFAULT_USER_PREFERENCES.freeTimeSlots,
+      voucherExpiryAlerts:
+        prefs.voucherExpiryAlerts !== undefined ? Boolean(prefs.voucherExpiryAlerts) : DEFAULT_USER_PREFERENCES.voucherExpiryAlerts,
+      emailAlerts: prefs.emailAlerts !== undefined ? Boolean(prefs.emailAlerts) : DEFAULT_USER_PREFERENCES.emailAlerts,
+    };
+  }
+
+  /** The raw `preferences` JSON object, or an empty object when unset/not an object (e.g. legacy rows). */
+  private storedPreferences(user: UserRecord): Record<string, unknown> {
+    const value = user.preferences;
+    return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
   }
 
   private async requireUser(id: string): Promise<UserRecord> {

@@ -1,4 +1,5 @@
 import { logger } from '../utils/logger';
+import { premiumRepository } from '../modules/premium/premium.repository';
 import { authService } from '../modules/auth';
 import { bookingsService } from '../modules/bookings';
 import { notificationsService } from '../modules/notifications';
@@ -22,6 +23,8 @@ const NOTIFICATION_RETENTION_DAYS = 180;
 /** Every time-driven rule of the platform, in one place. */
 export function defaultTasks(): MaintenanceTask[] {
   return [
+    { name: 'premium.grantDue', intervalMs: MINUTE, run: () => premiumRepository.grantDue() },
+    { name: 'premium.releaseExpiredHolds', intervalMs: MINUTE, run: () => premiumRepository.releaseExpiredHolds() },
     // Unpaid bookings free their seats / promotions; finished trips become COMPLETED (reviews, earnings, e-ticket USED).
     { name: 'bookings.expirePending', intervalMs: MINUTE, run: () => bookingsService.expirePendingBookings() },
     { name: 'bookings.completeFinished', intervalMs: 5 * MINUTE, run: () => bookingsService.completeFinishedBookings() },

@@ -41,6 +41,7 @@ export interface AgencyBookingFilters {
 }
 
 export interface AgencyGuide {
+  premiumActive?: boolean;
   id: string;
   fullName: string;
   avatarUrl?: string;

@@ -9,9 +9,15 @@ import type {
   ReportTarget,
 } from './reports.types';
 
+/** Short lookup code shown to the reporter (derived from the id, so no extra column or migration). */
+export function toReportCode(id: string): string {
+  return `RP-${id.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+}
+
 function base(report: ReportRecord): MyReportDto {
   return {
     id: report.id,
+    code: toReportCode(report.id),
     targetType: report.targetType as ReportTarget,
     targetId: report.targetId,
     category: report.category as ReportCategory,

@@ -1,14 +1,17 @@
 'use client';
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectUser, selectAccessToken, setCredentials, clearCredentials } from '@/features/auth/store/authSlice';
 import { refreshSession } from '@/store/api/baseApi';
 import { chatApi } from './api';
+import { aiChatApi } from './api/aiChatApi';
 import type { Ack, Message } from './types';
 
 interface ChatContextValue {
   delivered: ReadonlySet<string>;
+  typing: (id: string) => void;
+  subscribeTyping: (listener: (event: { conversationId: string; userId: string }) => void) => () => void;
   connected: boolean; status: string; revision: number;
   subscribe: (listener: (message: Message) => void) => () => void;
   send: (id: string, text: string) => Promise<Message> | null;
@@ -25,6 +28,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const token = useAppSelector(selectAccessToken);
   const dispatch = useAppDispatch();
   const socketRef = useRef<Socket | null>(null);
+  const typingListeners = useRef(new Set<(event: { conversationId: string; userId: string }) => void>());
+  const lastTyping = useRef(new Map<string, number>());
   const listeners = useRef(new Set<(message: Message) => void>());
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState('Đang kết nối');
@@ -42,7 +47,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     });
     socketRef.current = socket;
     const invalidate = () => dispatch(chatApi.util.invalidateTags(['Conversation']));
-    const sync = () => { invalidate(); setRevision(value => value + 1); };
+    const sync = () => { invalidate(); dispatch(aiChatApi.util.invalidateTags(['AiChat'])); setRevision(value => value + 1); };
     const refresh = async () => {
       if (refreshing || disposed) return;
       refreshing = true;
@@ -69,6 +74,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       acknowledge?.(true);
       invalidate();
     });
+    socket.on('chat:updated', () => { invalidate(); });
+    socket.on('ai:updated', () => {
+      dispatch(aiChatApi.util.invalidateTags(['AiChat']));
+      setRevision(value => value + 1);
+    });
+    socket.on('chat:typing', (event: { conversationId: string; userId: string }) => {
+      if (!disposed && typeof event?.conversationId === 'string' && typeof event.userId === 'string' && event.userId !== user.id) typingListeners.current.forEach(listener => listener(event));
+    });
     socket.on('chat:delivered', (event: { messageId: string }) => {
       if (!disposed && typeof event?.messageId === 'string') setDelivered(previous => new Set([...Array.from(previous).slice(-1999), event.messageId]));
     });
@@ -76,12 +89,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     document.addEventListener('visibilitychange', visible);
     window.addEventListener('online', visible);
     return () => {
-      disposed = true; socket.removeAllListeners(); socket.disconnect(); socketRef.current = null;
+      disposed = true; lastTyping.current.clear(); socket.removeAllListeners(); socket.disconnect(); socketRef.current = null;
       document.removeEventListener('visibilitychange', visible); window.removeEventListener('online', visible);
     };
   }, [dispatch, eligible, token, user?.id]); // Account and token changes dispose all old callbacks.
   useEffect(() => { setDelivered(new Set()); }, [user?.id]);
+  const subscribeTyping = useCallback((listener: (event: { conversationId: string; userId: string }) => void) => {
+    typingListeners.current.add(listener);
+    return () => { typingListeners.current.delete(listener); };
+  }, []);
   return <Context.Provider value={{ delivered, connected, status, revision,
+    typing: id => {
+      if (!socketRef.current?.connected) return;
+      const now = Date.now();
+      if (now - (lastTyping.current.get(id) ?? -Infinity) < 2000) return;
+      lastTyping.current.set(id, now);
+      socketRef.current.emit('chat:typing', { conversationId: id });
+    },
+    subscribeTyping,
     subscribe: listener => { listeners.current.add(listener); return () => { listeners.current.delete(listener); }; },
     reconnect: () => socketRef.current?.connect(),
     send: (conversationId, text) => {

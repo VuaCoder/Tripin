@@ -6,6 +6,7 @@ import { sendOk, sendPaginated } from '../../utils/api-response';
 import type { IdParams } from '../../utils/id';
 import { usersService, type UsersService } from './users.service';
 import type { AssignAccessBody, CompleteImageUploadBody, ListUsersQueryInput, UpdatePreferencesBody, UpdateProfileBody } from './users.validation';
+import type { GuideApplicationBody, RejectGuideApplicationBody } from './users.validation';
 
 /** HTTP only; rules live in UsersService. */
 export class UsersController {
@@ -59,6 +60,24 @@ export class UsersController {
 
   requestAgencyVerification: RequestHandler = async (req, res) => {
     sendOk(res, await this.service.requestAgencyVerification(userActor(req).userId), 202);
+  };
+
+  applyGuide: RequestHandler = async (req, res) => {
+    const { body } = validated<GuideApplicationBody>(req);
+    sendOk(res, await this.service.applyGuide(userActor(req).userId, body));
+  };
+
+  getGuideApplication: RequestHandler = async (req, res) => {
+    sendOk(res, await this.service.getGuideApplication(userActor(req).userId));
+  };
+
+  devAcceptGuide: RequestHandler = async (req, res) => {
+    sendOk(res, await this.service.devAcceptGuide(userActor(req).userId));
+  };
+
+  devRejectGuide: RequestHandler = async (req, res) => {
+    const { body } = validated<RejectGuideApplicationBody>(req);
+    sendOk(res, await this.service.devRejectGuide(userActor(req).userId, body.reason));
   };
 
   getPublicGuide: RequestHandler = async (req, res) => {

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useGetMyVouchersQuery } from '../api/voucherWalletApi';
 import { VoucherCard } from './VoucherCard';
+import { PremiumWalletSection } from '@/features/premium/PremiumWalletSection';
 
 type FilterTab = 'active' | 'used' | 'expired';
 
@@ -155,6 +156,7 @@ export function VoucherWalletPage() {
       )}
 
       {/* Kết thúc danh sách voucher */}
+      <PremiumWalletSection />
     </div>
   );
 }

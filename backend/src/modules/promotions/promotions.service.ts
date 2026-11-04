@@ -250,7 +250,7 @@ export class PromotionsService {
       if (!slot.enabled) return false;
       const [startH, startM] = slot.start.split(':').map(Number);
       const [endH, endM] = slot.end.split(':').map(Number);
-      if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) return false;
+      if (startH === undefined || startM === undefined || endH === undefined || endM === undefined || isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) return false;
       const startMin = startH * 60 + startM;
       const endMin = endH * 60 + endM;
       return currentMinutes >= startMin && currentMinutes <= endMin;

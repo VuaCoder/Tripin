@@ -83,6 +83,13 @@ describe('operator injection and mass assignment', () => {
     expect(assignAccessBody.safeParse({ extraPermissions: ['made:up'] }).success).toBe(false);
   });
 
+  it('bounds a payout account and rejects unknown fields inside it', () => {
+    const payout = { bankName: 'Vietcombank', accountNumber: '0123456789', accountHolder: 'NGUYEN VAN A' };
+    expect(updateProfileBody.safeParse({ bankAccount: payout }).success).toBe(true);
+    expect(updateProfileBody.safeParse({ bankAccount: { ...payout, accountNumber: '12b' } }).success).toBe(false);
+    expect(updateProfileBody.safeParse({ bankAccount: { ...payout, routing: 'x' } }).success).toBe(false);
+  });
+
   it('a booking request carries ids and head-count only: any price field is rejected', () => {
     const ok = { tourId: '11111111-1111-4111-8111-111111111111', departureId: '22222222-2222-4222-8222-222222222222', participants: 2, contact: { fullName: 'Ann Lee', phone: '0123456789' } };
     expect(createBookingBody.safeParse(ok).success).toBe(true);

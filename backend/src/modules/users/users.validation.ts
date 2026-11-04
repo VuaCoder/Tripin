@@ -13,6 +13,14 @@ const imageUrl = z
   .max(500)
   .refine((val) => val.startsWith('http://') || val.startsWith('https://'), 'URL must start with http:// or https://')
   .nullable();
+const bankAccount = z
+  .object({
+    bankName: z.string().trim().min(2).max(120),
+    accountNumber: z.string().trim().regex(/^\d{6,32}$/, 'Invalid account number'),
+    accountHolder: z.string().trim().min(2).max(120),
+  })
+  .strict()
+  .nullable();
 
 export const updateProfileBody = z
   .object({
@@ -40,12 +48,26 @@ export const updateProfileBody = z
       })
       .partial()
       .strict(),
+    bankAccount,
   })
   .partial()
   .strict()
   .refine((value) => Object.keys(value).length > 0, 'Nothing to update');
 
 export const publicProfileParams = idParamsSchema;
+export const guideApplicationBody = z.object({
+  licenseNumber: z.string().trim().min(3).max(100),
+  experienceYears: z.number().int().min(0).max(80).optional(),
+  languages: z.array(z.string().trim().min(2).max(40)).max(20).optional(),
+  specialties: z.array(z.string().trim().min(2).max(60)).max(30).optional(),
+  bio: trimmed(5000).optional(),
+  licenseImageUrl: imageUrl.unwrap().optional(),
+}).strict();
+export const rejectGuideApplicationBody = z.object({
+  reason: z.string().trim().min(1).max(2000).optional(),
+}).strict().default({});
+export type GuideApplicationBody = z.infer<typeof guideApplicationBody>;
+export type RejectGuideApplicationBody = z.infer<typeof rejectGuideApplicationBody>;
 export const listAgencyGuidesQuery = paginationQuerySchema.extend({ q: z.string().trim().max(120).optional() });
 
 /** The signature endpoints deliberately accept no client-controlled upload parameters. */

@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { BookingEntryPage } from '../components/BookingEntryPage';
+vi.mock('@/features/premium/api', () => ({usePremiumVouchersQuery:() => ({currentData:[],refetch:vi.fn()})}));
 
 const mockPush = vi.fn();
 const mockParams = new URLSearchParams('tourId=tour-1&departureId=dep-1&participants=2');

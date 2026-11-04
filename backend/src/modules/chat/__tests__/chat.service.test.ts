@@ -130,6 +130,23 @@ describe('messages', () => {
     expect(repo.createMessage).not.toHaveBeenCalled();
   });
 
+  it('rejects profanity and vulgar messages with 400 and PROFANITY_DETECTED', async () => {
+    const { service, repo } = make([conv()]);
+    await expect(service.sendMessage('t1', 'c1', 'địt mẹ mày')).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'PROFANITY_DETECTED',
+    });
+    await expect(service.sendMessage('t1', 'c1', 'cặc')).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'PROFANITY_DETECTED',
+    });
+    await expect(service.sendMessage('t1', 'c1', 'fuck you')).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'PROFANITY_DETECTED',
+    });
+    expect(repo.createMessage).not.toHaveBeenCalled();
+  });
+
   it('a broken publisher never fails the send', async () => {
     const { service } = make([conv()]);
     service.setPublisher(() => {

@@ -1,4 +1,5 @@
 import type { DateRange } from '../../utils/date-range';
+import { premiumRepository } from '../premium/premium.repository';
 import { BOOKING_CANCEL_REASON, BOOKING_STATUS, PROMOTION_SCOPE, ratioVnd, sumVnd, type BookingCancelReason, type BookingStatus, type PromotionScope } from '@travel-platform/constants';
 import { isUniqueViolation, runInTransaction, type TransactionRunner } from '../../config/database';
 import { AppError } from '../../utils/app-error';
@@ -77,6 +78,7 @@ export class BookingsService {
   }
 
   private async createBookingOnce(travelerId: string, input: CreateBookingInput): Promise<BookingDto> {
+    if (input.premiumVoucherId && (input.promotionCode || input.agencyPromotionCode || input.platformPromotionCode)) throw AppError.badRequest('Voucher Premium không cộng với mã khác');
     if (input.clientRequestId) {
       const duplicate = await this.bookings.findByRequestId(travelerId, input.clientRequestId);
       if (duplicate) return toBookingDto(duplicate);
@@ -94,7 +96,11 @@ export class BookingsService {
     const bookingId = randomUUID();
     await this.tours.reserveSeats(input.tourId, input.departureId, input.participants);
     let result: { booking: BookingRecord; created: boolean };
+    let premium: { id: string; token: string; discountAmount: number } | undefined;
     try {
+      if (input.premiumVoucherId) {
+        premium = await premiumRepository.reserveVoucher(input.premiumVoucherId, travelerId, departure.agencyId, input.tourId, subtotal);
+      }
       for (let attempt = 1; ; attempt += 1) {
         try {
           result = await this.transact(async (tx) => {
@@ -139,7 +145,7 @@ export class BookingsService {
               if (applied.scope === PROMOTION_SCOPE.AGENCY) appliedAgency = applied;
               else appliedPlatform = applied;
             }
-            const discountAmount = sumVnd([appliedAgency?.discountAmount ?? 0, appliedPlatform?.discountAmount ?? 0]);
+            const discountAmount = sumVnd([premium?.discountAmount ?? 0, appliedAgency?.discountAmount ?? 0, appliedPlatform?.discountAmount ?? 0]);
             const totalAmount = Math.max(0, subtotal - discountAmount);
             if (totalAmount < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
             const commissionAmount = ratioVnd(totalAmount, commissionBps, 10_000);
@@ -150,6 +156,7 @@ export class BookingsService {
               .map((p) => ({ promotionId: p.promotionId, scope: p.scope, code: p.code, discountAmount: p.discountAmount, codeInstanceId: p.codeInstanceId }));
             const booking = await this.bookings.create({
               id: bookingId,
+              ...(premium ? { premiumVoucherId: premium.id, premiumVoucherToken: premium.token } : {}),
               bookingCode: generateBookingCode(),
               travelerId,
               agencyId: departure.agencyId,
@@ -196,10 +203,12 @@ export class BookingsService {
         }
       }
     } catch (error) {
+      if (premium) await premiumRepository.releaseVoucher(premium.id, premium.token);
       await this.releaseReservedSeats(input);
       throw error;
     }
     if (!result.created) {
+      if (premium) await premiumRepository.releaseVoucher(premium.id, premium.token);
       await this.releaseReservedSeats(input);
       return toBookingDto(result.booking);
     }
@@ -505,6 +514,8 @@ export class BookingsService {
       return changed;
     });
     if (!cancelled) return null;
+
+    if (booking.premiumVoucherId) await premiumRepository.releaseBookingVoucher(booking.id);
 
     await this.tours.releaseSeats(booking.tourId, booking.departureId, booking.participants);
 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import type { AppRole } from './navigation-config';
 import { navigationByRole } from './navigation-config';
 import { Navigation } from './Navigation';
@@ -12,7 +12,8 @@ import { Container } from './Container';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, selectIsAuthenticated, useLogout } from '@/features/auth';
 import { homeForRole } from '@/features/auth/utils/roles';
-import { PremiumComingSoonModal } from '@/components/shared';
+import { Dropdown } from '@/components/shared';
+import { OwnPremiumIdentity, PremiumStatusText, useOwnPremium } from '@/features/premium/PremiumIdentity';
 import { AgencyRightSidebar } from '@/features/agency/AgencyUi';
 import { cn } from '../ui/cn';
 
@@ -109,6 +110,8 @@ function accountMenuForRole(role: AppRole): AccountMenuItem[] {
 
 export function Header({ role }: { role?: AppRole }) {
   const user = useAppSelector(selectUser);
+  const router = useRouter();
+  const premium = useOwnPremium(user?.id);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const logout = useLogout();
   const pathname = usePathname();
@@ -116,11 +119,7 @@ export function Header({ role }: { role?: AppRole }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
-  const [premiumModalOpen, setPremiumModalOpen] = useState(false);
-  const accountMenuRef = useRef<HTMLDivElement>(null);
-  const notificationRef = useRef<HTMLDivElement>(null);
 
-  const [avatarFailed, setAvatarFailed] = useState(false);
 
   // Tin nhắn: Đếm số lượng tin nhắn chưa đọc
   const { data: conversationsData } = useConversationsQuery(1, { skip: !isAuthenticated });
@@ -171,9 +170,6 @@ export function Header({ role }: { role?: AppRole }) {
     }
   };
 
-  useEffect(() => {
-    setAvatarFailed(false);
-  }, [user?.avatarUrl]);
 
   useEffect(() => {
     if (!isHome) {
@@ -186,32 +182,6 @@ export function Header({ role }: { role?: AppRole }) {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isHome]);
-
-  useEffect(() => {
-    if (!accountMenuOpen && !notificationOpen) return;
-
-    const closeOnOutsideClick = (event: MouseEvent) => {
-      if (accountMenuOpen && !accountMenuRef.current?.contains(event.target as Node)) {
-        setAccountMenuOpen(false);
-      }
-      if (notificationOpen && !notificationRef.current?.contains(event.target as Node)) {
-        setNotificationOpen(false);
-      }
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setAccountMenuOpen(false);
-        setNotificationOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', closeOnOutsideClick);
-    document.addEventListener('keydown', closeOnEscape);
-    return () => {
-      document.removeEventListener('mousedown', closeOnOutsideClick);
-      document.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [accountMenuOpen, notificationOpen]);
 
   const isTransparent = isHome && !isScrolled;
   const effectiveRole: AppRole = role || (isAuthenticated && user?.role ? (user.role as AppRole) : 'PUBLIC');
@@ -261,7 +231,7 @@ export function Header({ role }: { role?: AppRole }) {
           {!user && (
             <button
               type="button"
-              onClick={() => setPremiumModalOpen(true)}
+              onClick={() => router.push('/premium')}
               aria-label="Khám phá Tripri Premium"
               title="Khám phá đặc quyền Tripri Premium"
               className="group btn-premium-gold relative inline-flex h-10 items-center justify-center gap-1.5 rounded-2xl px-3.5 text-xs sm:text-sm font-bold shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 cursor-pointer"
@@ -286,35 +256,19 @@ export function Header({ role }: { role?: AppRole }) {
 
           {isAuthenticated && user ? (
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Nút Chuông thông báo 🔔 */}
-              <div ref={notificationRef} className="relative">
-                <button
-                  type="button"
-                  aria-label="Thông báo"
-                  title="Thông báo"
-                  onClick={() => {
-                    setNotificationOpen((prev) => !prev);
-                    setAccountMenuOpen(false);
-                  }}
-                  className={cn(
-                    'relative flex size-10 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container cursor-pointer',
-                    isTransparent
-                      ? 'text-white hover:bg-white/15'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-                  )}
-                >
-                  <span className="material-symbols-outlined text-[22px]">notifications</span>
-                  {unreadNotifCount > 0 && (
-                    <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
-                      {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
-                    </span>
-                  )}
-                </button>
-
-                {notificationOpen && (
+              {/* Nút Chuông thông báo 🔔 sử dụng Ant Design Dropdown */}
+              <Dropdown
+                open={notificationOpen}
+                onOpenChange={(open) => {
+                  setNotificationOpen(open);
+                  if (open) setAccountMenuOpen(false);
+                }}
+                trigger={['click']}
+                placement="bottomRight"
+                popupContent={
                   <div
                     id="notification-menu"
-                    className="absolute right-0 top-[calc(100%+0.625rem)] w-80 sm:w-96 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-3 shadow-2xl shadow-slate-900/15 animate-fadeInScale z-50 text-slate-800"
+                    className="w-80 sm:w-96 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-3 shadow-2xl shadow-slate-900/15 text-slate-800"
                   >
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 px-2">
                       <div className="flex items-center gap-2">
@@ -373,10 +327,31 @@ export function Header({ role }: { role?: AppRole }) {
                           </Link>
                         ))
                       )}
+                      {effectiveRole === 'TOUR_GUIDE' && <Link href="/premium" onClick={() => setAccountMenuOpen(false)} className="flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm text-amber-800 hover:bg-amber-50"><span className="material-symbols-outlined text-[19px]" aria-hidden="true">workspace_premium</span>{premium.premium?.active ? <PremiumStatusText status={premium.premium} /> : <span className="font-bold">Premium</span>}</Link>}
+                      {premium.isError && ['TRAVELER','TOUR_GUIDE'].includes(effectiveRole) && <div className="p-2"><PremiumStatusText error onRetry={() => void premium.refetch()} /></div>}
                     </div>
                   </div>
-                )}
-              </div>
+                }
+              >
+                <button
+                  type="button"
+                  aria-label="Thông báo"
+                  title="Thông báo"
+                  className={cn(
+                    'relative flex size-10 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container cursor-pointer',
+                    isTransparent
+                      ? 'text-white hover:bg-white/15'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                  )}
+                >
+                  <span className="material-symbols-outlined text-[22px]">notifications</span>
+                  {unreadNotifCount > 0 && (
+                    <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+                      {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                    </span>
+                  )}
+                </button>
+              </Dropdown>
 
               {/* Nút Bong bóng chat / Tin nhắn 💬 */}
               <Link
@@ -398,56 +373,19 @@ export function Header({ role }: { role?: AppRole }) {
                 )}
               </Link>
 
-              {/* Nút Tài khoản người dùng (Giữ nguyên giao diện đẹp ban đầu) */}
-              <div ref={accountMenuRef} className="relative">
-                <button
-                  type="button"
-                  aria-expanded={accountMenuOpen}
-                  aria-controls="account-menu"
-                  onClick={() => {
-                    setAccountMenuOpen((open) => !open);
-                    setNotificationOpen(false);
-                  }}
-                  className={cn(
-                    'flex items-center gap-2 rounded-full px-2 py-1.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container cursor-pointer',
-                    isTransparent
-                      ? 'text-white hover:bg-white/15'
-                      : 'text-slate-800 hover:bg-slate-100',
-                  )}
-                >
-                  <span className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-container text-xs font-bold text-white shadow-sm ring-1 ring-black/5">
-                    {user.avatarUrl && !avatarFailed ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={user.avatarUrl}
-                        alt={user.fullName || user.email}
-                        className="size-full object-cover"
-                        referrerPolicy="no-referrer"
-                        onError={() => setAvatarFailed(true)}
-                      />
-                    ) : (
-                      <span>{user.fullName ? user.fullName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}</span>
-                    )}
-                  </span>
-                  <span className={cn('hidden max-w-[140px] truncate text-sm font-semibold leading-tight sm:block', isTransparent ? 'text-white' : 'text-slate-900')}>
-                    {user.fullName || user.email}
-                  </span>
-                  <span
-                    className={cn(
-                      'material-symbols-outlined hidden text-[18px] transition-transform sm:block',
-                      isTransparent ? 'text-white/80' : 'text-slate-500',
-                      accountMenuOpen ? 'rotate-180' : '',
-                    )}
-                    aria-hidden="true"
-                  >
-                    expand_more
-                  </span>
-                </button>
-
-                {accountMenuOpen && (
+              {/* Nút Tài khoản người dùng sử dụng Ant Design Dropdown */}
+              <Dropdown
+                open={accountMenuOpen}
+                onOpenChange={(open) => {
+                  setAccountMenuOpen(open);
+                  if (open) setNotificationOpen(false);
+                }}
+                trigger={['click']}
+                placement="bottomRight"
+                popupContent={
                   <div
                     id="account-menu"
-                    className="absolute right-0 top-[calc(100%+0.625rem)] w-56 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-900/15 animate-fadeInScale z-50"
+                    className="w-56 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-900/15"
                   >
                     <div className="p-1.5">
                       {effectiveRole === 'TRAVELER' ? (
@@ -460,19 +398,11 @@ export function Header({ role }: { role?: AppRole }) {
                             <span className="material-symbols-outlined text-[19px] text-primary-container">person</span>
                             <span>Hồ sơ cá nhân</span>
                           </Link>
-                          <Link
-                            href="/settings/vouchers"
-                            onClick={() => setAccountMenuOpen(false)}
-                            className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-surface-container-low"
-                          >
-                            <span className="material-symbols-outlined text-[19px] text-teal-600">confirmation_number</span>
-                            <span>Ví voucher</span>
-                          </Link>
                           <button
                             type="button"
                             onClick={() => {
                               setAccountMenuOpen(false);
-                              setPremiumModalOpen(true);
+                              router.push('/premium');
                             }}
                             className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-50 cursor-pointer"
                           >
@@ -482,7 +412,7 @@ export function Header({ role }: { role?: AppRole }) {
                             >
                               workspace_premium
                             </span>
-                            <span className="flex-1 font-bold">Premium</span>
+                            <span className="flex-1">{premium.premium?.active ? <PremiumStatusText status={premium.premium} /> : <span className="font-bold">Premium</span>}</span>
                             <span className="material-symbols-outlined text-[14px] text-amber-500">auto_awesome</span>
                           </button>
                         </>
@@ -514,8 +444,35 @@ export function Header({ role }: { role?: AppRole }) {
                       </button>
                     </div>
                   </div>
-                )}
-              </div>
+                }
+              >
+                <button
+                  type="button"
+                  aria-expanded={accountMenuOpen}
+                  aria-controls="account-menu"
+                  className={cn(
+                    'flex items-center gap-2 rounded-full px-2 py-1.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container cursor-pointer',
+                    isTransparent
+                      ? 'text-white hover:bg-white/15'
+                      : 'text-slate-800 hover:bg-slate-100',
+                  )}
+                >
+                  <OwnPremiumIdentity userId={user.id} url={user.avatarUrl} name={user.fullName || user.email} size="sm" showStatus={false} />
+                  <span className={cn('hidden max-w-[140px] truncate text-sm font-semibold leading-tight sm:block', isTransparent ? 'text-white' : 'text-slate-900')}>
+                    {user.fullName || user.email}
+                  </span>
+                  <span
+                    className={cn(
+                      'material-symbols-outlined hidden text-[18px] transition-transform sm:block',
+                      isTransparent ? 'text-white/80' : 'text-slate-500',
+                      accountMenuOpen ? 'rotate-180' : '',
+                    )}
+                    aria-hidden="true"
+                  >
+                    expand_more
+                  </span>
+                </button>
+              </Dropdown>
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -542,15 +499,11 @@ export function Header({ role }: { role?: AppRole }) {
             </div>
           )}
 
-          <MobileNavigation items={items} onOpenPremium={() => setPremiumModalOpen(true)} />
+          <MobileNavigation items={items} onOpenPremium={() => router.push('/premium')} />
         </div>
       </Container>
     </header>
 
-    <PremiumComingSoonModal
-      isOpen={premiumModalOpen}
-      onClose={() => setPremiumModalOpen(false)}
-    />
   </>
 );
 }
