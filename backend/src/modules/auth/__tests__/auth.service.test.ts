@@ -13,6 +13,7 @@ interface FakeUser {
   status: string;
   passwordHash?: string;
   twoFactorEnabled: boolean;
+  tokenVersion: number;
   extraPermissions: string[];
   emailVerifiedAt?: Date;
   createdAt: Date;
@@ -29,6 +30,7 @@ function makeUser(overrides: Partial<FakeUser> = {}): FakeUser {
     status: USER_STATUS.ACTIVE,
     passwordHash: bcrypt.hashSync('Passw0rdX', 4),
     twoFactorEnabled: false,
+    tokenVersion: 0,
     extraPermissions: [],
     createdAt: new Date(),
     ...overrides,
@@ -52,6 +54,10 @@ function makeDeps(user: FakeUser | null) {
       }),
       updateById: vi.fn(async (_id: string, update: Record<string, unknown>) => {
         if (store.user) Object.assign(store.user, update);
+        return store.user;
+      }),
+      incrementTokenVersion: vi.fn(async () => {
+        if (store.user) store.user.tokenVersion += 1;
         return store.user;
       }),
       updateStatusIf: vi.fn(async (_id: string, expected: string, update: Record<string, unknown>) => {
