@@ -117,6 +117,7 @@ export const toursApi = baseApi.injectEndpoints({
 export const {
   useGetToursQuery, useGetTourDestinationsQuery, useGetTourQuery, useGetTourCategoriesQuery,
   useGetAgencyToursQuery, useGetAgencyTourQuery, useCreateAgencyTourMutation, useUpdateAgencyTourMutation,
+  useLazyGetAgencyToursQuery,
   useDeleteAgencyTourMutation, useRestoreAgencyTourMutation, useSetAgencyTourItineraryMutation, useSetAgencyTourAvailabilityMutation,
   useSubmitAgencyTourMutation, useImportAgencyToursMutation, useExtractAgencyTourDocumentMutation,
   useGetAgencyDashboardQuery,

@@ -51,6 +51,7 @@ export const updatePromotionBody = z
     usageLimitPerUser: z.number().int().min(1).max(10_000),
     isActive: z.boolean(),
     isArchived: z.boolean(),
+    deactivationReason: z.string().trim().min(10).max(1000),
   })
   .partial()
   .strict()

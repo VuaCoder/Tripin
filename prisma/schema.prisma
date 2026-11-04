@@ -390,6 +390,7 @@ model Promotion {
   usedCount         Int                @default(0)
   isActive          Boolean            @default(true)
   isArchived        Boolean            @default(false)
+  deactivationReason String?
   createdById       String             @db.Uuid
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt

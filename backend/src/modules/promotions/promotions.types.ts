@@ -24,6 +24,7 @@ export interface PromotionDto {
   usedCount: number;
   isActive: boolean;
   isArchived: boolean;
+  deactivationReason?: string;
   /** Derived: active and inside its validity window right now. */
   isRunning: boolean;
 }
@@ -66,6 +67,7 @@ export interface UpdatePromotionInput {
   usageLimitPerUser?: number;
   isActive?: boolean;
   isArchived?: boolean;
+  deactivationReason?: string;
 }
 
 export interface ListPromotionsQuery {
