@@ -28,6 +28,8 @@ model User {
   emailVerifiedAt  DateTime?
   googleId         String?    @unique
   twoFactorEnabled Boolean    @default(false)
+  /// Bumped on logout / password change so previously issued JWTs fail authentication.
+  tokenVersion     Int        @default(0)
   lastLoginAt      DateTime?
   bannedAt         DateTime?
   bannedById       String?    @db.Uuid
@@ -226,6 +228,8 @@ model Booking {
   status           BookingStatus        @default(PENDING)
   isPaid           Boolean              @default(false)
   refundRequired   Boolean              @default(false)
+  /// Snapshot of the refund amount when a refund is recorded (VND).
+  refundAmount     Int?
   paymentExpiresAt DateTime?
   confirmedAt      DateTime?
   completedAt      DateTime?
@@ -274,6 +278,27 @@ model Payment {
   @@index([userId, createdAt(sort: Desc)])
   @@index([status, expiresAt])
   @@index([status, fulfilledAt])
+}
+
+/// Ledger of refund payouts (booking cancellations, complaint resolutions, etc.).
+model RefundLedger {
+  id                String    @id @default(uuid()) @db.Uuid
+  bookingId         String?   @db.Uuid
+  paymentId         String?   @db.Uuid
+  complaintTicketId String?   @db.Uuid
+  userId            String    @db.Uuid
+  amount            Int
+  currency          String    @default("VND")
+  reason            String
+  destinationHint   String?
+  status            String    @default("PENDING")
+  processedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([bookingId])
 }
 
 model ETicket {
@@ -712,6 +737,8 @@ model Conversation {
   lastMessageSentAt   DateTime?
   unreadTraveler      Int       @default(0)
   unreadGuide         Int       @default(0)
+  lastReadTravelerAt  DateTime?
+  lastReadGuideAt     DateTime?
   lastActivityAt      DateTime  @default(now())
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
