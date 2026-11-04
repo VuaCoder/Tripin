@@ -598,7 +598,8 @@
 
 ---
 
-### [KHOA-01] Mở rộng phạm vi lưu trữ tiền tệ vượt giới hạn số nguyên 32-bit (ADMIN-004, PAY-008)
+### [x] [KHOA-01] Mở rộng phạm vi lưu trữ tiền tệ vượt giới hạn số nguyên 32-bit (ADMIN-004, PAY-008) *(Đã xử lý)*
+- **Trạng thái**: ✅ Đã xử lý (PR #61 - `18f7063`)
 - **Mô tả**: Tổng giá tiền cho đoàn đông người (ví dụ: 50 khách × 50,000,000 VND = 2,500,000,000 VND) vượt quá cận trên của kiểu `Int32` (2.14 tỷ), gây lỗi tràn số ở DB.
 - **Công việc**:
   - Thay đổi kiểu dữ liệu cột giá tiền và chiết khấu trong Prisma schema sang `BigInt` hoặc `Decimal`.
@@ -609,7 +610,8 @@
 
 ---
 
-### [KHOA-02] Lưu bản ghi riêng biệt cho từng Voucher khi áp dụng đồng thời (PAY-001, PAY-014)
+### [x] [KHOA-02] Lưu bản ghi riêng biệt cho từng Voucher khi áp dụng đồng thời (PAY-001, PAY-014) *(Đã xử lý)*
+- **Trạng thái**: ✅ Đã xử lý (`75bb8c5` / `0b86a72`)
 - **Mô tả**: Khi người dùng áp dụng gộp 1 mã của sàn và 1 mã của Agency, hệ thống chỉ lưu ID của mã Agency, làm mất thông tin hoàn mã sàn khi hủy đơn và bypass giới hạn 1 lần/khách.
 - **Công việc**:
   - Tạo bảng `PromotionRedemption` lưu từng voucher được áp dụng cho mỗi đơn hàng (`bookingId`, `promotionId`, `discountAmount`).
@@ -620,7 +622,8 @@
 
 ---
 
-### [KHOA-03] Tiêu thụ nguyên tử mã giảm giá phát hành theo đợt duy nhất (PAY-013)
+### [x] [KHOA-03] Tiêu thụ nguyên tử mã giảm giá phát hành theo đợt duy nhất (PAY-013) *(Đã xử lý)*
+- **Trạng thái**: ✅ Đã xử lý (PR #61 - `5bb570a`)
 - **Mô tả**: Mã voucher phát hành dạng batch (mỗi khách 1 code riêng) không bao giờ bị đánh dấu là đã sử dụng (`consumeCodeInstance` không được gọi), dẫn đến mã có thể tái sử dụng vô hạn.
 - **Công việc**:
   - Gọi hàm `consumeCodeInstance(codeId, userId)` trong cùng transaction tạo đơn hàng.
@@ -631,7 +634,8 @@
 
 ---
 
-### [KHOA-04] Ràng buộc hạn mức sử dụng và Quota khuyến mãi trong một Transaction duy nhất (PAY-017)
+### [x] [KHOA-04] Ràng buộc hạn mức sử dụng và Quota khuyến mãi trong một Transaction duy nhất (PAY-017) *(Đã xử lý)*
+- **Trạng thái**: ✅ Đã xử lý (`eda2388` / `40ef02d`)
 - **Mô tả**: Việc kiểm tra số lượng mã còn lại thực hiện bằng lệnh đọc riêng rẽ trước khi tạo đơn, gây lỗi Race condition khi hàng trăm người cùng ấn áp dụng mã flash sale.
 - **Công việc**:
   - Sử dụng câu lệnh cập nhật có điều kiện: `UPDATE promotions SET used_count = used_count + 1 WHERE id = :id AND used_count < total_quota`.
@@ -641,7 +645,8 @@
 
 ---
 
-### [KHOA-05] Khóa các trường quan trọng của khuyến mãi đang chạy (PAY-019)
+### [x] [KHOA-05] Khóa các trường quan trọng của khuyến mãi đang chạy (PAY-019) *(Đã xử lý)*
+- **Trạng thái**: ✅ Đã xử lý (`8ddf342` / `e901729`)
 - **Mô tả**: Agency có thể chỉnh sửa giá trị giảm giá (`discountValue`) của một chương trình khuyến mãi đã bắt đầu có hiệu lực và đang có người lưu voucher.
 - **Công việc**:
   - Nếu `startsAt <= now()`, cấm sửa các trường: `discountValue`, `discountType`, `minOrderValue`.
@@ -652,7 +657,8 @@
 
 ---
 
-### [KHOA-06] Bổ sung giao diện xem trước phạm vi áp dụng và lý do hủy kích hoạt khuyến mãi (PAY-020)
+### [x] [KHOA-06] Bổ sung giao diện xem trước phạm vi áp dụng và lý do hủy kích hoạt khuyến mãi (PAY-020) *(Đã xử lý trên branch khác)*
+- **Trạng thái**: 🔄 Đã xử lý trên branch khác
 - **Mô tả**: Agency chưa có màn hình xem trước những tour nào sẽ được áp dụng mã giảm giá và thiếu ô nhập lý do khi buộc phải dừng sớm khuyến mãi.
 - **Công việc**:
   - Thêm modal xem danh sách tour áp dụng theo điều kiện lọc của voucher.
@@ -663,7 +669,8 @@
 
 ---
 
-### [KHOA-07] Thiết lập mức hoa hồng nền tảng mặc định chuẩn 12% theo SRS (PAY-003, PAY-015)
+### [x] [KHOA-07] Thiết lập mức hoa hồng nền tảng mặc định chuẩn 12% theo SRS (PAY-003, PAY-015) *(Đã xử lý trên branch khác)*
+- **Trạng thái**: 🔄 Đã xử lý trên branch khác
 - **Mô tả**: Khi hệ thống chưa cài đặt cấu hình hoa hồng riêng, mức chiết khấu bị fallback về 0% thay vì mức 12% đã quy định trong tài liệu đặc tả (SRS).
 - **Công việc**:
   - Đặt hằng số fallback `DEFAULT_PLATFORM_COMMISSION_BPS = 1200` (tương đương 12.00%).
