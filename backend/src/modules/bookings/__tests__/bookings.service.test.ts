@@ -66,6 +66,12 @@ function make(seed: B[] = [], opts: { commissionBps?: number; windowHours?: numb
       Object.assign(doc, update);
       return doc;
     }),
+    cancelWithInventoryRelease: vi.fn(async (input: B) => {
+      const doc = db.find((b) => b.id === input.id);
+      if (!doc || !input.expected.includes(doc.status)) return null;
+      Object.assign(doc, input.patch);
+      return doc;
+    }),
     updateById: vi.fn(async (id: string, update: B) => {
       const doc = db.find((b) => b.id === id);
       if (doc) Object.assign(doc, update);
@@ -88,6 +94,18 @@ function make(seed: B[] = [], opts: { commissionBps?: number; windowHours?: numb
   const settings = {
     getCommissionBps: vi.fn(async () => opts.commissionBps ?? 1000),
     getPolicyNumber: vi.fn(async () => ('windowHours' in opts ? opts.windowHours : 24)),
+    getPolicy: vi.fn(async () => ({
+      key: 'refund',
+      title: 'Refund policy',
+      content: '',
+      params: {
+        milestonesJson: JSON.stringify([
+          { daysBefore: 7, percent: 100 },
+          { daysBefore: 3, percent: 50 },
+          { daysBefore: 0, percent: 0 },
+        ]),
+      },
+    })),
   };
   const notifications = { notify: vi.fn(async () => undefined) };
   return { service: new BookingsService(repo as never, tours as never, promotions as never, settings as never, notifications), repo, tours, promotions, settings, notifications, db };
@@ -284,6 +302,13 @@ describe('payment hooks', () => {
     expect(db[0]).toMatchObject({ status: 'CANCELLED', isPaid: true, refundRequired: true });
   });
 
+  it('rejects late settlement on an expired PENDING hold: cancels, flags refund, does not confirm', async () => {
+    const { service, db, repo } = make([booking({ paymentExpiresAt: new Date(Date.now() - 1000) })]);
+    expect((await service.confirmPayment('b1')).outcome).toBe('REFUND_REQUIRED');
+    expect(db[0]).toMatchObject({ status: 'CANCELLED', isPaid: true, refundRequired: true });
+    expect(repo.cancelWithInventoryRelease).toHaveBeenCalled();
+  });
+
   it('404 for an unknown booking', async () => {
     await expect(make().service.confirmPayment('nope')).rejects.toMatchObject({ statusCode: 404 });
   });
@@ -291,20 +316,20 @@ describe('payment hooks', () => {
 
 describe('maintenance', () => {
   it('expires unpaid bookings: cancels, releases seats, notifies the traveler', async () => {
-    const { service, tours, notifications, db } = make([booking({ paymentExpiresAt: new Date(Date.now() - 1000) }), booking({ id: 'b2' })]);
+    const { service, repo, notifications, db } = make([booking({ paymentExpiresAt: new Date(Date.now() - 1000) }), booking({ id: 'b2' })]);
     expect(await service.expirePendingBookings()).toBe(1);
     expect(db[0]).toMatchObject({ status: 'CANCELLED', cancelReason: 'PAYMENT_EXPIRED' });
     expect(db[1]!.status).toBe('PENDING');
-    expect(tours.releaseSeats).toHaveBeenCalledTimes(1);
+    expect(repo.cancelWithInventoryRelease).toHaveBeenCalledTimes(1);
     expect(notifications.notify).toHaveBeenCalledWith('u1', expect.objectContaining({ type: 'BOOKING_CANCELLED' }));
   });
 
   it('never expires a booking that was paid a moment ago (stale PENDING snapshot, CONFIRMED in the database)', async () => {
-    const { service, repo, tours, db } = make([booking({ status: 'CONFIRMED', isPaid: true, paymentExpiresAt: new Date(Date.now() - 1000) })]);
+    const { service, repo, db } = make([booking({ status: 'CONFIRMED', isPaid: true, paymentExpiresAt: new Date(Date.now() - 1000) })]);
     repo.findExpiredPending.mockResolvedValueOnce([{ ...db[0], status: 'PENDING' }] as never);
     expect(await service.expirePendingBookings()).toBe(0);
     expect(db[0]!.status).toBe('CONFIRMED');
-    expect(tours.releaseSeats).not.toHaveBeenCalled();
+    expect(repo.cancelWithInventoryRelease).not.toHaveBeenCalled();
   });
 
   it('completes finished trips and emits the completed event once per booking', async () => {
