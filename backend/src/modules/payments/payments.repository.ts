@@ -78,6 +78,17 @@ export class PaymentsRepository {
   async findExpiredPending(now: Date, limit: number): Promise<PaymentRecord[]> {
     return toRecords(await prisma.payment.findMany({ where: { status: PAYMENT_STATUS.PENDING, expiresAt: { lt: now } }, take: limit }));
   }
+
+  /** PENDING payments created before `olderThan` — used by the reconciliation poller for missed webhooks. */
+  async findPendingOlderThan(olderThan: Date, limit: number): Promise<PaymentRecord[]> {
+    return toRecords(
+      await prisma.payment.findMany({
+        where: { status: PAYMENT_STATUS.PENDING, createdAt: { lt: olderThan } },
+        orderBy: { createdAt: 'asc' },
+        take: limit,
+      }),
+    );
+  }
 }
 
 export const paymentsRepository = new PaymentsRepository();

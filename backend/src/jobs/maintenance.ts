@@ -31,6 +31,8 @@ export function defaultTasks(): MaintenanceTask[] {
     // Payment links past their expiry are closed (after asking the gateway); PAID-but-unfulfilled payments are retried.
     { name: 'payments.expireStale', intervalMs: MINUTE, run: () => paymentsService.expireStalePayments() },
     { name: 'payments.retryUnfulfilled', intervalMs: MINUTE, run: () => paymentsService.retryUnfulfilled() },
+    // Missed webhooks: reconcile PENDING payments older than 5 minutes with the gateway.
+    { name: 'payments.pollPending', intervalMs: 2 * MINUTE, run: () => paymentsService.pollPendingPayments() },
     { name: 'subscriptions.expireEnded', intervalMs: 5 * MINUTE, run: () => subscriptionsService.expireEndedSubscriptions() },
     { name: 'subscriptions.cancelAbandoned', intervalMs: 5 * MINUTE, run: () => subscriptionsService.cancelAbandonedSubscriptions() },
     // PostgreSQL has no TTL indexes: expired one-time codes / refresh tokens and old notifications are deleted here.
