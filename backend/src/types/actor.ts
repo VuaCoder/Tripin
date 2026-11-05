@@ -11,6 +11,8 @@ export interface UserActor {
   kind: 'user';
   userId: string;
   email: string;
+  /** True when the account has completed email verification. */
+  emailVerified: boolean;
   role: PersistedRole;
   permissions: readonly Permission[];
 }

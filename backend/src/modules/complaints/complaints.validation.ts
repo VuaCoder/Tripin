@@ -29,6 +29,7 @@ export const sendComplaintMessageSchema = z
 export const resolveComplaintTicketSchema = z
   .object({
     solutionSummary: z.string().trim().min(10).max(2000),
+    refundAmount: z.number().int().positive().optional(),
   })
   .strict();
 
@@ -42,6 +43,8 @@ export const adjudicateComplaintTicketSchema = z
   .object({
     decision: z.string().trim().min(5).max(200),
     note: z.string().trim().min(10).max(2000),
+    refundAmount: z.number().int().positive().optional(),
+    refundBookingId: idSchema.optional(),
   })
   .strict();
 

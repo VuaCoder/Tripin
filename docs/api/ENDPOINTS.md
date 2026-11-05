@@ -211,7 +211,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 
 | Method | Path | Access |
 |---|---|---|
-| POST | `/api/v1/bookings` | `booking:create` |
+| POST | `/api/v1/bookings` | role: `TRAVELER` + `booking:create` |
 | GET | `/api/v1/bookings/:id` | `booking:view-own` |
 | POST | `/api/v1/bookings/:id/cancel` | `booking:view-own` |
 | POST | `/api/v1/bookings/:id/complete` | `booking:view-own` |

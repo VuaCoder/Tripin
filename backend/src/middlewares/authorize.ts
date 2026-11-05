@@ -54,6 +54,18 @@ export const requireSuperAdmin: RequestHandler = tag((req, _res, next) => {
   next();
 }, { kind: 'role', role: ROLES.SUPER_ADMIN });
 
+/** Booking create boundary: actor must be an ACTIVE TRAVELER with a verified email (BOOK-007 / BOOK-011). */
+export const requireVerifiedTraveler: RequestHandler = tag((req, _res, next) => {
+  if (req.actor.kind !== 'user') return next(AppError.unauthenticated());
+  if (req.actor.role !== ROLES.TRAVELER) {
+    return next(AppError.forbidden('Only travelers can create bookings'));
+  }
+  if (!req.actor.emailVerified) {
+    return next(AppError.forbidden('Please verify your email before booking', 'ACCOUNT_NOT_VERIFIED'));
+  }
+  next();
+}, { kind: 'role', role: ROLES.TRAVELER });
+
 /** Typed access to the logged-in actor inside controllers behind `requireAuth` / `requirePermission`. */
 export function userActor(req: Request): UserActor {
   if (req.actor.kind !== 'user') throw AppError.unauthenticated();

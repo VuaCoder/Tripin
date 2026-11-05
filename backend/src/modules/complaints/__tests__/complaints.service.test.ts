@@ -163,8 +163,16 @@ function createMockService(initialTickets: ComplaintTicketWithRelations[] = []) 
     notify: vi.fn(async () => {}),
   };
 
-  const service = new ComplaintsService(repo, tours, bookings, users, notifications);
-  return { service, repo, notifications };
+  const refunds: any = {
+    create: vi.fn(async (data: any) => ({ id: 'rl1', status: 'PENDING', ...data })),
+  };
+
+  const bookingWrites: any = {
+    updateById: vi.fn(async () => null),
+  };
+
+  const service = new ComplaintsService(repo, tours, bookings, users, notifications, refunds, bookingWrites);
+  return { service, repo, notifications, refunds, bookingWrites };
 }
 
 describe('ComplaintsService', () => {

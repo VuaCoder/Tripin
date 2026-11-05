@@ -18,6 +18,15 @@ const RATE = { windowMs: 10_000, max: 20 } as const;
 
 export const userRoom = (userId: string) => `user:${userId}`;
 
+/** Set when `attachChatGateway` runs; used to force-disconnect sessions after logout / password change. */
+let chatIo: Server | null = null;
+
+/** Disconnect every socket in `user:<userId>` (e.g. after tokenVersion bump). */
+export function disconnectUserSessions(userId: string): void {
+  if (!chatIo) return;
+  void chatIo.in(userRoom(userId)).disconnectSockets(true);
+}
+
 /**
  * Thin Socket.IO adapter (AI rules §16): authenticate the handshake, validate payloads, call `ChatService`, answer with
  * an ack. NO business rule lives here. Rooms are per user (`user:<id>`), so a message reaches every device of both
@@ -41,6 +50,7 @@ export function attachChatGateway(
     path: '/socket.io',
     cors: { origin: env.CLIENT_URL.split(',').map((origin) => origin.trim()), credentials: true },
   });
+  chatIo = io;
 
   io.use(async (socket, next) => {
     try {

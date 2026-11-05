@@ -7,7 +7,7 @@ import { WISHLIST_LIMITS, type WishlistItemDto } from './wishlists.types';
 
 export class WishlistsService {
   constructor(
-    private readonly items: Pick<WishlistsRepository, 'addIfAbsent' | 'exists' | 'count' | 'remove' | 'list'> = wishlistsRepository,
+    private readonly items: Pick<WishlistsRepository, 'addWithCap' | 'remove' | 'list'> = wishlistsRepository,
     private readonly tours: Pick<ToursService, 'getTourFacts'> = toursService,
     private readonly discovery: Pick<ToursDiscoveryService, 'getPublicCards'> = toursDiscoveryService,
   ) {}
@@ -17,10 +17,7 @@ export class WishlistsService {
     const tour = await this.tours.getTourFacts(tourId);
     if (!tour || tour.status !== TOUR_STATUS.APPROVED) throw AppError.notFound('Tour not found');
 
-    if (!(await this.items.exists(userId, tourId)) && (await this.items.count(userId)) >= WISHLIST_LIMITS.MAX_ITEMS) {
-      throw AppError.conflict(`Your wishlist is full (${WISHLIST_LIMITS.MAX_ITEMS} tours)`, 'WISHLIST_FULL');
-    }
-    return { created: await this.items.addIfAbsent(userId, tourId) };
+    return this.items.addWithCap(userId, tourId, WISHLIST_LIMITS.MAX_ITEMS);
   }
 
   /** Use case "Remove tour from wishlist". Idempotent: removing a tour that is not saved succeeds silently. */

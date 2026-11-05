@@ -23,7 +23,6 @@ import {
   useGetUnreadCountQuery,
   useMarkNotificationAsReadMutation,
   useMarkAllNotificationsAsReadMutation,
-  type AppNotification,
 } from '@/features/notifications/api/notificationsApi';
 
 type AccountMenuItem = {
@@ -43,42 +42,6 @@ interface LocalNotification {
   href: string;
   isRead: boolean;
 }
-
-const DEFAULT_NOTIFICATIONS: LocalNotification[] = [
-  {
-    id: 'notif-booking-success',
-    type: 'BOOKING_CONFIRMED',
-    title: 'Đặt lịch thành công!',
-    body: 'Bạn đã đặt thành công tour "Khám phá Vịnh Hạ Long 2N1Đ". Mã vé: #TRI-88392. Chúc bạn có kỳ nghỉ tuyệt vời!',
-    icon: 'check_circle',
-    iconBg: 'bg-emerald-50 text-emerald-600',
-    time: '10 phút trước',
-    href: '/settings/history',
-    isRead: false,
-  },
-  {
-    id: 'notif-promo-weekend',
-    type: 'PROMOTION',
-    title: 'Ưu đãi Tour Cuối Tuần - Giảm 25%',
-    body: 'Chương trình Flash Sale: Giảm 25% các tour Biển đảo & Nghỉ dưỡng khi đặt trong tuần này!',
-    icon: 'local_offer',
-    iconBg: 'bg-amber-50 text-amber-600',
-    time: '2 giờ trước',
-    href: '/tours',
-    isRead: false,
-  },
-  {
-    id: 'notif-review-tour',
-    type: 'BOOKING_COMPLETED',
-    title: 'Đánh giá chuyến đi đã hoàn thành',
-    body: 'Tour "Cần Thơ chợ nổi & vị ngọt miền Tây" đã hoàn tất. Hãy chia sẻ cảm nghĩ để nhận voucher 50.000đ nhé!',
-    icon: 'star',
-    iconBg: 'bg-yellow-50 text-yellow-600',
-    time: '1 ngày trước',
-    href: '/settings/history',
-    isRead: false,
-  },
-];
 
 function accountMenuForRole(role: AppRole): AccountMenuItem[] {
   if (role === 'PUBLIC') {
@@ -125,15 +88,23 @@ export function Header({ role }: { role?: AppRole }) {
   const { data: conversationsData } = useConversationsQuery(1, { skip: !isAuthenticated });
   const unreadChatCount = conversationsData?.data?.reduce((total, conv) => total + (conv.unreadCount || 0), 0) || 0;
 
-  // Thông báo: Lấy từ API hoặc dùng danh sách thông báo mẫu sinh động
-  const { data: apiNotifications } = useGetNotificationsQuery(1, { skip: !isAuthenticated });
+  // Thông báo: chỉ lấy từ API (không dùng dữ liệu mẫu)
+  const {
+    data: apiNotifications,
+    isError: isNotificationsError,
+    refetch: refetchNotifications,
+  } = useGetNotificationsQuery(1, { skip: !isAuthenticated });
   const [markAllReadApi] = useMarkAllNotificationsAsReadMutation();
   const [markOneReadApi] = useMarkNotificationAsReadMutation();
-  const [notificationsList, setNotificationsList] = useState<LocalNotification[]>(DEFAULT_NOTIFICATIONS);
+  const [notificationsList, setNotificationsList] = useState<LocalNotification[]>([]);
 
-  // Cập nhật khi có dữ liệu từ backend
+  // Cập nhật khi API trả về (kể cả mảng rỗng) hoặc khi lỗi
   useEffect(() => {
-    if (apiNotifications?.data && apiNotifications.data.length > 0) {
+    if (isNotificationsError) {
+      setNotificationsList([]);
+      return;
+    }
+    if (apiNotifications?.data !== undefined) {
       const mapped: LocalNotification[] = apiNotifications.data.map((item) => ({
         id: item.id,
         type: item.type,
@@ -147,7 +118,7 @@ export function Header({ role }: { role?: AppRole }) {
       }));
       setNotificationsList(mapped);
     }
-  }, [apiNotifications]);
+  }, [apiNotifications, isNotificationsError]);
 
   const unreadNotifCount = notificationsList.filter((n) => !n.isRead).length;
 
@@ -294,8 +265,28 @@ export function Header({ role }: { role?: AppRole }) {
                     <div className="max-h-96 overflow-y-auto ant-scrollbar divide-y divide-slate-100 my-1">
                       {notificationsList.length === 0 ? (
                         <div className="py-8 text-center text-xs text-slate-400">
-                          <span className="material-symbols-outlined mx-auto mb-1 block text-3xl text-slate-300">notifications_none</span>
-                          Bạn chưa có thông báo nào
+                          {isNotificationsError ? (
+                            <>
+                              <span className="material-symbols-outlined mx-auto mb-1 block text-3xl text-slate-300">
+                                notifications_off
+                              </span>
+                              <p className="mb-3">Không tải được thông báo</p>
+                              <button
+                                type="button"
+                                onClick={() => void refetchNotifications()}
+                                className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 cursor-pointer"
+                              >
+                                Thử lại
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <span className="material-symbols-outlined mx-auto mb-1 block text-3xl text-slate-300">
+                                notifications_none
+                              </span>
+                              Bạn chưa có thông báo nào
+                            </>
+                          )}
                         </div>
                       ) : (
                         notificationsList.map((item) => (

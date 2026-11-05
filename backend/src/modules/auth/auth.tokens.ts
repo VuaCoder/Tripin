@@ -7,8 +7,8 @@ import { AUTH_POLICY } from './auth.policy';
 import type { AccessTokenPayload } from './auth.types';
 
 /** JWT access token helpers. Roles inside the token are server-signed; they are re-checked against the DB on each request. */
-export function signAccessToken(userId: string, role: PersistedRole): string {
-  const payload: AccessTokenPayload = { sub: userId, role };
+export function signAccessToken(userId: string, role: PersistedRole, tokenVersion: number): string {
+  const payload: AccessTokenPayload = { sub: userId, role, tokenVersion };
   const options: SignOptions = {
     algorithm: 'HS256',
     issuer: AUTH_POLICY.ACCESS_TOKEN_ISSUER,

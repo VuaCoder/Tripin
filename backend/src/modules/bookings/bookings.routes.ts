@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PERMISSIONS } from '@travel-platform/constants';
-import { requirePermission } from '../../middlewares/authorize';
+import { requirePermission, requireVerifiedTraveler } from '../../middlewares/authorize';
 import { validate } from '../../middlewares/validate';
 import { bookingsController } from './bookings.controller';
 import {
@@ -16,7 +16,13 @@ const P = PERMISSIONS;
 
 /** Mounted at /api/v1/bookings — the logged-in traveler's bookings. */
 export const bookingsRouter = Router();
-bookingsRouter.post('/', requirePermission(P.BOOKING_CREATE), validate({ body: createBookingBody }), bookingsController.create);
+bookingsRouter.post(
+  '/',
+  requirePermission(P.BOOKING_CREATE),
+  requireVerifiedTraveler,
+  validate({ body: createBookingBody }),
+  bookingsController.create,
+);
 // '/me' must be declared before '/:id'.
 bookingsRouter.get('/me', requirePermission(P.BOOKING_VIEW_OWN), validate({ query: listBookingsQuery }), bookingsController.listMine);
 bookingsRouter.get('/:id', requirePermission(P.BOOKING_VIEW_OWN), validate({ params: bookingIdParams }), bookingsController.getMine);

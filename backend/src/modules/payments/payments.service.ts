@@ -4,6 +4,7 @@ import { PAYMENT_PURPOSE, PAYMENT_STATUS, type PaymentPurpose, type PaymentStatu
 import { env } from '../../config/env';
 import { isUniqueViolation } from '../../config/database';
 import { AppError } from '../../utils/app-error';
+import { sha256 } from '../../utils/crypto';
 import { logger } from '../../utils/logger';
 import { bookingsService, type BookingsService } from '../bookings';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
@@ -24,7 +25,18 @@ import { assertTransition } from '../../utils/state-machine';
 
 type Repo = Pick<
   PaymentsRepository,
-  'create' | 'findById' | 'findByOrderCode' | 'findLivePending' | 'findPending' | 'updateById' | 'transition' | 'markFulfilled' | 'findPaidUnfulfilled' | 'findExpiredPending' | 'paidTotal'
+  | 'create'
+  | 'findById'
+  | 'findByOrderCode'
+  | 'findLivePending'
+  | 'findPending'
+  | 'updateById'
+  | 'transition'
+  | 'markFulfilled'
+  | 'findPaidUnfulfilled'
+  | 'findExpiredPending'
+  | 'findPendingOlderThan'
+  | 'paidTotal'
 >;
 
 export class PaymentsService {
@@ -66,6 +78,8 @@ export class PaymentsService {
     for (let round = 0; round < PAYMENT_POLICY.CHECKOUT_MAX_ROUNDS; round += 1) {
       const live = await this.payments.findLivePending(input.purpose, input.referenceId, new Date());
       if (live?.checkoutUrl) return toCheckoutDto(live, this.bankInfo.get(live.id));
+      // PENDING row exists but the gateway call never finished — reuse the same orderCode instead of inserting another.
+      if (live) return this.attachPaymentLink(live, live.providerOrderCode, input);
 
       const created = await this.createPendingPayment(input);
       if (created) return this.attachPaymentLink(created.payment, created.orderCode, input);
@@ -102,6 +116,8 @@ export class PaymentsService {
       }
       return toCheckoutDto(updated ?? payment, link.bank);
     } catch (error) {
+      // Timeout / network blips are uncertain: leave PENDING so a retry reuses the same orderCode (PayOS idempotency).
+      if (isUncertainProviderError(error)) throw error;
       await this.payments.transition(payment.id, [PAYMENT_STATUS.PENDING], {
         status: PAYMENT_STATUS.FAILED,
         failureReason: 'PROVIDER_ERROR',
@@ -116,7 +132,7 @@ export class PaymentsService {
    */
   private async createPendingPayment(input: CreateCheckoutInput): Promise<{ payment: PaymentRecord; orderCode: number } | null> {
     for (let attempt = 1; ; attempt += 1) {
-      const orderCode = generateOrderCode();
+      const orderCode = attempt === 1 ? stableOrderCode(input.purpose, input.referenceId) : generateOrderCode();
       try {
         const payment = await this.payments.create({
           purpose: input.purpose,
@@ -132,6 +148,7 @@ export class PaymentsService {
       } catch (error) {
         if (!isUniqueViolation(error)) throw error;
         if (isUniqueViolation(error, 'referenceId')) return null;
+        // providerOrderCode collision (a different payment already used the stable/random code) → try a random code.
         if (attempt >= 3) throw error;
       }
     }
@@ -220,6 +237,25 @@ export class PaymentsService {
     return fixed;
   }
 
+  /**
+   * Asks the gateway about PENDING payments that have been open long enough that a webhook should have arrived.
+   * Returns how many payments were inspected (settled or still pending after sync).
+   */
+  async pollPendingPayments(now = new Date()): Promise<number> {
+    const olderThan = new Date(now.getTime() - PAYMENT_POLICY.POLL_MIN_AGE_MS);
+    const due = await this.payments.findPendingOlderThan(olderThan, PAYMENT_POLICY.POLL_BATCH);
+    let synced = 0;
+    for (const payment of due) {
+      try {
+        const result = await this.syncWithProvider(payment);
+        if (result) synced += 1;
+      } catch (error) {
+        logger.error(`Could not poll payment ${payment.id}`, { message: (error as Error).message });
+      }
+    }
+    return synced;
+  }
+
   // ================================================================ helpers
 
   private async requireOwned(userId: string, id: string): Promise<PaymentRecord> {
@@ -295,6 +331,19 @@ export class PaymentsService {
 }
 
 let lastOrderCode = 0;
+/** Upper bound for stable / random order codes so they stay inside Number.MAX_SAFE_INTEGER. */
+const ORDER_CODE_MOD = 900_000_000_000_000n; // 9e14
+
+/**
+ * Deterministic PayOS order code derived from purpose + referenceId so retries after an uncertain gateway failure
+ * reuse the same code (PayOS treats create-with-same-orderCode as idempotent).
+ */
+export function stableOrderCode(purpose: string, referenceId: string): number {
+  const hex = sha256(`${purpose}:${referenceId}`).slice(0, 12);
+  const value = (BigInt(`0x${hex}`) % ORDER_CODE_MOD) + 1n;
+  return Number(value);
+}
+
 /**
  * Unique positive integer < 2^53 (milliseconds * 1000 + offset, ~16 digits). Strictly increasing inside a process, so two
  * payments created in the same millisecond never collide; the random offset separates processes (the unique index
@@ -303,6 +352,18 @@ let lastOrderCode = 0;
 export function generateOrderCode(): number {
   lastOrderCode = Math.max(Date.now() * 1000 + randomInt(0, 500), lastOrderCode + 1);
   return lastOrderCode;
+}
+
+/** True when the gateway outcome is unknown (timeout / network / 5xx) — leave the payment PENDING for retry. */
+function isUncertainProviderError(error: unknown): boolean {
+  if (error instanceof AppError) {
+    // Clear client / validation rejections from the provider are 4xx (except request timeout).
+    if (error.statusCode >= 400 && error.statusCode < 500 && error.statusCode !== 408) return false;
+    return true;
+  }
+  const err = error as { name?: string; message?: string; code?: string } | null;
+  const haystack = `${err?.name ?? ''} ${err?.message ?? ''} ${err?.code ?? ''}`;
+  return /timeout|AbortError|ECONNRESET|ETIMEDOUT|ECONNREFUSED|fetch failed|socket hang up/i.test(haystack);
 }
 
 function baseClientUrl(): string {

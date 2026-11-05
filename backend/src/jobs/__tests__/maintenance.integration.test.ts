@@ -121,6 +121,7 @@ describe('maintenance jobs (integration)', () => {
       'complaints.autoCloseResolved',
       'notifications.purgeOld',
       'payments.expireStale',
+      'payments.pollPending',
       'payments.retryUnfulfilled',
       'premium.grantDue',
       'premium.releaseExpiredHolds',
