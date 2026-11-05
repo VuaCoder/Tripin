@@ -27,9 +27,9 @@ beforeAll(startDatabase, 120_000);
 afterAll(stopDatabase);
 beforeEach(resetDatabase);
 
-const signAs = (sub: string, role: string, options: jwt.SignOptions & { secret?: string } = {}) => {
-  const { secret = env.JWT_ACCESS_SECRET, ...rest } = options;
-  return jwt.sign({ sub, role }, secret, { algorithm: 'HS256', issuer: 'tripri-api', expiresIn: '5m', ...rest });
+const signAs = (sub: string, role: string, options: jwt.SignOptions & { secret?: string; tokenVersion?: number } = {}) => {
+  const { secret = env.JWT_ACCESS_SECRET, tokenVersion = 0, ...rest } = options;
+  return jwt.sign({ sub, role, tokenVersion }, secret, { algorithm: 'HS256', issuer: 'tripri-api', expiresIn: '5m', ...rest });
 };
 
 describe('tokens and sessions', () => {

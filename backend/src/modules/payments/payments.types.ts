@@ -25,6 +25,9 @@ export const PAYMENT_POLICY = {
   /** Checkout waits for a parallel request that is creating the same link: 8 x 60 ms at most. */
   CHECKOUT_MAX_ROUNDS: 8,
   CHECKOUT_RETRY_DELAY_MS: 60,
+  /** Background poll only touches PENDING payments older than this (avoids racing a checkout that is still attaching a link). */
+  POLL_MIN_AGE_MS: 5 * 60_000,
+  POLL_BATCH: 50,
 } as const;
 
 export interface PaymentDto {

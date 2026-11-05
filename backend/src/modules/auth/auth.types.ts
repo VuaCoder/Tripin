@@ -4,6 +4,7 @@ import type { PrivateUserDto } from '../users/users.types';
 export interface AccessTokenPayload {
   sub: string;
   role: PersistedRole;
+  tokenVersion: number;
 }
 
 export interface RegisterInput {

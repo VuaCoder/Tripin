@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PAYMENT_PURPOSE, PAYMENT_STATUS } from '@travel-platform/constants';
 import { paymentEvents } from '../payments.events';
-import { PaymentsService, generateOrderCode } from '../payments.service';
+import { PaymentsService, generateOrderCode, stableOrderCode } from '../payments.service';
 
 type P = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -57,6 +57,9 @@ function make(seed: P[] = [], providerOverrides: P = {}) {
     }),
     findPaidUnfulfilled: vi.fn(async () => db.filter((p) => p.status === 'PAID' && !p.fulfilledAt)),
     findExpiredPending: vi.fn(async () => db.filter((p) => p.status === 'PENDING' && p.expiresAt < new Date())),
+    findPendingOlderThan: vi.fn(async (olderThan: Date) =>
+      db.filter((p) => p.status === 'PENDING' && p.createdAt < olderThan),
+    ),
   };
   const provider = {
     name: 'PAYOS',
@@ -93,18 +96,36 @@ describe('checkout', () => {
     expect(provider.createPaymentLink).not.toHaveBeenCalled();
   });
 
-  it('picks a new order code when the unique index reports a collision with another process', async () => {
+  it('reattaches a link when a live PENDING payment has no checkoutUrl yet', async () => {
+    const { service, provider, repo } = make([payment({ checkoutUrl: undefined, providerOrderCode: 4242 })]);
+    const checkout = await service.createBookingCheckout('u1', 'b1');
+    expect(checkout.paymentId).toBe('pay1');
+    expect(repo.create).not.toHaveBeenCalled();
+    expect(provider.createPaymentLink).toHaveBeenCalledWith(expect.objectContaining({ orderCode: 4242 }));
+  });
+
+  it('uses a stable order code first and falls back to random on providerOrderCode collision', async () => {
     const { service, repo } = make();
-    repo.create.mockRejectedValueOnce(Object.assign(new Error('E11000'), { code: 'P2002' }) as never);
+    repo.create.mockRejectedValueOnce(Object.assign(new Error('E11000'), { code: 'P2002', meta: { target: ['providerOrderCode'] } }) as never);
     await expect(service.createBookingCheckout('u1', 'b1')).resolves.toMatchObject({ amount: 2_000_000 });
     expect(repo.create).toHaveBeenCalledTimes(2);
+    expect(repo.create.mock.calls[0]![0].providerOrderCode).toBe(stableOrderCode('BOOKING', 'b1'));
     expect(repo.create.mock.calls[0]![0].providerOrderCode).not.toBe(repo.create.mock.calls[1]![0].providerOrderCode);
   });
 
-  it('marks the payment FAILED and rethrows when the gateway is down', async () => {
+  it('leaves PENDING and rethrows on uncertain provider failures (timeout / 5xx)', async () => {
     const { service, provider, db } = make();
-    provider.createPaymentLink.mockRejectedValueOnce(Object.assign(new Error('down'), { statusCode: 503 }));
-    await expect(service.createBookingCheckout('u1', 'b1')).rejects.toMatchObject({ statusCode: 503 });
+    provider.createPaymentLink.mockRejectedValueOnce(Object.assign(new Error('ETIMEDOUT'), { name: 'AbortError' }));
+    await expect(service.createBookingCheckout('u1', 'b1')).rejects.toMatchObject({ message: 'ETIMEDOUT' });
+    expect(db[0]).toMatchObject({ status: 'PENDING' });
+    expect(db[0]!.failureReason).toBeUndefined();
+  });
+
+  it('marks the payment FAILED and rethrows on clear provider validation errors', async () => {
+    const { service, provider, db } = make();
+    const { AppError } = await import('../../../utils/app-error');
+    provider.createPaymentLink.mockRejectedValueOnce(AppError.badRequest('Invalid amount'));
+    await expect(service.createBookingCheckout('u1', 'b1')).rejects.toMatchObject({ statusCode: 400 });
     expect(db[0]).toMatchObject({ status: 'FAILED', failureReason: 'PROVIDER_ERROR' });
   });
 
@@ -119,6 +140,16 @@ describe('checkout', () => {
     const codes = Array.from({ length: 500 }, generateOrderCode);
     expect(new Set(codes).size).toBe(500);
     for (const code of codes) expect(Number.isSafeInteger(code)).toBe(true);
+  });
+
+  it('derives a stable positive safe-integer order code from purpose + reference', () => {
+    const a = stableOrderCode('BOOKING', '11111111-1111-4111-8111-111111111111');
+    const b = stableOrderCode('BOOKING', '11111111-1111-4111-8111-111111111111');
+    const c = stableOrderCode('SUBSCRIPTION', '11111111-1111-4111-8111-111111111111');
+    expect(a).toBe(b);
+    expect(a).not.toBe(c);
+    expect(a).toBeGreaterThan(0);
+    expect(Number.isSafeInteger(a)).toBe(true);
   });
 });
 
@@ -261,5 +292,23 @@ describe('expiry job', () => {
     expect(await service.expireStalePayments()).toBe(1);
     expect(db.find((p) => p.id === 'old1')!.status).toBe('EXPIRED');
     expect(db.find((p) => p.id === 'old2')!.status).toBe('PAID');
+  });
+});
+
+describe('poll pending', () => {
+  it('syncs PENDING payments older than the poll age and settles paid ones', async () => {
+    const old = new Date(Date.now() - 10 * 60_000);
+    const { service, provider, repo, bookings, db } = make([
+      payment({ id: 'aged1', providerOrderCode: 1, createdAt: old }),
+      payment({ id: 'aged2', providerOrderCode: 2, referenceId: 'b2', createdAt: old }),
+    ]);
+    provider.getPaymentStatus
+      .mockResolvedValueOnce({ state: 'PENDING', amountPaid: 0 } as never)
+      .mockResolvedValueOnce({ state: 'PAID', amountPaid: 2_000_000 } as never);
+    expect(await service.pollPendingPayments()).toBe(2);
+    expect(repo.findPendingOlderThan).toHaveBeenCalled();
+    expect(db.find((p) => p.id === 'aged1')!.status).toBe('PENDING');
+    expect(db.find((p) => p.id === 'aged2')!.status).toBe('PAID');
+    expect(bookings.confirmPayment).toHaveBeenCalledWith('b2');
   });
 });

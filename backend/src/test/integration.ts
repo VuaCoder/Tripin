@@ -104,11 +104,12 @@ export async function createUser(
       fullName: `${role} ${email}`,
       role,
       status: USER_STATUS.ACTIVE,
+      emailVerifiedAt: new Date(),
       ...(rest as object),
       ...(agencyProfile ? { agencyProfile: { create: agencyProfile } } : {}),
     },
   });
-  return { id: user.id, token: signAccessToken(user.id, user.role as never) };
+  return { id: user.id, token: signAccessToken(user.id, user.role as never, user.tokenVersion) };
 }
 
 /** An APPROVED tour with one departure `daysAhead` days from now. */
