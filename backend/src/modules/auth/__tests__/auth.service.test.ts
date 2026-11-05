@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { randomUUID } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OTP_PURPOSE, ROLES, USER_STATUS } from '@travel-platform/constants';
 import { AppError, ERROR_CODES } from '../../../utils/app-error';
@@ -13,6 +14,7 @@ interface FakeUser {
   status: string;
   passwordHash?: string;
   twoFactorEnabled: boolean;
+  tokenVersion: number;
   extraPermissions: string[];
   emailVerifiedAt?: Date;
   createdAt: Date;
@@ -29,6 +31,7 @@ function makeUser(overrides: Partial<FakeUser> = {}): FakeUser {
     status: USER_STATUS.ACTIVE,
     passwordHash: bcrypt.hashSync('Passw0rdX', 4),
     twoFactorEnabled: false,
+    tokenVersion: 0,
     extraPermissions: [],
     createdAt: new Date(),
     ...overrides,
@@ -52,6 +55,10 @@ function makeDeps(user: FakeUser | null) {
       }),
       updateById: vi.fn(async (_id: string, update: Record<string, unknown>) => {
         if (store.user) Object.assign(store.user, update);
+        return store.user;
+      }),
+      incrementTokenVersion: vi.fn(async () => {
+        if (store.user) store.user.tokenVersion += 1;
         return store.user;
       }),
       updateStatusIf: vi.fn(async (_id: string, expected: string, update: Record<string, unknown>) => {
@@ -183,6 +190,16 @@ describe('AuthService.refresh', () => {
   it('rejects when no token is supplied', async () => {
     const ctx = makeDeps(makeUser());
     await expect(new AuthService(ctx.deps).refresh(undefined)).rejects.toMatchObject({ statusCode: 401 });
+  });
+});
+
+describe('AuthService.changePassword', () => {
+  it.each(['missing', 'banned'] as const)('rejects a %s account without updating credentials', async (state) => {
+    const ctx = makeDeps(state === 'missing' ? null : makeUser({ status: USER_STATUS.BANNED }));
+    await expect(new AuthService(ctx.deps).changePassword('u1', {
+      currentPassword: randomUUID(), newPassword: randomUUID(),
+    })).rejects.toMatchObject({ statusCode: 401, code: ERROR_CODES.ACCOUNT_NOT_FOUND });
+    expect(ctx.mocks.users.updateById).not.toHaveBeenCalled();
   });
 });
 

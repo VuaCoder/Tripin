@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -11,10 +11,13 @@ import {
   Send,
   ShieldAlert,
   X,
+  Bot,
+  Search,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth/store/authSlice';
 import { getApiErrorMessage } from '@/features/auth/utils/apiError';
+import { containsProfanity, PROFANITY_ERROR_MESSAGE } from '@travel-platform/constants';
 import {
   useGetAgencyComplaintsQuery,
   useGetMyComplaintsQuery,
@@ -30,6 +33,21 @@ import {
 } from './api';
 import { useChat } from './ChatProvider';
 import { ConversationWelcome } from './ConversationWelcome';
+import { TypingBubble } from './components/TypingBubble';
+import { AiThread } from './components/AiThread';
+import { ConversationListSkeleton } from './components/ChatSkeleton';
+import { useGetAiOverviewQuery } from './api/aiChatApi';
+import {
+  clockTime,
+  dayLabel,
+  fullTime,
+  inboxTime,
+  preview,
+  sameDay,
+  useChatClock,
+  useOfflineRefresh,
+} from './presentation';
+import { UnreadBadge } from './components/UnreadBadge';
 import { mergeMessages, type Message } from './types';
 
 const time = (value: string) =>
@@ -59,11 +77,41 @@ function ChatWorkspace({ id }: { id?: string }) {
   const paramTicketId = searchParams?.get('ticketId') ?? null;
 
   const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
   const { data, isLoading, error, refetch, isFetching } = useConversationsQuery(page, {
     refetchOnFocus: true,
     refetchOnReconnect: true,
   });
   const chat = useChat();
+  const now = useChatClock();
+  const [aiEntryVersion, setAiEntryVersion] = useState(0);
+  useOfflineRefresh(chat.connected, refetch);
+
+  const isTraveler = user?.role === 'TRAVELER' || user?.permissions?.includes('ai:chat');
+  const aiOverview = useGetAiOverviewQuery(undefined, {
+    skip: !isTraveler,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
+  const refreshAi = useCallback(() => {
+    if (isTraveler) void aiOverview.refetch();
+  }, [isTraveler, aiOverview.refetch]);
+  useOfflineRefresh(chat.connected, refreshAi);
+  const latestAi = aiOverview.data?.latest;
+  const aiUnread = aiOverview.data?.unreadCount ?? 0;
+  const matchesAi = Boolean(
+    isTraveler &&
+      (!searchQuery.trim() ||
+        'trợ lý ai tripri'.includes(searchQuery.toLowerCase()) ||
+        'ai'.includes(searchQuery.toLowerCase()) ||
+        'bot'.includes(searchQuery.toLowerCase())),
+  );
+
+  const filteredItems = (data?.data ?? []).filter(
+    (item) =>
+      !searchQuery.trim() ||
+      item.counterpart?.fullName?.toLowerCase().includes(searchQuery.trim().toLowerCase()),
+  );
 
   const isAgency = user?.role === 'AGENCY';
   const myComplaintsQuery = useGetMyComplaintsQuery(undefined, { skip: isAgency });
@@ -95,7 +143,7 @@ function ChatWorkspace({ id }: { id?: string }) {
   }, [user?.id]);
 
   const [activeTab, setActiveTab] = useState<'chats' | 'complaints'>(() => {
-    if (paramTab === 'complaints' || paramTicketId) return 'complaints';
+    if (!id && (paramTab === 'complaints' || paramTicketId)) return 'complaints';
     return 'chats';
   });
 
@@ -111,7 +159,6 @@ function ChatWorkspace({ id }: { id?: string }) {
     }
   }, [complaints, handleDismissBanner, selectedTicketId]);
 
-  // Tự động chuyển sang tab khiếu nại nếu khách có phiếu khiếu nại chưa xử lý nhưng chưa có tin nhắn trực tiếp nào
   useEffect(() => {
     if (!id && !paramTab && !isLoading && !data?.data?.length && activeComplaintsCount > 0 && !isBannerDismissed) {
       setActiveTab('complaints');
@@ -205,10 +252,21 @@ function ChatWorkspace({ id }: { id?: string }) {
           {activeTab === 'chats' ? (
             /* Tab 1: Danh sách cuộc trò chuyện trực tiếp */
             <>
+              <div className="border-b border-slate-200/80 p-3 sm:p-4">
+                <div className="relative">
+                  <Search size={15} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Tìm kiếm cuộc trò chuyện hoặc AI..."
+                    className="w-full rounded-xl border border-slate-200 bg-white py-1.5 pl-8 pr-3 text-xs text-slate-800 placeholder-slate-400 focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-500/20"
+                  />
+                </div>
+              </div>
+
               {isLoading ? (
-                <p role="status" className="p-4 text-sm text-slate-500">
-                  Đang tải…
-                </p>
+                <ConversationListSkeleton />
               ) : error ? (
                 <div role="alert" className="p-4 text-sm text-red-600">
                   Không thể tải danh sách.{' '}
@@ -216,7 +274,7 @@ function ChatWorkspace({ id }: { id?: string }) {
                     Thử lại
                   </button>
                 </div>
-              ) : !data?.data.length ? (
+              ) : !filteredItems.length && !matchesAi ? (
                 <div className="flex-1 flex flex-col justify-between">
                   <div className="p-5 text-sm leading-6 text-slate-500">
                     <p className="hidden md:block">Chưa có cuộc trò chuyện trực tiếp nào.</p>
@@ -253,7 +311,51 @@ function ChatWorkspace({ id }: { id?: string }) {
                 </div>
               ) : (
                 <nav className="flex-1 overflow-y-auto ant-scrollbar">
-                  {data.data.map((item) => (
+                  {matchesAi && (
+                    <Link
+                      href="/conversations/ai"
+                      onClick={() => setAiEntryVersion((value) => value + 1)}
+                      aria-current={id === 'ai' ? 'page' : undefined}
+                      className={`block border-b border-slate-100 p-3.5 transition-colors hover:bg-slate-100/70 ${
+                        id === 'ai'
+                          ? 'bg-teal-50/90 font-medium border-l-4 border-l-primary-container'
+                          : 'bg-gradient-to-r from-teal-50/50 to-indigo-50/20'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="relative flex size-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-teal-600 via-primary-container to-indigo-600 text-white shadow-xs">
+                          <Bot size={20} />
+                          <span className="absolute -bottom-0.5 -right-0.5 flex size-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className={`truncate text-slate-900 flex items-center gap-1.5 text-sm ${aiUnread ? 'font-bold' : 'font-medium'}`}>
+                              Trợ lý AI Tripri
+                              <span className="rounded-full bg-teal-100/90 px-1.5 py-0.2 text-[10px] font-bold text-primary-container">
+                                AI
+                              </span>
+                            </span>
+                            <UnreadBadge count={aiUnread} />
+                          </div>
+                          <p className={`mt-0.5 truncate text-xs ${aiUnread ? 'font-bold text-slate-900' : 'text-slate-500'}`}>
+                            {latestAi?.lastMessage ? `${latestAi.lastMessage.role === 'user' ? 'Bạn' : 'AI'}: ${preview(latestAi.lastMessage.content)}` : 'Chưa có tin nhắn'}
+                          </p>
+                          {latestAi?.lastMessage && (
+                            <time
+                              dateTime={latestAi.lastMessage.createdAt}
+                              title={fullTime(latestAi.lastMessage.createdAt)}
+                              aria-label={fullTime(latestAi.lastMessage.createdAt)}
+                              className="mt-1 block text-xs text-slate-500"
+                            >
+                              {inboxTime(latestAi.lastMessage.createdAt, now)}
+                            </time>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  )}
+
+                  {filteredItems.map((item) => (
                     <Link
                       key={item.id}
                       href={`/conversations/${item.id}`}
@@ -263,26 +365,27 @@ function ChatWorkspace({ id }: { id?: string }) {
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="truncate font-semibold text-slate-900">
+                        <span className={`truncate text-slate-900 ${item.unreadCount ? 'font-bold' : 'font-medium'}`}>
                           {item.counterpart?.fullName || 'Tài khoản không còn khả dụng'}
                         </span>
-                        {item.unreadCount > 0 && (
-                          <span
-                            aria-label={`${item.unreadCount} tin chưa đọc`}
-                            className="rounded-full bg-primary-container px-2 py-0.5 text-xs font-bold text-white shadow-sm"
-                          >
-                            {item.unreadCount}
-                          </span>
-                        )}
+                        <UnreadBadge count={item.unreadCount} />
                       </div>
-                      <p className="mt-1 truncate text-sm text-slate-500">
-                        {item.lastMessage?.text || 'Chưa có tin nhắn'}
+                      <p className={`mt-1 truncate text-sm ${item.unreadCount ? 'font-bold text-slate-900' : 'text-slate-500'}`}>
+                        {item.lastMessage ? `${item.lastMessage.senderId === user?.id ? 'Bạn' : item.counterpart?.fullName || 'Người gửi'}: ${preview(item.lastMessage.text)}` : 'Chưa có tin nhắn'}
                       </p>
-                      <time className="mt-1 block text-xs text-slate-400">{time(item.updatedAt)}</time>
+                      <time
+                        dateTime={item.lastMessage?.sentAt || item.updatedAt}
+                        title={fullTime(item.lastMessage?.sentAt || item.updatedAt)}
+                        aria-label={fullTime(item.lastMessage?.sentAt || item.updatedAt)}
+                        className="mt-1 block text-xs text-slate-500"
+                      >
+                        {inboxTime(item.lastMessage?.sentAt || item.updatedAt, now)}
+                      </time>
                     </Link>
                   ))}
                 </nav>
               )}
+
               {Boolean(data && data.meta.totalPages > 1) && (
                 <div className="flex items-center justify-between border-t border-slate-200/80 bg-white p-3 text-sm">
                   <button
@@ -359,7 +462,11 @@ function ChatWorkspace({ id }: { id?: string }) {
         </aside>
 
         {/* Khung nội dung bên phải */}
-        {activeTab === 'complaints' ? (
+        {id === 'ai' ? (
+          <AiThread key={aiEntryVersion} />
+        ) : id ? (
+          <Thread key={id} id={id} />
+        ) : activeTab === 'complaints' ? (
           selectedTicketId ? (
             <div className="h-full min-h-0 flex-1 overflow-hidden p-2 sm:p-3 bg-slate-100/60 flex flex-col">
               <ComplaintConversationView
@@ -380,8 +487,6 @@ function ChatWorkspace({ id }: { id?: string }) {
               </p>
             </div>
           )
-        ) : id ? (
-          <Thread key={id} id={id} />
         ) : (
           <div className="hidden min-w-0 md:block">
             {!isLoading && !error && (
@@ -402,6 +507,7 @@ function ChatWorkspace({ id }: { id?: string }) {
 }
 
 function Thread({ id }: { id: string }) {
+  const now = useChatClock();
   const dispatch = useAppDispatch();
   const chat = useChat();
   const detail = useConversationQuery(id);
@@ -409,13 +515,39 @@ function Thread({ id }: { id: string }) {
   const [markRead] = useReadConversationMutation();
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesRef = useRef<Message[]>([]);
+  // Only REST-confirmed history is a safe reconnect boundary. A live event
+  // arriving during reconnection must not hide an earlier gap.
   const synchronizedIds = useRef(new Set<string>());
   const historyLoaded = useRef(false);
   const [hasMore, setHasMore] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimer = useRef<ReturnType<typeof setTimeout>>();
+  const clearTyping = useCallback(() => {
+    clearTimeout(typingTimer.current);
+    setIsTyping(false);
+  }, []);
+
+  useEffect(() => {
+    if (!chat.connected || blocked) {
+      clearTyping();
+      return;
+    }
+    const unsubscribe = chat.subscribeTyping((event) => {
+      if (event.conversationId !== id) return;
+      clearTimeout(typingTimer.current);
+      setIsTyping(true);
+      typingTimer.current = setTimeout(() => setIsTyping(false), 3000);
+    });
+    return () => {
+      unsubscribe();
+      clearTimeout(typingTimer.current);
+    };
+  }, [chat.connected, chat.subscribeTyping, id, clearTyping, blocked]);
+
   const [loading, setLoading] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [historyError, setHistoryError] = useState('');
-  const [blocked, setBlocked] = useState(false);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
@@ -460,7 +592,10 @@ function Thread({ id }: { id: string }) {
   const fetchPage = useCallback(
     async (before?: string) => {
       const request = dispatch(
-        chatApi.endpoints.messages.initiate({ id, before }, { forceRefetch: true, subscribe: false }),
+        chatApi.endpoints.messages.initiate(
+          { id, before },
+          { forceRefetch: true, subscribe: false },
+        ),
       );
       requests.current.add(request);
       try {
@@ -484,7 +619,12 @@ function Thread({ id }: { id: string }) {
           const result = await fetchPage(before);
           incoming.push(...result.items);
           if (initialLoad) setHasMore(result.hasMore);
-          if (!result.hasMore || result.items.some((message) => known.has(message.id)) || initialLoad || !result.items.length) {
+          if (
+            !result.hasMore ||
+            result.items.some((message) => known.has(message.id)) ||
+            initialLoad ||
+            !result.items.length
+          ) {
             break;
           }
           const cursor = result.items[result.items.length - 1].id;
@@ -508,6 +648,7 @@ function Thread({ id }: { id: string }) {
     return syncQueue.current;
   }, [add, block, fetchPage]);
 
+  useOfflineRefresh(chat.connected, synchronize);
   useEffect(() => {
     if (!blocked) void synchronize();
   }, [chat.revision, retrySync, blocked, synchronize]);
@@ -521,9 +662,10 @@ function Thread({ id }: { id: string }) {
       chat.subscribe((message) => {
         if (message.conversationId !== id || blocked) return;
         if (!stick.current) setNewMessages(true);
+        clearTyping();
         add([message]);
       }),
-    [chat.subscribe, id, blocked, add],
+    [chat.subscribe, id, blocked, add, clearTyping],
   );
 
   useEffect(() => {
@@ -542,7 +684,7 @@ function Thread({ id }: { id: string }) {
     } else if (stick.current) {
       element.scrollTop = element.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isTyping]);
 
   useEffect(() => {
     const element = scroll.current;
@@ -610,6 +752,10 @@ function Thread({ id }: { id: string }) {
   async function send() {
     const text = draft.trim();
     if (!text || text.length > 2000 || sendingRef.current || blocked || loading || !!historyError) return;
+    if (containsProfanity(text)) {
+      setSendError(PROFANITY_ERROR_MESSAGE);
+      return;
+    }
     sendingRef.current = true;
     setSending(true);
     setSendError('');
@@ -689,6 +835,7 @@ function Thread({ id }: { id: string }) {
         ref={scroll}
         role="log"
         aria-label="Lịch sử tin nhắn"
+        aria-busy={loading}
         className="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-4"
         onScroll={() => {
           const element = scroll.current!;
@@ -698,9 +845,7 @@ function Thread({ id }: { id: string }) {
           if (bottom) setNewMessages(false);
         }}
       >
-        {loading ? (
-          <p role="status">Đang tải tin nhắn…</p>
-        ) : (
+        {!loading && (
           <>
             {hasMore && (
               <button
@@ -711,31 +856,52 @@ function Thread({ id }: { id: string }) {
                 {loadingOlder ? 'Đang tải…' : 'Tải tin cũ'}
               </button>
             )}
-            {!messages.length && !historyError && (
-              <p className="py-12 text-center text-sm text-slate-600">Chưa có tin nhắn. Hãy gửi lời chào!</p>
+            {!messages.length && !historyError && detail.data?.counterpart && (
+              <p className="py-12 text-center text-sm text-slate-600">
+                Cuộc trò chuyện mới cùng {detail.data.counterpart.fullName}
+              </p>
             )}
-            {messages.map((message) => (
-              <div key={message.id} className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}>
-                <div className="max-w-[85%] sm:max-w-[75%]">
-                  <p
-                    className={`whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm [overflow-wrap:anywhere] ${
-                      message.isMine
-                        ? 'rounded-br-sm bg-primary-container text-white'
-                        : 'rounded-bl-sm border border-slate-200 bg-white text-slate-900'
-                    }`}
-                  >
-                    {message.text}
+            {messages.map((message, index) => (
+              <Fragment key={message.id}>
+                {(!index || !sameDay(messages[index - 1].createdAt, message.createdAt)) && (
+                  <p className="py-2 text-center text-xs font-medium text-slate-600">
+                    {dayLabel(message.createdAt, now)}
                   </p>
-                  <div className={`mt-1 text-xs text-slate-600 ${message.isMine ? 'text-right' : ''}`}>
-                    <time dateTime={message.createdAt}>{time(message.createdAt)}</time>
-                    {message.isMine && (
-                      <span> · {message.readAt ? 'Đã xem' : chat.delivered.has(message.id) ? 'Đã nhận' : 'Đã gửi'}</span>
-                    )}
+                )}
+                <div className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}>
+                  <div className="max-w-[85%] sm:max-w-[75%]">
+                    <p
+                      className={`whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm [overflow-wrap:anywhere] ${
+                        message.isMine
+                          ? 'rounded-br-sm bg-primary-container text-white'
+                          : 'rounded-bl-sm border border-slate-200 bg-white text-slate-900'
+                      }`}
+                    >
+                      {message.text}
+                    </p>
+                    <div className={`mt-1 text-xs text-slate-600 ${message.isMine ? 'text-right' : ''}`}>
+                      <time
+                        dateTime={message.createdAt}
+                        title={fullTime(message.createdAt)}
+                        aria-label={fullTime(message.createdAt)}
+                      >
+                        {clockTime(message.createdAt)}
+                      </time>
+                      {message.isMine && (
+                        <span>
+                          {' '}
+                          · {message.readAt ? 'Đã xem' : chat.delivered.has(message.id) ? 'Đã nhận' : 'Đã gửi'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              </Fragment>
             ))}
           </>
+        )}
+        {isTyping && (
+          <TypingBubble label={`${detail.data?.counterpart?.fullName || 'Người nhận'} đang nhập tin nhắn`} />
         )}
       </div>
       {newMessages && (
@@ -767,7 +933,11 @@ function Thread({ id }: { id: string }) {
             rows={2}
             value={draft}
             disabled={sending || loading || !detail.data}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              if (sendError) setSendError('');
+              if (event.target.value.trim()) chat.typing(id);
+            }}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) {
                 event.preventDefault();

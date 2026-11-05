@@ -28,13 +28,15 @@ export function ReportButton({ targetType, targetId, targetLabel, className }: R
   const [open, setOpen] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [reportCode, setReportCode] = useState<string | null>(null);
 
   if (!allowed) return null;
 
   const submit = async (input: CreateReportInput) => {
     setServerError(null);
     try {
-      await createReport(input).unwrap();
+      const created = await createReport(input).unwrap();
+      setReportCode(created.code ?? null);
       setSent(true);
       setOpen(false);
     } catch (err: unknown) {
@@ -53,7 +55,7 @@ export function ReportButton({ targetType, targetId, targetLabel, className }: R
           className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100 shadow-2xs"
         >
           <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
-          <span>Đã gửi báo cáo</span>
+          <span>{reportCode ? `Đã gửi báo cáo · Mã tra cứu ${reportCode}` : 'Đã gửi báo cáo'}</span>
         </Link>
       ) : (
         <button

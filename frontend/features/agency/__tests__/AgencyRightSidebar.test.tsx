@@ -4,6 +4,7 @@ import { AgencyRightSidebar } from '../components/AgencyRightSidebar';
 import { AgencyPartnerSettings } from '../components/AgencyPartnerSettings';
 import { Header } from '@/components/layout/Header';
 import type { UserProfile } from '@/features/auth/types';
+vi.mock('@/features/premium/api',() => ({useMyPremiumQuery:() => ({currentData:{active:false,endsAt:null,expired:false}})}));
 
 const mockUpdateMe = vi.fn();
 const mockRemoveAvatar = vi.fn();

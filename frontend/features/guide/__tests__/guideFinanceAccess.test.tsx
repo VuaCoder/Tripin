@@ -61,12 +61,12 @@ describe('Guide finance entry points', () => {
   it('provides both links and marks only the most specific route active for desktop/mobile', () => {
     const items = navigationByRole.TOUR_GUIDE;
     expect(items.map((item) => item.href)).toContain('/guide/earnings');
-    expect(items.map((item) => item.href)).toContain('/guide/subscriptions');
+    expect(items.map((item) => item.href)).toContain('/premium');
     expect(getActiveNavigationHref('/guide/earnings', items)).toBe(
       '/guide/earnings',
     );
-    expect(getActiveNavigationHref('/guide/subscriptions', items)).toBe(
-      '/guide/subscriptions',
+    expect(getActiveNavigationHref('/premium', items)).toBe(
+      '/premium',
     );
     expect(getActiveNavigationHref('/guide', items)).toBe('/guide');
   });

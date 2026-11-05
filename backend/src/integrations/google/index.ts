@@ -20,9 +20,13 @@ class GoogleAuthLibraryVerifier implements GoogleIdentityVerifier {
 
   async verifyIdToken(idToken: string): Promise<GoogleIdentity> {
     if (!env.GOOGLE_CLIENT_ID) throw AppError.unavailable('Google login is not configured');
-    this.client ??= new OAuth2Client(env.GOOGLE_CLIENT_ID);
+    const audiences = env.GOOGLE_CLIENT_ID.split(',').map((id) => id.trim()).filter(Boolean);
+    this.client ??= new OAuth2Client();
     try {
-      const ticket = await this.client.verifyIdToken({ idToken, audience: env.GOOGLE_CLIENT_ID });
+      const ticket = await this.client.verifyIdToken({
+        idToken,
+        audience: audiences.length === 1 ? audiences[0] : audiences,
+      });
       const payload = ticket.getPayload();
       if (!payload?.sub || !payload.email) throw new Error('Missing claims');
       return {

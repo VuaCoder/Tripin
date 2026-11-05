@@ -78,3 +78,29 @@ describe('Gemini provider', () => {
     await expect(provider.generate(input)).rejects.toMatchObject({ statusCode: 503 });
   });
 });
+
+describe('Gemini chat failure diagnostics', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const provider = new GeminiProvider({ apiKey: 'secret-key', model: 'test' });
+  it('accepts useful truncated chat, but rejects the same result for JSON extraction', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [{ text: 'Useful travel advice' }] } }] }) })));
+    await expect(provider.generate({ ...input, allowPartial: true })).resolves.toEqual({ text: 'Useful travel advice', incomplete: true });
+    await expect(provider.generate({ ...input, allowPartial: true, responseFormat: 'json' })).rejects.toMatchObject({ code: 'AI_INCOMPLETE_RESPONSE' });
+  });
+  it.each([[429, 'AI_QUOTA_EXCEEDED'], [403, 'AI_NOT_CONFIGURED'], [503, 'AI_TEMPORARILY_UNAVAILABLE']])('classifies upstream status %s', async (status, code) => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status, json: async () => ({ error: { status: 'RESOURCE_EXHAUSTED', message: 'secret' } }) })));
+    await expect(provider.generate(input)).rejects.toMatchObject({ statusCode: 503, code });
+  });
+  it.each([['TimeoutError', 'AI_TIMEOUT'], ['Error', 'AI_UNREACHABLE']])('classifies %s', async (name, code) => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(Object.assign(new Error('secret'), { name })));
+    await expect(provider.generate(input)).rejects.toMatchObject({ code });
+  });
+  it.each([
+    [{ promptFeedback: { blockReason: 'SAFETY' } }, 'AI_CONTENT_BLOCKED'],
+    [{ candidates: [{ finishReason: 'STOP', content: { parts: [] } }] }, 'AI_EMPTY_RESPONSE'],
+    [{ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [] } }] }, 'AI_EMPTY_RESPONSE'],
+  ])('classifies blocked or empty chat output', async (body, code) => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => body })));
+    await expect(provider.generate({ ...input, allowPartial: true })).rejects.toMatchObject({ code });
+  });
+});

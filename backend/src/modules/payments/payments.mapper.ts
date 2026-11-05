@@ -1,8 +1,9 @@
 import type { PaymentPurpose, PaymentStatus } from '@travel-platform/constants';
 import type { PaymentRecord } from './payments.repository';
+import type { BankTransferInfo } from './providers/payment.provider';
 import type { CheckoutDto, PaymentDto, PaymentFacts } from './payments.types';
 
-export function toPaymentDto(payment: PaymentRecord): PaymentDto {
+export function toPaymentDto(payment: PaymentRecord, bankTransfer?: BankTransferInfo): PaymentDto {
   return {
     id: payment.id,
     purpose: payment.purpose as PaymentPurpose,
@@ -12,16 +13,18 @@ export function toPaymentDto(payment: PaymentRecord): PaymentDto {
     status: payment.status as PaymentStatus,
     // The link is only useful while the payment is still open.
     checkoutUrl: payment.status === 'PENDING' ? (payment.checkoutUrl ?? undefined) : undefined,
+    bankTransfer: payment.status === 'PENDING' ? bankTransfer : undefined,
     expiresAt: payment.expiresAt.toISOString(),
     paidAt: payment.paidAt?.toISOString(),
     createdAt: payment.createdAt.toISOString(),
   };
 }
 
-export function toCheckoutDto(payment: PaymentRecord): CheckoutDto {
+export function toCheckoutDto(payment: PaymentRecord, bankTransfer?: BankTransferInfo): CheckoutDto {
   return {
     paymentId: payment.id,
     checkoutUrl: payment.checkoutUrl!,
+    bankTransfer,
     amount: payment.amount,
     expiresAt: payment.expiresAt.toISOString(),
   };

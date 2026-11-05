@@ -8,6 +8,7 @@ import { AppError } from '../../utils/app-error';
 import { logger } from '../../utils/logger';
 import { notificationsService, type NotificationsService } from '../notifications';
 import { chatService, type ChatService } from './chat.service';
+import { aiService } from '../ai/ai.service';
 import { socketConversationPayload, socketSendPayload } from './chat.validation';
 
 type Ack = (response: { ok: true; data?: unknown } | { ok: false; error: { code: string; message: string } }) => void;
@@ -16,6 +17,15 @@ type Ack = (response: { ok: true; data?: unknown } | { ok: false; error: { code:
 const RATE = { windowMs: 10_000, max: 20 } as const;
 
 export const userRoom = (userId: string) => `user:${userId}`;
+
+/** Set when `attachChatGateway` runs; used to force-disconnect sessions after logout / password change. */
+let chatIo: Server | null = null;
+
+/** Disconnect every socket in `user:<userId>` (e.g. after tokenVersion bump). */
+export function disconnectUserSessions(userId: string): void {
+  if (!chatIo) return;
+  void chatIo.in(userRoom(userId)).disconnectSockets(true);
+}
 
 /**
  * Thin Socket.IO adapter (AI rules §16): authenticate the handshake, validate payloads, call `ChatService`, answer with
@@ -40,6 +50,7 @@ export function attachChatGateway(
     path: '/socket.io',
     cors: { origin: env.CLIENT_URL.split(',').map((origin) => origin.trim()), credentials: true },
   });
+  chatIo = io;
 
   io.use(async (socket, next) => {
     try {
@@ -115,6 +126,12 @@ export function attachChatGateway(
         });
       }
     });
+  });
+  chat.setReadPublisher((userId, conversationId) => {
+    io.to(userRoom(userId)).emit('chat:updated', { conversationId });
+  });
+  aiService.setPublisher((userId, conversationId) => {
+    io.to(userRoom(userId)).emit('ai:updated', { conversationId });
   });
   notifications.setPublisher((userId, notification) => {
     io.to(userRoom(userId)).emit('notification:new', notification);

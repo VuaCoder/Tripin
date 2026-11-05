@@ -25,6 +25,15 @@ export class AiController {
     const { params } = validated<unknown, unknown, IdParams>(req);
     sendOk(res, await this.service.getMine(userActor(req).userId, params.id));
   };
+
+  overview: RequestHandler = async (req, res) => {
+    sendOk(res, await this.service.overview(userActor(req).userId));
+  };
+
+  read: RequestHandler = async (req, res) => {
+    const { params, body } = validated<{ throughMessageId: string }, unknown, IdParams>(req);
+    sendOk(res, await this.service.markRead(userActor(req).userId, params.id, body.throughMessageId));
+  };
 }
 
 export const aiController = new AiController();

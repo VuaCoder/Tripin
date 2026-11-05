@@ -6,11 +6,13 @@ import { configureStore } from '@reduxjs/toolkit';
 import authReducer from '@/features/auth/store/authSlice';
 import { baseApi } from '@/store/api/baseApi';
 import { Header } from '../Header';
+const { premiumNavigate } = vi.hoisted(() => ({ premiumNavigate: vi.fn() }));
+vi.mock('@/features/premium/api', () => ({ useMyPremiumQuery: () => ({currentData:{active:false,endsAt:null,expired:false},refetch:vi.fn()}) }));
 
 // Mock Next.js navigation and image
 vi.mock('next/navigation', () => ({
   usePathname: () => '/tours',
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: premiumNavigate }),
 }));
 
 vi.mock('next/image', () => ({
@@ -99,12 +101,7 @@ describe('Header Traveler Dropdown & Premium', () => {
     expect(profileLink).toBeTruthy();
     expect(profileLink.getAttribute('href')).toBe('/settings/profile');
 
-    // 2. Ví voucher
-    const voucherLink = screen.getByRole('link', { name: /ví voucher/i });
-    expect(voucherLink).toBeTruthy();
-    expect(voucherLink.getAttribute('href')).toBe('/settings/vouchers');
-
-    // 3. Premium
+    // 2. Premium
     const premiumMenuItem = screen.getByRole('button', { name: /premium/i });
     expect(premiumMenuItem).toBeTruthy();
 
@@ -112,14 +109,15 @@ describe('Header Traveler Dropdown & Premium', () => {
     const logoutBtn = screen.getByRole('button', { name: /đăng xuất/i });
     expect(logoutBtn).toBeTruthy();
 
-    // Old items should NOT be present in traveler dropdown
+    // Other items should NOT be present in traveler dropdown (managed inside profile)
+    expect(screen.queryByText('Ví voucher')).toBeNull();
     expect(screen.queryByText('Danh sách yêu thích')).toBeNull();
     expect(screen.queryByText('Chuyến đi')).toBeNull();
 
-    // Clicking Premium inside dropdown opens the modal
+    // Premium now opens the actual membership page.
     fireEvent.click(premiumMenuItem);
-    expect(screen.getByText('Tính năng đang được phát triển')).toBeTruthy();
-    expect(screen.getAllByText(/Tripri Premium/i).length).toBeGreaterThan(0);
+    expect(premiumNavigate).toHaveBeenCalledWith('/premium');
+    expect(screen.queryByText('Tính năng đang được phát triển')).toBeNull();
 
     // Left nav should only have Khám phá and Hỗ trợ (no Tin nhắn on left)
     const nav = screen.getByRole('navigation', { name: /điều hướng chính/i });

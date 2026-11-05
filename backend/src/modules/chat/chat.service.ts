@@ -1,6 +1,6 @@
 import { isUniqueViolation } from '../../config/database';
-import type { PersistedRole } from '@travel-platform/constants';
-import { AppError } from '../../utils/app-error';
+import { containsProfanity, PROFANITY_ERROR_MESSAGE, type PersistedRole } from '@travel-platform/constants';
+import { AppError, ERROR_CODES } from '../../utils/app-error';
 import { logger } from '../../utils/logger';
 import { buildPage, type Page } from '../../utils/pagination';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
@@ -23,13 +23,20 @@ type Actor = { userId: string; role: PersistedRole };
 
 /** All chat rules. Controllers and the socket gateway only translate transport details into calls to this class. */
 export class ChatService {
+  private readPublisher?: (userId: string, conversationId: string) => void;
+  setReadPublisher(publisher: (userId: string, conversationId: string) => void) { this.readPublisher = publisher; }
   private publisher?: ChatPublisher;
 
   constructor(
     private readonly chat: Pick<
       ChatRepository,
-      | 'findConversation' | 'findByPair' | 'createConversation' | 'listConversations' | 'recordMessage'
-      | 'resetUnread' | 'createMessage' | 'listMessages' | 'markMessagesRead'
+      | 'findConversation'
+      | 'findByPair'
+      | 'createConversation'
+      | 'listConversations'
+      | 'appendMessageAndBumpUnread'
+      | 'listMessages'
+      | 'markReadWithWatermark'
     > = chatRepository,
     private readonly users: Pick<UsersService, 'assertActiveWithRole' | 'getSummaries'> = usersService,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
@@ -99,15 +106,16 @@ export class ChatService {
     const { conversation, side } = await this.requireParticipation(userId, conversationId);
     const clean = text.trim();
     if (!clean) throw AppError.badRequest('Message cannot be empty');
+    if (containsProfanity(clean)) {
+      throw AppError.badRequest(PROFANITY_ERROR_MESSAGE, undefined, ERROR_CODES.PROFANITY_DETECTED);
+    }
 
-    const message = await this.chat.createMessage({ conversationId, senderId: userId, text: clean });
     const recipient = otherSide(side);
     const recipientId = String(recipient === 'traveler' ? conversation.travelerId : conversation.guideId);
-    const before = await this.chat.recordMessage(conversationId, recipient, {
-      text: clean.slice(0, 200),
-      senderId: userId,
-      sentAt: message.createdAt,
-    });
+    const { message, before } = await this.chat.appendMessageAndBumpUnread(
+      { conversationId, senderId: userId, text: clean },
+      recipient,
+    );
 
     this.publish(recipientId, conversationId, toMessageDto(message, recipientId));
     this.publish(userId, conversationId, toMessageDto(message, userId));
@@ -124,11 +132,12 @@ export class ChatService {
     return toMessageDto(message, userId);
   }
 
-  /** Marks everything the other person sent as read and clears my unread counter. */
+  /** Marks everything the other person sent as read (watermark) and recomputes my unread counter. */
   async markRead(userId: string, conversationId: string): Promise<{ unreadCount: number }> {
     const { side } = await this.requireParticipation(userId, conversationId);
-    await Promise.all([this.chat.markMessagesRead(conversationId, userId), this.chat.resetUnread(conversationId, side)]);
-    return { unreadCount: 0 };
+    const result = await this.chat.markReadWithWatermark(conversationId, side, userId);
+    this.readPublisher?.(userId, conversationId);
+    return result;
   }
 
   /** For the gateway: the other participant's id, only if `userId` takes part in the conversation. */

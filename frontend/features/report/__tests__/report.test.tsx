@@ -30,6 +30,7 @@ const queryResult = (overrides: Record<string, unknown>) => ({
 
 const report = (over: Partial<MyReport> = {}): MyReport => ({
   id: 'r1',
+  code: 'RP-00000001',
   targetType: 'TOUR',
   targetId: 't1',
   category: 'SAFETY',

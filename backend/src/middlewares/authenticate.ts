@@ -15,12 +15,16 @@ export async function resolveUserActor(token: string): Promise<UserActor> {
   const payload = verifyAccessToken(token);
   const user = await usersRepository.findById(payload.sub);
   if (!user) throw AppError.unauthenticated('Account no longer exists', ERROR_CODES.TOKEN_INVALID);
+  if (payload.tokenVersion !== user.tokenVersion) {
+    throw AppError.unauthenticated('Invalid or expired access token', ERROR_CODES.TOKEN_INVALID);
+  }
   if (user.status === USER_STATUS.BANNED) throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
   if (user.status !== USER_STATUS.ACTIVE) throw AppError.forbidden('Account is not active', ERROR_CODES.ACCOUNT_NOT_VERIFIED);
   return {
     kind: 'user',
     userId: user.id,
     email: user.email,
+    emailVerified: user.emailVerifiedAt != null,
     role: user.role as UserActor['role'],
     permissions: permissionsOf(user),
   };

@@ -67,6 +67,12 @@ function make(seed: B[] = [], opts: { commissionBps?: number; windowHours?: numb
       Object.assign(doc, update);
       return doc;
     }),
+    cancelWithInventoryRelease: vi.fn(async (input: B) => {
+      const doc = db.find((b) => b.id === input.id);
+      if (!doc || !input.expected.includes(doc.status)) return null;
+      Object.assign(doc, input.patch);
+      return doc;
+    }),
     updateById: vi.fn(async (id: string, update: B) => {
       const doc = db.find((b) => b.id === id);
       if (doc) Object.assign(doc, update);
@@ -94,6 +100,18 @@ function make(seed: B[] = [], opts: { commissionBps?: number; windowHours?: numb
   const settings = {
     getCommissionBps: vi.fn(async () => opts.commissionBps ?? 1000),
     getPolicyNumber: vi.fn(async () => ('windowHours' in opts ? opts.windowHours : 24)),
+    getPolicy: vi.fn(async () => ({
+      key: 'refund',
+      title: 'Refund policy',
+      content: '',
+      params: {
+        milestonesJson: JSON.stringify([
+          { daysBefore: 7, percent: 100 },
+          { daysBefore: 3, percent: 50 },
+          { daysBefore: 0, percent: 0 },
+        ]),
+      },
+    })),
   };
   const notifications = { notify: vi.fn(async () => undefined) };
   const tx = {} as DbExecutor;
@@ -353,6 +371,13 @@ describe('payment hooks', () => {
     const { service, db } = make([booking({ status: 'CANCELLED', cancelReason: BOOKING_CANCEL_REASON.PAYMENT_EXPIRED })]);
     expect((await service.confirmPayment('b1')).outcome).toBe('REFUND_REQUIRED');
     expect(db[0]).toMatchObject({ status: 'CANCELLED', isPaid: true, refundRequired: true });
+  });
+
+  it('rejects late settlement on an expired PENDING hold: cancels, flags refund, does not confirm', async () => {
+    const { service, db, tours } = make([booking({ paymentExpiresAt: new Date(Date.now() - 1000) })]);
+    expect((await service.confirmPayment('b1')).outcome).toBe('REFUND_REQUIRED');
+    expect(db[0]).toMatchObject({ status: 'CANCELLED', isPaid: true, refundRequired: true });
+    expect(tours.releaseSeats).toHaveBeenCalled();
   });
 
   it('404 for an unknown booking', async () => {

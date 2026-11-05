@@ -32,6 +32,7 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
     { label: 'Hỗ trợ', href: '/support' },
   ],
   AGENCY: [
+    { label: 'Voucher Premium', href: '/agency/premium', icon: 'workspace_premium' },
     { label: 'Tổng quan', href: '/agency', icon: 'dashboard' },
     { label: 'Quản lý tour', href: '/agency/tours', icon: 'tour' },
     { label: 'Đơn đặt chỗ', href: '/agency/bookings', icon: 'receipt_long' },
@@ -43,7 +44,7 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
     { label: 'Tin nhắn', href: '/conversations', icon: 'chat' },
     { label: 'Lịch trình', href: '/guide', icon: 'calendar_month' },
     { label: 'Tour nhận dẫn', href: '/guide/tours', icon: 'flag' },
-    { label: 'Gói dịch vụ', href: '/guide/subscriptions', icon: 'workspace_premium' },
+    { label: 'Premium', href: '/premium', icon: 'workspace_premium' },
     { label: 'Thu nhập', href: '/guide/earnings', icon: 'payments' },
     { label: 'Hồ sơ', href: '/guide/profile', icon: 'person' },
   ],
@@ -57,6 +58,7 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
     { label: 'Khiếu nại hỗ trợ', href: '/moderator/support-tickets', icon: 'support_agent' },
   ],
   SUPER_ADMIN: [
+    { label: 'Premium', href: '/super-admin/premium', icon: 'workspace_premium' },
     { label: 'Hệ thống', href: '/super-admin', icon: 'admin_panel_settings' },
     { label: 'Người dùng', href: '/super-admin/users', icon: 'group' },
     { label: 'Khuyến mãi nền tảng', href: '/super-admin/promotions', icon: 'sell' },

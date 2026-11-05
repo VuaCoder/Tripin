@@ -59,6 +59,9 @@ describe('audit coverage (integration)', () => {
     const asAdmin = (r: request.Test) => r.set(bearer(a.admin.token));
 
     await expectOneAudit(AUDIT_ACTIONS.COMMISSION_UPDATED, a.admin.id, () => asAdmin(request(app).put('/api/v1/admin/settings/commission')).send({ ratePercent: 9 }));
+    await expectOneAudit(AUDIT_ACTIONS.PREMIUM_CHANGED, a.admin.id, () =>
+      asAdmin(request(app).put('/api/v1/admin/premium/flags')).send({ audience: 'TRAVELER', enabled: true }),
+    );
     await expectOneAudit(AUDIT_ACTIONS.POLICY_UPDATED, a.admin.id, () => asAdmin(request(app).put('/api/v1/admin/policies/terms')).send({ title: 'Terms of use', content: 'Be nice.' }), 'policy:terms');
 
     const created = await expectOneAudit(AUDIT_ACTIONS.CATEGORY_CREATED, a.admin.id, () => asAdmin(request(app).post('/api/v1/admin/categories')).send({ name: 'Wellness' }));

@@ -7,9 +7,9 @@ import { PERMISSIONS } from '@travel-platform/constants';
 // The handshake uses the same token -> actor resolution as HTTP; replace it so no database is needed.
 vi.mock('../../../middlewares/authenticate', () => ({
   resolveUserActor: vi.fn(async (token: string) => {
-    if (token === 'traveler-token') return { kind: 'user', userId: 't1', email: 't@x.y', role: 'TRAVELER', permissions: [PERMISSIONS.CHAT_USE] };
-    if (token === 'guide-token') return { kind: 'user', userId: 'g1', email: 'g@x.y', role: 'TOUR_GUIDE', permissions: [PERMISSIONS.CHAT_USE] };
-    if (token === 'agency-token') return { kind: 'user', userId: 'a1', email: 'a@x.y', role: 'AGENCY', permissions: [] };
+    if (token === 'traveler-token') return { kind: 'user', userId: 't1', email: 't@x.y', role: 'TRAVELER', permissions: [PERMISSIONS.CHAT_USE], emailVerified: true };
+    if (token === 'guide-token') return { kind: 'user', userId: 'g1', email: 'g@x.y', role: 'TOUR_GUIDE', permissions: [PERMISSIONS.CHAT_USE], emailVerified: true };
+    if (token === 'agency-token') return { kind: 'user', userId: 'a1', email: 'a@x.y', role: 'AGENCY', permissions: [], emailVerified: true };
     throw Object.assign(new Error('bad token'), { code: 'TOKEN_INVALID' });
   }),
 }));
@@ -21,7 +21,7 @@ const CONV = '11111111-1111-4111-8111-111111111111';
 let server: http.Server;
 let url: string;
 let clients: Socket[] = [];
-let chat: { sendMessage: ReturnType<typeof vi.fn>; markRead: ReturnType<typeof vi.fn>; getCounterpartId: ReturnType<typeof vi.fn>; setPublisher: ReturnType<typeof vi.fn> };
+let chat: { sendMessage: ReturnType<typeof vi.fn>; markRead: ReturnType<typeof vi.fn>; getCounterpartId: ReturnType<typeof vi.fn>; setPublisher: ReturnType<typeof vi.fn>; setReadPublisher: ReturnType<typeof vi.fn> };
 let publisher: (userId: string, event: unknown) => void;
 
 const client = (token?: string) => {
@@ -38,6 +38,7 @@ beforeEach(async () => {
     markRead: vi.fn(async () => ({ unreadCount: 0 })),
     getCounterpartId: vi.fn(async () => 'g1'),
     setPublisher: vi.fn((fn) => { publisher = fn; }),
+    setReadPublisher: vi.fn(),
   };
   server = http.createServer();
   attachChatGateway(server, { chat: chat as never, notifications: { setPublisher: vi.fn() } as never });

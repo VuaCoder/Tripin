@@ -12,6 +12,8 @@ const labels = (items: RouteInfo[]) => items.map(label).sort();
 
 /** Endpoints anybody (GUEST) may call. Mutations here are credential flows or the signed payment webhook. */
 const PUBLIC_ROUTES = [
+  'GET /premium/plans',
+  'GET /premium/guides/:id',
   'GET /agencies/:id',
   'GET /agencies/:id/promotions',
   'GET /categories',
@@ -49,8 +51,9 @@ const PUBLIC_ROUTES = [
 /** Logged-in-only routes WITHOUT a permission: each one is scoped to the caller's own data by the token. */
 const LOGIN_ONLY_ROUTES = [
   'GET /auth/security',
-    'DELETE /notifications/:id',
-    'GET /notifications',
+  'POST /auth/change-password',
+  'DELETE /notifications/:id',
+  'GET /notifications',
   'GET /notifications/unread-count',
   'GET /payments/:id',
   'PATCH /auth/two-factor',
@@ -60,6 +63,8 @@ const LOGIN_ONLY_ROUTES = [
 
 /** Mutating routes that carry no JSON body by design (pure actions on the caller's own resource / signed callbacks). */
 const BODYLESS_MUTATIONS = [
+  'POST /premium/guide/images/signature',
+  'POST /agency/premium/contributions/:id/stop',
   'PATCH /notifications/:id/read',
   'POST /agency/complaint-tickets/images/upload-signature',
   'POST /agency/tours/:id/restore',
@@ -78,6 +83,8 @@ const BODYLESS_MUTATIONS = [
   'POST /payments/webhooks/payos',
   'POST /support/tickets/:id/close',
   'POST /users/me/agency-verification',
+  'POST /users/me/guide-application/dev-accept',
+  'POST /guide/e-tickets/:tourId/complete',
   'POST /wishlist/:tourId',
 ].sort();
 

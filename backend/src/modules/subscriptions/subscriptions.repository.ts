@@ -20,7 +20,7 @@ export type SubscriptionPatch = Partial<Pick<Subscription, 'status' | 'startsAt'
 export class SubscriptionsRepository {
   // ---- plans
   async listActivePlans(): Promise<PlanRecord[]> {
-    return (await prisma.subscriptionPlan.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: 'asc' }, { price: 'asc' }] })).map(numericRecord);
+    return (await prisma.subscriptionPlan.findMany({ where: { isActive: true, isPremium: false }, orderBy: [{ sortOrder: 'asc' }, { price: 'asc' }] })).map(numericRecord);
   }
 
   async findPlanById(id: string): Promise<PlanRecord | null> {

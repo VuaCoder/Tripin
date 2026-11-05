@@ -10,6 +10,7 @@ export interface CheckoutDto {
 }
 
 export interface PaymentDto {
+  premium?: boolean;
   id: string;
   purpose: PaymentPurpose;
   referenceId: string;

@@ -2,7 +2,7 @@
 import { bookingEvents } from '../bookings';
 import { eTicketsService } from './e-tickets.service';
 
-export { eTicketsRouter } from './e-tickets.routes';
+export { eTicketsRouter, guideETicketsRouter } from './e-tickets.routes';
 export { eTicketsService, ETicketsService } from './e-tickets.service';
 export { ETICKET_STATUS, type ETicketDto } from './e-tickets.types';
 

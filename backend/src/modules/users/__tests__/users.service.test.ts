@@ -86,6 +86,34 @@ describe('UsersService profile', () => {
     expect(repo.updateById.mock.calls[0]![1]).toEqual({ fullName: 'New Name', agencyProfile: { companyName: 'Sun Travel' } });
   });
 
+  const payout = { bankName: 'Vietcombank', accountNumber: '0123456789', accountHolder: 'NGUYEN VAN A' };
+
+  it('stores a guide payout account inside preferences and returns it', async () => {
+    const { service, db } = makeService({ g1: makeUser({ id: 'g1', role: ROLES.TOUR_GUIDE, preferences: { emailAlerts: true } }) });
+    const dto = await service.updateMe('g1', { bankAccount: payout });
+    expect(dto.bankAccount).toEqual(payout);
+    expect(db.g1!.preferences).toEqual({ emailAlerts: true, bankAccount: payout });
+  });
+
+  it('rejects a payout account from a non-guide and clears it with null', async () => {
+    const { service, db } = makeService({
+      g1: makeUser({ id: 'g1', role: ROLES.TOUR_GUIDE, preferences: { bankAccount: payout } }),
+      t1: makeUser(),
+    });
+    await expect(service.updateMe('t1', { bankAccount: payout })).rejects.toMatchObject({ statusCode: 403 });
+    const dto = await service.updateMe('g1', { bankAccount: null });
+    expect(dto.bankAccount).toBeUndefined();
+    expect((db.g1!.preferences as Record<string, unknown>).bankAccount).toBeNull();
+  });
+
+  it('keeps the payout account when notification preferences change', async () => {
+    const { service, db } = makeService({
+      g1: makeUser({ id: 'g1', role: ROLES.TOUR_GUIDE, preferences: { bankAccount: payout, emailAlerts: true } }),
+    });
+    await service.updatePreferences('g1', { voucherExpiryAlerts: false });
+    expect(db.g1!.preferences).toMatchObject({ bankAccount: payout, emailAlerts: true, voucherExpiryAlerts: false });
+  });
+
   it('never exposes email or phone in the public guide profile', async () => {
     const { service } = makeService({ g1: makeUser({ id: 'g1', role: ROLES.TOUR_GUIDE, phone: '+84 123456', guideProfile: { languages: ['vi'], specialties: [] } }) });
     const dto = await service.getPublicGuide('g1');

@@ -60,6 +60,8 @@ export const agencyVerifyOtpBody = z.object({
 export const agencyResendOtpBody = z.object({
   email,
   purpose: z.enum([OTP_PURPOSE.REGISTER, OTP_PURPOSE.LOGIN_2FA]),
+  /** Required when purpose is LOGIN_2FA (validated in the service). */
+  password: z.string().min(1).max(AUTH_POLICY.PASSWORD_MAX_LENGTH).optional(),
 });
 
 export const googleLoginBody = z.object({
@@ -81,9 +83,18 @@ export const twoFactorBody = z.object({
   password: z.string().max(AUTH_POLICY.PASSWORD_MAX_LENGTH).optional(),
 });
 
+export const changePasswordBody = z
+  .object({
+    currentPassword: z.string().min(1).max(AUTH_POLICY.PASSWORD_MAX_LENGTH),
+    newPassword: passwordSchema,
+  })
+  .strict();
+
 export const resendOtpBody = z.object({
   email,
   purpose: z.enum([OTP_PURPOSE.REGISTER, OTP_PURPOSE.LOGIN_2FA, OTP_PURPOSE.FORGOT_PASSWORD]),
+  /** Required when purpose is LOGIN_2FA (validated in the service). */
+  password: z.string().min(1).max(AUTH_POLICY.PASSWORD_MAX_LENGTH).optional(),
 });
 
 export type RegisterBody = z.infer<typeof registerBody>;
@@ -95,6 +106,7 @@ export type AgencyResendOtpBody = z.infer<typeof agencyResendOtpBody>;
 export type GoogleLoginBody = z.infer<typeof googleLoginBody>;
 export type ForgotPasswordBody = z.infer<typeof forgotPasswordBody>;
 export type ResetPasswordBody = z.infer<typeof resetPasswordBody>;
+export type ChangePasswordBody = z.infer<typeof changePasswordBody>;
 export type TwoFactorBody = z.infer<typeof twoFactorBody>;
 export type ResendOtpBody = z.infer<typeof resendOtpBody>;
 

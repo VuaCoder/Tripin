@@ -41,7 +41,7 @@ export type NewBooking = Pick<
   | 'bookingCode' | 'travelerId' | 'agencyId' | 'tourId' | 'departureId' | 'tourTitle' | 'departureDate' | 'endDate'
   | 'participants' | 'unitPrice' | 'subtotal' | 'totalAmount' | 'commissionBps' | 'commissionAmount' | 'agencyAmount'
 > &
-  Partial<BookingScalars> & { id?: string; contact: { fullName: string; phone: string }; promotion?: PromotionSnapshot; redemptions?: PromotionRedemptionInput[] };
+  Partial<BookingScalars> & { id?: string; contact: { fullName: string; phone: string }; promotion?: PromotionSnapshot; redemptions?: PromotionRedemptionInput[]; premiumVoucherToken?: string };
 
 
 /** Plain-field changes (`null` clears a nullable column). */
@@ -66,7 +66,11 @@ const NEWEST_FIRST: Prisma.BookingOrderByWithRelationInput[] = [{ createdAt: 'de
 
 export class BookingsRepository {
   async create(data: NewBooking, db: DbExecutor = prisma): Promise<BookingRecord> {
-    const { contact, promotion, redemptions, ...scalars } = data;
+    // Standalone callers need the same atomic claim as the booking transaction path.
+    if (data.premiumVoucherId && db === prisma) {
+      return prisma.$transaction((tx) => this.create(data, tx));
+    }
+    const { contact, promotion, redemptions, premiumVoucherToken, ...scalars } = data;
     const row = await db.booking.create({
 
       data: {
@@ -92,6 +96,13 @@ export class BookingsRepository {
       },
       include: { redemptions: true },
     });
+    if (data.premiumVoucherId) {
+      const claimed = await db.premiumVoucher.updateMany({
+        where: { id: data.premiumVoucherId, userId: data.travelerId, leaseToken: premiumVoucherToken, bookingId: null, endsAt: { gt: new Date() } },
+        data: { bookingId: row.id },
+      });
+      if (claimed.count !== 1) throw new Error('Premium voucher lease lost');
+    }
     return toRecord(row);
   }
 
@@ -114,6 +125,48 @@ export class BookingsRepository {
   async transition(id: string, expected: readonly BookingStatus[], patch: BookingPatch, db: DbExecutor = prisma): Promise<BookingRecord | null> {
     const row = await db.booking.update({ where: { id, status: { in: [...expected] } }, data: patch }).catch(nullIfNotFound);
     return row ? toRecord(row) : null;
+  }
+
+  /**
+   * Atomically cancel a booking and restore inventory (seats + promotion + premium voucher) in one DB transaction
+   * so a mid-flight network failure cannot leave seats/vouchers stuck after status already flipped (PAY-002).
+   */
+  async cancelWithInventoryRelease(input: {
+    id: string;
+    expected: readonly BookingStatus[];
+    patch: BookingPatch;
+    tourId: string;
+    departureId: string;
+    seats: number;
+    promotionId?: string;
+    releasePremiumVoucher: boolean;
+  }): Promise<BookingRecord | null> {
+    return prisma.$transaction(async (tx) => {
+      const row = await tx.booking
+        .update({ where: { id: input.id, status: { in: [...input.expected] } }, data: input.patch })
+        .catch(nullIfNotFound);
+      if (!row) return null;
+
+      await tx.$executeRaw`
+        UPDATE "TourDeparture" SET "remaining" = LEAST("capacity", "remaining" + ${input.seats})
+        WHERE "id" = ${input.departureId}::uuid AND "tourId" = ${input.tourId}::uuid`;
+
+      if (input.promotionId) {
+        await tx.promotion.updateMany({
+          where: { id: input.promotionId, usedCount: { gt: 0 } },
+          data: { usedCount: { decrement: 1 } },
+        });
+      }
+
+      if (input.releasePremiumVoucher) {
+        await tx.premiumVoucher.updateMany({
+          where: { bookingId: input.id },
+          data: { bookingId: null, heldAt: null, leaseToken: null },
+        });
+      }
+
+      return toRecord(row);
+    });
   }
 
   async updateById(id: string, patch: BookingPatch): Promise<BookingRecord | null> {

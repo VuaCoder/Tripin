@@ -88,10 +88,10 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
       }
       onSuccess?.(data);
     } catch (err) {
-      const message = getApiErrorMessage(
-        err,
-        "Đăng nhập không thành công. Vui lòng thử lại.",
-      );
+      const message =
+        getApiErrorCode(err) === "INVALID_CREDENTIALS"
+          ? "Email/số điện thoại hoặc mật khẩu không đúng."
+          : getApiErrorMessage(err, "Đăng nhập không thành công. Vui lòng thử lại.");
 
       // Tài khoản chưa xác thực email → đưa sang trang OTP
       if (getApiErrorCode(err) === "ACCOUNT_NOT_VERIFIED") {

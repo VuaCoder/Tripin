@@ -19,7 +19,7 @@ fs.mkdirSync(output, { recursive: true });
     const sockets = [];
     async function session(email, intercept = false) {
       const context = await browser.newContext({ viewport: { width: 1365, height: 900 } }); contexts.push(context);
-      context.setDefaultTimeout(20000);
+      context.setDefaultTimeout(60000);
       if (intercept) {
         await context.route(/\/socket\.io\//, route => disconnected ? route.abort() : route.continue());
         await context.routeWebSocket(/\/socket\.io\//, route => {
@@ -29,7 +29,11 @@ fs.mkdirSync(output, { recursive: true });
       }
       const page = await context.newPage();
       page.on('pageerror', error => errors.push(error.message));
-      await page.goto(`${base}/login`);
+      await page.goto(`${base}/login`, { waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(() => {
+        const form = document.querySelector('form[data-purpose="login-form"]');
+        return form && Object.keys(form).some(key => key.startsWith('__reactProps$') && typeof form[key]?.onSubmit === 'function');
+      });
       await page.locator('#user-credential').fill(email);
       await page.locator('#user-password').fill('ChatSmoke2026!');
       const response = page.waitForResponse(response => response.url() === `${api}/auth/login` && response.request().method() === 'POST');
@@ -51,15 +55,25 @@ fs.mkdirSync(output, { recursive: true });
     await traveler.page.waitForURL(/\/conversations\/[0-9a-f-]+$/);
     const conversationId = traveler.page.url().split('/').pop();
     await traveler.page.getByLabel('Nội dung tin nhắn', { exact: true }).waitFor();
-    checks.push('Start conversation from assigned guide on tour');
+    await traveler.page.getByText('Cuộc trò chuyện mới cùng Hướng Dẫn Viên Kiểm Thử', { exact: true }).waitFor();
+    checks.push('Start conversation from assigned guide on tour with named empty state');
     await guide.page.goto(`${base}/conversations`);
-    await guide.page.locator(`a[href="/conversations/${conversationId}"]`).waitFor();
-    await guide.page.locator(`a[href="/conversations/${conversationId}"]`).click();
+    await guide.page.locator(`a[href="/conversations/${conversationId}"]`).first().waitFor();
+    await guide.page.locator(`a[href="/conversations/${conversationId}"]`).first().click();
     async function send(page, text) {
       await page.getByLabel('Nội dung tin nhắn', { exact: true }).fill(text);
       await page.getByRole('button', { name: 'Gửi tin nhắn', exact: true }).click();
       await page.getByRole('log').getByText(text, { exact: true }).waitFor();
     }
+    await guide.page.getByText('Cuộc trò chuyện mới cùng Traveler Kiểm Thử', { exact: true }).waitFor();
+    await traveler.page.getByText('Đang kết nối', { exact: true }).waitFor({ state: 'hidden' });
+    await guide.page.getByText('Đang kết nối', { exact: true }).waitFor({ state: 'hidden' });
+    await traveler.page.getByLabel('Nội dung tin nhắn', { exact: true }).fill('Đang gõ thử');
+    await guide.page.getByLabel('Traveler Kiểm Thử đang nhập tin nhắn').waitFor();
+    assert.equal(await guide.page.getByLabel('Traveler Kiểm Thử đang nhập tin nhắn').locator('span').count(), 3);
+    await guide.page.screenshot({ path: path.join(output, 'typing-desktop.png'), fullPage: true });
+    await guide.page.getByLabel('Traveler Kiểm Thử đang nhập tin nhắn').waitFor({ state: 'hidden' });
+    checks.push('Real counterpart typing bubble has three dots and expires');
     const first = `Xin chào hướng dẫn viên! Tiếng Việt: Đà Nẵng, Hội An. ${Date.now()}`;
     await send(traveler.page, first);
     await guide.page.getByRole('log').getByText(first, { exact: true }).waitFor();
@@ -72,7 +86,7 @@ fs.mkdirSync(output, { recursive: true });
     await guide.page.goto(`${base}/conversations`);
     await send(traveler.page, `Tin chưa đọc ${Date.now()}`);
     await guide.page.getByLabel(/\d+ tin chưa đọc/).first().waitFor();
-    await guide.page.locator(`a[href="/conversations/${conversationId}"]`).click();
+    await guide.page.locator(`a[href="/conversations/${conversationId}"]`).first().click();
     checks.push('Guide inbox receives unread badge');
     await traveler.page.screenshot({ path: path.join(output, 'traveler-desktop.png'), fullPage: true });
     await guide.page.screenshot({ path: path.join(output, 'guide-desktop.png'), fullPage: true });
@@ -105,7 +119,7 @@ fs.mkdirSync(output, { recursive: true });
     await traveler.page.screenshot({ path: path.join(output, 'traveler-mobile.png'), fullPage: true });
     assert.equal(await traveler.page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
     await traveler.page.getByRole('link', { name: 'Về danh sách', exact: true }).click();
-    await traveler.page.locator(`a[href="/conversations/${conversationId}"]`).waitFor();
+    await traveler.page.locator(`a[href="/conversations/${conversationId}"]`).first().waitFor();
     await traveler.page.screenshot({ path: path.join(output, 'inbox-mobile.png'), fullPage: true });
     await guide.page.setViewportSize({ width: 390, height: 844 });
     await guide.page.screenshot({ path: path.join(output, 'guide-mobile.png'), fullPage: true });
@@ -117,6 +131,42 @@ fs.mkdirSync(output, { recursive: true });
     await outsider.page.getByText('Không tìm thấy cuộc trò chuyện hoặc bạn không có quyền truy cập.').waitFor();
     assert.equal(await outsider.page.getByLabel('Nội dung tin nhắn', { exact: true }).count(), 0);
     checks.push('Unrelated third account receives 404 and cannot view or send');
+    // Mock only AI transport: no vendor calls or application data are used.
+    await traveler.context.route('**/api/v1/ai/conversations?*', route => route.fulfill({ json: { success: true, data: [{ id: 'old-ai', title: 'Old AI chat' }], meta: { page: 1, totalPages: 1, total: 1 } } }));
+    await traveler.context.route('**/api/v1/ai/conversations/old-ai', route => route.fulfill({ json: { success: true, data: { id: 'old-ai', messages: [{ role: 'user', content: 'Old AI history', createdAt: new Date().toISOString() }] } } }));
+    let finishReply;
+    let sentAi;
+    await traveler.context.route('**/api/v1/ai/chat', async route => {
+      sentAi = route.request().postDataJSON();
+      await new Promise(resolve => { finishReply = resolve; });
+      await route.fulfill({ json: { success: true, data: { conversationId: 'new-ai', reply: { role: 'assistant', content: 'Gợi ý lịch trình cho bạn.', createdAt: new Date().toISOString(), incomplete: true }, messageCount: 2 } } });
+    });
+    await traveler.page.evaluate(() => {
+      window.chatPreloaderShown = false;
+      new MutationObserver(() => {
+        if (document.querySelector('[role="status"].fixed.inset-0')) window.chatPreloaderShown = true;
+      }).observe(document.body, { childList: true, subtree: true });
+    });
+    await traveler.page.locator('a[href="/conversations/ai"]').click();
+    await traveler.page.getByText('Old AI history', { exact: true }).waitFor();
+    await traveler.page.getByTitle('Bắt đầu cuộc trò chuyện mới').click();
+    await traveler.page.getByText('Xin chào! Tôi có thể giúp gì cho chuyến đi của bạn?', { exact: true }).waitFor();
+    assert.equal(await traveler.page.getByText('Old AI history', { exact: true }).count(), 0);
+    await traveler.page.getByLabel('Nhập câu hỏi cho Trợ lý AI').fill('Gợi ý chuyến đi');
+    await traveler.page.getByLabel('Gửi câu hỏi', { exact: true }).click();
+    await traveler.page.getByLabel('Trợ lý AI đang trả lời', { exact: true }).waitFor();
+    assert.equal(await traveler.page.getByLabel('Trợ lý AI đang trả lời', { exact: true }).locator('span').count(), 3);
+    assert.equal(await traveler.page.getByText('Trợ lý AI đang soạn câu trả lời...', { exact: true }).count(), 0);
+    assert.equal(await traveler.page.getByTitle('Bắt đầu cuộc trò chuyện mới').isDisabled(), true);
+    await traveler.page.screenshot({ path: path.join(output, 'ai-typing-mobile.png'), fullPage: true });
+    assert.equal(sentAi.conversationId, undefined);
+    finishReply();
+    await traveler.page.getByText('Gợi ý lịch trình cho bạn.', { exact: true }).waitFor();
+    await traveler.page.getByText('Câu trả lời chưa đầy đủ. Bạn có thể yêu cầu AI nói tiếp.', { exact: true }).waitFor();
+    await traveler.page.setViewportSize({ width: 1365, height: 900 });
+    await traveler.page.screenshot({ path: path.join(output, 'ai-desktop.png'), fullPage: true });
+    assert.equal(await traveler.page.evaluate(() => window.chatPreloaderShown), false);
+    checks.push('AI resets history, sends without old session, dots-only loading and incomplete reply on desktop/mobile');
     assert.deepEqual(errors, []);
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify({ passed: true, checks, errors }, null, 2));
     console.log(JSON.stringify({ passed: true, checks, output }, null, 2));

@@ -1,11 +1,21 @@
 import { z } from 'zod';
+import { containsProfanity, PROFANITY_ERROR_MESSAGE } from '@travel-platform/constants';
 import { idParamsSchema, idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 import { CHAT_LIMITS } from './chat.types';
 
 export const startConversationBody = z.object({ participantId: idSchema, tourId: idSchema.optional() }).strict();
 
-export const sendMessageBody = z.object({ text: z.string().trim().min(1).max(CHAT_LIMITS.MAX_MESSAGE_LENGTH) }).strict();
+export const sendMessageBody = z
+  .object({
+    text: z
+      .string()
+      .trim()
+      .min(1)
+      .max(CHAT_LIMITS.MAX_MESSAGE_LENGTH)
+      .refine((val) => !containsProfanity(val), PROFANITY_ERROR_MESSAGE),
+  })
+  .strict();
 
 export const listConversationsQuery = paginationQuerySchema;
 
