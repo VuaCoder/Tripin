@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TOUR_STATUS } from '@travel-platform/constants';
+import { MONEY_LIMITS, TOUR_STATUS } from '@travel-platform/constants';
 import { idParamsSchema, idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 import { TOUR_LIMITS } from './tours.types';
@@ -7,7 +7,7 @@ import { agePricingSchema } from '../../utils/age-pricing';
 
 const text = (max: number) => z.string().trim().max(max);
 const stringList = (maxItems: number, maxLen: number) => z.array(z.string().trim().min(1).max(maxLen)).max(maxItems);
-const vnd = z.number().int().min(0).max(100_000_000_000);
+const vnd = z.number().int().min(0).max(MONEY_LIMITS.MAX_UNIT_PRICE);
 
 const tourContentShape = {
   title: z.string().trim().min(5).max(200),
@@ -101,7 +101,7 @@ export const itineraryBody = z
   );
 
 export const assignGuideBody = z
-  .object({ guideId: idSchema.nullable(), feePerBooking: vnd.optional() })
+  .object({ guideId: idSchema.nullable(), feePerBooking: z.number().int().min(0).max(MONEY_LIMITS.MAX_GUIDE_FEE).optional() })
   .strict()
   .refine((value) => value.guideId === null || value.feePerBooking !== undefined, {
     message: 'feePerBooking is required when assigning a guide',
@@ -119,8 +119,8 @@ export const searchToursQuery = paginationQuerySchema
     agencyId: idSchema.optional(),
     categoryId: idSchema.optional(),
     destination: z.string().trim().min(1).max(120).optional(),
-    minPrice: z.coerce.number().int().min(0).optional(),
-    maxPrice: z.coerce.number().int().min(0).optional(),
+    minPrice: z.coerce.number().int().min(0).max(MONEY_LIMITS.MAX_UNIT_PRICE).optional(),
+    maxPrice: z.coerce.number().int().min(0).max(MONEY_LIMITS.MAX_UNIT_PRICE).optional(),
     minDays: z.coerce.number().int().min(1).optional(),
     maxDays: z.coerce.number().int().min(1).optional(),
     departureFrom: z.coerce.date().optional(),

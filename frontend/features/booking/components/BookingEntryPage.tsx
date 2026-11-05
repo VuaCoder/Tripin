@@ -38,6 +38,8 @@ function bookingErrorMessage(error: unknown, fallback: string): string {
       return 'Tổng giá trị booking không hợp lệ. Vui lòng kiểm tra lại mã giảm giá.';
     case 'PROMOTION_EXHAUSTED':
       return 'Mã giảm giá đã hết lượt sử dụng.';
+    case 'PROMOTION_CODE_USED':
+      return 'Mã giảm giá này đã được sử dụng. Vui lòng chọn mã khác.';
     case 'PROMOTION_INACTIVE':
     case 'PROMOTION_EXPIRED':
       return 'Mã giảm giá này đã hết hiệu lực.';

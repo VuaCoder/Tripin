@@ -11,6 +11,8 @@ import {
   listUsersQuery,
   listAgencyGuidesQuery,
   publicProfileParams,
+  guideApplicationBody,
+  rejectGuideApplicationBody,
   updatePreferencesBody,
   updateProfileBody,
 } from './users.validation';
@@ -66,6 +68,7 @@ usersRouter.post(
 usersRouter.post(
   '/me/guide-application',
   requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
+  validate({ body: guideApplicationBody }),
   usersController.applyGuide,
 );
 usersRouter.get(
@@ -81,6 +84,7 @@ usersRouter.post(
 usersRouter.post(
   '/me/guide-application/dev-reject',
   requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
+  validate({ body: rejectGuideApplicationBody }),
   usersController.devRejectGuide,
 );
 

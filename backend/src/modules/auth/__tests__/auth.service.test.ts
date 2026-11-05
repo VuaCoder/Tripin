@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { randomUUID } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OTP_PURPOSE, ROLES, USER_STATUS } from '@travel-platform/constants';
 import { AppError, ERROR_CODES } from '../../../utils/app-error';
@@ -183,6 +184,16 @@ describe('AuthService.refresh', () => {
   it('rejects when no token is supplied', async () => {
     const ctx = makeDeps(makeUser());
     await expect(new AuthService(ctx.deps).refresh(undefined)).rejects.toMatchObject({ statusCode: 401 });
+  });
+});
+
+describe('AuthService.changePassword', () => {
+  it.each(['missing', 'banned'] as const)('rejects a %s account without updating credentials', async (state) => {
+    const ctx = makeDeps(state === 'missing' ? null : makeUser({ status: USER_STATUS.BANNED }));
+    await expect(new AuthService(ctx.deps).changePassword('u1', {
+      currentPassword: randomUUID(), newPassword: randomUUID(),
+    })).rejects.toMatchObject({ statusCode: 401, code: ERROR_CODES.ACCOUNT_NOT_FOUND });
+    expect(ctx.mocks.users.updateById).not.toHaveBeenCalled();
   });
 });
 

@@ -1,5 +1,6 @@
 import { GUIDE_ASSIGNMENT_STATUS, TOUR_STATUS } from '@travel-platform/constants';
 import { nullIfNotFound, prisma } from '../../config/database';
+import { numericRecord } from '../../utils/money';
 import type { ETicket } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
 import { ETICKET_STATUS, type ETicketStatus } from './e-tickets.types';
@@ -81,7 +82,7 @@ export class ETicketsRepository {
     ]);
     return {
       ...ticket,
-      bookingDetails: booking,
+      bookingDetails: booking ? numericRecord(booking) : null,
       tourDetails: tour,
     };
   }

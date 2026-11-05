@@ -8,8 +8,10 @@ vi.hoisted(() => {
 });
 
 import { createApp } from '../../../app';
-import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase, stubPayosApi, loadTour } from '../../../test/integration';
+import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase, stubPayosApi, loadTour, signedPayosWebhook } from '../../../test/integration';
 import { prisma } from '../../../config/database';
+import { numericRecord } from '../../../utils/money';
+import { bookingsRepository } from '../bookings.repository';
 
 // Real Express app + real PostgreSQL: whatever the inputs, the money stored on a booking adds up, in whole VND, never negative.
 const app = createApp();
@@ -46,6 +48,67 @@ async function promotion(agencyToken: string, code: string, body: object) {
 }
 
 describe('money invariants (integration)', () => {
+  it.each([50_000_000, 1_000_000_000])('cart to booking to paid e-ticket preserves 50 x %i VND', async (price) => {
+    const agency = await createUser('AGENCY', 'agency@example.com');
+    const traveler = await createUser('TRAVELER', 'traveler@example.com');
+    const admin = await createUser('SUPER_ADMIN', 'admin@example.com');
+    expect((await request(app).put('/api/v1/admin/settings/commission').set(bearer(admin.token)).send({ ratePercent: 12.34 })).status).toBe(200);
+    const { tourId, departureId } = await createApprovedTour(agency.id, { price, capacity: 50 });
+    expect((await request(app).post('/api/v1/cart/items').set(bearer(traveler.token)).send({ tourId, departureId, participants: 50 })).status).toBe(201);
+    const cart = await request(app).get('/api/v1/cart').set(bearer(traveler.token));
+    expect(cart.body.data.totals.subtotal).toBe(price * 50);
+    const booked = await request(app).post('/api/v1/bookings').set(bearer(traveler.token)).send({ tourId, departureId, participants: 50, contact });
+    expect(booked.status, JSON.stringify(booked.body)).toBe(201);
+    expect(booked.body.data.totalAmount).toBe(price * 50);
+    const stored = (await prisma.booking.findUnique({ where: { id: booked.body.data.id } }))!;
+    expect(stored.totalAmount).toBe(BigInt(price) * 50n);
+    expect(stored.commissionAmount).toBe(stored.totalAmount * 1234n / 10000n);
+    expect(stored.agencyAmount + stored.commissionAmount).toBe(stored.totalAmount);
+    expect((await request(app).post(`/api/v1/payments/bookings/${stored.id}/checkout`).set(bearer(traveler.token))).status).toBe(201);
+    const payment = (await prisma.payment.findFirst())!;
+    expect(payment.amount).toBe(stored.totalAmount);
+    const webhook = await request(app).post('/api/v1/payments/webhooks/payos').send(signedPayosWebhook(Number(payment.providerOrderCode), payment.amount));
+    expect(webhook.status).toBe(200);
+    expect((await prisma.booking.findUnique({ where: { id: stored.id } }))!.status).toBe('CONFIRMED');
+    const ticket = await request(app).get(`/api/v1/e-tickets/booking/${stored.id}`).set(bearer(traveler.token));
+    expect(ticket.status, JSON.stringify(ticket.body)).toBe(200);
+    expect(await prisma.eTicket.count({ where: { bookingId: stored.id } })).toBe(1);
+    const totals = await bookingsRepository.revenueTotals(agency.id);
+    expect(totals.gross).toBe(price * 50);
+  });
+
+  it('stores a voucher discount above Int32 and previews a 50-billion subtotal', async () => {
+    const agency = await createUser('AGENCY', 'agency@example.com');
+    const traveler = await createUser('TRAVELER', 'traveler@example.com');
+    const { tourId, departureId } = await createApprovedTour(agency.id, { price: 1_000_000_000, capacity: 50 });
+    await promotion(agency.token, 'BIGSAVE', { discountType: 'FIXED', discountValue: 3_000_000_000, minOrderAmount: 50_000_000_000 });
+    const preview = await request(app).get('/api/v1/promotions/preview').query({ code: 'BIGSAVE', tourId, subtotal: 50_000_000_000 }).set(bearer(traveler.token));
+    expect(preview.status, JSON.stringify(preview.body)).toBe(200);
+    expect(preview.body.data.discountAmount).toBe(3_000_000_000);
+    const booked = await request(app).post('/api/v1/bookings').set(bearer(traveler.token)).send({ tourId, departureId, participants: 50, contact, promotionCode: 'BIGSAVE' });
+    expect(booked.status, JSON.stringify(booked.body)).toBe(201);
+    expect(booked.body.data.totalAmount).toBe(47_000_000_000);
+    expect((await prisma.booking.findUnique({ where: { id: booked.body.data.id } }))!.discountAmount).toBe(3_000_000_000n);
+  });
+
+  it('reports multiple large bookings beyond the per-booking ceiling without clamping', async () => {
+    const agency = await createUser('AGENCY', 'agency@example.com');
+    const traveler = await createUser('TRAVELER', 'traveler@example.com');
+    const { tourId, departureId } = await createApprovedTour(agency.id, { price: 1_000_000_000, capacity: 100 });
+    for (let i = 0; i < 2; i++) {
+      const booked = await request(app).post('/api/v1/bookings').set(bearer(traveler.token)).send({ tourId, departureId, participants: 50, contact });
+      expect(booked.status).toBe(201);
+      await prisma.booking.update({ where: { id: booked.body.data.id }, data: { status: 'CONFIRMED', isPaid: true, confirmedAt: new Date() } });
+    }
+    const totals = await bookingsRepository.revenueTotals(agency.id);
+    expect(totals.gross).toBe(100_000_000_000);
+    const daily = await bookingsRepository.dailyNet(agency.id, new Date(0));
+    expect(daily.reduce((sum, row) => sum + row.net, 0)).toBe(totals.net);
+    const monthly = await bookingsRepository.monthlyTotals(new Date(0));
+    expect(monthly.reduce((sum, row) => sum + row.gross, 0)).toBe(totals.gross);
+    expect((await bookingsRepository.topTours(agency.id, 5))[0]!.net).toBe(totals.net);
+  });
+
   it('randomised bookings: totals add up, in whole VND, never negative, commission snapshot is exact', async () => {
     const admin = await createUser('SUPER_ADMIN', 'admin@example.com');
     const agency = await createUser('AGENCY', 'agency@example.com');
@@ -75,7 +138,8 @@ describe('money invariants (integration)', () => {
         if (res.status === 409 && ['PROMOTION_MIN_ORDER', 'PROMOTION_USER_LIMIT_REACHED'].includes(res.body.error?.code)) continue; // legitimately refused
         expect(res.status, `seed round ${round}/${i}: ${JSON.stringify(res.body)}`).toBe(201);
 
-        const b = (await prisma.booking.findUnique({ where: { id: res.body.data.id } }))!;
+        const stored = (await prisma.booking.findUnique({ where: { id: res.body.data.id } }))!;
+        const b = numericRecord(stored);
         const label = `price ${price} x ${participants} code ${code} rate ${ratePercent}%`;
         for (const field of [b.unitPrice, b.subtotal, b.discountAmount, b.totalAmount, b.commissionAmount, b.agencyAmount, b.commissionBps]) {
           expect(Number.isInteger(field), label).toBe(true);
@@ -86,7 +150,7 @@ describe('money invariants (integration)', () => {
         expect(b.discountAmount, label).toBeLessThanOrEqual(b.subtotal);
         expect(b.totalAmount, label).toBe(b.subtotal - b.discountAmount);
         expect(b.commissionBps, label).toBe(Math.round(ratePercent * 100));
-        expect(b.commissionAmount, label).toBe(Math.floor((b.totalAmount * b.commissionBps) / 10_000));
+        expect(stored.commissionAmount, label).toBe(stored.totalAmount * BigInt(stored.commissionBps) / 10_000n);
         expect(b.commissionAmount + b.agencyAmount, label).toBe(b.totalAmount);
         if (b.promotionCode) expect(b.discountAmount, label).toBeGreaterThan(0);
         else expect(b.discountAmount, label).toBe(0);
@@ -112,7 +176,7 @@ describe('money invariants (integration)', () => {
 
     const checkout = await request(app).post(`/api/v1/payments/bookings/${booked.body.data.id}/checkout`).set(bearer(traveler.token)).send({ amount: 1 });
     expect(checkout.status).toBe(201);
-    expect((await prisma.payment.findFirst())!.amount).toBe(total);
+    expect((await prisma.payment.findFirst())!.amount).toBe(BigInt(total));
   });
 
   it('an order that would be free cannot be booked online (nothing to pay): seats and redemption stay untouched', async () => {

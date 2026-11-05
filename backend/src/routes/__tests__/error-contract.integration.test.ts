@@ -41,8 +41,14 @@ function expectError(res: Response, code: string): void {
   observed.add(code);
 }
 
-// Codes that cannot be provoked deterministically in a test; each is covered where noted.
+// Codes covered by focused service/provider tests or requiring a specific concurrent failure.
 const COVERED_ELSEWHERE: Record<string, string> = {
+  ACCOUNT_NOT_FOUND: 'auth.service.test.ts verifies missing/banned accounts at password-change time',
+  PROMOTION_ACTIVE_LOCKED: 'promotions.service.test.ts verifies immutable terms after start',
+  TICKET_NOT_FOUND: 'e-tickets.check-in.test.ts verifies unknown ticket codes return 404',
+  TICKET_ALREADY_USED: 'e-tickets.check-in.test.ts verifies used tickets and lost check-in races return 409',
+  TICKET_WRONG_TOUR: 'e-tickets.check-in.test.ts verifies tickets for another tour return 409',
+  TICKET_CANCELLED: 'e-tickets.check-in.test.ts verifies cancelled tickets return 409',
   CONFLICT: 'global handler for unique-constraint violations (parallel creation tests)',
   CONCURRENT_UPDATE: 'needs a lost compare-and-set: service tests with fake repositories',
   RATE_LIMITED: 'limiters are disabled under test; middleware is trivial',

@@ -1,5 +1,8 @@
 import { nullIfNotFound, prisma } from '../../config/database';
-import type { Subscription, SubscriptionPlan } from '../../generated/prisma/client';
+import type { Subscription as StoredSubscription, SubscriptionPlan as StoredPlan } from '../../generated/prisma/client';
+import { numericRecord, type NumericRecord } from '../../utils/money';
+type Subscription = NumericRecord<StoredSubscription>;
+type SubscriptionPlan = NumericRecord<StoredPlan>;
 import { toSkip, type PageRequest } from '../../utils/pagination';
 import { SUBSCRIPTION_STATUS, type SubscriptionStatus } from './subscriptions.types';
 
@@ -16,12 +19,13 @@ export type SubscriptionPatch = Partial<Pick<Subscription, 'status' | 'startsAt'
 
 export class SubscriptionsRepository {
   // ---- plans
-  listActivePlans(): Promise<PlanRecord[]> {
-    return prisma.subscriptionPlan.findMany({ where: { isActive: true, isPremium: false }, orderBy: [{ sortOrder: 'asc' }, { price: 'asc' }] });
+  async listActivePlans(): Promise<PlanRecord[]> {
+    return (await prisma.subscriptionPlan.findMany({ where: { isActive: true, isPremium: false }, orderBy: [{ sortOrder: 'asc' }, { price: 'asc' }] })).map(numericRecord);
   }
 
-  findPlanById(id: string): Promise<PlanRecord | null> {
-    return prisma.subscriptionPlan.findUnique({ where: { id } });
+  async findPlanById(id: string): Promise<PlanRecord | null> {
+    const row = await prisma.subscriptionPlan.findUnique({ where: { id } });
+    return row ? numericRecord(row) : null;
   }
 
   /**
@@ -34,32 +38,37 @@ export class SubscriptionsRepository {
   }
 
   // ---- subscriptions
-  create(data: NewSubscription): Promise<SubscriptionRecord> {
-    return prisma.subscription.create({ data });
+  async create(data: NewSubscription): Promise<SubscriptionRecord> {
+    return numericRecord(await prisma.subscription.create({ data }));
   }
 
-  findById(id: string): Promise<SubscriptionRecord | null> {
-    return prisma.subscription.findUnique({ where: { id } });
+  async findById(id: string): Promise<SubscriptionRecord | null> {
+    const row = await prisma.subscription.findUnique({ where: { id } });
+    return row ? numericRecord(row) : null;
   }
 
   /** An unpaid subscription of the same plan, so pressing "subscribe" twice reuses it. */
-  findPending(userId: string, planId: string): Promise<SubscriptionRecord | null> {
-    return prisma.subscription.findFirst({ where: { userId, planId, status: SUBSCRIPTION_STATUS.PENDING_PAYMENT }, orderBy: { createdAt: 'desc' } });
+  async findPending(userId: string, planId: string): Promise<SubscriptionRecord | null> {
+    const row = await prisma.subscription.findFirst({ where: { userId, planId, status: SUBSCRIPTION_STATUS.PENDING_PAYMENT }, orderBy: { createdAt: 'desc' } });
+    return row ? numericRecord(row) : null;
   }
 
   /** The subscription with the latest end date that is currently ACTIVE. */
-  findCurrentActive(userId: string, now: Date): Promise<SubscriptionRecord | null> {
-    return prisma.subscription.findFirst({ where: { userId, status: SUBSCRIPTION_STATUS.ACTIVE, startsAt: { lte: now }, endsAt: { gt: now } }, orderBy: { endsAt: 'desc' } });
+  async findCurrentActive(userId: string, now: Date): Promise<SubscriptionRecord | null> {
+    const row = await prisma.subscription.findFirst({ where: { userId, status: SUBSCRIPTION_STATUS.ACTIVE, startsAt: { lte: now }, endsAt: { gt: now } }, orderBy: { endsAt: 'desc' } });
+    return row ? numericRecord(row) : null;
   }
 
   /** Includes prepaid future periods so repeated renewals keep stacking. */
-  findLatestPaid(userId: string, now: Date): Promise<SubscriptionRecord | null> {
-    return prisma.subscription.findFirst({ where: { userId, status: SUBSCRIPTION_STATUS.ACTIVE, endsAt: { gt: now } }, orderBy: { endsAt: 'desc' } });
+  async findLatestPaid(userId: string, now: Date): Promise<SubscriptionRecord | null> {
+    const row = await prisma.subscription.findFirst({ where: { userId, status: SUBSCRIPTION_STATUS.ACTIVE, endsAt: { gt: now } }, orderBy: { endsAt: 'desc' } });
+    return row ? numericRecord(row) : null;
   }
 
   /** Compare-and-set on status. */
-  transition(id: string, expected: readonly SubscriptionStatus[], patch: SubscriptionPatch): Promise<SubscriptionRecord | null> {
-    return prisma.subscription.update({ where: { id, status: { in: [...expected] } }, data: patch }).catch(nullIfNotFound);
+  async transition(id: string, expected: readonly SubscriptionStatus[], patch: SubscriptionPatch): Promise<SubscriptionRecord | null> {
+    const row = await prisma.subscription.update({ where: { id, status: { in: [...expected] } }, data: patch }).catch(nullIfNotFound);
+    return row ? numericRecord(row) : null;
   }
 
   async listByUser(userId: string, page: PageRequest) {
@@ -67,19 +76,19 @@ export class SubscriptionsRepository {
       prisma.subscription.findMany({ where: { userId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit }),
       prisma.subscription.count({ where: { userId } }),
     ]);
-    return { items, total };
+    return { items: items.map(numericRecord), total };
   }
 
   countActive(now: Date): Promise<number> {
     return prisma.subscription.count({ where: { status: SUBSCRIPTION_STATUS.ACTIVE, startsAt: { lte: now }, endsAt: { gt: now } } });
   }
 
-  findEnded(now: Date, limit: number): Promise<SubscriptionRecord[]> {
-    return prisma.subscription.findMany({ where: { status: SUBSCRIPTION_STATUS.ACTIVE, endsAt: { lte: now } }, take: limit });
+  async findEnded(now: Date, limit: number): Promise<SubscriptionRecord[]> {
+    return (await prisma.subscription.findMany({ where: { status: SUBSCRIPTION_STATUS.ACTIVE, endsAt: { lte: now } }, take: limit })).map(numericRecord);
   }
 
-  findAbandoned(createdBefore: Date, limit: number): Promise<SubscriptionRecord[]> {
-    return prisma.subscription.findMany({ where: { status: SUBSCRIPTION_STATUS.PENDING_PAYMENT, createdAt: { lt: createdBefore } }, take: limit });
+  async findAbandoned(createdBefore: Date, limit: number): Promise<SubscriptionRecord[]> {
+    return (await prisma.subscription.findMany({ where: { status: SUBSCRIPTION_STATUS.PENDING_PAYMENT, createdAt: { lt: createdBefore } }, take: limit })).map(numericRecord);
   }
 }
 

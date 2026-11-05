@@ -7,6 +7,11 @@ export type { Prisma } from '../generated/prisma/client';
 export type DbClient = PrismaClient;
 /** Anything that runs queries: the shared client or the transaction client handed to `prisma.$transaction`. */
 export type DbExecutor = Pick<PrismaClient, Exclude<keyof PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>>;
+export type TransactionRunner = <T>(work: (tx: DbExecutor) => Promise<T>) => Promise<T>;
+
+/** Cross-module work must pass this client down to every participating repository. */
+export const runInTransaction: TransactionRunner = (work) =>
+  prisma.$transaction(work, { maxWait: 10_000, timeout: 15_000 });
 
 let client: PrismaClient | undefined;
 

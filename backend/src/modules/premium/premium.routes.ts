@@ -14,6 +14,7 @@ import {
 import { PERMISSIONS } from '@travel-platform/constants';
 import { validate } from '../../middlewares/validate';
 import { AppError } from '../../utils/app-error';
+import { numericRecord } from '../../utils/money';
 import { sendOk, sendCreated, sendPaginated } from '../../utils/api-response';
 import { paginationQuerySchema, buildPage } from '../../utils/pagination';
 import { prisma } from '../../config/database';
@@ -162,7 +163,7 @@ premiumRouter.get(
       include: { premiumRefund: true },
     });
     if (!subscription) throw AppError.notFound();
-    sendOk(res, subscription);
+    sendOk(res, numericRecord(subscription));
   },
 );
 premiumRouter.get('/me/vouchers', async (req, res) => {

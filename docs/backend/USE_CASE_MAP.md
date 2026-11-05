@@ -23,6 +23,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Agency login (+ 2FA extend) | Agency | `POST /auth/agency/login` | done |
 | Login with Google (+ Authenticate via OAuth) | Guest | `POST /auth/google` | done |
 | Forgot password (+ Verify OTP) | All | `POST /auth/forgot-password`, `POST /auth/reset-password` | done |
+| Change own password | auth | `POST /auth/change-password` | done |
 | Log out | All | `POST /auth/logout`, `POST /auth/refresh` (session upkeep) | done |
 | Enable/disable 2FA (supports Verify OTP extend) | auth | `PATCH /auth/two-factor` | done |
 
@@ -85,6 +86,9 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | View assigned tours | tours | `GET /guide/tours` | guide:tours-view | done |
 | Verify assigned tours | tours | `POST /guide/tours/:tourId/verification` (accept/decline) | guide:tours-verify | done |
 | Scan QR e-ticket check-in | e-tickets | `GET /guide/e-tickets/:tourId`, `POST /guide/e-tickets/:tourId/check-in` | guide:check-in | done |
+| Complete guided trip | e-tickets | `POST /guide/e-tickets/:tourId/complete` | guide:check-in | done |
+| Submit/read own Guide application | users | `POST /users/me/guide-application`, `GET /users/me/guide-application` | profile:update-own / profile:view-own | done |
+| Development Guide application decisions | users | `POST /users/me/guide-application/dev-accept`, `POST /users/me/guide-application/dev-reject` | profile:update-own | done |
 | Subcribe to plan (Payment Gateway) | subscriptions | `GET /subscriptions/plans`, `POST /subscriptions`, `GET /subscriptions/me`, `GET /subscriptions/me/current` | subscription:subscribe | done |
 | View earnings | earnings | `GET /earnings/me`, `GET /earnings/me/summary` | earnings:view | done |
 | Make a conservation (with Traveler) | chat | same as Traveler | chat:use | done |

@@ -1,10 +1,10 @@
 import { dateRangeFields, validDateRange } from '../../utils/date-range';
 import { z } from 'zod';
-import { DISCOUNT_TYPE, PROMOTION_APPLY_TYPE, PROMOTION_CODE_TYPE } from '@travel-platform/constants';
+import { DISCOUNT_TYPE, MONEY_LIMITS, PROMOTION_APPLY_TYPE, PROMOTION_CODE_TYPE } from '@travel-platform/constants';
 import { idParamsSchema, idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 
-const vnd = z.number().int().min(1).max(100_000_000_000);
+const vnd = z.number().int().min(1).max(MONEY_LIMITS.MAX_PROMOTION_AMOUNT);
 const code = z
   .string()
   .trim()
@@ -19,9 +19,9 @@ export const createPromotionBody = z
     title: z.string().trim().min(3).max(200),
     description: z.string().trim().max(2000).optional(),
     discountType: z.enum([DISCOUNT_TYPE.PERCENT, DISCOUNT_TYPE.FIXED]),
-    discountValue: z.number().int().min(1).max(100_000_000_000),
+    discountValue: vnd,
     maxDiscountAmount: vnd.optional(),
-    minOrderAmount: z.number().int().min(0).max(100_000_000_000).optional(),
+    minOrderAmount: z.number().int().min(0).max(MONEY_LIMITS.MAX_BOOKING_AMOUNT).optional(),
     minParticipants: z.number().int().min(1).max(10_000).optional(),
     daysInAdvance: z.number().int().min(0).max(365).optional(),
     firstBookingOnly: z.boolean().optional(),
@@ -38,9 +38,9 @@ export const updatePromotionBody = z
   .object({
     title: z.string().trim().min(3).max(200),
     description: z.string().trim().max(2000),
-    discountValue: z.number().int().min(1).max(100_000_000_000),
+    discountValue: vnd,
     maxDiscountAmount: vnd,
-    minOrderAmount: z.number().int().min(0).max(100_000_000_000),
+    minOrderAmount: z.number().int().min(0).max(MONEY_LIMITS.MAX_BOOKING_AMOUNT),
     minParticipants: z.number().int().min(1).max(10_000),
     daysInAdvance: z.number().int().min(0).max(365),
     firstBookingOnly: z.boolean(),
@@ -75,14 +75,14 @@ export const listPromotionsQuery = paginationQuerySchema.extend({
 export const previewQuery = z.object({
   code,
   tourId: idSchema,
-  subtotal: z.coerce.number().int().min(1).max(100_000_000_000),
+  subtotal: z.coerce.number().int().min(1).max(MONEY_LIMITS.MAX_BOOKING_AMOUNT),
   participants: z.coerce.number().int().min(1).max(10_000).optional(),
   departureDate: z.coerce.date().optional(),
 });
 
 export const availableQuery = z.object({
   tourId: idSchema,
-  subtotal: z.coerce.number().int().min(1).max(100_000_000_000).optional(),
+  subtotal: z.coerce.number().int().min(1).max(MONEY_LIMITS.MAX_BOOKING_AMOUNT).optional(),
   participants: z.coerce.number().int().min(1).max(10_000).optional(),
   departureDate: z.coerce.date().optional(),
 });

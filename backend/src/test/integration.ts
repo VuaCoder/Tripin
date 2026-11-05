@@ -142,7 +142,8 @@ export function stubPayosApi(): void {
 export const PAYOS_TEST_ENV = { PAYOS_CLIENT_ID: 'test-client', PAYOS_API_KEY: 'test-api-key', PAYOS_CHECKSUM_KEY: 'test-checksum-key' } as const;
 
 /** A webhook body signed exactly like PayOS does (checksum key = PAYOS_TEST_ENV). */
-export function signedPayosWebhook(orderCode: number, amount: number, overrides: { success?: boolean; code?: string } = {}) {
+export function signedPayosWebhook(orderCode: number, storedAmount: number | bigint, overrides: { success?: boolean; code?: string } = {}) {
+  const amount = Number(storedAmount);
   const data = {
     orderCode,
     amount,

@@ -1,5 +1,5 @@
 import type { DepartureFacts, TourListItemDto } from '../tours';
-import { calculateGuestPrice, type GuestCounts } from '@travel-platform/constants';
+import { calculateGuestPrice, sumVnd, type GuestCounts } from '@travel-platform/constants';
 import type { CartItemRecord } from './carts.repository';
 import type { CartItemDepartureDto, CartItemDto, CartTotalsDto } from './carts.types';
 
@@ -54,7 +54,7 @@ export function toCartTotals(items: CartItemDto[]): CartTotalsDto {
     participantCount: available.reduce((sum, item) => sum + item.participants, 0),
     availableCount: available.length,
     unavailableCount: items.length - available.length,
-    subtotal: available.reduce((sum, item) => sum + (item.subtotal ?? 0), 0),
+    subtotal: sumVnd(available.map((item) => item.subtotal ?? 0)),
     currency: 'VND',
   };
 }

@@ -28,6 +28,8 @@ promotions. Travelers enter a code at booking time; `bookings` validates and red
 * Errors: 409 `PROMOTION_CODE_EXISTS`, `PROMOTION_INACTIVE`, `PROMOTION_NOT_STARTED`, `PROMOTION_EXPIRED`, `PROMOTION_NOT_APPLICABLE`, `PROMOTION_MIN_ORDER`, `PROMOTION_EXHAUSTED`, `PROMOTION_IN_USE`; 404 unknown code/promotion.
 
 ## Business rules
+Booking redemption passes its existing transaction into `consume(id, userId, tx)` so the promotion row lock, per-user count, quota update and booking/redemption insert stay atomic. A standalone consume call retains the repository transaction fallback. Started promotion terms are locked by `PROMOTION_ACTIVE_LOCKED` (400).
+
 1. Codes are upper-case, 3–30 chars (`A-Z 0-9 _ -`), globally unique and immutable; `discountType` is immutable.
 2. PERCENT is 1–100 and floored to whole VND, optionally capped by `maxDiscountAmount` (not allowed on FIXED). FIXED never exceeds the order.
 3. `endsAt > startsAt`; a new promotion must end in the future.
@@ -36,6 +38,9 @@ promotions. Travelers enter a code at booking time; `bookings` validates and red
 6. Redemption is an atomic increment guarded by `usedCount < usageLimit` – concurrent bookings cannot over-redeem. `release` gives it back on cancel/expiry and never goes below 0.
 7. Agencies see only their own promotions; a wrong-scope or foreign id answers 404.
 8. Platform promotion changes are audited (`promotion.platform_changed`).
+9. UNIQUE_BATCH redemption requires `bookingId`, `userId` and the caller's transaction client. Instance CAS (`isUsed=false`), quota increment and booking persistence commit together. Used codes return `409 PROMOTION_CODE_USED`; preview never consumes a code.
+10. Bookings call `lockForBooking(codes, tx)` before redemption, locking parent promotions in id order. Cancellation/expiry calls `releaseForBooking(bookingId, primaryPromotionId, tx)` only after winning the booking CAS. It finds unique instances by bookingId, resets only rows still owned by that booking, and decrements each corresponding quota once.
+11. This branch retains the legacy primary shared-voucher snapshot. Complete stacked shared-voucher history/release belongs to KHOA-02, reported complete on another branch but not merged here. Old unique codes without a stored bookingId are not guessed or reset in bulk. No schema migration is needed for KHOA-03.
 
 ## State machine
 None; availability is `isActive` plus the `startsAt..endsAt` window.
@@ -56,6 +61,7 @@ Audit for platform changes. No emails.
 ## Testing
 `__tests__/promotions.integration.test.ts` – real PostgreSQL: `usageLimit` is exact under parallel bookings (refused bookings give their seats back), cancel releases the redemption once, agency promotions do not leak to other agencies, preview consumes nothing, expired/inactive/not-started codes get precise errors.
 `__tests__/promotions.service.test.ts` – discount math, every inapplicability reason, scope/ownership, immutability rules, redeem race, release.
+`__tests__/unique-vouchers.integration.test.ts` – twenty travelers contest one instance, transaction rollback, quota contention between distinct instances, idempotency, stacked unique codes, cancel/expiry, stale cleanup and notification failures. Tests use isolated PostgreSQL and capture mail.
 
 ## Not implemented / follow-ups
 * Per-traveler usage limits and first-booking-only rules (not in the diagram).

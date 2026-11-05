@@ -5,6 +5,9 @@ Shared constants used by backend and (later) frontend: roles, permissions, statu
 - `src/roles.ts` – access actors (`GUEST` is never persisted).
 - `src/permissions.ts` – permission catalogue mapped 1:1 to the use-case diagram, plus `ROLE_PERMISSIONS` and `resolvePermissions()`.
 - `src/auth.ts` – user status, OTP purposes, agency verification status.
+- `src/money.ts` – whole-VND bounds (unit price <= 1 billion, booking <= 50 billion), exact bigint ratio/sum helpers,
+  checked conversion to JSON numbers. Discounts/commission floor; age unit prices round half up. Report totals are
+  not capped at a booking's ceiling, but conversion fails rather than returning an unsafe JSON integer.
 
 Rule: a domain concept used by more than one module (status, role, permission) is defined here once. Module-private
 state machines live in the module itself (`<module>.types.ts`).

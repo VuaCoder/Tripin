@@ -104,7 +104,7 @@ describe('maintenance jobs (integration)', () => {
     await request(app).post(`/api/v1/payments/bookings/${bookingId}/checkout`).set(bearer(traveler.token));
     const payment = (await prisma.payment.findFirst())!;
     await prisma.payment.updateMany({ where: {}, data: { expiresAt: new Date(Date.now() - 1000) } });
-    remoteStatus = { status: 'PAID', amountPaid: payment.amount };
+    remoteStatus = { status: 'PAID', amountPaid: Number(payment.amount) };
 
     await Promise.all([task('payments.expireStale').run(), task('payments.expireStale').run()]);
     expect((await prisma.payment.findUnique({ where: { id: payment.id } }))!.status).toBe('PAID');
@@ -122,6 +122,8 @@ describe('maintenance jobs (integration)', () => {
       'notifications.purgeOld',
       'payments.expireStale',
       'payments.retryUnfulfilled',
+      'premium.grantDue',
+      'premium.releaseExpiredHolds',
       'promotions.sweepExpiring',
       'subscriptions.cancelAbandoned',
       'subscriptions.expireEnded',

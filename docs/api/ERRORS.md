@@ -31,6 +31,7 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 |---|---|---|
 | `ACCOUNT_BANNED` | 403 | The account was banned by a moderator |
 | `ACCOUNT_NOT_VERIFIED` | 403 | The email has not been verified yet (a new code is sent) |
+| `ACCOUNT_NOT_FOUND` | 401 | The authenticated account no longer exists or is banned |
 | `EMAIL_ALREADY_REGISTERED` | 409 | The email belongs to an active account |
 | `AGENCY_PORTAL_REQUIRED` | 403 | Agency accounts must use the dedicated Agency authentication portal |
 | `AGENCY_ONBOARDING_REQUIRED` | 403 | Agency account is missing the required onboarding profile |
@@ -57,6 +58,7 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `CATEGORY_EXISTS` | 409 | A category with the same slug exists |
 | `PROMOTION_CODE_EXISTS` | 409 | The promotion code is already used |
 | `PROMOTION_IN_USE` | 409 | The discount of a promotion that has been used cannot change |
+| `PROMOTION_ACTIVE_LOCKED` | 400 | Discount terms and start date cannot change after a promotion has started |
 | `PROMOTION_INACTIVE` | 409 | The promotion is switched off |
 | `PROMOTION_NOT_STARTED` | 409 | The promotion has not started |
 | `PROMOTION_EXPIRED` | 409 | The promotion has ended |

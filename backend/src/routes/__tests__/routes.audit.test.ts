@@ -83,6 +83,8 @@ const BODYLESS_MUTATIONS = [
   'POST /payments/webhooks/payos',
   'POST /support/tickets/:id/close',
   'POST /users/me/agency-verification',
+  'POST /users/me/guide-application/dev-accept',
+  'POST /guide/e-tickets/:tourId/complete',
   'POST /wishlist/:tourId',
 ].sort();
 
