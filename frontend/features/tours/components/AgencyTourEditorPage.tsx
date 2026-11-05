@@ -680,7 +680,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                     <span className="material-symbols-outlined text-4xl text-slate-400">photo_library</span>
                     <p className="mt-2 text-sm font-bold text-slate-700">Chưa có hình ảnh nào cho tour</p>
                     <p className="text-xs text-slate-500 mt-1">
-                      Hãy tải ảnh từ máy tính hoặc chọn từ bộ ảnh mẫu gợi ý bên dưới.
+                      Hãy tải ảnh từ máy tính hoặc chọn từ bộ ảnh gợi ý bên dưới.
                     </p>
                   </div>
                 ) : (

@@ -2,6 +2,7 @@ import { DISCOUNT_TYPE, PROMOTION_APPLY_TYPE, PROMOTION_CODE_TYPE, PROMOTION_SCO
 import { AppError } from '../../utils/app-error';
 import type { DbExecutor } from '../../config/database';
 import { buildPage, type Page, type PageRequest } from '../../utils/pagination';
+import { TtlCache } from '../../utils/ttl-cache';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
 import { toursService, type ToursService } from '../tours';
 import { notificationsService, type NotificationsService, NOTIFICATION_TYPE } from '../notifications';
@@ -46,6 +47,7 @@ type Repo = Pick<
 >;
 
 export class PromotionsService {
+  private readonly hotCache = new TtlCache<PromotionDto[]>(30_000, 10);
   constructor(
     private readonly promotions: Repo = promotionsRepository,
     private readonly tours: Pick<ToursService, 'getTourFacts'> = toursService,
@@ -402,7 +404,35 @@ export class PromotionsService {
     }
   }
 
-  /** Returns active promotions publicly displayed for an agency storefront (collectable, codes). */
+  /** Returns active public promotions for the home page (hot / sorted by usage and recency). */
+  async listHotPromotions(limit: number = 10): Promise<PromotionDto[]> {
+    return this.hotCache.getOrCompute('hot_' + limit, async () => {
+    const now = new Date();
+    const res = await this.promotions.list(
+      {
+        isActive: true,
+        isArchived: false,
+      },
+      { page: 1, limit: 50 },
+    );
+    return res.items
+      .filter(
+        (p) =>
+          p.isActive &&
+          !p.isArchived &&
+          p.startsAt <= now &&
+          now <= p.endsAt &&
+          (p.usageLimit == null || p.usedCount < p.usageLimit) &&
+          p.codeType !== PROMOTION_CODE_TYPE.UNIQUE_BATCH,
+      )
+      .sort((a, b) => b.usedCount - a.usedCount || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit)
+      .map(toPromotionDto);
+  
+    });
+  }
+
+    /** Returns active promotions publicly displayed for an agency storefront (collectable, codes). */
   async listPublicAgencyPromotions(agencyId: string): Promise<PromotionDto[]> {
     const now = new Date();
     const res = await this.promotions.list(

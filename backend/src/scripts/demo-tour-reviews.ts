@@ -163,7 +163,7 @@ const REVIEW_COPY = [
 // Public payment-flow fixtures keep their test names and bookings. Refresh only
 // their unlinked generic comments so they do not pollute the visible catalog.
 const PUBLIC_TEST_COPY: Record<string, readonly string[]> = {
-  '[DEV Premium] Khám phá Đà Nẵng – Hội An': [
+  'Khám phá Đà Nẵng – Hội An': [
     '5|Dạo phố Hội An buổi tối rất đẹp, đèn lồng lên màu nổi bật. Kết hợp thêm thời gian ở Đà Nẵng khiến chuyến đi nhiều sắc thái.',
     '4|Đường từ Đà Nẵng vào Hội An khá dễ đi. Phố cổ đông vào cuối tuần nên ghé sớm nếu muốn chụp ảnh.',
     '5|Tôi thích không khí biển Đà Nẵng rồi đến những con phố nhỏ của Hội An. Hai điểm gần nhau nhưng trải nghiệm khác hẳn.',

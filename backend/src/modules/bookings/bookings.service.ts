@@ -604,11 +604,6 @@ export class BookingsService {
     }
   }
 
-  private async compensate(
-    input: CreateBookingInput,
-  ): Promise<void> {
-    await this.releaseReservedSeats(input);
-  }
 }
 
 export function generateBookingCode(): string {

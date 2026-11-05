@@ -58,7 +58,24 @@ export function startMaintenanceJobs(tasks: MaintenanceTask[] = defaultTasks()):
       if (running) return;
       running = true;
       try {
-        const result = await task.run();
+        let result: unknown;
+        try {
+          result = await task.run();
+        } catch (err) {
+          const msg = (err as Error)?.message || '';
+          // Neon cold-start or transient socket drop: retry once after brief pause
+          if (
+            msg.includes("Can't reach database server") ||
+            msg.includes('ECONNRESET') ||
+            msg.includes('ETIMEDOUT') ||
+            msg.includes('Connection terminated')
+          ) {
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            result = await task.run();
+          } else {
+            throw err;
+          }
+        }
         if (typeof result === 'number' && result > 0) logger.info(`[job] ${task.name}: ${result} item(s) processed`);
       } catch (error) {
         logger.error(`[job] ${task.name} failed`, { message: (error as Error).message });

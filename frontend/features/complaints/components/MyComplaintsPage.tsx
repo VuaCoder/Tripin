@@ -48,12 +48,7 @@ export function MyComplaintsPage() {
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Khiếu nại dịch vụ tour của tôi</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Theo dõi tiến trình xử lý, trao đổi trực tiếp với đối tác tour và đánh giá chất lượng phục vụ sau khi đóng phiếu.
-          </p>
-        </div>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">Khiếu nại dịch vụ tour</h1>
         <div className="flex items-center gap-2">
           <select
             aria-label="Lọc theo trạng thái"

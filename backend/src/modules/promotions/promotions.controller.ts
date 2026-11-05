@@ -93,7 +93,10 @@ export class PromotionsController {
   listUserVouchers: RequestHandler = async (req, res) => {
     sendOk(res, await this.service.listUserVouchers(userActor(req).userId));
   };
-  listPublicAgencyPromotions: RequestHandler = async (req, res) => {
+  listHot: RequestHandler = async (_req, res) => {
+    sendOk(res, await this.service.listHotPromotions(10));
+  };
+    listPublicAgencyPromotions: RequestHandler = async (req, res) => {
     const { params } = validated<unknown, unknown, { id: string }>(req);
     sendOk(res, await this.service.listPublicAgencyPromotions(params.id));
   };

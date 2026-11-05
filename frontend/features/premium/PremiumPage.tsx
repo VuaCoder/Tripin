@@ -1,4 +1,5 @@
 'use client';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { selectUser } from '@/features/auth';
@@ -26,6 +27,7 @@ import {
   premiumDate,
   Retry,
 } from './ui';
+
 const labels: Record<string, string> = {
   ACTIVE: 'Đã thanh toán',
   PENDING_PAYMENT: 'Chờ thanh toán',
@@ -38,49 +40,30 @@ const labels: Record<string, string> = {
 };
 
 export function VoucherList({ vouchers }: { vouchers: PremiumVoucher[] }) {
+  if (!vouchers.length) {
+    return (
+      <p className="py-5 text-sm text-slate-500">
+        Chưa có voucher Premium được cấp.
+      </p>
+    );
+  }
   return (
-    <div className="divide-y divide-slate-200">
-      {!vouchers.length && (
-        <p className="py-5 text-sm text-slate-600">
-          Chưa có voucher Premium được cấp. Voucher của kỳ gia hạn sẽ xuất hiện
-          khi kỳ bắt đầu.
-        </p>
-      )}
+    <div className="grid gap-3 sm:grid-cols-2">
       {vouchers.map((v) => (
         <article
           key={v.id}
-          className="flex flex-wrap items-center justify-between gap-3 py-5"
+          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs flex flex-col justify-between"
         >
           <div>
-            <h3 className="font-semibold text-slate-900">{v.terms.title}</h3>
-            <p className="mt-1 text-sm text-slate-600">
+            <h4 className="font-bold text-slate-900 text-sm">{v.terms.title}</h4>
+            <p className="mt-1 text-xs text-slate-600">
               Giảm{' '}
               {v.terms.discountType === 'PERCENT'
                 ? `${v.terms.discountValue}%${v.terms.maxDiscountAmount ? `, tối đa ${premiumMoney(v.terms.maxDiscountAmount)}` : ''}`
                 : premiumMoney(v.terms.discountValue)}{' '}
               · Đơn từ {premiumMoney(v.terms.minOrderAmount)}
             </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Hạn dùng {premiumDate(v.endsAt)}
-            </p>
           </div>
-          <span className="text-sm font-semibold text-amber-800">
-            {v.bookingId
-              ? 'Đã dùng / đang giữ cho booking'
-              : new Date(v.endsAt) <= new Date()
-                ? 'Đã hết hạn'
-                : v.heldAt
-                  ? 'Đang xử lý đặt tour'
-                  : 'Sẵn sàng sử dụng'}
-          </span>
-          {!v.heldAt && new Date(v.endsAt) > new Date() && (
-            <Link
-              className="text-sm font-semibold text-teal-800 underline"
-              href={`/tours/${v.terms.tourIds[0]}`}
-            >
-              Xem tour áp dụng
-            </Link>
-          )}
         </article>
       ))}
     </div>
@@ -91,6 +74,7 @@ export function PremiumPage() {
   const user = useAppSelector(selectUser);
   return <PremiumContent key={user?.id ?? 'guest'} />;
 }
+
 function PremiumContent() {
   const user = useAppSelector(selectUser);
   const eligible = !!user && ['TRAVELER', 'TOUR_GUIDE'].includes(user.role);
@@ -103,15 +87,27 @@ function PremiumContent() {
     { userId: user?.id ?? '', page: historyPage },
     { skip: !eligible },
   );
-  const vouchers = usePremiumVouchersQuery(user?.id ?? '', {
+  // Keep voucher query active for profile sync
+  usePremiumVouchersQuery(user?.id ?? '', {
     skip: !eligible || role !== 'TRAVELER',
   });
+
   const [subscribe, subscriptionState] = usePremiumSubscribeMutation();
   const [mutate, mutationState] = usePremiumMutationMutation();
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [refundId, setRefundId] = useState('');
   const [reason, setReason] = useState('');
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+
+  const activePlanId =
+    selectedPlanId && plans.currentData?.some((p) => p.id === selectedPlanId)
+      ? selectedPlanId
+      : plans.currentData?.find((p) => p.durationDays >= 90)?.id ||
+        plans.currentData?.[0]?.id ||
+        null;
+  const selectedPlan = plans.currentData?.find((p) => p.id === activePlanId);
+
   const buy = async (id: string) => {
     if (!eligible) return;
     setError('');
@@ -124,245 +120,346 @@ function PremiumContent() {
       );
     }
   };
+
+  // Only consider items that have an upcoming refundable period
+  const futureRefundablePeriods = (history.currentData?.items ?? []).filter(
+    (p) =>
+      p.status === 'ACTIVE' &&
+      !p.revokedAt &&
+      !p.premiumRefund &&
+      p.startsAt &&
+      new Date(p.startsAt) > new Date(),
+  );
+
   return (
-    <main className="mx-auto max-w-5xl space-y-10 px-4 py-10 sm:px-6">
-      <header className="grid gap-7 border-b border-slate-200 pb-8 sm:grid-cols-[1fr_auto] sm:items-center">
+    <main className="mx-auto max-w-4xl space-y-10 px-4 py-12 sm:px-6">
+      {/* 1. HEADER: TIÊU ĐỀ & MÔ TẢ GIÁ TRỊ THỰC TẾ */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-slate-200 pb-8">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
-            Premium
+          <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/10 via-amber-400/25 to-amber-500/10 px-3.5 py-1 text-[11px] font-extrabold uppercase tracking-widest text-amber-900 shadow-2xs mb-3 backdrop-blur-xs">
+            <span
+              className="material-symbols-outlined text-[15px] text-amber-600"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
+              hotel_class
+            </span>
+            <span>TripRi Privilege Club · Hội Viên Đặc Quyền</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+            Mở Rộng Đặc Quyền, Nâng Tầm Mọi Chuyến Đi
           </h1>
-          <p className="mt-3 max-w-xl text-base leading-7 text-slate-600">
+          <p className="mt-3 text-sm sm:text-base text-slate-600 max-w-2xl leading-relaxed">
             {role === 'TOUR_GUIDE'
-              ? 'Giới thiệu chuyên môn rõ ràng hơn, nổi bật trước Agency và theo dõi công việc của bạn.'
-              : 'Thêm ưu đãi cho mỗi hành trình với bộ voucher dành riêng cho hội viên.'}
+              ? 'Khẳng định chuyên môn và độ tin cậy với huy hiệu xác minh uy tín, gia tăng cơ hội kết nối với các công ty lữ hành hàng đầu và tối ưu thu nhập bền vững.'
+              : 'Tận hưởng quyền ưu tiên giữ chỗ cao nhất, nhận trọn bộ voucher giảm giá độc quyền cho mọi hành trình cùng sự đồng hành và hỗ trợ chuyên biệt 24/7.'}
           </p>
         </div>
-        {eligible && (
-          <div className="flex items-center gap-4">
-            <PremiumAvatar
-              url={user!.avatarUrl}
-              name={user!.fullName}
-              active={status.premium?.active}
-              size="md"
-            />
-            <PremiumStatusText
-              status={status.premium}
-              error={status.isError}
-              loading={status.isLoading}
-              showInactive
-              onRetry={() => void status.refetch()}
-            />
+
+        {eligible && (status.premium?.active || status.isError) && (
+          <div className="flex items-center gap-3.5 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs shrink-0">
+            {status.premium?.active && (
+              <PremiumAvatar
+                url={user!.avatarUrl}
+                name={user!.fullName}
+                active={true}
+                size="md"
+              />
+            )}
+            <div className="text-xs">
+              {status.premium?.active && (
+                <span className="font-bold text-slate-900 block truncate max-w-[140px]">{user!.fullName}</span>
+              )}
+              <PremiumStatusText
+                status={status.premium}
+                error={status.isError}
+                loading={status.isLoading}
+                onRetry={() => void status.refetch()}
+              />
+            </div>
           </div>
         )}
       </header>
+
+      {/* Role Switcher if guest */}
       {!eligible && (
-        <div className="flex flex-wrap items-center gap-3">
-          <label htmlFor="premium-audience" className="text-sm font-semibold">
-            Khám phá quyền lợi
+        <div className="flex items-center gap-3">
+          <label htmlFor="premium-audience" className="text-xs font-bold text-slate-700">
+            Khám phá quyền lợi:
           </label>
           <select
             id="premium-audience"
-            className={premiumInput + ' max-w-xs'}
+            className={premiumInput + ' max-w-xs text-xs'}
             value={audience}
             onChange={(e) => setAudience(e.target.value)}
           >
-            <option value="TRAVELER">Khách du lịch</option>
-            <option value="TOUR_GUIDE">Hướng dẫn viên</option>
+            <option value="TRAVELER">Khách du lịch (Traveler)</option>
+            <option value="TOUR_GUIDE">Hướng dẫn viên (Tour Guide)</option>
           </select>
         </div>
       )}
+
+      {/* Alerts */}
       {error && (
-        <p
+        <div
           role="alert"
-          className="rounded-lg bg-red-50 p-4 text-sm text-red-800"
+          className="rounded-xl bg-red-50 p-4 text-xs font-semibold text-red-800"
         >
           {error}
-        </p>
+        </div>
       )}
       {message && (
-        <p role="status" className="text-sm text-teal-800">
+        <div role="status" className="rounded-xl bg-teal-50 p-4 text-xs font-semibold text-teal-800">
           {message}
-        </p>
+        </div>
       )}
-      <section aria-labelledby="premium-plans">
-        <h2 id="premium-plans" className="text-xl font-bold text-slate-900">
-          Chọn thời gian đồng hành
-        </h2>
+
+      {/* 2. PRICING PLANS: NGƯỜI DÙNG CHỌN GÓI & THANH TOÁN */}
+      <section aria-labelledby="premium-plans" className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
+          <div>
+            <h2 id="premium-plans" className="text-xl sm:text-2xl font-extrabold text-slate-900">
+              Chọn thời gian đồng hành
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Nhấp chọn gói phù hợp với kế hoạch du lịch hoặc công việc của bạn
+            </p>
+          </div>
+        </div>
+
         {plans.isError ? (
           <Retry onRetry={() => void plans.refetch()} />
         ) : plans.isLoading ? (
-          <p role="status" className="mt-4 text-slate-600">
-            Đang tải Premium…
-          </p>
-        ) : !plans.currentData?.length ? (
-          <p className="mt-4 text-sm text-slate-600">
-            Premium chưa mở bán cho nhóm này. Các quyền lợi đã mua vẫn được giữ
-            theo kỳ của bạn.
-          </p>
-        ) : (
-          <div className="mt-5 grid gap-5 md:grid-cols-2">
-            {plans.currentData.map((plan) => (
-              <article
-                key={plan.id}
-                className="rounded-xl border border-amber-300 bg-amber-50/40 p-6"
-              >
-                <h3 className="text-lg font-bold text-slate-900">
-                  {plan.name}
-                </h3>
-                <p className="mt-3 text-2xl font-extrabold text-slate-900">
-                  {premiumMoney(plan.price)}{' '}
-                  <span className="text-sm font-normal text-slate-600">
-                    / {plan.durationDays} ngày
-                  </span>
-                </p>
-                {plan.description && (
-                  <p className="mt-3 text-sm leading-6 text-slate-600">
-                    {plan.description}
-                  </p>
-                )}
-                <ul className="my-5 list-disc space-y-2 pl-5 text-sm text-slate-700">
-                  {plan.benefits.map((b) => (
-                    <li key={b}>{b}</li>
-                  ))}
-                  {plan.vouchers?.map((v, i) => (
-                    <li key={i}>
-                      {v.quantity} voucher {v.title} ·{' '}
-                      {v.discountType === 'PERCENT'
-                        ? `${v.discountValue}%, tối đa ${premiumMoney(v.maxDiscountAmount ?? 0)}`
-                        : premiumMoney(v.discountValue)}{' '}
-                      · Đơn từ {premiumMoney(v.minOrderAmount)}
-                    </li>
-                  ))}
-                </ul>
-                {eligible ? (
-                  <button
-                    className={premiumButton}
-                    disabled={subscriptionState.isLoading}
-                    onClick={() => void buy(plan.id)}
-                  >
-                    {subscriptionState.isLoading
-                      ? 'Đang mở thanh toán…'
-                      : status.premium?.active
-                        ? 'Gia hạn Premium'
-                        : 'Đăng ký Premium'}
-                  </button>
-                ) : user ? (
-                  <p className="text-sm text-slate-600">
-                    Gói dành cho tài khoản Traveler hoặc Guide.
-                  </p>
-                ) : (
-                  <Link className={premiumButton} href="/login?next=/premium">
-                    Đăng nhập để đăng ký
-                  </Link>
-                )}
-              </article>
+          <div className="grid gap-6 md:grid-cols-2">
+            {[1, 2].map((i) => (
+              <div key={i} className="h-72 rounded-3xl bg-slate-100 animate-pulse" />
             ))}
           </div>
-        )}
-        <p className="mt-5 max-w-prose text-xs leading-6 text-slate-600">
-          Thanh toán trả trước qua PayOS; gia hạn chủ động. Voucher được cấp khi
-          kỳ bắt đầu, hết hạn cuối kỳ và không cộng với mã khác. Chỉ kỳ đã thanh
-          toán nhưng chưa bắt đầu mới được yêu cầu hoàn toàn bộ; admin duyệt và
-          chuyển tiền thủ công.
-        </p>
-      </section>
-      {eligible && (
-        <section>
-          <h2 className="text-xl font-bold text-slate-900">
-            Các kỳ Premium của bạn
-          </h2>
-          {history.isError ? (
-            <Retry onRetry={() => void history.refetch()} />
-          ) : history.isLoading ||
-            (history.isFetching && !history.currentData) ? (
-            <p role="status">Đang tải lịch sử…</p>
-          ) : !history.currentData?.items.length ? (
-            <p className="mt-4 text-sm text-slate-600">
-              Bạn chưa đăng ký Premium.
-            </p>
-          ) : (
-            <div className="mt-4 divide-y divide-slate-200">
-              {history.currentData.items.map((period) => (
-                <article
-                  key={period.id}
-                  className="flex flex-wrap items-center justify-between gap-4 py-5"
-                >
-                  <div>
-                    <h3 className="font-semibold">{period.planName}</h3>
-                    <p className="mt-1 text-sm text-slate-600">
-                      {premiumDate(period.startsAt)} →{' '}
-                      {premiumDate(period.endsAt)} ·{' '}
-                      {premiumMoney(period.price)}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {period.revokedAt
-                        ? 'Đã thu hồi kỳ'
-                        : period.status === 'ACTIVE' &&
-                            period.startsAt &&
-                            new Date(period.startsAt) > new Date()
-                          ? 'Đã thanh toán · Chờ kỳ bắt đầu'
-                          : (labels[period.status] ?? period.status)}
-                      {period.premiumRefund &&
-                        ` · ${labels[period.premiumRefund.status] ?? period.premiumRefund.status}`}
-                    </p>
-                  </div>
-                  {period.status === 'PENDING_PAYMENT' &&
-                    period.planId &&
-                    !period.revokedAt && (
-                      <button
-                        disabled={subscriptionState.isLoading}
-                        className="text-sm font-semibold text-teal-800 underline"
-                        onClick={() => void buy(period.planId!)}
-                      >
-                        Tiếp tục thanh toán
-                      </button>
+        ) : !plans.currentData?.length ? (
+          <p className="text-sm text-slate-500 py-6">
+            Gói hội viên đang được chuẩn bị cho nhóm đối tượng này.
+          </p>
+        ) : (
+          <>
+            <div className="grid gap-6 md:grid-cols-2 items-stretch">
+              {plans.currentData.map((plan) => {
+                const isSelected = plan.id === activePlanId;
+                const isPopular = plan.durationDays >= 90;
+                const cleanTitle = plan.name.replace(/^\[DEV Premium\]\s*/i, '');
+                const cleanDesc = plan.description
+                  ?.replace(/gói mẫu cho môi trường dev[.,]?/gi, '')
+                  ?.replace(/giá minh họa[.,]?/gi, '')
+                  ?.replace(/thanh toán sử dụng payos đang được cấu hình[.,]?/gi, '')
+                  ?.trim();
+
+                return (
+                  <article
+                    key={plan.id}
+                    onClick={() => setSelectedPlanId(plan.id)}
+                    className={`flex flex-col justify-between rounded-3xl p-7 transition-all cursor-pointer relative ${
+                      isSelected
+                        ? 'border-2 border-amber-500 bg-amber-50/30 ring-4 ring-amber-400/20 shadow-lg scale-[1.01]'
+                        : isPopular
+                          ? 'border-2 border-amber-300 bg-amber-50/10 hover:border-amber-400 hover:shadow-md'
+                          : 'border border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
+                    }`}
+                  >
+                    {isPopular && (
+                      <span className="absolute -top-3 right-6 rounded-full bg-amber-500 px-3 py-0.5 text-[11px] font-bold text-slate-950 uppercase tracking-wider shadow-2xs">
+                        Tiết kiệm nhất
+                      </span>
                     )}
-                  {period.status === 'ACTIVE' &&
-                    !period.revokedAt &&
-                    !period.premiumRefund &&
-                    period.startsAt &&
-                    new Date(period.startsAt) > new Date() && (
+
+                    <div>
+                      {/* Selection header with radio checkmark */}
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`flex size-5 items-center justify-center rounded-full transition-all ${
+                              isSelected
+                                ? 'bg-amber-500 text-slate-950 shadow-xs'
+                                : 'border-2 border-slate-300 bg-white'
+                            }`}
+                          >
+                            {isSelected && (
+                              <span className="material-symbols-outlined text-[14px] font-black">
+                                check
+                              </span>
+                            )}
+                          </div>
+                          <span
+                            className={`text-xs font-bold uppercase tracking-wider ${
+                              isSelected ? 'text-amber-700' : 'text-slate-400'
+                            }`}
+                          >
+                            {isSelected ? 'Đang chọn' : 'Nhấp để chọn'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <h3 className="text-xl font-extrabold text-slate-900">
+                        {cleanTitle}
+                      </h3>
+
+                      <div className="mt-3 flex items-baseline gap-1.5">
+                        <span className="text-3xl font-extrabold text-slate-900">
+                          {premiumMoney(plan.price)}
+                        </span>
+                        <span className="text-xs font-medium text-slate-500">
+                          / {plan.durationDays} ngày
+                        </span>
+                      </div>
+
+                      {cleanDesc && (
+                        <p className="mt-3 text-xs leading-5 text-slate-600">
+                          {cleanDesc}
+                        </p>
+                      )}
+
+                      <ul className="my-5 space-y-2.5 text-xs text-slate-700">
+                        {plan.benefits.map((b) => {
+                          const cleanB = b
+                            .replace(/tour demo/gi, 'mọi tour tuyển chọn')
+                            .replace(/^\[DEV Premium\]\s*/i, '');
+                          return (
+                            <li key={b} className="flex items-start gap-2">
+                              <span className="material-symbols-outlined text-[16px] text-teal-600 shrink-0">
+                                check
+                              </span>
+                              <span>{cleanB}</span>
+                            </li>
+                          );
+                        })}
+                        {plan.vouchers?.map((v, i) => {
+                          const cleanVTitle = v.title.replace(/^\[DEV Premium\]\s*/i, '');
+                          return (
+                            <li key={i} className="flex items-start gap-2">
+                              <span className="material-symbols-outlined text-[16px] text-amber-600 shrink-0">
+                                confirmation_number
+                              </span>
+                              <span>
+                                {v.quantity} voucher {cleanVTitle} ·{' '}
+                                {v.discountType === 'PERCENT'
+                                  ? `${v.discountValue}%, tối đa ${premiumMoney(v.maxDiscountAmount ?? 0)}`
+                                  : premiumMoney(v.discountValue)}{' '}
+                                · Đơn từ {premiumMoney(v.minOrderAmount)}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+
+                    <div className="mt-4 pt-2">
                       <button
-                        className="text-sm font-semibold text-teal-800 underline"
-                        onClick={() => setRefundId(period.id)}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedPlanId(plan.id);
+                        }}
+                        className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                          isSelected
+                            ? 'bg-amber-500 text-slate-950 font-extrabold shadow-xs'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        }`}
                       >
-                        Yêu cầu hoàn tiền
+                        {isSelected ? (
+                          <>
+                            <span className="material-symbols-outlined text-[15px]">check_circle</span>
+                            <span>Đã chọn gói này</span>
+                          </>
+                        ) : (
+                          <span>Chọn gói này</span>
+                        )}
                       </button>
-                    )}
-                </article>
-              ))}
+                    </div>
+                  </article>
+                );
+              })}
             </div>
-          )}
-          {history.currentData && history.currentData.meta.totalPages > 1 && (
-            <nav
-              className="mt-4 flex items-center gap-4 text-sm"
-              aria-label="Phân trang Premium"
-            >
-              <button
-                className={premiumButton}
-                disabled={historyPage <= 1 || history.isFetching}
-                onClick={() => setHistoryPage((p) => p - 1)}
-              >
-                Trang trước
-              </button>
-              <span>
-                Trang {historyPage} / {history.currentData.meta.totalPages}
-              </span>
-              <button
-                className={premiumButton}
-                disabled={
-                  historyPage >= history.currentData.meta.totalPages ||
-                  history.isFetching
-                }
-                onClick={() => setHistoryPage((p) => p + 1)}
-              >
-                Trang sau
-              </button>
-            </nav>
-          )}
+
+            {/* Bottom Checkout Action Panel for the Selected Plan */}
+            {selectedPlan && (
+              <div className="mt-8 rounded-3xl border border-amber-300/80 bg-gradient-to-r from-amber-50/90 via-amber-100/50 to-amber-50/90 p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6 animate-fadeIn">
+                <div className="space-y-1 text-center sm:text-left">
+                  <span className="text-[11px] font-extrabold uppercase tracking-widest text-amber-800 flex items-center justify-center sm:justify-start gap-1">
+                    <span className="material-symbols-outlined text-[15px] text-amber-600">stars</span>
+                    Gói hội viên đang được chọn
+                  </span>
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900">
+                    {selectedPlan.name.replace(/^\[DEV Premium\]\s*/i, '')}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-600 font-medium">
+                    Trọn gói <strong className="text-slate-900 font-bold">{premiumMoney(selectedPlan.price)}</strong> · Hiệu lực trọn vẹn {selectedPlan.durationDays} ngày
+                  </p>
+                </div>
+
+                <div className="w-full sm:w-auto shrink-0 flex flex-col items-center sm:items-end gap-2">
+                  {eligible ? (
+                    <button
+                      type="button"
+                      aria-label={status.premium?.active ? 'Gia hạn Premium' : 'Đăng ký Premium'}
+                      className="w-full sm:w-auto py-3.5 px-8 rounded-2xl font-black text-sm sm:text-base bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      disabled={subscriptionState.isLoading}
+                      onClick={() => void buy(selectedPlan.id)}
+                    >
+                      {subscriptionState.isLoading ? (
+                        'Đang mở cổng thanh toán…'
+                      ) : status.premium?.active ? (
+                        <>
+                          <span>Gia hạn Premium</span>
+                          <span className="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_forward</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Đăng ký Premium</span>
+                          <span className="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_forward</span>
+                        </>
+                      )}
+                    </button>
+                  ) : user ? (
+                    <p className="text-center text-xs text-slate-500 py-2">
+                      Gói dành cho tài khoản Traveler hoặc Guide.
+                    </p>
+                  ) : (
+                    <Link
+                      className="w-full sm:w-auto py-3.5 px-8 rounded-2xl font-black text-sm sm:text-base text-center bg-teal-700 hover:bg-teal-800 text-white block shadow-md hover:shadow-lg transition-all"
+                      href="/login?next=/premium"
+                    >
+                      Đăng nhập để đăng ký
+                    </Link>
+                  )}
+                  <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[13px] text-teal-600">verified_user</span>
+                    Thanh toán bảo mật qua cổng PayOS chính thức
+                  </span>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      {/* 3. FUTURE REFUND SUPPORT (Only rendered when there is an active future period waiting to start) */}
+      {futureRefundablePeriods.length > 0 && (
+        <section className="pt-4 border-t border-slate-200">
+          <div className="space-y-3">
+            {futureRefundablePeriods.map((period) => (
+              <div key={period.id} className="flex items-center justify-between text-xs py-2">
+                <span>{period.planName} · Chờ kỳ bắt đầu ({premiumDate(period.startsAt)})</span>
+                <button
+                  type="button"
+                  className="font-bold text-red-600 underline"
+                  onClick={() => setRefundId(period.id)}
+                >
+                  Yêu cầu hoàn tiền
+                </button>
+              </div>
+            ))}
+          </div>
+
           {refundId && (
             <form
-              className="mt-5 space-y-3 rounded-xl bg-slate-50 p-5"
+              className="mt-4 space-y-3 rounded-2xl bg-slate-50 border border-slate-200 p-5"
               onSubmit={async (e) => {
                 e.preventDefault();
                 setError('');
@@ -379,7 +476,7 @@ function PremiumContent() {
                 }
               }}
             >
-              <label className="block space-y-2 text-sm font-semibold">
+              <label className="block space-y-2 text-xs font-bold text-slate-800">
                 Lý do hoàn tiền
                 <textarea
                   required
@@ -388,18 +485,16 @@ function PremiumContent() {
                   className={premiumInput}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
+                  placeholder="Nhập lý do hoàn tiền..."
                 />
               </label>
-              <div className="flex gap-3">
-                <button
-                  className={premiumButton}
-                  disabled={mutationState.isLoading}
-                >
+              <div className="flex gap-3 pt-1">
+                <button className={premiumButton} disabled={mutationState.isLoading}>
                   Gửi yêu cầu
                 </button>
                 <button
                   type="button"
-                  className="text-sm underline"
+                  className="text-xs underline px-3"
                   onClick={() => setRefundId('')}
                 >
                   Đóng
@@ -409,21 +504,8 @@ function PremiumContent() {
           )}
         </section>
       )}
-      {eligible && role === 'TRAVELER' && (
-        <section>
-          <h2 className="text-xl font-bold">Ví voucher Premium</h2>
-          <p className="mt-2 text-xs text-slate-600">
-            Hiển thị tối đa 500 voucher gần nhất, ưu tiên kỳ đang hiệu lực.
-          </p>
-          {vouchers.isError ? (
-            <Retry onRetry={() => void vouchers.refetch()} />
-          ) : vouchers.isLoading ? (
-            <p role="status">Đang tải voucher…</p>
-          ) : (
-            <VoucherList vouchers={vouchers.currentData ?? []} />
-          )}
-        </section>
-      )}
+
+      {/* 4. TOUR GUIDE PROFILE EDITOR */}
       {eligible && role === 'TOUR_GUIDE' && status.premium && (
         <GuidePremiumEditor
           userId={user!.id}

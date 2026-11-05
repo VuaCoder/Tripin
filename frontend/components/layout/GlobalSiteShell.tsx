@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { AppShell } from './AppShell';
+import { WishlistToast } from '@/features/wishlist';
 
 const authRoutes = new Set([
   '/login',
@@ -36,7 +37,12 @@ export function GlobalSiteShell({ children }: { children: ReactNode }) {
     authRoutes.has(pathname) ||
     pathname.startsWith('/register/')
   ) {
-    return <>{children}</>;
+    return (
+      <>
+        {children}
+        <WishlistToast />
+      </>
+    );
   }
 
   const isConversations = pathname.startsWith('/conversations');
@@ -47,6 +53,7 @@ export function GlobalSiteShell({ children }: { children: ReactNode }) {
       footer={!isConversations}
     >
       {children}
+      <WishlistToast />
     </AppShell>
   );
 }

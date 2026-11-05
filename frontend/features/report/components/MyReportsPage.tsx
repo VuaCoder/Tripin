@@ -25,12 +25,7 @@ export function MyReportsPage() {
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Báo cáo của tôi</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Các báo cáo bạn đã gửi và kết quả xử lý từ kiểm duyệt viên.
-          </p>
-        </div>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">Báo cáo vi phạm sàn</h1>
         <div className="flex items-center gap-2">
           <select
             aria-label="Lọc theo trạng thái"
