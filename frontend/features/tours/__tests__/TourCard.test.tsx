@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('@/store/hooks', () => ({ useAppSelector: () => false }));
 vi.mock('@/features/wishlist/hooks/useTourWishlist', () => ({ useTourWishlist: () => ({ status: 'guest', isSaved: false, pending: false }) }));
 vi.mock('@/components/shared', () => ({ GuestLoginPromptModal: ({ isOpen }: { isOpen: boolean }) => isOpen ? <div role="dialog">Login</div> : null }));

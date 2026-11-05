@@ -3,3 +3,7 @@ export * from './WishlistItemCard';
 export * from './WishlistPage';
 export * from './WishlistSkeleton';
 export * from './ConfirmDeleteWishlistModal';
+export * from './ConfirmDeleteCollectionModal';
+export * from './CollageImageGrid';
+export * from './SaveToWishlistModal';
+export * from './WishlistToast';

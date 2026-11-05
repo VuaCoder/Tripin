@@ -28,6 +28,18 @@ if (fs.existsSync(frontendEnvPath) && typeof process.loadEnvFile === 'function')
 /** A separate output directory lets verification builds run alongside `next dev`. */
 const nextConfig = {
   distDir: process.env.TRIPRI_VERIFY_BUILD === '1' ? '.next-verify' : '.next',
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+    ],
+  },
 };
 
 export default nextConfig;

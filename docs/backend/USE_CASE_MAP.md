@@ -48,7 +48,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Upload profile avatar | users | `POST /users/me/avatar/upload-signature`, `POST /users/me/avatar/complete`, `DELETE /users/me/avatar` | profile:update-own | done |
 | Add wishlist / Remove tour from wishlist | wishlists | `GET /wishlist`, `POST /wishlist/:tourId`, `DELETE /wishlist/:tourId` | wishlist:manage | done |
 | Add tour to cart / view cart / update or remove an item (supports Book tour) | carts | `GET /cart`, `POST /cart/items`, `PATCH/DELETE /cart/items/:id` | cart:manage | done |
-| Book tour | bookings | `GET /promotions/preview`, `GET /promotions/available` (available promotions for tour), `GET /promotions/my-vouchers`, `POST /promotions/collect`, `POST /bookings`, `GET /bookings/me`, `GET /bookings/:id`, `POST /bookings/:id/cancel` | booking:* | done |
+| Book tour | bookings | `GET /promotions/hot`, `GET /promotions/preview`, `GET /promotions/available` (available promotions for tour), `GET /promotions/my-vouchers`, `POST /promotions/collect`, `POST /bookings`, `GET /bookings/me`, `GET /bookings/:id`, `POST /bookings/:id/cancel` | booking:* | done |
 | Complete an owned booking | bookings | `POST /bookings/:id/complete` | booking:view-own | done |
 | Make payment (Payment Gateway) | payments | `POST /payments/bookings/:bookingId/checkout`, `GET /payments/:id`, `POST /payments/webhooks/payos` (GUEST, signature) | payment:create | done |
 | Receive E-ticket | e-tickets | `GET /e-tickets`, `GET /e-tickets/:id`, `GET /e-tickets/booking/:bookingId` (+ email/notification on issue) | eticket:view-own | done |

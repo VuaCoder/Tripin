@@ -50,6 +50,7 @@ const unwrapFail = (code: string) => ({ unwrap: () => Promise.reject({ data: { e
 
 const report = (over: Partial<ModerationReport> = {}): ModerationReport => ({
   id: 'r1',
+  code: 'RP-001',
   targetType: 'TOUR',
   targetId: 't1',
   targetName: 'Đà Nẵng 3N2Đ',

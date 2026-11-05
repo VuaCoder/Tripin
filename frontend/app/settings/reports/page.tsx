@@ -13,6 +13,10 @@ export default function SettingsReportsPage() {
   return (
     <TravelerAccountShell>
       <div className="space-y-6">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+          Báo cáo & Khiếu nại
+        </h1>
+
         <div className="flex border-b border-slate-200">
           <button
             type="button"

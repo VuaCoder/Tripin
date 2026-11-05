@@ -94,14 +94,9 @@ export function BookingHistoryPage() {
     <div className="space-y-6 animate-fadeInScale pb-12">
       {/* Header */}
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
-            Đặt chỗ của tôi
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Theo dõi tình trạng đơn đặt tour, kiểm tra mã đặt chỗ và quản lý thanh toán thuận tiện.
-          </p>
-        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+          Chuyến đi
+        </h1>
         <button
           type="button"
           disabled={isFetching}

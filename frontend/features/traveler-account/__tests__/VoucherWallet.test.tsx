@@ -100,7 +100,7 @@ describe('VoucherWalletPage', () => {
     const { VoucherWalletPage } = await import('../components/VoucherWalletPage');
     render(<VoucherWalletPage />);
 
-    expect(screen.getByText('Ví voucher & Ưu đãi')).toBeDefined();
+    expect(screen.getByText('Ví voucher')).toBeDefined();
     expect(screen.getByText('Khả dụng')).toBeDefined();
     expect(screen.getByText('Đã sử dụng')).toBeDefined();
     expect(screen.getByText('Hết hạn')).toBeDefined();

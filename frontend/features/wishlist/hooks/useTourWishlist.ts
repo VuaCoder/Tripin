@@ -19,8 +19,8 @@ export interface TourWishlist {
 }
 
 /**
- * Saved-state + toggle for one tour (Tour Detail heart button). Only a logged-in TRAVELER queries the wishlist;
- * guests and other roles never hit `/wishlist` (the backend would answer 401/403).
+ * Saved-state + toggle for one tour with Optimistic UI.
+ * Instantly updates heart icon on click; rolls back if network request fails.
  */
 export function useTourWishlist(tourId: string): TourWishlist {
   const authStatus = useAppSelector(selectAuthStatus);
@@ -33,17 +33,39 @@ export function useTourWishlist(tourId: string): TourWishlist {
   const [remove, removeState] = useRemoveFromWishlistMutation();
   const [error, setError] = useState<string | null>(null);
 
-  const isSaved = idsQuery.data?.includes(tourId) ?? false;
+  // Optimistic UI state
+  const [optimisticSaved, setOptimisticSaved] = useState<boolean | null>(null);
+
+  const serverSaved = idsQuery.data?.includes(tourId) ?? false;
+  // If user just toggled, use optimisticSaved immediately; otherwise fallback to server data
+  const isSaved = optimisticSaved !== null ? optimisticSaved : serverSaved;
+
   const { refetch } = idsQuery;
 
   const toggle = useCallback(async () => {
     setError(null);
+    const targetSaved = !isSaved;
+    // 1. Optimistic immediate update (0ms UI feedback)
+    setOptimisticSaved(targetSaved);
+
     try {
-      if (isSaved) await remove(tourId).unwrap();
-      else await add(tourId).unwrap();
+      if (!targetSaved) {
+        await remove(tourId).unwrap();
+      } else {
+        await add(tourId).unwrap();
+      }
+      // On success, reset optimistic state to let cache take over
+      setOptimisticSaved(null);
     } catch (err) {
+      // Rollback on error
+      setOptimisticSaved(null);
       setError(
-        getApiErrorMessage(err, isSaved ? 'Không bỏ lưu được tour. Vui lòng thử lại.' : 'Không lưu được tour. Vui lòng thử lại.'),
+        getApiErrorMessage(
+          err,
+          !targetSaved
+            ? 'Không bỏ lưu được tour. Vui lòng thử lại.'
+            : 'Không lưu được tour. Vui lòng thử lại.',
+        ),
       );
     }
   }, [add, remove, isSaved, tourId]);
@@ -53,7 +75,7 @@ export function useTourWishlist(tourId: string): TourWishlist {
   else if (!isAuthenticated) status = 'guest';
   else if (role !== 'TRAVELER') status = 'not-traveler';
   else if (idsQuery.isError) status = 'error';
-  else if (idsQuery.isLoading) status = 'loading';
+  else if (idsQuery.isLoading && optimisticSaved === null) status = 'loading';
 
   return {
     status,
