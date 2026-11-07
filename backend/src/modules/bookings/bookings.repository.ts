@@ -81,7 +81,16 @@ export class BookingsRepository {
 
   /** Compare-and-set on status: returns null when the booking is no longer in one of the expected statuses. */
   async transition(id: string, expected: readonly BookingStatus[], patch: BookingPatch): Promise<BookingRecord | null> {
-    const row = await prisma.booking.update({ where: { id, status: { in: [...expected] } }, data: patch }).catch(nullIfNotFound);
+    const row = await prisma.$transaction(async (tx) => {
+      const updated = await tx.booking.update({
+        where: { id, status: { in: [...expected] }, ...(patch.status === BOOKING_STATUS.COMPLETED ? { endDate: { lte: new Date() } } : {}) },
+        data: patch,
+      });
+      if (patch.status === BOOKING_STATUS.CANCELLED) {
+        await tx.eTicket.updateMany({ where: { bookingId: id, status: 'VALID' }, data: { status: 'CANCELLED', cancelledAt: new Date() } });
+      }
+      return updated;
+    }).catch(nullIfNotFound);
     return row ? toRecord(row) : null;
   }
 
@@ -114,7 +123,7 @@ export class BookingsRepository {
 
   /** CONFIRMED bookings whose tour has ended. */
   async findDueForCompletion(now: Date, limit: number): Promise<BookingRecord[]> {
-    const rows = await prisma.booking.findMany({ where: { status: BOOKING_STATUS.CONFIRMED, endDate: { lt: now } }, take: limit });
+    const rows = await prisma.booking.findMany({ where: { status: BOOKING_STATUS.CONFIRMED, endDate: { lte: now } }, take: limit });
     return rows.map(toRecord);
   }
 

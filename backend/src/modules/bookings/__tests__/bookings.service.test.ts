@@ -233,7 +233,7 @@ describe('completeMine', () => {
   it('marks a CONFIRMED booking as COMPLETED, notifies the traveler, and emits completed event', async () => {
     const handler = vi.fn();
     bookingEvents.onCompleted(handler);
-    const { service, db, notifications } = make([booking({ status: 'CONFIRMED', isPaid: true })]);
+    const { service, db, notifications } = make([booking({ status: 'CONFIRMED', isPaid: true, endDate: new Date(Date.now() - DAY) })]);
 
     const result = await service.completeMine('u1', 'b1');
 
@@ -247,6 +247,13 @@ describe('completeMine', () => {
   it('refuses to complete a PENDING or CANCELLED booking', async () => {
     const { service } = make([booking({ status: 'PENDING' })]);
     await expect(service.completeMine('u1', 'b1')).rejects.toMatchObject({ code: 'INVALID_STATE_TRANSITION' });
+  });
+
+  it('does not complete or notify for a trip that has not ended', async () => {
+    const { service, repo, notifications } = make([booking({ status: 'CONFIRMED', isPaid: true })]);
+    await expect(service.completeMine('u1', 'b1')).rejects.toMatchObject({ code: 'TRIP_NOT_ENDED', statusCode: 409 });
+    expect(repo.transition).not.toHaveBeenCalled();
+    expect(notifications.notify).not.toHaveBeenCalled();
   });
 
   it('refuses to complete another traveler booking', async () => {

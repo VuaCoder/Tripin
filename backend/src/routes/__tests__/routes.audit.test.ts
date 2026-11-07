@@ -79,7 +79,6 @@ const BODYLESS_MUTATIONS = [
   'POST /complaints/:id/accept-resolution',
   'POST /complaints/images/upload-signature',
   'POST /moderation/complaint-tickets/images/upload-signature',
-  'POST /guide/e-tickets/:tourId/complete',
   'POST /users/me/guide-application/dev-accept',
   'POST /notifications/read-all',
   'POST /payments/bookings/:bookingId/checkout',

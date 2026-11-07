@@ -1,4 +1,5 @@
 import { flushMailOutbox } from '../modules/notifications/mail-outbox';
+import { retryTicketFulfillment } from '../modules/e-tickets/e-tickets.fulfillment';
 import { logger } from '../utils/logger';
 import { premiumRepository } from '../modules/premium/premium.repository';
 import { authService } from '../modules/auth';
@@ -25,6 +26,7 @@ const NOTIFICATION_RETENTION_DAYS = 180;
 export function defaultTasks(): MaintenanceTask[] {
   return [
     { name: 'mail.deliverOutbox', intervalMs: MINUTE, run: flushMailOutbox },
+    { name: 'eTickets.retryFulfillment', intervalMs: MINUTE, run: retryTicketFulfillment },
     { name: 'premium.grantDue', intervalMs: MINUTE, run: () => premiumRepository.grantDue() },
     { name: 'premium.releaseExpiredHolds', intervalMs: MINUTE, run: () => premiumRepository.releaseExpiredHolds() },
     // Unpaid bookings free their seats / promotions; finished trips become COMPLETED (reviews, earnings, e-ticket USED).

@@ -1,5 +1,6 @@
 import { GUIDE_ASSIGNMENT_STATUS, TOUR_STATUS } from '@travel-platform/constants';
 import { nullIfNotFound, prisma } from '../../config/database';
+import { AppError } from '../../utils/app-error';
 import type { ETicket } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
 import { ETICKET_STATUS, type ETicketStatus } from './e-tickets.types';
@@ -30,6 +31,7 @@ export type NewETicket = Omit<ETicket, 'id' | 'status' | 'cancelledAt' | 'usedAt
 
 /** The booking facts a guide needs to contact and brief the group. */
 export interface BookingRosterFacts {
+  departureId?: string;
   id: string;
   contactPhone: string | null;
   notes: string | null;
@@ -37,8 +39,19 @@ export interface BookingRosterFacts {
 }
 
 export class ETicketsRepository {
-  create(data: NewETicket): Promise<ETicketRecord> {
-    return prisma.eTicket.create({ data });
+  create(data: NewETicket, repairCompleted = false): Promise<ETicketRecord> {
+    return prisma.$transaction(async (tx) => {
+      // Cancellation updates this same row, so it cannot pass between the guard and insert.
+      const rows = await tx.$queryRaw<{ status: string; isPaid: boolean }[]>`
+        SELECT "status", "isPaid" FROM "Booking" WHERE "id" = ${data.bookingId}::uuid FOR UPDATE`;
+      const booking = rows[0];
+      if (!booking?.isPaid || (booking.status !== 'CONFIRMED' && !(repairCompleted && booking.status === 'COMPLETED'))) {
+        throw AppError.conflict('Only a confirmed, paid booking can receive a ticket', 'BOOKING_NOT_CONFIRMED');
+      }
+      const ticket = await tx.eTicket.create({ data: { ...data, ...(booking.status === 'COMPLETED' ? { status: 'USED' } : {}) } });
+      await tx.$executeRaw`UPDATE "Booking" SET "fulfillmentStatus" = 'COMPLETED', "fulfillmentNextAttemptAt" = NULL WHERE "id" = ${data.bookingId}::uuid`;
+      return ticket;
+    });
   }
 
   async findById(id: string): Promise<EnrichedETicketRecord | null> {
@@ -92,12 +105,15 @@ export class ETicketsRepository {
     return prisma.eTicket.update({ where: { bookingId, status: expected }, data: { status: next, ...stamp } }).catch(nullIfNotFound);
   }
 
-  async listByTraveler(travelerId: string, page: PageRequest) {
+  async listByTraveler(travelerId: string, page: PageRequest & { status?: ETicketStatus }) {
+    const where = { travelerId, ...(page.status ? { status: page.status } : {}) };
     const [items, total] = await Promise.all([
-      prisma.eTicket.findMany({ where: { travelerId }, orderBy: [{ issuedAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit }),
-      prisma.eTicket.count({ where: { travelerId } }),
+      prisma.eTicket.findMany({ where, orderBy: [{ issuedAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit }),
+      prisma.eTicket.count({ where }),
     ]);
-    return { items, total };
+    const tours = await prisma.tour.findMany({ where: { id: { in: [...new Set(items.map((item) => item.tourId))] } }, select: { id: true, title: true, destination: true, meetingPoint: true, durationDays: true, images: true } });
+    const byId = new Map(tours.map((tour) => [tour.id, tour]));
+    return { items: items.map((ticket) => ({ ...ticket, tourDetails: byId.get(ticket.tourId) })), total };
   }
 
   // ------------------------------------------------------- Guide check-in
@@ -124,9 +140,9 @@ export class ETicketsRepository {
     if (ids.length === 0) return new Map();
     const rows = await prisma.booking.findMany({
       where: { id: { in: ids } },
-      select: { id: true, contactPhone: true, notes: true, guestPricing: true },
+      select: { id: true, departureId: true, contactPhone: true, guestPricing: true },
     });
-    return new Map(rows.map((row) => [row.id, row]));
+    return new Map(rows.map((row) => [row.id, { ...row, notes: null }]));
   }
 
   /** Roster of a tour; cancelled tickets are not part of the group. */

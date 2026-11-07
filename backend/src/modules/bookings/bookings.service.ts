@@ -245,6 +245,9 @@ export class BookingsService {
   async completeMine(travelerId: string, id: string): Promise<BookingDto> {
     const booking = await this.requireOwnedByTraveler(travelerId, id);
     assertTransition(BOOKING_TRANSITIONS, booking.status as BookingStatus, BOOKING_STATUS.COMPLETED, ENTITY);
+    if (booking.endDate.getTime() > Date.now()) {
+      throw AppError.conflict('Chuyến đi chưa kết thúc', 'TRIP_NOT_ENDED');
+    }
 
     const done = await this.bookings.transition(booking.id, [BOOKING_STATUS.CONFIRMED], {
       status: BOOKING_STATUS.COMPLETED,

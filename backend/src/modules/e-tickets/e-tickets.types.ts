@@ -46,12 +46,14 @@ export interface ETicketDto {
 }
 
 export interface ListETicketsQuery {
+  status?: ETicketStatus;
   page: number;
   limit: number;
 }
 
 /** One booking group in a guide's tour roster. The ticket code is deliberately not exposed here. */
 export interface GuideRosterItemDto {
+  status: 'VALID' | 'CHECKED_IN';
   ticketId: string;
   bookingCode: string;
   holderName: string;
@@ -73,6 +75,7 @@ export interface GuideRosterDto {
 }
 
 export interface GuideCheckInDto {
+  status: 'CHECKED_IN';
   ticketId: string;
   holderName: string;
   participants: number;

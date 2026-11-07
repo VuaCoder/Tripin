@@ -169,6 +169,7 @@ export interface TourManageDto extends TourDetailDto {
 
 /** What a tour guide sees for a tour assigned to them. */
 export interface GuideTourDto {
+  departures?: { id: string; date: string; endDate: string }[];
   id: string;
   title: string;
   destination: string;

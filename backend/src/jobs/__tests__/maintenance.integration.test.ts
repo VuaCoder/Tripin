@@ -119,6 +119,7 @@ describe('maintenance jobs (integration)', () => {
       'bookings.completeFinished',
       'bookings.expirePending',
       'complaints.autoCloseResolved',
+      'eTickets.retryFulfillment',
       'mail.deliverOutbox',
       'notifications.purgeOld',
       'premium.grantDue',

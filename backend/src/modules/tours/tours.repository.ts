@@ -1,4 +1,5 @@
 import { writeAudit } from '../audit/audit.writer';
+import { assertGuideAvailability, lockGuideSchedules } from './guide-availability';
 import type { AuditEntry } from '../audit/audit.types';
 import { TOUR_STATUS, type TourStatus } from '@travel-platform/constants';
 import { nullIfNotFound, prisma, type DbExecutor, type Prisma } from '../../config/database';
@@ -138,10 +139,12 @@ export class ToursRepository {
   async updateIfStatus(id: string, expected: readonly TourStatus[], patch: TourPatch, audit?: AuditEntry): Promise<TourRecord | null> {
     try {
       return await prisma.$transaction(async (tx) => {
+          await lockGuideSchedules(tx);
         // Removing the assignment happens first; if the status guard below fails (P2025) the whole transaction rolls back.
           const previous = patch.guide !== undefined ? await tx.tourGuideAssignment.findUnique({ where: { tourId: id } }) : null;
           if (patch.guide === null) await tx.tourGuideAssignment.deleteMany({ where: { tourId: id } });
           const updated = await tx.tour.update({ where: { id, status: { in: [...expected] } }, data: writeData(patch), include });
+          await assertGuideAvailability(tx, id, patch.guide?.guideId);
           if (previous && (!patch.guide || patch.guide.guideId !== previous.guideId)) await tx.premiumGuideActivity.create({ data: { userId: previous.guideId, tourId: id, tourTitle: updated.title, action: 'UNASSIGNED' } });
           if (patch.guide) await tx.premiumGuideActivity.create({ data: { userId: patch.guide.guideId, tourId: id, tourTitle: updated.title, action: 'ASSIGNED' } });
           if (audit) await writeAudit(tx, audit);
@@ -159,11 +162,13 @@ export class ToursRepository {
     answer: { status: GuideAssignmentStatus; respondedAt: Date; note?: string },
   ): Promise<TourRecord | null> {
     return prisma.$transaction(async tx => {
+    await lockGuideSchedules(tx);
     const result = await tx.tourGuideAssignment.updateMany({
       where: { tourId, guideId, status: 'PENDING', tour: { is: { status: { not: TOUR_STATUS.ARCHIVED } } } },
       data: answer,
     });
     if (!result.count) return null;
+    if (answer.status === 'ACCEPTED') await assertGuideAvailability(tx, tourId, guideId);
     const tour = await tx.tour.findUniqueOrThrow({ where: { id: tourId }, include });
     await tx.premiumGuideActivity.create({ data: { userId: guideId, tourId, tourTitle: tour.title, action: answer.status, occurredAt: answer.respondedAt } });
     return toRecord(tour);
@@ -277,7 +282,10 @@ export class ToursRepository {
    * Returns false when the departure is missing/closed/past/sold out — never oversells.
    */
   async reserveSeats(tourId: string, departureId: string, seats: number): Promise<boolean> {
-    const result = await prisma.tourDeparture.updateMany({
+    return prisma.$transaction(async (tx) => {
+    await lockGuideSchedules(tx);
+    await assertGuideAvailability(tx, tourId, undefined, departureId);
+    const result = await tx.tourDeparture.updateMany({
       where: {
         id: departureId,
         tourId,
@@ -289,6 +297,7 @@ export class ToursRepository {
       data: { remaining: { decrement: seats } },
     });
     return result.count === 1;
+    });
   }
 
   /** Gives seats back (booking cancelled / payment expired). Never exceeds capacity. */
@@ -307,6 +316,7 @@ export class ToursRepository {
     const conflict = Symbol('conflict');
     try {
       await prisma.$transaction(async (tx) => {
+        await lockGuideSchedules(tx);
         for (const change of changes) {
           if (change.kind === 'create') {
             await tx.tourDeparture.create({ data: { tourId, ...change.data } });
@@ -334,6 +344,7 @@ export class ToursRepository {
             if (updated.count !== 1) throw conflict;
           }
         }
+        await assertGuideAvailability(tx, tourId);
       });
     } catch (error) {
       if (error === conflict) return null;
