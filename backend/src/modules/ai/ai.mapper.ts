@@ -1,8 +1,8 @@
 import type { AiConversationRecord } from './ai.repository';
 import type { AiChatMessageDto, AiConversationDto, AiConversationSummaryDto } from './ai.types';
 
-export function toMessageDto(message: { id?: string; role: string; content: string; createdAt?: Date }): AiChatMessageDto {
-  return { id: message.id!, role: message.role as AiChatMessageDto['role'], content: message.content, createdAt: (message.createdAt ?? new Date()).toISOString() };
+export function toMessageDto(message: { id?: string; role: string; content: string; createdAt?: Date; incomplete?: boolean }): AiChatMessageDto {
+  return { id: message.id!, role: message.role as AiChatMessageDto['role'], content: message.content, createdAt: (message.createdAt ?? new Date()).toISOString(), ...(message.incomplete ? { incomplete: true } : {}) };
 }
 
 export function toSummaryDto(conversation: AiConversationRecord): AiConversationSummaryDto {

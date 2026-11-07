@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../../core/storage/token_storage.dart';
 import '../models/ai_models.dart';
 
@@ -9,7 +11,8 @@ class AiStorage {
 
   AiStorage({this.prefs});
 
-  Future<SharedPreferences> _getPrefs() async => prefs ?? await SharedPreferences.getInstance();
+  Future<SharedPreferences> _getPrefs() async =>
+      prefs ?? await SharedPreferences.getInstance();
 
   Future<String> _getMessagesKey() async {
     try {
@@ -50,13 +53,18 @@ class AiStorage {
       final raw = prefs.getString(key);
       if (raw == null || raw.isEmpty) return [];
       final list = jsonDecode(raw) as List<dynamic>;
-      return list.map((e) => AiMessage.fromJson(e as Map<String, dynamic>)).toList();
+      return list
+          .map((e) => AiMessage.fromJson(e as Map<String, dynamic>))
+          .toList();
     } catch (_) {
       return [];
     }
   }
 
-  Future<void> saveMessages({required List<AiMessage> messages, String? conversationId}) async {
+  Future<void> saveMessages({
+    required List<AiMessage> messages,
+    String? conversationId,
+  }) async {
     try {
       final prefs = await _getPrefs();
       final msgKey = await _getMessagesKey();

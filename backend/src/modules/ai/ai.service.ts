@@ -62,10 +62,12 @@ export class AiService {
     });
 
     // Only a successful exchange is stored, so a provider outage never leaves a dangling user message.
-    const reply = stripEmojis(text).slice(0, AI_LIMITS.MAX_STORED_REPLY_LENGTH);
+    const fullReply = stripEmojis(text);
+    const partial = incomplete || fullReply.length > AI_LIMITS.MAX_STORED_REPLY_LENGTH;
+    const reply = fullReply.slice(0, AI_LIMITS.MAX_STORED_REPLY_LENGTH);
     const turn = [
       { role: 'user' as const, content: input.message },
-      { role: 'assistant' as const, content: reply },
+      { role: 'assistant' as const, content: reply, ...(partial ? { incomplete: true } : {}) },
     ];
     let saved;
     if (existing) {
@@ -77,7 +79,7 @@ export class AiService {
 
     const assistantMessage = saved.messages[saved.messages.length - 1]!;
     this.publish(userId, saved.id);
-    return { conversationId: saved.id, reply: { ...toMessageDto(assistantMessage), ...(incomplete ? { incomplete: true } : {}) }, messageCount: saved.messageCount };
+    return { conversationId: saved.id, reply: toMessageDto(assistantMessage), messageCount: saved.messageCount };
   }
 
   async listMine(userId: string, page: { page: number; limit: number }): Promise<Page<AiConversationSummaryDto>> {

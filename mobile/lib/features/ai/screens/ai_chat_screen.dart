@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../bloc/ai_cubit.dart';
 import '../bloc/ai_repository.dart';
@@ -35,6 +36,105 @@ class _AiView extends StatefulWidget {
 }
 
 class _AiViewState extends State<_AiView> {
+  Future<void> _showConversations() async {
+    final cubit = context.read<AiCubit>();
+    var page = 1;
+    var future = cubit.listConversations();
+    final chosen = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, update) => AlertDialog(
+          title: const Text('Lịch sử hội thoại AI'),
+          content: SizedBox(
+            width: 440,
+            height: 380,
+            child: FutureBuilder(
+              future: future,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Column(
+                    children: [
+                      const Text('Không tải được lịch sử.'),
+                      TextButton(
+                        onPressed: () => update(
+                          () => future = cubit.listConversations(page: page),
+                        ),
+                        child: const Text('Thử lại'),
+                      ),
+                    ],
+                  );
+                }
+                final data = snapshot.data;
+                if (data == null) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return Column(
+                  children: [
+                    Expanded(
+                      child: data.items.isEmpty
+                          ? const Center(
+                              child: Text('Chưa có cuộc trò chuyện.'),
+                            )
+                          : ListView(
+                              children: data.items
+                                  .map(
+                                    (item) => ListTile(
+                                      title: Text(item.title),
+                                      trailing: item.unreadCount > 0
+                                          ? Badge(
+                                              label: Text(
+                                                '${item.unreadCount}',
+                                              ),
+                                            )
+                                          : null,
+                                      onTap: () =>
+                                          Navigator.of(dialogContext)
+                                              .pop(item.id),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton(
+                          onPressed: page > 1
+                              ? () => update(() {
+                                  page--;
+                                  future = cubit.listConversations(page: page);
+                                })
+                              : null,
+                          child: const Text('Trang trước'),
+                        ),
+                        TextButton(
+                          onPressed: page < data.totalPages
+                              ? () => update(() {
+                                  page++;
+                                  future = cubit.listConversations(page: page);
+                                })
+                              : null,
+                          child: const Text('Trang sau'),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Đóng'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (chosen != null && mounted) await cubit.openConversation(chosen);
+  }
+
   final TextEditingController _input = TextEditingController();
   final ScrollController _scroll = ScrollController();
 
@@ -54,11 +154,15 @@ class _AiViewState extends State<_AiView> {
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scroll.hasClients) return;
-      _scroll.animateTo(
-        _scroll.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-      );
+      _scroll
+          .animateTo(
+            _scroll.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+          )
+          .then((_) {
+            if (mounted) context.read<AiCubit>().markVisibleRead();
+          });
     });
   }
 
@@ -94,8 +198,18 @@ class _AiViewState extends State<_AiView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Trợ lý AI', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Trợ lý AI',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         actions: [
+          BlocBuilder<AiCubit, AiState>(
+            builder: (context, state) => IconButton(
+              tooltip: 'Lịch sử hội thoại AI',
+              onPressed: state.typing ? null : _showConversations,
+              icon: const Icon(Icons.history),
+            ),
+          ),
           BlocBuilder<AiCubit, AiState>(
             builder: (context, state) {
               if (state.messages.isEmpty) return const SizedBox.shrink();
@@ -119,21 +233,40 @@ class _AiViewState extends State<_AiView> {
                 }
                 return ListView(
                   controller: _scroll,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   children: [
                     for (int i = 0; i < state.messages.length; i++) ...[
-                      if (i == 0 || !_isSameDay(state.messages[i].createdAt, state.messages[i - 1].createdAt))
+                      if (i == 0 ||
+                          !_isSameDay(
+                            state.messages[i].createdAt,
+                            state.messages[i - 1].createdAt,
+                          ))
                         _buildDateChip(state.messages[i].createdAt),
                       _AiBubble(
                         message: state.messages[i],
-                        onRetry: state.messages[i].status == AiMessageStatus.failed
+                        onContinue:
+                            state.messages[i].incomplete &&
+                                i == state.messages.length - 1 &&
+                                !state.typing
+                            ? () => context.read<AiCubit>().ask(
+                                'Tiếp tục câu trả lời chưa hoàn chỉnh ngay trước đó, từ phần đang dang dở.',
+                              )
+                            : null,
+                        onRetry:
+                            state.messages[i].status == AiMessageStatus.failed
                             ? () => context.read<AiCubit>().retry()
                             : null,
                       ),
                     ],
                     if (state.typing) const _TypingBubble(),
                     if (state.error != null)
-                      _ErrorNotice(message: state.error!, onRetry: () => context.read<AiCubit>().retry()),
+                      _ErrorNotice(
+                        message: state.error!,
+                        onRetry: () => context.read<AiCubit>().retry(),
+                      ),
                   ],
                 );
               },
@@ -156,8 +289,13 @@ class _AiViewState extends State<_AiView> {
                       decoration: InputDecoration(
                         hintText: 'Hỏi trợ lý về chuyến đi…',
                         counterText: '',
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
                       ),
                     ),
                   ),
@@ -189,18 +327,31 @@ class _Welcome extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       children: [
         const SizedBox(height: 24),
-        const Icon(Icons.auto_awesome_rounded, size: 48, color: AppColors.primary),
+        const Icon(
+          Icons.auto_awesome_rounded,
+          size: 48,
+          color: AppColors.primary,
+        ),
         const SizedBox(height: 12),
-        const Text('Xin chào! Mình là trợ lý du lịch Tripri.',
-            textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text(
+          'Xin chào! Mình là trợ lý du lịch Tripri.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 6),
-        const Text('Hỏi mình về lịch trình, thời tiết hoặc kinh nghiệm chuẩn bị cho chuyến đi.',
-            textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary)),
+        const Text(
+          'Hỏi mình về lịch trình, thời tiết hoặc kinh nghiệm chuẩn bị cho chuyến đi.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
         const SizedBox(height: 20),
         for (final s in _suggestions)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: OutlinedButton(onPressed: () => onPick(s), child: Text(s, textAlign: TextAlign.center)),
+            child: OutlinedButton(
+              onPressed: () => onPick(s),
+              child: Text(s, textAlign: TextAlign.center),
+            ),
           ),
       ],
     );
@@ -212,9 +363,13 @@ bool _isSameDay(DateTime a, DateTime b) =>
 
 Widget _buildDateChip(DateTime date) {
   final now = DateTime.now();
-  final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
+  final isToday =
+      date.year == now.year && date.month == now.month && date.day == now.day;
   final yesterday = now.subtract(const Duration(days: 1));
-  final isYesterday = date.year == yesterday.year && date.month == yesterday.month && date.day == yesterday.day;
+  final isYesterday =
+      date.year == yesterday.year &&
+      date.month == yesterday.month &&
+      date.day == yesterday.day;
 
   String label;
   if (isToday) {
@@ -249,45 +404,46 @@ Widget _buildDateChip(DateTime date) {
 }
 
 String _aiStatusLabel(AiMessageStatus s) => switch (s) {
-      AiMessageStatus.sending => 'Đang gửi…',
-      AiMessageStatus.sent => 'Đã gửi',
-      AiMessageStatus.delivered => 'Đã nhận',
-      AiMessageStatus.read => 'Đã xem',
-      AiMessageStatus.failed => 'Lỗi · Chạm để thử lại',
-    };
+  AiMessageStatus.sending => 'Đang gửi…',
+  AiMessageStatus.sent => 'Đã gửi',
+  AiMessageStatus.delivered => 'Đã nhận',
+  AiMessageStatus.read => 'Đã xem',
+  AiMessageStatus.failed => 'Lỗi · Chạm để thử lại',
+};
 
 Widget _buildAiStatusIcon(AiMessageStatus s) => switch (s) {
-      AiMessageStatus.sending => const SizedBox(
-          width: 10,
-          height: 10,
-          child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white70),
-        ),
-      AiMessageStatus.sent => const Icon(
-          Icons.check_rounded,
-          size: 13,
-          color: Colors.white70,
-        ),
-      AiMessageStatus.delivered => const Icon(
-          Icons.done_all_rounded,
-          size: 14,
-          color: Colors.white70,
-        ),
-      AiMessageStatus.read => const Icon(
-          Icons.done_all_rounded,
-          size: 14,
-          color: Color(0xFF67E8F9),
-        ),
-      AiMessageStatus.failed => const Icon(
-          Icons.error_outline_rounded,
-          size: 13,
-          color: Colors.amberAccent,
-        ),
-    };
+  AiMessageStatus.sending => const SizedBox(
+    width: 10,
+    height: 10,
+    child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white70),
+  ),
+  AiMessageStatus.sent => const Icon(
+    Icons.check_rounded,
+    size: 13,
+    color: Colors.white70,
+  ),
+  AiMessageStatus.delivered => const Icon(
+    Icons.done_all_rounded,
+    size: 14,
+    color: Colors.white70,
+  ),
+  AiMessageStatus.read => const Icon(
+    Icons.done_all_rounded,
+    size: 14,
+    color: Color(0xFF67E8F9),
+  ),
+  AiMessageStatus.failed => const Icon(
+    Icons.error_outline_rounded,
+    size: 13,
+    color: Colors.amberAccent,
+  ),
+};
 
 class _AiBubble extends StatelessWidget {
+  final VoidCallback? onContinue;
   final AiMessage message;
   final VoidCallback? onRetry;
-  const _AiBubble({required this.message, this.onRetry});
+  const _AiBubble({required this.message, this.onRetry, this.onContinue});
 
   @override
   Widget build(BuildContext context) {
@@ -302,7 +458,9 @@ class _AiBubble extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 4),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.82),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.sizeOf(context).width * 0.82,
+          ),
           decoration: BoxDecoration(
             gradient: mine
                 ? const LinearGradient(
@@ -318,17 +476,23 @@ class _AiBubble extends StatelessWidget {
               bottomLeft: Radius.circular(mine ? 18 : 4),
               bottomRight: Radius.circular(mine ? 4 : 18),
             ),
-            border: mine ? null : Border.all(color: const Color(0xFFE2E8F0), width: 1.1),
+            border: mine
+                ? null
+                : Border.all(color: const Color(0xFFE2E8F0), width: 1.1),
             boxShadow: [
               BoxShadow(
-                color: mine ? const Color(0x180D9488) : Colors.black.withValues(alpha: 0.04),
+                color: mine
+                    ? const Color(0x180D9488)
+                    : Colors.black.withValues(alpha: 0.04),
                 blurRadius: 6,
                 offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Column(
-            crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            crossAxisAlignment: mine
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               if (mine)
@@ -396,12 +560,26 @@ class _AiBubble extends StatelessWidget {
                     ),
                   ),
                 ),
+              if (message.incomplete)
+                const Text(
+                  'Câu trả lời chưa hoàn chỉnh.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              if (onContinue != null)
+                TextButton(
+                  onPressed: onContinue,
+                  child: const Text('Tiếp tục tạo...'),
+                ),
               const SizedBox(height: 6),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (!mine) ...[
-                    const Icon(Icons.auto_awesome, size: 12, color: AppColors.primary),
+                    const Icon(
+                      Icons.auto_awesome,
+                      size: 12,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'Trợ lý AI · $timeStr',
@@ -417,7 +595,9 @@ class _AiBubble extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
-                        color: isFailed ? Colors.redAccent.shade100 : Colors.white70,
+                        color: isFailed
+                            ? Colors.redAccent.shade100
+                            : Colors.white70,
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -441,9 +621,12 @@ class _TypingBubble extends StatefulWidget {
   State<_TypingBubble> createState() => _TypingBubbleState();
 }
 
-class _TypingBubbleState extends State<_TypingBubble> with SingleTickerProviderStateMixin {
-  late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+class _TypingBubbleState extends State<_TypingBubble>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..repeat();
 
   @override
   void dispose() {
@@ -473,8 +656,15 @@ class _TypingBubbleState extends State<_TypingBubble> with SingleTickerProviderS
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2),
                   child: Opacity(
-                    opacity: 0.25 + 0.75 * ((_c.value * 3 - i).clamp(0.0, 1.0) * (1 - ((_c.value * 3 - i - 1).clamp(0.0, 1.0)))),
-                    child: const CircleAvatar(radius: 4, backgroundColor: AppColors.textSecondary),
+                    opacity:
+                        0.25 +
+                        0.75 *
+                            ((_c.value * 3 - i).clamp(0.0, 1.0) *
+                                (1 - ((_c.value * 3 - i - 1).clamp(0.0, 1.0)))),
+                    child: const CircleAvatar(
+                      radius: 4,
+                      backgroundColor: AppColors.textSecondary,
+                    ),
                   ),
                 ),
             ],
@@ -496,7 +686,10 @@ class _ErrorNotice extends StatelessWidget {
       key: const Key('ai-error'),
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: AppColors.errorLight, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: AppColors.errorLight,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Row(
         children: [
           const Icon(Icons.error_outline, color: AppColors.error),

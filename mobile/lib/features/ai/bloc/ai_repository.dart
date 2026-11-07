@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/network/api_client.dart';
 import '../models/ai_models.dart';
@@ -16,6 +17,39 @@ class AiRepository {
   final ApiClient _api;
 
   AiRepository({ApiClient? api}) : _api = api ?? ApiClient();
+
+  Future<({List<AiConversationSummary> items, int totalPages})>
+  listConversations({int page = 1}) async {
+    final response = await _api.get<Map<String, dynamic>>(
+      '/ai/conversations',
+      queryParameters: {'page': page, 'limit': 20},
+    );
+    return (
+      items: (response.data!['data'] as List)
+          .map(
+            (item) =>
+                AiConversationSummary.fromJson(item as Map<String, dynamic>),
+          )
+          .toList(),
+      totalPages: (response.data!['meta']['totalPages'] as num).toInt(),
+    );
+  }
+
+  Future<List<AiMessage>> getConversation(String id) async {
+    final response = await _api.get<Map<String, dynamic>>(
+      '/ai/conversations/$id',
+    );
+    return (response.data!['data']['messages'] as List)
+        .map((item) => AiMessage.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> markRead(String id, String throughMessageId) async {
+    await _api.post(
+      '/ai/conversations/$id/read',
+      data: {'throughMessageId': throughMessageId},
+    );
+  }
 
   /// `POST /ai/chat`; bỏ `conversationId` để bắt đầu cuộc trò chuyện mới.
   Future<AiReply> chat(String message, {String? conversationId}) async {
