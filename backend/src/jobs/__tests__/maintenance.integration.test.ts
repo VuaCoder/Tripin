@@ -127,8 +127,6 @@ describe('maintenance jobs (integration)', () => {
       'payments.expireStale',
       'payments.pollPending',
       'payments.retryUnfulfilled',
-      'premium.grantDue',
-      'premium.releaseExpiredHolds',
       'promotions.sweepExpiring',
       'subscriptions.cancelAbandoned',
       'subscriptions.expireEnded',

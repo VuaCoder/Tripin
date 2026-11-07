@@ -52,7 +52,7 @@ describe('money invariants (integration)', () => {
     const agency = await createUser('AGENCY', 'agency@example.com');
     const traveler = await createUser('TRAVELER', 'traveler@example.com');
     const admin = await createUser('SUPER_ADMIN', 'admin@example.com');
-    expect((await request(app).put('/api/v1/admin/settings/commission').set(bearer(admin.token)).send({ ratePercent: 12.34 })).status).toBe(200);
+    expect((await request(app).put('/api/v1/admin/settings/commission').set(bearer(admin.token)).send({ ratePercent: 12.34, expectedVersion: 0 })).status).toBe(200);
     const { tourId, departureId } = await createApprovedTour(agency.id, { price, capacity: 50 });
     expect((await request(app).post('/api/v1/cart/items').set(bearer(traveler.token)).send({ tourId, departureId, participants: 50 })).status).toBe(201);
     const cart = await request(app).get('/api/v1/cart').set(bearer(traveler.token));

@@ -24,7 +24,7 @@ vi.mock('@/features/chat/api', () => ({
 }));
 
 vi.mock('@/features/notifications/api/notificationsApi', () => ({
-  useGetNotificationsQuery: () => ({ data: { data: [] } }),
+  useGetNotificationsQuery: vi.fn().mockReturnValue({ data: { data: [] } }),
   useGetUnreadCountQuery: () => ({ data: { data: { count: 0 } } }),
   useMarkNotificationAsReadMutation: () => [vi.fn()],
   useMarkAllNotificationsAsReadMutation: () => [vi.fn()],
