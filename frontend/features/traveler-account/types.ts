@@ -9,7 +9,7 @@ export interface UpdateProfileRequest {
     companyName?: string;
     description?: string;
     address?: string;
-    website?: string;
+    website?: string | null;
     licenseNumber?: string;
   };
   /** Accepted by `PATCH /users/me` for `TOUR_GUIDE` only. */

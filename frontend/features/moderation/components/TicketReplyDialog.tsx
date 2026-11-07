@@ -18,8 +18,8 @@ interface TicketReplyDialogProps {
   /** Message returned by the backend for the last attempt; keeps the dialog open. */
   serverError?: string | null;
   onClose: () => void;
-  onReply: (input: { text: string; resolve: boolean }) => void;
-  onSetStatus: (status: 'IN_PROGRESS' | 'RESOLVED') => void;
+  onReply: (input: { text: string; resolve: boolean; resolutionNote?: string }) => void;
+  onSetStatus: (status: 'IN_PROGRESS' | 'RESOLVED', resolutionNote?: string) => void;
 }
 
 const dateTime = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
@@ -38,12 +38,14 @@ export function TicketReplyDialog({
   onSetStatus,
 }: TicketReplyDialogProps) {
   const [text, setText] = useState('');
+  const [resolutionNote, setResolutionNote] = useState('');
   const [resolve, setResolve] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setText('');
+      setResolutionNote('');
       setResolve(false);
       setError(null);
     }
@@ -56,7 +58,8 @@ export function TicketReplyDialog({
     const found = validateTicketText(text);
     setError(found);
     if (found) return;
-    onReply({ text: text.trim(), resolve });
+    if (resolve && resolutionNote.trim().length < 10) { setError('Ghi chú giải quyết cần ít nhất 10 ký tự.'); return; }
+    onReply({ text: text.trim(), resolve, ...(resolve ? { resolutionNote: resolutionNote.trim() } : {}) });
   };
 
   // A resolved or closed ticket accepts nothing (`replyAsStaff` / `setStatus` refuse it).
@@ -135,8 +138,9 @@ export function TicketReplyDialog({
                   {error}
                 </p>
               )}
+              <label className="block">Ghi chú giải quyết (ít nhất 10 ký tự)<textarea aria-label="Ghi chú giải quyết" className="block w-full rounded border p-2" value={resolutionNote} onChange={(e) => setResolutionNote(e.target.value)} maxLength={2000} disabled={isSubmitting} /></label>
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                <input type="checkbox" checked={resolve} disabled={isSubmitting} onChange={(e) => setResolve(e.target.checked)} />
+                <input type="checkbox" checked={resolve} disabled={isSubmitting || !ticket.assignedTo} onChange={(e) => setResolve(e.target.checked)} />
                 Đánh dấu khiếu nại đã được giải quyết
               </label>
               <div className="flex flex-wrap justify-end gap-2 pt-1">
@@ -149,7 +153,7 @@ export function TicketReplyDialog({
                   </Button>
                 )}
                 {ticket.status === 'IN_PROGRESS' && (
-                  <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => onSetStatus('RESOLVED')}>
+                  <Button type="button" variant="outline" disabled={isSubmitting || !ticket.assignedTo || resolutionNote.trim().length < 10} onClick={() => onSetStatus('RESOLVED', resolutionNote.trim())}>
                     Đã giải quyết
                   </Button>
                 )}

@@ -53,11 +53,13 @@ export function ModerationReportListPage() {
   const [status, setStatus] = useState<StatusFilter>('ALL');
   const [targetType, setTargetType] = useState<TargetFilter>('ALL');
   const [category, setCategory] = useState<CategoryFilter>('ALL');
+  const [search, setSearch] = useState(''); const [from, setFrom] = useState(''); const [to, setTo] = useState('');
+  const [sort, setSort] = useState<'newest' | 'reports_desc'>('newest');
   const [showStats, setShowStats] = useState(true);
 
   const { data, isLoading, isFetching, isError, refetch } = useGetModerationReportsQuery(
     {
-      page,
+      page, ...(search.trim() ? { q: search.trim() } : {}), ...(sort === 'reports_desc' ? { sort } : {}), ...(from ? { from: `${from}T00:00:00+07:00` } : {}), ...(to ? { to: `${to}T23:59:59.999+07:00` } : {}),
       limit: PAGE_SIZE,
       ...(status === 'ALL' ? {} : { status }),
       ...(targetType === 'ALL' ? {} : { targetType }),
@@ -179,6 +181,12 @@ export function ModerationReportListPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
+      <div className="flex flex-wrap items-end gap-3 rounded border p-3">
+        <label>Tìm nội dung<input className="block rounded border p-2" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} maxLength={100} /></label>
+        <label>Từ ngày<input type="date" className="block rounded border p-2" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} /></label>
+        <label>Đến ngày<input type="date" className="block rounded border p-2" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} /></label>
+        <label>Sắp xếp<select className="block rounded border p-2" value={sort} onChange={(e) => { setSort(e.target.value as typeof sort); setPage(1); }}><option value="newest">Theo hàng đợi</option><option value="reports_desc">Nhiều báo cáo nhất</option></select></label>
+      </div>
       {/* Notice Banner - Link to Escalated Disputes */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-teal-200/80 bg-teal-50/60 p-3.5 sm:px-4 text-xs text-teal-900 shadow-2xs">
         <div className="flex items-center gap-2.5">

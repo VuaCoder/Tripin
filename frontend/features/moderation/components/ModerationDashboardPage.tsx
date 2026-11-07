@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { SlaTrends } from './SlaTrends';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth';
 import { ErrorState, LoadingState } from '@/components/shared';
@@ -11,7 +12,7 @@ import { dateTime, ModerationDenied, useModerationPermission } from './Moderatio
 
 interface Tile {
   label: string;
-  value: number;
+  value: number | string;
   hint: string;
   href?: string;
   allowed: boolean;
@@ -25,18 +26,18 @@ export function ModerationDashboardPage() {
   const canAgencies = useModerationPermission(PERMISSION.agencyVerify);
   const canReports = useModerationPermission(PERMISSION.disputeResolve);
   const canTickets = useModerationPermission(PERMISSION.complaintHandle);
-  const { data, isLoading, isError, isFetching, refetch } = useGetModerationDashboardQuery(undefined, { skip: !allowed });
-  const { data: complaintData } = useGetModeratorComplaintsQuery({ status: 'ESCALATED', limit: 1 }, { skip: !canReports });
+  const { data, isLoading, isError, isFetching, refetch } = useGetModerationDashboardQuery(undefined, { skip: !allowed, pollingInterval: 3_600_000, refetchOnFocus: true });
+  const { data: complaintData, isError: complaintError, isLoading: complaintLoading, refetch: refetchComplaints } = useGetModeratorComplaintsQuery({ status: 'ESCALATED', limit: 1 }, { skip: !canReports, pollingInterval: 3_600_000, refetchOnFocus: true });
 
   if (!allowed) return <ModerationDenied />;
 
   const tiles: Tile[] = data
     ? [
-        { label: 'Tour chờ duyệt', value: data.queues.toursPendingReview, hint: 'Cần quyết định duyệt / từ chối', href: '/moderator/tours?status=PENDING_REVIEW', allowed: canTours },
-        { label: 'Agency chờ xác minh', value: data.queues.agenciesPendingVerification, hint: 'Hồ sơ đối tác mới gửi', href: '/moderator/agencies', allowed: canAgencies },
-        { label: 'Tranh chấp khiếu nại', value: complaintData?.meta.total ?? 0, hint: `${complaintData?.meta.total ?? 0} ca khiếu nại tour leo thang`, href: '/moderator/complaints', allowed: canReports },
-        { label: 'Báo cáo đang mở', value: data.queues.reportsOpen + data.queues.reportsAwaitingDecision, hint: `${data.queues.reportsAwaitingDecision} chờ quyết định cuối`, href: '/moderator/reports', allowed: canReports },
-        { label: 'Khiếu nại hỗ trợ', value: data.queues.supportTicketsOpen + data.queues.supportTicketsInProgress, hint: `${data.queues.supportTicketsInProgress} đang xử lý`, href: '/moderator/support-tickets', allowed: canTickets },
+        { label: 'Tour chờ duyệt', value: data.queues.toursPendingReview ?? 0, hint: 'Cần quyết định duyệt / từ chối', href: '/moderator/tours?status=PENDING_REVIEW', allowed: canTours },
+        { label: 'Agency chờ xác minh', value: data.queues.agenciesPendingVerification ?? 0, hint: 'Hồ sơ đối tác mới gửi', href: '/moderator/agencies', allowed: canAgencies },
+        { label: 'Tranh chấp khiếu nại', value: complaintError ? 'Lỗi tải dữ liệu' : complaintLoading ? 'Đang tải…' : complaintData?.meta.total ?? '—', hint: `${complaintError ? 'Lỗi tải dữ liệu' : complaintData?.meta.total ?? '…'} ca khiếu nại tour leo thang`, href: '/moderator/complaints', allowed: canReports },
+        { label: 'Báo cáo đang mở', value: (data.queues.reportsOpen ?? 0) + (data.queues.reportsAwaitingDecision ?? 0), hint: `${data.queues.reportsAwaitingDecision} chờ quyết định cuối`, href: '/moderator/reports', allowed: canReports },
+        { label: 'Khiếu nại hỗ trợ', value: (data.queues.supportTicketsOpen ?? 0) + (data.queues.supportTicketsInProgress ?? 0), hint: `${data.queues.supportTicketsInProgress} đang xử lý`, href: '/moderator/support-tickets', allowed: canTickets },
       ]
     : [];
 
@@ -54,7 +55,7 @@ export function ModerationDashboardPage() {
         <div className="flex flex-wrap gap-2">
           {canReports && (
             <Link href="/moderator/complaints" className="rounded-xl bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800 shadow-2xs">
-              Tranh chấp tour ({complaintData?.meta.total ?? 0})
+              Tranh chấp tour ({complaintError ? 'Lỗi tải dữ liệu' : complaintData?.meta.total ?? '…'})
             </Link>
           )}
           {canTours && (
@@ -70,14 +71,16 @@ export function ModerationDashboardPage() {
         </div>
       </div>
 
+      {canReports && complaintError && <div role="alert" className="rounded-xl border border-amber-300 p-4">Lỗi tải dữ liệu khiếu nại. <button type="button" className="underline" onClick={() => void refetchComplaints()}>Thử lại</button></div>}
       {isLoading ? (
         <LoadingState label="Đang tải dữ liệu kiểm duyệt..." />
       ) : isError || !data ? (
-        <ErrorState title="Không thể tải bảng điều khiển" message="Đã có lỗi xảy ra khi kết nối máy chủ. Vui lòng thử lại." onAction={() => void refetch()} />
+        <ErrorState title="Không thể tải bảng điều khiển" message="Đã có lỗi xảy ra khi kết nối máy chủ. Vui lòng thử lại." onAction={() => { void refetch(); if (canReports) void refetchComplaints(); }} />
       ) : (
         <>
+          {canReports && <SlaTrends />}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {tiles.map((t) => {
+            {tiles.filter((t) => t.allowed).map((t) => {
               const body = (
                 <>
                   <div className="mb-1 text-xs font-medium text-slate-500">{t.label}</div>
@@ -97,13 +100,13 @@ export function ModerationDashboardPage() {
             })}
           </div>
 
-          <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+          {canTours && <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
             <h2 className="mb-3 text-lg font-bold text-slate-900">Tour theo trạng thái</h2>
-            {Object.keys(data.tours).length === 0 ? (
+            {Object.keys(data.tours ?? {}).length === 0 ? (
               <p className="text-sm text-slate-500">Chưa có tour nào trên hệ thống.</p>
             ) : (
               <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                {Object.entries(data.tours).map(([status, count]) => (
+                {Object.entries(data.tours ?? {}).map(([status, count]) => (
                   <div key={status} className="rounded-xl bg-slate-50 p-3">
                     <dt className="text-xs text-slate-500">{status}</dt>
                     <dd className="text-lg font-bold text-slate-900">{count}</dd>
@@ -115,7 +118,8 @@ export function ModerationDashboardPage() {
               Cập nhật lúc {dateTime.format(new Date(data.generatedAt))}
               {isFetching ? ' · đang làm mới...' : ''}
             </p>
-          </div>
+          </div>}
+          <p className="text-xs text-slate-500">Cập nhật lúc {dateTime.format(new Date(data.generatedAt))}</p>
         </>
       )}
     </div>

@@ -49,7 +49,7 @@ const unwrapOk = () => ({ unwrap: () => Promise.resolve({}) });
 const unwrapFail = (code: string) => ({ unwrap: () => Promise.reject({ data: { error: { code, message: 'x' } } }) });
 
 const report = (over: Partial<ModerationReport> = {}): ModerationReport => ({
-  id: 'r1',
+  id: 'r1', code: 'RP-TEST0001',
   targetType: 'TOUR',
   targetId: 't1',
   targetName: 'Đà Nẵng 3N2Đ',
@@ -397,16 +397,18 @@ describe('ModerationTicketListPage', () => {
     expect(screen.getByText(/ít nhất 2 ký tự/)).toBeTruthy();
   });
 
-  it('replies and marks the ticket resolved in one call', async () => {
+  it('replies and marks a claimed ticket resolved with a note', async () => {
     allowHandle();
+    mockTicket.mockReturnValue(q({ data: { ...ticket(), assignedTo: 'm1', status: 'IN_PROGRESS' } }));
     mockReply.mockReturnValue(unwrapOk());
     render(<ModerationTicketListPage />);
     fireEvent.click(screen.getByText('Xem & xử lý'));
     fireEvent.change(screen.getByLabelText('Trả lời du khách'), { target: { value: 'Chúng tôi đã gửi lại vé.' } });
+    fireEvent.change(screen.getByLabelText('Ghi chú giải quyết'), { target: { value: 'Đã xác minh và gửi lại vé' } });
     fireEvent.click(screen.getByLabelText(/Đánh dấu khiếu nại đã được giải quyết/));
     fireEvent.click(screen.getByText('Gửi trả lời'));
 
-    await waitFor(() => expect(mockReply).toHaveBeenCalledWith({ id: 's1', text: 'Chúng tôi đã gửi lại vé.', resolve: true }));
+    await waitFor(() => expect(mockReply).toHaveBeenCalledWith({ id: 's1', text: 'Chúng tôi đã gửi lại vé.', resolve: true, resolutionNote: 'Đã xác minh và gửi lại vé' }));
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã gửi trả lời'));
   });
 

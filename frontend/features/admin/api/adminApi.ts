@@ -72,8 +72,8 @@ export const adminApi = baseApi.injectEndpoints({
     getAdminCommission: build.query<Commission, void>({
       query: () => '/admin/settings/commission', transformResponse: (r: Envelope<Commission>) => r.data, providesTags: [commission],
     }),
-    setAdminCommission: build.mutation<Commission, number>({
-      query: (ratePercent) => ({ url: '/admin/settings/commission', method: 'PUT', body: { ratePercent } }),
+    setAdminCommission: build.mutation<Commission, { ratePercent: number; expectedVersion: number }>({
+      query: (body) => ({ url: '/admin/settings/commission', method: 'PUT', body }),
       transformResponse: (r: Envelope<Commission>) => r.data, invalidatesTags: (_r, e) => e ? [] : [commission],
     }),
     getAdminPolicies: build.query<Policy[], void>({

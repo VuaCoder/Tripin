@@ -36,12 +36,12 @@ export function ModerationAgencyListPage() {
     setServerError(null);
   };
 
-  const decide = async (approve: boolean, note: string) => {
+  const decide = async (approve: boolean, note: string, requestInformation = false) => {
     if (!selected) return;
     setServerError(null);
     try {
-      await verify({ id: selected.id, approve, ...(note ? { note } : {}) }).unwrap();
-      setFeedback({ message: approve ? `Đã xác minh agency "${name(selected)}".` : `Đã từ chối hồ sơ agency "${name(selected)}".`, type: 'success' });
+      await verify({ id: selected.id, approve, ...(requestInformation ? { requestInformation } : {}), ...(note ? { note } : {}) }).unwrap();
+      setFeedback({ message: requestInformation ? 'Đã yêu cầu Agency bổ sung thông tin.' : approve ? `Đã xác minh agency "${name(selected)}".` : `Đã từ chối hồ sơ agency "${name(selected)}".`, type: 'success' });
       close();
     } catch (err: unknown) {
       setServerError(moderationErrorMessage(err, 'Không thể xử lý hồ sơ lúc này. Vui lòng thử lại.'));
@@ -54,6 +54,7 @@ export function ModerationAgencyListPage() {
     selected?.agencyProfile?.verificationStatus === 'PENDING'
       ? [
           { key: 'verify', label: 'Xác minh', tone: 'positive', requiresReason: false, onConfirm: (note) => void decide(true, note) },
+          { key: 'request-information', label: 'Yêu cầu bổ sung', tone: 'negative', requiresReason: true, onConfirm: (note) => void decide(false, note, true) },
           { key: 'reject', label: 'Từ chối', tone: 'negative', requiresReason: true, onConfirm: (note) => void decide(false, note) },
         ]
       : [];
@@ -117,7 +118,7 @@ export function ModerationAgencyListPage() {
                     <div className="min-w-0">
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${status.className}`}>{status.label}</span>
                       <p className="mt-2 text-sm font-semibold text-slate-900">{name(a)}</p>
-                      <p className="mt-1 text-xs text-slate-500">{a.email} · Đăng ký {dateTime.format(new Date(a.createdAt))}</p>
+                      <p className="mt-1 text-xs text-slate-500">{a.email} · Nộp hồ sơ {dateTime.format(new Date(a.agencyProfile?.submittedAt ?? a.createdAt))}{(!a.agencyProfile?.submittedAt || a.agencyProfile.submissionDateEstimated) ? ' (ước lượng)' : ''}</p>
                     </div>
                     <button
                       type="button"

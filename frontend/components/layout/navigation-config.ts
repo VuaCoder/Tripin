@@ -7,6 +7,7 @@ export interface NavigationItem {
   badge?: string;
   description?: string;
   children?: NavigationItem[];
+  permission?: string;
 }
 
 /** Only the most specific matching destination is the current page. */
@@ -23,6 +24,7 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
       href: '/tours',
     },
     { label: 'Hỗ trợ', href: '/support' },
+    { label: 'Điều khoản', href: '/policies' },
   ],
   TRAVELER: [
     {
@@ -30,6 +32,7 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
       href: '/tours',
     },
     { label: 'Hỗ trợ', href: '/support' },
+    { label: 'Điều khoản', href: '/policies' },
   ],
   AGENCY: [
     { label: 'Voucher Premium', href: '/agency/premium', icon: 'workspace_premium' },
@@ -49,15 +52,16 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
     { label: 'Hồ sơ', href: '/guide/profile', icon: 'person' },
   ],
   MODERATOR: [
-    { label: 'Kiểm duyệt', href: '/moderator', icon: 'verified' },
-    { label: 'Duyệt tour', href: '/moderator/tours', icon: 'tour' },
-    { label: 'Xác minh agency', href: '/moderator/agencies', icon: 'domain_verification' },
-    { label: 'Báo cáo vi phạm', href: '/moderator/reports', icon: 'report' },
-    { label: 'Tranh chấp & CSAT', href: '/moderator/complaints', icon: 'shield_person' },
-    { label: 'Kiểm duyệt đánh giá', href: '/moderator/reviews', icon: 'reviews' },
-    { label: 'Khiếu nại hỗ trợ', href: '/moderator/support-tickets', icon: 'support_agent' },
+    { label: 'Kiểm duyệt', href: '/moderator', permission: 'moderation:dashboard', icon: 'verified' },
+    { label: 'Duyệt tour', href: '/moderator/tours', permission: 'tour:list-all', icon: 'tour' },
+    { label: 'Xác minh agency', href: '/moderator/agencies', permission: 'agency:verify', icon: 'domain_verification' },
+    { label: 'Báo cáo vi phạm', href: '/moderator/reports', permission: 'dispute:resolve', icon: 'report' },
+    { label: 'Tranh chấp & CSAT', href: '/moderator/complaints', permission: 'dispute:resolve', icon: 'shield_person' },
+    { label: 'Kiểm duyệt đánh giá', href: '/moderator/reviews', permission: 'review:moderate', icon: 'reviews' },
+    { label: 'Khiếu nại hỗ trợ', href: '/moderator/support-tickets', permission: 'complaint:handle', icon: 'support_agent' },
   ],
   SUPER_ADMIN: [
+    { label: 'Audit log', href: '/super-admin/audit-logs', icon: 'history' },
     { label: 'Premium', href: '/super-admin/premium', icon: 'workspace_premium' },
     { label: 'Hệ thống', href: '/super-admin', icon: 'admin_panel_settings' },
     { label: 'Người dùng', href: '/super-admin/users', icon: 'group' },

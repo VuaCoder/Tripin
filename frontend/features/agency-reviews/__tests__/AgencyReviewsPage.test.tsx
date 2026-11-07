@@ -40,7 +40,7 @@ const review = (over: Partial<AgencyReview> = {}): AgencyReview => ({
 });
 
 const dispute = (over: Partial<ReviewDispute> = {}): ReviewDispute => ({
-  id: 'r1',
+  id: 'r1', code: 'RP-TEST0001',
   targetType: 'REVIEW',
   targetId: 'v1',
   category: 'INAPPROPRIATE_CONTENT',

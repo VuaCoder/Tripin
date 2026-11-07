@@ -1,5 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+vi.mock('../components/StaffActions', () => ({ InviteStaff: () => null, UserLifecycleAction: () => null }));
+
 import { dashboard, meta, policy, promotion, query, user } from './fixtures';
 
 const mocks = vi.hoisted(() => ({
@@ -180,8 +182,9 @@ describe('ADMIN-01 screen behavior', () => {
     expect(container.querySelector('script')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Sửa chính sách hủy' }));
     fireEvent.change(screen.getByLabelText('Nội dung chính sách'), { target: { value: 'New text' } });
+    fireEvent.change(screen.getByLabelText(/Lý do thay đổi/), { target: { value: 'Policy reviewed and updated' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu chính sách' }));
-    await waitFor(() => expect(mocks.savePolicy).toHaveBeenCalledWith({ key: 'cancellation', body: { title: policy.title, content: 'New text', params: policy.params } }));
+    await waitFor(() => expect(mocks.savePolicy).toHaveBeenCalledWith({ key: 'cancellation', body: { expectedVersion: 0, reason: 'Policy reviewed and updated', title: policy.title, content: 'New text', params: policy.params } }));
     await screen.findByText('Đã lưu chính sách hủy.');
     expect(screen.queryByRole('dialog')).toBeNull();
   });
@@ -189,6 +192,7 @@ describe('ADMIN-01 screen behavior', () => {
     render(<AdminPoliciesPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Sửa chính sách hủy' }));
     fireEvent.change(screen.getByLabelText('Thời hạn hủy (giờ)'), { target: { value: '-1' } });
+    fireEvent.change(screen.getByLabelText(/Lý do thay đổi/), { target: { value: 'Policy reviewed and updated' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu chính sách' }));
     expect(screen.getByText('Thời hạn hủy phải là số giờ không âm.')).toBeTruthy();
     expect(mocks.savePolicy).not.toHaveBeenCalled();
@@ -201,7 +205,7 @@ describe('ADMIN-01 screen behavior', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Xem lại thay đổi' }));
     expect(mocks.access).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Xác nhận phân quyền' }));
-    await waitFor(() => expect(mocks.access).toHaveBeenCalledWith({ id: 'target', role: 'MODERATOR', extraPermissions: [] }));
+    await waitFor(() => expect(mocks.access).toHaveBeenCalledWith({ id: 'target', role: 'MODERATOR', extraPermissions: [], revokedPermissions: [] }));
     await screen.findByText('Server rejected');
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.queryByText(/Đã lưu quyền cho/)).toBeNull();
