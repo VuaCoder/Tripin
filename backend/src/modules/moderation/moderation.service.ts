@@ -78,7 +78,7 @@ export class ModerationService {
     return this.reviews.listForModeration(query);
   }
 
-  moderateReview(actor: Actor, id: string, decision: { hide: boolean; reason?: string }): Promise<ModerationReviewDto> {
+  moderateReview(actor: Actor, id: string, decision: { hide: boolean; reason?: string; restorationReason?: string; contentVersion?: string }): Promise<ModerationReviewDto> {
     return this.reviews.moderate(actor, id, decision);
   }
 

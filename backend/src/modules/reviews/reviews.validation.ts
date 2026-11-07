@@ -30,9 +30,10 @@ export const listMyReviewsQuery = paginationQuerySchema;
 export const reviewImageSignatureBody = z.object({ bookingId: idSchema }).strict();
 
 export const moderateReviewBody = z
-  .object({ hide: z.boolean(), reason: z.string().trim().min(3).max(500).optional() })
+  .object({ hide: z.boolean(), contentVersion: z.string().regex(/^[a-f0-9]{64}$/), reason: z.string().trim().min(3).max(1000).optional(), restorationReason: z.string().trim().min(3).max(1000).optional() })
   .strict()
-  .refine((value) => !value.hide || Boolean(value.reason), { message: 'reason is required when hiding', path: ['reason'] });
+  .refine((value) => !value.hide || Boolean(value.reason), { message: 'reason is required when hiding', path: ['reason'] })
+  .refine((value) => value.hide || Boolean(value.restorationReason), { message: 'restorationReason is required when restoring', path: ['restorationReason'] });
 
 export type CreateReviewBody = z.infer<typeof createReviewBody>;
 export type ListPublicReviewsQueryInput = z.infer<typeof listPublicReviewsQuery>;

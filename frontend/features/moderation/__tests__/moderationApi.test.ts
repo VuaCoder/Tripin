@@ -136,7 +136,7 @@ describe('moderationApi disputes, reviews, complaints and bans', () => {
     const store = createTestStore();
     await store.dispatch(moderationApi.endpoints.getModerationReviews.initiate({ status: 'VISIBLE' }));
     await store.dispatch(moderationApi.endpoints.moderateReview.initiate({ id: 'v1', hide: true, reason: 'Xúc phạm' }));
-    await store.dispatch(moderationApi.endpoints.moderateReview.initiate({ id: 'v1', hide: false }));
+    await store.dispatch(moderationApi.endpoints.moderateReview.initiate({ id: 'v1', hide: false, restorationReason: 'Review is compliant', contentVersion: 'a'.repeat(64) }));
 
     const list = requestsTo(fetchMock, '/moderation/reviews?')[0];
     expect(list.url).toContain('status=VISIBLE');
@@ -144,7 +144,7 @@ describe('moderationApi disputes, reviews, complaints and bans', () => {
     expect(moderations).toHaveLength(2);
     expect(moderations[0].url).toContain('/moderation/reviews/v1/moderate');
     expect(await moderations[0].clone().json()).toEqual({ hide: true, reason: 'Xúc phạm' });
-    expect(await moderations[1].clone().json()).toEqual({ hide: false });
+    expect(await moderations[1].clone().json()).toEqual({ hide: false, restorationReason: 'Review is compliant', contentVersion: 'a'.repeat(64) });
   });
 
   it('lists support tickets, reads one ticket and replies (optionally resolving)', async () => {

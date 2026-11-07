@@ -51,7 +51,7 @@ const routes: Route[] = [
   { method: 'get', path: '/moderation/agencies' },
   { method: 'post', path: `/moderation/agencies/${ID}/verify`, body: { approve: true } },
   { method: 'get', path: '/moderation/reviews' },
-  { method: 'post', path: `/moderation/reviews/${ID}/moderate`, body: { hide: true, reason: 'abuse' } },
+  { method: 'post', path: `/moderation/reviews/${ID}/moderate`, body: { hide: true, reason: 'abuse', contentVersion: 'a'.repeat(64) } },
   { method: 'post', path: `/moderation/users/${ID}/ban`, body: { reason: 'spam' } },
   { method: 'post', path: `/moderation/users/${ID}/unban`, body: { reason: 'Appeal reviewed and accepted' } },
   { method: 'get', path: '/moderation/reports' },

@@ -39,8 +39,11 @@ The browser previews local files before uploading, allows removal, and uploads o
 1. Only the traveler of a **COMPLETED** booking can review it, once per booking (unique index + pre-check; a race returns `REVIEW_EXISTS`).
 2. Rating and comment are validated server-side; reviews cannot be edited or deleted by their author (not in the diagram).
 3. Public lists show only VISIBLE reviews and mask the author (`Nguyen A.`); traveler ids are never exposed.
-4. Hiding needs a reason; hiding/restoring is a compare-and-set, recomputes the tour's `ratingAvg` (2 decimals) and `ratingCount` from VISIBLE reviews, is audited (`review.moderated`) and notifies the author.
-5. The agency is notified of each new review.
+4. Hiding requires `reason`; restoring requires `restorationReason` (3–1000 trimmed characters). Both decisions require the displayed `contentVersion` hash. Stale content is rejected with 409 `REVIEW_REVISION_CONFLICT`, including a change between the service read and database write.
+5. Review creation and moderation serialize on the tour row and update `ratingAvg`/`ratingCount` in the same transaction. Moderation also commits its audit, both recipients' notifications, and retryable email outbox rows; no post-commit rating refresh can leave a stale aggregate.
+6. The agency is notified of each new review.
+
+Reported-review triage: `GET /moderation/review-triage` groups pending reports by review. `POST /moderation/review-triage/:id/decision` requires `{ keep, reason, contentVersion, reportIds }`, plus `review:moderate` and `dispute:resolve`. Only the displayed report ids are resolved; later reports remain pending. Review visibility, report resolutions, rating, audit and notification/email staging commit together.
 
 ## State machine (`REVIEW_TRANSITIONS`)
 `VISIBLE ⇄ HIDDEN`.

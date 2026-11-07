@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { reviewContentVersion } from './reviews.revision';
 import { isUniqueViolation } from '../../config/database';
 import { createImageUploadSignature, imagePublicId, verifyImageUpload } from '../../integrations/cloudinary';
 import { BOOKING_STATUS, containsProfanity, PROFANITY_ERROR_MESSAGE, type PersistedRole } from '@travel-platform/constants';
@@ -35,7 +36,7 @@ export class ReviewsService {
       'create' | 'findById' | 'findByBookingId' | 'transition' | 'listPublic' | 'listByTraveler' | 'listForModeration' | 'visibleStats' | 'countByStatus'
     > = reviewsRepository,
     private readonly bookings: Pick<BookingsService, 'getFacts'> = bookingsService,
-    private readonly tours: Pick<ToursService, 'updateRatingStats'> = toursService,
+    _tours: Pick<ToursService, 'updateRatingStats'> = toursService,
     private readonly users: Pick<UsersService, 'getSummaries'> = usersService,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
     _audit: Pick<AuditService, 'record'> = auditService,
@@ -52,6 +53,9 @@ export class ReviewsService {
     if (!booking || booking.travelerId !== travelerId) throw AppError.notFound('Booking not found');
     if (booking.status !== BOOKING_STATUS.COMPLETED) {
       throw AppError.conflict('You can review a trip after it is completed', 'BOOKING_NOT_COMPLETED');
+    }
+    if (!booking.endDate || booking.endDate.getTime() > Date.now()) {
+      throw AppError.conflict('Chuyến đi chưa kết thúc', 'TRIP_NOT_ENDED');
     }
     if (await this.reviews.findByBookingId(booking.id)) {
       throw AppError.conflict('You already reviewed this booking', 'REVIEW_EXISTS');
@@ -101,7 +105,6 @@ export class ReviewsService {
       throw error;
     }
 
-    await this.refreshTourRating(booking.tourId);
     await this.notifications.notify(booking.agencyId, {
       type: NOTIFICATION_TYPE.REVIEW_RECEIVED,
       title: 'New review',
@@ -136,6 +139,7 @@ export class ReviewsService {
     return review
       ? {
           id: review.id,
+          contentVersion: reviewContentVersion(review),
           tourId: review.tourId,
           agencyId: review.agencyId,
           travelerId: review.travelerId,
@@ -158,10 +162,12 @@ export class ReviewsService {
   }
 
   /** Called by `moderation`: hide (reason required) or restore a review; the tour rating is recomputed. */
-  async moderate(actor: Actor, reviewId: string, decision: { hide: boolean; reason?: string }): Promise<ModerationReviewDto> {
+  async moderate(actor: Actor, reviewId: string, decision: { hide: boolean; reason?: string; restorationReason?: string; contentVersion?: string }): Promise<ModerationReviewDto> {
     if (decision.hide && !decision.reason) throw AppError.badRequest('A reason is required to hide a review');
+    if (!decision.hide && (!decision.restorationReason || decision.restorationReason.trim().length < 3 || decision.restorationReason.trim().length > 1000)) throw AppError.badRequest('A restorationReason is required to restore a review');
     const review = await this.reviews.findById(reviewId);
     if (!review) throw AppError.notFound('Review not found');
+    if (decision.contentVersion !== reviewContentVersion(review)) throw AppError.conflict('Review content changed. Reload before deciding.', 'REVIEW_REVISION_CONFLICT');
 
     const next: ReviewStatus = decision.hide ? REVIEW_STATUS.HIDDEN : REVIEW_STATUS.VISIBLE;
     assertTransition(REVIEW_TRANSITIONS, review.status as ReviewStatus, next, 'Review');
@@ -177,18 +183,12 @@ export class ReviewsService {
       action: AUDIT_ACTIONS.REVIEW_MODERATED,
       targetType: 'review',
       targetId: reviewId,
-      metadata: { before: { status: review.status, hiddenReason: review.hiddenReason }, after: { status: next, hiddenReason: decision.hide ? decision.reason : null, moderatedById: actor.userId }, hidden: decision.hide, reason: decision.reason },
-    });
-    if (!updated) throw AppError.conflict('The review was modified, please retry', 'CONCURRENT_UPDATE');
+      metadata: { before: { status: review.status, hiddenReason: review.hiddenReason }, after: { status: next, hiddenReason: decision.hide ? decision.reason : null, moderatedById: actor.userId }, hidden: decision.hide, reason: decision.hide ? decision.reason : decision.restorationReason?.trim() },
+    }, { comment: review.comment, rating: review.rating, images: review.images ?? [] });
+    if (!updated) throw AppError.conflict('Review changed. Reload before deciding.', 'REVIEW_REVISION_CONFLICT');
 
-    await this.refreshTourRating(review.tourId);
 
-    await this.notifications.notify(review.travelerId, {
-      type: NOTIFICATION_TYPE.REVIEW_MODERATED,
-      title: decision.hide ? 'Your review was hidden' : 'Your review was restored',
-      body: decision.hide ? `Your review of "${review.tourTitle}" was hidden: ${decision.reason}` : `Your review of "${review.tourTitle}" is visible again.`,
-      data: { reviewId },
-    });
+    // Notification and email outbox were persisted by the same transaction as the decision.
     return toModerationReviewDto(updated, (await this.namesFor([updated])).get(updated.id));
   }
 
@@ -217,20 +217,6 @@ export class ReviewsService {
     );
   }
 
-  /**
-   * Recomputes the tour's average/count from VISIBLE reviews only (2 decimals). Two reviews written at the same moment
-   * could each store a stale result, so the statistic is read again after writing and rewritten until it is stable.
-   */
-  private async refreshTourRating(tourId: string): Promise<void> {
-    let written: { avg: number; count: number } | undefined;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      const { avg, count } = await this.reviews.visibleStats(tourId);
-      const rounded = Math.round(avg * 100) / 100;
-      if (written && written.avg === rounded && written.count === count) return;
-      await this.tours.updateRatingStats(tourId, rounded, count);
-      written = { avg: rounded, count };
-    }
-  }
 }
 
 export const reviewsService = new ReviewsService();

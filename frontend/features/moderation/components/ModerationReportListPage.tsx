@@ -169,10 +169,10 @@ export function ModerationReportListPage() {
       key: 'review',
       label: hide ? 'Ẩn đánh giá' : 'Khôi phục đánh giá',
       tone: hide ? 'negative' : 'positive',
-      requiresReason: hide,
+      requiresReason: true,
       onConfirm: (reason) =>
         void decide(
-          () => moderateReview({ id: selected.targetId, hide, ...(hide ? { reason } : {}) }).unwrap(),
+          () => moderateReview({ id: selected.targetId, contentVersion: selected.review?.contentVersion, hide, ...(hide ? { reason } : { restorationReason: reason }) }).unwrap(),
           hide ? 'Đã ẩn đánh giá.' : 'Đã khôi phục đánh giá.',
           'Không thể cập nhật đánh giá này. Vui lòng kiểm tra lại quyền và trạng thái đánh giá.',
         ),

@@ -352,7 +352,7 @@ describe('ModerationReviewListPage', () => {
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã ẩn đánh giá'));
   });
 
-  it('restores a hidden review without a reason', async () => {
+  it('requires a reason to restore a hidden review', async () => {
     permissions = ['review:moderate'];
     mockReviews.mockReturnValue(q({ data: { items: [review({ status: 'HIDDEN', hiddenReason: 'Nhầm lẫn' })], meta: META } }));
     mockModerate.mockReturnValue(unwrapOk());
@@ -361,7 +361,10 @@ describe('ModerationReviewListPage', () => {
     expect(screen.queryByText('Ẩn đánh giá')).toBeNull();
     fireEvent.click(screen.getByText('Khôi phục đánh giá'));
 
-    await waitFor(() => expect(mockModerate).toHaveBeenCalledWith({ id: 'v1', hide: false }));
+    expect(mockModerate).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Review is compliant' } });
+    fireEvent.click(screen.getByRole('button', { name: /Khôi phục đánh giá/ }));
+    await waitFor(() => expect(mockModerate).toHaveBeenCalledWith({ id: 'v1', hide: false, restorationReason: 'Review is compliant' }));
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã khôi phục đánh giá'));
   });
 

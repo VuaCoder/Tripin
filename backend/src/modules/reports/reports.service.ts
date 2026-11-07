@@ -401,6 +401,7 @@ export class ReportsService {
               ? {
                   rating: facts.rating,
                   comment: facts.comment,
+                  contentVersion: facts.contentVersion,
                   status: facts.status as 'VISIBLE' | 'HIDDEN',
                   hiddenReason: facts.hiddenReason,
                   authorName: people.get(facts.travelerId)?.fullName,

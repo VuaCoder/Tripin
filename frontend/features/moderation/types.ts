@@ -129,6 +129,7 @@ export interface ModerationReport extends MyReport {
   bookingCode?: string;
   /** Present only for a report about a review: the review itself, so the moderator need not go hunting for it. */
   review?: {
+    contentVersion?: string;
     rating: number;
     comment: string;
     status: ReviewStatus;
@@ -188,6 +189,7 @@ export type ReviewStatus = 'VISIBLE' | 'HIDDEN';
 
 /** Moderator view of a review (`ModerationReviewDto`): knows the author and the agency by name. */
 export interface ModerationReview {
+  contentVersion?: string;
   id: string;
   bookingId: string;
   tourId: string;
@@ -213,8 +215,10 @@ export interface ListModerationReviewsArgs {
 }
 
 export interface ModerateReviewInput {
+  contentVersion?: string;
   id: string;
   hide: boolean;
+  restorationReason?: string;
   reason?: string;
 }
 

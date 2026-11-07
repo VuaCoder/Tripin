@@ -45,9 +45,10 @@ export const listReviewsQuery = paginationQuerySchema.extend({
   tourId: idSchema.optional(),
 });
 export const moderateReviewBody = z
-  .object({ hide: z.boolean(), reason: reason.optional() })
+  .object({ hide: z.boolean(), contentVersion: z.string().regex(/^[a-f0-9]{64}$/), reason: reason.optional(), restorationReason: reason.optional() })
   .strict()
-  .refine((v) => !v.hide || Boolean(v.reason), { message: 'reason is required when hiding', path: ['reason'] });
+  .refine((v) => !v.hide || Boolean(v.reason), { message: 'reason is required when hiding', path: ['reason'] })
+  .refine((v) => v.hide || Boolean(v.restorationReason), { message: 'restorationReason is required when restoring', path: ['restorationReason'] });
 
 // ---- accounts
 export const unbanBody = z.object({ reason: z.string().trim().min(10).max(1000) }).strict();

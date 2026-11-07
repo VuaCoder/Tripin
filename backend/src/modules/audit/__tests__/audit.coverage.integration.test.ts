@@ -108,8 +108,9 @@ describe('audit coverage (integration)', () => {
 
     // Review hide and restore.
     const review = await prisma.review.create({ data: { bookingId: oid(), tourId: oid(), tourTitle: 'T', agencyId: a.agency.id, travelerId: a.traveler.id, rating: 3, comment: 'It was an average trip.' } });
-    await expectOneAudit(AUDIT_ACTIONS.REVIEW_MODERATED, a.moderator.id, () => asMod(request(app).post(`/api/v1/moderation/reviews/${review.id}/moderate`)).send({ hide: true, reason: 'Offensive language' }), review.id);
-    await expectOneAudit(AUDIT_ACTIONS.REVIEW_MODERATED, a.moderator.id, () => asMod(request(app).post(`/api/v1/moderation/reviews/${review.id}/moderate`)).send({ hide: false }), review.id);
+    const { reviewContentVersion } = await import('../../reviews/reviews.revision');
+    await expectOneAudit(AUDIT_ACTIONS.REVIEW_MODERATED, a.moderator.id, () => asMod(request(app).post(`/api/v1/moderation/reviews/${review.id}/moderate`)).send({ hide: true, reason: 'Offensive language', contentVersion: reviewContentVersion(review) }), review.id);
+    await expectOneAudit(AUDIT_ACTIONS.REVIEW_MODERATED, a.moderator.id, () => asMod(request(app).post(`/api/v1/moderation/reviews/${review.id}/moderate`)).send({ hide: false, restorationReason: 'Review complies with the rules', contentVersion: reviewContentVersion(review) }), review.id);
 
     // Report decision.
     const report = await prisma.report.create({ data: { reporterId: a.traveler.id, targetType: 'TOUR', targetId: oid(), category: 'OTHER', description: 'Something is wrong here.', agencyId: a.agency.id, status: 'OPEN' } });
@@ -157,8 +158,8 @@ describe('audit coverage (integration)', () => {
 
   it('every action declared in AUDIT_ACTIONS is exercised by this file', () => {
     const source = require('node:fs').readFileSync(__filename, 'utf-8') as string;
-    // Premium mutation coverage lives in premium.integration.test.ts.
-    const unused = Object.keys(AUDIT_ACTIONS).filter((key) => key !== 'PREMIUM_CHANGED').filter((key) => !source.includes(`AUDIT_ACTIONS.${key}`));
+    // Premium and guide payout transfer coverage live in their domain integration suites.
+    const unused = Object.keys(AUDIT_ACTIONS).filter((key) => !['PREMIUM_CHANGED', 'GUIDE_PAYOUT_TRANSFERRED'].includes(key)).filter((key) => !source.includes(`AUDIT_ACTIONS.${key}`));
     expect(unused).toEqual([]);
   });
 });

@@ -102,6 +102,7 @@ export interface ModerationReportDto extends ReportBaseDto {
   bookingCode?: string;
   /** Present only for a report about a review: the review itself, so the moderator need not go hunting for it. */
   review?: {
+    contentVersion?: string;
     rating: number;
     comment: string;
     status: 'VISIBLE' | 'HIDDEN';

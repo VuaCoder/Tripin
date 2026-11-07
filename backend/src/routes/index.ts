@@ -3,6 +3,7 @@ import { policyHistoryRouter, policyAcceptanceRouter } from '../modules/system-s
 import { moderationSlaRouter } from '../modules/complaints/sla.routes';
 import { auditExportRouter } from '../modules/audit/audit-export.routes';
 import { mount } from './registry';
+import { reviewTriageRouter } from '../modules/reviews/review-triage.routes';
 import { premiumRouter, agencyPremiumRouter, adminPremiumRouter } from '../modules/premium/premium.routes';
 import { auditRouter } from '../modules/audit';
 import { authRouter } from '../modules/auth';
@@ -87,6 +88,7 @@ mount('/agency/complaint-tickets', agencyComplaintTicketsRouter);
 mount('/agency/review-disputes', agencyReviewDisputesRouter);
 mount('/support/tickets', supportRouter);
 mount('/moderation', moderationRouter);
+mount('/moderation/review-triage', reviewTriageRouter);
 mount('/moderation/complaint-tickets', moderatorComplaintTicketsRouter);
 mount('/agency/dashboard', agencyDashboardRouter);
 mount('/moderation/dashboard', moderationDashboardRouter);

@@ -110,10 +110,10 @@ export const moderationApi = baseApi.injectEndpoints({
     }),
 
     moderateReview: build.mutation<ModerationReview, ModerateReviewInput>({
-      query: ({ id, hide, reason }) => ({
+      query: ({ id, hide, reason, restorationReason, contentVersion }) => ({
         url: `/moderation/reviews/${id}/moderate`,
         method: 'POST',
-        body: { hide, ...(reason ? { reason } : {}) },
+        body: { hide, ...(contentVersion ? { contentVersion } : {}), ...(reason ? { reason } : {}), ...(restorationReason ? { restorationReason } : {}) },
       }),
       transformResponse: (r: ModerationApiResponse<ModerationReview>) => unwrap(r),
       // Hiding a review also changes the public list of its tour, the tour's recomputed rating, and the report
