@@ -4,8 +4,8 @@ export const AI_LIMITS = {
   MAX_MESSAGES_PER_CONVERSATION: 100,
   /** Last messages sent to the model as context. */
   CONTEXT_MESSAGES: 20,
-  MAX_OUTPUT_TOKENS: 2048,
-  MAX_STORED_REPLY_LENGTH: 8000,
+  MAX_OUTPUT_TOKENS: 4096,
+  MAX_STORED_REPLY_LENGTH: 16000,
   TITLE_LENGTH: 60,
 } as const;
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { EmptyState, ErrorState } from '@/components/shared';
 import { getApiErrorMessage } from '@/features/auth';
@@ -11,12 +11,14 @@ import { WishlistSkeleton } from './WishlistSkeleton';
 import { WishlistButton } from './WishlistButton';
 import { ConfirmDeleteWishlistModal } from './ConfirmDeleteWishlistModal';
 import { ConfirmDeleteCollectionModal } from './ConfirmDeleteCollectionModal';
+import { RenameWishlistCollectionModal } from './RenameWishlistCollectionModal';
 import { CollageImageGrid } from './CollageImageGrid';
 import { IncompleteBookingBanner } from '@/features/booking';
 import {
   getWishlistCollections,
   deleteWishlistCollection,
   removeTourFromCollection,
+  renameWishlistCollection,
   type WishlistCollection,
 } from '../utils/wishlistCollections';
 import {
@@ -39,8 +41,25 @@ export function WishlistPage() {
   // Collections state
   const [collections, setCollections] = useState<WishlistCollection[]>([]);
   const [recentRecords, setRecentRecords] = useState<RecentlyViewedTourRecord[]>([]);
+  const [isEditingCollections, setIsEditingCollections] = useState(false);
   const [isEditingRecent, setIsEditingRecent] = useState(false);
   const [collectionToDelete, setCollectionToDelete] = useState<WishlistCollection | null>(null);
+
+  // Rename custom collection state
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMenuOpen]);
 
   // Tour deletion state
   const [itemToDelete, setItemToDelete] = useState<WishlistItem | null>(null);
@@ -81,21 +100,47 @@ export function WishlistPage() {
 
   const handleConfirmDeleteCollection = () => {
     if (!collectionToDelete) return;
-    deleteWishlistCollection(collectionToDelete.id);
+    const deletedId = collectionToDelete.id;
+    deleteWishlistCollection(deletedId);
+    if (selectedCollectionId === deletedId) {
+      setSelectedCollectionId(null);
+    }
     setCollectionToDelete(null);
     loadData();
   };
 
+
+  const isViewingRecent = selectedCollectionId === '__recent__';
+  const activeCollection = collections.find((c) => c.id === selectedCollectionId);
+  const recentMilestoneGroups = groupRecentToursByMilestone(recentRecords);
+
   const handleRequestRemoveTour = useCallback(
     (tourId: string) => {
-      const targetItem = items.find((i) => i.tourId === tourId) ?? {
+      const fromBackend = items.find((i) => i.tourId === tourId);
+      const fromRecent = recentRecords.find((r) => r.tour.id === tourId)?.tour;
+      const fromSnapshot = activeCollection?.tours?.[tourId];
+
+      const fallbackTour = fromRecent || (fromSnapshot ? {
+        id: fromSnapshot.id,
+        title: fromSnapshot.title,
+        coverImage: fromSnapshot.coverImage,
+        destination: fromSnapshot.destination || 'Việt Nam',
+        durationDays: fromSnapshot.durationDays || 1,
+        basePrice: fromSnapshot.basePrice || 0,
+        categoryIds: [],
+        ratingAvg: fromSnapshot.ratingAvg || 5.0,
+        ratingCount: fromSnapshot.ratingCount || 1,
+      } : undefined);
+
+      const targetItem: WishlistItem = fromBackend ?? {
         tourId,
         addedAt: '',
         available: false,
+        tour: fallbackTour,
       };
       setItemToDelete(targetItem);
     },
-    [items],
+    [items, recentRecords, activeCollection],
   );
 
   const handleConfirmRemoveTour = useCallback(async () => {
@@ -131,16 +176,36 @@ export function WishlistPage() {
     );
   }
 
-  const isViewingRecent = selectedCollectionId === '__recent__';
-  const activeCollection = collections.find((c) => c.id === selectedCollectionId);
-  const recentMilestoneGroups = groupRecentToursByMilestone(recentRecords);
 
-  // Tours inside active custom collection
-  const activeTours = activeCollection
-    ? activeCollection.tourIds
-        .map((id) => items.find((i) => i.tourId === id))
-        .filter(Boolean) as WishlistItem[]
-    : [];
+  // Tours inside active custom collection (robust resolution with fallbacks)
+  const activeTours = (activeCollection?.tourIds || [])
+    .map((id) => {
+      const fromBackend = items.find((i) => i.tourId === id)?.tour;
+      if (fromBackend) return { tourId: id, tour: fromBackend };
+
+      const fromRecent = recentRecords.find((r) => r.tour.id === id)?.tour;
+      if (fromRecent) return { tourId: id, tour: fromRecent };
+
+      const fromSnapshot = activeCollection?.tours?.[id];
+      if (fromSnapshot) {
+        return {
+          tourId: id,
+          tour: {
+            id: fromSnapshot.id,
+            title: fromSnapshot.title,
+            coverImage: fromSnapshot.coverImage,
+            destination: fromSnapshot.destination || 'Việt Nam',
+            durationDays: fromSnapshot.durationDays || 1,
+            basePrice: fromSnapshot.basePrice || 0,
+            categoryIds: [],
+            ratingAvg: fromSnapshot.ratingAvg || 5.0,
+            ratingCount: fromSnapshot.ratingCount || 1,
+          },
+        };
+      }
+      return null;
+    })
+    .filter(Boolean) as { tourId: string; tour: any }[];
 
   return (
     <div className="flex flex-col pb-12">
@@ -156,20 +221,15 @@ export function WishlistPage() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
               Yêu thích
             </h1>
-            <button
-              type="button"
-              disabled={isFetching}
-              onClick={() => {
-                void refetch();
-                loadData();
-              }}
-              aria-label="Làm mới"
-              className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 shadow-2xs transition-colors cursor-pointer"
-            >
-              <span className={`material-symbols-outlined text-[20px] ${isFetching ? 'animate-spin' : ''}`}>
-                refresh
-              </span>
-            </button>
+            {collections.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setIsEditingCollections(!isEditingCollections)}
+                className="text-sm font-semibold text-slate-900 underline hover:text-black cursor-pointer py-1 px-2"
+              >
+                {isEditingCollections ? 'Xong' : 'Chỉnh sửa'}
+              </button>
+            )}
           </header>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7">
@@ -197,13 +257,17 @@ export function WishlistPage() {
             {/* FOLDERS 2+: CUSTOM COLLECTIONS (e.g. "ok") */}
             {collections.map((col) => {
               const colImages = col.tourIds
-                .map((id) => items.find((i) => i.tourId === id)?.tour?.coverImage)
+                .map((id) => items.find((i) => i.tourId === id)?.tour?.coverImage || col.tours?.[id]?.coverImage || recentRecords.find((r) => r.tour.id === id)?.tour?.coverImage)
                 .filter(Boolean) as string[];
 
               return (
                 <div
                   key={col.id}
-                  onClick={() => setSelectedCollectionId(col.id)}
+                  onClick={() => {
+                    if (!isEditingCollections) {
+                      setSelectedCollectionId(col.id);
+                    }
+                  }}
                   className="group relative flex flex-col cursor-pointer select-none"
                 >
                   <div className="relative aspect-square w-full rounded-3xl overflow-hidden bg-slate-100 shadow-xs border border-slate-200/80">
@@ -212,19 +276,21 @@ export function WishlistPage() {
                       altTitle={col.name}
                     />
 
-                    {/* Top-Left 'X' Delete Button on Hover */}
-                    <button
-                      type="button"
-                      aria-label={`Xóa danh sách ${col.name}`}
-                      title={`Xóa danh sách ${col.name}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCollectionToDelete(col);
-                      }}
-                      className="absolute top-3.5 left-3.5 z-20 size-9 rounded-full bg-white text-slate-800 flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md hover:shadow-xl transition-all duration-200 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">close</span>
-                    </button>
+                    {/* Delete Button shown when isEditingCollections is TRUE */}
+                    {isEditingCollections && (
+                      <button
+                        type="button"
+                        aria-label={`Xóa danh sách ${col.name}`}
+                        title={`Xóa danh sách ${col.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCollectionToDelete(col);
+                        }}
+                        className="absolute top-3.5 right-3.5 z-20 size-8 rounded-full bg-white text-slate-800 flex items-center justify-center shadow-md hover:bg-red-50 hover:text-red-600 transition-all cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">close</span>
+                      </button>
+                    )}
                   </div>
 
                   <div className="pt-3">
@@ -365,29 +431,74 @@ export function WishlistPage() {
         </div>
       ) : (
         /* ========================================================================= */
-        /* 3. CUSTOM COLLECTION DETAIL VIEW                                          */
+        /* 3. CUSTOM COLLECTION DETAIL VIEW (Ảnh 2)                                  */
         /* ========================================================================= */
         <div>
-          <header className="mb-6 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+          {/* Top Bar with Back Arrow on Left and "..." Menu on Right (Ảnh 2) */}
+          <div className="mb-3 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCollectionId(null);
+                setIsMenuOpen(false);
+              }}
+              className="flex size-9 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+              aria-label="Quay lại danh sách yêu thích"
+            >
+              <span className="material-symbols-outlined text-[24px]">chevron_left</span>
+            </button>
+
+            {/* "..." Button and Dropdown Menu (Ảnh 2) */}
+            <div className="relative" ref={menuRef}>
               <button
                 type="button"
-                onClick={() => setSelectedCollectionId(null)}
-                className="flex size-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-2xs transition-colors cursor-pointer"
-                aria-label="Quay lại danh sách yêu thích"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="flex size-9 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+                aria-label="Tùy chọn danh sách"
               >
-                <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+                <span className="material-symbols-outlined text-[24px]">more_horiz</span>
               </button>
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-                  {activeCollection?.name}
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {activeTours.length} tour trong mục này
-                </p>
-              </div>
+
+              {isMenuOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-48 rounded-2xl border border-slate-100 bg-white py-2 shadow-xl z-30 animate-fadeInScale">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      setIsRenameModalOpen(true);
+                    }}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[19px]">edit</span>
+                    <span>Đổi tên</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      if (activeCollection) {
+                        setCollectionToDelete(activeCollection);
+                      }
+                    }}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[19px]">delete</span>
+                    <span>Xóa</span>
+                  </button>
+                </div>
+              )}
             </div>
-          </header>
+          </div>
+
+          {/* Heading: Collection Name and Count (Ảnh 2) */}
+          <div className="mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+              {activeCollection?.name}
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              {activeTours.length} tour trong mục này
+            </p>
+          </div>
 
           {actionError && (
             <p role="alert" className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
@@ -413,7 +524,7 @@ export function WishlistPage() {
                     onClick={() => router.push(`/tours/${item.tourId}`)}
                     className="group flex flex-col cursor-pointer select-none"
                   >
-                    {/* Image Card Container */}
+                    {/* Image Card Container (Ảnh 4) */}
                     <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-slate-100 shadow-xs border border-slate-200/60">
                       <img
                         src={tour.coverImage || DEFAULT_COVER}
@@ -424,10 +535,10 @@ export function WishlistPage() {
                         }}
                       />
 
-                      {/* Remove tour from this collection button Top-Right */}
+                      {/* Remove tour button Top-Right (Ảnh 4) */}
                       <div
                         onClick={(e) => e.stopPropagation()}
-                        className="absolute top-2 right-2 z-10"
+                        className="absolute top-2.5 right-2.5 z-10"
                       >
                         <button
                           type="button"
@@ -435,14 +546,14 @@ export function WishlistPage() {
                           disabled={busyId === item.tourId}
                           aria-label={`Xóa ${tour.title} khỏi danh mục`}
                           title="Bỏ tour khỏi danh mục này"
-                          className="flex size-8 items-center justify-center rounded-full bg-white/90 text-slate-700 hover:bg-white hover:text-red-600 shadow-sm transition-colors cursor-pointer disabled:opacity-50"
+                          className="flex size-8 items-center justify-center rounded-full bg-white text-slate-800 shadow-md hover:bg-slate-50 hover:text-red-600 transition-colors cursor-pointer disabled:opacity-50"
                         >
                           <span className="material-symbols-outlined text-[18px]">close</span>
                         </button>
                       </div>
                     </div>
 
-                    {/* Tour details */}
+                    {/* Tour details (Ảnh 4) */}
                     <div className="pt-2.5">
                       <h3 className="font-semibold text-sm text-slate-900 truncate group-hover:text-primary-container transition-colors">
                         {tour.title}
@@ -472,6 +583,19 @@ export function WishlistPage() {
         collectionName={collectionToDelete?.name ?? ''}
         onClose={() => setCollectionToDelete(null)}
         onConfirm={handleConfirmDeleteCollection}
+      />
+
+      {/* POPUP RENAME COLLECTION (Ảnh 3) */}
+      <RenameWishlistCollectionModal
+        isOpen={isRenameModalOpen}
+        currentName={activeCollection?.name ?? ''}
+        onClose={() => setIsRenameModalOpen(false)}
+        onSave={(newName) => {
+          if (activeCollection) {
+            renameWishlistCollection(activeCollection.id, newName);
+            loadData();
+          }
+        }}
       />
 
       {/* POPUP CONFIRM DELETE INDIVIDUAL TOUR */}

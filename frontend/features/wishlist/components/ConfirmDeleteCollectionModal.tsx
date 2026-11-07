@@ -62,13 +62,13 @@ export function ConfirmDeleteCollectionModal({
       {/* Centering wrapper */}
       <div className="flex min-h-full items-center justify-center p-4 text-center">
         {/* Modal Card */}
-        <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-slate-100 bg-white p-6 sm:p-7 text-left shadow-2xl animate-fadeInScale">
+        <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-100 bg-white p-6 sm:p-7 text-left shadow-2xl animate-fadeInScale">
           {/* Top-Right Close X Button */}
           <button
             type="button"
             onClick={onClose}
             aria-label="Đóng"
-            className="absolute top-5 right-5 flex size-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors"
+            className="absolute top-5 right-5 flex size-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer"
           >
             <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
@@ -82,8 +82,8 @@ export function ConfirmDeleteCollectionModal({
           </h3>
 
           {/* Subtitle */}
-          <p className="mt-2 text-sm text-slate-500">
-            Danh sách &quot;{collectionName}&quot; sẽ bị xóa vĩnh viễn.
+          <p className="mt-3 text-sm text-slate-600 leading-relaxed">
+            Danh sách &quot;{collectionName}&quot; cũng sẽ bị xóa vĩnh viễn đối với tất cả những người mà bạn đã chia sẻ danh sách này.
           </p>
 
           {/* Actions */}
@@ -91,7 +91,7 @@ export function ConfirmDeleteCollectionModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-2xl text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors"
+              className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               Hủy
             </button>
@@ -101,7 +101,7 @@ export function ConfirmDeleteCollectionModal({
                 onConfirm();
                 onClose();
               }}
-              className="px-7 py-2.5 rounded-2xl text-sm font-bold bg-[#087e8b] hover:bg-[#00636e] text-white shadow-sm transition-colors"
+              className="px-7 py-2.5 rounded-xl text-sm font-bold bg-neutral-900 hover:bg-neutral-800 text-white shadow-sm transition-colors cursor-pointer"
             >
               Xóa
             </button>

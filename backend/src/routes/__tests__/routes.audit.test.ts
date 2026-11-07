@@ -77,6 +77,7 @@ const BODYLESS_MUTATIONS = [
   'POST /auth/logout',
   'POST /auth/refresh',
   'POST /chat/conversations/:id/read',
+  'POST /chat/upload-image',
   'POST /complaints/:id/accept-resolution',
   'POST /complaints/images/upload-signature',
   'POST /moderation/complaint-tickets/images/upload-signature',
