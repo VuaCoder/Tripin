@@ -104,6 +104,7 @@ export async function createUser(
       fullName: `${role} ${email}`,
       role,
       status: USER_STATUS.ACTIVE,
+      emailVerifiedAt: new Date(),
       ...(rest as object),
       ...(agencyProfile ? { agencyProfile: { create: agencyProfile } } : {}),
     },

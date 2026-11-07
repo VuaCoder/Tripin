@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 213 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 229 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -32,11 +32,20 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/admin/dashboard` | role: `SUPER_ADMIN` + `admin:dashboard` |
 
+## `/admin/export`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/admin/export/audit-logs` | role: `SUPER_ADMIN` + `audit:view` |
+| GET | `/api/v1/admin/export/moderation` | role: `SUPER_ADMIN` + `audit:view` |
+
 ## `/admin/policies`
 
 | Method | Path | Access |
 |---|---|---|
 | PUT | `/api/v1/admin/policies/:key` | role: `SUPER_ADMIN` + `policy:configure` |
+| GET | `/api/v1/admin/policies/:key/history` | role: `SUPER_ADMIN` + `policy:configure` |
+| POST | `/api/v1/admin/policies/:key/rollback` | role: `SUPER_ADMIN` + `policy:configure` |
 
 ## `/admin/premium`
 
@@ -70,6 +79,14 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/admin/settings/commission` | role: `SUPER_ADMIN` + `commission:configure` |
 | PUT | `/api/v1/admin/settings/commission` | role: `SUPER_ADMIN` + `commission:configure` |
+
+## `/admin/staff`
+
+| Method | Path | Access |
+|---|---|---|
+| POST | `/api/v1/admin/staff/:id/disable` | role: `SUPER_ADMIN` + `user:assign-permissions` |
+| POST | `/api/v1/admin/staff/:id/reinvite` | role: `SUPER_ADMIN` + `user:assign-permissions` |
+| POST | `/api/v1/admin/staff/invite` | role: `SUPER_ADMIN` + `user:assign-permissions` |
 
 ## `/admin/users`
 
@@ -194,6 +211,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/auth/agency/resend-otp` | public |
 | POST | `/api/v1/auth/agency/upload-license` | public |
 | POST | `/api/v1/auth/agency/verify-otp` | public |
+| POST | `/api/v1/auth/change-password` | login |
 | POST | `/api/v1/auth/forgot-password` | public |
 | POST | `/api/v1/auth/google` | public |
 | POST | `/api/v1/auth/login` | public |
@@ -205,6 +223,12 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | GET | `/api/v1/auth/security` | login |
 | PATCH | `/api/v1/auth/two-factor` | login |
 | POST | `/api/v1/auth/verify-otp` | public |
+
+## `/auth/staff`
+
+| Method | Path | Access |
+|---|---|---|
+| POST | `/api/v1/auth/staff/activate` | public |
 
 ## `/bookings`
 
@@ -276,6 +300,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/guide/e-tickets/:tourId` | `guide:check-in` |
 | POST | `/api/v1/guide/e-tickets/:tourId/check-in` | `guide:check-in` |
+| POST | `/api/v1/guide/e-tickets/:tourId/complete` | `guide:check-in` |
 
 ## `/guide/tours`
 
@@ -310,7 +335,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/moderation/tours/:id/suspend` | `tour:suspend` |
 | POST | `/api/v1/moderation/tours/:id/validate` | `tour:validate` |
 | POST | `/api/v1/moderation/users/:id/ban` | `account:ban` |
-| POST | `/api/v1/moderation/users/:id/unban` | `account:ban` |
+| POST | `/api/v1/moderation/users/:id/unban` | role: `SUPER_ADMIN` + `account:ban` |
 
 ## `/moderation/complaint-tickets`
 
@@ -328,6 +353,12 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | Method | Path | Access |
 |---|---|---|
 | GET | `/api/v1/moderation/dashboard` | `moderation:dashboard` |
+
+## `/moderation/sla`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/moderation/sla` | `dispute:resolve` |
 
 ## `/notifications`
 
@@ -353,6 +384,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/policies` | public |
 | GET | `/api/v1/policies/:key` | public |
+| POST | `/api/v1/policies/accept` | login |
 
 ## `/premium`
 
@@ -441,6 +473,10 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | DELETE | `/api/v1/users/me/avatar` | `profile:update-own` |
 | POST | `/api/v1/users/me/avatar/complete` | `profile:update-own` |
 | POST | `/api/v1/users/me/avatar/upload-signature` | `profile:update-own` |
+| GET | `/api/v1/users/me/guide-application` | `profile:view-own` |
+| POST | `/api/v1/users/me/guide-application` | `profile:update-own` |
+| POST | `/api/v1/users/me/guide-application/dev-accept` | `profile:update-own` |
+| POST | `/api/v1/users/me/guide-application/dev-reject` | `profile:update-own` |
 | POST | `/api/v1/users/me/license-image/complete` | `profile:update-own` |
 | POST | `/api/v1/users/me/license-image/upload-signature` | `profile:update-own` |
 | GET | `/api/v1/users/me/preferences` | `profile:view-own` |

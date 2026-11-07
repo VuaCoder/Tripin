@@ -29,7 +29,7 @@ beforeEach(resetDatabase);
 
 const signAs = (sub: string, role: string, options: jwt.SignOptions & { secret?: string } = {}) => {
   const { secret = env.JWT_ACCESS_SECRET, ...rest } = options;
-  return jwt.sign({ sub, role }, secret, { algorithm: 'HS256', issuer: 'tripri-api', expiresIn: '5m', ...rest });
+  return jwt.sign({ sub, role, tokenVersion: 0 }, secret, { algorithm: 'HS256', issuer: 'tripri-api', expiresIn: '5m', ...rest });
 };
 
 describe('tokens and sessions', () => {

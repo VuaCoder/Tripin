@@ -94,7 +94,7 @@ describe('route fuzzing (real stack)', () => {
       }
     }
     expect(requests).toBeGreaterThan(3000);
-    expect(failures).toEqual([]);
+    expect(failures, failures.join('\n')).toEqual([]);
     // Prototype-pollution payloads were sent everywhere: the global object prototype must be untouched.
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
     expect(({} as Record<string, unknown>).isAdmin).toBeUndefined();

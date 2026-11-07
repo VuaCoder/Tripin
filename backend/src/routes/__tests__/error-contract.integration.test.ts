@@ -21,6 +21,7 @@ import {
 import { prisma } from '../../config/database';
 import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
+import { signAccessToken } from '../../modules/auth/auth.tokens';
 
 // Every documented error code is provoked over HTTP, on a real database, and must come back with the documented status.
 const app = createApp();
@@ -43,6 +44,12 @@ function expectError(res: Response, code: string): void {
 
 // Codes that cannot be provoked deterministically in a test; each is covered where noted.
 const COVERED_ELSEWHERE: Record<string, string> = {
+  TICKET_NOT_FOUND: 'e-tickets.check-in.test.ts verifies unknown QR codes',
+  TICKET_ALREADY_USED: 'e-tickets.check-in.test.ts verifies duplicate check-ins',
+  TICKET_WRONG_TOUR: 'e-tickets.check-in.test.ts verifies tour scope',
+  TICKET_CANCELLED: 'e-tickets.check-in.test.ts verifies cancelled ticket rejection',
+  SETTINGS_CONFLICT: 'admin-staff.integration.test.ts verifies optimistic policy conflicts',
+  AGENCY_REVERIFICATION_REQUIRED: 'admin-staff.integration.test.ts verifies legal identity protection',
   CONFLICT: 'global handler for unique-constraint violations (parallel creation tests)',
   CONCURRENT_UPDATE: 'needs a lost compare-and-set: service tests with fake repositories',
   RATE_LIMITED: 'limiters are disabled under test; middleware is trivial',
@@ -135,7 +142,7 @@ describe('error contract over HTTP', () => {
     const banned = await createUser('TRAVELER', 'banned@example.com');
     const moderator = await createUser('MODERATOR', 'mod@example.com');
     await request(app).post(`/api/v1/moderation/users/${banned.id}/ban`).set(bearer(moderator.token)).send({ reason: 'Repeated fraud attempts' });
-    expectError(await request(app).get('/api/v1/users/me').set(bearer(banned.token)), 'ACCOUNT_BANNED');
+    expectError(await request(app).get('/api/v1/users/me').set(bearer(signAccessToken(banned.id, 'TRAVELER', 1))), 'ACCOUNT_BANNED');
 
     // Last Super admin: a second, banned Super admin does not count as a spare.
     const admin = await createUser('SUPER_ADMIN', 'admin@example.com');
@@ -244,7 +251,7 @@ describe('error contract over HTTP', () => {
     );
 
     // Cancelling a paid trip that is too close to departure (policy window 10 days, departure in 3 days).
-    await request(app).put('/api/v1/admin/policies/cancellation').set(bearer(admin.token)).send({ title: 'Cancellation', content: 'Strict', params: { cancellationWindowHours: 240 } });
+    await request(app).put('/api/v1/admin/policies/cancellation').set(bearer(admin.token)).send({ expectedVersion: 0, reason: 'Policy reviewed and updated', title: 'Cancellation', content: 'Strict', params: { cancellationWindowHours: 240 } });
     const paid = await create();
     await prisma.booking.updateMany({ where: { id: paid }, data: { status: 'CONFIRMED', isPaid: true, paymentExpiresAt: null } });
     expectError(await request(app).post(`/api/v1/bookings/${paid}/cancel`).set(bearer(traveler.token)).send({}), 'CANCELLATION_WINDOW_PASSED');

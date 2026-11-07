@@ -143,3 +143,24 @@ Admin dashboard accepts paired `from`/`to` (max 366 days), returns previous-peri
 | Control sales per role and monitor fulfilment | Super Admin | `GET/PUT /admin/premium/flags`, `GET /admin/premium/operations` | premium:manage + Super Admin | implemented |
 
 Legacy Guide subscription endpoints remain available. Premium authorization is derived server-side from current-role, non-revoked, time-effective periods; paid future periods do not grant early access. See `backend/src/modules/premium/README.md` for inventory, late-payment and refund rules.
+
+## Staff and moderation workflow extensions
+
+| Endpoint | Responsibility |
+|---|---|
+| `GET /admin/export/audit-logs` | Staff, moderation and policy workflow extensions |
+| `GET /admin/export/moderation` | Staff, moderation and policy workflow extensions |
+| `GET /admin/policies/:key/history` | Staff, moderation and policy workflow extensions |
+| `POST /admin/policies/:key/rollback` | Staff, moderation and policy workflow extensions |
+| `POST /admin/staff/:id/disable` | Staff, moderation and policy workflow extensions |
+| `POST /admin/staff/:id/reinvite` | Revoke old invitations and email a new one-time activation link |
+| `POST /admin/staff/invite` | Staff, moderation and policy workflow extensions |
+| `POST /auth/change-password` | Staff, moderation and policy workflow extensions |
+| `POST /auth/staff/activate` | Staff, moderation and policy workflow extensions |
+| `POST /guide/e-tickets/:tourId/complete` | Staff, moderation and policy workflow extensions |
+| `GET /moderation/sla` | Staff, moderation and policy workflow extensions |
+| `POST /policies/accept` | Staff, moderation and policy workflow extensions |
+| `GET /users/me/guide-application` | Staff, moderation and policy workflow extensions |
+| `POST /users/me/guide-application` | Staff, moderation and policy workflow extensions |
+| `POST /users/me/guide-application/dev-accept` | Staff, moderation and policy workflow extensions |
+| `POST /users/me/guide-application/dev-reject` | Staff, moderation and policy workflow extensions |

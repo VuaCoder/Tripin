@@ -115,3 +115,10 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `AI_CONTENT_BLOCKED` | 503 | AI provider blocked the response |
 | `AI_EMPTY_RESPONSE` | 503 | AI provider returned no usable text |
 | `AI_INCOMPLETE_RESPONSE` | 503 | AI output was incomplete and cannot be accepted |
+
+## Staff and policy updates
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| `SETTINGS_CONFLICT` | 409 | The settings revision changed; reload before saving. |
+| `AGENCY_REVERIFICATION_REQUIRED` | 409 | Verified legal identity cannot be edited directly. |

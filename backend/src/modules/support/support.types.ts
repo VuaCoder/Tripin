@@ -60,6 +60,8 @@ export interface TicketMessageDto {
 }
 
 export interface TicketSummaryDto {
+  supportCode?: string;
+  resolutionNote?: string;
   id: string;
   subject: string;
   category: TicketCategory;
