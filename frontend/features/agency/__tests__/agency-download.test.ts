@@ -1,4 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
+import { Blob as NodeBlob } from 'node:buffer';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { baseApi } from '@/store/api/baseApi';
 import authReducer, { setCredentials } from '@/features/auth/store/authSlice';
@@ -13,6 +14,8 @@ function makeStore() {
 const session = { accessToken: 'fresh-token', user: { id: 'a1', role: 'AGENCY', permissions: ['agency:export-customers'] } } as SessionData;
 const pdfResponse = () => new Response('%PDF-1.7\ncustomer rows\n%%EOF', { headers: { 'content-type': 'application/pdf' } });
 function setup(...responses: Response[]) {
+  // Node's fetch/Response must use Node's Blob, rather than jsdom's incomplete browser shim.
+  vi.stubGlobal('Blob', NodeBlob);
   const fetchMock = vi.fn();
   responses.forEach((response) => fetchMock.mockResolvedValueOnce(response));
   vi.stubGlobal('fetch', fetchMock);
