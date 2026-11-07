@@ -48,7 +48,7 @@ export class BookingsService {
     private readonly bookings: Repo = bookingsRepository,
     private readonly tours: Pick<ToursService, 'getBookableDeparture' | 'reserveSeats' | 'releaseSeats' | 'getTourFacts'> = toursService,
     private readonly promotions: Pick<PromotionsService, 'redeem' | 'release'> = promotionsService,
-    private readonly settings: Pick<SystemSettingsService, 'getCommissionBps' | 'getPolicyNumber'> = systemSettingsService,
+    private readonly settings: Pick<SystemSettingsService, 'getCommissionBps' | 'getPolicyNumber' | 'getPolicy'> = systemSettingsService,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
   ) {}
 
@@ -160,6 +160,7 @@ export class BookingsService {
           : undefined,
         discountAmount,
         totalAmount,
+        cancellationPolicySnapshot: await this.cancellationSnapshot(),
         commissionBps,
         commissionAmount,
         agencyAmount: totalAmount - commissionAmount,
@@ -190,6 +191,11 @@ export class BookingsService {
     }
   }
 
+  private async cancellationSnapshot() {
+    const policy = await this.settings.getPolicy('cancellation');
+    return { cancellationWindowHours: Number(policy.params.cancellationWindowHours ?? 24), policyVersionId: policy.policyVersionId ?? null, version: policy.activeVersion ?? 0, title: policy.title, content: policy.content, params: policy.params, capturedAt: new Date().toISOString() };
+  }
+
   async listMine(travelerId: string, query: ListBookingsQuery): Promise<Page<BookingDto>> {
     const { items, total } = await this.bookings.listByTraveler(travelerId, query.status, query);
     return buildPage(items.map(toBookingDto), total, query);
@@ -208,7 +214,8 @@ export class BookingsService {
     assertTransition(BOOKING_TRANSITIONS, booking.status as BookingStatus, BOOKING_STATUS.CANCELLED, ENTITY);
 
     if (booking.status === BOOKING_STATUS.CONFIRMED) {
-      const windowHours = (await this.settings.getPolicyNumber('cancellation', 'cancellationWindowHours')) ?? 24;
+      // Legacy bookings predate snapshots; preserve the documented original 24h default.
+      const windowHours = (booking.cancellationPolicySnapshot as { cancellationWindowHours?: number } | null)?.cancellationWindowHours ?? 24;
       const hoursLeft = (booking.departureDate.getTime() - Date.now()) / (60 * MINUTE_MS);
       if (hoursLeft < windowHours) {
         throw AppError.conflict(

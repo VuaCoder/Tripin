@@ -87,6 +87,7 @@ function make(seed: B[] = [], opts: { commissionBps?: number; windowHours?: numb
   };
   const settings = {
     getCommissionBps: vi.fn(async () => opts.commissionBps ?? 1000),
+    getPolicy: vi.fn(async () => ({ key: 'cancellation', title: 'Cancel', content: '', params: { cancellationWindowHours: opts.windowHours ?? 24 }, activeVersion: 0 })),
     getPolicyNumber: vi.fn(async () => ('windowHours' in opts ? opts.windowHours : 24)),
   };
   const notifications = { notify: vi.fn(async () => undefined) };

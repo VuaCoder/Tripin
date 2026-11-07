@@ -1,4 +1,5 @@
-import { prisma, type Prisma } from '../../config/database';
+import { systemSettingsService } from '../system-settings/system-settings.service';
+import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
 import type { ComplaintTicketCategory, ComplaintTicketPriority, ComplaintTicketStatus } from './complaints.types';
 
 export type ComplaintTicketWithRelations = Prisma.ComplaintTicketGetPayload<{
@@ -37,8 +38,11 @@ export class ComplaintsRepository {
     initialMessageText: string;
     attachments?: string[];
   }): Promise<ComplaintTicketWithRelations> {
+    const policy = await systemSettingsService.getPolicy('moderation');
+    const slaHours = Number(policy.params.slaHours ?? 48);
     return prisma.complaintTicket.create({
       data: {
+        slaHours, slaPolicyVersion: policy.activeVersion ?? 0, slaDeadlineAt: new Date(Date.now() + slaHours * 3_600_000),
         ticketCode: data.ticketCode,
         travelerId: data.travelerId,
         agencyId: data.agencyId,
@@ -232,9 +236,12 @@ export class ComplaintsRepository {
     if (!existing || !expectedStatuses.includes(existing.status as ComplaintTicketStatus)) {
       return null;
     }
+    const policy = data.status === 'ESCALATED' ? await systemSettingsService.getPolicy('moderation') : null;
+    const escalationSlaHours = Number(policy?.params.escalationSlaHours ?? 24);
     return prisma.complaintTicket.update({
-      where: { id },
+      where: { id, status: { in: expectedStatuses } },
       data: {
+        ...(policy ? { escalationSlaHours, escalationPolicyVersion: policy.activeVersion ?? 0, escalationDeadlineAt: new Date((data.escalatedAt ?? new Date()).getTime() + escalationSlaHours * 3_600_000) } : {}),
         status: data.status,
         ...(data.solutionSummary !== undefined ? { solutionSummary: data.solutionSummary } : {}),
         ...(data.moderatorDecision !== undefined ? { moderatorDecision: data.moderatorDecision } : {}),
@@ -246,7 +253,7 @@ export class ComplaintsRepository {
         messages: { orderBy: { createdAt: 'asc' } },
         feedback: true,
       },
-    });
+    }).catch(nullIfNotFound);
   }
 
   async createFeedback(data: {
