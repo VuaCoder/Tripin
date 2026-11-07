@@ -16,6 +16,7 @@ export const AUDIT_ACTIONS = {
   TOUR_VALIDATED: 'tour.validated',
   TOUR_SUSPENDED: 'tour.suspended',
   REVIEW_MODERATED: 'review.moderated',
+  GUIDE_PAYOUT_TRANSFERRED: 'guide_payout.transferred',
   REPORT_RESOLVED: 'report.resolved',
   PROMOTION_PLATFORM_CHANGED: 'promotion.platform_changed',
 } as const;
