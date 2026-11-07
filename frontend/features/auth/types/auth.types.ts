@@ -13,6 +13,7 @@ export interface UserProfile {
   fullName: string;
   phone?: string;
   avatarUrl?: string;
+  bankAccount?: { bankName: string; accountNumber: string; accountHolder: string };
   role: UserRole;
   status: UserStatus;
   permissions: string[];

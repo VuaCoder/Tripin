@@ -1,6 +1,7 @@
 import type { UserProfile } from '@/features/auth/types';
 
 export interface UpdateProfileRequest {
+  bankAccount?: { bankName: string; accountNumber: string; accountHolder: string } | null;
   fullName?: string;
   phone?: string | null;
   avatarUrl?: string | null;

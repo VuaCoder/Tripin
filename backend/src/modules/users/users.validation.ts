@@ -101,8 +101,8 @@ export const updatePreferencesBody = z
         z.object({
           id: z.string().trim().max(50),
           name: z.string().trim().max(100),
-          start: z.string().trim().regex(/^\d{1,2}:\d{2}$/, 'Invalid time format HH:mm'),
-          end: z.string().trim().regex(/^\d{1,2}:\d{2}$/, 'Invalid time format HH:mm'),
+          start: z.string().trim().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Time must use HH:mm (00:00–23:59)'),
+          end: z.string().trim().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Time must use HH:mm (00:00–23:59)'),
           enabled: z.boolean(),
         }),
       )
@@ -111,7 +111,23 @@ export const updatePreferencesBody = z
     voucherExpiryAlerts: z.boolean().optional(),
     emailAlerts: z.boolean().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    const slots = value.freeTimeSlots ?? [];
+    for (const [index, slot] of slots.entries()) {
+      if (slot.start >= slot.end) {
+        ctx.addIssue({ code: 'custom', path: ['freeTimeSlots', index, 'end'], message: 'End time must be after start time' });
+      }
+      if (!slot.enabled) continue;
+      for (let previous = 0; previous < index; previous += 1) {
+        const other = slots[previous]!;
+        if (other.enabled && slot.start < other.end && other.start < slot.end) {
+          ctx.addIssue({ code: 'custom', path: ['freeTimeSlots', index, 'start'], message: 'Enabled time slots must not overlap' });
+          break;
+        }
+      }
+    }
+  });
 
 export type UpdateProfileBody = z.infer<typeof updateProfileBody>;
 export type UpdatePreferencesBody = z.infer<typeof updatePreferencesBody>;

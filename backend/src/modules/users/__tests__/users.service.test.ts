@@ -77,6 +77,13 @@ const MOD = { userId: 'm1', role: ROLES.MODERATOR } as const;
 const ADMIN = (userId: string) => ({ userId, role: ROLES.SUPER_ADMIN }) as const;
 
 describe('UsersService profile', () => {
+  it('allows guide signed avatar upload and removal while rejecting direct URL updates', async () => {
+    const { service } = makeService({ g1: makeUser({ id: 'g1', role: ROLES.TOUR_GUIDE }) });
+    await expect(service.createTravelerAvatarUploadSignature('g1')).resolves.toMatchObject({ purpose: 'avatar' });
+    expect((await service.completeTravelerAvatarUpload('g1', 'tripin/travelers/avatars/g1')).avatarUrl).toBe(LICENSE_URL);
+    expect((await service.removeTravelerAvatar('g1')).avatarUrl).toBeUndefined();
+    await expect(service.updateMe('g1', { avatarUrl: 'https://example.com/a.jpg' })).rejects.toMatchObject({ statusCode: 403 });
+  });
   it('rejects agency fields from a traveler', async () => {
     const { service } = makeService({ u1: makeUser() });
     await expect(service.updateMe('u1', { agencyProfile: { companyName: 'X Co' } })).rejects.toMatchObject({ statusCode: 403 });
@@ -90,11 +97,13 @@ describe('UsersService profile', () => {
 
   const payout = { bankName: 'Vietcombank', accountNumber: '0123456789', accountHolder: 'NGUYEN VAN A' };
 
-  it('stores a guide payout account inside preferences and returns it', async () => {
+  it('encrypts a guide payout account outside preferences and returns a masked number', async () => {
     const { service, db } = makeService({ g1: makeUser({ id: 'g1', role: ROLES.TOUR_GUIDE, preferences: { emailAlerts: true } }) });
     const dto = await service.updateMe('g1', { bankAccount: payout });
-    expect(dto.bankAccount).toEqual(payout);
-    expect(db.g1!.preferences).toEqual({ emailAlerts: true, bankAccount: payout });
+    expect(dto.bankAccount).toEqual({ ...payout, accountNumber: '****6789' });
+    expect(db.g1!.preferences).toEqual({ emailAlerts: true });
+    expect(JSON.stringify(db.g1!.payoutAccount)).not.toContain(payout.accountNumber);
+    expect(JSON.stringify(db.g1!.payoutAccount)).not.toContain(payout.accountHolder);
   });
 
   it('rejects a payout account from a non-guide and clears it with null', async () => {
@@ -105,7 +114,7 @@ describe('UsersService profile', () => {
     await expect(service.updateMe('t1', { bankAccount: payout })).rejects.toMatchObject({ statusCode: 403 });
     const dto = await service.updateMe('g1', { bankAccount: null });
     expect(dto.bankAccount).toBeUndefined();
-    expect((db.g1!.preferences as Record<string, unknown>).bankAccount).toBeNull();
+    expect((db.g1!.preferences as Record<string, unknown>).bankAccount).toBeUndefined();
   });
 
   it('keeps the payout account when notification preferences change', async () => {

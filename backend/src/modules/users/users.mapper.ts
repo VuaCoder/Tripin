@@ -1,6 +1,7 @@
 import { AGENCY_VERIFICATION_STATUS, isPermission, resolvePermissions, type Role } from '@travel-platform/constants';
 import type { PublicGuideRecord, UserRecord } from './users.repository';
 import type { PrivateUserDto, PublicAgencyDto, PublicGuideDto } from './users.types';
+import { maskedPayoutAccount } from './payout-account.crypto';
 
 /** Effective permissions of a stored user (role defaults + extras granted by SUPER_ADMIN). */
 export function permissionsOf(user: Pick<UserRecord, 'role' | 'extraPermissions'> & Partial<Pick<UserRecord, 'revokedPermissions'>>) {
@@ -95,9 +96,11 @@ export function toPublicAgencyDto(user: UserRecord): PublicAgencyDto {
 
 /** Only the three known payout fields, whatever else happens to live in the preferences JSON. */
 function bankAccountOf(user: UserRecord): PrivateUserDto['bankAccount'] {
+  if (user.role !== 'TOUR_GUIDE') return undefined;
+  if (user.payoutAccount) return maskedPayoutAccount(user.id, user.payoutAccount);
   const stored = (user.preferences as { bankAccount?: Record<string, unknown> | null } | null)?.bankAccount;
   if (!stored || typeof stored !== 'object') return undefined;
   const { bankName, accountNumber, accountHolder } = stored;
   if (typeof bankName !== 'string' || typeof accountNumber !== 'string' || typeof accountHolder !== 'string') return undefined;
-  return { bankName, accountNumber, accountHolder };
+  return { bankName, accountNumber: `****${accountNumber.slice(-4)}`, accountHolder };
 }

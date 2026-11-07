@@ -14,6 +14,7 @@ import {
   type ImageUploadSignature,
 } from '../../integrations/cloudinary';
 import { kickMailOutbox } from '../notifications/mail-outbox';
+import { encryptPayoutAccount } from './payout-account.crypto';
 import { notificationsService } from '../notifications';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
 import { buildPage, type Page } from '../../utils/pagination';
@@ -83,8 +84,8 @@ export class UsersService {
   async updateMe(userId: string, input: UpdateProfileInput): Promise<PrivateUserDto> {
     const user = await this.requireUser(userId);
 
-    if (input.avatarUrl !== undefined && user.role === ROLES.TRAVELER) {
-      throw AppError.forbidden('Traveler avatars must be uploaded from the profile image picker');
+    if (input.avatarUrl !== undefined && (user.role === ROLES.TRAVELER || user.role === ROLES.TOUR_GUIDE)) {
+      throw AppError.forbidden('Avatars must be uploaded from the profile image picker');
     }
     if (input.agencyProfile && user.role !== ROLES.AGENCY) {
       throw AppError.forbidden('Only agencies can edit an agency profile');
@@ -112,7 +113,10 @@ export class UsersService {
     const guideFields = definedEntries(input.guideProfile);
     if (guideFields) patch.guideProfile = guideFields;
     if (input.bankAccount !== undefined) {
-      patch.preferences = { ...this.storedPreferences(user), bankAccount: input.bankAccount } as unknown as UserPatch['preferences'];
+      const { bankAccount: _legacy, ...preferences } = this.storedPreferences(user);
+      patch.preferences = preferences as UserPatch['preferences'];
+      if (input.bankAccount) patch.payoutAccount = encryptPayoutAccount(userId, input.bankAccount);
+      else if (user.payoutAccount) patch.payoutAccount = null;
     }
     if (Object.keys(patch).length === 0) return toPrivateUserDto(user);
 
@@ -129,17 +133,17 @@ export class UsersService {
     return toPrivateUserDto(updated ?? user);
   }
 
-  /** Gives a Traveler a one-time Cloudinary signature scoped to their own avatar public id. */
+  /** Gives a Traveler or Guide a signature scoped to their own avatar public id. */
   async createTravelerAvatarUploadSignature(userId: string): Promise<ImageUploadSignature> {
     const user = await this.requireUser(userId);
-    this.assertTraveler(user);
+    this.assertAvatarRole(user);
     return createImageUploadSignature('avatar', userId);
   }
 
   /** Verifies the direct Cloudinary upload before associating it with this Traveler. */
   async completeTravelerAvatarUpload(userId: string, publicId: string): Promise<PrivateUserDto> {
     const user = await this.requireUser(userId);
-    this.assertTraveler(user);
+    this.assertAvatarRole(user);
     const asset = await verifyImageUpload('avatar', userId, publicId);
     const updated = await this.users.updateById(userId, { avatarUrl: asset.secureUrl });
     return toPrivateUserDto(updated ?? user);
@@ -148,7 +152,7 @@ export class UsersService {
   /** Removes the avatar reference and, only when Tripri owns the asset, removes it from Cloudinary too. */
   async removeTravelerAvatar(userId: string): Promise<PrivateUserDto> {
     const user = await this.requireUser(userId);
-    if (user.role !== ROLES.TRAVELER && user.role !== ROLES.AGENCY) throw AppError.forbidden('Avatar removal is unavailable for this role');
+    if (user.role !== ROLES.TRAVELER && user.role !== ROLES.AGENCY && user.role !== ROLES.TOUR_GUIDE) throw AppError.forbidden('Avatar removal is unavailable for this role');
     if (user.avatarUrl?.startsWith('https://res.cloudinary.com/')) await destroyImage('avatar', imagePublicId('avatar', userId));
     const updated = await this.users.updateById(userId, { avatarUrl: null });
     return toPrivateUserDto(updated ?? user);
@@ -515,7 +519,8 @@ export class UsersService {
   private preferencesOf(user: UserRecord): UserPreferencesDto {
     const prefs = this.storedPreferences(user);
     return {
-      freeTimeSlots: (prefs.freeTimeSlots as UserPreferencesDto['freeTimeSlots'] | undefined) ?? DEFAULT_USER_PREFERENCES.freeTimeSlots,
+      freeTimeSlots: ((prefs.freeTimeSlots as UserPreferencesDto['freeTimeSlots'] | undefined) ?? DEFAULT_USER_PREFERENCES.freeTimeSlots)
+        .map((slot) => ({ ...slot, start: slot.start.replace(/^(\d):/, '0$1:'), end: slot.end.replace(/^(\d):/, '0$1:') })),
       voucherExpiryAlerts:
         prefs.voucherExpiryAlerts !== undefined ? Boolean(prefs.voucherExpiryAlerts) : DEFAULT_USER_PREFERENCES.voucherExpiryAlerts,
       emailAlerts: prefs.emailAlerts !== undefined ? Boolean(prefs.emailAlerts) : DEFAULT_USER_PREFERENCES.emailAlerts,
@@ -534,8 +539,8 @@ export class UsersService {
     return user;
   }
 
-  private assertTraveler(user: UserRecord): void {
-    if (user.role !== ROLES.TRAVELER) throw AppError.forbidden('Only Travelers can manage this avatar');
+  private assertAvatarRole(user: UserRecord): void {
+    if (user.role !== ROLES.TRAVELER && user.role !== ROLES.TOUR_GUIDE) throw AppError.forbidden('Avatar upload is unavailable for this role');
   }
 
   private assertGuide(user: UserRecord): void {

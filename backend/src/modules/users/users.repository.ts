@@ -1,7 +1,7 @@
 import type { AuditEntry } from '../audit/audit.types';
 import type { AgencyVerificationStatus, PersistedRole, UserStatus } from '@travel-platform/constants';
 import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
-import type { AgencyProfile, GuideProfile, User } from '../../generated/prisma/client';
+import type { AgencyProfile, GuideProfile, GuidePayoutAccount, User } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
 import { containsText } from '../../utils/search';
 import { AppError } from '../../utils/app-error';
@@ -26,29 +26,33 @@ export type UserRecord = Omit<User, 'passwordHash'> & {
   passwordHash?: string | null;
   agencyProfile: AgencyProfile | null;
   guideProfile: GuideProfile | null;
+  payoutAccount?: GuidePayoutAccount | null;
 };
 
 /** Plain-field changes; `agencyProfile`/`guideProfile` are created on first write and merged afterwards. */
 export type UserPatch = Partial<Omit<User, 'id' | 'createdAt' | 'updatedAt'>> & {
   agencyProfile?: AgencyProfileFields;
   guideProfile?: GuideProfileFields;
+  payoutAccount?: Pick<GuidePayoutAccount, 'encryptedDetails' | 'keyVersion' | 'last4'> | null;
 };
 export type NewUser = Pick<User, 'email' | 'fullName'> & UserPatch;
 export type PublicGuideRecord = Pick<User, 'id' | 'fullName' | 'avatarUrl'> & {
   guideProfile: Pick<GuideProfile, 'bio' | 'languages' | 'specialties' | 'experienceYears'> | null;
 };
 
-const include = { agencyProfile: true, guideProfile: true } satisfies Prisma.UserInclude;
+const include = { agencyProfile: true, guideProfile: true, payoutAccount: true } satisfies Prisma.UserInclude;
 const omitPassword = { passwordHash: true } as const;
 
 function toData(patch: UserPatch): Prisma.UserUncheckedUpdateInput {
-  const { agencyProfile, guideProfile, ...scalars } = patch;
+  const { agencyProfile, guideProfile, payoutAccount, ...scalars } = patch;
   const data: Prisma.UserUncheckedUpdateInput = {
     ...scalars,
     ...(scalars.preferences !== undefined ? { preferences: (scalars.preferences ?? null) as any } : {}),
   } as Prisma.UserUncheckedUpdateInput;
   if (agencyProfile) data.agencyProfile = { upsert: { create: agencyProfile, update: agencyProfile } };
   if (guideProfile) data.guideProfile = { upsert: { create: guideProfile, update: guideProfile } };
+  if (payoutAccount) data.payoutAccount = { upsert: { create: payoutAccount, update: payoutAccount } };
+  if (payoutAccount === null) data.payoutAccount = { delete: true };
   return data;
 }
 
@@ -151,6 +155,19 @@ export class UsersRepository {
   }
 
   updateById(id: string, patch: UserPatch): Promise<UserRecord | null> {
+    if (patch.preferences && typeof patch.preferences === 'object' && !Array.isArray(patch.preferences) && 'bankAccount' in patch.preferences) {
+      return prisma.$transaction(async (tx) => {
+        // A preferences request started before backfill must not reintroduce plaintext after migration.
+        await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${id}::uuid FOR UPDATE`;
+        const migrated = await tx.guidePayoutAccount.findUnique({ where: { guideId: id }, select: { guideId: true } });
+        let safePatch = patch;
+        if (migrated) {
+          const { bankAccount: _legacy, ...preferences } = patch.preferences as Record<string, Prisma.JsonValue>;
+          safePatch = { ...patch, preferences };
+        }
+        return tx.user.update({ where: { id }, data: toData(safePatch), include, omit: omitPassword });
+      }).catch(nullIfNotFound);
+    }
     return prisma.user.update({ where: { id }, data: toData(patch), include, omit: omitPassword }).catch(nullIfNotFound);
   }
 

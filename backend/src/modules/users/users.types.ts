@@ -9,7 +9,7 @@ import {
 } from '@travel-platform/constants';
 import type { TransitionMap } from '../../utils/state-machine';
 
-/** Payout details of a tour guide, stored inside `User.preferences` (no schema change). */
+/** Owner-facing payout details. Read responses mask accountNumber; updates require a full new number. */
 export interface BankAccountDto {
   bankName: string;
   accountNumber: string;
