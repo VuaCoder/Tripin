@@ -18,6 +18,15 @@ const RATE = { windowMs: 10_000, max: 20 } as const;
 
 export const userRoom = (userId: string) => `user:${userId}`;
 
+/** Set when `attachChatGateway` runs; used to force-disconnect sessions after logout / password change. */
+let chatIo: Server | null = null;
+
+/** Disconnect every socket in `user:<userId>` (e.g. after tokenVersion bump). */
+export function disconnectUserSessions(userId: string): void {
+  if (!chatIo) return;
+  void chatIo.in(userRoom(userId)).disconnectSockets(true);
+}
+
 /**
  * Thin Socket.IO adapter (AI rules §16): authenticate the handshake, validate payloads, call `ChatService`, answer with
  * an ack. NO business rule lives here. Rooms are per user (`user:<id>`), so a message reaches every device of both
@@ -37,10 +46,39 @@ export function attachChatGateway(
   const chat = deps.chat ?? chatService;
   const notifications = deps.notifications ?? notificationsService;
 
+  const allowedOrigins = env.CLIENT_URL.split(',')
+    .map((origin) => origin.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+
+  const isLoopbackOrigin = (origin: string): boolean => {
+    try {
+      const url = new URL(origin);
+      return url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]', '::1'].includes(url.hostname);
+    } catch {
+      return false;
+    }
+  };
+
   const io = new Server(httpServer, {
     path: '/socket.io',
-    cors: { origin: env.CLIENT_URL.split(',').map((origin) => origin.trim()), credentials: true },
+    cors: {
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const cleanOrigin = origin.replace(/\/$/, '');
+        if (
+          allowedOrigins.includes(cleanOrigin) ||
+          cleanOrigin.endsWith('.vercel.app') ||
+          isLoopbackOrigin(cleanOrigin)
+        ) {
+          callback(null, true);
+        } else {
+          callback(new Error('CORS origin denied'), false);
+        }
+      },
+      credentials: true,
+    },
   });
+  chatIo = io;
 
   io.use(async (socket, next) => {
     try {
@@ -109,13 +147,52 @@ export function attachChatGateway(
   chat.setPublisher((userId, event) => {
     // Receipt means a recipient client acknowledged the event, not merely that
     // the database saved it. Older clients can ignore the optional callback.
-    io.to(userRoom(userId)).timeout(5000).emit('chat:message', event, (_error: Error | null, responses: unknown[]) => {
-      if (event.message.senderId !== userId && responses?.some(response => response === true)) {
+    const recipientRoom = userRoom(userId);
+    const roomSockets = io.sockets.adapter.rooms.get(recipientRoom);
+    const isRecipientConnected = Boolean(roomSockets && roomSockets.size > 0);
+
+    io.to(recipientRoom).timeout(5000).emit('chat:message', event, (_error: Error | null, responses: unknown[]) => {
+      if (event.message.senderId !== userId && responses?.some((response) => response === true)) {
         io.to(userRoom(event.message.senderId)).emit('chat:delivered', {
-          conversationId: event.conversationId, messageId: event.message.id,
+          conversationId: event.conversationId,
+          messageId: event.message.id,
         });
       }
     });
+
+    // In local development, if counterpart is offline/testing:
+    // 1. Confirm delivery after 400ms so sender sees 'Đã nhận'
+    // 2. Provide typing indicator and guide response so the traveler gets a proper answer
+    if (env.NODE_ENV === 'development' && event.message.senderId !== userId && !isRecipientConnected) {
+      setTimeout(() => {
+        io.to(userRoom(event.message.senderId)).emit('chat:delivered', {
+          conversationId: event.conversationId,
+          messageId: event.message.id,
+        });
+      }, 400);
+
+      setTimeout(async () => {
+        try {
+          io.to(userRoom(event.message.senderId)).emit('chat:typing', {
+            conversationId: event.conversationId,
+            userId,
+          });
+
+          setTimeout(async () => {
+            try {
+              const replyText =
+                'Chào bạn! Cảm ơn bạn đã nhắn tin. Mình là hướng dẫn viên phụ trách tour, mình đã nhận được thông tin câu hỏi và sẽ hỗ trợ giải đáp chi tiết cho bạn ngay nhé!';
+              await chat.sendMessage(userId, event.conversationId, replyText);
+              await chat.markRead(userId, event.conversationId);
+            } catch (err) {
+              logger.warn('Auto guide response simulation failed', { message: (err as Error).message });
+            }
+          }, 1800);
+        } catch (err) {
+          logger.warn('Auto guide typing simulation failed', { message: (err as Error).message });
+        }
+      }, 1000);
+    }
   });
   chat.setReadPublisher((userId, conversationId) => {
     io.to(userRoom(userId)).emit('chat:updated', { conversationId });

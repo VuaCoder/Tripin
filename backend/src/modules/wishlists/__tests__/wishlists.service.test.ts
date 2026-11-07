@@ -3,11 +3,20 @@ import { TOUR_STATUS } from '@travel-platform/constants';
 import { WishlistsService } from '../wishlists.service';
 import { WISHLIST_LIMITS } from '../wishlists.types';
 
-function make(opts: { tourStatus?: string | null; exists?: boolean; count?: number; created?: boolean } = {}) {
+function make(opts: {
+  tourStatus?: string | null;
+  created?: boolean;
+  addWithCapResult?: { created: boolean };
+  addWithCapError?: { code: string };
+} = {}) {
   const items = {
-    addIfAbsent: vi.fn(async () => opts.created ?? true),
-    exists: vi.fn(async () => opts.exists ?? false),
-    count: vi.fn(async () => opts.count ?? 0),
+    addWithCap: vi.fn(async () => {
+      if (opts.addWithCapError) {
+        const err = Object.assign(new Error(opts.addWithCapError.code), opts.addWithCapError);
+        throw err;
+      }
+      return opts.addWithCapResult ?? { created: opts.created ?? true };
+    }),
     remove: vi.fn(async () => true),
     list: vi.fn(),
   };
@@ -24,11 +33,11 @@ describe('add', () => {
   it('saves a public tour for the user', async () => {
     const { service, items } = make();
     expect(await service.add('u1', 't1')).toEqual({ created: true });
-    expect(items.addIfAbsent).toHaveBeenCalledWith('u1', 't1');
+    expect(items.addWithCap).toHaveBeenCalledWith('u1', 't1', WISHLIST_LIMITS.MAX_ITEMS);
   });
 
   it('is idempotent: adding again succeeds with created=false', async () => {
-    const { service } = make({ exists: true, created: false });
+    const { service } = make({ created: false });
     expect(await service.add('u1', 't1')).toEqual({ created: false });
   });
 
@@ -43,9 +52,14 @@ describe('add', () => {
     await expect(make({ tourStatus: null }).service.add('u1', 'ghost')).rejects.toMatchObject({ statusCode: 404 });
   });
 
-  it('stops at the size limit but still allows re-adding an existing tour', async () => {
-    await expect(make({ count: WISHLIST_LIMITS.MAX_ITEMS }).service.add('u1', 't1')).rejects.toMatchObject({ code: 'WISHLIST_FULL' });
-    await expect(make({ count: WISHLIST_LIMITS.MAX_ITEMS, exists: true, created: false }).service.add('u1', 't1')).resolves.toEqual({ created: false });
+  it('propagates WISHLIST_FULL from the capped add', async () => {
+    await expect(
+      make({ addWithCapError: { code: 'WISHLIST_FULL' } }).service.add('u1', 't1'),
+    ).rejects.toMatchObject({ code: 'WISHLIST_FULL' });
+  });
+
+  it('still allows re-adding an existing tour when the repo returns created=false', async () => {
+    await expect(make({ created: false }).service.add('u1', 't1')).resolves.toEqual({ created: false });
   });
 });
 

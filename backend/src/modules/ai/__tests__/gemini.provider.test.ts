@@ -87,6 +87,32 @@ describe('Gemini chat failure diagnostics', () => {
     await expect(provider.generate({ ...input, allowPartial: true })).resolves.toEqual({ text: 'Useful travel advice', incomplete: true });
     await expect(provider.generate({ ...input, allowPartial: true, responseFormat: 'json' })).rejects.toMatchObject({ code: 'AI_INCOMPLETE_RESPONSE' });
   });
+  it('automatically falls back to next free-tier model when primary model hits quota limit (429)', async () => {
+    let callCount = 0;
+    const fetchMock = vi.fn(async (url: string) => {
+      callCount++;
+      if (url.includes('gemini-2.5-flash')) {
+        return { ok: false, status: 429, json: async () => ({ error: { status: 'RESOURCE_EXHAUSTED' } }) };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [{ finishReason: 'STOP', content: { parts: [{ text: 'Answer from fallback model' }] } }],
+        }),
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const fallbackProvider = new GeminiProvider({ apiKey: 'secret-key', model: 'gemini-2.5-flash' });
+    const result = await fallbackProvider.generate({ ...input, allowPartial: true });
+
+    expect(result).toEqual({ text: 'Answer from fallback model' });
+    expect(callCount).toBeGreaterThanOrEqual(2);
+    expect(fetchMock.mock.calls[0]![0]).toContain('gemini-2.5-flash');
+    expect(fetchMock.mock.calls[1]![0]).toContain('gemini-2.0-flash');
+  });
+
   it.each([[429, 'AI_QUOTA_EXCEEDED'], [403, 'AI_NOT_CONFIGURED'], [503, 'AI_TEMPORARILY_UNAVAILABLE']])('classifies upstream status %s', async (status, code) => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status, json: async () => ({ error: { status: 'RESOURCE_EXHAUSTED', message: 'secret' } }) })));
     await expect(provider.generate(input)).rejects.toMatchObject({ statusCode: 503, code });

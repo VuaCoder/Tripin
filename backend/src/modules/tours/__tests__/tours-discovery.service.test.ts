@@ -21,6 +21,7 @@ const user = (over: Partial<UserActor> = {}): UserActor => ({
   email: 'x@y.z',
   role: ROLES.TRAVELER,
   permissions: [],
+  emailVerified: true,
   ...over,
 });
 

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DISCOUNT_TYPE, PROMOTION_CODE_TYPE, PROMOTION_SCOPE, ROLES } from '@travel-platform/constants';
 import { computeDiscount, assertApplicable } from '../promotions.policy';
 import { PromotionsService } from '../promotions.service';
+import type { ConsumePromotionResult } from '../promotions.repository';
 
 const DAY = 24 * 60 * 60 * 1000;
 const ago = (d: number) => new Date(Date.now() - d * DAY);
@@ -43,8 +44,9 @@ function make(seed: P[] = [], tourAgency = 'a1') {
       return doc ?? null;
     }),
     list: vi.fn(async () => ({ items: db, total: db.length })),
-    consume: vi.fn(async () => true),
+    consume: vi.fn(async (): Promise<boolean | ConsumePromotionResult> => true),
     release: vi.fn(async () => undefined),
+    countUserUsages: vi.fn(async () => 0),
   };
   const tours = { getTourFacts: vi.fn(async (id: string) => (id === 'ghost' ? null : { id, agencyId: tourAgency })) };
   const audit = { record: vi.fn(async () => undefined) };
@@ -135,6 +137,43 @@ describe('create / update', () => {
     const { service } = make([promo()]);
     await expect(service.updateForAgency(agency, 'p1', { endsAt: ago(5) })).rejects.toMatchObject({ statusCode: 400 });
   });
+
+  it('locks immutable fields for active started promotions (PAY-019)', async () => {
+    // Promotion has started (startsAt in past) and 0 usedCount
+    const { service } = make([promo({ startsAt: ago(2), endsAt: ahead(5), usedCount: 0, discountValue: 10, minOrderAmount: 100_000 })]);
+
+    // Modifying discountValue should be rejected with 400 Bad Request
+    await expect(service.updateForAgency(agency, 'p1', { discountValue: 15 })).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'PROMOTION_ACTIVE_LOCKED',
+    });
+
+    // Modifying minOrderAmount should be rejected with 400 Bad Request
+    await expect(service.updateForAgency(agency, 'p1', { minOrderAmount: 200_000 })).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'PROMOTION_ACTIVE_LOCKED',
+    });
+
+    // Modifying startsAt should be rejected with 400 Bad Request
+    await expect(service.updateForAgency(agency, 'p1', { startsAt: ago(3) })).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'PROMOTION_ACTIVE_LOCKED',
+    });
+
+    // Modifying allowed fields (title, endsAt, isActive) should succeed
+    const updated = await service.updateForAgency(agency, 'p1', {
+      title: 'Extended Summer Sale',
+      endsAt: ahead(10),
+      isActive: true,
+    });
+    expect(updated.title).toBe('Extended Summer Sale');
+
+    // Promotion that has NOT started yet (startsAt in future) allows modifying discountValue and minOrderAmount
+    const futureService = make([promo({ id: 'p2', startsAt: ahead(2), endsAt: ahead(10), usedCount: 0, discountValue: 10 })]).service;
+    const futureUpdated = await futureService.updateForAgency(agency, 'p2', { discountValue: 25, minOrderAmount: 50_000 });
+    expect(futureUpdated.discountValue).toBe(25);
+    expect(futureUpdated.minOrderAmount).toBe(50_000);
+  });
 });
 
 describe('preview / redeem (used by bookings)', () => {
@@ -156,6 +195,41 @@ describe('preview / redeem (used by bookings)', () => {
     const { service, repo } = make([promo({ usageLimit: 1 })]);
     repo.consume.mockResolvedValueOnce(false as never);
     await expect(service.redeem('SUMMER10', 't1', 1_000_000)).rejects.toMatchObject({ code: 'PROMOTION_EXHAUSTED' });
+  });
+
+  it('enforces atomic single-winner quota under 20 concurrent requests (PAY-017)', async () => {
+    const { service, repo } = make([promo({ usageLimit: 1, usedCount: 0 })]);
+    let consumedCount = 0;
+    repo.consume.mockImplementation(async () => {
+      if (consumedCount === 0) {
+        consumedCount += 1;
+        return { success: true };
+      }
+      return { success: false, reason: 'EXHAUSTED' };
+    });
+
+    const results = await Promise.allSettled(
+      Array.from({ length: 20 }, () => service.redeem('SUMMER10', 't1', 1_000_000)),
+    );
+
+    const fulfilled = results.filter((r) => r.status === 'fulfilled');
+    const rejected = results.filter((r) => r.status === 'rejected');
+
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(19);
+    for (const r of rejected) {
+      expect((r as PromiseRejectedResult).reason).toMatchObject({ code: 'PROMOTION_EXHAUSTED' });
+    }
+  });
+
+  it('enforces atomic user usage limit in transaction when limit reached (PAY-017)', async () => {
+    const { service, repo } = make([promo({ usageLimitPerUser: 1 })]);
+    repo.consume.mockResolvedValueOnce({ success: false, reason: 'USER_LIMIT_REACHED' });
+
+    await expect(service.redeem('SUMMER10', 't1', 1_000_000, { userId: 'u1' })).rejects.toMatchObject({
+      code: 'PROMOTION_USER_LIMIT_REACHED',
+    });
+    expect(repo.consume).toHaveBeenCalledWith('p1', 'u1');
   });
 
   it('refuses another agency\'s code for this tour, and unknown codes/tours', async () => {
@@ -329,4 +403,3 @@ describe('sweepExpiringVouchers (smart leisure-slot alert)', () => {
     );
   });
 });
-

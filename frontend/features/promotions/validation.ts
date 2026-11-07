@@ -1,4 +1,5 @@
 import type { AgencyPromotion, DiscountType, PromotionApplyType, PromotionCodeType } from '../agency-promotions/types';
+import { MONEY_LIMITS } from '@travel-platform/constants';
 
 export interface PromotionFormValues {
   applyType: PromotionApplyType;
@@ -22,7 +23,7 @@ export interface PromotionFormValues {
 export type PromotionFormErrors = Partial<Record<keyof PromotionFormValues, string>>;
 
 const CODE_PATTERN = /^[A-Z0-9_-]{3,30}$/;
-const MAX_VND = 100_000_000_000;
+const MAX_VND = MONEY_LIMITS.MAX_PROMOTION_AMOUNT;
 
 /** null = empty, NaN = not an integer. Supports Vietnamese thousand separator dots e.g. "20.000", "100.000". */
 const toInt = (value?: string): number | null => {
@@ -31,10 +32,10 @@ const toInt = (value?: string): number | null => {
   if (trimmed === '') return null;
   if (/^\d{1,3}(\.\d{3})+$/.test(trimmed)) {
     const n = Number(trimmed.replace(/\./g, ''));
-    return Number.isInteger(n) ? n : Number.NaN;
+    return Number.isSafeInteger(n) ? n : Number.NaN;
   }
   const n = Number(trimmed);
-  return Number.isInteger(n) ? n : Number.NaN;
+  return Number.isSafeInteger(n) ? n : Number.NaN;
 };
 
 /**
@@ -89,7 +90,7 @@ export function validatePromotionForm(
   }
 
   const min = toInt(values.minOrderAmount);
-  if (min !== null && (Number.isNaN(min) || min < 0 || min > MAX_VND)) {
+  if (min !== null && (Number.isNaN(min) || min < 0 || min > MONEY_LIMITS.MAX_BOOKING_AMOUNT)) {
     errors.minOrderAmount = 'Đơn tối thiểu phải là số nguyên không âm.';
   }
 

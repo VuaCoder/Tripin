@@ -30,8 +30,13 @@ export class ChatService {
   constructor(
     private readonly chat: Pick<
       ChatRepository,
-      | 'findConversation' | 'findByPair' | 'createConversation' | 'listConversations' | 'recordMessage'
-      | 'resetUnread' | 'createMessage' | 'listMessages' | 'markMessagesRead'
+      | 'findConversation'
+      | 'findByPair'
+      | 'createConversation'
+      | 'listConversations'
+      | 'appendMessageAndBumpUnread'
+      | 'listMessages'
+      | 'markReadWithWatermark'
     > = chatRepository,
     private readonly users: Pick<UsersService, 'assertActiveWithRole' | 'getSummaries'> = usersService,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
@@ -105,14 +110,12 @@ export class ChatService {
       throw AppError.badRequest(PROFANITY_ERROR_MESSAGE, undefined, ERROR_CODES.PROFANITY_DETECTED);
     }
 
-    const message = await this.chat.createMessage({ conversationId, senderId: userId, text: clean });
     const recipient = otherSide(side);
     const recipientId = String(recipient === 'traveler' ? conversation.travelerId : conversation.guideId);
-    const before = await this.chat.recordMessage(conversationId, recipient, {
-      text: clean.slice(0, 200),
-      senderId: userId,
-      sentAt: message.createdAt,
-    });
+    const { message, before } = await this.chat.appendMessageAndBumpUnread(
+      { conversationId, senderId: userId, text: clean },
+      recipient,
+    );
 
     this.publish(recipientId, conversationId, toMessageDto(message, recipientId));
     this.publish(userId, conversationId, toMessageDto(message, userId));
@@ -129,12 +132,12 @@ export class ChatService {
     return toMessageDto(message, userId);
   }
 
-  /** Marks everything the other person sent as read and clears my unread counter. */
+  /** Marks everything the other person sent as read (watermark) and recomputes my unread counter. */
   async markRead(userId: string, conversationId: string): Promise<{ unreadCount: number }> {
     const { side } = await this.requireParticipation(userId, conversationId);
-    await Promise.all([this.chat.markMessagesRead(conversationId, userId), this.chat.resetUnread(conversationId, side)]);
+    const result = await this.chat.markReadWithWatermark(conversationId, side, userId);
     this.readPublisher?.(userId, conversationId);
-    return { unreadCount: 0 };
+    return result;
   }
 
   /** For the gateway: the other participant's id, only if `userId` takes part in the conversation. */

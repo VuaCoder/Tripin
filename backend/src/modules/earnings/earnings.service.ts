@@ -1,4 +1,5 @@
 import { isUniqueViolation } from '../../config/database';
+import { sumVnd } from '@travel-platform/constants';
 import { buildPage, type Page } from '../../utils/pagination';
 import type { BookingFacts } from '../bookings';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
@@ -61,7 +62,7 @@ export class EarningsService {
   async summaryMine(guideId: string, range: EarningsRange): Promise<EarningsSummaryDto> {
     const byMonth = await this.earnings.summarize(guideId, range);
     return {
-      totalAmount: byMonth.reduce((sum, row) => sum + row.totalAmount, 0),
+      totalAmount: sumVnd(byMonth.map((row) => row.totalAmount)),
       count: byMonth.reduce((sum, row) => sum + row.count, 0),
       byMonth,
     };

@@ -166,8 +166,8 @@ describe('admin: commission and policies', () => {
     expect((await prisma.booking.findUnique({ where: { id: oldBooking } }))!.commissionBps).toBe(1000);
     const fresh = (await prisma.booking.findUnique({ where: { id: newBooking } }))!;
     expect(fresh.commissionBps).toBe(1250);
-    expect(fresh.commissionAmount).toBe(125_000);
-    expect(fresh.agencyAmount).toBe(875_000);
+    expect(fresh.commissionAmount).toBe(125_000n);
+    expect(fresh.agencyAmount).toBe(875_000n);
     expect(await prisma.auditLog.count({ where: { action: 'settings.commission_updated' } })).toBe(2);
   });
 

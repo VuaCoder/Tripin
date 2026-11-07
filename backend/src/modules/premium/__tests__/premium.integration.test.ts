@@ -84,6 +84,15 @@ describe('Premium end-to-end and invariants', () => {
     expect(page.status).toBe(200);
     expect(page.body.meta.total).toBe(2);
     expect(page.body.data).toHaveLength(1);
+    expect(page.body.data[0].price).toBe(99000);
+    const status = await request(app)
+      .get('/api/v1/premium/me')
+      .set(bearer(f.traveler.token));
+    expect(status.status).toBe(200);
+    expect(status.body.data.current.price).toBe(99000);
+    const plans = await request(app).get('/api/v1/premium/plans?audience=TRAVELER');
+    expect(plans.status).toBe(200);
+    expect(plans.body.data[0].price).toBe(99000);
     expect(
       (
         await request(app)
@@ -155,6 +164,7 @@ describe('Premium end-to-end and invariants', () => {
         vouchers: [{ contributionId: sourceId, quantity: 1 }],
       });
     expect(draft.status).toBe(201);
+    expect(draft.body.data.price).toBe(99000);
     expect(
       (
         await request(app)

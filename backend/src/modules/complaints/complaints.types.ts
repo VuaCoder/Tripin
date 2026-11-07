@@ -63,6 +63,7 @@ export interface SendComplaintMessageInput {
 
 export interface ResolveComplaintTicketInput {
   solutionSummary: string;
+  refundAmount?: number;
 }
 
 export interface EscalateComplaintTicketInput {
@@ -80,6 +81,8 @@ export interface SubmitComplaintFeedbackInput {
 export interface AdjudicateComplaintTicketInput {
   decision: string;
   note: string;
+  refundAmount?: number;
+  refundBookingId?: string;
 }
 
 export interface ListComplaintsQuery {

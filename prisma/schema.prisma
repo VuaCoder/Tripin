@@ -1,7 +1,7 @@
 // Single source of truth for the database schema (PostgreSQL). Migrations live in prisma/migrations.
 // Enum values mirror `@travel-platform/constants` and the module `*.types.ts` files; the test
 // `backend/src/scripts/__tests__/prisma-enums-in-sync.test.ts` fails if they drift apart.
-// Money is stored as whole VND (Int). Ids are UUIDs.
+// Money is stored as whole VND (BigInt). Business limits live in packages/constants/src/money.ts.
 
 generator client {
   provider     = "prisma-client"
@@ -153,7 +153,7 @@ model Tour {
   requiredDocuments  String?
   destination  String
   durationDays Int
-  basePrice    Int
+  basePrice    BigInt
   maxGroupSize Int?
   images       String[]   @default([])
   inclusions   String[]   @default([])
@@ -187,7 +187,7 @@ model TourDeparture {
   date          DateTime
   capacity      Int
   remaining     Int
-  priceOverride Int?
+  priceOverride BigInt?
   isOpen        Boolean  @default(true)
 
   tour Tour @relation(fields: [tourId], references: [id], onDelete: Cascade)
@@ -199,7 +199,7 @@ model TourDeparture {
 model TourGuideAssignment {
   tourId        String                @id @db.Uuid
   guideId       String                @db.Uuid
-  feePerBooking Int
+  feePerBooking BigInt
   status        GuideAssignmentStatus @default(PENDING)
   respondedAt   DateTime?
   note          String?
@@ -227,18 +227,18 @@ model Booking {
   contactPhone String
   notes        String?
 
-  unitPrice        Int
-  subtotal         Int
+  unitPrice        BigInt
+  subtotal         BigInt
   /// Snapshot of the applied promotion (all null when none was applied).
   promotionId      String?         @db.Uuid
   promotionCode    String?
   promotionScope   PromotionScope?
-  discountAmount   Int             @default(0)
+  discountAmount   BigInt          @default(0)
   premiumVoucherId String?         @db.Uuid
-  totalAmount      Int
+  totalAmount      BigInt
   commissionBps    Int
-  commissionAmount Int
-  agencyAmount     Int
+  commissionAmount BigInt
+  agencyAmount     BigInt
 
   status           BookingStatus        @default(PENDING)
   isPaid           Boolean              @default(false)
@@ -246,6 +246,8 @@ model Booking {
   fulfillmentStatus String             @default("PENDING")
   fulfillmentAttempts Int              @default(0)
   fulfillmentNextAttemptAt DateTime?
+  /// Snapshot of the refund amount when a refund is recorded (VND).
+  refundAmount     Int?
   paymentExpiresAt DateTime?
   confirmedAt      DateTime?
   completedAt      DateTime?
@@ -257,6 +259,8 @@ model Booking {
   clientRequestId String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  redemptions     PromotionRedemption[]
 
   @@unique([travelerId, clientRequestId])
   @@index([travelerId, createdAt(sort: Desc), id(sort: Desc)])
@@ -275,7 +279,7 @@ model Payment {
   userId                String         @db.Uuid
   /// Booking or Subscription id depending on `purpose` (polymorphic, hence no foreign key).
   referenceId           String         @db.Uuid
-  amount                Int
+  amount                BigInt
   currency              String         @default("VND")
   description           String
   provider              String
@@ -296,6 +300,27 @@ model Payment {
   @@index([userId, createdAt(sort: Desc)])
   @@index([status, expiresAt])
   @@index([status, fulfilledAt])
+}
+
+/// Ledger of refund payouts (booking cancellations, complaint resolutions, etc.).
+model RefundLedger {
+  id                String    @id @default(uuid()) @db.Uuid
+  bookingId         String?   @db.Uuid
+  paymentId         String?   @db.Uuid
+  complaintTicketId String?   @db.Uuid
+  userId            String    @db.Uuid
+  amount            Int
+  currency          String    @default("VND")
+  reason            String
+  destinationHint   String?
+  status            String    @default("PENDING")
+  processedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([bookingId])
 }
 
 model ETicket {
@@ -329,7 +354,7 @@ model Earning {
   tourId      String   @db.Uuid
   tourTitle   String
   agencyId    String   @db.Uuid
-  amount      Int
+  amount      BigInt
   earnedAt    DateTime
   createdAt   DateTime @default(now())
 
@@ -342,7 +367,7 @@ model GuidePayoutLedger {
   guideId String @db.Uuid
   agencyId String @db.Uuid
   tourId String @db.Uuid
-  amount Int
+  amount BigInt
   status String @default("PENDING")
   transferReference String?
   transferredAt DateTime?
@@ -416,9 +441,9 @@ model Promotion {
   title             String
   description       String?
   discountType      DiscountType
-  discountValue     Int
-  maxDiscountAmount Int?
-  minOrderAmount    Int                @default(0)
+  discountValue     BigInt
+  maxDiscountAmount BigInt?
+  minOrderAmount    BigInt             @default(0)
   minParticipants   Int?
   daysInAdvance     Int?
   firstBookingOnly  Boolean            @default(false)
@@ -436,6 +461,7 @@ model Promotion {
 
   codeInstances     PromotionCodeInstance[]
   userVouchers      UserVoucher[]
+  redemptions       PromotionRedemption[]
 
   @@index([scope, ownerId, createdAt(sort: Desc)])
   @@index([applyType, isActive])
@@ -473,12 +499,29 @@ model UserVoucher {
   @@index([userId, isUsed])
 }
 
+model PromotionRedemption {
+  id             String         @id @default(uuid()) @db.Uuid
+  bookingId      String         @db.Uuid
+  promotionId    String         @db.Uuid
+  scope          PromotionScope
+  code           String
+  discountAmount BigInt
+  codeInstanceId String?        @db.Uuid
+  createdAt      DateTime       @default(now())
+
+  booking        Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  promotion      Promotion      @relation(fields: [promotionId], references: [id], onDelete: Restrict)
+
+  @@index([bookingId])
+  @@index([promotionId])
+}
+
 model SubscriptionPlan {
   id           String   @id @default(uuid()) @db.Uuid
   code         String   @unique
   name         String
   description  String?
-  price        Int
+  price        BigInt
   durationDays Int
   benefits     String[] @default([])
   isActive     Boolean  @default(true)
@@ -502,7 +545,7 @@ model Subscription {
   planId       String             @db.Uuid
   planCode     String
   planName     String
-  price        Int
+  price        BigInt
   durationDays Int
   isPremium    Boolean            @default(false)
   audience     Role               @default(TOUR_GUIDE)
@@ -761,6 +804,8 @@ model Conversation {
   lastMessageSentAt   DateTime?
   unreadTraveler      Int       @default(0)
   unreadGuide         Int       @default(0)
+  lastReadTravelerAt  DateTime?
+  lastReadGuideAt     DateTime?
   lastActivityAt      DateTime  @default(now())
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt

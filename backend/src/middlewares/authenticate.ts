@@ -23,6 +23,7 @@ export async function resolveUserActor(token: string): Promise<UserActor> {
     kind: 'user',
     userId: user.id,
     email: user.email,
+    emailVerified: user.emailVerifiedAt != null,
     role: user.role as UserActor['role'],
     permissions: permissionsOf(user),
   };

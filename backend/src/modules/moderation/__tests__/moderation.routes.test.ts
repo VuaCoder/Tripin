@@ -33,7 +33,7 @@ function app() {
   server.use((req, _res, next) => {
     const role = req.header('x-role') as Role | undefined;
     req.actor = role
-      ? { kind: 'user', userId: 'u1', email: 'x@y.z', role: role as never, permissions: resolvePermissions(role) }
+      ? { kind: 'user', userId: 'u1', email: 'x@y.z', role: role as never, permissions: resolvePermissions(role), emailVerified: true }
       : GUEST_ACTOR;
     next();
   });

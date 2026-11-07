@@ -5,8 +5,8 @@ export const STORY_INTRO = {
   kicker: 'Câu chuyện của TRIPRI',
   title: 'Chúng tôi muốn việc đặt một chuyến đi trở nên đơn giản hơn.',
   body: 'Du lịch thường bắt đầu với quá nhiều tab, quá nhiều tin nhắn và những thông tin rời rạc. TRIPRI gom toàn bộ hành trình về một trải nghiệm liền mạch: khám phá điểm đến, tìm tour, so sánh lịch trình và đặt trực tuyến.',
-  image: '/images/story-local-guide.png',
-  imageAlt: 'Câu chuyện TRIPRI',
+  image: 'https://res.cloudinary.com/zal9vrxu/image/upload/v1793898293/tripri_story/story_intro_halong.jpg',
+  imageAlt: 'Hành trình vịnh biển TRIPRI',
 };
 
 export const STORY_FINAL = {
@@ -23,7 +23,7 @@ export const STORY_CHAPTERS = [
     title: 'Mọi hành trình bắt đầu từ một nơi bạn muốn hiểu hơn.',
     body: 'TRIPRI đưa những điểm đến, tour trải nghiệm và lịch trình phù hợp về cùng một nơi. Tìm theo địa danh, ngày khởi hành hoặc điều bạn muốn làm — từ một ngày trên vịnh đến một hành trình nhiều ngày qua miền núi.',
     side: 'Không còn phải mở nhiều trang để ghép từng mảnh của chuyến đi.',
-    image: '/images/story-local-guide.png',
+    image: 'https://res.cloudinary.com/zal9vrxu/image/upload/v1793898294/tripri_story/story_ch1_ninhbinh.jpg',
   },
   {
     number: '02',
@@ -31,7 +31,7 @@ export const STORY_CHAPTERS = [
     title: 'Một chuyến đi tốt nên bắt đầu bằng sự rõ ràng.',
     body: 'Xem lịch trình từng ngày, thời lượng, điểm đón, số chỗ còn lại và những gì đã bao gồm. Bạn biết mình sẽ đi đâu, làm gì và cần chuẩn bị gì trước khi quyết định.',
     side: 'Thông tin đầy đủ để lựa chọn bằng sự yên tâm, không phải phỏng đoán.',
-    image: '/images/destination-ninh-binh.png',
+    image: 'https://res.cloudinary.com/zal9vrxu/image/upload/v1793898295/tripri_story/story_ch2_sapa_terrace.jpg',
   },
   {
     number: '03',
@@ -39,7 +39,7 @@ export const STORY_CHAPTERS = [
     title: 'Từ lựa chọn đầu tiên đến tấm vé điện tử.',
     body: 'Khi đã tìm thấy tour phù hợp, kiểm tra tình trạng chỗ, đặt và thanh toán trực tuyến ngay trên TRIPRI. Xác nhận đặt chỗ và e-ticket được gửi về để bạn luôn có thông tin cần thiết trong tay.',
     side: 'Ít bước hơn. Ít cuộc gọi hơn. Nhiều thời gian hơn cho chính chuyến đi.',
-    image: '/images/hero-vietnam.png',
+    image: 'https://res.cloudinary.com/zal9vrxu/image/upload/v1793898296/tripri_story/story_ch3_hoian_lantern.jpg',
   },
   {
     number: '04',
@@ -47,6 +47,6 @@ export const STORY_CHAPTERS = [
     title: 'Kết nối với những người hiểu nơi họ dẫn bạn đến.',
     body: 'TRIPRI kết nối bạn với các công ty du lịch và hướng dẫn viên đáng tin cậy — những đối tác tạo ra trải nghiệm thật, vận hành chuyến đi và chăm sóc bạn trên đường.',
     side: 'Một nền tảng chung cho người đi, người tổ chức và người dẫn đường.',
-    image: '/images/story-local-guide.png',
+    image: 'https://res.cloudinary.com/zal9vrxu/image/upload/v1793898297/tripri_story/story_ch4_local_culture.jpg',
   },
 ];

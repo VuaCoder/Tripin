@@ -1,6 +1,8 @@
 import { DISCOUNT_TYPE, PROMOTION_APPLY_TYPE, PROMOTION_CODE_TYPE, PROMOTION_SCOPE, type PersistedRole, type PromotionScope } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
+import type { DbExecutor } from '../../config/database';
 import { buildPage, type Page, type PageRequest } from '../../utils/pagination';
+import { TtlCache } from '../../utils/ttl-cache';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
 import { toursService, type ToursService } from '../tours';
 import { notificationsService, type NotificationsService, NOTIFICATION_TYPE } from '../notifications';
@@ -30,6 +32,10 @@ type Repo = Pick<
   | 'list'
   | 'consume'
   | 'release'
+  | 'lockPromotions'
+  | 'findUsedCodesByBooking'
+  | 'findRedemptionsByBooking'
+  | 'isUniqueBatch'
   | 'createCodeInstances'
   | 'listCodeInstances'
   | 'consumeCodeInstance'
@@ -41,6 +47,7 @@ type Repo = Pick<
 >;
 
 export class PromotionsService {
+  private readonly hotCache = new TtlCache<PromotionDto[]>(30_000, 10);
   constructor(
     private readonly promotions: Repo = promotionsRepository,
     private readonly tours: Pick<ToursService, 'getTourFacts'> = toursService,
@@ -276,6 +283,9 @@ export class PromotionsService {
     opts?: { participants?: number; departureDate?: Date; userId?: string; isFirstBooking?: boolean },
   ): Promise<AppliedPromotion & { finalAmount: number }> {
     const { promotion, agencyId, codeInstance } = await this.resolve(code, tourId);
+    if (codeInstance?.isUsed) {
+      throw AppError.conflict('This voucher code has already been used', 'PROMOTION_CODE_USED');
+    }
     let userUsedCount: number | undefined;
     if (opts?.userId) {
       userUsedCount = await this.promotions.countUserUsages(opts.userId, promotion.id);
@@ -289,9 +299,6 @@ export class PromotionsService {
       isFirstBooking: opts?.isFirstBooking,
       userUsedCount,
     });
-    if (codeInstance && codeInstance.isUsed) {
-      throw AppError.conflict('This voucher code has already been used', 'PROMOTION_CODE_USED');
-    }
     const discountAmount = computeDiscount(promotion, subtotal);
     const applied = this.toApplied(promotion, discountAmount, subtotal);
     return {
@@ -302,19 +309,25 @@ export class PromotionsService {
   }
 
   /**
-   * Validates AND takes one redemption atomically. Call it when the booking is created; call `release` if the booking
-   * is cancelled or fails afterwards.
+   * Takes the instance and quota on the caller's booking transaction. A unique code must never be
+   * consumed without its booking/user context. Shared-code callers outside bookings retain their API.
    */
   async redeem(
     code: string,
     tourId: string,
     subtotal: number,
-    opts?: { participants?: number; departureDate?: Date; userId?: string; bookingId?: string; isFirstBooking?: boolean },
+    opts?: { participants?: number; departureDate?: Date; userId?: string; bookingId?: string; isFirstBooking?: boolean; tx?: DbExecutor },
   ): Promise<AppliedPromotion> {
-    const { promotion, agencyId, codeInstance } = await this.resolve(code, tourId);
+    const { promotion, agencyId, codeInstance } = await this.resolve(code, tourId, opts?.tx);
+    if (codeInstance?.isUsed) {
+      throw AppError.conflict('This voucher code has already been used', 'PROMOTION_CODE_USED');
+    }
+    if (codeInstance && (!opts?.bookingId || !opts.userId || !opts.tx)) {
+      throw AppError.badRequest('A unique voucher requires a booking, user and transaction');
+    }
     let userUsedCount: number | undefined;
     if (opts?.userId) {
-      userUsedCount = await this.promotions.countUserUsages(opts.userId, promotion.id);
+      userUsedCount = await this.promotions.countUserUsages(opts.userId, promotion.id, opts.tx);
     }
     assertApplicable(promotion, {
       agencyId,
@@ -326,15 +339,21 @@ export class PromotionsService {
       userUsedCount,
     });
     if (codeInstance) {
-      if (codeInstance.isUsed) {
-        throw AppError.conflict('This voucher code has already been used', 'PROMOTION_CODE_USED');
-      }
-      if (opts?.bookingId && opts?.userId) {
-        const consumed = await this.promotions.consumeCodeInstance(codeInstance.id, opts.bookingId, opts.userId);
+      if (opts?.bookingId && opts.userId && opts.tx) {
+        const consumed = await this.promotions.consumeCodeInstance(codeInstance.id, opts.bookingId, opts.userId, opts.tx);
         if (!consumed) throw AppError.conflict('This voucher code has already been used', 'PROMOTION_CODE_USED');
       }
     }
-    if (!(await this.promotions.consume(promotion.id))) {
+    const consumeResult = opts?.tx ? await this.promotions.consume(promotion.id, opts.userId, opts.tx) : opts?.userId ? await this.promotions.consume(promotion.id, opts.userId) : await this.promotions.consume(promotion.id);
+    const consumed = typeof consumeResult === 'boolean' ? { success: consumeResult, reason: 'EXHAUSTED' as const } : consumeResult;
+    if (!consumed.success) {
+      if (consumed.reason === 'USER_LIMIT_REACHED') {
+        throw AppError.conflict(
+          `You have reached the limit of ${promotion.usageLimitPerUser ?? 1} redemption(s) for this promotion`,
+          'PROMOTION_USER_LIMIT_REACHED',
+        );
+      }
+
       throw AppError.conflict('This promotion has been fully redeemed', 'PROMOTION_EXHAUSTED');
     }
     const { finalAmount: _ignored, ...applied } = this.toApplied(promotion, computeDiscount(promotion, subtotal), subtotal);
@@ -345,14 +364,75 @@ export class PromotionsService {
     };
   }
 
-  async release(promotionId: string, codeInstanceId?: string): Promise<void> {
-    if (codeInstanceId) {
-      await this.promotions.releaseCodeInstance(codeInstanceId);
-    }
+  async release(promotionId: string): Promise<void> {
     return this.promotions.release(promotionId);
   }
 
-  /** Returns active promotions publicly displayed for an agency storefront (collectable, codes). */
+  /** Parent locks serialize conflicting redemptions; sort independently of agency/platform pricing order. */
+  async lockForBooking(codes: readonly string[], tx: DbExecutor): Promise<void> {
+    const ids: string[] = [];
+    for (const code of codes) {
+      const found = await this.promotions.findByCode(code, tx);
+      if (found) ids.push(found.promotion.id);
+    }
+    await this.promotions.lockPromotions(ids, tx);
+  }
+
+  /** Called only after winning the booking's cancellation CAS, on that same transaction. */
+  async releaseForBooking(bookingId: string, primaryPromotionId: string | undefined, tx: DbExecutor): Promise<void> {
+    const instances = await this.promotions.findUsedCodesByBooking(bookingId, tx);
+    const redemptions = await this.promotions.findRedemptionsByBooking(bookingId, tx);
+    await this.promotions.lockPromotions([
+      ...instances.map((instance) => instance.promotionId), ...redemptions.map((r) => r.promotionId), ...(primaryPromotionId ? [primaryPromotionId] : []),
+    ], tx);
+    const handled = new Set<string>();
+    for (const instance of instances) {
+      handled.add(instance.promotionId);
+      if (await this.promotions.releaseCodeInstance(instance.id, bookingId, tx)) {
+        await this.promotions.release(instance.promotionId, tx);
+      }
+    }
+    for (const redemption of redemptions) {
+      if (!handled.has(redemption.promotionId) && !redemption.codeInstanceId && !(await this.promotions.isUniqueBatch(redemption.promotionId, tx))) {
+        await this.promotions.release(redemption.promotionId, tx);
+        handled.add(redemption.promotionId);
+      }
+    }
+    // Keep the legacy primary shared-voucher release; never guess ownership of an old unlinked batch code.
+    if (primaryPromotionId && !handled.has(primaryPromotionId) && !(await this.promotions.isUniqueBatch(primaryPromotionId, tx))) {
+      await this.promotions.release(primaryPromotionId, tx);
+    }
+  }
+
+  /** Returns active public promotions for the home page (hot / sorted by usage and recency). */
+  async listHotPromotions(limit: number = 10): Promise<PromotionDto[]> {
+    return this.hotCache.getOrCompute('hot_' + limit, async () => {
+    const now = new Date();
+    const res = await this.promotions.list(
+      {
+        isActive: true,
+        isArchived: false,
+      },
+      { page: 1, limit: 50 },
+    );
+    return res.items
+      .filter(
+        (p) =>
+          p.isActive &&
+          !p.isArchived &&
+          p.startsAt <= now &&
+          now <= p.endsAt &&
+          (p.usageLimit == null || p.usedCount < p.usageLimit) &&
+          p.codeType !== PROMOTION_CODE_TYPE.UNIQUE_BATCH,
+      )
+      .sort((a, b) => b.usedCount - a.usedCount || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit)
+      .map(toPromotionDto);
+  
+    });
+  }
+
+    /** Returns active promotions publicly displayed for an agency storefront (collectable, codes). */
   async listPublicAgencyPromotions(agencyId: string): Promise<PromotionDto[]> {
     const now = new Date();
     const res = await this.promotions.list(
@@ -503,6 +583,22 @@ export class PromotionsService {
     if (current.usedCount > 0 && input.discountValue !== undefined && input.discountValue !== current.discountValue) {
       throw AppError.conflict('The discount of a promotion that has been used cannot change; create a new one', 'PROMOTION_IN_USE');
     }
+
+    const hasStarted = current.startsAt <= new Date();
+    if (hasStarted) {
+      const isDiscountModified = input.discountValue !== undefined && input.discountValue !== current.discountValue;
+      const isMinOrderModified = input.minOrderAmount !== undefined && input.minOrderAmount !== current.minOrderAmount;
+      const isDiscountTypeModified = (input as any).discountType !== undefined && (input as any).discountType !== current.discountType;
+      const isStartsAtModified = input.startsAt !== undefined && new Date(input.startsAt).getTime() !== current.startsAt.getTime();
+
+      if (isDiscountModified || isMinOrderModified || isDiscountTypeModified || isStartsAtModified) {
+        throw AppError.badRequest(
+          'Cannot modify discount value, discount type, min order amount or start date for an active started promotion',
+          undefined,
+          'PROMOTION_ACTIVE_LOCKED' as any,
+        );
+      }
+    }
     if (input.usageLimit !== undefined && input.usageLimit < current.usedCount) {
       throw AppError.badRequest(`usageLimit cannot be below the ${current.usedCount} redemptions already used`);
     }
@@ -559,8 +655,9 @@ export class PromotionsService {
   private async resolve(
     code: string,
     tourId: string,
+    tx?: DbExecutor,
   ): Promise<{ promotion: PromotionRecord; agencyId: string; codeInstance?: PromotionCodeInstanceRecord }> {
-    const raw = (await this.promotions.findByCode(code)) as any;
+    const raw = (await this.promotions.findByCode(code, tx)) as any;
     if (!raw) throw AppError.notFound('Promotion code not found');
     const promotion: PromotionRecord = raw.promotion ?? raw;
     const codeInstance: PromotionCodeInstanceRecord | undefined = raw.codeInstance;
@@ -573,7 +670,7 @@ export class PromotionsService {
         'PROMOTION_BATCH_PREFIX_NOT_USABLE',
       );
     }
-    const tour = await this.tours.getTourFacts(tourId);
+    const tour = await this.tours.getTourFacts(tourId, tx);
     if (!tour) throw AppError.notFound('Tour not found');
     return { promotion, agencyId: tour.agencyId, codeInstance };
   }

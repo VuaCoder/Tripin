@@ -67,7 +67,7 @@ describe('seed script (integration)', () => {
 
     expect(await prisma.category.count()).toBe(DEFAULT_CATEGORIES.length);
     expect((await prisma.category.findFirst({ where: { slug: 'adventure' } }))!.description).toBe('Edited by the owner');
-    expect((await prisma.subscriptionPlan.findFirst({ where: { code: 'GUIDE_MONTHLY' } }))!.price).toBe(249_000);
+    expect((await prisma.subscriptionPlan.findFirst({ where: { code: 'GUIDE_MONTHLY' } }))!.price).toBe(249_000n);
     const owner = (await prisma.user.findFirst({ where: { email: 'owner@example.com' } }))!;
     expect(owner.fullName).toBe('Renamed Owner');
     expect(owner.role).toBe('MODERATOR'); // a re-run never re-promotes or re-passwords an existing account

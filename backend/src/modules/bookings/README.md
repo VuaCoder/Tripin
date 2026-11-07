@@ -35,8 +35,14 @@ payment is pending, cancellation rules, the agency's view of its bookings, and t
 * Errors: 409 `NOT_ENOUGH_SEATS`, `DEPARTURE_UNAVAILABLE`, `PROMOTION_*`, `CANCELLATION_WINDOW_PASSED`, `INVALID_STATE_TRANSITION`, `BOOKING_NOT_PAYABLE`, `BOOKING_PAYMENT_EXPIRED`, `CONCURRENT_UPDATE`; 404 for foreign ids.
 
 ## Business rules
+Stacked agency/platform vouchers each have a `PromotionRedemption` snapshot (whole-VND `BIGINT`, converted to checked JSON numbers). These rows, quota checks and unique-code ownership commit in the booking transaction. Cancel/expiry releases all recorded vouchers inside the status-transition transaction; the primary-voucher fallback remains for legacy bookings without snapshots.
+
 1. **Pricing is server-side**: `subtotal = departure price × participants`; `total = subtotal − promotion discount`; `commission = floor(total × commissionBps / 10000)`; `agencyAmount = total − commission`. Commission rate and discount are **snapshotted** on the booking.
-2. **No overselling**: seats are reserved with one atomic update before the booking is saved; any later failure releases the seats and the promotion redemption (compensation).
+   Unit price is capped at 1 billion VND; at most 50 participants gives a 50-billion-VND booking ceiling.
+   Money is stored as `BIGINT`, mapped to checked JSON numbers by repositories. Ratio calculations use bigint
+   intermediates to preserve whole-VND rounding. Report totals can exceed a booking's ceiling but must remain
+   exactly representable by the current number-based API.
+2. **No overselling**: seats are reserved with one atomic update before persistence. Voucher instances, quota and the booking then commit on the same transaction. A failed transaction rolls back vouchers/quota and compensates only its reserved seats. Inventory is still outside this transaction; process-crash reconciliation remains separate work.
 2b. **Nothing free**: the amount to pay must be at least `MIN_PAYABLE_AMOUNT` (1 VND). A free departure, or a promotion that would bring the total to 0, is refused with `409 BOOKING_AMOUNT_TOO_LOW` before anything is reserved (seats and redemption given back). There is no free-booking flow in the diagram, and a payment of 0 cannot exist.
 3. **Retry safety**: `clientRequestId` (unique per traveler) makes a repeated request return the first booking and reserve nothing.
 4. A PENDING booking holds its seats for `PENDING_PAYMENT_MINUTES` (15). `expirePendingBookings()` cancels it afterwards (compare-and-set on PENDING only: a booking paid a moment earlier stays CONFIRMED) (`PAYMENT_EXPIRED`) and frees seats/promotion.
@@ -46,6 +52,8 @@ payment is pending, cancellation rules, the agency's view of its bookings, and t
 8. Ownership: traveler routes answer 404 for bookings of others; the agency sees only its own bookings.
 9. The customer list contains only paid bookings of the agency's own tour and is never cached (`Cache-Control: no-store`); the PDF font is DejaVu Sans (package `dejavu-fonts-ttf`), with a logged fallback to Helvetica.
 10. Booking codes (`TRP-XXXXXXXX`, no ambiguous characters) are unique; collisions are retried.
+11. Unique batch codes require an internal booking UUID, traveler and transaction. Parent promotion locks are acquired in stable id order; pricing still applies Agency before Platform. A failed booking-code INSERT retries the entire transaction, not the aborted INSERT. `clientRequestId` replay returns the winner and releases only the losing request's extra seats.
+12. Cancellation/expiry CAS and release of all unique instances/counters share a transaction. Releases match the original bookingId so delayed cleanup cannot free another booking's code. Seat release and events follow commit. Creation notifications also run after commit; notification failure never compensates a committed booking.
 
 ## State machine (`BOOKING_TRANSITIONS`)
 | From | To |
@@ -75,6 +83,7 @@ Agency frontend routes `/agency/bookings` and `/agency/bookings/:id` use Agency 
 `__tests__/bookings.export.test.ts` (real PDF generation incl. Vietnamese text and pagination, ownership/cap of the list, HTTP permissions) and
 `__tests__/bookings.integration.test.ts` – real PostgreSQL: seat accounting never oversells under parallel requests, the same `clientRequestId` yields one booking, double cancel releases seats once, IDOR returns 404.
 `__tests__/bookings.service.test.ts` – pricing and snapshots, promotion, compensation, idempotency, code collisions, ownership, cancellation rules, payment hooks, expiry and completion jobs, handler isolation.
+`../promotions/__tests__/unique-vouchers.integration.test.ts` – real PostgreSQL: unique-code races, same-key parallel replay, rollback at each write boundary, real uniqueness-error retry, guarded cancellation/expiry and post-commit notification failure.
 
 ## Not implemented / follow-ups
 * Refund execution and `REFUND_REQUESTED/REFUNDED` states (policy undefined, D-15).

@@ -60,6 +60,8 @@ export const agencyVerifyOtpBody = z.object({
 export const agencyResendOtpBody = z.object({
   email,
   purpose: z.enum([OTP_PURPOSE.REGISTER, OTP_PURPOSE.LOGIN_2FA]),
+  /** Required when purpose is LOGIN_2FA (validated in the service). */
+  password: z.string().min(1).max(AUTH_POLICY.PASSWORD_MAX_LENGTH).optional(),
 });
 
 export const googleLoginBody = z.object({
@@ -91,6 +93,8 @@ export const changePasswordBody = z
 export const resendOtpBody = z.object({
   email,
   purpose: z.enum([OTP_PURPOSE.REGISTER, OTP_PURPOSE.LOGIN_2FA, OTP_PURPOSE.FORGOT_PASSWORD]),
+  /** Required when purpose is LOGIN_2FA (validated in the service). */
+  password: z.string().min(1).max(AUTH_POLICY.PASSWORD_MAX_LENGTH).optional(),
 });
 
 export type RegisterBody = z.infer<typeof registerBody>;

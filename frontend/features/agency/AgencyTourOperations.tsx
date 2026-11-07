@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { MONEY_LIMITS } from '@travel-platform/constants';
 import { useAppDispatch } from '@/store/hooks';
 import { toursApi, useAssignAgencyTourGuideMutation, useGetAgencyGuidesQuery, getTourApiMessage } from '@/features/tours/api/toursApi';
 import { useDownloadAgencyCustomersMutation } from '@/features/booking/api/bookingApi';
@@ -33,7 +34,7 @@ export function AgencyGuidePanel({ tour }: { tour: TourDetail }) {
   const save = async (remove = false) => {
     setFeedback(null);
     const amount = Number(fee || 0);
-    if (!remove && (!guideId || fee.trim() === '' || !Number.isSafeInteger(amount) || amount < 0 || amount > 100_000_000_000)) { 
+    if (!remove && (!guideId || fee.trim() === '' || !Number.isSafeInteger(amount) || amount < 0 || amount > MONEY_LIMITS.MAX_GUIDE_FEE)) {
       setFeedback({ error: true, message: 'Hãy chọn hướng dẫn viên và nhập phí nguyên VND từ 0 đến 100.000.000.000.' }); 
       return; 
     }

@@ -29,13 +29,22 @@ import type {
   RequestContext,
   Session,
 } from './auth.types';
+import { disconnectUserSessions } from '../chat/chat.gateway';
 import { OtpService, otpService } from './otp.service';
 import { refreshTokenRepository, type RefreshTokenRepository } from './refresh-token.repository';
 
 export interface AuthDeps {
   users: Pick<
     UsersRepository,
-    'findByEmail' | 'findByEmailWithPassword' | 'findByIdWithPassword' | 'findByGoogleId' | 'findById' | 'create' | 'updateById' | 'updateStatusIf'
+    | 'findByEmail'
+    | 'findByEmailWithPassword'
+    | 'findByIdWithPassword'
+    | 'findByGoogleId'
+    | 'findById'
+    | 'create'
+    | 'updateById'
+    | 'updateStatusIf'
+    | 'incrementTokenVersion'
   >;
   refreshTokens: RefreshTokenRepository;
   otp: Pick<OtpService, 'issue' | 'verify' | 'purgeExpired'>;
@@ -251,7 +260,22 @@ export class AuthService {
   }
 
   /** Use case "Resend OTP": issues and mails a new verification code. */
-  async resendOtp(input: { email: string; purpose: OtpPurpose }): Promise<{ expiresInSeconds: number }> {
+  async resendOtp(input: {
+    email: string;
+    purpose: OtpPurpose;
+    password?: string;
+  }): Promise<{ expiresInSeconds: number }> {
+    if (input.purpose === OTP_PURPOSE.LOGIN_2FA) {
+      const user = await this.requireLogin2faPassword(input.email, input.password);
+      if (user.role === ROLES.AGENCY) {
+        throw AppError.forbidden('Please use the Agency verification portal', 'AGENCY_PORTAL_REQUIRED');
+      }
+      if (user.status === USER_STATUS.BANNED) {
+        throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
+      }
+      return this.sendOtp(user, input.purpose);
+    }
+
     const user = await this.deps.users.findByEmail(input.email);
     if (!user) throw AppError.badRequest('Invalid or expired request');
     if (user.role === ROLES.AGENCY) {
@@ -266,20 +290,30 @@ export class AuthService {
   async resendAgencyOtp(input: {
     email: string;
     purpose: typeof OTP_PURPOSE.REGISTER | typeof OTP_PURPOSE.LOGIN_2FA;
+    password?: string;
   }): Promise<{ expiresInSeconds: number }> {
+    if (input.purpose === OTP_PURPOSE.LOGIN_2FA) {
+      const user = await this.requireLogin2faPassword(input.email, input.password);
+      if (user.role !== ROLES.AGENCY) throw AppError.badRequest('Invalid or expired request');
+      if (user.status === USER_STATUS.BANNED) {
+        throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
+      }
+      if (user.status !== USER_STATUS.ACTIVE) {
+        throw AppError.badRequest('Invalid or expired request');
+      }
+      return this.sendOtp(user, input.purpose);
+    }
+
     const user = await this.deps.users.findByEmail(input.email);
     if (!user || user.role !== ROLES.AGENCY) throw AppError.badRequest('Invalid or expired request');
     if (user.status === USER_STATUS.BANNED) {
       throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
     }
-    if (input.purpose === OTP_PURPOSE.REGISTER && user.status !== USER_STATUS.PENDING_VERIFICATION) {
+    if (user.status !== USER_STATUS.PENDING_VERIFICATION) {
       throw AppError.badRequest('Invalid or expired request');
     }
-    if (input.purpose === OTP_PURPOSE.REGISTER && !this.hasCompleteAgencyProfile(user)) {
+    if (!this.hasCompleteAgencyProfile(user)) {
       throw AppError.forbidden('Please complete Agency registration first', 'AGENCY_ONBOARDING_REQUIRED');
-    }
-    if (input.purpose === OTP_PURPOSE.LOGIN_2FA && user.status !== USER_STATUS.ACTIVE) {
-      throw AppError.badRequest('Invalid or expired request');
     }
     return this.sendOtp(user, input.purpose);
   }
@@ -372,6 +406,7 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(input.newPassword, AUTH_POLICY.BCRYPT_ROUNDS);
     // Only the password changes here. Activation happens exclusively through the REGISTER OTP / verified Google email.
     await this.deps.users.updateById(user.id, { passwordHash });
+    await this.deps.users.incrementTokenVersion(user.id);
     await this.deps.refreshTokens.revokeAllForUser(user.id);
   }
 
@@ -411,7 +446,10 @@ export class AuthService {
   async logout(rawRefreshToken: string | undefined): Promise<void> {
     if (!rawRefreshToken) return;
     const stored = await this.deps.refreshTokens.findByHash(hashRefreshToken(rawRefreshToken));
-    if (stored) await this.deps.refreshTokens.revokeFamily(stored.family);
+    if (!stored) return;
+    await this.deps.users.incrementTokenVersion(stored.userId);
+    await this.deps.refreshTokens.revokeFamily(stored.family);
+    disconnectUserSessions(stored.userId);
   }
 
   // --------------------------------------------------------------------- 2FA
@@ -451,7 +489,7 @@ export class AuthService {
   async changePassword(userId: string, input: { currentPassword: string; newPassword: string }): Promise<void> {
     const user = await this.deps.users.findByIdWithPassword(userId);
     if (!user || user.status === USER_STATUS.BANNED) {
-      throw AppError.unauthenticated('Tài khoản không hợp lệ', ERROR_CODES.TOKEN_INVALID);
+      throw AppError.unauthenticated('Tài khoản không hợp lệ', ERROR_CODES.ACCOUNT_NOT_FOUND);
     }
 
     if (user.passwordHash) {
@@ -461,6 +499,9 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(input.newPassword, AUTH_POLICY.BCRYPT_ROUNDS);
     await this.deps.users.updateById(userId, { passwordHash });
+    await this.deps.users.incrementTokenVersion(userId);
+    await this.deps.refreshTokens.revokeAllForUser(userId);
+    disconnectUserSessions(userId);
   }
 
   /** Housekeeping (periodic job): drops expired one-time codes and refresh tokens. Returns the number removed. */
@@ -509,6 +550,18 @@ export class AuthService {
     return user;
   }
 
+  /** LOGIN_2FA resend must prove password possession; same generic error as login. */
+  private async requireLogin2faPassword(email: string, password: string | undefined): Promise<UserRecord> {
+    const user = await this.deps.users.findByEmailWithPassword(email);
+    const matches = password
+      ? await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH)
+      : false;
+    if (!password || !user || !user.passwordHash || !matches) {
+      throw AppError.unauthenticated('Invalid email or password', ERROR_CODES.INVALID_CREDENTIALS);
+    }
+    return user;
+  }
+
   private async createSession(user: UserRecord, context: RequestContext, family?: string): Promise<Session> {
     if (user.staffStatus && user.staffStatus !== 'ACTIVE') throw AppError.forbidden('Staff account is not active');
     const refresh = generateRefreshToken();
@@ -543,7 +596,7 @@ export class AuthService {
 
   private async sendOtp(user: UserRecord, purpose: OtpPurpose): Promise<{ expiresInSeconds: number }> {
     const { code, expiresInSeconds } = await this.deps.otp.issue(user.id, purpose);
-    logger.info(`[AUTH OTP] 🔑 Mã OTP cho [${user.email}] (${purpose}): [${code}] (hết hạn sau ${expiresInSeconds}s)`);
+    logger.info(`[AUTH OTP] issued for ${user.email} purpose=${purpose}`);
     await this.deps.mail.send(buildOtpMail(user.email, purpose, code));
     return { expiresInSeconds };
   }

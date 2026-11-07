@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { prisma, type Prisma } from '../../config/database';
 import { AppError } from '../../utils/app-error';
+import { numericRecord } from '../../utils/money';
+import { safeVndNumber } from '@travel-platform/constants';
 import {
   assertRefundable,
   continuousPremiumEnd,
@@ -30,7 +32,7 @@ export const premiumRepository = {
         expired: false,
         periods: [],
       };
-    const periods = await prisma.subscription.findMany({
+    const periods = (await prisma.subscription.findMany({
       where: {
         userId,
         audience: user.role,
@@ -40,7 +42,7 @@ export const premiumRepository = {
         endsAt: { gt: now },
       },
       orderBy: { startsAt: 'asc' },
-    });
+    })).map(numericRecord);
     const current = periods.find((p) => p.startsAt && p.startsAt <= now);
     const endsAt = continuousPremiumEnd(periods, now);
     const previous =
@@ -63,15 +65,15 @@ export const premiumRepository = {
       periods,
     };
   },
-  plans(audience: 'TRAVELER' | 'TOUR_GUIDE', admin = false) {
-    return prisma.subscriptionPlan.findMany({
+  async plans(audience: 'TRAVELER' | 'TOUR_GUIDE', admin = false) {
+    return (await prisma.subscriptionPlan.findMany({
       where: {
         isPremium: true,
         ...(admin ? {} : { audience, isActive: true, published: true }),
       },
       include: { premiumVouchers: { include: { contribution: true } } },
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
-    });
+    })).map(numericRecord);
   },
   async createPlan(input: PlanInput) {
     return prisma.$transaction(async (tx) => {
@@ -87,7 +89,7 @@ export const premiumRepository = {
           'Nguồn voucher chưa được duyệt hoặc đã ngừng bán',
         );
       const { vouchers, ...data } = input;
-      return tx.subscriptionPlan.create({
+      return numericRecord(await tx.subscriptionPlan.create({
         data: {
           ...data,
           isPremium: true,
@@ -95,7 +97,7 @@ export const premiumRepository = {
           published: false,
           premiumVouchers: { create: vouchers },
         },
-      });
+      }));
     });
   },
   async publishPlan(id: string, published: boolean) {
@@ -120,10 +122,10 @@ export const premiumRepository = {
       throw AppError.conflict(
         'Gói chưa đủ giá, quyền lợi hoặc hạn mức voucher để mở bán',
       );
-    return prisma.subscriptionPlan.update({
+    return numericRecord(await prisma.subscriptionPlan.update({
       where: { id },
       data: { published, isActive: published },
-    });
+    }));
   },
   async contribute(agencyId: string, input: ContributionInput) {
     const tours = await prisma.tour.count({
@@ -188,7 +190,7 @@ export const premiumRepository = {
           throw AppError.conflict(
             'Phiên cũ đã hết thời gian; vui lòng kiểm tra thanh toán và thử lại sau khi đối soát',
           );
-        return existing;
+        return numericRecord(existing);
       }
       const expiresAt = new Date(Date.now() + 30 * 60_000);
       const sub = await tx.subscription.create({
@@ -238,7 +240,7 @@ export const premiumRepository = {
           },
         });
       }
-      return sub;
+      return numericRecord(sub);
     });
   },
   async activate(subscriptionId: string, userId: string, now = new Date()) {
@@ -262,7 +264,7 @@ export const premiumRepository = {
           create: {
             subscriptionId: s.id,
             userId,
-            amount: s.price,
+            amount: safeVndNumber(s.price),
             reason: 'Thanh toán đến sau khi hạn mức đã được giải phóng',
             status: 'APPROVED',
           },
@@ -410,7 +412,7 @@ export const premiumRepository = {
       }),
       prisma.subscription.count({ where: { userId, isPremium: true } }),
     ]);
-    return { items, total };
+    return { items: items.map(numericRecord), total };
   },
   vouchers(userId: string) {
     return prisma.premiumVoucher.findMany({
@@ -486,7 +488,7 @@ export const premiumRepository = {
       assertRefundable(s);
       return tx.premiumRefund.upsert({
         where: { subscriptionId },
-        create: { userId, subscriptionId, reason, amount: s.price },
+        create: { userId, subscriptionId, reason, amount: safeVndNumber(s.price) },
         update: {},
       });
     });
@@ -625,7 +627,7 @@ export const premiumRepository = {
         amount: m.totalAmount,
         count: m.count,
       })),
-      assignments: tours,
+      assignments: tours.map(numericRecord),
       activity,
       assignmentCounts: Object.fromEntries(
         counts.map((c) => [c.status, c._count]),

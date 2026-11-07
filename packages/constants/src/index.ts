@@ -6,5 +6,6 @@ export * from './promotions';
 export * from './bookings';
 export * from './payments';
 export * from './age-pricing';
+export * from './money';
 export * from './complaints';
 export * from './profanity';

@@ -164,7 +164,7 @@ async function main() {
     where: { slug: 'dev-premium-demo' },
     create: {
       slug: 'dev-premium-demo',
-      name: `${PREFIX} Trải nghiệm`,
+      name: 'Trải nghiệm đặc sắc',
       isActive: true,
     },
     update: {},
@@ -237,7 +237,7 @@ async function main() {
   const { acceptedTerms: _acceptedTerms, ...contribution } =
     contributionBody.parse({
       acceptedTerms: true,
-      title: `${PREFIX} Giảm 10% tour trải nghiệm`,
+      title: 'Giảm 10% tour trải nghiệm',
       tourIds: [TOUR_ID],
       discountType: 'PERCENT',
       discountValue: 10,
@@ -293,9 +293,18 @@ async function main() {
   for (const definition of definitions) {
     const input = planBody.parse({
       code: definition.code,
-      name: `${PREFIX} ${definition.audience === 'TRAVELER' ? 'Traveler' : 'Guide'} ${definition.days} ngày`,
+      name:
+        definition.audience === 'TRAVELER'
+          ? `Hội Viên Du Khách ${definition.days} Ngày`
+          : `Hội Viên Hướng Dẫn Viên ${definition.days} Ngày`,
       description:
-        'Gói mẫu cho môi trường dev. Giá minh họa; thanh toán sử dụng PayOS đang được cấu hình.',
+        definition.audience === 'TRAVELER'
+          ? definition.days >= 90
+            ? 'Gói hội viên 3 tháng tiết kiệm nhất, tặng kèm trọn bộ voucher cao cấp cùng đặc quyền ưu tiên phục vụ 24/7.'
+            : 'Tận hưởng các ưu đãi du lịch độc quyền, voucher giảm giá hấp dẫn và ưu tiên hỗ trợ chuyến đi suốt 30 ngày.'
+          : definition.days >= 90
+            ? 'Đồng hành dài hạn 3 tháng với huy hiệu xác minh uy tín, gia tăng độ tin cậy và ưu tiên nhận tour liên tục.'
+            : 'Nâng tầm thương hiệu cá nhân, mở rộng kết nối với các công ty lữ hành hàng đầu và tối ưu thu nhập.',
       audience: definition.audience,
       price: definition.price,
       durationDays: definition.days,
@@ -303,9 +312,9 @@ async function main() {
       benefits:
         definition.audience === 'TRAVELER'
           ? [
-              `${definition.quantity} voucher theo kỳ`,
+              `${definition.quantity} voucher ưu đãi theo kỳ`,
               'Giảm 10%, tối đa 100.000đ/voucher',
-              'Áp dụng tour demo, đơn từ 500.000đ',
+              'Áp dụng cho mọi tour tuyển chọn, đơn từ 500.000đ',
             ]
           : [
               'Portfolio và chứng chỉ bổ sung',

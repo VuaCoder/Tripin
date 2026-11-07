@@ -1,5 +1,6 @@
 import { GUIDE_ASSIGNMENT_STATUS, ROLES, TOUR_STATUS, type PersistedRole, type TourStatus } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
+import type { DbExecutor } from '../../config/database';
 import { buildPage, type Page } from '../../utils/pagination';
 import { assertTransition } from '../../utils/state-machine';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
@@ -447,8 +448,9 @@ export class ToursService {
   /** Minimal facts about a tour of ANY status (bookings/reviews/earnings need them after the tour changed). */
   async getTourFacts(
     tourId: string,
+    tx?: DbExecutor,
   ): Promise<{ id: string; agencyId: string; title: string; status: TourStatus; guideId?: string; guideFee?: number } | null> {
-    const tour = await this.tours.findById(tourId);
+    const tour = await this.tours.findById(tourId, tx);
     if (!tour) return null;
     return {
       id: tour.id,

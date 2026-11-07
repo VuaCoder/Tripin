@@ -1,7 +1,10 @@
 import type { DateRange } from '../../utils/date-range';
 import { PAYMENT_STATUS, type PaymentPurpose, type PaymentStatus } from '@travel-platform/constants';
 import { nullIfNotFound, prisma } from '../../config/database';
-import type { Payment } from '../../generated/prisma/client';
+import type { Payment as StoredPayment } from '../../generated/prisma/client';
+import { numericRecord, type NumericRecord } from '../../utils/money';
+import { safeVndNumber } from '@travel-platform/constants';
+type Payment = NumericRecord<StoredPayment>;
 
 /** A stored payment. The gateway order code is a 64-bit column but always below 2^53, so it is exposed as a number. */
 export type PaymentRecord = Omit<Payment, 'providerOrderCode'> & { providerOrderCode: number };
@@ -14,11 +17,11 @@ export type NewPayment = Pick<Payment, 'purpose' | 'userId' | 'referenceId' | 'a
 /** Plain-field changes (`null` clears a nullable column). */
 export type PaymentPatch = Partial<PaymentScalars>;
 
-function toRecord(row: Payment): PaymentRecord {
-  return { ...row, providerOrderCode: Number(row.providerOrderCode) };
+function toRecord(row: StoredPayment): PaymentRecord {
+  return numericRecord(row);
 }
 
-const toRecords = (rows: Payment[]) => rows.map(toRecord);
+const toRecords = (rows: StoredPayment[]) => rows.map(toRecord);
 
 export class PaymentsRepository {
   async create(data: NewPayment): Promise<PaymentRecord> {
@@ -72,11 +75,22 @@ export class PaymentsRepository {
   /** Sum and count of PAID payments of one purpose (dashboards). */
   async paidTotal(purpose: PaymentPurpose, range?: DateRange): Promise<{ amount: number; count: number }> {
     const total = await prisma.payment.aggregate({ where: { purpose, status: PAYMENT_STATUS.PAID, ...(range ? { paidAt: { gte: range.from, lte: range.to } } : {}) }, _sum: { amount: true }, _count: { _all: true } });
-    return { amount: total._sum.amount ?? 0, count: total._count._all };
+    return { amount: safeVndNumber(total._sum.amount ?? 0n), count: total._count._all };
   }
 
   async findExpiredPending(now: Date, limit: number): Promise<PaymentRecord[]> {
     return toRecords(await prisma.payment.findMany({ where: { status: PAYMENT_STATUS.PENDING, expiresAt: { lt: now } }, take: limit }));
+  }
+
+  /** PENDING payments created before `olderThan` — used by the reconciliation poller for missed webhooks. */
+  async findPendingOlderThan(olderThan: Date, limit: number): Promise<PaymentRecord[]> {
+    return toRecords(
+      await prisma.payment.findMany({
+        where: { status: PAYMENT_STATUS.PENDING, createdAt: { lt: olderThan } },
+        orderBy: { createdAt: 'asc' },
+        take: limit,
+      }),
+    );
   }
 }
 

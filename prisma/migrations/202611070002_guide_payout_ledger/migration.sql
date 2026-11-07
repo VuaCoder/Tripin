@@ -4,7 +4,7 @@ CREATE TABLE "GuidePayoutLedger" (
   "guideId" UUID NOT NULL,
   "agencyId" UUID NOT NULL,
   "tourId" UUID NOT NULL,
-  "amount" INTEGER NOT NULL CHECK ("amount" >= 0),
+  "amount" BIGINT NOT NULL CHECK ("amount" >= 0),
   "status" TEXT NOT NULL DEFAULT 'PENDING' CHECK ("status" IN ('PENDING', 'TRANSFERRED')),
   "transferReference" TEXT,
   "transferredAt" TIMESTAMP(3),

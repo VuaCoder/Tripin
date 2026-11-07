@@ -30,6 +30,13 @@ describe('validatePromotionForm', () => {
     expect(validatePromotionForm(valid, { mode: 'create', now: NOW })).toEqual({});
   });
 
+  it('accepts promotion amounts up to a 50-billion booking and rejects the next dong', () => {
+    const values = { ...valid, discountType: 'FIXED' as const, discountValue: '3000000000', minOrderAmount: '50000000000' };
+    expect(validatePromotionForm(values, { mode: 'create', now: NOW })).toEqual({});
+    expect(validatePromotionForm({ ...values, minOrderAmount: '50000000001' }, { mode: 'create', now: NOW }).minOrderAmount).toBeTruthy();
+    expect(validatePromotionForm({ ...values, discountValue: '50000000001' }, { mode: 'create', now: NOW }).discountValue).toBeTruthy();
+  });
+
   it('rejects a malformed code, only in create mode', () => {
     expect(validatePromotionForm({ ...valid, code: 'a b' }, { mode: 'create', now: NOW }).code).toBeTruthy();
     expect(validatePromotionForm({ ...valid, code: 'a b' }, { mode: 'edit', now: NOW }).code).toBeUndefined();

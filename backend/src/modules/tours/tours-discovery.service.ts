@@ -2,6 +2,7 @@ import { PERMISSIONS, TOUR_STATUS } from '@travel-platform/constants';
 import type { Actor } from '../../types/actor';
 import { AppError } from '../../utils/app-error';
 import { buildPage, type Page } from '../../utils/pagination';
+import { TtlCache } from '../../utils/ttl-cache';
 import { toursRepository, type ToursRepository } from './tours.repository';
 import type { SearchToursQuery, TourDetailDto, TourListItemDto, TourManageDto } from './tours.types';
 import { tourViewBuilder, type TourViewBuilder } from './tours.view';
@@ -9,6 +10,9 @@ import { enrichDestination, type DestinationDto } from './tours.destinations';
 
 /** Public tour discovery: "Search tours", "Filter tours", "View tours list", "View tour details". */
 export class ToursDiscoveryService {
+  private readonly searchCache = new TtlCache<Page<TourListItemDto>>(30_000, 300);
+  private readonly destinationsCache = new TtlCache<DestinationDto[]>(60_000, 10);
+
   constructor(
     private readonly tours: Pick<ToursRepository, 'searchPublic' | 'findById' | 'findManyByIds' | 'getPublicDestinations'> = toursRepository,
     private readonly views: Pick<TourViewBuilder, 'listItems' | 'publicDetail' | 'manage'> = tourViewBuilder,
@@ -16,8 +20,11 @@ export class ToursDiscoveryService {
 
   /** One endpoint serves search, filters and the plain list. Only APPROVED tours are ever returned. */
   async search(query: SearchToursQuery): Promise<Page<TourListItemDto>> {
-    const { items, total } = await this.tours.searchPublic(query);
-    return buildPage(await this.views.listItems(items), total, query);
+    const key = JSON.stringify(query);
+    return this.searchCache.getOrCompute(key, async () => {
+      const { items, total } = await this.tours.searchPublic(query);
+      return buildPage(await this.views.listItems(items), total, query);
+    });
   }
 
   /** Public cards for the given ids; ids that are not APPROVED (or do not exist) are simply absent from the map. */
@@ -47,8 +54,16 @@ export class ToursDiscoveryService {
 
   /** Returns list of active public destinations with tour counts and province characteristics. */
   async getDestinations(): Promise<DestinationDto[]> {
-    const raw = await this.tours.getPublicDestinations();
-    return raw.map((item) => enrichDestination(item));
+    return this.destinationsCache.getOrCompute('public_destinations', async () => {
+      const raw = await this.tours.getPublicDestinations();
+      return raw.map((item) => enrichDestination(item));
+    });
+  }
+
+  /** Clears search and destination caches on mutations. */
+  invalidateCache(): void {
+    this.searchCache.clear();
+    this.destinationsCache.clear();
   }
 }
 

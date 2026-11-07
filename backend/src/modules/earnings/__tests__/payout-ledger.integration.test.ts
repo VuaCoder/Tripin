@@ -9,16 +9,30 @@ const app = createApp();
 beforeAll(startDatabase, 120_000);
 afterAll(stopDatabase);
 beforeEach(resetDatabase);
-async function fixture() {
+async function fixture(amount = 150000) {
   const agency = await createUser('AGENCY', 'agency@ledger.test');
   const stranger = await createUser('AGENCY', 'stranger@ledger.test');
   const guide = await createUser('TOUR_GUIDE', 'guide@ledger.test');
   const { tourId } = await createApprovedTour(agency.id);
   const bookingId = crypto.randomUUID();
-  const earning = await earningsRepository.create({ guideId: guide.id, agencyId: agency.id, tourId, bookingId, bookingCode: 'BOOK-LEDGER', tourTitle: 'Tour', amount: 150000, earnedAt: new Date() });
+  const earning = await earningsRepository.create({ guideId: guide.id, agencyId: agency.id, tourId, bookingId, bookingCode: 'BOOK-LEDGER', tourTitle: 'Tour', amount, earnedAt: new Date() });
   return { agency, stranger, guide, earning };
 }
 describe('guide payout ledger (PAY-018)', () => {
+  it('keeps whole VND above the Int32 limit numeric in payout and audit responses', async () => {
+    const { earning, agency, guide } = await fixture(3_000_000_000);
+    expect(earning.amount).toBe(3_000_000_000);
+    expect(earning.payout!.amount).toBe(3_000_000_000);
+    expect((await earningsRepository.findByBookingId(earning.bookingId))!.payout!.amount).toBe(3_000_000_000);
+    const list = await request(app).get('/api/v1/earnings/me/ledger').set(bearer(guide.token));
+    expect(list.status).toBe(200);
+    expect(list.body.data[0].amount).toBe(3_000_000_000);
+    const transfer = await request(app).post(`/api/v1/earnings/payouts/${earning.payout!.id}/transfer`).set(bearer(agency.token)).send({ transferReference: 'LARGE-VND-REF' });
+    expect(transfer.status).toBe(200);
+    expect(transfer.body.data.amount).toBe(3_000_000_000);
+    const audit = await prisma.auditLog.findFirstOrThrow({ where: { targetId: earning.payout!.id } });
+    expect(audit.metadata).toMatchObject({ amount: 3_000_000_000 });
+  });
   it('creates a pending ledger with the earning and exposes it only to its guide', async () => {
     const { earning, guide } = await fixture();
     expect(earning.payout).toMatchObject({ status: 'PENDING', amount: 150000 });

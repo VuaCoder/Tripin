@@ -1,4 +1,5 @@
 import type { TourContentInput } from '../types';
+import { MONEY_LIMITS } from '@travel-platform/constants';
 
 export const editorFields = ['title', 'destination', 'durationDays', 'summary', 'categoryIds', 'basePrice', 'maxGroupSize', 'agePricing'] as const;
 export type EditorField = typeof editorFields[number];
@@ -14,7 +15,7 @@ export function validateTourEditor(value: TourContentInput): EditorErrors {
   if (!Number.isInteger(value.durationDays) || value.durationDays < 1 || value.durationDays > 365) errors.durationDays = 'Chọn số ngày từ 1 đến 365, không dùng số lẻ.';
   if ((value.summary?.trim().length ?? 0) > 500) errors.summary = 'Rút gọn phần tóm tắt còn tối đa 500 ký tự nhé.';
   if (value.categoryIds.length < 1 || value.categoryIds.length > 10) errors.categoryIds = 'Chọn từ 1 đến 10 danh mục cho tour nhé.';
-  if (!Number.isSafeInteger(value.basePrice) || value.basePrice <= 0 || value.basePrice > 100_000_000_000) errors.basePrice = 'Nhập giá nguyên đồng, lớn hơn 0 và không quá 100 tỷ đồng.';
+  if (!Number.isSafeInteger(value.basePrice) || value.basePrice <= 0 || value.basePrice > MONEY_LIMITS.MAX_UNIT_PRICE) errors.basePrice = 'Nhập giá nguyên đồng, lớn hơn 0 và không quá 1 tỷ đồng.';
   if (value.maxGroupSize !== undefined && (!Number.isInteger(value.maxGroupSize) || value.maxGroupSize < 1 || value.maxGroupSize > 10_000)) errors.maxGroupSize = 'Chọn từ 1 đến 10.000 khách, hoặc để trống.';
   return errors;
 }

@@ -310,7 +310,7 @@ export function AgencyPartnerSettings({ onClose }: { onClose?: () => void }) {
 
             <div className="mt-3.5">
               <label className="text-xs font-semibold text-slate-600 block mb-1.5">
-                Giá niêm yết sản phẩm mẫu (Gross Price):
+                Giá niêm yết sản phẩm tham khảo (Gross Price):
               </label>
               <div className="relative">
                 <input

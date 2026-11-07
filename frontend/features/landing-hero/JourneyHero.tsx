@@ -83,15 +83,7 @@ export function JourneyHero({ onUnavailable }: JourneyHeroProps) {
   const finRef = useRef<HTMLDivElement>(null);
   const hintRef = useRef<HTMLDivElement>(null);
   const vigRef = useRef<HTMLDivElement>(null);
-  const navRef = useRef<HTMLElement>(null);
-  const [navHost, setNavHost] = useState<HTMLElement | null>(null);
   const pinRef = useRef<ScrollTrigger | null>(null);
-
-  const isAuthenticated = useAppSelector(selectIsAuthenticated);
-  const user = useAppSelector(selectUser);
-  const navItems = navigationByRole.PUBLIC;
-
-  useEffect(() => setNavHost(document.body), []);
 
   // GSAP wraps the pinned section in a pin-spacer. It must be unwrapped before React removes the section, otherwise
   // React throws "removeChild: node is not a child" (e.g. when the page swaps to the static hero). Layout-effect
@@ -137,7 +129,7 @@ export function JourneyHero({ onUnavailable }: JourneyHeroProps) {
             hint: hintRef.current,
             fin: finRef.current,
             vig: vigRef.current,
-            getNav: () => navRef.current,
+            getNav: () => null,
           },
           onFail: onUnavailable,
         });
@@ -163,28 +155,8 @@ export function JourneyHero({ onUnavailable }: JourneyHeroProps) {
     };
   }, [onUnavailable]);
 
-  const nav = (
-    <header ref={navRef} className="tj-nav">
-      <Link href="/" aria-label="Tripri" className="tj-logo">
-        <Image src="/images/tripri-logo.png" alt="Tripri - Du lịch theo cách của bạn" width={160} height={44} priority />
-      </Link>
-      <ul>
-        {navItems.map((item) => (
-          <li key={item.href}><Link href={item.href}>{item.label}</Link></li>
-        ))}
-      </ul>
-      {isAuthenticated && user ? (
-        <Link className="tj-btn-s" href={homeForRole(user.role)}>Vào trang chủ</Link>
-      ) : (
-        <Link className="tj-btn-s" href="/login">Đăng nhập</Link>
-      )}
-    </header>
-  );
-
   return (
     <section ref={trackRef} className="tj-track">
-      {navHost ? createPortal(nav, navHost) : null}
-
       <div ref={stageRef} className="tj-stage">
         <div ref={vigRef} className="tj-vig" />
 
@@ -194,9 +166,14 @@ export function JourneyHero({ onUnavailable }: JourneyHeroProps) {
           <h1>Đi gần hơn.<br />Sống sâu hơn.</h1>
           <h2>Tìm điểm đến. Chọn tour. Đặt chỗ. Thanh toán. Nhận e-ticket.</h2>
           <p>TRIPRI gom cả hành trình vào một nơi rõ ràng — để bạn dành nhiều thời gian hơn cho trải nghiệm đang chờ phía trước.</p>
-          <div className="tj-cta-row">
-            <Link className="tj-btn" href="/tours">Khám phá tour</Link>
-            <Link className="tj-link" href="/home">Xem điểm đến →</Link>
+          <div className="tj-scroll-guide">
+            <div className="tj-scroll-mouse">
+              <span className="tj-scroll-wheel" />
+            </div>
+            <div className="tj-scroll-info">
+              <span>Cuộn chuột để bắt đầu hành trình</span>
+              <span className="material-symbols-outlined tj-scroll-arrow">keyboard_arrow_down</span>
+            </div>
           </div>
         </div>
 
@@ -228,7 +205,6 @@ export function JourneyHero({ onUnavailable }: JourneyHeroProps) {
           <p>{STORY_FINAL.cta}.</p>
           <div className="tj-cta-row">
             <Link className="tj-btn" href="/home">Khám phá ngay</Link>
-            <Link className="tj-link" href={`/tours?q=${encodeURIComponent('Hạ Long')}`}>Tour Vịnh Hạ Long →</Link>
           </div>
         </div>
         <div ref={hintRef} className="tj-hint">CUỘN ĐỂ KHỞI HÀNH</div>

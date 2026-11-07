@@ -4,7 +4,9 @@ import { AppError } from '../../utils/app-error';
 import { buildPage, type Page } from '../../utils/pagination';
 import { assertTransition } from '../../utils/state-machine';
 import { bookingsService, type BookingsService } from '../bookings';
+import { bookingsRepository, type BookingsRepository } from '../bookings/bookings.repository';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
+import { refundLedgerRepository, type RefundLedgerRepository } from '../payments/refund-ledger.repository';
 import { toursService, type ToursService } from '../tours';
 import { usersService, type UsersService } from '../users';
 import {
@@ -36,6 +38,8 @@ export class ComplaintsService {
     private readonly bookings: Pick<BookingsService, 'getFacts'> = bookingsService,
     private readonly users: Pick<UsersService, 'getSummaries'> = usersService,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
+    private readonly refunds: Pick<RefundLedgerRepository, 'create'> = refundLedgerRepository,
+    private readonly bookingWrites: Pick<BookingsRepository, 'updateById'> = bookingsRepository,
   ) {}
 
   // ---------------------------------------------------------------- Cloudinary
@@ -320,6 +324,23 @@ export class ComplaintsService {
     });
     if (!updated) throw AppError.conflict('Phiếu đã thay đổi trạng thái, vui lòng tải lại', 'CONCURRENT_UPDATE');
 
+    if (input.refundAmount && ticket.travelerId) {
+      const bookingId = ticket.bookingId ?? null;
+      await this.refunds.create({
+        bookingId,
+        complaintTicketId: ticketId,
+        userId: ticket.travelerId,
+        amount: input.refundAmount,
+        reason: input.solutionSummary,
+      });
+      if (bookingId) {
+        await this.bookingWrites.updateById(bookingId, {
+          refundRequired: true,
+          refundAmount: input.refundAmount,
+        });
+      }
+    }
+
     // Add a system event message
     await this.repo.appendMessage({
       ticketId,
@@ -444,6 +465,23 @@ export class ComplaintsService {
       closedAt: new Date(),
     });
     if (!updated) throw AppError.conflict('Phiếu đã thay đổi trạng thái, vui lòng tải lại', 'CONCURRENT_UPDATE');
+
+    if (input.refundAmount && ticket.travelerId) {
+      const bookingId = input.refundBookingId ?? ticket.bookingId ?? null;
+      await this.refunds.create({
+        bookingId,
+        complaintTicketId: ticketId,
+        userId: ticket.travelerId,
+        amount: input.refundAmount,
+        reason: `${input.decision}: ${input.note}`,
+      });
+      if (bookingId) {
+        await this.bookingWrites.updateById(bookingId, {
+          refundRequired: true,
+          refundAmount: input.refundAmount,
+        });
+      }
+    }
 
     await this.repo.appendMessage({
       ticketId,

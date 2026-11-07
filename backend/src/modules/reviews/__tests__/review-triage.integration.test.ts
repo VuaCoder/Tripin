@@ -43,7 +43,9 @@ describe('reported-review triage (REVIEW-007)', () => {
     expect(await prisma.auditLog.count({ where: { targetId: review.id } })).toBe(1);
     expect(await prisma.notification.count({ where: { type: 'REVIEW_MODERATED' } })).toBe(2);
     expect(await prisma.mailOutbox.count()).toBe(2);
-    expect((await decide(false)).status).toBe(409);
+    const replay = await decide(false);
+    expect(replay.status).toBe(409);
+    expect(replay.body.error.code).toBe('REPORT_SNAPSHOT_CONFLICT');
     expect(await prisma.auditLog.count({ where: { targetId: review.id } })).toBe(1);
   });
   it('rejects a stale content token and disallows traveler access', async () => {

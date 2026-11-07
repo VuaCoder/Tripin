@@ -1,4 +1,5 @@
 import { env } from '../../../config/env';
+import { assertVnd } from '@travel-platform/constants';
 import { AppError } from '../../../utils/app-error';
 import { hmacSha256, safeEqual } from '../../../utils/crypto';
 import { logger } from '../../../utils/logger';
@@ -41,6 +42,8 @@ export class PayosProvider implements PaymentProvider {
   constructor(private readonly credentials?: PayosCredentials) {}
 
   async createPaymentLink(input: CreatePaymentLinkInput): Promise<PaymentLink> {
+    assertVnd(input.amount);
+    if (input.amount === 0) throw AppError.badRequest('Payment amount must be positive');
     const credentials = this.requireCredentials();
     const signature = hmacSha256(
       credentials.checksumKey,
@@ -89,7 +92,7 @@ export class PayosProvider implements PaymentProvider {
     }
     const orderCode = Number(body.data.orderCode);
     const amount = Number(body.data.amount);
-    if (!Number.isSafeInteger(orderCode) || !Number.isSafeInteger(amount)) {
+    if (!Number.isSafeInteger(orderCode) || orderCode < 0 || !Number.isSafeInteger(amount) || amount < 0) {
       throw AppError.badRequest('Malformed webhook payload');
     }
     return {
@@ -108,7 +111,11 @@ export class PayosProvider implements PaymentProvider {
     );
     const status = response.data?.status;
     const state = status === 'PAID' ? 'PAID' : status === 'CANCELLED' ? 'CANCELLED' : status === 'EXPIRED' ? 'EXPIRED' : 'PENDING';
-    return { state, amountPaid: response.data?.amountPaid ?? 0 };
+    const amountPaid = response.data?.amountPaid ?? 0;
+    if (!Number.isSafeInteger(amountPaid) || amountPaid < 0) {
+      throw AppError.unavailable('The payment provider returned an invalid amount');
+    }
+    return { state, amountPaid };
   }
 
   private requireCredentials(): PayosCredentials {

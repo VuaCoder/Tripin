@@ -49,7 +49,8 @@ const unwrapOk = () => ({ unwrap: () => Promise.resolve({}) });
 const unwrapFail = (code: string) => ({ unwrap: () => Promise.reject({ data: { error: { code, message: 'x' } } }) });
 
 const report = (over: Partial<ModerationReport> = {}): ModerationReport => ({
-  id: 'r1', code: 'RP-TEST0001',
+  id: 'r1',
+  code: 'RP-001',
   targetType: 'TOUR',
   targetId: 't1',
   targetName: 'Đà Nẵng 3N2Đ',

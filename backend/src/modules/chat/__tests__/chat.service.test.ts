@@ -24,22 +24,25 @@ function make(seed: C[] = []) {
       return doc;
     }),
     listConversations: vi.fn(async () => ({ items: db, total: db.length })),
-    recordMessage: vi.fn(async (id: string, recipient: string, last: C) => {
-      const doc = db.find((c) => c.id === id)!;
-      const before = { ...doc };
-      doc.lastMessage = last;
-      if (recipient === 'traveler') doc.unreadTraveler += 1;
-      else doc.unreadGuide += 1;
-      return before;
-    }),
-    resetUnread: vi.fn(async () => undefined),
-    createMessage: vi.fn(async (data: C) => {
+    appendMessageAndBumpUnread: vi.fn(async (data: C, recipient: string) => {
       const m = { id: `m${messages.length + 1}`, createdAt: new Date(), ...data };
       messages.push(m);
-      return m;
+      const doc = db.find((c) => c.id === data.conversationId)!;
+      const before = { ...doc };
+      doc.lastMessage = { text: data.text.slice(0, 200), senderId: data.senderId, sentAt: m.createdAt };
+      if (recipient === 'traveler') doc.unreadTraveler += 1;
+      else doc.unreadGuide += 1;
+      return { message: m, before };
     }),
     listMessages: vi.fn(async () => ({ items: [...messages].reverse(), hasMore: false })),
-    markMessagesRead: vi.fn(async () => undefined),
+    markReadWithWatermark: vi.fn(async (id: string, side: string) => {
+      const doc = db.find((c) => c.id === id);
+      if (doc) {
+        if (side === 'traveler') doc.unreadTraveler = 0;
+        else doc.unreadGuide = 0;
+      }
+      return { unreadCount: 0 };
+    }),
   };
   const users = {
     assertActiveWithRole: vi.fn(async (id: string) => ({ id })),
@@ -127,7 +130,7 @@ describe('messages', () => {
     await expect(service.getCounterpartId('intruder', 'c1')).rejects.toMatchObject({ statusCode: 404 });
     await expect(service.sendMessage('t1', 'missing', 'hi')).rejects.toMatchObject({ statusCode: 404 });
     await expect(service.sendMessage('t1', 'c1', '   ')).rejects.toMatchObject({ statusCode: 400 });
-    expect(repo.createMessage).not.toHaveBeenCalled();
+    expect(repo.appendMessageAndBumpUnread).not.toHaveBeenCalled();
   });
 
   it('rejects profanity and vulgar messages with 400 and PROFANITY_DETECTED', async () => {
@@ -144,7 +147,7 @@ describe('messages', () => {
       statusCode: 400,
       code: 'PROFANITY_DETECTED',
     });
-    expect(repo.createMessage).not.toHaveBeenCalled();
+    expect(repo.appendMessageAndBumpUnread).not.toHaveBeenCalled();
   });
 
   it('a broken publisher never fails the send', async () => {
@@ -158,8 +161,7 @@ describe('messages', () => {
   it('marks read for the reader only and returns the counterpart id', async () => {
     const { service, repo } = make([conv({ unreadGuide: 2 })]);
     expect(await service.markRead('g1', 'c1')).toEqual({ unreadCount: 0 });
-    expect(repo.markMessagesRead).toHaveBeenCalledWith('c1', 'g1');
-    expect(repo.resetUnread).toHaveBeenCalledWith('c1', 'guide');
+    expect(repo.markReadWithWatermark).toHaveBeenCalledWith('c1', 'guide', 'g1');
     expect(await service.getCounterpartId('g1', 'c1')).toBe('t1');
   });
 

@@ -7,9 +7,9 @@ import { PERMISSIONS } from '@travel-platform/constants';
 // The handshake uses the same token -> actor resolution as HTTP; replace it so no database is needed.
 vi.mock('../../../middlewares/authenticate', () => ({
   resolveUserActor: vi.fn(async (token: string) => {
-    if (token === 'traveler-token') return { kind: 'user', userId: 't1', email: 't@x.y', role: 'TRAVELER', permissions: [PERMISSIONS.CHAT_USE] };
-    if (token === 'guide-token') return { kind: 'user', userId: 'g1', email: 'g@x.y', role: 'TOUR_GUIDE', permissions: [PERMISSIONS.CHAT_USE] };
-    if (token === 'agency-token') return { kind: 'user', userId: 'a1', email: 'a@x.y', role: 'AGENCY', permissions: [] };
+    if (token === 'traveler-token') return { kind: 'user', userId: 't1', email: 't@x.y', role: 'TRAVELER', permissions: [PERMISSIONS.CHAT_USE], emailVerified: true };
+    if (token === 'guide-token') return { kind: 'user', userId: 'g1', email: 'g@x.y', role: 'TOUR_GUIDE', permissions: [PERMISSIONS.CHAT_USE], emailVerified: true };
+    if (token === 'agency-token') return { kind: 'user', userId: 'a1', email: 'a@x.y', role: 'AGENCY', permissions: [], emailVerified: true };
     throw Object.assign(new Error('bad token'), { code: 'TOKEN_INVALID' });
   }),
 }));

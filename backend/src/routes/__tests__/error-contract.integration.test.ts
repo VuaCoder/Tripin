@@ -42,8 +42,20 @@ function expectError(res: Response, code: string): void {
   observed.add(code);
 }
 
-// Codes that cannot be provoked deterministically in a test; each is covered where noted.
+// Codes covered by focused service/provider tests or requiring a specific concurrent failure.
 const COVERED_ELSEWHERE: Record<string, string> = {
+  PAYOUT_NOT_CONFIGURED: 'payout-account.crypto.test.ts verifies missing encryption keys fail closed',
+  PAYOUT_ACCOUNT_UNAVAILABLE: 'payout-account.crypto.test.ts verifies tampered and wrong-owner envelopes fail closed',
+  BOOKING_NOT_CONFIRMED: 'e-tickets.lifecycle.integration.test.ts verifies issuance after cancellation is rejected',
+  TRIP_NOT_ENDED: 'bookings.service.test.ts and guide-completion.test.ts reject early completion',
+  GUIDE_SCHEDULE_CONFLICT: 'guide-availability.integration.test.ts verifies conflicting assignments and booking reservations',
+  DEPARTURE_REQUIRED: 'e-tickets.check-in.test.ts and guide-completion.test.ts require an unambiguous departure',
+  PAYOUT_ALREADY_TRANSFERRED: 'payout-ledger.integration.test.ts rejects a different transfer reference after transfer',
+  REVIEW_REVISION_CONFLICT: 'reviews.atomic.integration.test.ts rejects moderation based on stale content',
+  REPORT_SNAPSHOT_CONFLICT: 'review-triage.integration.test.ts rejects decisions for already-resolved reports',
+  TICKET_WRONG_DEPARTURE: 'e-tickets.check-in.test.ts verifies departure-scoped scan ownership',
+  ACCOUNT_NOT_FOUND: 'auth.service.test.ts verifies missing/banned accounts at password-change time',
+  PROMOTION_ACTIVE_LOCKED: 'promotions.service.test.ts verifies immutable terms after start',
   TICKET_NOT_FOUND: 'e-tickets.check-in.test.ts verifies unknown QR codes',
   TICKET_ALREADY_USED: 'e-tickets.check-in.test.ts verifies duplicate check-ins',
   TICKET_WRONG_TOUR: 'e-tickets.check-in.test.ts verifies tour scope',
@@ -258,7 +270,7 @@ describe('error contract over HTTP', () => {
 
     // Reviews.
     expectError(await request(app).post('/api/v1/reviews').set(bearer(traveler.token)).send({ bookingId: paid, rating: 5, comment: 'Wonderful trip indeed' }), 'BOOKING_NOT_COMPLETED');
-    await prisma.booking.updateMany({ where: { id: paid }, data: { status: 'COMPLETED' } });
+    await prisma.booking.updateMany({ where: { id: paid }, data: { status: 'COMPLETED', endDate: new Date(Date.now() - day) } });
     expect((await request(app).post('/api/v1/reviews').set(bearer(traveler.token)).send({ bookingId: paid, rating: 5, comment: 'Wonderful trip indeed' })).status).toBe(201);
     expectError(await request(app).post('/api/v1/reviews').set(bearer(traveler.token)).send({ bookingId: paid, rating: 4, comment: 'Wonderful trip indeed' }), 'REVIEW_EXISTS');
 

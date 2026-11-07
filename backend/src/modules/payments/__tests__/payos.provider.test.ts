@@ -25,6 +25,10 @@ describe('PayosProvider.verifyWebhook', () => {
     expect(provider.verifyWebhook(signedWebhook(data))).toMatchObject({ orderCode: 1759000000123, amount: 2_000_000, success: true, reference: 'TF1' });
   });
 
+  it.each([-1, 0.5, Number.MAX_SAFE_INTEGER + 1])('rejects a signed invalid amount %s', (amount) => {
+    expect(() => provider.verifyWebhook(signedWebhook({ ...data, amount }))).toThrowError(expect.objectContaining({ statusCode: 400 }));
+  });
+
   it('rejects a tampered amount (signature no longer matches)', () => {
     const webhook = signedWebhook(data);
     (webhook.data as Record<string, unknown>).amount = 1;
@@ -48,6 +52,13 @@ describe('PayosProvider.verifyWebhook', () => {
 
   it('refuses everything when credentials are missing', () => {
     expect(() => new PayosProvider(undefined).verifyWebhook(signedWebhook(data))).toThrowError(expect.objectContaining({ statusCode: 503 }));
+  });
+});
+
+describe('PayosProvider.getPaymentStatus', () => {
+  it.each([-1, 0.5, Number.MAX_SAFE_INTEGER + 1, '50000'])('rejects invalid polling amount %s', async (amountPaid) => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ code: '00', data: { status: 'PAID', amountPaid } })));
+    await expect(new PayosProvider(credentials).getPaymentStatus(123)).rejects.toMatchObject({ statusCode: 503 });
   });
 });
 

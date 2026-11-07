@@ -279,7 +279,7 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
         <div className="space-y-1.5">
           <span className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
             <Sparkles size={13} className="text-amber-500" />
-            Chọn nhanh gói mẫu:
+            Chọn nhanh chính sách đề xuất:
           </span>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {CANCELLATION_TEMPLATES.map((tmpl) => (

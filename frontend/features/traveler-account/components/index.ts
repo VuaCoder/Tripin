@@ -7,5 +7,6 @@ export * from './AvatarPreview';
 export * from './ConfirmPasswordModal';
 export * from './TwoFactorCard';
 export * from './VoucherCard';
+export * from './VoucherSkeleton';
 export * from './VoucherWalletPage';
 

@@ -21,6 +21,7 @@ const PUBLIC_ROUTES = [
   'GET /health',
   'GET /policies',
   'GET /policies/:key',
+  'GET /promotions/hot',
   'GET /reviews',
   'GET /subscriptions/plans',
   'GET /tour-guides/:id',

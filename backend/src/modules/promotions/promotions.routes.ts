@@ -62,6 +62,7 @@ adminPromotionsRouter.get(
 
 /** Mounted at /api/v1/promotions — checkout helper & voucher wallet for travelers. */
 export const promotionsRouter = Router();
+promotionsRouter.get('/hot', promotionsController.listHot);
 promotionsRouter.get('/preview', requirePermission(PERMISSIONS.BOOKING_CREATE), validate({ query: previewQuery }), promotionsController.preview);
 promotionsRouter.get('/available', requirePermission(PERMISSIONS.BOOKING_CREATE), validate({ query: availableQuery }), promotionsController.available);
 promotionsRouter.post('/collect', requirePermission(PERMISSIONS.BOOKING_CREATE), validate({ body: collectVoucherBody }), promotionsController.collectVoucher);

@@ -47,6 +47,25 @@ export const wishlistApi = baseApi.injectEndpoints({
     addToWishlist: build.mutation<WishlistSavedResult, string>({
       query: (tourId) => ({ url: `/wishlist/${tourId}`, method: 'POST' }),
       transformResponse: (response: WishlistApiResponse<WishlistSavedResult>) => response.data,
+      async onQueryStarted(tourId, { dispatch, queryFulfilled }) {
+        // Optimistically update getWishlistTourIds so all heart buttons in the entire app update synchronously
+        const patchIds = dispatch(
+          wishlistApi.util.updateQueryData('getWishlistTourIds', undefined, (draft) => {
+            if (!draft.includes(tourId)) draft.push(tourId);
+          }),
+        );
+        const patchList = dispatch(
+          wishlistApi.util.updateQueryData('getWishlist', undefined, (draft) => {
+            draft.meta.total = draft.meta.total + 1;
+          }),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patchIds.undo();
+          patchList.undo();
+        }
+      },
       invalidatesTags: [{ type: 'Wishlist', id: 'ME' }],
     }),
 
@@ -54,9 +73,14 @@ export const wishlistApi = baseApi.injectEndpoints({
     removeFromWishlist: build.mutation<void, string>({
       query: (tourId) => ({ url: `/wishlist/${tourId}`, method: 'DELETE' }),
       async onQueryStarted(tourId, { dispatch, queryFulfilled }) {
-        // Header subscribes to the default page. Update its count immediately, then let tag invalidation
-        // revalidate every cached wishlist page with the backend.
-        const patch = dispatch(
+        // Optimistically update getWishlistTourIds and getWishlist so all components update synchronously
+        const patchIds = dispatch(
+          wishlistApi.util.updateQueryData('getWishlistTourIds', undefined, (draft) => {
+            const index = draft.indexOf(tourId);
+            if (index >= 0) draft.splice(index, 1);
+          }),
+        );
+        const patchList = dispatch(
           wishlistApi.util.updateQueryData('getWishlist', undefined, (draft) => {
             const index = draft.items.findIndex((item) => item.tourId === tourId);
             if (index >= 0) draft.items.splice(index, 1);
@@ -66,7 +90,8 @@ export const wishlistApi = baseApi.injectEndpoints({
         try {
           await queryFulfilled;
         } catch {
-          patch.undo();
+          patchIds.undo();
+          patchList.undo();
         }
       },
       invalidatesTags: [{ type: 'Wishlist', id: 'ME' }],

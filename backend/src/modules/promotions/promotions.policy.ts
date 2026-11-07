@@ -1,4 +1,4 @@
-import { DISCOUNT_TYPE, PROMOTION_SCOPE } from '@travel-platform/constants';
+import { assertVnd, DISCOUNT_TYPE, MONEY_LIMITS, PROMOTION_SCOPE, ratioVnd } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
 import type { PromotionRecord } from './promotions.repository';
 
@@ -31,9 +31,10 @@ export function isRunning(promotion: Pick<PromotionLike, 'isActive' | 'startsAt'
 
 /** Whole VND, never negative, never more than the order. PERCENT is optionally capped by `maxDiscountAmount`. */
 export function computeDiscount(promotion: Pick<PromotionLike, 'discountType' | 'discountValue' | 'maxDiscountAmount'>, subtotal: number): number {
+  assertVnd(subtotal, MONEY_LIMITS.MAX_BOOKING_AMOUNT);
   let discount: number;
   if (promotion.discountType === DISCOUNT_TYPE.PERCENT) {
-    discount = Math.floor((subtotal * promotion.discountValue) / 100);
+    discount = ratioVnd(subtotal, promotion.discountValue, 100);
     if (promotion.maxDiscountAmount !== undefined && promotion.maxDiscountAmount !== null) {
       discount = Math.min(discount, promotion.maxDiscountAmount);
     }

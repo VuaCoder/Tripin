@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useId, useMemo, useRef, type FormEvent } from 'react';
 import Link from 'next/link';
+import { MONEY_LIMITS } from '@travel-platform/constants';
 import { ArrowLeft, Eye, CheckCircle2, X, AlertTriangle, UserX } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { 
@@ -679,7 +680,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                     <span className="material-symbols-outlined text-4xl text-slate-400">photo_library</span>
                     <p className="mt-2 text-sm font-bold text-slate-700">Chưa có hình ảnh nào cho tour</p>
                     <p className="text-xs text-slate-500 mt-1">
-                      Hãy tải ảnh từ máy tính hoặc chọn từ bộ ảnh mẫu gợi ý bên dưới.
+                      Hãy tải ảnh từ máy tính hoặc chọn từ bộ ảnh gợi ý bên dưới.
                     </p>
                   </div>
                 ) : (
@@ -882,7 +883,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                       value={formatCurrencyVndInput(value.basePrice)}
                       onChange={(e) => {
                         const parsed = parseCurrencyVndInput(e.target.value);
-                        if (parsed <= 100_000_000_000) {
+                        if (parsed <= MONEY_LIMITS.MAX_UNIT_PRICE) {
                           updateField('basePrice', parsed);
                         }
                       }}

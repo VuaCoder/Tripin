@@ -1,6 +1,4 @@
 import { toProfileDto } from './users.mapper';
-import type { z } from 'zod';
-import type { guideApplicationBody } from './users.validation';
 import type { RequestHandler } from 'express';
 import type { Permission, UserStatus } from '@travel-platform/constants';
 import { userActor } from '../../middlewares/authorize';
@@ -9,6 +7,7 @@ import { sendOk, sendPaginated } from '../../utils/api-response';
 import type { IdParams } from '../../utils/id';
 import { usersService, type UsersService } from './users.service';
 import type { AssignAccessBody, CompleteImageUploadBody, ListUsersQueryInput, UpdatePreferencesBody, UpdateProfileBody } from './users.validation';
+import type { GuideApplicationBody, RejectGuideApplicationBody } from './users.validation';
 
 /** HTTP only; rules live in UsersService. */
 export class UsersController {
@@ -65,7 +64,8 @@ export class UsersController {
   };
 
   applyGuide: RequestHandler = async (req, res) => {
-    sendOk(res, await this.service.applyGuide(userActor(req).userId, validated<z.infer<typeof guideApplicationBody>>(req).body));
+    const { body } = validated<GuideApplicationBody>(req);
+    sendOk(res, await this.service.applyGuide(userActor(req).userId, body));
   };
 
   getGuideApplication: RequestHandler = async (req, res) => {
@@ -77,7 +77,8 @@ export class UsersController {
   };
 
   devRejectGuide: RequestHandler = async (req, res) => {
-    sendOk(res, await this.service.devRejectGuide(userActor(req).userId, validated<{ reason: string }>(req).body.reason));
+    const { body } = validated<RejectGuideApplicationBody>(req);
+    sendOk(res, await this.service.devRejectGuide(userActor(req).userId, body.reason));
   };
 
   getPublicGuide: RequestHandler = async (req, res) => {

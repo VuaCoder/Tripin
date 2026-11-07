@@ -54,7 +54,7 @@ describe('subscriptions (integration)', () => {
     expect(res.status).toBeLessThan(300);
     expect(res.body.data.subscription.status).toBe('PENDING_PAYMENT');
     const payment = (await prisma.payment.findFirst())!;
-    expect(payment.amount).toBe(199_000);
+    expect(payment.amount).toBe(199_000n);
     expect((await request(app).get('/api/v1/subscriptions/me/current').set(bearer(guide.token))).body.data.active).toBe(false);
 
     const body = signedPayosWebhook(Number(payment.providerOrderCode), payment.amount);

@@ -49,7 +49,8 @@ async function checkout(token: string, bookingId: string) {
 }
 
 /** A webhook body signed exactly like PayOS does. */
-function signedWebhook(orderCode: number, amount: number, overrides: { success?: boolean; code?: string } = {}) {
+function signedWebhook(orderCode: number, storedAmount: number | bigint, overrides: { success?: boolean; code?: string } = {}) {
+  const amount = Number(storedAmount);
   const data = {
     orderCode,
     amount,
@@ -78,7 +79,7 @@ describe('payments (integration)', () => {
 
     const payments = await prisma.payment.findMany();
     expect(payments).toHaveLength(1);
-    expect(payments[0]!.amount).toBe(1_000_000);
+    expect(payments[0]!.amount).toBe(1_000_000n);
     expect(payments[0]!.status).toBe('PENDING');
   });
 
@@ -179,7 +180,7 @@ describe('payments (integration)', () => {
     await checkout(traveler.token, bookingId);
     const payment = (await prisma.payment.findFirst())!;
 
-    expect((await webhook(signedWebhook(Number(payment.providerOrderCode), payment.amount - 1))).status).toBe(200);
+    expect((await webhook(signedWebhook(Number(payment.providerOrderCode), payment.amount - 1n))).status).toBe(200);
     const after = (await prisma.payment.findUnique({ where: { id: payment.id } }))!;
     expect(after.status).toBe('PENDING');
     expect(after.failureReason).toBe('AMOUNT_MISMATCH');
