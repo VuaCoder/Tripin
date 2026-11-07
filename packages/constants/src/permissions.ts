@@ -135,8 +135,9 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
 };
 
 /** Effective permissions = role defaults + extra permissions granted by SUPER_ADMIN. */
-export function resolvePermissions(role: Role, extra: readonly Permission[] = []): Permission[] {
-  return Array.from(new Set<Permission>([...ROLE_PERMISSIONS[role], ...extra]));
+export function resolvePermissions(role: Role, extra: readonly Permission[] = [], revoked: readonly Permission[] = []): Permission[] {
+  if (role === ROLES.SUPER_ADMIN) return [...ROLE_PERMISSIONS[role]];
+  return Array.from(new Set<Permission>([...ROLE_PERMISSIONS[role], ...extra])).filter((permission) => !revoked.includes(permission));
 }
 
 export function isPermission(value: string): value is Permission {
