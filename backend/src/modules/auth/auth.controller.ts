@@ -1,3 +1,4 @@
+import { toProfileDto } from '../users/users.mapper';
 import type { Request, RequestHandler } from 'express';
 import { validated } from '../../middlewares/validate';
 import { userActor } from '../../middlewares/authorize';
@@ -131,7 +132,7 @@ export class AuthController {
 
   setTwoFactor: RequestHandler = async (req, res) => {
     const { body } = validated<TwoFactorBody>(req);
-    sendOk(res, await this.service.setTwoFactor(userActor(req).userId, body));
+    sendOk(res, toProfileDto(await this.service.setTwoFactor(userActor(req).userId, body)));
   };
 
   changePassword: RequestHandler = async (req, res) => {

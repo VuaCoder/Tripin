@@ -5,6 +5,7 @@ import { AppError, ERROR_CODES } from '../../../utils/app-error';
 import { AuthService, type AuthDeps } from '../auth.service';
 
 interface FakeUser {
+  tokenVersion: number; staffStatus: string;
   id: string;
   _id: string;
   email: string;
@@ -21,6 +22,7 @@ interface FakeUser {
 
 function makeUser(overrides: Partial<FakeUser> = {}): FakeUser {
   return {
+    tokenVersion: 0, staffStatus: 'ACTIVE',
     id: 'u1',
     _id: 'u1',
     email: 'a@b.com',
@@ -37,7 +39,7 @@ function makeUser(overrides: Partial<FakeUser> = {}): FakeUser {
 
 function makeDeps(user: FakeUser | null) {
   const store = { user };
-  const tokens: { hash: string; family: string; revokedAt?: Date; expiresAt: Date; userId: string; id: string }[] = [];
+  const tokens: { tokenVersion?: number; hash: string; family: string; revokedAt?: Date; expiresAt: Date; userId: string; id: string }[] = [];
 
   const deps = {
     users: {
@@ -62,7 +64,7 @@ function makeDeps(user: FakeUser | null) {
     },
     refreshTokens: {
       create: vi.fn(async (data: { tokenHash: string; family: string; expiresAt: Date; userId: string }) => {
-        tokens.push({ hash: data.tokenHash, family: data.family, expiresAt: data.expiresAt, userId: data.userId, id: `t${tokens.length}` });
+        tokens.push({ tokenVersion: 0, hash: data.tokenHash, family: data.family, expiresAt: data.expiresAt, userId: data.userId, id: `t${tokens.length}` });
       }),
       findByHash: vi.fn(async (hash: string) => tokens.find((t) => t.hash === hash) ?? null),
       revokeIfActive: vi.fn(async (id: string) => {

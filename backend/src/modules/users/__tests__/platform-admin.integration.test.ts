@@ -44,9 +44,9 @@ describe('ADMIN-01 role boundary over the real HTTP stack', () => {
     for (const route of adminRoutes) {
       const path = route.path.replace(':id', unknownId).replace(':key', 'cancellation');
       const method = route.method.toLowerCase() as 'get' | 'post' | 'put' | 'patch' | 'delete';
-      const guest = await request(app)[method](path).send({ ratePercent: 50, role: 'SUPER_ADMIN' });
+      const guest = await request(app)[method](path).send({ ratePercent: 50, role: 'SUPER_ADMIN', expectedVersion: 0 });
       expect(guest.status, `${route.method} ${path} guest`).toBe(401);
-      const response = await request(app)[method](path).set(bearer(user.token)).send({ ratePercent: 50, role: 'SUPER_ADMIN' });
+      const response = await request(app)[method](path).set(bearer(user.token)).send({ ratePercent: 50, role: 'SUPER_ADMIN', expectedVersion: 0 });
       expect(response.status, `${route.method} ${path} ${role}`).toBe(403);
     }
     expect(await prisma.user.findUnique({ where: { id: user.id } })).toEqual(before);
@@ -60,7 +60,7 @@ describe('ADMIN-01 role boundary over the real HTTP stack', () => {
 
   it('refuses invalid policy hours without changing the saved policy, then reflects valid text and typed params', async () => {
     const admin = await createUser('SUPER_ADMIN', 'admin@test.example');
-    const put = (params: object) => request(app).put('/api/v1/admin/policies/cancellation').set(bearer(admin.token)).send({ title: 'Cancellation', content: 'Text', params });
+    const put = (params: object) => request(app).put('/api/v1/admin/policies/cancellation').set(bearer(admin.token)).send({ expectedVersion: 0, reason: 'Policy reviewed and updated', title: 'Cancellation', content: 'Text', params });
     expect((await put({ cancellationWindowHours: 48, enabled: true, note: 'keep me' })).status).toBe(200);
     for (const value of [-1, '24', true]) expect((await put({ cancellationWindowHours: value })).status).toBe(400);
     const read = await request(app).get('/api/v1/policies/cancellation');

@@ -18,6 +18,7 @@ import { USER_STATUS_TRANSITIONS, toPrivateUserDto, usersRepository, type Privat
 import type { UserRecord } from '../users/users.repository';
 import { buildOtpMail } from './auth.mail';
 import { AUTH_POLICY } from './auth.policy';
+import { signOnboardingToken } from './onboarding.tokens';
 import { generateRefreshToken, hashRefreshToken, signAccessToken } from './auth.tokens';
 import type {
   AgencyOtpResult,
@@ -71,6 +72,7 @@ export class AuthService {
 
     let user: UserRecord;
     if (existing) {
+      if (['MODERATOR', 'SUPER_ADMIN'].includes(existing.role)) throw AppError.conflict('This email is already registered', 'EMAIL_ALREADY_REGISTERED');
       // Only an unverified, password-based account may be re-registered (lets users fix a typo / get a new code).
       if (existing.status !== USER_STATUS.PENDING_VERIFICATION) {
         throw AppError.conflict('This email is already registered', 'EMAIL_ALREADY_REGISTERED');
@@ -119,6 +121,7 @@ export class AuthService {
 
     let user: UserRecord;
     if (existing) {
+      if (['MODERATOR', 'SUPER_ADMIN'].includes(existing.role)) throw AppError.conflict('This email is already registered', 'EMAIL_ALREADY_REGISTERED');
       if (existing.status !== USER_STATUS.PENDING_VERIFICATION) {
         throw AppError.conflict('This email is already registered', 'EMAIL_ALREADY_REGISTERED');
       }
@@ -175,6 +178,7 @@ export class AuthService {
   }
 
   private async loginUser(user: UserRecord, context: RequestContext): Promise<LoginResult> {
+    if (user.staffStatus !== 'ACTIVE') throw AppError.forbidden('Staff account is not active');
 
     if (user.status === USER_STATUS.BANNED) {
       throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
@@ -235,8 +239,8 @@ export class AuthService {
         throw AppError.forbidden('Please complete Agency registration first', 'AGENCY_ONBOARDING_REQUIRED');
       }
       await this.deps.otp.verify(user.id, input.purpose, input.code);
-      await this.activatePending(user, true);
-      return { registrationComplete: true, email: user.email, agencyVerificationStatus: AGENCY_VERIFICATION_STATUS.PENDING };
+      const active = await this.activatePending(user, true);
+      return { registrationComplete: true, email: user.email, agencyVerificationStatus: AGENCY_VERIFICATION_STATUS.PENDING, statusToken: signOnboardingToken(user.email, active.tokenVersion) };
     }
 
     if (user.status !== USER_STATUS.ACTIVE) {
@@ -396,7 +400,7 @@ export class AuthService {
     }
 
     const user = await this.deps.users.findById(stored.userId);
-    if (!user || user.status !== USER_STATUS.ACTIVE) {
+    if (!user || user.status !== USER_STATUS.ACTIVE || user.tokenVersion !== stored.tokenVersion || user.staffStatus !== 'ACTIVE') {
       await this.deps.refreshTokens.revokeFamily(stored.family);
       throw AppError.unauthenticated('Account is not active', ERROR_CODES.TOKEN_INVALID);
     }
@@ -447,7 +451,7 @@ export class AuthService {
   async changePassword(userId: string, input: { currentPassword: string; newPassword: string }): Promise<void> {
     const user = await this.deps.users.findByIdWithPassword(userId);
     if (!user || user.status === USER_STATUS.BANNED) {
-      throw AppError.unauthenticated('Tài khoản không hợp lệ', ERROR_CODES.ACCOUNT_NOT_FOUND);
+      throw AppError.unauthenticated('Tài khoản không hợp lệ', ERROR_CODES.TOKEN_INVALID);
     }
 
     if (user.passwordHash) {
@@ -480,6 +484,8 @@ export class AuthService {
         ? {
             agencyProfile: {
               verificationStatus: AGENCY_VERIFICATION_STATUS.PENDING,
+              submittedAt: new Date(),
+              submissionDateEstimated: false,
               verificationNote: null,
             },
           }
@@ -504,19 +510,26 @@ export class AuthService {
   }
 
   private async createSession(user: UserRecord, context: RequestContext, family?: string): Promise<Session> {
+    if (user.staffStatus && user.staffStatus !== 'ACTIVE') throw AppError.forbidden('Staff account is not active');
     const refresh = generateRefreshToken();
     await this.deps.refreshTokens.create({
       userId: user.id,
       tokenHash: refresh.hash,
+      tokenVersion: user.tokenVersion,
       family: family ?? randomUUID(),
       expiresAt: refresh.expiresAt,
       ip: context.ip,
       userAgent: context.userAgent?.slice(0, 300),
     });
+    const current = await this.deps.users.findById(user.id);
+    if (!current || current.status !== 'ACTIVE' || current.staffStatus !== 'ACTIVE' || current.tokenVersion !== user.tokenVersion) {
+      await this.deps.refreshTokens.revokeAllForUser(user.id);
+      throw AppError.unauthenticated('Account session changed; sign in again');
+    }
     await this.deps.users.updateById(user.id, { lastLoginAt: new Date() });
 
     return {
-      accessToken: signAccessToken(user.id, user.role as PersistedRole),
+      accessToken: signAccessToken(user.id, user.role as PersistedRole, user.tokenVersion),
       refreshToken: refresh.raw,
       refreshTokenExpiresAt: refresh.expiresAt,
       user: toPrivateUserDto(user),

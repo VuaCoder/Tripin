@@ -3,6 +3,7 @@ import type { PrivateUserDto } from '../users/users.types';
 
 export interface AccessTokenPayload {
   sub: string;
+  tokenVersion: number;
   role: PersistedRole;
 }
 
@@ -46,7 +47,7 @@ export type LoginResult =
   | { twoFactorRequired: false; session: Session };
 
 export type AgencyOtpResult =
-  | { registrationComplete: true; email: string; agencyVerificationStatus: 'PENDING' }
+  | { registrationComplete: true; email: string; agencyVerificationStatus: 'PENDING'; statusToken: string }
   | { registrationComplete: false; session: Session };
 
 export interface RequestContext {

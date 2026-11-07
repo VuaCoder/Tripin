@@ -32,7 +32,7 @@ export const updateProfileBody = z
         companyName: z.string().trim().min(2).max(200),
         description: trimmed(5000),
         address: trimmed(500),
-        website: z.url().max(300),
+        website: z.union([z.literal(''), z.url().max(300)]).nullable().transform((value) => value || null),
         licenseNumber: z.string().trim().min(3).max(100),
       })
       .partial()
@@ -53,6 +53,16 @@ export const updateProfileBody = z
   .partial()
   .strict()
   .refine((value) => Object.keys(value).length > 0, 'Nothing to update');
+
+export const guideApplicationBody = z.object({
+  licenseNumber: z.string().trim().min(3).max(100),
+  experienceYears: z.number().int().min(0).max(80).optional(),
+  languages: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+  specialties: z.array(z.string().trim().min(1).max(60)).max(30).optional(),
+  bio: z.string().trim().max(5000).optional(),
+  licenseImageUrl: z.url().max(500).optional(),
+}).strict();
+export const guideRejectionBody = z.object({ reason: z.string().trim().min(3).max(1000) }).strict();
 
 export const publicProfileParams = idParamsSchema;
 export const listAgencyGuidesQuery = paginationQuerySchema.extend({ q: z.string().trim().max(120).optional() });
@@ -78,10 +88,11 @@ export const assignAccessParams = z.object({ id: idSchema });
 export const assignAccessBody = z
   .object({
     role: z.enum(PERSISTED_ROLES).optional(),
+    revokedPermissions: z.array(z.enum(Object.values(PERMISSIONS) as [string, ...string[]])).max(100).optional(),
     extraPermissions: z.array(z.enum(Object.values(PERMISSIONS) as [string, ...string[]])).max(100).optional(),
   })
   .strict()
-  .refine((value) => value.role !== undefined || value.extraPermissions !== undefined, 'role or extraPermissions is required');
+  .refine((value) => value.role !== undefined || value.extraPermissions !== undefined || value.revokedPermissions !== undefined, 'role or extraPermissions is required');
 
 export const updatePreferencesBody = z
   .object({

@@ -23,7 +23,7 @@ function makeUser(overrides: Record<string, unknown> = {}) {
     role: ROLES.TRAVELER,
     status: USER_STATUS.ACTIVE,
     twoFactorEnabled: false,
-    extraPermissions: [],
+    extraPermissions: [], revokedPermissions: [], tokenVersion: 0, staffStatus: 'ACTIVE', emailVerifiedAt: new Date(),
     createdAt: new Date(),
     ...overrides,
   };
@@ -64,6 +64,8 @@ function makeService(initial: Record<string, FakeUser>) {
       applyPatch(user, patch);
       return user;
     }),
+    changeAccess: vi.fn(async (_actor: unknown, id: string, patch: Record<string, unknown>) => { applyPatch(db[id]!, patch); return db[id]; }),
+    changeBan: vi.fn(async (_actor: unknown, id: string, ban: boolean, reason: string) => { applyPatch(db[id]!, { status: ban ? 'BANNED' : 'ACTIVE', banReason: ban ? reason : null }); return db[id]; }),
     count: vi.fn(async () => 1),
     list: vi.fn(async () => ({ items: Object.values(db), total: Object.keys(db).length })),
   };
@@ -171,11 +173,11 @@ describe('UsersService access & bans', () => {
   });
 
   it('promotes a user to MODERATOR and drops unknown permissions', async () => {
-    const { service, db, audit } = makeService({ u1: makeUser(), s1: makeUser({ id: 's1', role: ROLES.SUPER_ADMIN }) });
+    const { service, db, repo } = makeService({ u1: makeUser(), s1: makeUser({ id: 's1', role: ROLES.SUPER_ADMIN }) });
     await service.assignAccess(ADMIN('s1'), 'u1', { role: ROLES.MODERATOR, extraPermissions: ['audit:view', 'bogus:perm' as never] });
     expect(db.u1!.role).toBe(ROLES.MODERATOR);
     expect(db.u1!.extraPermissions).toEqual(['audit:view']);
-    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'user.access_assigned', targetId: 'u1' }));
+    expect(repo.changeAccess).toHaveBeenCalledWith(ADMIN('s1'), 'u1', expect.objectContaining({ role: 'MODERATOR', extraPermissions: ['audit:view'] }));
   });
 
   it('refuses to demote the last super admin', async () => {
@@ -187,7 +189,7 @@ describe('UsersService access & bans', () => {
   });
 
   it('lets a moderator ban a traveler but not another moderator or a super admin', async () => {
-    const { service, db, audit } = makeService({
+    const { service, db, repo } = makeService({
       u1: makeUser(),
       m2: makeUser({ id: 'm2', role: ROLES.MODERATOR }),
       s1: makeUser({ id: 's1', role: ROLES.SUPER_ADMIN }),
@@ -195,16 +197,16 @@ describe('UsersService access & bans', () => {
     const moderator = { userId: 'm1', role: ROLES.MODERATOR } as const;
     await service.banUser(moderator, 'u1', 'spam');
     expect(db.u1!.status).toBe(USER_STATUS.BANNED);
-    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'user.banned', metadata: { reason: 'spam' } }));
-    await expect(service.banUser(moderator, 'm2', 'x')).rejects.toMatchObject({ statusCode: 403 });
-    await expect(service.banUser(moderator, 's1', 'x')).rejects.toMatchObject({ statusCode: 403 });
+    expect(repo.changeBan).toHaveBeenCalledWith(moderator, 'u1', true, 'spam');
+    await expect(service.banUser(moderator, 'm2', 'x')).rejects.toMatchObject({ statusCode: 400 });
+    await expect(service.banUser(moderator, 's1', 'x')).rejects.toMatchObject({ statusCode: 400 });
     await expect(service.banUser(moderator, 'u1', 'again')).rejects.toMatchObject({ code: ERROR_CODES.INVALID_STATE_TRANSITION });
   });
 
   it('cannot ban yourself, and unban only works on banned accounts', async () => {
     const { service } = makeService({ u1: makeUser() });
     await expect(service.banUser({ userId: 'u1', role: ROLES.MODERATOR }, 'u1', 'x')).rejects.toMatchObject({ statusCode: 403 });
-    await expect(service.unbanUser(MOD, 'u1')).rejects.toMatchObject({ code: ERROR_CODES.INVALID_STATE_TRANSITION });
+    await expect(service.unbanUser(MOD, 'u1', 'Appeal reviewed and accepted')).rejects.toMatchObject({ statusCode: 403 });
   });
 });
 

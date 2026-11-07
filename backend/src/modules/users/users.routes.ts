@@ -4,6 +4,8 @@ import { requirePermission, requireSuperAdmin } from '../../middlewares/authoriz
 import { validate } from '../../middlewares/validate';
 import { usersController } from './users.controller';
 import {
+  guideApplicationBody,
+  guideRejectionBody,
   assignAccessBody,
   assignAccessParams,
   completeImageUploadBody,
@@ -66,6 +68,7 @@ usersRouter.post(
 usersRouter.post(
   '/me/guide-application',
   requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
+  validate({ body: guideApplicationBody }),
   usersController.applyGuide,
 );
 usersRouter.get(
@@ -81,6 +84,7 @@ usersRouter.post(
 usersRouter.post(
   '/me/guide-application/dev-reject',
   requirePermission(PERMISSIONS.PROFILE_UPDATE_OWN),
+  validate({ body: guideRejectionBody }),
   usersController.devRejectGuide,
 );
 
