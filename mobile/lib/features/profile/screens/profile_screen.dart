@@ -1,6 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+
+import '../../support/screens/traveler_support_ticket_screen.dart';
+import '../../bookings/screens/tickets_screen.dart';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../auth/screens/welcome_auth_screen.dart';
 import '../bloc/profile_bloc.dart';
@@ -23,7 +28,8 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveClientMixin {
+class _ProfileScreenState extends State<ProfileScreen>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
@@ -39,21 +45,28 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
       context.read<ProfileBloc>().add(const ProfileLoadRequested());
     }
     _loadStatsAndNotifications();
-    NotificationsStorage.unreadCountNotifier.addListener(_onUnreadNotificationsChanged);
+    NotificationsStorage.unreadCountNotifier.addListener(
+      _onUnreadNotificationsChanged,
+    );
     BookedTripsRepository.statsNotifier.addListener(_loadStatsAndNotifications);
   }
 
   @override
   void dispose() {
-    NotificationsStorage.unreadCountNotifier.removeListener(_onUnreadNotificationsChanged);
-    BookedTripsRepository.statsNotifier.removeListener(_loadStatsAndNotifications);
+    NotificationsStorage.unreadCountNotifier.removeListener(
+      _onUnreadNotificationsChanged,
+    );
+    BookedTripsRepository.statsNotifier.removeListener(
+      _loadStatsAndNotifications,
+    );
     super.dispose();
   }
 
   void _onUnreadNotificationsChanged() {
     if (mounted) {
       setState(() {
-        _unreadNotificationsCount = NotificationsStorage.unreadCountNotifier.value;
+        _unreadNotificationsCount =
+            NotificationsStorage.unreadCountNotifier.value;
       });
     }
   }
@@ -66,11 +79,18 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
       final unread = await NotificationsStorage().getUnreadCount();
 
       // Số lượng chuyến đi đã hoàn thành (theo đúng yêu cầu: nếu có 3 tour hoàn thành thì đếm 3)
-      final completedTrips = trips.where((t) => t.status == BookingStatus.completed).toList();
-      final countOfTrips = completedTrips.isNotEmpty ? completedTrips.length : trips.length;
+      final completedTrips = trips
+          .where((t) => t.status == BookingStatus.completed)
+          .toList();
+      final countOfTrips = completedTrips.isNotEmpty
+          ? completedTrips.length
+          : trips.length;
 
       // Số lượng đánh giá: các tour đã đánh giá (isReviewed) hoặc nằm trong danh sách reviewedIds
-      final reviewedTrips = trips.where((t) => t.isReviewed).map((t) => t.id).toSet();
+      final reviewedTrips = trips
+          .where((t) => t.isReviewed)
+          .map((t) => t.id)
+          .toSet();
       reviewedTrips.addAll(reviewedIds);
       final countOfReviews = reviewedTrips.length;
 
@@ -93,17 +113,30 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
           children: [
             Icon(Icons.logout, color: AppColors.error, size: 24),
             SizedBox(width: 10),
-            Text('Đăng xuất tài khoản', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(
+              'Đăng xuất tài khoản',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
           ],
         ),
         content: const Text(
           'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản Tripri Travel trên thiết bị này?',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.4),
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 14,
+            height: 1.4,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Hủy', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -112,11 +145,19 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             ),
-            child: const Text('Đăng xuất', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Đăng xuất',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -130,7 +171,11 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
           children: [
             const Icon(Icons.info_outline, color: Colors.white, size: 20),
             const SizedBox(width: 10),
-            Expanded(child: Text('$feature đang được cập nhật trong phiên bản tiếp theo.')),
+            Expanded(
+              child: Text(
+                '$feature đang được cập nhật trong phiên bản tiếp theo.',
+              ),
+            ),
           ],
         ),
         backgroundColor: AppColors.primary,
@@ -157,7 +202,9 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
         },
         builder: (context, state) {
           if (state is ProfileLoading && state.message == null) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            );
           }
 
           if (state is ProfileFailure && state.currentUser == null) {
@@ -173,36 +220,59 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                         color: AppColors.errorSurface,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.error_outline, size: 40, color: AppColors.error),
+                      child: const Icon(
+                        Icons.error_outline,
+                        size: 40,
+                        color: AppColors.error,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
                       state.error,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton.icon(
                       onPressed: () {
                         if (state.error.contains('hết hạn')) {
-                          context.read<ProfileBloc>().add(const LogoutRequested());
+                          context.read<ProfileBloc>().add(
+                            const LogoutRequested(),
+                          );
                         } else {
-                          context.read<ProfileBloc>().add(const ProfileLoadRequested());
+                          context.read<ProfileBloc>().add(
+                            const ProfileLoadRequested(),
+                          );
                         }
                       },
                       icon: Icon(
-                        state.error.contains('hết hạn') ? Icons.login_rounded : Icons.refresh_rounded,
+                        state.error.contains('hết hạn')
+                            ? Icons.login_rounded
+                            : Icons.refresh_rounded,
                         size: 18,
                         color: Colors.white,
                       ),
                       label: Text(
-                        state.error.contains('hết hạn') ? 'Đăng nhập lại' : 'Thử lại',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        state.error.contains('hết hạn')
+                            ? 'Đăng nhập lại'
+                            : 'Thử lại',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
                       ),
                     ),
                   ],
@@ -214,10 +284,10 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
           final user = (state is ProfileLoaded)
               ? state.user
               : (state is ProfileUpdateSuccess)
-                  ? state.user
-                  : (state is ProfileFailure)
-                      ? state.currentUser
-                      : null;
+              ? state.user
+              : (state is ProfileFailure)
+              ? state.currentUser
+              : null;
 
           if (user == null) {
             return const SizedBox.shrink();
@@ -261,18 +331,25 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                                   border: Border.all(color: AppColors.border),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.04),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.04,
+                                      ),
                                       blurRadius: 10,
                                       offset: const Offset(0, 3),
                                     ),
                                   ],
                                 ),
                                 child: IconButton(
-                                  icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textPrimary, size: 22),
+                                  icon: const Icon(
+                                    Icons.notifications_none_rounded,
+                                    color: AppColors.textPrimary,
+                                    size: 22,
+                                  ),
                                   onPressed: () async {
                                     await Navigator.of(context).push(
                                       MaterialPageRoute(
-                                        builder: (_) => const NotificationsScreen(),
+                                        builder: (_) =>
+                                            const NotificationsScreen(),
                                       ),
                                     );
                                     _loadStatsAndNotifications();
@@ -284,13 +361,22 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                                   right: 0,
                                   top: 0,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFEF4444),
                                       borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: Colors.white, width: 1.5),
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 1.5,
+                                      ),
                                     ),
-                                    constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 18,
+                                      minHeight: 18,
+                                    ),
                                     alignment: Alignment.center,
                                     child: Text(
                                       '$_unreadNotificationsCount',
@@ -312,7 +398,10 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
 
                 // Main Content List
                 SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
                       // --- 1. AIRBNB PASSPORT / HERO CARD ---
@@ -332,6 +421,19 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                       // --- 3. CATEGORY 1: CÀI ĐẶT TÀI KHOẢN ---
                       _buildSectionHeader('CÀI ĐẶT TÀI KHOẢN'),
                       _buildGroupedMenuCard([
+                        if (user.role == 'TRAVELER')
+                          _buildMenuItem(
+                            icon: Icons.confirmation_number_outlined,
+                            iconBgColor: const Color(0xFFF1F5F9),
+                            iconColor: const Color(0xFF475569),
+                            title: 'Vé điện tử của tôi',
+                            subtitle: 'Vé hiện tại và lịch sử, xem QR offline',
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const TicketsScreen(),
+                              ),
+                            ),
+                          ),
                         _buildMenuItem(
                           icon: Icons.person_outline_rounded,
                           iconBgColor: const Color(0xFFE0F2FE),
@@ -388,7 +490,9 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                             subtitle: 'Mã giảm giá đặt tour tích lũy',
                             onTap: () {
                               Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const MyVouchersScreen()),
+                                MaterialPageRoute(
+                                  builder: (_) => const MyVouchersScreen(),
+                                ),
                               );
                             },
                           ),
@@ -406,7 +510,12 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                           iconColor: const Color(0xFF475569),
                           title: 'Trung tâm trợ giúp 24/7',
                           subtitle: 'Giải đáp thắc mắc và hỗ trợ sự cố',
-                          onTap: () => _showComingSoonSnackBar(context, 'Trung tâm trợ giúp'),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const TravelerSupportTicketScreen(),
+                            ),
+                          ),
                         ),
                         const Divider(height: 1, indent: 64, endIndent: 16),
                         _buildMenuItem(
@@ -415,7 +524,10 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                           iconColor: const Color(0xFF475569),
                           title: 'Chính sách & Bảo mật',
                           subtitle: 'Điều khoản sử dụng dịch vụ Tripri',
-                          onTap: () => _showComingSoonSnackBar(context, 'Chính sách & Bảo mật'),
+                          onTap: () => _showComingSoonSnackBar(
+                            context,
+                            'Chính sách & Bảo mật',
+                          ),
                         ),
                         const Divider(height: 1, indent: 64, endIndent: 16),
                         _buildMenuItem(
@@ -443,7 +555,9 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                         clipBehavior: Clip.antiAlias,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(color: AppColors.error.withValues(alpha: 0.3)),
+                          side: BorderSide(
+                            color: AppColors.error.withValues(alpha: 0.3),
+                          ),
                         ),
                         child: InkWell(
                           onTap: () => _confirmLogout(context),
@@ -454,7 +568,11 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
+                                Icon(
+                                  Icons.logout_rounded,
+                                  color: AppColors.error,
+                                  size: 20,
+                                ),
                                 SizedBox(width: 8),
                                 Text(
                                   'Đăng xuất',
@@ -544,7 +662,11 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
   }
 
   /// Airbnb-style Passport Hero Card
-  Widget _buildAirbnbPassportCard(BuildContext context, UserProfileModel user, bool isGuide) {
+  Widget _buildAirbnbPassportCard(
+    BuildContext context,
+    UserProfileModel user,
+    bool isGuide,
+  ) {
     final isVerified = user.isVerified == true;
 
     return Container(
@@ -598,7 +720,9 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: isVerified
-                                    ? (isGuide ? AppColors.primaryDark : AppColors.primary)
+                                    ? (isGuide
+                                          ? AppColors.primaryDark
+                                          : AppColors.primary)
                                     : const Color(0xFFE2E8F0),
                                 width: isVerified ? 2.2 : 1.5,
                               ),
@@ -607,16 +731,30 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                               radius: 38,
                               backgroundColor: AppColors.primarySurface,
                               child: ClipOval(
-                                child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                                child:
+                                    user.avatarUrl != null &&
+                                        user.avatarUrl!.isNotEmpty
                                     ? CachedNetworkImage(
                                         imageUrl: user.avatarUrl!,
                                         width: 76,
                                         height: 76,
                                         fit: BoxFit.cover,
-                                        placeholder: (context, url) => const CircularProgressIndicator(strokeWidth: 2),
-                                        errorWidget: (context, url, error) => const Icon(Icons.person, size: 38, color: AppColors.primary),
+                                        placeholder: (context, url) =>
+                                            const CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                        errorWidget: (context, url, error) =>
+                                            const Icon(
+                                              Icons.person,
+                                              size: 38,
+                                              color: AppColors.primary,
+                                            ),
                                       )
-                                    : const Icon(Icons.person, size: 38, color: AppColors.primary),
+                                    : const Icon(
+                                        Icons.person,
+                                        size: 38,
+                                        color: AppColors.primary,
+                                      ),
                               ),
                             ),
                           ),
@@ -633,7 +771,9 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                                 child: Icon(
                                   Icons.check_circle_rounded,
                                   size: 20,
-                                  color: isGuide ? AppColors.primaryDark : AppColors.success,
+                                  color: isGuide
+                                      ? AppColors.primaryDark
+                                      : AppColors.success,
                                 ),
                               ),
                             ),
@@ -659,7 +799,9 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                             Text(
                               isGuide
                                   ? 'Hướng dẫn viên du lịch'
-                                  : (user.isAgency ? 'Doanh nghiệp lữ hành (Agency)' : 'Khách du lịch'),
+                                  : (user.isAgency
+                                        ? 'Doanh nghiệp lữ hành (Agency)'
+                                        : 'Khách du lịch'),
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -670,7 +812,11 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                         ),
                       ),
 
-                      const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.textMuted),
+                      const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 16,
+                        color: AppColors.textMuted,
+                      ),
                     ],
                   ),
 
@@ -685,7 +831,9 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                       _buildPassportStat(
                         title: 'Kinh nghiệm',
                         value: isGuide
-                            ? (user.guideProfile?.experienceYears != null ? '${user.guideProfile!.experienceYears} năm' : '5 năm')
+                            ? (user.guideProfile?.experienceYears != null
+                                  ? '${user.guideProfile!.experienceYears} năm'
+                                  : '5 năm')
                             : '$_tripsCount chuyến',
                       ),
                       Container(height: 28, width: 1, color: AppColors.border),
@@ -693,11 +841,13 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                         title: isGuide ? 'Bắt đầu' : 'Đánh giá',
                         value: isGuide
                             ? (user.createdAt != null
-                                ? (user.guideProfile?.experienceYears != null
-                                    ? '${user.createdAt!.year - user.guideProfile!.experienceYears!}'
-                                    : '${user.createdAt!.year}')
-                                : '2021')
-                            : (_reviewsCount > 0 ? '$_reviewsCount' : 'Chưa có'),
+                                  ? (user.guideProfile?.experienceYears != null
+                                        ? '${user.createdAt!.year - user.guideProfile!.experienceYears!}'
+                                        : '${user.createdAt!.year}')
+                                  : '2021')
+                            : (_reviewsCount > 0
+                                  ? '$_reviewsCount'
+                                  : 'Chưa có'),
                         valueColor: AppColors.textPrimary,
                       ),
                     ],
@@ -780,7 +930,10 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.secondary.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
@@ -823,7 +976,11 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                     color: Colors.white.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20),
+                  child: const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
               ],
             ),
@@ -834,7 +991,10 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
   }
 
   /// Banner hiển thị dành riêng cho tài khoản Doanh nghiệp lữ hành (Agency)
-  Widget _buildAgencyWorkspaceBanner(BuildContext context, UserProfileModel user) {
+  Widget _buildAgencyWorkspaceBanner(
+    BuildContext context,
+    UserProfileModel user,
+  ) {
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -858,7 +1018,9 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
           onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Không gian Doanh nghiệp lữ hành (Agency Portal) khả dụng trên giao diện Web quản trị Tripri.'),
+                content: Text(
+                  'Không gian Doanh nghiệp lữ hành (Agency Portal) khả dụng trên giao diện Web quản trị Tripri.',
+                ),
                 behavior: SnackBarBehavior.floating,
               ),
             );
@@ -872,7 +1034,10 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFF38BDF8).withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
@@ -917,7 +1082,11 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                     color: Colors.white.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.business_center_rounded, color: Colors.white, size: 22),
+                  child: const Icon(
+                    Icons.business_center_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                 ),
               ],
             ),
@@ -980,7 +1149,11 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textMuted, size: 14),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: AppColors.textMuted,
+                size: 14,
+              ),
             ],
           ),
         ),

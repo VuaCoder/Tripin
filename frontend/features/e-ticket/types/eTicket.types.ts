@@ -11,6 +11,7 @@ export interface ETicketBookingInfo {
 }
 
 export interface ETicketTourInfo {
+  meetingPoint?: string;
   id: string;
   title: string;
   destination?: string;
@@ -32,6 +33,7 @@ export interface ETicketDto {
 }
 
 export interface ListETicketsQuery {
+  status?: ETicketStatus;
   page?: number;
   limit?: number;
 }
