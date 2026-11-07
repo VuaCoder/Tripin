@@ -1,3 +1,5 @@
+import { writeAudit } from '../audit/audit.writer';
+import type { AuditEntry } from '../audit/audit.types';
 import { TOUR_STATUS, type TourStatus } from '@travel-platform/constants';
 import { nullIfNotFound, prisma, type DbExecutor, type Prisma } from '../../config/database';
 import type { GuideAssignmentStatus, Tour, TourDeparture, TourGuideAssignment } from '../../generated/prisma/client';
@@ -133,7 +135,7 @@ export class ToursRepository {
   }
 
   /** Compare-and-set on status so a concurrent moderator decision / agency edit cannot be overwritten. */
-  async updateIfStatus(id: string, expected: readonly TourStatus[], patch: TourPatch): Promise<TourRecord | null> {
+  async updateIfStatus(id: string, expected: readonly TourStatus[], patch: TourPatch, audit?: AuditEntry): Promise<TourRecord | null> {
     try {
       return await prisma.$transaction(async (tx) => {
         // Removing the assignment happens first; if the status guard below fails (P2025) the whole transaction rolls back.
@@ -142,6 +144,7 @@ export class ToursRepository {
           const updated = await tx.tour.update({ where: { id, status: { in: [...expected] } }, data: writeData(patch), include });
           if (previous && (!patch.guide || patch.guide.guideId !== previous.guideId)) await tx.premiumGuideActivity.create({ data: { userId: previous.guideId, tourId: id, tourTitle: updated.title, action: 'UNASSIGNED' } });
           if (patch.guide) await tx.premiumGuideActivity.create({ data: { userId: patch.guide.guideId, tourId: id, tourTitle: updated.title, action: 'ASSIGNED' } });
+          if (audit) await writeAudit(tx, audit);
           return toRecord(updated);
       });
     } catch (error) {

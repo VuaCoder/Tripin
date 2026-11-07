@@ -301,11 +301,11 @@ describe('moderation', () => {
   const moderator = { userId: 'm1', role: ROLES.MODERATOR } as const;
 
   it('approves only a PENDING_REVIEW tour and audits it', async () => {
-    const { service, db, audit, notifications } = setup(makeTour({ status: TOUR_STATUS.PENDING_REVIEW }));
+    const { service, db, repo, notifications } = setup(makeTour({ status: TOUR_STATUS.PENDING_REVIEW }));
     await service.decideReview(moderator, 't1', { approve: true });
     expect(db!.status).toBe(TOUR_STATUS.APPROVED);
     expect(notifications.notify).toHaveBeenCalledWith('a1', expect.objectContaining({ type: 'TOUR_APPROVED' }), { email: true });
-    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'tour.validated' }));
+    expect(repo.updateIfStatus).toHaveBeenCalledWith('t1', ['PENDING_REVIEW'], expect.any(Object), expect.objectContaining({ action: 'tour.validated' }));
     await expect(service.decideReview(moderator, 't1', { approve: true })).rejects.toMatchObject({ code: ERROR_CODES.INVALID_STATE_TRANSITION });
   });
 

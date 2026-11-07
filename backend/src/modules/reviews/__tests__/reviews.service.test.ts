@@ -134,12 +134,12 @@ describe('moderation', () => {
   const stored = (over: R = {}) => ({ id: 'r1', bookingId: 'b1', tourId: 't1', tourTitle: 'Ha Long', travelerId: 'u1', agencyId: 'a1', rating: 1, comment: 'bad', status: 'VISIBLE', createdAt: new Date(), ...over });
 
   it('hides with a reason, recomputes the rating, audits and tells the author', async () => {
-    const { service, db, tours, audit, notifications } = make({ seed: [stored()], stats: { avg: 4.5, count: 2 } });
+    const { service, db, tours, repo, notifications } = make({ seed: [stored()], stats: { avg: 4.5, count: 2 } });
     const dto = await service.moderate(moderator, 'r1', { hide: true, reason: 'Abusive language' });
     expect(db[0]).toMatchObject({ status: 'HIDDEN', hiddenReason: 'Abusive language', moderatedById: 'm1' });
     expect(dto.status).toBe('HIDDEN');
     expect(tours.updateRatingStats).toHaveBeenCalledWith('t1', 4.5, 2);
-    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'review.moderated' }));
+    expect(repo.transition).toHaveBeenCalledWith('r1', expect.anything(), expect.any(Object), expect.objectContaining({ action: 'review.moderated' }));
     expect(notifications.notify).toHaveBeenCalledWith('u1', expect.objectContaining({ type: 'REVIEW_MODERATED' }));
   });
 

@@ -35,16 +35,16 @@ describe('ModerationService delegates every use case to the owning module with t
     const { service, reviews, users, reports, support } = make();
     await service.moderateReview(moderator, 'r1', { hide: true, reason: 'abuse' });
     await service.banUser(moderator, 'u1', 'spam');
-    await service.unbanUser(moderator, 'u1');
+    await service.unbanUser(moderator, 'u1', 'Appeal reviewed and accepted');
     await service.resolveReport(moderator, 'p1', { decision: 'RESOLVED', note: 'ok' });
     await service.replyToTicket(moderator, 'k1', { text: 'hello', resolve: true });
     await service.setTicketStatus(moderator, 'k1', 'RESOLVED');
     expect(reviews.moderate).toHaveBeenCalledWith(moderator, 'r1', { hide: true, reason: 'abuse' });
     expect(users.banUser).toHaveBeenCalledWith(moderator, 'u1', 'spam');
-    expect(users.unbanUser).toHaveBeenCalledWith(moderator, 'u1');
+    expect(users.unbanUser).toHaveBeenCalledWith(moderator, 'u1', 'Appeal reviewed and accepted');
     expect(reports.resolve).toHaveBeenCalledWith(moderator, 'p1', { decision: 'RESOLVED', note: 'ok' });
     expect(support.replyAsStaff).toHaveBeenCalledWith(moderator, 'k1', { text: 'hello', resolve: true });
-    expect(support.setStatus).toHaveBeenCalledWith(moderator, 'k1', 'RESOLVED');
+    expect(support.setStatus).toHaveBeenCalledWith(moderator, 'k1', 'RESOLVED', undefined);
   });
 });
 

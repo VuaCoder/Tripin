@@ -1,3 +1,5 @@
+import { writeAudit } from '../audit/audit.writer';
+import type { AuditEntry } from '../audit/audit.types';
 import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
 import { Prisma as Sql } from '../../generated/prisma/client';
 import type { Review } from '../../generated/prisma/client';
@@ -31,8 +33,12 @@ export class ReviewsRepository {
   }
 
   /** Compare-and-set on the status so two moderators cannot overwrite each other. */
-  transition(id: string, expected: ReviewStatus, patch: ReviewPatch): Promise<ReviewRecord | null> {
-    return prisma.review.update({ where: { id, status: expected }, data: patch }).catch(nullIfNotFound);
+  async transition(id: string, expected: ReviewStatus, patch: ReviewPatch, audit?: AuditEntry): Promise<ReviewRecord | null> {
+    return prisma.$transaction(async (tx) => {
+      const updated = await tx.review.update({ where: { id, status: expected }, data: patch });
+      if (audit) await writeAudit(tx, audit);
+      return updated;
+    }).catch(nullIfNotFound);
   }
 
   listPublic(query: ListPublicReviewsQuery) {

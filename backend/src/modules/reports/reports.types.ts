@@ -58,6 +58,7 @@ export interface DisputeReviewInput {
 }
 
 export interface ListModerationReportsQuery extends ListReportsQuery {
+  q?: string; from?: Date; to?: Date; sort?: 'newest' | 'reports_desc';
   targetType?: ReportTarget;
   category?: ReportCategory;
 }
@@ -88,6 +89,7 @@ export interface ComplaintDto extends ReportBaseDto {
 
 /** What moderators see. The ids stay for the actions; the names are what the queue displays. */
 export interface ModerationReportDto extends ReportBaseDto {
+  totalReportsCount?: number;
   reporterId: string;
   reporterName?: string;
   agencyId?: string;

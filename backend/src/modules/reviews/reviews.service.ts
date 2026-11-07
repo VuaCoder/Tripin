@@ -38,7 +38,7 @@ export class ReviewsService {
     private readonly tours: Pick<ToursService, 'updateRatingStats'> = toursService,
     private readonly users: Pick<UsersService, 'getSummaries'> = usersService,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
-    private readonly audit: Pick<AuditService, 'record'> = auditService,
+    _audit: Pick<AuditService, 'record'> = auditService,
   ) {}
 
   // ================================================================ Traveler
@@ -171,18 +171,18 @@ export class ReviewsService {
       moderatedById: actor.userId,
       moderatedAt: new Date(),
       hiddenReason: decision.hide ? decision.reason : null,
-    });
-    if (!updated) throw AppError.conflict('The review was modified, please retry', 'CONCURRENT_UPDATE');
-
-    await this.refreshTourRating(review.tourId);
-    await this.audit.record({
+    }, {
       actorId: actor.userId,
       actorRole: actor.role,
       action: AUDIT_ACTIONS.REVIEW_MODERATED,
       targetType: 'review',
       targetId: reviewId,
-      metadata: { hidden: decision.hide, reason: decision.reason },
+      metadata: { before: { status: review.status, hiddenReason: review.hiddenReason }, after: { status: next, hiddenReason: decision.hide ? decision.reason : null, moderatedById: actor.userId }, hidden: decision.hide, reason: decision.reason },
     });
+    if (!updated) throw AppError.conflict('The review was modified, please retry', 'CONCURRENT_UPDATE');
+
+    await this.refreshTourRating(review.tourId);
+
     await this.notifications.notify(review.travelerId, {
       type: NOTIFICATION_TYPE.REVIEW_MODERATED,
       title: decision.hide ? 'Your review was hidden' : 'Your review was restored',

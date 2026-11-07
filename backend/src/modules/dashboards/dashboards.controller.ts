@@ -17,8 +17,8 @@ export class DashboardsController {
     sendOk(res, dashboard);
   };
 
-  moderation: RequestHandler = async (_req, res) => {
-    sendOk(res, await this.service.moderationDashboard());
+  moderation: RequestHandler = async (req, res) => {
+    sendOk(res, await this.service.moderationDashboard(userActor(req).permissions));
   };
 
   admin: RequestHandler = async (req, res) => {
