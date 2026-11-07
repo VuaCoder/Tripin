@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { PERMISSIONS } from '@travel-platform/constants';
 import { requirePermission } from '../../middlewares/authorize';
 import { createRateLimiter } from '../../middlewares/rate-limit';
@@ -13,10 +14,12 @@ import {
 } from './chat.validation';
 
 const messageLimiter = createRateLimiter({ windowMs: 60 * 1000, limit: 60 });
+const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } });
 
 /** Mounted at /api/v1/chat — REST side of the traveler <-> tour guide conversation (realtime: chat.gateway.ts). */
 export const chatRouter = Router();
 chatRouter.use(requirePermission(PERMISSIONS.CHAT_USE));
+chatRouter.post('/upload-image', upload.single('file'), chatController.uploadImage);
 chatRouter.post('/conversations', validate({ body: startConversationBody }), chatController.start);
 chatRouter.get('/conversations', validate({ query: listConversationsQuery }), chatController.list);
 chatRouter.get('/conversations/:id', validate({ params: conversationIdParams }), chatController.detail);

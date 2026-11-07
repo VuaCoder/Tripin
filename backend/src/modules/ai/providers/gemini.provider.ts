@@ -7,9 +7,9 @@ const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 const REQUEST_TIMEOUT_MS = 30_000;
 
 const DEFAULT_GEMINI_FALLBACKS = [
-  'gemini-2.5-flash',
   'gemini-2.0-flash',
   'gemini-1.5-flash',
+  'gemini-1.5-pro',
   'gemini-2.0-flash-lite',
 ];
 
@@ -99,7 +99,16 @@ export class GeminiProvider implements AiProvider {
             }
             throw new AppError(503, 'AI_TEMPORARILY_UNAVAILABLE', 'The AI provider could not process the request');
           }
-          const code = [400, 401, 403, 404].includes(response.status) ? 'AI_NOT_CONFIGURED' : 'AI_TEMPORARILY_UNAVAILABLE';
+          if (response.status === 404) {
+            modelCooldowns.set(model, Date.now() + COOLDOWN_MS);
+            logger.warn(`Gemini model ${model} not found (404), rotating to next model...`);
+            if (i < sortedModels.length - 1) {
+              lastError = new AppError(503, 'AI_NOT_CONFIGURED', 'The AI provider could not process the request');
+              continue;
+            }
+            throw new AppError(503, 'AI_NOT_CONFIGURED', 'The AI provider could not process the request');
+          }
+          const code = [400, 401, 403].includes(response.status) ? 'AI_NOT_CONFIGURED' : 'AI_TEMPORARILY_UNAVAILABLE';
           throw new AppError(503, code, 'The AI provider could not process the request');
         }
 

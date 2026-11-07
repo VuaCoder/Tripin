@@ -7,3 +7,4 @@ export * from './ConfirmDeleteCollectionModal';
 export * from './CollageImageGrid';
 export * from './SaveToWishlistModal';
 export * from './WishlistToast';
+export * from './RenameWishlistCollectionModal';

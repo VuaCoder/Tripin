@@ -183,7 +183,8 @@ export function AirbnbTourCarousel({
                 >
                   <WishlistButton
                     tourId={tour.id}
-                    className="[&_a]:!bg-black/35 [&_a]:!text-white [&_a]:hover:!bg-black/55 [&_button]:!bg-black/35 [&_button]:!text-white [&_button]:hover:!bg-black/55 [&_button[aria-pressed='true']_svg]:!fill-red-500 [&_button[aria-pressed='true']_svg]:!stroke-red-500 [&_button[aria-pressed='true']_svg]:!text-red-500 [&_a]:!size-8 [&_button]:!size-8 [&_svg]:!size-4"
+                    tourTitle={tour.title}
+                    tourCoverImage={tour.coverImage}
                   />
                 </div>
               </div>

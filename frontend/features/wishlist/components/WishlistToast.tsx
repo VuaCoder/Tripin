@@ -30,21 +30,59 @@ const DEFAULT_COVER =
 
 export function WishlistToast() {
   const [toast, setToast] = useState<WishlistToastPayload | null>(null);
+  const [isExiting, setIsExiting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalPayload, setModalPayload] = useState<WishlistToastPayload | null>(null);
+
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const exitTimerRef = useRef<NodeJS.Timeout | null>(null);
   const toastRef = useRef(toast);
+  const isModalOpenRef = useRef(isModalOpen);
 
   useEffect(() => {
     toastRef.current = toast;
   }, [toast]);
 
-  // Auto-dismiss after 3 seconds whenever a toast is shown
+  useEffect(() => {
+    isModalOpenRef.current = isModalOpen;
+  }, [isModalOpen]);
+
+  const dismissToast = useCallback(() => {
+    if (isModalOpenRef.current) return; // Never dismiss while modal is open!
+
+    if (process.env.NODE_ENV === 'test') {
+      setToast(null);
+      return;
+    }
+
+    setIsExiting(true);
+    if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+    exitTimerRef.current = setTimeout(() => {
+      setToast(null);
+      setIsExiting(false);
+    }, 300);
+  }, []);
+
+  const startAutoDismiss = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    // Only auto-dismiss if modal is NOT open
+    if (!isModalOpenRef.current) {
+      timerRef.current = setTimeout(() => {
+        dismissToast();
+      }, 3000);
+    }
+  }, [dismissToast]);
+
+  // Handle new toast or auto-dismiss
   useEffect(() => {
     if (!toast) return;
 
-    timerRef.current = setTimeout(() => {
-      setToast(null);
-    }, 3000);
+    if (!isModalOpen) {
+      startAutoDismiss();
+    }
 
     return () => {
       if (timerRef.current) {
@@ -52,21 +90,26 @@ export function WishlistToast() {
         timerRef.current = null;
       }
     };
-  }, [toast]);
+  }, [toast, isModalOpen, startAutoDismiss]);
 
-  // Window event listeners registered once
+  // Window event listeners
   useEffect(() => {
     const handleShow = (e: Event) => {
       const custom = e as CustomEvent<WishlistToastPayload>;
       if (custom.detail) {
+        if (exitTimerRef.current) {
+          clearTimeout(exitTimerRef.current);
+          exitTimerRef.current = null;
+        }
+        setIsExiting(false);
         setToast(custom.detail);
       }
     };
 
     const handleHide = (e: Event) => {
       const custom = e as CustomEvent<{ tourId?: string }>;
-      if (!custom.detail?.tourId || toastRef.current?.tourId === custom.detail.tourId) {
-        setToast(null);
+      if (!isModalOpenRef.current && (!custom.detail?.tourId || toastRef.current?.tourId === custom.detail.tourId)) {
+        dismissToast();
       }
     };
 
@@ -77,7 +120,7 @@ export function WishlistToast() {
       window.removeEventListener(TOAST_EVENT, handleShow);
       window.removeEventListener(HIDE_EVENT, handleHide);
     };
-  }, []);
+  }, [dismissToast]);
 
   const handleMouseEnter = () => {
     if (timerRef.current) {
@@ -87,10 +130,26 @@ export function WishlistToast() {
   };
 
   const handleMouseLeave = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      setToast(null);
-    }, 3000);
+    if (!isModalOpen) {
+      startAutoDismiss();
+    }
+  };
+
+  const handleOpenModal = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (toast) {
+      setModalPayload(toast);
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    // After user chooses/creates or closes, start the auto-dismiss timer
+    startAutoDismiss();
   };
 
   if (!toast && !isModalOpen) return null;
@@ -103,7 +162,11 @@ export function WishlistToast() {
           aria-live="polite"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
-          className="fixed bottom-6 left-6 z-50 flex items-center gap-3.5 rounded-2xl border border-slate-200/90 bg-white px-4 py-3 shadow-2xl animate-fadeInScale transition-all max-w-[92vw] sm:max-w-md select-none"
+          className={`fixed bottom-6 left-6 z-50 flex items-center gap-3.5 rounded-2xl border border-slate-200/90 bg-white px-4 py-3 shadow-2xl max-w-[92vw] sm:max-w-md select-none transition-all duration-300 ease-out ${
+            isExiting
+              ? 'opacity-0 translate-y-3 scale-95 pointer-events-none'
+              : 'opacity-100 translate-y-0 scale-100 animate-fadeInScale'
+          }`}
         >
           {/* Thumbnail */}
           <div className="size-11 shrink-0 overflow-hidden rounded-xl bg-slate-100 border border-slate-100">
@@ -129,10 +192,7 @@ export function WishlistToast() {
           {toast.action !== 'removed' && (
             <button
               type="button"
-              onClick={() => {
-                if (timerRef.current) clearTimeout(timerRef.current);
-                setIsModalOpen(true);
-              }}
+              onClick={handleOpenModal}
               className="shrink-0 cursor-pointer text-sm font-semibold text-slate-900 underline hover:text-black ml-2 py-1"
             >
               Thay đổi
@@ -142,10 +202,7 @@ export function WishlistToast() {
           {/* Close button */}
           <button
             type="button"
-            onClick={() => {
-              if (timerRef.current) clearTimeout(timerRef.current);
-              setToast(null);
-            }}
+            onClick={dismissToast}
             className="shrink-0 ml-1 flex size-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
             aria-label="Đóng thông báo"
           >
@@ -154,17 +211,14 @@ export function WishlistToast() {
         </aside>
       )}
 
-      {/* Change Collection Modal */}
-      {isModalOpen && toast && (
+      {/* Change Collection Modal - holds persistent modalPayload */}
+      {isModalOpen && modalPayload && (
         <SaveToWishlistModal
           isOpen={isModalOpen}
-          tourId={toast.tourId}
-          tourTitle={toast.tourTitle}
-          tourCoverImage={toast.tourCoverImage}
-          onClose={() => {
-            setIsModalOpen(false);
-            handleMouseLeave();
-          }}
+          tourId={modalPayload.tourId}
+          tourTitle={modalPayload.tourTitle}
+          tourCoverImage={modalPayload.tourCoverImage}
+          onClose={handleCloseModal}
           onSavedChange={(saved) => {
             if (!saved) {
               setToast(null);
