@@ -1,4 +1,6 @@
 import type { RequestHandler } from 'express';
+import { AppError } from '../../utils/app-error';
+import { uploadImageBuffer } from '../../integrations/cloudinary';
 import { userActor } from '../../middlewares/authorize';
 import { validated } from '../../middlewares/validate';
 import { sendCreated, sendOk, sendPaginated } from '../../utils/api-response';
@@ -14,6 +16,18 @@ import type {
 /** HTTP only. The sender is always the authenticated user. */
 export class ChatController {
   constructor(private readonly service: ChatService = chatService) {}
+
+  uploadImage: RequestHandler = async (req, res) => {
+    const file = req.file;
+    if (!file) throw AppError.badRequest('Vui lòng chọn file ảnh');
+    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    if (!allowed.has(file.mimetype)) throw AppError.badRequest('Chỉ hỗ trợ file ảnh định dạng JPG, PNG hoặc WebP');
+    if (file.size > 5 * 1024 * 1024) throw AppError.badRequest('Kích thước ảnh tối đa là 5 MB');
+    const actor = userActor(req);
+    const identifier = `${actor.userId}_${Date.now()}`;
+    const result = await uploadImageBuffer('tourImage', identifier, file.buffer, file.mimetype);
+    sendOk(res, { url: result.secureUrl, publicId: result.publicId });
+  };
 
   start: RequestHandler = async (req, res) => {
     const { body } = validated<StartConversationBody>(req);

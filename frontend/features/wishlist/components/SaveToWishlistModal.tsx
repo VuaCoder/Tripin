@@ -37,6 +37,9 @@ export function SaveToWishlistModal({
   const loadCollections = () => {
     const list = getWishlistCollections();
     setCollections(list);
+    if (list.length === 0) {
+      setStep('create');
+    }
   };
 
   useEffect(() => {
@@ -45,9 +48,14 @@ export function SaveToWishlistModal({
 
   useEffect(() => {
     if (isOpen) {
-      loadCollections();
-      setStep('select');
+      const list = getWishlistCollections();
+      setCollections(list);
       setNewCollectionName('');
+      if (list.length === 0) {
+        setStep('create');
+      } else {
+        setStep('select');
+      }
     }
   }, [isOpen]);
 
@@ -71,7 +79,14 @@ export function SaveToWishlistModal({
   if (!isOpen || !mounted) return null;
 
   const handleSelectCollection = (collection: WishlistCollection) => {
-    addTourToCollection(collection.id, tourId);
+    const snapshot = tourTitle
+      ? {
+          id: tourId,
+          title: tourTitle,
+          coverImage: tourCoverImage,
+        }
+      : undefined;
+    addTourToCollection(collection.id, tourId, snapshot);
     if (onSyncBackend) {
       void onSyncBackend(tourId);
     }
@@ -98,7 +113,15 @@ export function SaveToWishlistModal({
     e.preventDefault();
     if (!newCollectionName.trim()) return;
 
-    const newCol = createWishlistCollection(newCollectionName.trim(), tourId);
+    const snapshot = tourTitle
+      ? {
+          id: tourId,
+          title: tourTitle,
+          coverImage: tourCoverImage,
+        }
+      : undefined;
+
+    const newCol = createWishlistCollection(newCollectionName.trim(), tourId, snapshot);
     if (onSyncBackend) {
       void onSyncBackend(tourId);
     }
@@ -136,125 +159,150 @@ export function SaveToWishlistModal({
       {/* Centering wrapper */}
       <div className="flex min-h-full items-center justify-center p-4 text-center">
         {/* Modal Card */}
-        <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-100 bg-white p-6 sm:p-7 text-left shadow-2xl animate-fadeInScale">
-          {/* Top-Right Close Button */}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Đóng"
-            className="absolute top-5 right-5 flex size-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors"
-          >
-            <span className="material-symbols-outlined text-[20px]">close</span>
-          </button>
-
-          {/* STEP 1: SELECT COLLECTION (Image 3) */}
+        <div className="relative w-full max-w-[540px] overflow-hidden rounded-3xl border border-slate-100 bg-white p-5 sm:p-6 text-left shadow-2xl animate-fadeInScale">
+          {/* STEP 1: SELECT COLLECTION (Ảnh 2: Grid 2 cột) */}
           {step === 'select' ? (
             <div>
-              <h3 className="text-lg sm:text-xl font-bold text-slate-900 pr-8">
-                Lưu vào danh sách yêu thích
-              </h3>
-
-              {/* Collections List */}
-              <div className="my-6 max-h-80 overflow-y-auto space-y-3 pr-1">
-                {collections.length === 0 ? (
-                  <p className="py-6 text-center text-sm text-slate-500">
-                    Chưa có danh sách yêu thích nào.
-                  </p>
-                ) : (
-                  collections.map((col) => {
-                    const isTourSaved = col.tourIds.includes(tourId);
-                    return (
-                      <div
-                        key={col.id}
-                        onClick={() => handleSelectCollection(col)}
-                        className={`flex items-center gap-4 p-3 rounded-2xl border transition-all cursor-pointer ${
-                          isTourSaved
-                            ? 'border-brand-teal bg-teal-50/40 shadow-xs'
-                            : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className="size-16 shrink-0 rounded-xl overflow-hidden bg-slate-100">
-                          <CollageImageGrid
-                            images={
-                              isTourSaved && tourCoverImage
-                                ? [tourCoverImage]
-                                : []
-                            }
-                            altTitle={col.name}
-                            className="size-full !rounded-xl"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-slate-900 text-sm truncate">
-                            {col.name}
-                          </h4>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            Đã lưu {col.tourIds.length} mục
-                          </p>
-                        </div>
-                        {isTourSaved && (
-                          <span className="material-symbols-outlined text-brand-teal text-[22px]">
-                            check_circle
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
+              {/* Header with Centered Title & Close X */}
+              <div className="relative flex items-center justify-between pb-3.5 border-b border-slate-100">
+                <div className="size-8" />
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 text-center">
+                  Lưu vào danh sách yêu thích
+                </h3>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Đóng"
+                  className="flex size-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[20px]">close</span>
+                </button>
               </div>
 
-              {/* Button: Tạo danh sách mong muốn mới (Image 3) */}
-              <div className="pt-2 border-t border-slate-100">
+              {/* Collections Grid (Ảnh 2) */}
+              <div className="my-5 max-h-[60vh] overflow-y-auto grid grid-cols-2 gap-4 pr-1">
+                {collections.map((col) => {
+                  const isTourSaved = col.tourIds.includes(tourId);
+                  const previewImages = col.tourIds
+                    .map((id) => col.tours?.[id]?.coverImage)
+                    .filter(Boolean) as string[];
+                  if (previewImages.length === 0 && isTourSaved && tourCoverImage) {
+                    previewImages.push(tourCoverImage);
+                  }
+
+                  const firstCover = previewImages[0] || tourCoverImage;
+
+                  return (
+                    <div
+                      key={col.id}
+                      onClick={() => handleSelectCollection(col)}
+                      className="group flex flex-col cursor-pointer select-none text-left"
+                    >
+                      <div className="relative aspect-[4/3] sm:aspect-square w-full rounded-2xl sm:rounded-3xl overflow-hidden bg-slate-100 border border-slate-200/80 group-hover:border-slate-400 group-hover:shadow-sm transition-all">
+                        {firstCover ? (
+                          <img
+                            src={firstCover}
+                            alt={col.name}
+                            className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
+                        ) : (
+                          <CollageImageGrid
+                            images={previewImages}
+                            altTitle={col.name}
+                            className="size-full !rounded-2xl sm:!rounded-3xl"
+                          />
+                        )}
+                      </div>
+                      <div className="pt-2">
+                        <h4 className="font-semibold text-sm text-slate-900 truncate">
+                          {col.name}
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Đã lưu {col.tourIds.length} mục
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Button: Tạo danh sách mong muốn mới (Ảnh 2) */}
+              <div className="pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setStep('create')}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-slate-950 hover:bg-slate-800 text-white font-bold text-sm shadow-md transition-colors cursor-pointer"
+                  className="w-full py-3.5 px-4 rounded-xl sm:rounded-2xl bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-sm sm:text-base shadow-sm transition-colors cursor-pointer text-center"
                 >
                   Tạo danh sách mong muốn mới
                 </button>
               </div>
             </div>
           ) : (
-            /* STEP 2: CREATE COLLECTION (Image 5) */
+            /* STEP 2: CREATE COLLECTION (Ảnh 3) */
             <form onSubmit={handleCreateCollection}>
-              <h3 className="text-lg sm:text-xl font-bold text-slate-900 pr-8">
-                Tạo Danh sách yêu thích
-              </h3>
+              {/* Header with Back Arrow and Centered Title (Không có nút X theo Ảnh 3) */}
+              <div className="relative flex items-center justify-between pb-3.5 border-b border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (collections.length > 0) {
+                      setStep('select');
+                    } else {
+                      onClose();
+                    }
+                  }}
+                  aria-label="Quay lại"
+                  className="flex size-8 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[22px]">arrow_back</span>
+                </button>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 text-center flex-1">
+                  Tạo Danh sách yêu thích
+                </h3>
+                <div className="size-8" />
+              </div>
 
-              <div className="my-6">
-                <div className="relative rounded-2xl border border-slate-300 focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 p-3 transition-all">
-                  <label className="block text-[11px] font-medium text-slate-500">
-                    Tên
-                  </label>
+              <div className="my-6 text-left">
+                <div className="relative rounded-2xl border border-slate-300 focus-within:border-slate-800 focus-within:ring-1 focus-within:ring-slate-800 px-4 py-3.5 transition-all">
                   <input
                     type="text"
                     required
                     maxLength={50}
                     value={newCollectionName}
                     onChange={(e) => setNewCollectionName(e.target.value)}
-                    placeholder="Ví dụ: Kỳ nghỉ hè, Tour Phú Quốc..."
-                    className="w-full bg-transparent text-sm font-semibold text-slate-900 focus:outline-none pt-1"
+                    placeholder="Tên"
+                    className="w-full bg-transparent text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none"
                     autoFocus
                   />
                 </div>
-                <div className="mt-1.5 text-right text-xs text-slate-400">
+                <div className="mt-2 text-left text-xs text-slate-500 font-medium">
                   {newCollectionName.length}/50 ký tự
                 </div>
               </div>
 
-              {/* Bottom Actions (Image 5) */}
+              {/* Actions (Ảnh 3) */}
               <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={() => setStep('select')}
-                  className="px-4 py-2 text-sm font-bold text-slate-700 hover:text-slate-900 cursor-pointer"
+                  onClick={() => {
+                    if (collections.length > 0) {
+                      setStep('select');
+                    } else {
+                      onClose();
+                    }
+                  }}
+                  className="px-2 py-2 text-sm font-bold text-slate-900 hover:underline cursor-pointer"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={!newCollectionName.trim()}
-                  className="px-6 py-2.5 rounded-2xl text-sm font-bold bg-[#087e8b] hover:bg-[#00636e] text-white shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                  className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                    newCollectionName.trim()
+                      ? 'bg-neutral-900 text-white hover:bg-neutral-800 cursor-pointer shadow-sm'
+                      : 'bg-[#f3f4f6] text-[#9ca3af] cursor-not-allowed'
+                  }`}
                 >
                   Tạo
                 </button>

@@ -76,4 +76,26 @@ describe('WishlistButton', () => {
 
     expect(screen.getByRole('alert').textContent).toMatch(/full/);
   });
+
+  it('renders pill variant with label text for saved and unsaved states', () => {
+    setState({ isSaved: false });
+    const { rerender } = render(<WishlistButton tourId="t1" variant="pill" />);
+    expect(screen.getByText('Lưu')).toBeDefined();
+
+    setState({ isSaved: true });
+    rerender(<WishlistButton tourId="t1" variant="pill" />);
+    expect(screen.getByText('Đã lưu')).toBeDefined();
+  });
+
+  it('renders circle variant as an icon-only button without label text', () => {
+    setState({ isSaved: false });
+    const { rerender } = render(<WishlistButton tourId="t1" variant="circle" />);
+    expect(screen.getByRole('button', { name: /Lưu tour/ })).toBeDefined();
+    expect(screen.queryByText('Lưu')).toBeNull();
+
+    setState({ isSaved: true });
+    rerender(<WishlistButton tourId="t1" variant="circle" />);
+    expect(screen.getByRole('button', { name: 'Bỏ lưu tour' })).toBeDefined();
+    expect(screen.queryByText('Đã lưu')).toBeNull();
+  });
 });

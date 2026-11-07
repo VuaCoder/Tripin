@@ -142,13 +142,11 @@ describe('ConversationPage', () => {
     expect(screen.queryByText('Khám phá tour & liên hệ HDV →')).toBeNull();
   });
 
-  it('displays complaints tab in inbox and switches to complaints view', () => {
+  it('does not display complaints tab in inbox and renders counterpart avatar', () => {
     render(<ConversationPage />);
-    expect(screen.getByText('Trò chuyện trực tiếp')).toBeTruthy();
-    const complaintsTab = screen.getByText('Phiếu khiếu nại');
-    expect(complaintsTab).toBeTruthy();
-    fireEvent.click(complaintsTab);
-    expect(screen.getByText('Hộp thư khiếu nại dịch vụ')).toBeTruthy();
+    expect(screen.queryByText('Phiếu khiếu nại')).toBeNull();
+    expect(screen.queryByText('Trò chuyện trực tiếp')).toBeNull();
+    expect(screen.getByText('Guide A')).toBeTruthy();
   });
 });
 

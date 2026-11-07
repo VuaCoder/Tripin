@@ -44,7 +44,36 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
   const images = tour.images?.length ? tour.images : tour.coverImage ? [tour.coverImage] : [];
   return <div className={styles.page}>
     <nav className={styles.breadcrumb} aria-label="Đường dẫn"><Link href="/tours">Khám phá tour</Link><ChevronRight size={14} /><span>{tour.destination}</span></nav>
-    <div className={styles.titleRow}><div><h1>{tour.title}</h1><div className={styles.ratings}><RatingStars value={tour.ratingAvg} count={tour.ratingCount} size="sm" /><a href="#danh-gia" onClick={event => navigateSection(event, 'danh-gia')}>{tour.ratingCount ? `${tour.ratingAvg.toFixed(1)}/5 · ${tour.ratingCount} đánh giá` : 'Chưa có đánh giá'}</a></div></div><div className={styles.titleActions}><WishlistButton tourId={tour.id} tourTitle={tour.title} tourCoverImage={tour.coverImage || (images.length > 0 ? images[0] : undefined)} /><ComplaintButton tourId={tour.id} tourTitle={tour.title} /><ReportButton targetType="TOUR" targetId={tour.id} targetLabel={tour.title} /><button type="button" className={styles.outlineButton} onClick={() => window.print()}><Printer size={17} />In chương trình</button></div></div>
+    <div className={styles.titleRow}>
+      <div>
+        <h1>{tour.title}</h1>
+        <div className={styles.ratings}>
+          <RatingStars value={tour.ratingAvg} count={tour.ratingCount} size="sm" />
+          <a href="#danh-gia" onClick={event => navigateSection(event, 'danh-gia')}>
+            {tour.ratingCount ? `${tour.ratingAvg.toFixed(1)}/5 · ${tour.ratingCount} đánh giá` : 'Chưa có đánh giá'}
+          </a>
+        </div>
+      </div>
+      <div className={styles.titleActions}>
+        <WishlistButton
+          tourId={tour.id}
+          tourTitle={tour.title}
+          tourCoverImage={tour.coverImage || (images.length > 0 ? images[0] : undefined)}
+          variant="circle"
+        />
+        <ComplaintButton tourId={tour.id} tourTitle={tour.title} iconOnly />
+        <ReportButton targetType="TOUR" targetId={tour.id} targetLabel={tour.title} iconOnly />
+        <button
+          type="button"
+          className={styles.iconActionButton}
+          onClick={() => window.print()}
+          aria-label="In chương trình"
+          title="In chương trình"
+        >
+          <Printer size={18} className="text-slate-500" />
+        </button>
+      </div>
+    </div>
     <TourGallery images={images} title={tour.title} />
     <div className={styles.bodyGrid}><div className={styles.mainContent}>
       <div className={styles.facts}><span><MapPin size={19} /><strong>Điểm đến:</strong> {tour.destination}</span><span><Clock3 size={19} />{tour.durationDays} ngày</span>{tour.agency && <span><Building2 size={19} /><Link href={`/agencies/${tour.agency.id}`} className="underline underline-offset-4">{tour.agency.name}</Link></span>}{tour.guide && <span><Link href={`/tour-guides/${tour.guide.id}`} className="underline underline-offset-4">Hướng dẫn viên: {tour.guide.fullName}</Link></span>}</div>
