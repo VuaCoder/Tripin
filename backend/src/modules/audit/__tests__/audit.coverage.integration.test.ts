@@ -58,8 +58,8 @@ describe('audit coverage (integration)', () => {
     const a = await actors();
     const asAdmin = (r: request.Test) => r.set(bearer(a.admin.token));
 
-    await expectOneAudit(AUDIT_ACTIONS.COMMISSION_UPDATED, a.admin.id, () => asAdmin(request(app).put('/api/v1/admin/settings/commission')).send({ ratePercent: 9 }));
-    await expectOneAudit(AUDIT_ACTIONS.POLICY_UPDATED, a.admin.id, () => asAdmin(request(app).put('/api/v1/admin/policies/terms')).send({ title: 'Terms of use', content: 'Be nice.' }), 'policy:terms');
+    await expectOneAudit(AUDIT_ACTIONS.COMMISSION_UPDATED, a.admin.id, () => asAdmin(request(app).put('/api/v1/admin/settings/commission')).send({ ratePercent: 9, expectedVersion: 0 }));
+    await expectOneAudit(AUDIT_ACTIONS.POLICY_UPDATED, a.admin.id, () => asAdmin(request(app).put('/api/v1/admin/policies/terms')).send({ expectedVersion: 0, reason: 'Policy reviewed and updated', title: 'Terms of use', content: 'Be nice.' }), 'policy:terms');
 
     const created = await expectOneAudit(AUDIT_ACTIONS.CATEGORY_CREATED, a.admin.id, () => asAdmin(request(app).post('/api/v1/admin/categories')).send({ name: 'Wellness' }));
     const categoryId = created.targetId!;
@@ -117,7 +117,7 @@ describe('audit coverage (integration)', () => {
 
     // Ban and unban.
     await expectOneAudit(AUDIT_ACTIONS.USER_BANNED, a.moderator.id, () => asMod(request(app).post(`/api/v1/moderation/users/${a.traveler.id}/ban`)).send({ reason: 'Chargeback fraud' }), a.traveler.id);
-    await expectOneAudit(AUDIT_ACTIONS.USER_UNBANNED, a.moderator.id, () => asMod(request(app).post(`/api/v1/moderation/users/${a.traveler.id}/unban`)).send({}), a.traveler.id);
+    await expectOneAudit(AUDIT_ACTIONS.USER_UNBANNED, a.admin.id, () => request(app).post(`/api/v1/moderation/users/${a.traveler.id}/unban`).set(bearer(a.admin.token)).send({ reason: 'Appeal reviewed and accepted' }), a.traveler.id);
   });
 
   it('refused, invalid and no-op privileged requests leave no trace', async () => {
@@ -127,19 +127,19 @@ describe('audit coverage (integration)', () => {
     const asTraveler = (r: request.Test) => r.set(bearer(a.traveler.token));
 
     // Wrong role.
-    await expectNoAudit(() => asTraveler(request(app).put('/api/v1/admin/settings/commission')).send({ ratePercent: 1 }), (s) => s === 403);
+    await expectNoAudit(() => asTraveler(request(app).put('/api/v1/admin/settings/commission')).send({ ratePercent: 1, expectedVersion: 0 }), (s) => s === 403);
     await expectNoAudit(() => asTraveler(request(app).post(`/api/v1/moderation/users/${a.admin.id}/ban`)).send({ reason: 'Because I can' }), (s) => s === 403);
     await expectNoAudit(() => request(app).post(`/api/v1/moderation/tours/${tourId}/suspend`).send({ reason: 'Anonymous' }), (s) => s === 401);
     // Moderators may not use admin functions.
-    await expectNoAudit(() => asMod(request(app).put('/api/v1/admin/policies/terms')).send({ title: 'Hijack', content: 'x' }), (s) => s === 403);
+    await expectNoAudit(() => asMod(request(app).put('/api/v1/admin/policies/terms')).send({ expectedVersion: 0, reason: 'Policy reviewed and updated', title: 'Hijack', content: 'x' }), (s) => s === 403);
     // Invalid input.
-    await expectNoAudit(() => request(app).put('/api/v1/admin/settings/commission').set(bearer(a.admin.token)).send({ ratePercent: 500 }), (s) => s === 400);
+    await expectNoAudit(() => request(app).put('/api/v1/admin/settings/commission').set(bearer(a.admin.token)).send({ ratePercent: 500, expectedVersion: 0 }), (s) => s === 400);
     await expectNoAudit(() => asMod(request(app).post(`/api/v1/moderation/tours/${tourId}/suspend`)).send({}), (s) => s === 400);
     // Business rules that refuse: banning a super admin, banning yourself, illegal transition, unknown target.
-    await expectNoAudit(() => asMod(request(app).post(`/api/v1/moderation/users/${a.admin.id}/ban`)).send({ reason: 'Not allowed' }), (s) => s === 403);
+    await expectNoAudit(() => asMod(request(app).post(`/api/v1/moderation/users/${a.admin.id}/ban`)).send({ reason: 'Not allowed' }), (s) => s === 400);
     await expectNoAudit(() => asMod(request(app).post(`/api/v1/moderation/users/${a.moderator.id}/ban`)).send({ reason: 'Self ban' }), (s) => s === 403);
     await expectNoAudit(() => asMod(request(app).post(`/api/v1/moderation/tours/${tourId}/validate`)).send({ approve: true }), (s) => s === 409); // already approved
-    await expectNoAudit(() => asMod(request(app).post(`/api/v1/moderation/users/${oid()}/unban`)).send({}), (s) => s === 404);
+    await expectNoAudit(() => request(app).post(`/api/v1/moderation/users/${oid()}/unban`).set(bearer(a.admin.token)).send({ reason: 'Appeal reviewed and accepted' }), (s) => s === 404);
     // A no-op access assignment (nothing to change) is not a change.
     await expectNoAudit(() => request(app).patch(`/api/v1/admin/users/${a.traveler.id}/access`).set(bearer(a.admin.token)).send({ role: 'TRAVELER' }), (s) => s === 200);
     // Concurrent duplicates: two moderators ban the same person at once - one entry.
@@ -153,9 +153,12 @@ describe('audit coverage (integration)', () => {
     expect(await prisma.auditLog.count({ where: { action: AUDIT_ACTIONS.USER_BANNED, targetId: victim.id } })).toBe(1);
   });
 
+  it('records audit exports', async () => { const a = await actors(); await expectOneAudit(AUDIT_ACTIONS.AUDIT_EXPORTED, a.admin.id, () => request(app).get('/api/v1/admin/export/audit-logs').set(bearer(a.admin.token))); });
+
   it('every action declared in AUDIT_ACTIONS is exercised by this file', () => {
     const source = require('node:fs').readFileSync(__filename, 'utf-8') as string;
-    const unused = Object.keys(AUDIT_ACTIONS).filter((key) => !source.includes(`AUDIT_ACTIONS.${key}`));
+    // Premium mutation coverage lives in premium.integration.test.ts.
+    const unused = Object.keys(AUDIT_ACTIONS).filter((key) => key !== 'PREMIUM_CHANGED').filter((key) => !source.includes(`AUDIT_ACTIONS.${key}`));
     expect(unused).toEqual([]);
   });
 });

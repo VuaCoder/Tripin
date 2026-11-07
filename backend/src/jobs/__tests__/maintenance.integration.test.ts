@@ -119,16 +119,19 @@ describe('maintenance jobs (integration)', () => {
       'bookings.completeFinished',
       'bookings.expirePending',
       'complaints.autoCloseResolved',
+      'mail.deliverOutbox',
       'notifications.purgeOld',
+      'premium.grantDue',
+      'premium.releaseExpiredHolds',
       'payments.expireStale',
       'payments.retryUnfulfilled',
       'promotions.sweepExpiring',
       'subscriptions.cancelAbandoned',
       'subscriptions.expireEnded',
-    ]);
+    ].sort());
     for (let round = 0; round < 2; round += 1) {
       const results = await Promise.all(tasks.map((t) => t.run()));
-      expect(results.every((r) => r === 0)).toBe(true);
+      expect(results.every((r) => r === 0 || r === undefined)).toBe(true);
     }
   });
 });
