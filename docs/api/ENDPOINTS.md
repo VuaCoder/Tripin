@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 229 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 234 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -286,13 +286,16 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | GET | `/api/v1/e-tickets` | `eticket:view-own` |
 | GET | `/api/v1/e-tickets/:id` | `eticket:view-own` |
 | GET | `/api/v1/e-tickets/booking/:bookingId` | `eticket:view-own` |
+| POST | `/api/v1/e-tickets/scan` | `guide:check-in` |
 
 ## `/earnings`
 
 | Method | Path | Access |
 |---|---|---|
 | GET | `/api/v1/earnings/me` | `earnings:view` |
+| GET | `/api/v1/earnings/me/ledger` | `earnings:view` |
 | GET | `/api/v1/earnings/me/summary` | `earnings:view` |
+| POST | `/api/v1/earnings/payouts/:id/transfer` | `tour:update-own` |
 
 ## `/guide/e-tickets`
 
@@ -353,6 +356,13 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | Method | Path | Access |
 |---|---|---|
 | GET | `/api/v1/moderation/dashboard` | `moderation:dashboard` |
+
+## `/moderation/review-triage`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/moderation/review-triage` | `review:moderate`, `dispute:resolve` |
+| POST | `/api/v1/moderation/review-triage/:id/decision` | `review:moderate`, `dispute:resolve` |
 
 ## `/moderation/sla`
 

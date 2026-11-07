@@ -87,6 +87,10 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Scan QR e-ticket check-in | e-tickets | `GET /guide/e-tickets/:tourId`, `POST /guide/e-tickets/:tourId/check-in` | guide:check-in | done |
 | Subcribe to plan (Payment Gateway) | subscriptions | `GET /subscriptions/plans`, `POST /subscriptions`, `GET /subscriptions/me`, `GET /subscriptions/me/current` | subscription:subscribe | done |
 | View earnings | earnings | `GET /earnings/me`, `GET /earnings/me/summary` | earnings:view | done |
+| Monitor guide payouts | earnings | `GET /earnings/me/ledger` | earnings:view | implemented |
+| Scan an e-ticket for the assigned departure | e-tickets | `POST /e-tickets/scan` | guide:check-in | implemented |
+| Record an agency's completed bank transfer | earnings | `POST /earnings/payouts/:id/transfer` | tour:update-own + owning Agency | implemented |
+| Triage reported reviews | reviews | `GET /moderation/review-triage`, `POST /moderation/review-triage/:id/decision` | review:moderate + dispute:resolve | implemented |
 | Make a conservation (with Traveler) | chat | same as Traveler | chat:use | done |
 
 ## Moderator
