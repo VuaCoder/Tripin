@@ -5,6 +5,9 @@
   "description": "Travel platform backend (Express + Prisma/PostgreSQL, layered MVC organised by domain module)",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "predev": "prisma generate",
+    "pretypecheck": "prisma generate",
+    "pretest": "prisma generate",
     "build": "prisma generate && tsup",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
