@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
-import { Pagination } from '@/components/ui';
+import { Pagination, AntSelect, type AntSelectOption } from '@/components/ui';
 import { RatingStars } from '@/features/review/components';
 import { useBanAccountMutation, useGetModerationReviewsQuery, useModerateReviewMutation } from '../api/moderationApi';
 import { PERMISSION, REVIEW_STATUS_LABELS } from '../labels';
@@ -99,38 +100,42 @@ export function ModerationReviewListPage() {
     });
   }
 
+  const reviewStatusOptions: AntSelectOption<StatusFilter>[] = [
+    { value: 'ALL', label: 'Tất cả trạng thái' },
+    ...(Object.keys(REVIEW_STATUS_LABELS) as ReviewStatus[]).map((s) => ({
+      value: s,
+      label: REVIEW_STATUS_LABELS[s].label,
+    })),
+  ];
+
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-1 py-2 sm:px-0">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Kiểm duyệt đánh giá</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <select
+        <div className="flex items-center gap-2.5">
+          <AntSelect<StatusFilter>
             aria-label="Lọc theo trạng thái"
             value={filter}
-            onChange={(e) => {
-              setFilter(e.target.value as StatusFilter);
+            onChange={(val) => {
+              setFilter(val);
               setPage(1);
             }}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-          >
-            <option value="ALL">Tất cả trạng thái</option>
-            {(Object.keys(REVIEW_STATUS_LABELS) as ReviewStatus[]).map((s) => (
-              <option key={s} value={s}>
-                {REVIEW_STATUS_LABELS[s].label}
-              </option>
-            ))}
-          </select>
+            options={reviewStatusOptions}
+            size="middle"
+            className="min-w-[175px]"
+            triggerClassName={filter !== 'ALL' ? 'border-brand-teal/60 bg-teal-50/20 text-teal-900 font-semibold' : ''}
+          />
           <button
             type="button"
             disabled={isFetching}
             onClick={() => void refetch()}
             aria-label="Làm mới"
             title="Làm mới"
-            className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            className="flex size-10 items-center justify-center rounded-2xl border border-slate-200/90 bg-white text-slate-600 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
           >
-            <span className={`material-symbols-outlined text-[20px] ${isFetching ? 'animate-spin' : ''}`} aria-hidden="true">refresh</span>
+            <RefreshCw className={`size-4 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </header>

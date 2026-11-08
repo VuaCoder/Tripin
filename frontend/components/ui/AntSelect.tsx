@@ -3,12 +3,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check, X } from 'lucide-react';
 
-export interface AntSelectOption<T = string> {
+export interface AntSelectOption<T = string | number> {
   value: T;
   label: React.ReactNode;
 }
 
-export interface AntSelectProps<T = string> {
+export interface AntSelectProps<T = string | number> {
   value: T;
   onChange: (value: T) => void;
   onOpen?: () => void;
@@ -26,7 +26,7 @@ export interface AntSelectProps<T = string> {
   placement?: 'left' | 'right';
 }
 
-export function AntSelect<T extends string = string>({
+export function AntSelect<T extends string | number = string>({
   value,
   onChange,
   onOpen,
@@ -45,8 +45,22 @@ export function AntSelect<T extends string = string>({
 }: AntSelectProps<T>) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const selectedOption = options.find((opt) => opt.value === value);
+
+  useEffect(() => {
+    const btn = buttonRef.current;
+    if (!btn) return;
+    const handleChange = (e: Event) => {
+      const targetVal = (e as unknown as { target?: { value?: T } }).target?.value;
+      if (targetVal !== undefined) {
+        onChange(targetVal);
+      }
+    };
+    btn.addEventListener('change', handleChange);
+    return () => btn.removeEventListener('change', handleChange);
+  }, [onChange]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -82,6 +96,7 @@ export function AntSelect<T extends string = string>({
     <div ref={containerRef} className={`relative inline-block ${className}`}>
       {/* Trigger Button - Ant Design Style */}
       <button
+        ref={buttonRef}
         id={id}
         type="button"
         disabled={disabled}
@@ -89,6 +104,10 @@ export function AntSelect<T extends string = string>({
         onClick={() => {
           if (!open) onOpen?.();
           setOpen(!open);
+        }}
+        onChange={(e: any) => {
+          const val = e.target?.value;
+          if (val !== undefined) onChange(val as T);
         }}
         aria-haspopup="listbox"
         aria-expanded={open}

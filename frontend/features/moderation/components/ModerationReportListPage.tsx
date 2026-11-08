@@ -21,7 +21,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
-import { Pagination } from '@/components/ui';
+import { Pagination, AntSelect, type AntSelectOption } from '@/components/ui';
 import { RatingStars } from '@/features/review/components';
 import { REPORT_CATEGORY_LABELS, REPORT_STATUS_LABELS, REPORT_TARGET_LABELS } from '@/features/report/labels';
 import type { ReportCategory, ReportStatus, ReportTarget } from '@/features/report/types';
@@ -179,13 +179,66 @@ export function ModerationReportListPage() {
     });
   }
 
+  const statusOptions: AntSelectOption<StatusFilter>[] = [
+    { value: 'ALL', label: 'Tất cả trạng thái' },
+    ...STATUSES.map((s) => ({ value: s, label: REPORT_STATUS_LABELS[s].label })),
+  ];
+  const targetOptions: AntSelectOption<TargetFilter>[] = [
+    { value: 'ALL', label: 'Mọi đối tượng' },
+    ...TARGETS.map((t) => ({ value: t, label: REPORT_TARGET_LABELS[t] })),
+  ];
+  const categoryOptions: AntSelectOption<CategoryFilter>[] = [
+    { value: 'ALL', label: 'Mọi loại vấn đề' },
+    ...CATEGORIES.map((c) => ({ value: c, label: REPORT_CATEGORY_LABELS[c] })),
+  ];
+  const sortOptions: AntSelectOption<'newest' | 'reports_desc'>[] = [
+    { value: 'newest', label: 'Theo hàng đợi' },
+    { value: 'reports_desc', label: 'Nhiều báo cáo nhất' },
+  ];
+
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
-      <div className="flex flex-wrap items-end gap-3 rounded border p-3">
-        <label>Tìm nội dung<input className="block rounded border p-2" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} maxLength={100} /></label>
-        <label>Từ ngày<input type="date" className="block rounded border p-2" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} /></label>
-        <label>Đến ngày<input type="date" className="block rounded border p-2" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} /></label>
-        <label>Sắp xếp<select className="block rounded border p-2" value={sort} onChange={(e) => { setSort(e.target.value as typeof sort); setPage(1); }}><option value="newest">Theo hàng đợi</option><option value="reports_desc">Nhiều báo cáo nhất</option></select></label>
+      <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-slate-200/90 bg-white p-4 shadow-2xs">
+        <div className="flex flex-col sm:flex-row flex-1 min-w-[240px] gap-2">
+          <input
+            placeholder="Tìm nội dung báo cáo..."
+            className="h-10 flex-1 rounded-2xl border border-slate-200/90 bg-white px-3.5 text-sm font-medium text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            maxLength={100}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-400">Từ</span>
+            <input
+              type="date"
+              aria-label="Từ ngày"
+              className="h-10 rounded-2xl border border-slate-200/90 bg-white px-3 text-xs text-slate-800 outline-none transition focus:border-brand-teal"
+              value={from}
+              onChange={(e) => { setFrom(e.target.value); setPage(1); }}
+            />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-400">Đến</span>
+            <input
+              type="date"
+              aria-label="Đến ngày"
+              className="h-10 rounded-2xl border border-slate-200/90 bg-white px-3 text-xs text-slate-800 outline-none transition focus:border-brand-teal"
+              value={to}
+              onChange={(e) => { setTo(e.target.value); setPage(1); }}
+            />
+          </div>
+        </div>
+        <div className="w-44">
+          <AntSelect<'newest' | 'reports_desc'>
+            aria-label="Sắp xếp"
+            value={sort}
+            onChange={(val) => { setSort(val); setPage(1); }}
+            options={sortOptions}
+            size="middle"
+          />
+        </div>
       </div>
       {/* Notice Banner - Link to Escalated Disputes */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-teal-200/80 bg-teal-50/60 p-3.5 sm:px-4 text-xs text-teal-900 shadow-2xs">
@@ -456,58 +509,45 @@ export function ModerationReportListPage() {
       </div>
 
       {/* Filter Dropdowns - Placed on their own dedicated row below the tabs */}
-      <div className="flex flex-wrap items-center gap-2 pt-0.5">
-        {/* Accessible select for tests and quick jump */}
-        <select
+      <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
+        <AntSelect<StatusFilter>
           aria-label="Lọc theo trạng thái"
           value={status}
-          onChange={(e) => {
-            setStatus(e.target.value as StatusFilter);
+          onChange={(val) => {
+            setStatus(val);
             setPage(1);
           }}
-          className={SELECT_CLASS}
-        >
-          <option value="ALL">Tất cả trạng thái</option>
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {REPORT_STATUS_LABELS[s].label}
-            </option>
-          ))}
-        </select>
+          options={statusOptions}
+          size="middle"
+          className="min-w-[170px]"
+          triggerClassName={status !== 'ALL' ? 'border-brand-teal/60 bg-teal-50/20 text-teal-900 font-semibold' : ''}
+        />
 
-        <select
+        <AntSelect<TargetFilter>
           aria-label="Lọc theo đối tượng"
           value={targetType}
-          onChange={(e) => {
-            setTargetType(e.target.value as TargetFilter);
+          onChange={(val) => {
+            setTargetType(val);
             setPage(1);
           }}
-          className={SELECT_CLASS}
-        >
-          <option value="ALL">Mọi đối tượng</option>
-          {TARGETS.map((t) => (
-            <option key={t} value={t}>
-              {REPORT_TARGET_LABELS[t]}
-            </option>
-          ))}
-        </select>
+          options={targetOptions}
+          size="middle"
+          className="min-w-[160px]"
+          triggerClassName={targetType !== 'ALL' ? 'border-brand-teal/60 bg-teal-50/20 text-teal-900 font-semibold' : ''}
+        />
 
-        <select
+        <AntSelect<CategoryFilter>
           aria-label="Lọc theo loại vấn đề"
           value={category}
-          onChange={(e) => {
-            setCategory(e.target.value as CategoryFilter);
+          onChange={(val) => {
+            setCategory(val);
             setPage(1);
           }}
-          className={SELECT_CLASS}
-        >
-          <option value="ALL">Mọi loại vấn đề</option>
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {REPORT_CATEGORY_LABELS[c]}
-            </option>
-          ))}
-        </select>
+          options={categoryOptions}
+          size="middle"
+          className="min-w-[170px]"
+          triggerClassName={category !== 'ALL' ? 'border-brand-teal/60 bg-teal-50/20 text-teal-900 font-semibold' : ''}
+        />
 
         {(status !== 'ALL' || targetType !== 'ALL' || category !== 'ALL') && (
           <button

@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
+import { AntSelect, type AntSelectOption } from '@/components/ui';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth';
 import { useGetAgencyQualityDashboardQuery, useGetModeratorComplaintsQuery } from '../api/complaintsApi';
@@ -318,16 +319,18 @@ export function ModeratorQualityDashboardPage() {
               )}
             </div>
 
-            <select
+            <AntSelect<'RATING' | 'RESOLUTION' | 'COMPLAINTS'>
               aria-label="Sắp xếp danh sách"
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none transition focus:border-brand-teal cursor-pointer"
-            >
-              <option value="RATING">Điểm CSAT</option>
-              <option value="RESOLUTION">Tỷ lệ hòa giải</option>
-              <option value="COMPLAINTS">Tổng khiếu nại</option>
-            </select>
+              onChange={(val) => setSortBy(val)}
+              options={[
+                { value: 'RATING', label: 'Điểm CSAT' },
+                { value: 'RESOLUTION', label: 'Tỷ lệ hòa giải' },
+                { value: 'COMPLAINTS', label: 'Tổng khiếu nại' },
+              ]}
+              size="small"
+              className="w-36 font-semibold"
+            />
           </div>
         )}
       </div>

@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { Search, RefreshCw, X } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
-import { Pagination } from '@/components/ui';
+import { Pagination, AntSelect, type AntSelectOption } from '@/components/ui';
 import { useGetModerationToursQuery, useSuspendTourMutation, useValidateTourMutation } from '../api/moderationApi';
 import { PERMISSION, TOUR_STATUS_LABELS } from '../labels';
 import type { ModerationTour, ModerationTourStatus } from '../types';
@@ -95,6 +96,14 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
   const reasonLabel =
     selected?.status === 'APPROVED' ? 'Lý do tạm ngưng (bắt buộc)' : 'Lý do (bắt buộc khi từ chối, tùy chọn khi duyệt)';
 
+  const statusOptions: AntSelectOption<StatusFilter>[] = [
+    { value: 'ALL', label: 'Tất cả trạng thái' },
+    ...(Object.keys(TOUR_STATUS_LABELS) as ModerationTourStatus[]).map((s) => ({
+      value: s,
+      label: TOUR_STATUS_LABELS[s].label,
+    })),
+  ];
+
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-1 py-2 sm:px-0">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -102,49 +111,67 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Kiểm duyệt tour</h1>
         </div>
         <form
-          className="flex flex-wrap items-center gap-2"
+          className="flex flex-wrap items-center gap-2.5"
           onSubmit={(e) => {
             e.preventDefault();
             setQ(search.trim());
             setPage(1);
           }}
         >
-          <input
-            type="search"
-            aria-label="Tìm theo tên tour"
-            placeholder="Tìm theo tên tour"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-          />
-          <select
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+            <input
+              type="search"
+              aria-label="Tìm theo tên tour"
+              placeholder="Tìm theo tên tour..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-10 w-56 sm:w-64 rounded-2xl border border-slate-200/90 bg-white pl-9 pr-8 text-sm font-medium text-slate-800 placeholder:text-slate-400 shadow-2xs outline-none transition hover:border-slate-300 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setQ('');
+                  setPage(1);
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded-full"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+
+          <AntSelect<StatusFilter>
             aria-label="Lọc theo trạng thái"
             value={filter}
-            onChange={(e) => {
-              setFilter(e.target.value as StatusFilter);
+            onChange={(val) => {
+              setFilter(val);
               setPage(1);
             }}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+            options={statusOptions}
+            size="middle"
+            className="min-w-[165px]"
+            triggerClassName={filter !== 'ALL' ? 'border-brand-teal/60 bg-teal-50/20 text-teal-900 font-semibold' : ''}
+          />
+
+          <button
+            type="submit"
+            className="h-10 rounded-2xl bg-teal-800 px-4 text-sm font-semibold text-white shadow-2xs transition hover:bg-teal-900 cursor-pointer"
           >
-            <option value="ALL">Tất cả trạng thái</option>
-            {(Object.keys(TOUR_STATUS_LABELS) as ModerationTourStatus[]).map((s) => (
-              <option key={s} value={s}>
-                {TOUR_STATUS_LABELS[s].label}
-              </option>
-            ))}
-          </select>
-          <button type="submit" className="rounded-xl bg-purple-700 px-3 py-2 text-sm font-semibold text-white hover:bg-purple-800">
             Tìm
           </button>
+
           <button
             type="button"
             disabled={isFetching}
             onClick={() => void refetch()}
             aria-label="Làm mới"
             title="Làm mới"
-            className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            className="flex size-10 items-center justify-center rounded-2xl border border-slate-200/90 bg-white text-slate-600 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
           >
-            <span className={`material-symbols-outlined text-[20px] ${isFetching ? 'animate-spin' : ''}`} aria-hidden="true">refresh</span>
+            <RefreshCw className={`size-4 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
         </form>
       </header>

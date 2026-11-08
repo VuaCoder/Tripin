@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
-import { Pagination } from '@/components/ui';
+import { Pagination, AntSelect, type AntSelectOption } from '@/components/ui';
 import {
   useGetModerationTicketQuery,
   useGetModerationTicketsQuery,
@@ -75,54 +76,62 @@ export function ModerationTicketListPage() {
     }
   };
 
+  const statusOptions: AntSelectOption<StatusFilter>[] = [
+    { value: 'ALL', label: 'Tất cả trạng thái' },
+    ...(Object.keys(TICKET_STATUS_LABELS) as TicketStatus[]).map((s) => ({
+      value: s,
+      label: TICKET_STATUS_LABELS[s].label,
+    })),
+  ];
+
+  const categoryOptions: AntSelectOption<CategoryFilter>[] = [
+    { value: 'ALL', label: 'Mọi loại yêu cầu' },
+    ...(Object.keys(TICKET_CATEGORY_LABELS) as TicketCategory[]).map((c) => ({
+      value: c,
+      label: TICKET_CATEGORY_LABELS[c],
+    })),
+  ];
+
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-1 py-2 sm:px-0">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Khiếu nại hỗ trợ</h1>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select
+        <div className="flex flex-wrap items-center gap-2.5">
+          <AntSelect<StatusFilter>
             aria-label="Lọc theo trạng thái"
             value={status}
-            onChange={(e) => {
-              setStatus(e.target.value as StatusFilter);
+            onChange={(val) => {
+              setStatus(val);
               setPage(1);
             }}
-            className={SELECT_CLASS}
-          >
-            <option value="ALL">Tất cả trạng thái</option>
-            {(Object.keys(TICKET_STATUS_LABELS) as TicketStatus[]).map((s) => (
-              <option key={s} value={s}>
-                {TICKET_STATUS_LABELS[s].label}
-              </option>
-            ))}
-          </select>
-          <select
+            options={statusOptions}
+            size="middle"
+            className="min-w-[175px]"
+            triggerClassName={status !== 'ALL' ? 'border-brand-teal/60 bg-teal-50/20 text-teal-900 font-semibold' : ''}
+          />
+          <AntSelect<CategoryFilter>
             aria-label="Lọc theo loại yêu cầu"
             value={category}
-            onChange={(e) => {
-              setCategory(e.target.value as CategoryFilter);
+            onChange={(val) => {
+              setCategory(val);
               setPage(1);
             }}
-            className={SELECT_CLASS}
-          >
-            <option value="ALL">Mọi loại yêu cầu</option>
-            {(Object.keys(TICKET_CATEGORY_LABELS) as TicketCategory[]).map((c) => (
-              <option key={c} value={c}>
-                {TICKET_CATEGORY_LABELS[c]}
-              </option>
-            ))}
-          </select>
+            options={categoryOptions}
+            size="middle"
+            className="min-w-[175px]"
+            triggerClassName={category !== 'ALL' ? 'border-brand-teal/60 bg-teal-50/20 text-teal-900 font-semibold' : ''}
+          />
           <button
             type="button"
             disabled={isFetching}
             onClick={() => void refetch()}
             aria-label="Làm mới"
             title="Làm mới"
-            className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            className="flex size-10 items-center justify-center rounded-2xl border border-slate-200/90 bg-white text-slate-600 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
           >
-            <span className={`material-symbols-outlined text-[20px] ${isFetching ? 'animate-spin' : ''}`} aria-hidden="true">refresh</span>
+            <RefreshCw className={`size-4 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </header>

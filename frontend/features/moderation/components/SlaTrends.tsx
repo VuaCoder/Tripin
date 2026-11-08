@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Select } from 'antd';
+import { AntSelect } from '@/components/ui';
 import { baseApi } from '@/store/api/baseApi';
 
 export type SlaRow = {
@@ -109,7 +109,7 @@ export function SlaTrends() {
           <h2 className="text-lg font-bold text-slate-900 tracking-tight">Biểu Đồ Xu Hướng SLA Kiểm Duyệt</h2>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <Select
+          <AntSelect<number>
             aria-label="Khoảng thời gian SLA"
             value={days}
             onChange={(val) => setDays(val)}
