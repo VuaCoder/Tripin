@@ -17,7 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
-import { AntSelect, type AntSelectOption } from '@/components/ui';
+import { AntSelect } from '@/components/ui';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth';
 import { useGetAgencyQualityDashboardQuery, useGetModeratorComplaintsQuery } from '../api/complaintsApi';
