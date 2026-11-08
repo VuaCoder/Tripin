@@ -104,9 +104,6 @@ export function ModerationReviewListPage() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Kiểm duyệt đánh giá</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Ẩn đánh giá vi phạm (kèm lý do) hoặc khôi phục đánh giá đã bị ẩn. Điểm trung bình của tour được tính lại ngay.
-          </p>
         </div>
         <div className="flex items-center gap-2">
           <select

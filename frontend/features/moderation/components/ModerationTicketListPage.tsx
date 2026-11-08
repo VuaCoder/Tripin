@@ -80,9 +80,6 @@ export function ModerationTicketListPage() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Khiếu nại hỗ trợ</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Yêu cầu hỗ trợ do du khách gửi. Trả lời để chuyển sang “Đang xử lý”, hoặc đánh dấu đã giải quyết khi xong.
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select

@@ -211,15 +211,11 @@ export function ModerationReportListPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5 max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-teal-200/70 bg-teal-50/80 px-3 py-0.5 text-xs font-bold text-teal-800">
-              <Shield className="size-3.5 text-brand-teal" />
               <span>Ban Kiểm Duyệt Sàn • Báo cáo vi phạm</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
               Báo cáo &amp; Tranh chấp cộng đồng
             </h1>
-            <p className="text-sm text-slate-500">
-              Thẩm định báo cáo của du khách về tour, tài khoản đối tác hoặc đánh giá vi phạm tiêu chuẩn.
-            </p>
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0 self-start md:self-auto">

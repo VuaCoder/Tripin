@@ -66,7 +66,6 @@ export function ModerationAgencyListPage() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Xác minh hồ sơ agency</h1>
-          <p className="mt-1 text-sm text-slate-500">Kiểm tra giấy phép kinh doanh và thông tin đối tác trước khi cho phép đăng tour.</p>
         </div>
         <div className="flex items-center gap-2">
           <select

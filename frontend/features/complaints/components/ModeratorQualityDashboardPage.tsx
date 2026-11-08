@@ -134,15 +134,11 @@ export function ModeratorQualityDashboardPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-200/60 bg-teal-50/80 px-2.5 py-0.5 text-xs font-semibold text-teal-800">
-              <Shield className="size-3 text-brand-teal" />
               <span>Kiểm duyệt sàn • CSAT đối tác</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
               Giám sát Tranh chấp &amp; Chất lượng CSAT
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500">
-              Thẩm định khiếu nại và theo dõi chỉ số CSAT đối tác.
-            </p>
           </div>
 
           <div className="flex items-center gap-2 shrink-0 self-start md:self-auto">

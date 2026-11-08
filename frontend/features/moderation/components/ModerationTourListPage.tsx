@@ -100,7 +100,6 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Kiểm duyệt tour</h1>
-          <p className="mt-1 text-sm text-slate-500">Xem toàn bộ tour trên hệ thống, duyệt tour chờ duyệt hoặc tạm ngưng tour vi phạm.</p>
         </div>
         <form
           className="flex flex-wrap items-center gap-2"
