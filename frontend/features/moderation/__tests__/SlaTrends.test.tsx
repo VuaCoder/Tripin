@@ -68,3 +68,4 @@ describe('SlaTrends', () => {
     expect(screen.getByText('Không tải được dữ liệu xu hướng SLA.')).toBeTruthy();
   });
 });
+

@@ -15,6 +15,7 @@ import { homeForRole } from '@/features/auth/utils/roles';
 import { Dropdown } from '@/components/shared';
 import { OwnPremiumIdentity, PremiumStatusText, useOwnPremium } from '@/features/premium/PremiumIdentity';
 import { AgencyRightSidebar } from '@/features/agency/AgencyUi';
+import { ModeratorSidebar } from '@/features/moderation';
 import { cn } from '../ui/cn';
 
 import { useConversationsQuery } from '@/features/chat/api';
@@ -159,6 +160,9 @@ export function Header({ role }: { role?: AppRole }) {
 
   if (effectiveRole === 'AGENCY') {
     return <AgencyRightSidebar />;
+  }
+  if (effectiveRole === 'MODERATOR') {
+    return <ModeratorSidebar />;
   }
 
   const items = (navigationByRole[effectiveRole] || navigationByRole.PUBLIC).filter((item) => !item.permission || user?.permissions.includes(item.permission));

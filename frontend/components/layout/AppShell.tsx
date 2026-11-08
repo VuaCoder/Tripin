@@ -34,11 +34,13 @@ export function AppShell({
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const effectiveRole: AppRole = role || (isAuthenticated && user?.role ? (user.role as AppRole) : 'PUBLIC');
   const isAgency = effectiveRole === 'AGENCY';
+  const isModerator = effectiveRole === 'MODERATOR';
+  const hasSidebar = isAgency || isModerator;
 
   return (
-    <div className={`flex min-h-screen flex-col bg-slate-50 text-slate-800 ${isAgency ? sidebarStyles.shell : ''} ${className}`}>
+    <div className={`flex min-h-screen flex-col bg-slate-50 text-slate-800 ${hasSidebar ? sidebarStyles.shell : ''} ${className}`}>
       {header && <Header role={role} />}
-      <main className={`flex-1 flex flex-col ${isAgency ? sidebarStyles.body : ''}`}>
+      <main className={`flex-1 flex flex-col ${hasSidebar ? sidebarStyles.body : ''}`}>
         {fullBleed ? (
           children
         ) : (
@@ -47,7 +49,7 @@ export function AppShell({
           </Container>
         )}
       </main>
-      {footer && <Footer />}
+      {footer && !hasSidebar && <Footer />}
     </div>
   );
 }

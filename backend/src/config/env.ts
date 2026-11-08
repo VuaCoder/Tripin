@@ -28,7 +28,7 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(16),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN_DAYS: z.coerce.number().int().positive().default(7),
-  COOKIE_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('lax'),
+  COOKIE_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('none'),
 
   GOOGLE_CLIENT_ID: optionalString,
   GOOGLE_CLIENT_SECRET: optionalString,

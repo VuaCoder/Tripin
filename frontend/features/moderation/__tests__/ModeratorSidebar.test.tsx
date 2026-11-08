@@ -81,3 +81,4 @@ describe('ModeratorSidebar', () => {
     expect(mocks.logout).toHaveBeenCalledTimes(1);
   });
 });
+

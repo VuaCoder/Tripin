@@ -6,11 +6,26 @@ import { refreshSession } from '@/store/api/baseApi';
 import { clearCredentials, setCredentials } from '../store/authSlice';
 import { store } from '@/store';
 
+const STORAGE_KEY = 'tripri_auth_session';
+
 export const AuthBootstrap = () => {
   const dispatch = useAppDispatch();
 
   useEffect(() => {
     let active = true;
+
+    // Immediately restore from localStorage if memory store is empty
+    if (!store.getState().auth.accessToken && typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object' && parsed.accessToken && parsed.user) {
+            dispatch(setCredentials(parsed));
+          }
+        }
+      } catch {}
+    }
 
     const synchronize = async () => {
       const identityAtStart = store.getState().auth.user?.id;
@@ -18,12 +33,17 @@ export const AuthBootstrap = () => {
       if (!active) return;
       const currentId = store.getState().auth.user?.id;
       if (currentId !== identityAtStart && currentId !== session?.user.id) return;
-      if (session) dispatch(setCredentials(session));
-      // A transient refresh outage must not log an already authenticated staff member out.
-      // Protected API requests still clear revoked credentials through baseQueryWithReauth.
-      else if (!identityAtStart) dispatch(clearCredentials());
+      if (session) {
+        dispatch(setCredentials(session));
+      } else {
+        const localRaw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+        if (!localRaw && !identityAtStart) {
+          dispatch(clearCredentials());
+        }
+      }
     };
     void synchronize();
+
     const refreshStaff = () => {
       const role = store.getState().auth.user?.role;
       if (role === 'MODERATOR' || role === 'SUPER_ADMIN') void synchronize();
