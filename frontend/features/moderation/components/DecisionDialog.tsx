@@ -1,4 +1,5 @@
 'use client';
+'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { Modal } from '@/components/ui';
@@ -100,7 +101,7 @@ export function DecisionDialog({ open, title, reasonLabel, children, actions, is
             disabled={isSubmitting}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? 'moderation-reason-error' : undefined}
-            className="w-full rounded-xl border border-slate-200 p-3 text-sm text-slate-800 focus:border-purple-400 focus:outline-none"
+            className="w-full rounded-2xl border border-slate-200/90 p-3 text-sm text-slate-800 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15 focus:outline-none"
           />
           {error && (
             <p id="moderation-reason-error" role="alert" className="text-xs font-semibold text-red-600">

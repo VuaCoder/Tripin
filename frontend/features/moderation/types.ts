@@ -47,6 +47,7 @@ export interface ModerationTour {
   durationDays: number;
   basePrice: number;
   coverImage?: string;
+  images?: string[];
   status: ModerationTourStatus;
   statusReason?: string;
   submittedAt?: string;
