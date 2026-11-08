@@ -35,6 +35,7 @@ export type NewPromotion = Pick<
       | 'codeType'
       | 'isActive'
       | 'isArchived'
+      | 'deactivationReason'
     >
   >;
 
@@ -57,6 +58,7 @@ export type PromotionPatch = Partial<
     | 'usageLimitPerUser'
     | 'isActive'
     | 'isArchived'
+    | 'deactivationReason'
   >
 >;
 

@@ -28,6 +28,7 @@ export function toPromotionDto(promotion: PromotionRecord): PromotionDto {
     usedCount: promotion.usedCount,
     isActive: promotion.isActive,
     isArchived: promotion.isArchived ?? false,
+    deactivationReason: promotion.deactivationReason ?? undefined,
     isRunning: isRunning(promotion),
   };
 }

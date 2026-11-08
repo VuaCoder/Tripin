@@ -32,6 +32,9 @@ import {
   useGenerateAgencyBatchMutation,
   useLazyGetAgencyBatchQuery,
 } from '../api/agencyPromotionsApi';
+import { store } from '@/store';
+import { toursApi } from '@/features/tours/api/toursApi';
+import type { TourDetail } from '@/features/tours/types';
 import type { AgencyPromotion, DiscountType, ListPromotionsArgs } from '../types';
 import { PROMOTION_ERROR_MESSAGES, type PromotionFormValues } from '../validation';
 import { PromotionFormDialog, type SelectedPromoType } from './PromotionFormDialog';
@@ -101,6 +104,12 @@ export function AgencyPromotionsPage() {
     promotion: AgencyPromotion;
     action: 'archive' | 'unarchive';
   } | null>(null);
+  const [deactivationModal, setDeactivationModal] = useState<AgencyPromotion | null>(null);
+  const [deactivationReason, setDeactivationReason] = useState('');
+  const [deactivationError, setDeactivationError] = useState<string | null>(null);
+  const [scopePreview, setScopePreview] = useState<{ promotion: AgencyPromotion; tours: TourDetail[] } | null>(null);
+  const [isLoadingScope, setIsLoadingScope] = useState(false);
+  const [scopePreviewError, setScopePreviewError] = useState(false);
 
   const [generateBatch, { isLoading: isGeneratingBatch }] = useGenerateAgencyBatchMutation();
   const [fetchBatch, batchState] = useLazyGetAgencyBatchQuery();
@@ -154,6 +163,12 @@ export function AgencyPromotionsPage() {
   };
 
   const handleToggle = async (promotion: AgencyPromotion) => {
+    if (promotion.isActive) {
+      setDeactivationReason('');
+      setDeactivationError(null);
+      setDeactivationModal(promotion);
+      return;
+    }
     setTogglingId(promotion.id);
     try {
       await updatePromotion({ id: promotion.id, patch: { isActive: !promotion.isActive } }).unwrap();
@@ -163,6 +178,44 @@ export function AgencyPromotionsPage() {
       void refetch();
     } finally {
       setTogglingId(null);
+    }
+  };
+
+  const confirmDeactivation = async () => {
+    if (!deactivationModal) return;
+    const reason = deactivationReason.trim();
+    if (reason.length < 10) {
+      setDeactivationError('Vui lòng nhập lý do dừng chương trình (ít nhất 10 ký tự).');
+      return;
+    }
+    const target = deactivationModal;
+    setTogglingId(target.id);
+    try {
+      await updatePromotion({ id: target.id, patch: { isActive: false, deactivationReason: reason } }).unwrap();
+      setFeedback({ message: 'Đã tắt khuyến mãi.', type: 'success' });
+      setDeactivationModal(null);
+    } catch (err: unknown) {
+      setFeedback({ message: errorMessage(err), type: 'error' });
+      void refetch();
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  const openScopePreview = async (promotion: AgencyPromotion) => {
+    setIsLoadingScope(true);
+    setScopePreviewError(false);
+    try {
+      const response = await store.dispatch(toursApi.endpoints.getAgencyTours.initiate({ page: 1, limit: 100 }, { forceRefetch: true })).unwrap();
+      const tours = promotion.targetTourIds?.length
+        ? response.items.filter((tour) => promotion.targetTourIds?.includes(tour.id))
+        : response.items;
+      setScopePreview({ promotion, tours });
+    } catch {
+      setScopePreviewError(true);
+      setScopePreview({ promotion, tours: [] });
+    } finally {
+      setIsLoadingScope(false);
     }
   };
 
@@ -759,6 +812,9 @@ export function AgencyPromotionsPage() {
                             {p.description}
                           </p>
                         )}
+                        {!p.isActive && p.deactivationReason && (
+                          <p className="mt-1 text-xs text-rose-700"><span className="font-semibold">Lý do dừng:</span> {p.deactivationReason}</p>
+                        )}
                       </div>
 
                       {/* Metrics bar */}
@@ -812,6 +868,15 @@ export function AgencyPromotionsPage() {
 
                     {/* Actions column */}
                     <div className="flex flex-wrap items-center gap-2 self-start">
+                      <button
+                        type="button"
+                        disabled={isLoadingScope}
+                        onClick={() => void openScopePreview(p)}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-brand-teal/30 bg-brand-teal/5 px-3 py-1.5 text-xs font-semibold text-brand-teal hover:bg-brand-teal/10 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+                      >
+                        <Search className="size-3.5" />
+                        {isLoadingScope ? 'Đang tải…' : 'Xem phạm vi'}
+                      </button>
                       {p.codeType === 'UNIQUE_BATCH' && (
                         <button
                           type="button"
@@ -930,6 +995,73 @@ export function AgencyPromotionsPage() {
           onGenerate={handleGenerateBatch}
           onClose={() => setBatchModal(null)}
         />
+      )}
+
+      {/* Promotion targeting scope preview */}
+      {scopePreview && (
+        <Modal
+          open={true}
+          onClose={() => setScopePreview(null)}
+          title={`Phạm vi áp dụng · ${scopePreview.promotion.title}`}
+          className="max-w-2xl"
+        >
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4 text-sm text-sky-900">
+              {scopePreview.promotion.targetTourIds?.length
+                ? 'Danh sách dưới đây là các tour của bạn được chọn trực tiếp trong điều kiện áp dụng.'
+                : 'Khuyến mãi không giới hạn tour cụ thể; danh sách hiển thị toàn bộ tour hiện có của agency.'}
+              <p className="mt-1 text-xs text-sky-700">Điều kiện số khách, giá trị đơn và ngày đặt trước vẫn được kiểm tra lại tại bước thanh toán.</p>
+            </div>
+            {scopePreviewError ? (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">Không thể tải danh sách tour. Vui lòng thử lại.</div>
+            ) : scopePreview.tours.length === 0 ? (
+              <EmptyState title="Chưa có tour phù hợp" description="Hãy cập nhật điều kiện chọn tour hoặc tạo thêm tour mới." />
+            ) : (
+              <ul className="max-h-[48vh] space-y-2 overflow-y-auto pr-1">
+                {scopePreview.tours.map((tour) => (
+                  <li key={tour.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-900">{tour.title}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">{tour.destination} · {vnd.format(tour.basePrice)} ₫</p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">{tour.status}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {/* Mandatory reason when stopping a running promotion */}
+      {deactivationModal && (
+        <Modal
+          open={true}
+          onClose={() => setDeactivationModal(null)}
+          title="Dừng chương trình khuyến mãi"
+          className="max-w-md"
+          footer={
+            <div className="flex items-center justify-end gap-2.5">
+              <button type="button" onClick={() => setDeactivationModal(null)} disabled={Boolean(togglingId)} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer">Hủy bỏ</button>
+              <button type="button" onClick={() => void confirmDeactivation()} disabled={Boolean(togglingId)} className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-rose-600/20 hover:bg-rose-700 transition cursor-pointer disabled:opacity-50">{togglingId ? 'Đang lưu…' : 'Xác nhận dừng'}</button>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">Vui lòng ghi rõ lý do để lưu lịch sử thay đổi và giúp đội ngũ kiểm soát chương trình.</p>
+            <textarea
+              autoFocus
+              value={deactivationReason}
+              onChange={(event) => { setDeactivationReason(event.target.value); setDeactivationError(null); }}
+              rows={4}
+              maxLength={1000}
+              placeholder="Ví dụ: Hết ngân sách tài trợ cho chiến dịch tháng này…"
+              className="w-full resize-none rounded-xl border border-slate-200 p-3 text-sm text-slate-900 outline-none transition focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
+            />
+            <div className="flex items-center justify-between text-xs text-slate-400"><span>{deactivationReason.trim().length}/10 ký tự tối thiểu</span><span>{deactivationReason.length}/1000</span></div>
+            {deactivationError && <p className="text-xs font-semibold text-rose-600" role="alert">{deactivationError}</p>}
+          </div>
+        </Modal>
       )}
 
       {/* Archive / Restore Confirmation Modal */}
