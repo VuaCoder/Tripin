@@ -133,8 +133,15 @@ describe('AgencyPromotionsPage', () => {
     render(<AgencyPromotionsPage />);
     fireEvent.click(screen.getByText('Tắt'));
 
+    const textarea = screen.getByPlaceholderText(/Ví dụ: Hết ngân sách/);
+    fireEvent.change(textarea, { target: { value: 'Hết ngân sách khuyến mãi tháng này' } });
+    fireEvent.click(screen.getByText('Xác nhận dừng'));
+
     await waitFor(() => expect(screen.getByText('Không thể tắt')).toBeTruthy());
-    expect(mockUpdate).toHaveBeenCalledWith({ id: 'p1', patch: { isActive: false } });
+    expect(mockUpdate).toHaveBeenCalledWith({
+      id: 'p1',
+      patch: { isActive: false, deactivationReason: 'Hết ngân sách khuyến mãi tháng này' },
+    });
     expect(refetch).toHaveBeenCalled();
   });
 
