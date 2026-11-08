@@ -107,7 +107,7 @@ export function TicketReplyDialog({
             {ticket.messages.map((m, index) => (
               <li
                 key={`${m.createdAt}-${index}`}
-                className={`rounded-xl border p-3 ${m.author === 'SUPPORT' ? 'border-purple-100 bg-purple-50' : 'border-slate-100 bg-slate-50'}`}
+                className={`rounded-xl border p-3 ${m.author === 'SUPPORT' ? 'border-teal-100 bg-teal-50/60 text-teal-950' : 'border-slate-100 bg-slate-50'}`}
               >
                 <p className="text-xs font-bold text-slate-600">
                   {m.author === 'SUPPORT' ? 'Hỗ trợ' : 'Du khách'} · {dateTime.format(new Date(m.createdAt))}

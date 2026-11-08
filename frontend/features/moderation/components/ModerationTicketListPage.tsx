@@ -171,7 +171,7 @@ export function ModerationTicketListPage() {
                         setServerError(null);
                         setSelectedId(t.id);
                       }}
-                      className="rounded-xl border border-purple-200 px-3 py-1.5 text-sm font-semibold text-purple-800 hover:bg-purple-50"
+                      className="rounded-xl border border-teal-200 bg-teal-50/50 px-3.5 py-1.5 text-sm font-semibold text-teal-900 transition hover:bg-teal-100/80 cursor-pointer"
                     >
                       {t.status === 'OPEN' || t.status === 'IN_PROGRESS' ? 'Xem & xử lý' : 'Xem chi tiết'}
                     </button>
