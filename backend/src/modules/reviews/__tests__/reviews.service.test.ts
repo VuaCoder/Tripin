@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { BOOKING_STATUS, ROLES } from '@travel-platform/constants';
 import { maskName } from '../reviews.mapper';
 import { ReviewsService } from '../reviews.service';
+import { reviewContentVersion } from '../reviews.revision';
 import { verifyImageUpload, createImageUploadSignature } from '../../../integrations/cloudinary';
 vi.mock('../../../integrations/cloudinary', async importOriginal => ({
   ...await importOriginal<typeof import('../../../integrations/cloudinary')>(),
@@ -19,6 +20,7 @@ const facts = (over: R = {}) => ({
   agencyId: 'a1',
   tourId: 't1',
   tourTitle: 'Ha Long',
+  endDate: new Date('2020-01-01'),
   ...over,
 });
 
@@ -90,13 +92,20 @@ describe('createReview', () => {
     const dto = await service.createReview('u1', { ...input });
     expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ bookingId: 'b1', tourId: 't1', agencyId: 'a1', travelerId: 'u1', rating: 5 }));
     expect(dto).toMatchObject({ rating: 5, status: 'VISIBLE', tourTitle: 'Ha Long' });
-    expect(tours.updateRatingStats).toHaveBeenCalledWith('t1', 4.67, 3);
+    expect(tours.updateRatingStats).not.toHaveBeenCalled(); // Repository owns the atomic aggregate.
     expect(notifications.notify).toHaveBeenCalledWith('a1', expect.objectContaining({ type: 'REVIEW_RECEIVED' }));
   });
 
   it('refuses someone else\'s booking with 404 and an unknown booking too', async () => {
     await expect(make({ booking: facts({ travelerId: 'other' }) }).service.createReview('u1', input)).rejects.toMatchObject({ statusCode: 404 });
     await expect(make({ booking: null }).service.createReview('u1', input)).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('does not unlock reviews or image uploads for a legacy completed booking that ends in the future', async () => {
+    const { service, repo } = make({ booking: facts({ endDate: new Date(Date.now() + 86_400_000) }) });
+    await expect(service.createReview('u1', input)).rejects.toMatchObject({ code: 'TRIP_NOT_ENDED' });
+    await expect(service.createImageSignature('u1', 'b1')).rejects.toMatchObject({ code: 'TRIP_NOT_ENDED' });
+    expect(repo.create).not.toHaveBeenCalled();
   });
 
   it.each([BOOKING_STATUS.PENDING, BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.CANCELLED])('refuses a %s booking', async (status) => {
@@ -131,16 +140,17 @@ describe('public list', () => {
 
 describe('moderation', () => {
   const moderator = { userId: 'm1', role: ROLES.MODERATOR } as const;
+  const contentVersion = reviewContentVersion({ comment: 'bad', rating: 1 });
   const stored = (over: R = {}) => ({ id: 'r1', bookingId: 'b1', tourId: 't1', tourTitle: 'Ha Long', travelerId: 'u1', agencyId: 'a1', rating: 1, comment: 'bad', status: 'VISIBLE', createdAt: new Date(), ...over });
 
   it('hides with a reason, recomputes the rating, audits and tells the author', async () => {
-    const { service, db, tours, audit, notifications } = make({ seed: [stored()], stats: { avg: 4.5, count: 2 } });
-    const dto = await service.moderate(moderator, 'r1', { hide: true, reason: 'Abusive language' });
+    const { service, db, tours, repo, notifications } = make({ seed: [stored()], stats: { avg: 4.5, count: 2 } });
+    const dto = await service.moderate(moderator, 'r1', { hide: true, reason: 'Abusive language', contentVersion });
     expect(db[0]).toMatchObject({ status: 'HIDDEN', hiddenReason: 'Abusive language', moderatedById: 'm1' });
     expect(dto.status).toBe('HIDDEN');
-    expect(tours.updateRatingStats).toHaveBeenCalledWith('t1', 4.5, 2);
-    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'review.moderated' }));
-    expect(notifications.notify).toHaveBeenCalledWith('u1', expect.objectContaining({ type: 'REVIEW_MODERATED' }));
+    expect(tours.updateRatingStats).not.toHaveBeenCalled(); // Mutation, audit and rating are one repository transaction.
+    expect(repo.transition).toHaveBeenCalledWith('r1', expect.anything(), expect.any(Object), expect.objectContaining({ action: 'review.moderated' }), expect.objectContaining({ comment: 'bad', rating: 1, images: [] }));
+    expect(notifications.notify).not.toHaveBeenCalled(); // Repository stages both recipients durably.
   });
 
   it('requires a reason to hide', async () => {
@@ -149,21 +159,21 @@ describe('moderation', () => {
 
   it('restores a hidden review and clears the reason; cannot hide twice', async () => {
     const { service, db } = make({ seed: [stored({ status: 'HIDDEN', hiddenReason: 'x' })] });
-    await service.moderate(moderator, 'r1', { hide: false });
+    await service.moderate(moderator, 'r1', { hide: false, restorationReason: 'Review is compliant', contentVersion });
     expect(db[0]!.status).toBe('VISIBLE');
     expect(db[0]!.hiddenReason).toBeNull();
-    await service.moderate(moderator, 'r1', { hide: true, reason: 'again please' });
-    await expect(service.moderate(moderator, 'r1', { hide: true, reason: 'twice' })).rejects.toMatchObject({ code: 'INVALID_STATE_TRANSITION' });
+    await service.moderate(moderator, 'r1', { hide: true, reason: 'again please', contentVersion });
+    await expect(service.moderate(moderator, 'r1', { hide: true, reason: 'twice', contentVersion })).rejects.toMatchObject({ code: 'INVALID_STATE_TRANSITION' });
   });
 
   it('404 for an unknown review', async () => {
-    await expect(make().service.moderate(moderator, 'nope', { hide: false })).rejects.toMatchObject({ statusCode: 404 });
+    await expect(make().service.moderate(moderator, 'nope', { hide: false, restorationReason: 'Review is compliant' })).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it('names the author and the agency in the queue and after a decision, keeping the ids for the actions', async () => {
     const { service } = make({ seed: [stored()] });
     const page = await service.listForModeration({ page: 1, limit: 10 });
     expect(page.items[0]).toMatchObject({ travelerName: 'Nguyen Van An', agencyName: 'Saigon Travel', travelerId: 'u1' });
-    expect(await service.moderate(moderator, 'r1', { hide: true, reason: 'Abusive language' })).toMatchObject({ travelerName: 'Nguyen Van An' });
+    expect(await service.moderate(moderator, 'r1', { hide: true, reason: 'Abusive language', contentVersion })).toMatchObject({ travelerName: 'Nguyen Van An' });
   });
 });

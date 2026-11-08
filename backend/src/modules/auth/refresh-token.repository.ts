@@ -4,7 +4,7 @@ import type { RefreshToken } from '../../generated/prisma/client';
 export type RefreshTokenRecord = RefreshToken;
 
 export class RefreshTokenRepository {
-  create(data: Pick<RefreshTokenRecord, 'userId' | 'tokenHash' | 'family' | 'expiresAt'> & Partial<Pick<RefreshTokenRecord, 'ip' | 'userAgent'>>) {
+  create(data: Pick<RefreshTokenRecord, 'userId' | 'tokenHash' | 'family' | 'expiresAt'> & Partial<Pick<RefreshTokenRecord, 'ip' | 'userAgent' | 'tokenVersion'>>) {
     return prisma.refreshToken.create({ data });
   }
 

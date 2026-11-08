@@ -44,8 +44,10 @@ class RosterTile extends StatelessWidget {
     final subtitle = departure == null
         ? guestSummary
         : '$guestSummary · ${DateFormat('dd/MM/yyyy').format(departure)}';
-    final phone = item.contactPhone?.trim();
-    final notes = item.notes?.trim();
+    final digits = item.contactPhone?.replaceAll(RegExp(r'\D'), '');
+    final phone = digits == null || digits.isEmpty
+        ? null
+        : '****${digits.substring(digits.length > 4 ? digits.length - 4 : 0)}';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -119,9 +121,9 @@ class RosterTile extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: Tooltip(
-                message: 'Gọi ${item.holderName}',
+                message: 'Số điện thoại đã được che để bảo vệ thông tin khách',
                 child: TextButton.icon(
-                  onPressed: () => _call(context),
+                  onPressed: phone.contains('*') ? null : () => _call(context),
                   icon: const Icon(Icons.call, size: 18),
                   label: Text(phone),
                   style: TextButton.styleFrom(
@@ -131,29 +133,6 @@ class RosterTile extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
-          if (notes != null && notes.isNotEmpty)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.sticky_note_2_outlined,
-                  size: 16,
-                  color: AppColors.textSecondary,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    notes,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
             ),
         ],
       ),

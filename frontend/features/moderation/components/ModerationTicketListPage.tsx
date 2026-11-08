@@ -189,14 +189,14 @@ export function ModerationTicketListPage() {
         onClose={close}
         onReply={(input) =>
           void run(
-            () => reply({ id: selectedId!, text: input.text, ...(input.resolve ? { resolve: true } : {}) }).unwrap(),
+            () => reply({ id: selectedId!, text: input.text, ...(input.resolve ? { resolve: true, resolutionNote: input.resolutionNote } : {}) }).unwrap(),
             'Đã gửi trả lời cho du khách.',
             'Không thể gửi trả lời lúc này. Vui lòng thử lại.',
           )
         }
-        onSetStatus={(next) =>
+        onSetStatus={(next, resolutionNote) =>
           void run(
-            () => changeTicketStatus({ id: selectedId!, status: next }).unwrap(),
+            () => changeTicketStatus({ id: selectedId!, status: next, resolutionNote }).unwrap(),
             next === 'RESOLVED' ? 'Đã đánh dấu khiếu nại là đã giải quyết.' : 'Đã tiếp nhận xử lý khiếu nại.',
             'Không thể đổi trạng thái khiếu nại lúc này. Vui lòng thử lại.',
           )

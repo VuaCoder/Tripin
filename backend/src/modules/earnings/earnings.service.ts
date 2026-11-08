@@ -10,7 +10,7 @@ import type { EarningDto, EarningsRange, EarningsSummaryDto, ListEarningsQuery }
 
 export class EarningsService {
   constructor(
-    private readonly earnings: Pick<EarningsRepository, 'create' | 'findByBookingId' | 'listByGuide' | 'summarize'> = earningsRepository,
+    private readonly earnings: Pick<EarningsRepository, 'create' | 'findByBookingId' | 'listByGuide' | 'summarize' | 'recordTransfer'> = earningsRepository,
     private readonly tours: Pick<ToursService, 'getTourFacts'> = toursService,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
   ) {}
@@ -66,6 +66,10 @@ export class EarningsService {
       count: byMonth.reduce((sum, row) => sum + row.count, 0),
       byMonth,
     };
+  }
+
+  recordTransfer(agencyId: string, id: string, transferReference: string) {
+    return this.earnings.recordTransfer(agencyId, id, transferReference);
   }
 }
 

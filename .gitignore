@@ -74,3 +74,7 @@ UC*_SRS_Updated.md
 
 # 3D hero source assets and build pipeline (kept local; models are copied to frontend/public/models)
 blender/
+
+# Local regression and query-plan artifacts
+/.test-artifacts/
+/.tmp-sdk/

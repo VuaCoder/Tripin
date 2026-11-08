@@ -1,3 +1,4 @@
+import { toProfileDto } from '../users/users.mapper';
 import type { Response } from 'express';
 import { env, isProduction } from '../../config/env';
 import { AUTH_POLICY } from './auth.policy';
@@ -5,7 +6,7 @@ import type { Session } from './auth.types';
 
 /** What the client receives after authenticating. The refresh token is deliberately absent (cookie only). */
 export function toSessionResponse(session: Session) {
-  return { accessToken: session.accessToken, user: session.user };
+  return { accessToken: session.accessToken, user: toProfileDto(session.user) };
 }
 
 export function setRefreshCookie(res: Response, session: Pick<Session, 'refreshToken' | 'refreshTokenExpiresAt'>): void {

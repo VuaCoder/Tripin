@@ -1,7 +1,10 @@
+import { writeAudit } from '../audit/audit.writer';
+import type { AuditEntry } from '../audit/audit.types';
 import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
 import type { Report } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
 import { REPORT_STATUS, type ListModerationReportsQuery, type ReportStatus, type ReportTarget } from './reports.types';
+import { Prisma as Sql } from '../../generated/prisma/client';
 
 export const openReportKey = (reporterId: string, targetType: ReportTarget, targetId: string) => `${reporterId}:${targetType}:${targetId}`;
 
@@ -23,7 +26,7 @@ type FlattenedColumns =
   | 'resolutionDecision' | 'resolutionNote' | 'resolutionById' | 'resolvedAt';
 
 /** A stored report; the agency's answer and the moderator's decision are exposed as nested objects. */
-export type ReportRecord = Omit<Report, FlattenedColumns> & { agencyResponse?: AgencyResponse; resolution?: Resolution };
+export type ReportRecord = Omit<Report, FlattenedColumns> & { totalReportsCount?: number; agencyResponse?: AgencyResponse; resolution?: Resolution };
 
 export type NewReport = Pick<Report, 'reporterId' | 'targetType' | 'targetId' | 'category' | 'description'> &
   Partial<Pick<Report, 'bookingId' | 'agencyId' | 'tourId' | 'openKey'>>;
@@ -82,8 +85,12 @@ export class ReportsRepository {
   }
 
   /** Compare-and-set on status so an agency answer and a moderator decision cannot overwrite each other. */
-  async transition(id: string, expected: readonly ReportStatus[], patch: ReportPatch): Promise<ReportRecord | null> {
-    const row = await prisma.report.update({ where: { id, status: { in: [...expected] } }, data: toData(patch) }).catch(nullIfNotFound);
+  async transition(id: string, expected: readonly ReportStatus[], patch: ReportPatch, audit?: AuditEntry): Promise<ReportRecord | null> {
+    const row = await prisma.$transaction(async (tx) => {
+      const updated = await tx.report.update({ where: { id, status: { in: [...expected] } }, data: toData(patch) });
+      if (audit) await writeAudit(tx, audit);
+      return updated;
+    }).catch(nullIfNotFound);
     return row ? toRecord(row) : null;
   }
 
@@ -95,14 +102,33 @@ export class ReportsRepository {
     return this.paginate({ agencyId, ...(status ? { status } : {}) }, NEWEST_FIRST, page);
   }
 
-  listForModeration(query: ListModerationReportsQuery) {
+  async listForModeration(query: ListModerationReportsQuery) {
     const where: Prisma.ReportWhereInput = {};
     if (query.status) where.status = query.status;
     if (query.targetType) where.targetType = query.targetType;
     if (query.category) where.category = query.category;
+    if (query.from || query.to) where.createdAt = { ...(query.from ? { gte: query.from } : {}), ...(query.to ? { lte: query.to } : {}) };
+    if (query.q) where.description = { contains: query.q, mode: 'insensitive' };
     // Open items first (oldest first = FIFO queue), otherwise newest first.
-    const fifo = query.status === 'OPEN' || query.status === 'AGENCY_RESPONDED';
-    return this.paginate(where, fifo ? [{ createdAt: 'asc' }, { id: 'asc' }] : NEWEST_FIRST, query);
+    const fifo = query.sort !== 'newest' && (query.status === 'OPEN' || query.status === 'AGENCY_RESPONDED');
+    const filters = [Sql.sql`TRUE`];
+    if (query.status) filters.push(Sql.sql`r.status::text = ${query.status}`);
+    if (query.targetType) filters.push(Sql.sql`r."targetType"::text = ${query.targetType}`);
+    if (query.category) filters.push(Sql.sql`r.category::text = ${query.category}`);
+    if (query.from) filters.push(Sql.sql`r."createdAt" >= ${query.from}`);
+    if (query.to) filters.push(Sql.sql`r."createdAt" <= ${query.to}`);
+    if (query.q) filters.push(Sql.sql`r.description ILIKE ${'%' + query.q.replace(/[\\%_]/g, '\\$&') + '%'}`);
+    const order = query.sort === 'reports_desc' ? Sql.sql`counts.total DESC, r."createdAt" ASC, r.id ASC` : fifo ? Sql.sql`r."createdAt" ASC, r.id ASC` : Sql.sql`r."createdAt" DESC, r.id DESC`;
+    // Count all reports for the same target, independently of the visible queue filters; sort before LIMIT.
+    const [rows, total] = await Promise.all([
+      prisma.$queryRaw<(Report & { totalReportsCount: number })[]>(Sql.sql`
+        SELECT r.*, counts.total::int AS "totalReportsCount" FROM "Report" r
+        JOIN (SELECT "targetType", "targetId", COUNT(*) AS total FROM "Report" GROUP BY "targetType", "targetId") counts
+          ON counts."targetType" = r."targetType" AND counts."targetId" = r."targetId"
+        WHERE ${Sql.join(filters, ' AND ')} ORDER BY ${order} OFFSET ${toSkip(query)} LIMIT ${query.limit}`),
+      prisma.report.count({ where }),
+    ]);
+    return { items: rows.map(toRecord), total };
   }
 
   /** Reports routed to an agency that it has not answered yet. */

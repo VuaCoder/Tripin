@@ -9,6 +9,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeAiRepo extends AiRepository {
   @override
+  Future<({List<AiConversationSummary> items, int totalPages})>
+  listConversations({int page = 1}) async => (items: <AiConversationSummary>[], totalPages: 1);
+
+  @override
   Future<AiReply> chat(String message, {String? conversationId}) async {
     return AiReply(
       conversationId: 'ai-test-conv-1',
@@ -28,36 +32,58 @@ void main() {
   });
 
   group('AiChatScreen UI & Storage tests', () {
-    testWidgets('Renders MarkdownBody for AI responses with formatted bold text, timestamp and AI indicator', (tester) async {
-      final repo = _FakeAiRepo();
-      await tester.pumpWidget(
-        MaterialApp(
-          home: AiChatScreen(repository: repo),
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets(
+      'opens the conversation inbox from the app bar with empty history',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(home: AiChatScreen(repository: _FakeAiRepo())),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Lịch sử hội thoại AI'));
+        await tester.pumpAndSettle();
+        expect(find.text('Chưa có cuộc trò chuyện.'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.text('Đóng'));
+        await tester.pumpAndSettle();
+      },
+    );
 
-      // Starts with welcome suggestions
-      expect(find.text('Trợ lý AI'), findsOneWidget);
-      expect(find.text('Xin chào! Mình là trợ lý du lịch Tripri.'), findsOneWidget);
+    testWidgets(
+      'Renders MarkdownBody for AI responses with formatted bold text, timestamp and AI indicator',
+      (tester) async {
+        final repo = _FakeAiRepo();
+        await tester.pumpWidget(
+          MaterialApp(home: AiChatScreen(repository: repo)),
+        );
+        await tester.pumpAndSettle();
 
-      // Tap suggestion to ask
-      await tester.tap(find.text('Gợi ý lịch trình Hạ Long 2 ngày 1 đêm'));
-      await tester.pump();
-      await tester.pumpAndSettle();
+        // Starts with welcome suggestions
+        expect(find.text('Trợ lý AI'), findsOneWidget);
+        expect(
+          find.text('Xin chào! Mình là trợ lý du lịch Tripri.'),
+          findsOneWidget,
+        );
 
-      // Check MarkdownBody exists
-      expect(find.byType(MarkdownBody), findsOneWidget);
+        // Tap suggestion to ask
+        await tester.tap(find.text('Gợi ý lịch trình Hạ Long 2 ngày 1 đêm'));
+        await tester.pump();
+        await tester.pumpAndSettle();
 
-      // Verify timestamp & AI indicator
-      expect(find.textContaining('Trợ lý AI ·'), findsOneWidget);
-      expect(find.textContaining('Đã xem'), findsOneWidget);
+        // Check MarkdownBody exists
+        expect(find.byType(MarkdownBody), findsOneWidget);
 
-      // Verify date chip 'Hôm nay'
-      expect(find.text('Hôm nay'), findsOneWidget);
-    });
+        // Verify timestamp & AI indicator
+        expect(find.textContaining('Trợ lý AI ·'), findsOneWidget);
+        expect(find.textContaining('Đã xem'), findsOneWidget);
 
-    testWidgets('Restores chat history from AiStorage when opened again', (tester) async {
+        // Verify date chip 'Hôm nay'
+        expect(find.text('Hôm nay'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Restores chat history from AiStorage when opened again', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues({});
       final storage = AiStorage();
       await storage.saveMessages(
@@ -80,9 +106,7 @@ void main() {
 
       final repo = _FakeAiRepo();
       await tester.pumpWidget(
-        MaterialApp(
-          home: AiChatScreen(repository: repo),
-        ),
+        MaterialApp(home: AiChatScreen(repository: repo)),
       );
       await tester.pumpAndSettle();
 
@@ -94,7 +118,9 @@ void main() {
       expect(find.byTooltip('Xóa lịch sử'), findsOneWidget);
     });
 
-    testWidgets('Clear history removes messages after confirmation', (tester) async {
+    testWidgets('Clear history removes messages after confirmation', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues({});
       final storage = AiStorage();
       await storage.saveMessages(
@@ -110,9 +136,7 @@ void main() {
 
       final repo = _FakeAiRepo();
       await tester.pumpWidget(
-        MaterialApp(
-          home: AiChatScreen(repository: repo),
-        ),
+        MaterialApp(home: AiChatScreen(repository: repo)),
       );
       await tester.pumpAndSettle();
 
@@ -128,7 +152,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Returns to welcome screen
-      expect(find.text('Xin chào! Mình là trợ lý du lịch Tripri.'), findsOneWidget);
+      expect(
+        find.text('Xin chào! Mình là trợ lý du lịch Tripri.'),
+        findsOneWidget,
+      );
     });
   });
 }

@@ -1,3 +1,4 @@
+import type { UserProfile } from '@/features/auth/types';
 export type AgencyOtpPurpose = 'REGISTER' | 'LOGIN_2FA';
 
 export interface AgencyRegisterPayload {
@@ -14,13 +15,13 @@ export interface AgencyRegisterPayload {
   website?: string;
 }
 
-export interface AgencyUser {
+export interface AgencyUser extends Omit<UserProfile, 'role' | 'agencyProfile'> {
   id: string;
   email: string;
   fullName: string;
   role: 'AGENCY';
   status: 'ACTIVE' | 'PENDING_VERIFICATION' | 'BANNED';
-  phone?: string | null;
+  phone?: string;
   agencyProfile?: {
     companyName?: string;
     description?: string;
@@ -29,7 +30,7 @@ export interface AgencyUser {
     licenseNumber?: string;
     taxId?: string;
     businessLicenseUrl?: string;
-    verificationStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+    verificationStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'INFORMATION_REQUESTED';
     verificationNote?: string;
   };
 }
@@ -46,7 +47,7 @@ export interface AgencyApplicationStatusDto {
   email: string;
   fullName: string;
   companyName: string;
-  verificationStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+  verificationStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'INFORMATION_REQUESTED';
   verificationNote?: string | null;
   submittedAt: string;
   token: string;
@@ -64,7 +65,7 @@ export interface AgencyApplicationDetailsDto {
   address: string;
   description?: string | null;
   website?: string | null;
-  verificationStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+  verificationStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'INFORMATION_REQUESTED';
   verificationNote?: string | null;
 }
 

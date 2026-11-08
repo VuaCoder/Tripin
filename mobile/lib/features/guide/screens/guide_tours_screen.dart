@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../api/guide_check_in_api.dart';
 import '../cubit/guide_tours_cubit.dart';
+import '../cubit/guide_check_in_cubit.dart';
+import 'qr_check_in_screen.dart';
 import '../models/guide_models.dart';
 import '../utils/guide_format.dart';
 import '../widgets/answer_assignment_dialog.dart';
@@ -43,10 +45,19 @@ class _GuideToursView extends StatefulWidget {
 }
 
 class _GuideToursViewState extends State<_GuideToursView> {
-  DateTime _selectedDate = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-  late DateTime _displayedMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  DateTime _selectedDate = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    DateTime.now().day,
+  );
+  late DateTime _displayedMonth = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    1,
+  );
   bool _isMonthView = false;
   bool _showAllTours = false;
+  String _tourFilter = 'UPCOMING';
 
   bool _isSameDay(DateTime? a, DateTime b) {
     if (a == null) return false;
@@ -86,7 +97,11 @@ class _GuideToursViewState extends State<_GuideToursView> {
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: IconButton(
-                  icon: const Icon(Icons.refresh_rounded, color: AppColors.textPrimary, size: 24),
+                  icon: const Icon(
+                    Icons.refresh_rounded,
+                    color: AppColors.textPrimary,
+                    size: 24,
+                  ),
                   tooltip: 'Làm mới',
                   onPressed: () => context.read<GuideToursCubit>().load(),
                 ),
@@ -119,12 +134,29 @@ class _GuideToursViewState extends State<_GuideToursView> {
     final isSelectedToday = _isSameDay(_selectedDate, today);
 
     // Lời mời cần duyệt luôn hiển thị để HDV không bao giờ bỏ sót lời mời phân công tour
-    final filteredPending = pending;
-    final filteredUpcoming = _showAllTours
-        ? upcoming
-        : upcoming.where((t) => _isSameDay(t.nextDepartureDate, _selectedDate) || (isSelectedToday && t.nextDepartureDate == null)).toList();
+    final filteredPending = _tourFilter == 'UPCOMING'
+        ? pending
+        : <GuideAssignedTour>[];
+    final visibleTours = _tourFilter == 'ONGOING'
+        ? state.ongoingTours
+        : _tourFilter == 'COMPLETED'
+        ? state.completedTours
+        : upcoming;
+    final filteredUpcoming = _showAllTours || _tourFilter != 'UPCOMING'
+        ? visibleTours
+        : visibleTours
+              .where(
+                (t) =>
+                    _isSameDay(t.nextDepartureDate, _selectedDate) ||
+                    (isSelectedToday && t.nextDepartureDate == null),
+              )
+              .toList();
 
-    final hasNoToursOnDay = !_showAllTours && filteredPending.isEmpty && filteredUpcoming.isEmpty;
+    final hasNoToursOnDay =
+        _tourFilter == 'UPCOMING' &&
+        !_showAllTours &&
+        filteredPending.isEmpty &&
+        filteredUpcoming.isEmpty;
 
     return RefreshIndicator(
       onRefresh: () => context.read<GuideToursCubit>().load(),
@@ -133,8 +165,28 @@ class _GuideToursViewState extends State<_GuideToursView> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
         children: [
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final filter in const {
+                'UPCOMING': 'Sắp diễn ra',
+                'ONGOING': 'Đang diễn ra',
+                'COMPLETED': 'Đã hoàn tất',
+              }.entries)
+                ChoiceChip(
+                  label: Text(filter.value),
+                  selected: _tourFilter == filter.key,
+                  onSelected: (_) => setState(() {
+                    _tourFilter = filter.key;
+                    _showAllTours = true;
+                  }),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
           // 1. Giao diện Calendar tương tác có dấu chấm chỉ báo ngày có tour
-          _buildCalendarLayout(pending, upcoming),
+          if (_tourFilter == 'UPCOMING')
+            _buildCalendarLayout(pending, upcoming),
           const SizedBox(height: 16),
 
           // Trạng thái ngày được chọn không có tour nào
@@ -149,18 +201,24 @@ class _GuideToursViewState extends State<_GuideToursView> {
                 countColor: AppColors.warning,
               ),
               const SizedBox(height: 10),
-              ...filteredPending.map((tour) => _InvitationCard(
-                    tour: tour,
-                    onAccept: () => _handleAnswer(context, tour, true),
-                    onDecline: () => _handleAnswer(context, tour, false),
-                    onTap: () => _openAssignment(context, tour),
-                  )),
+              ...filteredPending.map(
+                (tour) => _InvitationCard(
+                  tour: tour,
+                  onAccept: () => _handleAnswer(context, tour, true),
+                  onDecline: () => _handleAnswer(context, tour, false),
+                  onTap: () => _openAssignment(context, tour),
+                ),
+              ),
               const SizedBox(height: 20),
             ],
 
             // 3. Danh sách tour theo lịch trình (Todolist các chuyến đi)
             _buildSectionHeader(
-              title: 'Lịch trình sắp tới',
+              title: _tourFilter == 'UPCOMING'
+                  ? 'Lịch trình sắp tới'
+                  : _tourFilter == 'ONGOING'
+                  ? 'Đang diễn ra'
+                  : 'Đã hoàn tất',
               count: filteredUpcoming.length,
               countColor: AppColors.primary,
             ),
@@ -169,10 +227,42 @@ class _GuideToursViewState extends State<_GuideToursView> {
             if (filteredUpcoming.isEmpty)
               _buildEmptyUpcoming()
             else
-              ...filteredUpcoming.map((tour) => _UpcomingTourCard(
-                    tour: tour,
-                    onTap: () => _openTour(context, tour),
-                  )),
+              ...filteredUpcoming.map(
+                (tour) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tour.hasEnded
+                          ? 'Đã hoàn tất'
+                          : tour.isOngoing
+                          ? 'Đang diễn ra'
+                          : 'Sắp diễn ra',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    _UpcomingTourCard(
+                      tour: tour,
+                      onTap: () => _openTour(context, tour),
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () => _openTour(context, tour),
+                          icon: const Icon(Icons.people_outline),
+                          label: const Text('Xem danh sách đoàn'),
+                        ),
+                        if (!tour.hasEnded)
+                          TextButton.icon(
+                            onPressed: () => _scanTour(context, tour),
+                            icon: const Icon(Icons.qr_code_scanner),
+                            label: const Text('Mở quét QR vé'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
           ],
         ],
       ),
@@ -214,27 +304,46 @@ class _GuideToursViewState extends State<_GuideToursView> {
     );
   }
 
-  Widget _buildCalendarLayout(List<GuideAssignedTour> pending, List<GuideAssignedTour> upcoming) {
+  Widget _buildCalendarLayout(
+    List<GuideAssignedTour> pending,
+    List<GuideAssignedTour> upcoming,
+  ) {
     final today = DateTime.now();
     final todayNormalized = DateTime(today.year, today.month, today.day);
 
     String getWeekdayLabel(int weekday) {
       switch (weekday) {
-        case DateTime.monday: return 'T2';
-        case DateTime.tuesday: return 'T3';
-        case DateTime.wednesday: return 'T4';
-        case DateTime.thursday: return 'T5';
-        case DateTime.friday: return 'T6';
-        case DateTime.saturday: return 'T7';
-        case DateTime.sunday: return 'CN';
-        default: return '';
+        case DateTime.monday:
+          return 'T2';
+        case DateTime.tuesday:
+          return 'T3';
+        case DateTime.wednesday:
+          return 'T4';
+        case DateTime.thursday:
+          return 'T5';
+        case DateTime.friday:
+          return 'T6';
+        case DateTime.saturday:
+          return 'T7';
+        case DateTime.sunday:
+          return 'CN';
+        default:
+          return '';
       }
     }
 
     final List<DateTime> daysToShow = [];
     if (_isMonthView) {
-      final firstDayOfMonth = DateTime(_displayedMonth.year, _displayedMonth.month, 1);
-      final lastDayOfMonth = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 0);
+      final firstDayOfMonth = DateTime(
+        _displayedMonth.year,
+        _displayedMonth.month,
+        1,
+      );
+      final lastDayOfMonth = DateTime(
+        _displayedMonth.year,
+        _displayedMonth.month + 1,
+        0,
+      );
       final startOffset = (firstDayOfMonth.weekday - DateTime.monday) % 7;
       final startDate = firstDayOfMonth.subtract(Duration(days: startOffset));
       final endOffset = (DateTime.sunday - lastDayOfMonth.weekday) % 7;
@@ -249,7 +358,13 @@ class _GuideToursViewState extends State<_GuideToursView> {
       final mondayOffset = (_selectedDate.weekday - DateTime.monday) % 7;
       final monday = _selectedDate.subtract(Duration(days: mondayOffset));
       for (int i = 0; i < 7; i++) {
-        daysToShow.add(DateTime(monday.year, monday.month, monday.day).add(Duration(days: i)));
+        daysToShow.add(
+          DateTime(
+            monday.year,
+            monday.month,
+            monday.day,
+          ).add(Duration(days: i)),
+        );
       }
     }
 
@@ -283,7 +398,8 @@ class _GuideToursViewState extends State<_GuideToursView> {
                 ),
               ),
               const Spacer(),
-              if (_displayedMonth.year != today.year || _displayedMonth.month != today.month)
+              if (_displayedMonth.year != today.year ||
+                  _displayedMonth.month != today.month)
                 TextButton(
                   onPressed: () {
                     setState(() {
@@ -293,33 +409,56 @@ class _GuideToursViewState extends State<_GuideToursView> {
                     });
                   },
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     visualDensity: VisualDensity.compact,
                   ),
                   child: const Text(
                     'Hôm nay',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
               IconButton(
-                icon: const Icon(Icons.chevron_left_rounded, size: 22, color: AppColors.textPrimary),
+                icon: const Icon(
+                  Icons.chevron_left_rounded,
+                  size: 22,
+                  color: AppColors.textPrimary,
+                ),
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 onPressed: () {
                   setState(() {
-                    _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month - 1, 1);
+                    _displayedMonth = DateTime(
+                      _displayedMonth.year,
+                      _displayedMonth.month - 1,
+                      1,
+                    );
                   });
                 },
               ),
               IconButton(
-                icon: const Icon(Icons.chevron_right_rounded, size: 22, color: AppColors.textPrimary),
+                icon: const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 22,
+                  color: AppColors.textPrimary,
+                ),
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 onPressed: () {
                   setState(() {
-                    _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 1);
+                    _displayedMonth = DateTime(
+                      _displayedMonth.year,
+                      _displayedMonth.month + 1,
+                      1,
+                    );
                   });
                 },
               ),
@@ -331,14 +470,21 @@ class _GuideToursViewState extends State<_GuideToursView> {
                 ),
                 child: IconButton(
                   icon: Icon(
-                    _isMonthView ? Icons.view_week_rounded : Icons.calendar_view_month_rounded,
+                    _isMonthView
+                        ? Icons.view_week_rounded
+                        : Icons.calendar_view_month_rounded,
                     size: 18,
                     color: AppColors.textPrimary,
                   ),
-                  tooltip: _isMonthView ? 'Thu gọn thành tuần' : 'Mở rộng cả tháng',
+                  tooltip: _isMonthView
+                      ? 'Thu gọn thành tuần'
+                      : 'Mở rộng cả tháng',
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
                   onPressed: () => setState(() => _isMonthView = !_isMonthView),
                 ),
               ),
@@ -348,28 +494,31 @@ class _GuideToursViewState extends State<_GuideToursView> {
 
           // Nhãn các thứ trong tuần
           Row(
-            children: [
-              DateTime.monday,
-              DateTime.tuesday,
-              DateTime.wednesday,
-              DateTime.thursday,
-              DateTime.friday,
-              DateTime.saturday,
-              DateTime.sunday,
-            ].map((wd) {
-              return Expanded(
-                child: Center(
-                  child: Text(
-                    getWeekdayLabel(wd),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: wd == DateTime.sunday ? const Color(0xFFEF4444) : const Color(0xFF64748B),
+            children:
+                [
+                  DateTime.monday,
+                  DateTime.tuesday,
+                  DateTime.wednesday,
+                  DateTime.thursday,
+                  DateTime.friday,
+                  DateTime.saturday,
+                  DateTime.sunday,
+                ].map((wd) {
+                  return Expanded(
+                    child: Center(
+                      child: Text(
+                        getWeekdayLabel(wd),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: wd == DateTime.sunday
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF64748B),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              );
-            }).toList(),
+                  );
+                }).toList(),
           ),
           const SizedBox(height: 8),
 
@@ -387,16 +536,22 @@ class _GuideToursViewState extends State<_GuideToursView> {
             itemBuilder: (context, idx) {
               final date = daysToShow[idx];
               final isCurrentMonth = date.month == _displayedMonth.month;
-              final isSelected = !_showAllTours &&
+              final isSelected =
+                  !_showAllTours &&
                   date.year == _selectedDate.year &&
                   date.month == _selectedDate.month &&
                   date.day == _selectedDate.day;
-              final isToday = date.year == today.year &&
+              final isToday =
+                  date.year == today.year &&
                   date.month == today.month &&
                   date.day == today.day;
 
-              final hasUpcoming = upcoming.any((t) => _isSameDay(t.nextDepartureDate, date));
-              final hasPending = pending.any((t) => _isSameDay(t.nextDepartureDate, date));
+              final hasUpcoming = upcoming.any(
+                (t) => _isSameDay(t.nextDepartureDate, date),
+              );
+              final hasPending = pending.any(
+                (t) => _isSameDay(t.nextDepartureDate, date),
+              );
 
               return GestureDetector(
                 onTap: () {
@@ -413,7 +568,9 @@ class _GuideToursViewState extends State<_GuideToursView> {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? AppColors.primary
-                        : (isToday ? AppColors.primary.withValues(alpha: 0.08) : Colors.transparent),
+                        : (isToday
+                              ? AppColors.primary.withValues(alpha: 0.08)
+                              : Colors.transparent),
                     borderRadius: BorderRadius.circular(10),
                     border: isToday && !isSelected
                         ? Border.all(color: AppColors.primary, width: 1.2)
@@ -426,12 +583,16 @@ class _GuideToursViewState extends State<_GuideToursView> {
                         '${date.day}',
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: (isSelected || isToday) ? FontWeight.w800 : FontWeight.w600,
+                          fontWeight: (isSelected || isToday)
+                              ? FontWeight.w800
+                              : FontWeight.w600,
                           color: isSelected
                               ? Colors.white
                               : (!isCurrentMonth
-                                  ? const Color(0xFFCBD5E1)
-                                  : (isToday ? AppColors.primary : AppColors.textPrimary)),
+                                    ? const Color(0xFFCBD5E1)
+                                    : (isToday
+                                          ? AppColors.primary
+                                          : AppColors.textPrimary)),
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -445,7 +606,9 @@ class _GuideToursViewState extends State<_GuideToursView> {
                               height: 5,
                               margin: const EdgeInsets.symmetric(horizontal: 1),
                               decoration: BoxDecoration(
-                                color: isSelected ? Colors.white : AppColors.primary,
+                                color: isSelected
+                                    ? Colors.white
+                                    : AppColors.primary,
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -455,7 +618,9 @@ class _GuideToursViewState extends State<_GuideToursView> {
                               height: 5,
                               margin: const EdgeInsets.symmetric(horizontal: 1),
                               decoration: BoxDecoration(
-                                color: isSelected ? const Color(0xFFFDE68A) : AppColors.warning,
+                                color: isSelected
+                                    ? const Color(0xFFFDE68A)
+                                    : AppColors.warning,
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -482,18 +647,38 @@ class _GuideToursViewState extends State<_GuideToursView> {
                   Container(
                     width: 6,
                     height: 6,
-                    decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                   const SizedBox(width: 4),
-                  const Text('Lịch trình', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
+                  const Text(
+                    'Lịch trình',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                   const SizedBox(width: 10),
                   Container(
                     width: 6,
                     height: 6,
-                    decoration: const BoxDecoration(color: AppColors.warning, shape: BoxShape.circle),
+                    decoration: const BoxDecoration(
+                      color: AppColors.warning,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                   const SizedBox(width: 4),
-                  const Text('Chờ duyệt', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
+                  const Text(
+                    'Chờ duyệt',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -636,7 +821,11 @@ class _GuideToursViewState extends State<_GuideToursView> {
       ),
       child: const Column(
         children: [
-          Icon(Icons.calendar_today_outlined, size: 44, color: AppColors.textMuted),
+          Icon(
+            Icons.calendar_today_outlined,
+            size: 44,
+            color: AppColors.textMuted,
+          ),
           SizedBox(height: 12),
           Text(
             'Chưa có tour sắp tới',
@@ -646,7 +835,11 @@ class _GuideToursViewState extends State<_GuideToursView> {
           Text(
             'Tour bạn đã nhận sẽ xuất hiện tại đây kèm danh sách đoàn và điểm danh.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+            style: TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
           ),
         ],
       ),
@@ -666,13 +859,15 @@ class _GuideToursViewState extends State<_GuideToursView> {
     if (note == null || !context.mounted) return;
 
     final outcome = await context.read<GuideToursCubit>().answer(
-          tourId: tour.id,
-          accept: accept,
-          note: note,
-        );
+      tourId: tour.id,
+      accept: accept,
+      note: note,
+    );
     if (!context.mounted || outcome == null) return;
 
     if (outcome is GuideAnswerSuccess) {
+      await context.read<GuideToursCubit>().load();
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -732,6 +927,21 @@ class _GuideToursViewState extends State<_GuideToursView> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => GuideTourDetailScreen(tour: tour, api: widget.api),
+      ),
+    );
+  }
+
+  void _scanTour(BuildContext context, GuideAssignedTour tour) {
+    final baseApi = widget.api;
+    final scopedApi = baseApi is DioGuideCheckInApi
+        ? baseApi.forDeparture(tour.departureId)
+        : baseApi;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider(
+          create: (_) => GuideCheckInCubit(scopedApi, tour.id)..loadRoster(),
+          child: QrCheckInScreen(tour: tour),
+        ),
       ),
     );
   }
@@ -808,12 +1018,18 @@ class _InvitationCard extends StatelessWidget {
                         Text(
                           '${tour.destination} · ${tour.durationDays} ngày'
                           '${tour.agencyName == null ? '' : ' · ${tour.agencyName}'}',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textMuted,
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -822,7 +1038,11 @@ class _InvitationCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.event_rounded, size: 15, color: AppColors.primary),
+                      const Icon(
+                        Icons.event_rounded,
+                        size: 15,
+                        color: AppColors.primary,
+                      ),
                       const SizedBox(width: 5),
                       Text(
                         departure == null
@@ -854,11 +1074,22 @@ class _InvitationCard extends StatelessWidget {
                       onPressed: onDecline,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.error,
-                        side: const BorderSide(color: AppColors.error, width: 1.2),
+                        side: const BorderSide(
+                          color: AppColors.error,
+                          width: 1.2,
+                        ),
                         padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
-                      child: const Text('Từ chối', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      child: const Text(
+                        'Từ chối',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -870,9 +1101,17 @@ class _InvitationCard extends StatelessWidget {
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
-                      child: const Text('Chấp nhận', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        'Chấp nhận',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -949,12 +1188,18 @@ class _UpcomingTourCard extends StatelessWidget {
                         Text(
                           '${tour.destination} · ${tour.durationDays} ngày'
                           '${tour.agencyName == null ? '' : ' · ${tour.agencyName}'}',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textMuted,
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -963,7 +1208,11 @@ class _UpcomingTourCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.event_available_rounded, size: 15, color: AppColors.primary),
+                      const Icon(
+                        Icons.event_available_rounded,
+                        size: 15,
+                        color: AppColors.primary,
+                      ),
                       const SizedBox(width: 5),
                       Text(
                         departure == null
@@ -1067,7 +1316,9 @@ class _DashedRectPainter extends CustomPainter {
     for (final metric in metrics) {
       double distance = 0.0;
       while (distance < metric.length) {
-        final len = (distance + dash < metric.length) ? dash : metric.length - distance;
+        final len = (distance + dash < metric.length)
+            ? dash
+            : metric.length - distance;
         final extractPath = metric.extractPath(distance, distance + len);
         canvas.drawPath(extractPath, paint);
         distance += dash + gap;

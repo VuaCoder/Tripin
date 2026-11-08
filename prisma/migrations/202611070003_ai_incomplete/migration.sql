@@ -1,0 +1,1 @@
+ALTER TABLE "AiMessage" ADD COLUMN "incomplete" BOOLEAN NOT NULL DEFAULT false;

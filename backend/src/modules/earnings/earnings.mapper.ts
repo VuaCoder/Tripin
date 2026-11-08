@@ -9,5 +9,6 @@ export function toEarningDto(earning: EarningRecord): EarningDto {
     tour: { id: earning.tourId, title: earning.tourTitle },
     amount: earning.amount,
     earnedAt: earning.earnedAt.toISOString(),
+    ...(earning.payout ? { payout: { id: earning.payout.id, status: earning.payout.status, transferredAt: earning.payout.transferredAt?.toISOString(), transferReference: earning.payout.transferReference ?? undefined } } : {}),
   };
 }

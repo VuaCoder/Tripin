@@ -51,16 +51,16 @@ const routes: Route[] = [
   { method: 'get', path: '/moderation/agencies' },
   { method: 'post', path: `/moderation/agencies/${ID}/verify`, body: { approve: true } },
   { method: 'get', path: '/moderation/reviews' },
-  { method: 'post', path: `/moderation/reviews/${ID}/moderate`, body: { hide: true, reason: 'abuse' } },
+  { method: 'post', path: `/moderation/reviews/${ID}/moderate`, body: { hide: true, reason: 'abuse', contentVersion: 'a'.repeat(64) } },
   { method: 'post', path: `/moderation/users/${ID}/ban`, body: { reason: 'spam' } },
-  { method: 'post', path: `/moderation/users/${ID}/unban` },
+  { method: 'post', path: `/moderation/users/${ID}/unban`, body: { reason: 'Appeal reviewed and accepted' } },
   { method: 'get', path: '/moderation/reports' },
   { method: 'get', path: `/moderation/reports/${ID}` },
   { method: 'post', path: `/moderation/reports/${ID}/resolve`, body: { decision: 'RESOLVED', note: 'done' } },
   { method: 'get', path: '/moderation/support-tickets' },
   { method: 'get', path: `/moderation/support-tickets/${ID}` },
   { method: 'post', path: `/moderation/support-tickets/${ID}/reply`, body: { text: 'hello' } },
-  { method: 'patch', path: `/moderation/support-tickets/${ID}/status`, body: { status: 'RESOLVED' } },
+  { method: 'patch', path: `/moderation/support-tickets/${ID}/status`, body: { status: 'RESOLVED', resolutionNote: 'Investigated and resolved' } },
 ];
 
 const call = (route: Route, role?: string) => {
@@ -73,7 +73,7 @@ describe('moderation routes: authorization matrix', () => {
   it.each(routes)('$method $path -> guest 401, traveler/agency/guide 403, moderator & super admin allowed', async (route) => {
     expect((await call(route)).status).toBe(401);
     for (const role of ['TRAVELER', 'AGENCY', 'TOUR_GUIDE']) expect((await call(route, role)).status).toBe(403);
-    for (const role of ['MODERATOR', 'SUPER_ADMIN']) expect((await call(route, role)).status).toBe(200);
+    for (const role of ['MODERATOR', 'SUPER_ADMIN']) expect((await call(route, role)).status).toBe(route.path.endsWith('/unban') && role === 'MODERATOR' ? 403 : 200);
   });
 });
 

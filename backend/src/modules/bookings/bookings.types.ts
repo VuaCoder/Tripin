@@ -95,6 +95,7 @@ export interface BookingFacts {
   tourTitle: string;
   departureId: string;
   departureDate: Date;
+  endDate: Date;
   participants: number;
   /** Name given as the traveler contact on the booking (printed on the e-ticket). */
   contactName: string;

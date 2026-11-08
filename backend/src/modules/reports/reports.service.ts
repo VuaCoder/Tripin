@@ -43,7 +43,7 @@ export class ReportsService {
     private readonly reviews: Pick<ReviewsService, 'getFacts'> = reviewsService,
     private readonly bookings: Pick<BookingsService, 'getFacts'> = bookingsService,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
-    private readonly audit: Pick<AuditService, 'record'> = auditService,
+    _audit: Pick<AuditService, 'record'> = auditService,
   ) {}
 
   // ================================================================ Traveler
@@ -186,17 +186,17 @@ export class ReportsService {
       status: next,
       resolution: { decision: next, note: decision.note, by: actor.userId, resolvedAt: new Date() },
       openKey: null, // a closed report no longer blocks a new one about the same target
-    });
-    if (!updated) throw AppError.conflict('The report changed, please retry', 'CONCURRENT_UPDATE');
-
-    await this.audit.record({
+    }, {
       actorId: actor.userId,
       actorRole: actor.role,
       action: AUDIT_ACTIONS.REPORT_RESOLVED,
       targetType: 'report',
       targetId: id,
-      metadata: { decision: next, note: decision.note },
+      metadata: { before: { status: report.status, resolution: report.resolution }, after: { status: next, resolution: { decision: next, note: decision.note, by: actor.userId } }, decision: next, note: decision.note },
     });
+    if (!updated) throw AppError.conflict('The report changed, please retry', 'CONCURRENT_UPDATE');
+
+
     const outcome = next === REPORT_STATUS.RESOLVED ? 'was upheld' : 'was not upheld';
     const notice = { title: 'Your report was reviewed', body: `A moderator reviewed your report and it ${outcome}: ${decision.note}`, data: { reportId: id } };
     await this.notifications.notify(report.reporterId, { type: NOTIFICATION_TYPE.REPORT_RESOLVED, ...notice }, { email: true });
@@ -401,6 +401,7 @@ export class ReportsService {
               ? {
                   rating: facts.rating,
                   comment: facts.comment,
+                  contentVersion: facts.contentVersion,
                   status: facts.status as 'VISIBLE' | 'HIDDEN',
                   hiddenReason: facts.hiddenReason,
                   authorName: people.get(facts.travelerId)?.fullName,

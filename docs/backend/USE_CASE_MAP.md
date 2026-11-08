@@ -91,6 +91,10 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Development Guide application decisions | users | `POST /users/me/guide-application/dev-accept`, `POST /users/me/guide-application/dev-reject` | profile:update-own | done |
 | Subcribe to plan (Payment Gateway) | subscriptions | `GET /subscriptions/plans`, `POST /subscriptions`, `GET /subscriptions/me`, `GET /subscriptions/me/current` | subscription:subscribe | done |
 | View earnings | earnings | `GET /earnings/me`, `GET /earnings/me/summary` | earnings:view | done |
+| Monitor guide payouts | earnings | `GET /earnings/me/ledger` | earnings:view | implemented |
+| Scan an e-ticket for the assigned departure | e-tickets | `POST /e-tickets/scan` | guide:check-in | implemented |
+| Record an agency's completed bank transfer | earnings | `POST /earnings/payouts/:id/transfer` | tour:update-own + owning Agency | implemented |
+| Triage reported reviews | reviews | `GET /moderation/review-triage`, `POST /moderation/review-triage/:id/decision` | review:moderate + dispute:resolve | implemented |
 | Make a conservation (with Traveler) | chat | same as Traveler | chat:use | done |
 
 ## Moderator
@@ -147,3 +151,24 @@ Admin dashboard accepts paired `from`/`to` (max 366 days), returns previous-peri
 | Control sales per role and monitor fulfilment | Super Admin | `GET/PUT /admin/premium/flags`, `GET /admin/premium/operations` | premium:manage + Super Admin | implemented |
 
 Legacy Guide subscription endpoints remain available. Premium authorization is derived server-side from current-role, non-revoked, time-effective periods; paid future periods do not grant early access. See `backend/src/modules/premium/README.md` for inventory, late-payment and refund rules.
+
+## Staff and moderation workflow extensions
+
+| Endpoint | Responsibility |
+|---|---|
+| `GET /admin/export/audit-logs` | Staff, moderation and policy workflow extensions |
+| `GET /admin/export/moderation` | Staff, moderation and policy workflow extensions |
+| `GET /admin/policies/:key/history` | Staff, moderation and policy workflow extensions |
+| `POST /admin/policies/:key/rollback` | Staff, moderation and policy workflow extensions |
+| `POST /admin/staff/:id/disable` | Staff, moderation and policy workflow extensions |
+| `POST /admin/staff/:id/reinvite` | Revoke old invitations and email a new one-time activation link |
+| `POST /admin/staff/invite` | Staff, moderation and policy workflow extensions |
+| `POST /auth/change-password` | Staff, moderation and policy workflow extensions |
+| `POST /auth/staff/activate` | Staff, moderation and policy workflow extensions |
+| `POST /guide/e-tickets/:tourId/complete` | Staff, moderation and policy workflow extensions |
+| `GET /moderation/sla` | Staff, moderation and policy workflow extensions |
+| `POST /policies/accept` | Staff, moderation and policy workflow extensions |
+| `GET /users/me/guide-application` | Staff, moderation and policy workflow extensions |
+| `POST /users/me/guide-application` | Staff, moderation and policy workflow extensions |
+| `POST /users/me/guide-application/dev-accept` | Staff, moderation and policy workflow extensions |
+| `POST /users/me/guide-application/dev-reject` | Staff, moderation and policy workflow extensions |

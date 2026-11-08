@@ -1,3 +1,4 @@
+import { redactAudit } from './audit.writer';
 import type { Prisma } from '../../config/database';
 import { buildPage, type Page } from '../../utils/pagination';
 import { logger } from '../../utils/logger';
@@ -20,7 +21,7 @@ export class AuditService {
         action: entry.action,
         targetType: entry.targetType,
         targetId: entry.targetId,
-        metadata: entry.metadata as Prisma.InputJsonObject | undefined,
+        metadata: redactAudit(entry.metadata) as Prisma.InputJsonObject | undefined,
       });
     } catch (error) {
       logger.error(`Audit write failed for ${entry.action}`, { message: (error as Error).message });

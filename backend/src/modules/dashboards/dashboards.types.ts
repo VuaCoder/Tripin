@@ -19,15 +19,15 @@ export interface ModerationDashboardDto {
   generatedAt: string;
   /** Work waiting for a decision. */
   queues: {
-    toursPendingReview: number;
-    agenciesPendingVerification: number;
-    reportsOpen: number;
-    reportsAwaitingDecision: number;
-    supportTicketsOpen: number;
-    supportTicketsInProgress: number;
+    toursPendingReview?: number;
+    agenciesPendingVerification?: number;
+    reportsOpen?: number;
+    reportsAwaitingDecision?: number;
+    supportTicketsOpen?: number;
+    supportTicketsInProgress?: number;
   };
-  tours: Record<string, number>;
-  reviews: { visible: number; hidden: number };
+  tours?: Record<string, number>;
+  reviews?: { visible?: number; hidden: number };
 }
 
 export interface AdminDashboardDto {

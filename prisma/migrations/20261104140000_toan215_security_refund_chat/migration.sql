@@ -1,5 +1,5 @@
 -- TOAN-13: invalidate JWTs after logout / password change
-ALTER TABLE "User" ADD COLUMN "tokenVersion" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "tokenVersion" INTEGER NOT NULL DEFAULT 0;
 
 -- Conversation read watermarks
 ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS "lastReadTravelerAt" TIMESTAMP(3);

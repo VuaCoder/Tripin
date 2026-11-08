@@ -20,8 +20,13 @@ class GuideToursState extends Equatable {
 
   List<GuideAssignedTour> get pendingTours =>
       _byDeparture(tours.where((tour) => tour.isPending));
-  List<GuideAssignedTour> get upcomingTours =>
-      _byDeparture(tours.where((tour) => tour.isAccepted));
+  List<GuideAssignedTour> get upcomingTours => _byDeparture(
+    tours.where((tour) => tour.isAccepted && !tour.hasEnded && !tour.isOngoing),
+  );
+  List<GuideAssignedTour> get ongoingTours =>
+      _byDeparture(tours.where((tour) => tour.isAccepted && tour.isOngoing));
+  List<GuideAssignedTour> get completedTours =>
+      _byDeparture(tours.where((tour) => tour.isAccepted && tour.hasEnded));
 
   static List<GuideAssignedTour> _byDeparture(
     Iterable<GuideAssignedTour> items,

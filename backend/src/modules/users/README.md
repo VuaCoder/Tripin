@@ -31,7 +31,9 @@ The `User` model is shared by `auth` (credentials) and `authenticate` (actor res
 ## API (base `/api/v1`)
 * `GET /agency/guides?q&page&limit` – `tour:assign-guide`; active TOUR_GUIDE directory. Name-only case-insensitive literal search (max 120 chars), default 20/max 100 per page, stable fullName/id ascending order. Paginated `PublicGuideDto`; database projection excludes private contact, credentials and license fields.
 * `GET /users/me` – `profile:view-own` → `PrivateUserDto` (never contains `passwordHash`).
-* `PATCH /users/me` – `profile:update-own`; body any of `fullName, phone, avatarUrl, agencyProfile{companyName,description,address,website,licenseNumber}, guideProfile{bio,languages,specialties,experienceYears,licenseNumber}, bankAccount{bankName,accountNumber,accountHolder}` (strict, at least one field). `agencyProfile` → 403 unless AGENCY; `guideProfile` → 403 unless TOUR_GUIDE; `bankAccount` → 403 unless TOUR_GUIDE. `bankAccount: null` clears it; it is merged into the existing `User.preferences` JSON (no schema change) and returned to its owner in `PrivateUserDto`. Email, role, status are never editable here.
+* `PATCH /users/me` – `profile:update-own`; body any of `fullName, phone, avatarUrl, agencyProfile{companyName,description,address,website,licenseNumber}, guideProfile{bio,languages,specialties,experienceYears,licenseNumber}, bankAccount{bankName,accountNumber,accountHolder}` (strict, at least one field). Role profiles and bank accounts remain role-restricted. Guide bank details are now AES-256-GCM encrypted in `GuidePayoutAccount`; the owner DTO returns only a masked account number. Updating requires the full new number; sending the masked value is invalid. `bankAccount: null` clears the account. Direct avatar URL writes are unavailable to Travelers and Guides: both use the signed upload/verify/remove endpoints. Email, role, status are never editable here.
+
+Payout rollout: configure a server-only `PAYOUT_ENCRYPTION_KEYS` JSON map of key ids to 32-byte base64 keys and `PAYOUT_ENCRYPTION_KEY_ID` (default `v1`). Keep old keys during rotation. Apply the schema migration, then run `pnpm --filter backend exec tsx src/scripts/backfill-guide-payout-accounts.ts`. Backfill removes legacy preferences plaintext transactionally and is safe to rerun; no application backfill is executed automatically by the schema migration. New payout writes fail closed with 503 when the keyring is unavailable.
 * `POST /users/me/agency-verification` – AGENCY only; needs `companyName` + `licenseNumber`; `UNVERIFIED|REJECTED → PENDING`. 202.
 * `GET /tour-guides/:id`, `GET /agencies/:id` – public, only ACTIVE accounts with the matching role, otherwise 404. No email/phone/license.
 * `GET /admin/users?page&limit&role&status&q` – `user:assign-permissions`; paginated `PrivateUserDto` list.
@@ -40,10 +42,10 @@ The `User` model is shared by `auth` (credentials) and `authenticate` (actor res
 ## Business rules
 1. Role-specific profile sections can only be edited by that role.
 2. Public profiles expose no contact data and hide banned/inactive accounts.
-3. A SUPER_ADMIN cannot change their own access and the last active SUPER_ADMIN cannot be demoted (`LAST_SUPER_ADMIN`). The count is verified AFTER the write and the demotion is undone when it would leave no SUPER_ADMIN, so two admins demoting each other at once cannot lock the platform out.
+3. A SUPER_ADMIN cannot change their own access and the last active SUPER_ADMIN cannot be demoted (`LAST_SUPER_ADMIN`). An advisory transaction lock serializes access changes and staff disabling; the last active staff administrator is protected before commit. Mutation and audit are atomic.
 4. Moving a user to AGENCY / TOUR_GUIDE creates the empty profile section so the profile endpoints work.
 5. `extraPermissions` unknown to `PERMISSIONS` are dropped.
-6. Ban: nobody can ban themselves or a SUPER_ADMIN; only SUPER_ADMIN can ban a MODERATOR; the change is an atomic compare-and-set on the current status.
+6. Ban: nobody can ban themselves or a SUPER_ADMIN; staff accounts must use the dedicated disable action; the change is an atomic compare-and-set on the current status.
 7. Verification decision is only possible from `PENDING`, written as a compare-and-set on the status: two moderators deciding at once get one 200 and one 409 (and one audit entry).
 
 ## State machine
@@ -83,3 +85,9 @@ All admin routes in this module require the current `SUPER_ADMIN` role **and** t
 
 ## Admin list date filters
 `GET /admin/users` also accepts paired inclusive `from`/`to` timestamps for account `createdAt`; invalid/partial/reversed ranges return 400. Filters are applied in the repository before count and pagination.
+
+## Staff workflow revisions
+
+Agency verification also supports `PENDING -> INFORMATION_REQUESTED -> PENDING`, with a mandatory request note and FIFO `submittedAt` queue.
+Staff invitations expire in 24 hours and are consumed once. Disable revokes sessions. Unban requires SUPER_ADMIN and a reason of at least 10 characters.
+Granular rights use role defaults plus extraPermissions minus revokedPermissions. GET /users/me excludes raw grants/revokes and staff lifecycle internals; session responses retain effective rights.

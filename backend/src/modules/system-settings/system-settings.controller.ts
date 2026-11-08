@@ -19,7 +19,7 @@ export class SystemSettingsController {
 
   setCommission: RequestHandler = async (req, res) => {
     const { body } = validated<CommissionBody>(req);
-    sendOk(res, await this.service.setCommission(actorOf(req), body.ratePercent));
+    sendOk(res, await this.service.setCommission(actorOf(req), body.ratePercent, body.expectedVersion));
   };
 
   listPolicies: RequestHandler = async (_req, res) => {

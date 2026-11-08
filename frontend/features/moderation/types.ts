@@ -3,7 +3,7 @@
 import type { MyReport, ReportCategory, ReportStatus, ReportTarget } from '@/features/report/types';
 
 export type ModerationTourStatus = 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'ARCHIVED';
-export type AgencyVerificationStatus = 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+export type AgencyVerificationStatus = 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'INFORMATION_REQUESTED';
 
 export interface ModerationPageMeta {
   page: number;
@@ -27,15 +27,15 @@ export interface ModerationListResult<T> {
 export interface ModerationDashboard {
   generatedAt: string;
   queues: {
-    toursPendingReview: number;
-    agenciesPendingVerification: number;
-    reportsOpen: number;
-    reportsAwaitingDecision: number;
-    supportTicketsOpen: number;
-    supportTicketsInProgress: number;
+    toursPendingReview?: number;
+    agenciesPendingVerification?: number;
+    reportsOpen?: number;
+    reportsAwaitingDecision?: number;
+    supportTicketsOpen?: number;
+    supportTicketsInProgress?: number;
   };
-  tours: Record<string, number>;
-  reviews: { visible: number; hidden: number };
+  tours?: Record<string, number>;
+  reviews?: { visible?: number; hidden: number };
 }
 
 export interface ModerationTour {
@@ -74,6 +74,8 @@ export interface ModerationAgency {
     licenseNumber?: string;
     taxId?: string;
     businessLicenseUrl?: string;
+    submittedAt?: string;
+    submissionDateEstimated?: boolean;
     verificationStatus: AgencyVerificationStatus;
     verificationNote?: string;
   };
@@ -104,6 +106,7 @@ export interface SuspendTourInput {
 }
 
 export interface VerifyAgencyInput {
+  requestInformation?: boolean;
   id: string;
   approve: boolean;
   note?: string;
@@ -113,6 +116,7 @@ export interface VerifyAgencyInput {
 
 /** Moderator view of a report (`ModerationReportDto`): knows the reporter, the agency and the tour by name. */
 export interface ModerationReport extends MyReport {
+  totalReportsCount?: number;
   reporterId: string;
   reporterName?: string;
   agencyId?: string;
@@ -125,6 +129,7 @@ export interface ModerationReport extends MyReport {
   bookingCode?: string;
   /** Present only for a report about a review: the review itself, so the moderator need not go hunting for it. */
   review?: {
+    contentVersion?: string;
     rating: number;
     comment: string;
     status: ReviewStatus;
@@ -164,6 +169,7 @@ export interface DirectChatInfo {
 }
 
 export interface ListModerationReportsArgs {
+  q?: string; from?: string; to?: string; sort?: 'newest' | 'reports_desc';
   page?: number;
   limit?: number;
   status?: ReportStatus;
@@ -183,6 +189,7 @@ export type ReviewStatus = 'VISIBLE' | 'HIDDEN';
 
 /** Moderator view of a review (`ModerationReviewDto`): knows the author and the agency by name. */
 export interface ModerationReview {
+  contentVersion?: string;
   id: string;
   bookingId: string;
   tourId: string;
@@ -208,8 +215,10 @@ export interface ListModerationReviewsArgs {
 }
 
 export interface ModerateReviewInput {
+  contentVersion?: string;
   id: string;
   hide: boolean;
+  restorationReason?: string;
   reason?: string;
 }
 
@@ -255,12 +264,14 @@ export interface ListModerationTicketsArgs {
 }
 
 export interface TicketReplyInput {
+  resolutionNote?: string;
   id: string;
   text: string;
   resolve?: boolean;
 }
 
 export interface TicketStatusInput {
+  resolutionNote?: string;
   id: string;
   status: 'IN_PROGRESS' | 'RESOLVED';
 }

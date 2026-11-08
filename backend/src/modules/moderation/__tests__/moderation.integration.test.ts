@@ -54,6 +54,7 @@ describe('moderation (integration)', () => {
       }
       // A moderator may call it: the outcome is 200/404/409 depending on the data, never an auth failure.
       const status = await call(method, path, body, moderator.token).then((r) => r.status);
+      if (path.endsWith('/unban')) { expect(status).toBe(403); continue; }
       expect([401, 403], `moderator ${method} ${path}`).not.toContain(status);
       expect(status, `moderator ${method} ${path}`).toBeLessThan(500);
     }
@@ -95,13 +96,14 @@ describe('moderation (integration)', () => {
 
     expect((await ban(traveler.id)).status).toBe(200);
     const blocked = await me();
-    expect(blocked.status).toBe(403);
-    expect(blocked.body.error.code).toBe('ACCOUNT_BANNED');
+    expect(blocked.status).toBe(401);
+    expect(blocked.body.error.code).toBe('TOKEN_INVALID');
     expect((await ban(traveler.id)).status).toBe(409); // already banned
 
-    const unban = await request(app).post(`/api/v1/moderation/users/${traveler.id}/unban`).set(bearer(moderator.token)).send({});
+    const admin = await createUser('SUPER_ADMIN', 'admin-unban@example.com');
+    const unban = await request(app).post(`/api/v1/moderation/users/${traveler.id}/unban`).set(bearer(admin.token)).send({ reason: 'Appeal reviewed and accepted' });
     expect(unban.status).toBe(200);
-    expect((await me()).status).toBe(200);
+    expect((await me()).status).toBe(401);
 
     expect(await prisma.auditLog.count({ where: { action: { in: ['user.banned', 'user.unbanned'] } } })).toBe(2);
   });
@@ -114,10 +116,10 @@ describe('moderation (integration)', () => {
       request(app).post(`/api/v1/moderation/users/${id}/ban`).set(bearer(token)).send({ reason: 'Policy violation' });
 
     expect((await ban(moderator.id, moderator.token)).status).toBe(403);
-    expect((await ban(admin.id, moderator.token)).status).toBe(403);
+    expect((await ban(admin.id, moderator.token)).status).toBe(400);
     expect((await ban(admin.id, admin.token)).status).toBe(403);
-    expect((await ban(otherModerator.id, moderator.token)).status).toBe(403);
-    expect((await ban(otherModerator.id, admin.token)).status).toBe(200);
+    expect((await ban(otherModerator.id, moderator.token)).status).toBe(400);
+    expect((await ban(otherModerator.id, admin.token)).status).toBe(400);
     expect((await prisma.user.findUnique({ where: { id: admin.id } }))!.status).toBe('ACTIVE');
   });
 });

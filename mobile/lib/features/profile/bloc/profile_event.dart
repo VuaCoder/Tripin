@@ -1,5 +1,7 @@
 import 'dart:io';
+
 import 'package:equatable/equatable.dart';
+
 import '../models/user_profile_model.dart';
 
 abstract class ProfileEvent extends Equatable {
@@ -33,7 +35,15 @@ class ProfileUpdateRequested extends ProfileEvent {
   });
 
   @override
-  List<Object?> get props => [fullName, phone, bio, dreamDestination, work, skill, pets];
+  List<Object?> get props => [
+    fullName,
+    phone,
+    bio,
+    dreamDestination,
+    work,
+    skill,
+    pets,
+  ];
 }
 
 class ChangePasswordRequested extends ProfileEvent {
@@ -56,6 +66,10 @@ class GuideProfileUpdateRequested extends ProfileEvent {
 
   @override
   List<Object?> get props => [guideProfileData];
+}
+
+class AvatarRemoveRequested extends ProfileEvent {
+  const AvatarRemoveRequested();
 }
 
 class AvatarUploadRequested extends ProfileEvent {

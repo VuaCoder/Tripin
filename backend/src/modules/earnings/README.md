@@ -51,6 +51,6 @@ Real-database scenarios (completion job, once per booking, privacy) live in `rev
 `__tests__/earnings.service.test.ts` – crediting rules, idempotency and race, error propagation, listing and summary.
 
 ## Not implemented / follow-ups
-* Payouts / "paid out" status and the actual money transfer from agency to guide (not in the diagram).
+* Actual bank transfers are outside this API. `GuidePayoutLedger` records PENDING/TRANSFERRED per earning; `GET /earnings/me/ledger` and the normal earning list include payout status/reference/date. An owning Agency can record an already completed transfer through `POST /earnings/payouts/:id/transfer { transferReference }`; the compare-and-set and actor audit are atomic. Repeating the same reference is idempotent.
 * The fee is read at completion time: if the agency re-assigns or removes the guide before a trip completes, the earning follows the tour's current accepted guide (booking-level snapshot is a possible hardening).
 * Platform commission is on the booking (`commissionAmount`), not deducted from the guide fee.

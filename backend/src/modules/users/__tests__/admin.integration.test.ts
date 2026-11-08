@@ -81,7 +81,7 @@ describe('admin: users and access', () => {
 
     const results = await Promise.all([access(first.token, second.id, { role: 'MODERATOR' }), access(second.token, first.id, { role: 'MODERATOR' })]);
     // 403 is legitimate too: once the first demotion lands, the second caller is no longer a Super admin.
-    expect(results.every((r) => [200, 403, 409].includes(r.status))).toBe(true);
+    expect(results.every((r) => [200, 401, 403, 409].includes(r.status))).toBe(true);
     expect(await prisma.user.count({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE' } })).toBeGreaterThanOrEqual(1);
 
     // Sequentially, the very last one is protected.
@@ -141,7 +141,8 @@ describe('admin: commission and policies', () => {
     const agency = await createUser('AGENCY', 'agency@example.com');
     const traveler = await createUser('TRAVELER', 'traveler@example.com');
     const { tourId, departureId } = await createApprovedTour(agency.id, { price: 1_000_000, capacity: 10 });
-    const setRate = (ratePercent: unknown, token = admin.token) => request(app).put('/api/v1/admin/settings/commission').set(bearer(token)).send({ ratePercent });
+    let revision = 0;
+    const setRate = async (ratePercent: unknown, token = admin.token) => { const result = await request(app).put('/api/v1/admin/settings/commission').set(bearer(token)).send({ ratePercent, expectedVersion: revision }); if (result.status === 200) revision = result.body.data.version; return result; };
     const book = () =>
       request(app)
         .post('/api/v1/bookings')
@@ -173,7 +174,7 @@ describe('admin: commission and policies', () => {
   it('policies are public to read, admin-only to write, limited to the known keys, and audited', async () => {
     const admin = await createUser('SUPER_ADMIN', 'admin@example.com');
     const moderator = await createUser('MODERATOR', 'mod@example.com');
-    const put = (key: string, body: object, token = admin.token) => request(app).put(`/api/v1/admin/policies/${key}`).set(bearer(token)).send(body);
+    const put = (key: string, body: object, token = admin.token) => request(app).put(`/api/v1/admin/policies/${key}`).set(bearer(token)).send({ expectedVersion: 0, reason: 'Policy reviewed and updated', ...body });
 
     expect((await request(app).get('/api/v1/policies/cancellation')).status).toBeLessThan(500);
     expect((await put('cancellation', { title: 'Cancellation', content: 'Free until 48h before departure.', params: { cancellationWindowHours: 48 } })).status).toBe(200);
@@ -199,7 +200,7 @@ describe('admin: commission and policies', () => {
     await request(app)
       .put('/api/v1/admin/policies/cancellation')
       .set(bearer(admin.token))
-      .send({ title: 'Cancellation', content: 'Strict', params: { cancellationWindowHours: 24 * 10 } });
+      .send({ expectedVersion: 0, reason: 'Policy reviewed and updated', title: 'Cancellation', content: 'Strict', params: { cancellationWindowHours: 24 * 10 } });
     const booking = await request(app)
       .post('/api/v1/bookings')
       .set(bearer(traveler.token))

@@ -18,6 +18,7 @@ import { setUser } from '@/features/auth/store/authSlice';
 import { getApiErrorCode, getApiErrorMessage } from '@/features/auth/utils/apiError';
 import { useAppDispatch } from '@/store/hooks';
 import { GuideProfileForm } from './GuideProfileForm';
+import { GuidePayoutAccountForm } from './GuidePayoutAccountForm';
 
 /** Use cases "View Profile" and "Update Profile" for the logged-in Tour guide. */
 export function GuideProfilePage() {
@@ -109,6 +110,13 @@ function GuideProfileSummary({
 
   return (
     <div className="space-y-8">
+      <GuidePayoutAccountForm key={user.id} account={user.bankAccount} />
+      <div className="flex flex-wrap items-center gap-3">
+        <a href={`/tour-guides/${user.id}`} className="rounded-xl border border-teal-200 px-4 py-2 text-sm font-semibold text-teal-800">Xem trước hồ sơ công khai</a>
+        <Badge variant={user.twoFactorEnabled ? 'success' : 'warning'}>
+          {user.twoFactorEnabled ? 'Đã kích hoạt bảo mật 2 lớp' : 'Chưa kích hoạt bảo mật 2 lớp'}
+        </Badge>
+      </div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-teal">Hồ sơ Hướng dẫn viên</p>

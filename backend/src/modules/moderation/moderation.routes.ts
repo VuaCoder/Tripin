@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { PERMISSIONS } from '@travel-platform/constants';
-import { requirePermission } from '../../middlewares/authorize';
+import { requirePermission, requireSuperAdmin } from '../../middlewares/authorize';
 import { validate } from '../../middlewares/validate';
 import { moderationController as c } from './moderation.controller';
 import {
   banBody,
+  unbanBody,
   idParams,
   listAgenciesQuery,
   listReportsQuery,
@@ -44,7 +45,7 @@ moderationRouter.post('/reviews/:id/moderate', requirePermission(P.REVIEW_MODERA
 
 // Accounts
 moderationRouter.post('/users/:id/ban', requirePermission(P.ACCOUNT_BAN), validate({ params: idParams, body: banBody }), c.ban);
-moderationRouter.post('/users/:id/unban', requirePermission(P.ACCOUNT_BAN), validate({ params: idParams }), c.unban);
+moderationRouter.post('/users/:id/unban', requireSuperAdmin, requirePermission(P.ACCOUNT_BAN), validate({ params: idParams, body: unbanBody }), c.unban);
 
 // Disputes (reports)
 moderationRouter.get('/reports', requirePermission(P.DISPUTE_RESOLVE), validate({ query: listReportsQuery }), c.listReports);

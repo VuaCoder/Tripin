@@ -12,6 +12,7 @@ const labels = (items: RouteInfo[]) => items.map(label).sort();
 
 /** Endpoints anybody (GUEST) may call. Mutations here are credential flows or the signed payment webhook. */
 const PUBLIC_ROUTES = [
+  'POST /auth/staff/activate',
   'GET /premium/plans',
   'GET /premium/guides/:id',
   'GET /agencies/:id',
@@ -51,6 +52,7 @@ const PUBLIC_ROUTES = [
 
 /** Logged-in-only routes WITHOUT a permission: each one is scoped to the caller's own data by the token. */
 const LOGIN_ONLY_ROUTES = [
+  'POST /policies/accept',
   'GET /auth/security',
   'POST /auth/change-password',
   'DELETE /notifications/:id',
@@ -79,14 +81,12 @@ const BODYLESS_MUTATIONS = [
   'POST /complaints/:id/accept-resolution',
   'POST /complaints/images/upload-signature',
   'POST /moderation/complaint-tickets/images/upload-signature',
-  'POST /moderation/users/:id/unban',
+  'POST /users/me/guide-application/dev-accept',
   'POST /notifications/read-all',
   'POST /payments/bookings/:bookingId/checkout',
   'POST /payments/webhooks/payos',
   'POST /support/tickets/:id/close',
   'POST /users/me/agency-verification',
-  'POST /users/me/guide-application/dev-accept',
-  'POST /guide/e-tickets/:tourId/complete',
   'POST /wishlist/:tourId',
 ].sort();
 

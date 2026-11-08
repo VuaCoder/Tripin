@@ -1,6 +1,7 @@
 import type { UserProfile } from '@/features/auth/types';
 
 export interface UpdateProfileRequest {
+  bankAccount?: { bankName: string; accountNumber: string; accountHolder: string } | null;
   fullName?: string;
   phone?: string | null;
   avatarUrl?: string | null;
@@ -9,7 +10,7 @@ export interface UpdateProfileRequest {
     companyName?: string;
     description?: string;
     address?: string;
-    website?: string;
+    website?: string | null;
     licenseNumber?: string;
   };
   /** Accepted by `PATCH /users/me` for `TOUR_GUIDE` only. */

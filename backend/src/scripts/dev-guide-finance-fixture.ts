@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { env } from '../config/env';
-import { prisma } from '../config/database';
+import { disconnectDatabase, prisma } from '../config/database';
 
 const PASSWORD = 'GuideFinance!2026';
 const EMAILS = [
@@ -196,4 +196,4 @@ main()
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  .finally(disconnectDatabase);

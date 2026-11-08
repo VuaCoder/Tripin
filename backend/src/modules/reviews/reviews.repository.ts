@@ -1,4 +1,7 @@
-import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
+import { writeAudit } from '../audit/audit.writer';
+import { writeNotification } from '../notifications/notifications.writer';
+import type { AuditEntry } from '../audit/audit.types';
+import { nullIfNotFound, prisma, type Prisma, type DbExecutor } from '../../config/database';
 import { Prisma as Sql } from '../../generated/prisma/client';
 import type { Review } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
@@ -19,7 +22,12 @@ const SORTS: Record<ReviewSort, Prisma.ReviewOrderByWithRelationInput[]> = {
 
 export class ReviewsRepository {
   create(data: NewReview): Promise<ReviewRecord> {
-    return prisma.review.create({ data });
+    return prisma.$transaction(async (tx) => {
+      await this.lockTour(tx, data.tourId);
+      const review = await tx.review.create({ data });
+      await this.refreshRating(tx, data.tourId);
+      return review;
+    });
   }
 
   findById(id: string): Promise<ReviewRecord | null> {
@@ -31,8 +39,37 @@ export class ReviewsRepository {
   }
 
   /** Compare-and-set on the status so two moderators cannot overwrite each other. */
-  transition(id: string, expected: ReviewStatus, patch: ReviewPatch): Promise<ReviewRecord | null> {
-    return prisma.review.update({ where: { id, status: expected }, data: patch }).catch(nullIfNotFound);
+  async transition(id: string, expected: ReviewStatus, patch: ReviewPatch, audit?: AuditEntry, content?: Pick<Review, 'comment' | 'rating' | 'images'>): Promise<ReviewRecord | null> {
+    return prisma.$transaction(async (tx) => {
+      const current = await tx.review.findUnique({ where: { id }, select: { tourId: true } });
+      if (!current) return null;
+      await this.lockTour(tx, current.tourId);
+      const updated = await tx.review.update({ where: { id, status: expected, ...(content ? { comment: content.comment, rating: content.rating, images: { equals: content.images } } : {}) }, data: patch });
+      if (audit) await writeAudit(tx, audit);
+      await this.refreshRating(tx, current.tourId);
+      if (audit) {
+        const hidden = updated.status === REVIEW_STATUS.HIDDEN;
+        const reason = String(audit.metadata?.reason ?? '');
+        for (const userId of new Set([updated.travelerId, updated.agencyId])) {
+          await writeNotification(tx, userId, {
+            type: 'REVIEW_MODERATED',
+            title: hidden ? 'Đánh giá đã bị ẩn' : 'Đánh giá đã được khôi phục',
+            body: `Đánh giá về "${updated.tourTitle}" đã ${hidden ? 'bị ẩn' : 'được khôi phục'}. Lý do kiểm duyệt: ${reason}`,
+            data: { reviewId: id, tourId: updated.tourId },
+          });
+        }
+      }
+      return updated;
+    }).catch(nullIfNotFound);
+  }
+
+  private async lockTour(tx: DbExecutor, tourId: string): Promise<void> {
+    await tx.$queryRaw`SELECT "id" FROM "Tour" WHERE "id" = ${tourId}::uuid FOR UPDATE`;
+  }
+
+  private async refreshRating(tx: DbExecutor, tourId: string): Promise<void> {
+    const stats = await tx.review.aggregate({ where: { tourId, status: REVIEW_STATUS.VISIBLE }, _avg: { rating: true }, _count: { _all: true } });
+    await tx.tour.updateMany({ where: { id: tourId }, data: { ratingAvg: Math.round((stats._avg.rating ?? 0) * 100) / 100, ratingCount: stats._count._all } });
   }
 
   listPublic(query: ListPublicReviewsQuery) {

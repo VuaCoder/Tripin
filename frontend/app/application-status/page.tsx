@@ -192,7 +192,7 @@ function ApplicationStatusContent() {
       <h1 className={styles.title}>Hồ sơ của bạn đã được phê duyệt!</h1>
       <Link href="/agency/login" className={styles.action}>Đăng nhập Agency</Link>
     </>;
-  } else if (statusData?.verificationStatus === 'REJECTED') {
+  } else if (statusData && ['REJECTED', 'INFORMATION_REQUESTED'].includes(statusData.verificationStatus)) {
     const query = new URLSearchParams(statusData.token ? { token: statusData.token } : { email: statusData.email });
     message = <>
       <h1 className={styles.title}>Hồ sơ cần được bổ sung</h1>
@@ -232,7 +232,7 @@ function ApplicationStatusContent() {
 
   const visual = !loading && !error && statusData?.verificationStatus === 'VERIFIED'
     ? 'approved'
-    : !loading && !error && statusData?.verificationStatus === 'REJECTED' ? 'incomplete' : 'waiting';
+    : !loading && !error && (['REJECTED', 'INFORMATION_REQUESTED'].includes(statusData?.verificationStatus ?? '')) ? 'incomplete' : 'waiting';
   return <StatusScene visual={visual}>{message}</StatusScene>;
 }
 

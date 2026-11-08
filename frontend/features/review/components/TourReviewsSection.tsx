@@ -267,6 +267,8 @@ export function TourReviewsSection({ tourId, tourTitle, ratingAvg, ratingCount }
       </div>
 
       <WriteReviewDialog
+        key={eligibility.userId ?? 'guest'}
+        userId={eligibility.userId}
         open={dialogOpen && eligibility.status === 'eligible'}
         onClose={() => setDialogOpen(false)}
         tourTitle={tourTitle}

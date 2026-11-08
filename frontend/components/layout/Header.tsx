@@ -161,7 +161,7 @@ export function Header({ role }: { role?: AppRole }) {
     return <AgencyRightSidebar />;
   }
 
-  const items = navigationByRole[effectiveRole] || navigationByRole.PUBLIC;
+  const items = (navigationByRole[effectiveRole] || navigationByRole.PUBLIC).filter((item) => !item.permission || user?.permissions.includes(item.permission));
   const accountMenuItems = accountMenuForRole(effectiveRole);
 
   return (

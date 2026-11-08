@@ -13,6 +13,9 @@ import {
   verifyImageUpload,
   type ImageUploadSignature,
 } from '../../integrations/cloudinary';
+import { kickMailOutbox } from '../notifications/mail-outbox';
+import { encryptPayoutAccount } from './payout-account.crypto';
+import { notificationsService } from '../notifications';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
 import { buildPage, type Page } from '../../utils/pagination';
 import { assertTransition } from '../../utils/state-machine';
@@ -41,7 +44,7 @@ export interface UserSummary {
 
 type UsersRepo = Pick<
   UsersRepository,
-  'findById' | 'findManyByIds' | 'updateById' | 'updateStatusIf' | 'updateAgencyVerificationIf' | 'count' | 'list' | 'countGroupedBy' | 'countCreatedSince' | 'countAgenciesByVerification' | 'listActiveGuides'
+  'changeAccess' | 'changeBan' | 'findById' | 'findManyByIds' | 'updateById' | 'updateStatusIf' | 'updateAgencyVerificationIf' | 'count' | 'list' | 'countGroupedBy' | 'countCreatedSince' | 'countAgenciesByVerification' | 'listActiveGuides'
 >;
 
 const STAFF = new Set<PersistedRole>([ROLES.MODERATOR, ROLES.SUPER_ADMIN]);
@@ -49,7 +52,7 @@ const STAFF = new Set<PersistedRole>([ROLES.MODERATOR, ROLES.SUPER_ADMIN]);
 export class UsersService {
   constructor(
     private readonly users: UsersRepo = usersRepository,
-    private readonly audit: Pick<AuditService, 'record'> = auditService,
+    _audit: Pick<AuditService, 'record'> = auditService,
   ) {}
 
   // ------------------------------------------------------- Own profile
@@ -81,8 +84,8 @@ export class UsersService {
   async updateMe(userId: string, input: UpdateProfileInput): Promise<PrivateUserDto> {
     const user = await this.requireUser(userId);
 
-    if (input.avatarUrl !== undefined && user.role === ROLES.TRAVELER) {
-      throw AppError.forbidden('Traveler avatars must be uploaded from the profile image picker');
+    if (input.avatarUrl !== undefined && (user.role === ROLES.TRAVELER || user.role === ROLES.TOUR_GUIDE)) {
+      throw AppError.forbidden('Avatars must be uploaded from the profile image picker');
     }
     if (input.agencyProfile && user.role !== ROLES.AGENCY) {
       throw AppError.forbidden('Only agencies can edit an agency profile');
@@ -98,18 +101,31 @@ export class UsersService {
     if (input.fullName !== undefined) patch.fullName = input.fullName;
     if (input.phone !== undefined) patch.phone = input.phone;
     if (input.avatarUrl !== undefined) patch.avatarUrl = input.avatarUrl;
+    if (user.agencyProfile?.verificationStatus === AGENCY_VERIFICATION_STATUS.VERIFIED && input.agencyProfile) {
+      for (const key of ['companyName', 'licenseNumber', 'taxId', 'businessLicenseUrl'] as const) {
+        if (input.agencyProfile[key] !== undefined && input.agencyProfile[key] !== user.agencyProfile[key]) {
+          throw AppError.conflict('Verified legal information requires re-verification', 'AGENCY_REVERIFICATION_REQUIRED');
+        }
+      }
+    }
     const agencyFields = definedEntries(input.agencyProfile);
     if (agencyFields) patch.agencyProfile = agencyFields;
     const guideFields = definedEntries(input.guideProfile);
     if (guideFields) patch.guideProfile = guideFields;
     if (input.bankAccount !== undefined) {
-      patch.preferences = { ...this.storedPreferences(user), bankAccount: input.bankAccount } as unknown as UserPatch['preferences'];
+      const { bankAccount: _legacy, ...preferences } = this.storedPreferences(user);
+      patch.preferences = preferences as UserPatch['preferences'];
+      if (input.bankAccount) patch.payoutAccount = encryptPayoutAccount(userId, input.bankAccount);
+      else if (user.payoutAccount) patch.payoutAccount = null;
     }
     if (Object.keys(patch).length === 0) return toPrivateUserDto(user);
 
     const clearUploadedLicense =
       guideFields?.licenseImageUrl === null && Boolean(user.guideProfile?.licenseImageUrl?.startsWith('https://res.cloudinary.com/'));
-    const updated = await this.users.updateById(userId, patch);
+    const updated = agencyFields && user.agencyProfile
+      ? await this.users.updateAgencyVerificationIf(userId, user.agencyProfile.verificationStatus, patch)
+      : await this.users.updateById(userId, patch);
+    if (!updated) throw AppError.conflict('Profile changed; reload and retry', 'CONCURRENT_UPDATE');
     // Best-effort: the clear is already committed, so a failed delete must not fail the request.
     if (updated && clearUploadedLicense) {
       await destroyImage('licenseImage', imagePublicId('licenseImage', userId)).catch(() => undefined);
@@ -117,17 +133,17 @@ export class UsersService {
     return toPrivateUserDto(updated ?? user);
   }
 
-  /** Gives a Traveler a one-time Cloudinary signature scoped to their own avatar public id. */
+  /** Gives a Traveler or Guide a signature scoped to their own avatar public id. */
   async createTravelerAvatarUploadSignature(userId: string): Promise<ImageUploadSignature> {
     const user = await this.requireUser(userId);
-    this.assertTraveler(user);
+    this.assertAvatarRole(user);
     return createImageUploadSignature('avatar', userId);
   }
 
   /** Verifies the direct Cloudinary upload before associating it with this Traveler. */
   async completeTravelerAvatarUpload(userId: string, publicId: string): Promise<PrivateUserDto> {
     const user = await this.requireUser(userId);
-    this.assertTraveler(user);
+    this.assertAvatarRole(user);
     const asset = await verifyImageUpload('avatar', userId, publicId);
     const updated = await this.users.updateById(userId, { avatarUrl: asset.secureUrl });
     return toPrivateUserDto(updated ?? user);
@@ -136,7 +152,7 @@ export class UsersService {
   /** Removes the avatar reference and, only when Tripri owns the asset, removes it from Cloudinary too. */
   async removeTravelerAvatar(userId: string): Promise<PrivateUserDto> {
     const user = await this.requireUser(userId);
-    this.assertTraveler(user);
+    if (user.role !== ROLES.TRAVELER && user.role !== ROLES.AGENCY && user.role !== ROLES.TOUR_GUIDE) throw AppError.forbidden('Avatar removal is unavailable for this role');
     if (user.avatarUrl?.startsWith('https://res.cloudinary.com/')) await destroyImage('avatar', imagePublicId('avatar', userId));
     const updated = await this.users.updateById(userId, { avatarUrl: null });
     return toPrivateUserDto(updated ?? user);
@@ -171,7 +187,7 @@ export class UsersService {
     assertTransition(AGENCY_VERIFICATION_TRANSITIONS, current, AGENCY_VERIFICATION_STATUS.PENDING, 'Agency verification');
 
     const updated = await this.users.updateAgencyVerificationIf(userId, current, {
-      agencyProfile: { verificationStatus: AGENCY_VERIFICATION_STATUS.PENDING, verificationNote: null },
+      agencyProfile: { verificationStatus: AGENCY_VERIFICATION_STATUS.PENDING, verificationNote: null, submittedAt: new Date(), submissionDateEstimated: false },
     });
     if (!updated) throw AppError.invalidTransition(current, AGENCY_VERIFICATION_STATUS.PENDING, 'Agency verification');
     return toPrivateUserDto(updated);
@@ -349,6 +365,7 @@ export class UsersService {
     if (actorId === targetId) throw AppError.forbidden('You cannot change your own access');
     const target = await this.requireUser(targetId);
 
+    if (input.role && STAFF.has(input.role) && !target.emailVerifiedAt) throw AppError.badRequest('Verify email before granting staff privileges');
     const patch: UserPatch = {};
     if (input.role && input.role !== target.role) {
       if (target.role === ROLES.SUPER_ADMIN) {
@@ -363,32 +380,14 @@ export class UsersService {
         patch.guideProfile = { languages: [], specialties: [] };
       }
     }
+    if (input.revokedPermissions) patch.revokedPermissions = Array.from(new Set(input.revokedPermissions.filter(isPermission)));
     if (input.extraPermissions) {
       patch.extraPermissions = Array.from(new Set(input.extraPermissions.filter(isPermission)));
     }
     if (Object.keys(patch).length === 0) return toPrivateUserDto(target);
 
-    const updated = await this.users.updateById(targetId, patch);
-
-    // The check above can be outrun (two Super admins demoting each other at once). Verify AFTER writing and undo,
-    // so the platform is never left without a Super admin.
-    if (target.role === ROLES.SUPER_ADMIN && patch.role && (await this.users.count({ role: ROLES.SUPER_ADMIN, status: USER_STATUS.ACTIVE })) === 0) {
-      await this.users.updateById(targetId, { role: ROLES.SUPER_ADMIN });
-      throw AppError.conflict('The last SUPER_ADMIN cannot be demoted', 'LAST_SUPER_ADMIN');
-    }
-    await this.audit.record({
-      actorId,
-      actorRole: actor.role,
-      action: AUDIT_ACTIONS.USER_ACCESS_ASSIGNED,
-      targetType: 'user',
-      targetId,
-      metadata: {
-        fromRole: target.role,
-        toRole: patch.role ?? target.role,
-        extraPermissions: patch.extraPermissions ?? undefined,
-      },
-    });
-    return toPrivateUserDto(updated ?? target);
+    const updated = await this.users.changeAccess(actor, targetId, patch);
+    return toPrivateUserDto(updated);
   }
 
   // ------------------------------------------- Moderation (called by it)
@@ -397,47 +396,19 @@ export class UsersService {
   async banUser(actor: { userId: string; role: PersistedRole }, targetId: string, reason: string): Promise<PrivateUserDto> {
     if (actor.userId === targetId) throw AppError.forbidden('You cannot ban yourself');
     const target = await this.requireUser(targetId);
-    if (target.role === ROLES.SUPER_ADMIN) throw AppError.forbidden('A SUPER_ADMIN cannot be banned');
-    if (STAFF.has(target.role as PersistedRole) && actor.role !== ROLES.SUPER_ADMIN) {
-      throw AppError.forbidden('Only a SUPER_ADMIN can ban staff accounts');
-    }
+    if (STAFF.has(target.role as PersistedRole)) throw AppError.badRequest('Use the staff disable action for staff accounts');
     assertTransition(USER_STATUS_TRANSITIONS, target.status as keyof typeof USER_STATUS_TRANSITIONS, USER_STATUS.BANNED, 'Account');
-
-    const updated = await this.users.updateStatusIf(targetId, USER_STATUS.ACTIVE, {
-      status: USER_STATUS.BANNED,
-      bannedAt: new Date(),
-      bannedById: actor.userId,
-      banReason: reason,
-    });
-    if (!updated) throw AppError.invalidTransition(target.status, USER_STATUS.BANNED, 'Account');
-    await this.audit.record({
-      actorId: actor.userId,
-      actorRole: actor.role,
-      action: AUDIT_ACTIONS.USER_BANNED,
-      targetType: 'user',
-      targetId,
-      metadata: { reason },
-    });
-    return toPrivateUserDto(updated);
+    return toPrivateUserDto(await this.users.changeBan(actor, targetId, true, reason));
   }
 
-  async unbanUser(actor: { userId: string; role: PersistedRole }, targetId: string): Promise<PrivateUserDto> {
+  async unbanUser(actor: { userId: string; role: PersistedRole }, targetId: string, reason: string): Promise<PrivateUserDto> {
+    if (actor.role !== ROLES.SUPER_ADMIN) throw AppError.forbidden('Only Super Admin can unban accounts');
+    if (!reason || reason.trim().length < 10) throw AppError.badRequest('An unban reason of at least 10 characters is required');
     const target = await this.requireUser(targetId);
-    assertTransition(USER_STATUS_TRANSITIONS, target.status as keyof typeof USER_STATUS_TRANSITIONS, USER_STATUS.ACTIVE, 'Account');
-    const updated = await this.users.updateStatusIf(targetId, USER_STATUS.BANNED, {
-      status: USER_STATUS.ACTIVE,
-      bannedAt: null,
-      bannedById: null,
-      banReason: null,
-    });
-    if (!updated) throw AppError.invalidTransition(target.status, USER_STATUS.ACTIVE, 'Account');
-    await this.audit.record({
-      actorId: actor.userId,
-      actorRole: actor.role,
-      action: AUDIT_ACTIONS.USER_UNBANNED,
-      targetType: 'user',
-      targetId,
-    });
+    if (target.status !== USER_STATUS.BANNED) throw AppError.conflict('Account is not banned');
+    const updated = await this.users.changeBan(actor, targetId, false, reason.trim());
+    await notificationsService.notify(targetId, { type: 'ACCOUNT_UNBANNED', title: 'Your account has been restored', body: reason.trim() });
+    kickMailOutbox();
     return toPrivateUserDto(updated);
   }
 
@@ -445,33 +416,33 @@ export class UsersService {
   async decideAgencyVerification(
     moderator: { userId: string; role: PersistedRole },
     agencyId: string,
-    decision: { approve: boolean; note?: string },
+    decision: { approve: boolean; note?: string; requestInformation?: boolean },
   ): Promise<PrivateUserDto> {
     const agency = await this.requireUser(agencyId);
     if (agency.role !== ROLES.AGENCY || !agency.agencyProfile) throw AppError.notFound('Agency not found');
 
-    const next = decision.approve ? AGENCY_VERIFICATION_STATUS.VERIFIED : AGENCY_VERIFICATION_STATUS.REJECTED;
+    const next = decision.requestInformation ? AGENCY_VERIFICATION_STATUS.INFORMATION_REQUESTED : decision.approve ? AGENCY_VERIFICATION_STATUS.VERIFIED : AGENCY_VERIFICATION_STATUS.REJECTED;
     const current = agency.agencyProfile.verificationStatus as keyof typeof AGENCY_VERIFICATION_TRANSITIONS;
     assertTransition(AGENCY_VERIFICATION_TRANSITIONS, current, next, 'Agency verification');
 
     const update: UserPatch = {
       agencyProfile: {
         verificationStatus: next,
-        verifiedById: moderator.userId,
-        verifiedAt: new Date(),
-        ...(decision.note ? { verificationNote: decision.note } : {}),
+        verifiedById: decision.approve ? moderator.userId : null,
+        verifiedAt: decision.approve ? new Date() : null,
+        verificationNote: decision.note ?? null,
       },
     };
-    const updated = await this.users.updateAgencyVerificationIf(agencyId, current, update);
-    if (!updated) throw AppError.invalidTransition(current, next, 'Agency verification'); // another moderator decided first
-    await this.audit.record({
+    const updated = await this.users.updateAgencyVerificationIf(agencyId, current, update, {
       actorId: moderator.userId,
       actorRole: moderator.role,
       action: AUDIT_ACTIONS.AGENCY_VERIFICATION_DECIDED,
       targetType: 'user',
       targetId: agencyId,
-      metadata: { approved: decision.approve, note: decision.note },
+      metadata: { before: { status: current, verificationNote: agency.agencyProfile.verificationNote }, after: { status: next, verificationNote: decision.note ?? null }, approved: decision.approve, note: decision.note },
     });
+    if (!updated) throw AppError.invalidTransition(current, next, 'Agency verification'); // another moderator decided first
+
     return toPrivateUserDto(updated);
   }
 
@@ -548,7 +519,8 @@ export class UsersService {
   private preferencesOf(user: UserRecord): UserPreferencesDto {
     const prefs = this.storedPreferences(user);
     return {
-      freeTimeSlots: (prefs.freeTimeSlots as UserPreferencesDto['freeTimeSlots'] | undefined) ?? DEFAULT_USER_PREFERENCES.freeTimeSlots,
+      freeTimeSlots: ((prefs.freeTimeSlots as UserPreferencesDto['freeTimeSlots'] | undefined) ?? DEFAULT_USER_PREFERENCES.freeTimeSlots)
+        .map((slot) => ({ ...slot, start: slot.start.replace(/^(\d):/, '0$1:'), end: slot.end.replace(/^(\d):/, '0$1:') })),
       voucherExpiryAlerts:
         prefs.voucherExpiryAlerts !== undefined ? Boolean(prefs.voucherExpiryAlerts) : DEFAULT_USER_PREFERENCES.voucherExpiryAlerts,
       emailAlerts: prefs.emailAlerts !== undefined ? Boolean(prefs.emailAlerts) : DEFAULT_USER_PREFERENCES.emailAlerts,
@@ -567,8 +539,8 @@ export class UsersService {
     return user;
   }
 
-  private assertTraveler(user: UserRecord): void {
-    if (user.role !== ROLES.TRAVELER) throw AppError.forbidden('Only Travelers can manage this avatar');
+  private assertAvatarRole(user: UserRecord): void {
+    if (user.role !== ROLES.TRAVELER && user.role !== ROLES.TOUR_GUIDE) throw AppError.forbidden('Avatar upload is unavailable for this role');
   }
 
   private assertGuide(user: UserRecord): void {

@@ -20,6 +20,8 @@ function toMessage(message: SupportTicketRecord['messages'][number], viewer: Vie
 export function toTicketSummary(ticket: SupportTicketRecord): TicketSummaryDto {
   return {
     id: ticket.id,
+    supportCode: ticket.supportCode,
+    resolutionNote: ticket.resolutionNote ?? undefined,
     subject: ticket.subject,
     category: ticket.category as TicketCategory,
     status: ticket.status as TicketStatus,

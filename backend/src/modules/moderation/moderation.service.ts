@@ -55,14 +55,14 @@ export class ModerationService {
   }
 
   /** Use case "Verify Agency Profile". The agency is told by app and email. */
-  async verifyAgency(actor: Actor, agencyId: string, decision: { approve: boolean; note?: string }): Promise<PrivateUserDto> {
+  async verifyAgency(actor: Actor, agencyId: string, decision: { approve: boolean; note?: string; requestInformation?: boolean }): Promise<PrivateUserDto> {
     const agency = await this.users.decideAgencyVerification(actor, agencyId, decision);
     await this.notifications.notify(
       agencyId,
       {
         type: NOTIFICATION_TYPE.AGENCY_VERIFICATION_DECIDED,
-        title: decision.approve ? 'Your agency was verified' : 'Your agency verification was rejected',
-        body: decision.approve
+        title: decision.requestInformation ? 'Cần bổ sung hồ sơ Agency' : decision.approve ? 'Your agency was verified' : 'Your agency verification was rejected',
+        body: decision.requestInformation ? `Vui lòng bổ sung hồ sơ: ${decision.note}` : decision.approve
           ? 'Your agency profile is verified. You can now submit tours for review.'
           : `Your verification request was rejected${decision.note ? `: ${decision.note}` : '.'} You can update your profile and request it again.`,
       },
@@ -78,7 +78,7 @@ export class ModerationService {
     return this.reviews.listForModeration(query);
   }
 
-  moderateReview(actor: Actor, id: string, decision: { hide: boolean; reason?: string }): Promise<ModerationReviewDto> {
+  moderateReview(actor: Actor, id: string, decision: { hide: boolean; reason?: string; restorationReason?: string; contentVersion?: string }): Promise<ModerationReviewDto> {
     return this.reviews.moderate(actor, id, decision);
   }
 
@@ -89,8 +89,8 @@ export class ModerationService {
     return this.users.banUser(actor, userId, reason);
   }
 
-  unbanUser(actor: Actor, userId: string): Promise<PrivateUserDto> {
-    return this.users.unbanUser(actor, userId);
+  unbanUser(actor: Actor, userId: string, reason: string): Promise<PrivateUserDto> {
+    return this.users.unbanUser(actor, userId, reason);
   }
 
   // ------------------------------------------- Disputes (reports) & tickets
@@ -117,12 +117,12 @@ export class ModerationService {
     return this.support.getForModeration(id);
   }
 
-  replyToTicket(actor: Actor, id: string, input: { text: string; resolve?: boolean }): Promise<ModerationTicketDto> {
+  replyToTicket(actor: Actor, id: string, input: { text: string; resolve?: boolean; resolutionNote?: string }): Promise<ModerationTicketDto> {
     return this.support.replyAsStaff(actor, id, input);
   }
 
-  setTicketStatus(actor: Actor, id: string, status: 'IN_PROGRESS' | 'RESOLVED'): Promise<ModerationTicketDto> {
-    return this.support.setStatus(actor, id, status);
+  setTicketStatus(actor: Actor, id: string, status: 'IN_PROGRESS' | 'RESOLVED', resolutionNote?: string): Promise<ModerationTicketDto> {
+    return this.support.setStatus(actor, id, status, resolutionNote);
   }
 }
 

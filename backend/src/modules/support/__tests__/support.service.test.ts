@@ -1,3 +1,4 @@
+vi.mock('../../notifications/mail-outbox', () => ({ kickMailOutbox: vi.fn(async () => undefined) }));
 import { describe, expect, it, vi } from 'vitest';
 import { ROLES } from '@travel-platform/constants';
 import { SupportService } from '../support.service';
@@ -23,6 +24,7 @@ function ticket(over: T = {}): T {
 function make(seed: T[] = []) {
   const db = [...seed];
   const repo = {
+    staffTransition: vi.fn(),
     create: vi.fn(async (data: T) => {
       const { message, ...rest } = data as T;
       const doc = ticket({ ...rest, id: `k${db.length + 1}`, status: 'OPEN', messageCount: 1, messages: [{ ...message, createdAt: new Date() }] });
@@ -114,47 +116,23 @@ describe('owner access', () => {
   });
 });
 
-describe('staff handling', () => {
-  it('first reply moves OPEN -> IN_PROGRESS, assigns the moderator and notifies the user (app + email)', async () => {
-    const { service, db, notifications } = make([ticket()]);
-    const dto = await service.replyAsStaff(moderator, 'k1', { text: 'We are checking your refund.' });
-    expect(dto).toMatchObject({ status: 'IN_PROGRESS', assignedTo: 'm1', userId: 'u1' });
-    expect(db[0]!.messages.at(-1)).toMatchObject({ authorKind: 'STAFF', authorId: 'm1' });
-    expect(notifications.notify).toHaveBeenCalledWith('u1', expect.objectContaining({ type: 'SUPPORT_REPLIED' }), { email: true });
+describe('staff handling delegates to the atomic repository transition', () => {
+  it('passes actor and explicit resolution note to the repository', async () => {
+    const { service, repo } = make();
+    repo.staffTransition.mockResolvedValue(ticket({ status: 'RESOLVED', assignedToId: 'm1', supportCode: 'SUP-TEST' }));
+    await service.setStatus(moderator, 'k1', 'RESOLVED', 'Refund verified and paid');
+    expect(repo.staffTransition).toHaveBeenCalledWith('k1', 'm1', true, 'Refund verified and paid');
   });
-
-  it('keeps the original assignee on later replies and can resolve in the same step', async () => {
-    const { service, db } = make([ticket({ status: 'IN_PROGRESS', assignedToId: 'm0' })]);
-    const dto = await service.replyAsStaff(moderator, 'k1', { text: 'Refund sent.', resolve: true });
-    expect(dto.status).toBe('RESOLVED');
-    expect(db[0]!.assignedToId).toBe('m0');
+  it('passes resolution through the reply path too', async () => {
+    const { service, repo } = make();
+    repo.staffTransition.mockResolvedValue(ticket({ status: 'RESOLVED', assignedToId: 'm1' }));
+    await service.replyAsStaff(moderator, 'k1', { text: 'Refund sent.', resolve: true, resolutionNote: 'Refund verified and paid' });
+    expect(repo.staffTransition).toHaveBeenCalledWith('k1', 'm1', true, 'Refund verified and paid', 'Refund sent.');
   });
-
-  it('cannot reply on resolved or closed tickets, nor on unknown ones', async () => {
-    for (const status of ['RESOLVED', 'CLOSED']) {
-      const { service } = make([ticket({ status })]);
-      await expect(service.replyAsStaff(moderator, 'k1', { text: 'late answer' })).rejects.toMatchObject({ code: 'INVALID_STATE_TRANSITION' });
-    }
-    await expect(make().service.replyAsStaff(moderator, 'nope', { text: 'hello?' })).rejects.toMatchObject({ statusCode: 404 });
-  });
-
-  it('setStatus enforces the state machine', async () => {
-    const { service } = make([ticket()]);
-    expect((await service.setStatus(moderator, 'k1', 'IN_PROGRESS')).status).toBe('IN_PROGRESS');
-    expect((await service.setStatus(moderator, 'k1', 'RESOLVED')).status).toBe('RESOLVED');
-    await expect(service.setStatus(moderator, 'k1', 'IN_PROGRESS')).resolves.toMatchObject({ status: 'IN_PROGRESS' }); // RESOLVED -> IN_PROGRESS is allowed (reopen)
-    const closed = make([ticket({ status: 'CLOSED' })]);
-    await expect(closed.service.setStatus(moderator, 'k1', 'RESOLVED')).rejects.toMatchObject({ code: 'INVALID_STATE_TRANSITION' });
-  });
-
-  it('names the sender, the assignee and the related booking code instead of leaving ids', async () => {
-    const { service } = make([ticket({ bookingId: 'b1', status: 'IN_PROGRESS', assignedToId: 'm0' })]);
-    expect(await service.getForModeration('k1')).toMatchObject({
-      userName: 'Tên u1',
-      assignedToName: 'Tên m0',
-      bookingCode: 'TRP-AAAA2222',
-      userId: 'u1', // the id stays on the wire: the reply/ban actions are keyed by it
-    });
-    expect(await service.setStatus(moderator, 'k1', 'RESOLVED')).toMatchObject({ userName: 'Tên u1' });
+  it('propagates claim and concurrency failures without notifying', async () => {
+    const { service, repo, notifications } = make();
+    repo.staffTransition.mockRejectedValue(new Error('Claim required'));
+    await expect(service.setStatus(moderator, 'k1', 'RESOLVED')).rejects.toThrow('Claim required');
+    expect(notifications.notify).not.toHaveBeenCalled();
   });
 });

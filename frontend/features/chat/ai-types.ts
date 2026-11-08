@@ -19,6 +19,7 @@ export interface AiConversationSummary {
 
 export interface AiConversationDetail extends AiConversationSummary {
   messages: {
+    incomplete?: boolean;
     id: string;
     role: 'user' | 'assistant';
     content: string;

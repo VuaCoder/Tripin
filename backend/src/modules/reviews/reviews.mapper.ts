@@ -1,5 +1,6 @@
 import type { ReviewRecord } from './reviews.repository';
 import type { ModerationReviewDto, MyReviewDto, PublicReviewDto, ReviewStatus } from './reviews.types';
+import { reviewContentVersion } from './reviews.revision';
 
 const createdAtOf = (review: ReviewRecord) => review.createdAt.toISOString();
 
@@ -44,6 +45,7 @@ export type ReviewNames = Pick<ModerationReviewDto, 'travelerName' | 'agencyName
 export function toModerationReviewDto(review: ReviewRecord, names: ReviewNames = {}): ModerationReviewDto {
   return {
     ...toMyReviewDto(review),
+    contentVersion: reviewContentVersion(review),
     travelerId: review.travelerId,
     agencyId: review.agencyId,
     moderatedAt: review.moderatedAt?.toISOString(),

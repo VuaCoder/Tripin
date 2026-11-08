@@ -23,7 +23,7 @@ function makeUser(overrides: Record<string, unknown> = {}) {
     role: ROLES.TRAVELER,
     status: USER_STATUS.ACTIVE,
     twoFactorEnabled: false,
-    extraPermissions: [],
+    extraPermissions: [], revokedPermissions: [], tokenVersion: 0, staffStatus: 'ACTIVE', emailVerifiedAt: new Date(),
     createdAt: new Date(),
     ...overrides,
   };
@@ -64,6 +64,8 @@ function makeService(initial: Record<string, FakeUser>) {
       applyPatch(user, patch);
       return user;
     }),
+    changeAccess: vi.fn(async (_actor: unknown, id: string, patch: Record<string, unknown>) => { applyPatch(db[id]!, patch); return db[id]; }),
+    changeBan: vi.fn(async (_actor: unknown, id: string, ban: boolean, reason: string) => { applyPatch(db[id]!, { status: ban ? 'BANNED' : 'ACTIVE', banReason: ban ? reason : null }); return db[id]; }),
     count: vi.fn(async () => 1),
     list: vi.fn(async () => ({ items: Object.values(db), total: Object.keys(db).length })),
   };
@@ -75,6 +77,13 @@ const MOD = { userId: 'm1', role: ROLES.MODERATOR } as const;
 const ADMIN = (userId: string) => ({ userId, role: ROLES.SUPER_ADMIN }) as const;
 
 describe('UsersService profile', () => {
+  it('allows guide signed avatar upload and removal while rejecting direct URL updates', async () => {
+    const { service } = makeService({ g1: makeUser({ id: 'g1', role: ROLES.TOUR_GUIDE }) });
+    await expect(service.createTravelerAvatarUploadSignature('g1')).resolves.toMatchObject({ purpose: 'avatar' });
+    expect((await service.completeTravelerAvatarUpload('g1', 'tripin/travelers/avatars/g1')).avatarUrl).toBe(LICENSE_URL);
+    expect((await service.removeTravelerAvatar('g1')).avatarUrl).toBeUndefined();
+    await expect(service.updateMe('g1', { avatarUrl: 'https://example.com/a.jpg' })).rejects.toMatchObject({ statusCode: 403 });
+  });
   it('rejects agency fields from a traveler', async () => {
     const { service } = makeService({ u1: makeUser() });
     await expect(service.updateMe('u1', { agencyProfile: { companyName: 'X Co' } })).rejects.toMatchObject({ statusCode: 403 });
@@ -88,11 +97,13 @@ describe('UsersService profile', () => {
 
   const payout = { bankName: 'Vietcombank', accountNumber: '0123456789', accountHolder: 'NGUYEN VAN A' };
 
-  it('stores a guide payout account inside preferences and returns it', async () => {
+  it('encrypts a guide payout account outside preferences and returns a masked number', async () => {
     const { service, db } = makeService({ g1: makeUser({ id: 'g1', role: ROLES.TOUR_GUIDE, preferences: { emailAlerts: true } }) });
     const dto = await service.updateMe('g1', { bankAccount: payout });
-    expect(dto.bankAccount).toEqual(payout);
-    expect(db.g1!.preferences).toEqual({ emailAlerts: true, bankAccount: payout });
+    expect(dto.bankAccount).toEqual({ ...payout, accountNumber: '****6789' });
+    expect(db.g1!.preferences).toEqual({ emailAlerts: true });
+    expect(JSON.stringify(db.g1!.payoutAccount)).not.toContain(payout.accountNumber);
+    expect(JSON.stringify(db.g1!.payoutAccount)).not.toContain(payout.accountHolder);
   });
 
   it('rejects a payout account from a non-guide and clears it with null', async () => {
@@ -103,7 +114,7 @@ describe('UsersService profile', () => {
     await expect(service.updateMe('t1', { bankAccount: payout })).rejects.toMatchObject({ statusCode: 403 });
     const dto = await service.updateMe('g1', { bankAccount: null });
     expect(dto.bankAccount).toBeUndefined();
-    expect((db.g1!.preferences as Record<string, unknown>).bankAccount).toBeNull();
+    expect((db.g1!.preferences as Record<string, unknown>).bankAccount).toBeUndefined();
   });
 
   it('keeps the payout account when notification preferences change', async () => {
@@ -171,11 +182,11 @@ describe('UsersService access & bans', () => {
   });
 
   it('promotes a user to MODERATOR and drops unknown permissions', async () => {
-    const { service, db, audit } = makeService({ u1: makeUser(), s1: makeUser({ id: 's1', role: ROLES.SUPER_ADMIN }) });
+    const { service, db, repo } = makeService({ u1: makeUser(), s1: makeUser({ id: 's1', role: ROLES.SUPER_ADMIN }) });
     await service.assignAccess(ADMIN('s1'), 'u1', { role: ROLES.MODERATOR, extraPermissions: ['audit:view', 'bogus:perm' as never] });
     expect(db.u1!.role).toBe(ROLES.MODERATOR);
     expect(db.u1!.extraPermissions).toEqual(['audit:view']);
-    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'user.access_assigned', targetId: 'u1' }));
+    expect(repo.changeAccess).toHaveBeenCalledWith(ADMIN('s1'), 'u1', expect.objectContaining({ role: 'MODERATOR', extraPermissions: ['audit:view'] }));
   });
 
   it('refuses to demote the last super admin', async () => {
@@ -187,7 +198,7 @@ describe('UsersService access & bans', () => {
   });
 
   it('lets a moderator ban a traveler but not another moderator or a super admin', async () => {
-    const { service, db, audit } = makeService({
+    const { service, db, repo } = makeService({
       u1: makeUser(),
       m2: makeUser({ id: 'm2', role: ROLES.MODERATOR }),
       s1: makeUser({ id: 's1', role: ROLES.SUPER_ADMIN }),
@@ -195,16 +206,16 @@ describe('UsersService access & bans', () => {
     const moderator = { userId: 'm1', role: ROLES.MODERATOR } as const;
     await service.banUser(moderator, 'u1', 'spam');
     expect(db.u1!.status).toBe(USER_STATUS.BANNED);
-    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'user.banned', metadata: { reason: 'spam' } }));
-    await expect(service.banUser(moderator, 'm2', 'x')).rejects.toMatchObject({ statusCode: 403 });
-    await expect(service.banUser(moderator, 's1', 'x')).rejects.toMatchObject({ statusCode: 403 });
+    expect(repo.changeBan).toHaveBeenCalledWith(moderator, 'u1', true, 'spam');
+    await expect(service.banUser(moderator, 'm2', 'x')).rejects.toMatchObject({ statusCode: 400 });
+    await expect(service.banUser(moderator, 's1', 'x')).rejects.toMatchObject({ statusCode: 400 });
     await expect(service.banUser(moderator, 'u1', 'again')).rejects.toMatchObject({ code: ERROR_CODES.INVALID_STATE_TRANSITION });
   });
 
   it('cannot ban yourself, and unban only works on banned accounts', async () => {
     const { service } = makeService({ u1: makeUser() });
     await expect(service.banUser({ userId: 'u1', role: ROLES.MODERATOR }, 'u1', 'x')).rejects.toMatchObject({ statusCode: 403 });
-    await expect(service.unbanUser(MOD, 'u1')).rejects.toMatchObject({ code: ERROR_CODES.INVALID_STATE_TRANSITION });
+    await expect(service.unbanUser(MOD, 'u1', 'Appeal reviewed and accepted')).rejects.toMatchObject({ statusCode: 403 });
   });
 });
 

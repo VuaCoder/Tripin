@@ -9,7 +9,7 @@ import { Header } from '../Header';
 const { premiumNavigate } = vi.hoisted(() => ({ premiumNavigate: vi.fn() }));
 vi.mock('@/features/premium/api', () => ({ useMyPremiumQuery: () => ({currentData:{active:false,endsAt:null,expired:false},refetch:vi.fn()}) }));
 vi.mock('@/features/notifications/api/notificationsApi', () => ({
-  useGetNotificationsQuery: () => ({
+  useGetNotificationsQuery: vi.fn().mockReturnValue({
     data: {
       data: [
         {

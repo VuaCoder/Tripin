@@ -9,7 +9,7 @@ import {
 } from '@travel-platform/constants';
 import type { TransitionMap } from '../../utils/state-machine';
 
-/** Payout details of a tour guide, stored inside `User.preferences` (no schema change). */
+/** Owner-facing payout details. Read responses mask accountNumber; updates require a full new number. */
 export interface BankAccountDto {
   bankName: string;
   accountNumber: string;
@@ -28,6 +28,8 @@ export interface PrivateUserDto {
   permissions: Permission[];
   /** Only the extra grants (role defaults excluded). Useful for the admin screen. */
   extraPermissions: Permission[];
+  revokedPermissions?: Permission[];
+  staffStatus?: string;
   twoFactorEnabled: boolean;
   emailVerifiedAt?: string;
   createdAt: string;
@@ -37,10 +39,12 @@ export interface PrivateUserDto {
     companyName?: string;
     description?: string;
     address?: string;
-    website?: string;
+    website?: string | null;
     licenseNumber?: string;
     taxId?: string;
     businessLicenseUrl?: string;
+    submittedAt?: string;
+    submissionDateEstimated?: boolean;
     verificationStatus: AgencyVerificationStatus;
     verificationNote?: string;
   };
@@ -87,7 +91,7 @@ export interface UpdateProfileInput {
     companyName?: string;
     description?: string;
     address?: string;
-    website?: string;
+    website?: string | null;
     licenseNumber?: string;
     taxId?: string;
     businessLicenseUrl?: string;
@@ -116,13 +120,15 @@ export interface ListUsersQuery {
 export interface AssignAccessInput {
   role?: PersistedRole;
   extraPermissions?: Permission[];
+  revokedPermissions?: Permission[];
 }
 
 const A = AGENCY_VERIFICATION_STATUS;
 /** Agency verification workflow (owned here, driven by the moderation module). */
 export const AGENCY_VERIFICATION_TRANSITIONS: TransitionMap<AgencyVerificationStatus> = {
   [A.UNVERIFIED]: [A.PENDING],
-  [A.PENDING]: [A.VERIFIED, A.REJECTED],
+  [A.PENDING]: [A.VERIFIED, A.REJECTED, A.INFORMATION_REQUESTED],
+  [A.INFORMATION_REQUESTED]: [A.PENDING],
   [A.REJECTED]: [A.PENDING],
 };
 

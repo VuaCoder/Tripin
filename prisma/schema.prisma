@@ -24,12 +24,13 @@ model User {
   avatarUrl        String?
   role             Role       @default(TRAVELER)
   extraPermissions String[]   @default([])
+  revokedPermissions String[] @default([])
+  tokenVersion Int @default(0)
+  staffStatus String @default("ACTIVE")
   status           UserStatus @default(PENDING_VERIFICATION)
   emailVerifiedAt  DateTime?
   googleId         String?    @unique
   twoFactorEnabled Boolean    @default(false)
-  /// Bumped on logout / password change so previously issued JWTs fail authentication.
-  tokenVersion     Int        @default(0)
   lastLoginAt      DateTime?
   bannedAt         DateTime?
   bannedById       String?    @db.Uuid
@@ -40,11 +41,22 @@ model User {
 
   agencyProfile AgencyProfile?
   guideProfile  GuideProfile?
+  payoutAccount GuidePayoutAccount?
   bannedBy      User?          @relation("UserBannedBy", fields: [bannedById], references: [id], onDelete: SetNull)
   bannedUsers   User[]         @relation("UserBannedBy")
 
   @@index([role, status, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
+}
+
+model GuidePayoutAccount {
+  guideId String @id @db.Uuid
+  encryptedDetails String
+  keyVersion String
+  last4 String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  guide User @relation(fields: [guideId], references: [id], onDelete: Cascade)
 }
 
 model AgencyProfile {
@@ -59,11 +71,13 @@ model AgencyProfile {
   verificationStatus AgencyVerificationStatus @default(UNVERIFIED)
   verifiedAt         DateTime?
   verifiedById       String?                  @db.Uuid
+  submittedAt DateTime?
+  submissionDateEstimated Boolean @default(false)
   verificationNote   String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([verificationStatus])
+  @@index([verificationStatus, submittedAt, userId])
 }
 
 model GuideProfile {
@@ -93,6 +107,7 @@ model Otp {
 }
 
 model RefreshToken {
+  tokenVersion Int @default(0)
   id        String    @id @default(uuid()) @db.Uuid
   userId    String    @db.Uuid
   tokenHash String    @unique
@@ -228,6 +243,9 @@ model Booking {
   status           BookingStatus        @default(PENDING)
   isPaid           Boolean              @default(false)
   refundRequired   Boolean              @default(false)
+  fulfillmentStatus String             @default("PENDING")
+  fulfillmentAttempts Int              @default(0)
+  fulfillmentNextAttemptAt DateTime?
   /// Snapshot of the refund amount when a refund is recorded (VND).
   refundAmount     Int?
   paymentExpiresAt DateTime?
@@ -237,6 +255,7 @@ model Booking {
   cancelReason     BookingCancelReason?
   cancelNote       String?
 
+  cancellationPolicySnapshot Json?
   clientRequestId String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -251,6 +270,7 @@ model Booking {
   @@index([status, confirmedAt(sort: Desc)])
   @@index([status, paymentExpiresAt])
   @@index([status, endDate])
+  @@index([status, fulfillmentStatus, fulfillmentNextAttemptAt])
 }
 
 model Payment {
@@ -326,6 +346,7 @@ model ETicket {
 }
 
 model Earning {
+  payout GuidePayoutLedger?
   id          String   @id @default(uuid()) @db.Uuid
   guideId     String   @db.Uuid
   bookingId   String   @unique @db.Uuid
@@ -338,6 +359,21 @@ model Earning {
   createdAt   DateTime @default(now())
 
   @@index([guideId, earnedAt(sort: Desc), id(sort: Desc)])
+}
+
+model GuidePayoutLedger {
+  id String @id @default(uuid()) @db.Uuid
+  earningId String @unique @db.Uuid
+  guideId String @db.Uuid
+  agencyId String @db.Uuid
+  tourId String @db.Uuid
+  amount BigInt
+  status String @default("PENDING")
+  transferReference String?
+  transferredAt DateTime?
+  createdAt DateTime @default(now())
+  earning Earning @relation(fields: [earningId], references: [id], onDelete: Restrict)
+  @@index([guideId, createdAt(sort: Desc)])
 }
 
 model Review {
@@ -391,6 +427,8 @@ model Report {
   @@index([reporterId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([agencyId, status, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])
+  @@index([targetType, targetId])
+  @@index([status, targetType, createdAt])
 }
 
 model Promotion {
@@ -631,6 +669,9 @@ model PremiumGuideActivity {
 }
 
 model SupportTicket {
+  supportCode String @unique @default(dbgenerated("('SUP-'::text || upper(substr(replace((gen_random_uuid())::text, '-'::text, ''::text), 1, 16)))"))
+  resolutionNote String?
+  resolvedAt DateTime?
   id            String         @id @default(uuid()) @db.Uuid
   userId        String         @db.Uuid
   subject       String
@@ -667,6 +708,12 @@ model SupportTicketMessage {
 }
 
 model ComplaintTicket {
+  slaDeadlineAt DateTime?
+  slaHours Float?
+  slaPolicyVersion Int?
+  escalationDeadlineAt DateTime?
+  escalationSlaHours Float?
+  escalationPolicyVersion Int?
   id                String                  @id @default(uuid()) @db.Uuid
   ticketCode        String                  @unique
   travelerId        String                  @db.Uuid
@@ -797,6 +844,7 @@ model AiConversation {
 }
 
 model AiMessage {
+  incomplete Boolean @default(false)
   id             String   @id @default(uuid()) @db.Uuid
   conversationId String   @db.Uuid
   /// user | assistant
@@ -830,6 +878,7 @@ model AuditLog {
 model SystemSetting {
   id          String   @id @default(uuid()) @db.Uuid
   key         String   @unique
+  version     Int @default(0)
   value       Json
   updatedById String?  @db.Uuid
   createdAt   DateTime @default(now())
@@ -885,6 +934,7 @@ enum OtpPurpose {
 }
 
 enum AgencyVerificationStatus {
+  INFORMATION_REQUESTED
   UNVERIFIED
   PENDING
   VERIFIED
@@ -959,6 +1009,7 @@ enum ETicketStatus {
 }
 
 enum NotificationType {
+  ACCOUNT_UNBANNED
   TOUR_APPROVED
   TOUR_REJECTED
   TOUR_SUSPENDED
@@ -1061,4 +1112,49 @@ enum ComplaintTicketCategory {
   BILLING_REFUND
   SAFETY_URGENT
   OTHER
+}
+
+model StaffInvitation {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  tokenHash String @unique
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([userId, consumedAt])
+}
+
+model PolicyVersion {
+  id String @id @default(uuid()) @db.Uuid
+  key String
+  versionNumber Int
+  effectiveFrom DateTime
+  reason String
+  value Json
+  actorId String @db.Uuid
+  rollbackOf String? @db.Uuid
+  createdAt DateTime @default(now())
+  @@unique([key, versionNumber])
+  @@index([key, effectiveFrom(sort: Desc), versionNumber(sort: Desc)])
+}
+
+model PolicyAcceptance {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  policyVersionId String @db.Uuid
+  acceptedAt DateTime @default(now())
+  @@unique([userId, policyVersionId])
+}
+
+model MailOutbox {
+  id String @id @default(uuid()) @db.Uuid
+  dedupKey String @unique
+  recipient String
+  subject String
+  text String
+  sentAt DateTime?
+  attempts Int @default(0)
+  leaseUntil DateTime?
+  createdAt DateTime @default(now())
+  @@index([sentAt, leaseUntil, createdAt])
 }

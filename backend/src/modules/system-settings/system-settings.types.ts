@@ -1,10 +1,13 @@
 /** Keys of the editable policy documents ("Configure System Policies"). Add a key here to add a policy. */
-export const POLICY_KEYS = ['cancellation', 'refund', 'terms', 'privacy'] as const;
+export const POLICY_KEYS = ['cancellation', 'refund', 'terms', 'privacy', 'moderation'] as const;
 export type PolicyKey = (typeof POLICY_KEYS)[number];
 
 export type PolicyParamValue = number | string | boolean;
 
 export interface PolicyDto {
+  version: number;
+  activeVersion?: number;
+  policyVersionId?: string;
   key: PolicyKey;
   title: string;
   /** Human readable text (markdown) shown to users. */
@@ -15,6 +18,7 @@ export interface PolicyDto {
 }
 
 export interface CommissionDto {
+  version: number;
   /** Share of each paid booking kept by the platform, in percent (0–100, max 2 decimals). */
   ratePercent: number;
   /** Same value in basis points (1% = 100) — what money calculations use, to avoid float errors. */
@@ -37,6 +41,7 @@ export const DEFAULT_POLICIES: Record<PolicyKey, Pick<PolicyDto, 'title' | 'cont
     // Hours before departure after which a CONFIRMED booking can no longer be cancelled by the traveler.
     params: { cancellationWindowHours: 24 },
   },
+  moderation: { title: 'Moderation SLA', content: '', params: { slaHours: 48, escalationSlaHours: 24 } },
   refund: {
     title: 'Refund policy',
     content: '',

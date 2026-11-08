@@ -16,6 +16,7 @@ export const timestamp = (value?: string) => value ? new Date(value).toLocaleStr
 export const forbidden = (error: unknown) => (error as { status?: number })?.status === 403;
 
 const messages: Record<string, string> = {
+  SETTINGS_CONFLICT: 'Dữ liệu đã được quản trị viên khác thay đổi. Hãy nạp lại trước khi lưu.',
   CATEGORY_EXISTS: 'Tên danh mục tạo slug đã tồn tại. Hãy chọn tên khác.',
   PROMOTION_CODE_EXISTS: 'Mã khuyến mãi đã tồn tại.',
   PROMOTION_IN_USE: 'Khuyến mãi đã được sử dụng; không thể thay đổi mức giảm.',

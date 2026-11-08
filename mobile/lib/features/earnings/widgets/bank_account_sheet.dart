@@ -28,9 +28,13 @@ class _BankAccountSheetState extends State<BankAccountSheet> {
   @override
   void initState() {
     super.initState();
-    _bankController = TextEditingController(text: widget.initial?.bankName ?? '');
-    _numberController = TextEditingController(text: widget.initial?.accountNumber ?? '');
-    _holderController = TextEditingController(text: widget.initial?.accountHolder ?? '');
+    _bankController = TextEditingController(
+      text: widget.initial?.bankName ?? '',
+    );
+    _numberController = TextEditingController();
+    _holderController = TextEditingController(
+      text: widget.initial?.accountHolder ?? '',
+    );
   }
 
   @override
@@ -48,12 +52,12 @@ class _BankAccountSheetState extends State<BankAccountSheet> {
       _error = null;
     });
     final message = await context.read<EarningsCubit>().saveBankAccount(
-          BankAccount(
-            bankName: _bankController.text.trim(),
-            accountNumber: _numberController.text.trim(),
-            accountHolder: _holderController.text.trim(),
-          ),
-        );
+      BankAccount(
+        bankName: _bankController.text.trim(),
+        accountNumber: _numberController.text.trim(),
+        accountHolder: _holderController.text.trim(),
+      ),
+    );
     if (!mounted) return;
     if (message == null) {
       Navigator.of(context).pop(true);
@@ -95,19 +99,32 @@ class _BankAccountSheetState extends State<BankAccountSheet> {
                     const Expanded(
                       child: Text(
                         'Tài khoản nhận thù lao',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
                     IconButton(
-                      onPressed: _saving ? null : () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                      onPressed: _saving
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      icon: const Icon(
+                        Icons.close,
+                        color: AppColors.textSecondary,
+                      ),
                       tooltip: 'Đóng',
                     ),
                   ],
                 ),
                 const Text(
                   'Thông tin dùng để công ty chuyển thù lao quyết toán. Vui lòng kiểm tra kỹ trước khi lưu.',
-                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -117,8 +134,9 @@ class _BankAccountSheetState extends State<BankAccountSheet> {
                     labelText: 'Ngân hàng',
                     hintText: 'Ví dụ: Vietcombank',
                   ),
-                  validator: (value) =>
-                      (value ?? '').trim().length < 2 ? 'Nhập tên ngân hàng' : null,
+                  validator: (value) => (value ?? '').trim().length < 2
+                      ? 'Nhập tên ngân hàng'
+                      : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -151,8 +169,9 @@ class _BankAccountSheetState extends State<BankAccountSheet> {
                     labelText: 'Tên chủ thẻ',
                     hintText: 'Ví dụ: NGUYEN VAN A',
                   ),
-                  validator: (value) =>
-                      (value ?? '').trim().length < 2 ? 'Nhập tên chủ thẻ' : null,
+                  validator: (value) => (value ?? '').trim().length < 2
+                      ? 'Nhập tên chủ thẻ'
+                      : null,
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
@@ -160,7 +179,10 @@ class _BankAccountSheetState extends State<BankAccountSheet> {
                     liveRegion: true,
                     child: Text(
                       _error!,
-                      style: const TextStyle(color: AppColors.error, fontSize: 13),
+                      style: const TextStyle(
+                        color: AppColors.error,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ],
@@ -173,7 +195,10 @@ class _BankAccountSheetState extends State<BankAccountSheet> {
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Text('Lưu tài khoản'),
                   ),

@@ -83,8 +83,8 @@ export class ModerationController {
     sendOk(res, await this.service.banUser(actorOf(req), params.id, body.reason));
   };
   unban: RequestHandler = async (req, res) => {
-    const { params } = validated<unknown, unknown, IdParams>(req);
-    sendOk(res, await this.service.unbanUser(actorOf(req), params.id));
+    const { params, body } = validated<{ reason: string }, unknown, IdParams>(req);
+    sendOk(res, await this.service.unbanUser(actorOf(req), params.id, body.reason));
   };
 
   // ---- reports
@@ -127,7 +127,7 @@ export class ModerationController {
   };
   setTicketStatus: RequestHandler = async (req, res) => {
     const { params, body } = validated<TicketStatusBody, unknown, IdParams>(req);
-    sendOk(res, await this.service.setTicketStatus(actorOf(req), params.id, body.status as 'IN_PROGRESS' | 'RESOLVED'));
+    sendOk(res, await this.service.setTicketStatus(actorOf(req), params.id, body.status as 'IN_PROGRESS' | 'RESOLVED', body.resolutionNote));
   };
 }
 

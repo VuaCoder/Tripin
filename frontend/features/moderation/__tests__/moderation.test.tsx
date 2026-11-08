@@ -218,6 +218,6 @@ describe('ModerationDashboardPage', () => {
     render(<ModerationDashboardPage />);
     expect(screen.getByTestId('tile-Tour chờ duyệt').textContent).toBe('7');
     expect(screen.getByTestId('tile-Agency chờ xác minh').textContent).toBe('3');
-    expect(screen.getByTestId('tile-Báo cáo đang mở').textContent).toBe('3');
+    expect(screen.queryByTestId('tile-Báo cáo đang mở')).toBeNull();
   });
 });

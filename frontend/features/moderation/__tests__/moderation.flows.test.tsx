@@ -353,7 +353,7 @@ describe('ModerationReviewListPage', () => {
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã ẩn đánh giá'));
   });
 
-  it('restores a hidden review without a reason', async () => {
+  it('requires a reason to restore a hidden review', async () => {
     permissions = ['review:moderate'];
     mockReviews.mockReturnValue(q({ data: { items: [review({ status: 'HIDDEN', hiddenReason: 'Nhầm lẫn' })], meta: META } }));
     mockModerate.mockReturnValue(unwrapOk());
@@ -362,7 +362,10 @@ describe('ModerationReviewListPage', () => {
     expect(screen.queryByText('Ẩn đánh giá')).toBeNull();
     fireEvent.click(screen.getByText('Khôi phục đánh giá'));
 
-    await waitFor(() => expect(mockModerate).toHaveBeenCalledWith({ id: 'v1', hide: false }));
+    expect(mockModerate).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Review is compliant' } });
+    fireEvent.click(screen.getByRole('button', { name: /Khôi phục đánh giá/ }));
+    await waitFor(() => expect(mockModerate).toHaveBeenCalledWith({ id: 'v1', hide: false, restorationReason: 'Review is compliant' }));
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã khôi phục đánh giá'));
   });
 
@@ -398,16 +401,18 @@ describe('ModerationTicketListPage', () => {
     expect(screen.getByText(/ít nhất 2 ký tự/)).toBeTruthy();
   });
 
-  it('replies and marks the ticket resolved in one call', async () => {
+  it('replies and marks a claimed ticket resolved with a note', async () => {
     allowHandle();
+    mockTicket.mockReturnValue(q({ data: { ...ticket(), assignedTo: 'm1', status: 'IN_PROGRESS' } }));
     mockReply.mockReturnValue(unwrapOk());
     render(<ModerationTicketListPage />);
     fireEvent.click(screen.getByText('Xem & xử lý'));
     fireEvent.change(screen.getByLabelText('Trả lời du khách'), { target: { value: 'Chúng tôi đã gửi lại vé.' } });
+    fireEvent.change(screen.getByLabelText('Ghi chú giải quyết'), { target: { value: 'Đã xác minh và gửi lại vé' } });
     fireEvent.click(screen.getByLabelText(/Đánh dấu khiếu nại đã được giải quyết/));
     fireEvent.click(screen.getByText('Gửi trả lời'));
 
-    await waitFor(() => expect(mockReply).toHaveBeenCalledWith({ id: 's1', text: 'Chúng tôi đã gửi lại vé.', resolve: true }));
+    await waitFor(() => expect(mockReply).toHaveBeenCalledWith({ id: 's1', text: 'Chúng tôi đã gửi lại vé.', resolve: true, resolutionNote: 'Đã xác minh và gửi lại vé' }));
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã gửi trả lời'));
   });
 

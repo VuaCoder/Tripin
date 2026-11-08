@@ -150,11 +150,11 @@ describe('agency complaints', () => {
 describe('moderator resolution', () => {
   it('decides an OPEN or an answered report, audits it and informs reporter (email) and agency', async () => {
     for (const status of ['OPEN', 'AGENCY_RESPONDED']) {
-      const { service, db, audit, notifications } = make([stored({ status })]);
+      const { service, db, repo, notifications } = make([stored({ status })]);
       const dto = await service.resolve(moderator, 'r1', { decision: 'RESOLVED', note: 'Photos were replaced' });
       expect(dto.status).toBe('RESOLVED');
       expect(db[0]!.resolution).toMatchObject({ decision: 'RESOLVED', by: 'm1' });
-      expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'report.resolved' }));
+      expect(repo.transition).toHaveBeenCalledWith('r1', expect.anything(), expect.any(Object), expect.objectContaining({ action: 'report.resolved' }));
       expect(notifications.notify).toHaveBeenCalledWith('u1', expect.objectContaining({ type: 'REPORT_RESOLVED' }), { email: true });
       expect(notifications.notify).toHaveBeenCalledWith('a1', expect.objectContaining({ type: 'REPORT_UPDATED' }));
     }

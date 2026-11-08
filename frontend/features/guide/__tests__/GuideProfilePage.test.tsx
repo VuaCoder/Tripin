@@ -64,6 +64,24 @@ afterEach(() => {
 });
 
 describe('GuideProfilePage', () => {
+  it('links preview to the public route and displays the server 2FA status', () => {
+    mockUseGetMeQuery.mockReturnValue({ data: { success: true, data: { ...guide, twoFactorEnabled: true } }, isLoading: false, isError: false, refetch: vi.fn() });
+    renderPage(<GuideProfilePage />);
+    expect(screen.getByRole('link', { name: 'Xem trước hồ sơ công khai' }).getAttribute('href')).toBe('/tour-guides/guide-1');
+    expect(screen.getByText('Đã kích hoạt bảo mật 2 lớp')).toBeTruthy();
+  });
+  it('never pre-fills a masked number into the payout update field', async () => {
+    mockUseGetMeQuery.mockReturnValue({ data: { success: true, data: { ...guide, bankAccount: { bankName: 'Bank', accountHolder: 'GUIDE', accountNumber: '****6789' } } }, isLoading: false, isError: false, refetch: vi.fn() });
+    mockUpdateMe.mockReturnValue({ unwrap: () => Promise.resolve({ success: true, data: guide }) });
+    renderPage(<GuideProfilePage />);
+    expect(screen.getByText(/\*\*\*\*6789/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật tài khoản nhận tiền' }));
+    const number = screen.getByLabelText('Số tài khoản mới') as HTMLInputElement;
+    expect(number.value).toBe('');
+    fireEvent.change(number, { target: { value: '00123456789' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu tài khoản nhận tiền' }));
+    await waitFor(() => expect(mockUpdateMe).toHaveBeenCalledWith({ bankAccount: { bankName: 'Bank', accountHolder: 'GUIDE', accountNumber: '00123456789' } }));
+  });
   it('shows the signed-in guide profile', () => {
     mockUseGetMeQuery.mockReturnValue({ data: { success: true, data: guide }, isLoading: false, isError: false, refetch: vi.fn() });
 

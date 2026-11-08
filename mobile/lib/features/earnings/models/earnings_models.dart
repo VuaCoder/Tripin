@@ -11,13 +11,17 @@ enum EarningsFilter {
 }
 
 /// One recorded earning (`GET /earnings/me`).
-class Earning {  const Earning({
+class Earning {
+  const Earning({
     required this.id,
     required this.bookingCode,
     required this.tourId,
     required this.tourTitle,
     required this.amount,
     this.earnedAt,
+    this.payoutStatus = 'PENDING',
+    this.transferredAt,
+    this.transferReference,
   });
 
   final String id;
@@ -28,6 +32,9 @@ class Earning {  const Earning({
   /// Whole VND, as stored by the backend.
   final int amount;
   final DateTime? earnedAt;
+  final String payoutStatus;
+  final DateTime? transferredAt;
+  final String? transferReference;
 
   factory Earning.fromJson(Map<String, dynamic> json) {
     final tour = json['tour'] as Map<String, dynamic>?;
@@ -38,6 +45,17 @@ class Earning {  const Earning({
       tourTitle: tour?['title'] as String? ?? '',
       amount: (json['amount'] as num?)?.toInt() ?? 0,
       earnedAt: DateTime.tryParse(json['earnedAt'] as String? ?? ''),
+      payoutStatus:
+          (json['payout'] as Map<String, dynamic>?)?['status'] as String? ??
+          'PENDING',
+      transferredAt: DateTime.tryParse(
+        (json['payout'] as Map<String, dynamic>?)?['transferredAt']
+                as String? ??
+            '',
+      ),
+      transferReference:
+          (json['payout'] as Map<String, dynamic>?)?['transferReference']
+              as String?,
     );
   }
 }
@@ -140,8 +158,8 @@ class BankAccount {
   }
 
   Map<String, dynamic> toJson() => {
-        'bankName': bankName,
-        'accountNumber': accountNumber,
-        'accountHolder': accountHolder,
-      };
+    'bankName': bankName,
+    'accountNumber': accountNumber,
+    'accountHolder': accountHolder,
+  };
 }

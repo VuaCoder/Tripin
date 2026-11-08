@@ -13,10 +13,10 @@ export const AuthFooter: React.FC = () => {
           <span className="text-brand-teal font-medium">Du lịch theo cách của bạn</span>
         </div>
         <div className="flex items-center space-x-6">
-          <Link href="/terms" className="hover:text-brand-teal transition-colors">
+          <Link href="/policies" className="hover:text-brand-teal transition-colors">
             Điều khoản dịch vụ
           </Link>
-          <Link href="/privacy" className="hover:text-brand-teal transition-colors">
+          <Link href="/policies" className="hover:text-brand-teal transition-colors">
             Chính sách bảo mật
           </Link>
           <Link href="/support" className="hover:text-brand-teal transition-colors">

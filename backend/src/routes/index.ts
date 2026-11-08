@@ -1,4 +1,9 @@
+import { staffRouter, staffActivationRouter } from '../modules/users/staff.routes';
+import { policyHistoryRouter, policyAcceptanceRouter } from '../modules/system-settings/policy-history.routes';
+import { moderationSlaRouter } from '../modules/complaints/sla.routes';
+import { auditExportRouter } from '../modules/audit/audit-export.routes';
 import { mount } from './registry';
+import { reviewTriageRouter } from '../modules/reviews/review-triage.routes';
 import { premiumRouter, agencyPremiumRouter, adminPremiumRouter } from '../modules/premium/premium.routes';
 import { auditRouter } from '../modules/audit';
 import { authRouter } from '../modules/auth';
@@ -36,13 +41,19 @@ apiRouter.get('/health', (_req, res) => {
   res.json({ success: true, data: { status: 'ok', uptimeSeconds: Math.round(process.uptime()) } });
 });
 
+mount('/moderation/sla', moderationSlaRouter);
 mount('/auth', authRouter);
+mount('/auth/staff', staffActivationRouter);
+mount('/admin/staff', staffRouter);
+mount('/admin/policies', policyHistoryRouter);
+mount('/policies', policyAcceptanceRouter);
 mount('/users', usersRouter);
 mount('/agency/guides', agencyGuidesRouter);
 mount('/tour-guides', publicGuidesRouter);
 mount('/agencies', publicAgenciesRouter);
 mount('/admin/users', adminUsersRouter);
 mount('/admin/audit-logs', auditRouter);
+mount('/admin/export', auditExportRouter);
 mount('/categories', publicCategoriesRouter);
 mount('/admin/categories', adminCategoriesRouter);
 mount('/policies', publicPoliciesRouter);
@@ -77,6 +88,7 @@ mount('/agency/complaint-tickets', agencyComplaintTicketsRouter);
 mount('/agency/review-disputes', agencyReviewDisputesRouter);
 mount('/support/tickets', supportRouter);
 mount('/moderation', moderationRouter);
+mount('/moderation/review-triage', reviewTriageRouter);
 mount('/moderation/complaint-tickets', moderatorComplaintTicketsRouter);
 mount('/agency/dashboard', agencyDashboardRouter);
 mount('/moderation/dashboard', moderationDashboardRouter);

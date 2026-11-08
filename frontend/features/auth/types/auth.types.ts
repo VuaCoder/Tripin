@@ -2,7 +2,7 @@ export type UserRole = 'TRAVELER' | 'AGENCY' | 'TOUR_GUIDE' | 'MODERATOR' | 'SUP
 
 export type UserStatus = 'PENDING_VERIFICATION' | 'ACTIVE' | 'BANNED';
 
-export type AgencyVerificationStatus = 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+export type AgencyVerificationStatus = 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'INFORMATION_REQUESTED';
 
 /** Roles a guest can self-register with from the public auth pages. */
 export type RegisterableRole = 'TRAVELER' | 'TOUR_GUIDE';
@@ -13,10 +13,11 @@ export interface UserProfile {
   fullName: string;
   phone?: string;
   avatarUrl?: string;
+  bankAccount?: { bankName: string; accountNumber: string; accountHolder: string };
   role: UserRole;
   status: UserStatus;
   permissions: string[];
-  extraPermissions: string[];
+  extraPermissions?: string[];
   twoFactorEnabled: boolean;
   emailVerifiedAt?: string;
   createdAt: string;

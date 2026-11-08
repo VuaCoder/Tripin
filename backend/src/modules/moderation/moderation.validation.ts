@@ -27,10 +27,17 @@ export const suspendTourBody = z.object({ reason }).strict();
 export const listAgenciesQuery = paginationQuerySchema.extend({
   status: z.enum(values(AGENCY_VERIFICATION_STATUS)).default(AGENCY_VERIFICATION_STATUS.PENDING),
 });
-export const verifyAgencyBody = z
-  .object({ approve: z.boolean(), note: z.string().trim().min(3).max(1000).optional() })
+const legacyVerifyAgencyBody = z
+  .object({ approve: z.boolean(), requestInformation: z.boolean().optional(), note: z.string().trim().min(3).max(1000).optional() })
   .strict()
-  .refine((v) => v.approve || Boolean(v.note), { message: 'note is required to reject', path: ['note'] });
+  .refine((v) => (!v.requestInformation && v.approve) || Boolean(v.note), { message: 'note is required to reject or request information', path: ['note'] }).refine((v) => !(v.approve && v.requestInformation), 'Conflicting agency decisions');
+
+export const verifyAgencyBody = z.union([
+  legacyVerifyAgencyBody,
+  z.object({ decision: z.enum(['APPROVE', 'REJECT', 'REQUEST_INFORMATION']), note: z.string().trim().min(3).max(1000).optional() }).strict()
+    .refine((v) => v.decision === 'APPROVE' || Boolean(v.note), { message: 'note is required', path: ['note'] })
+    .transform((v) => ({ approve: v.decision === 'APPROVE', requestInformation: v.decision === 'REQUEST_INFORMATION', note: v.note })),
+]);
 
 // ---- reviews
 export const listReviewsQuery = paginationQuerySchema.extend({
@@ -38,19 +45,24 @@ export const listReviewsQuery = paginationQuerySchema.extend({
   tourId: idSchema.optional(),
 });
 export const moderateReviewBody = z
-  .object({ hide: z.boolean(), reason: reason.optional() })
+  .object({ hide: z.boolean(), contentVersion: z.string().regex(/^[a-f0-9]{64}$/), reason: reason.optional(), restorationReason: reason.optional() })
   .strict()
-  .refine((v) => !v.hide || Boolean(v.reason), { message: 'reason is required when hiding', path: ['reason'] });
+  .refine((v) => !v.hide || Boolean(v.reason), { message: 'reason is required when hiding', path: ['reason'] })
+  .refine((v) => v.hide || Boolean(v.restorationReason), { message: 'restorationReason is required when restoring', path: ['restorationReason'] });
 
 // ---- accounts
+export const unbanBody = z.object({ reason: z.string().trim().min(10).max(1000) }).strict();
 export const banBody = z.object({ reason }).strict();
 
 // ---- reports
 export const listReportsQuery = paginationQuerySchema.extend({
+  q: z.string().trim().min(1).max(100).optional(),
+  from: z.coerce.date().optional(), to: z.coerce.date().optional(),
+  sort: z.enum(['newest', 'reports_desc']).optional(),
   status: z.enum(values(REPORT_STATUS)).optional(),
   targetType: z.enum(values(REPORT_TARGET)).optional(),
   category: z.enum(values(REPORT_CATEGORY)).optional(),
-});
+}).refine((v) => !v.from || !v.to || v.from <= v.to, 'Invalid date range');
 export const resolveReportBody = z
   .object({ decision: z.enum([REPORT_STATUS.RESOLVED, REPORT_STATUS.REJECTED]), note: z.string().trim().min(3).max(2000) })
   .strict();
@@ -60,8 +72,8 @@ export const listTicketsQuery = paginationQuerySchema.extend({
   status: z.enum(values(TICKET_STATUS)).optional(),
   category: z.enum(values(TICKET_CATEGORY)).optional(),
 });
-export const ticketReplyBody = z.object({ text: z.string().trim().min(2).max(4000), resolve: z.boolean().optional() }).strict();
-export const ticketStatusBody = z.object({ status: z.enum([TICKET_STATUS.IN_PROGRESS, TICKET_STATUS.RESOLVED]) }).strict();
+export const ticketReplyBody = z.object({ text: z.string().trim().min(2).max(4000), resolve: z.boolean().optional(), resolutionNote: z.string().trim().min(10).max(2000).optional() }).strict();
+export const ticketStatusBody = z.object({ status: z.enum([TICKET_STATUS.IN_PROGRESS, TICKET_STATUS.RESOLVED]), resolutionNote: z.string().trim().min(10).max(2000).optional() }).strict().refine((v) => v.status !== 'RESOLVED' || Boolean(v.resolutionNote), { message: 'resolutionNote is required', path: ['resolutionNote'] });
 
 export type ListToursQueryInput = z.infer<typeof listToursQuery>;
 export type ValidateTourBody = z.infer<typeof validateTourBody>;

@@ -142,6 +142,7 @@ export function toGuideTourDto(tour: TourRecord, agency?: UserSummary): GuideTou
       status: assignment.status as GuideTourDto['assignment']['status'],
       respondedAt: iso(assignment.respondedAt),
     },
+    departures: tour.departures.map((departure) => ({ id: departure.id, date: departure.date.toISOString(), endDate: new Date(departure.date.getTime() + tour.durationDays * 86400000).toISOString() })),
     nextDepartureDate: nextDepartureDate(tour),
   };
 }

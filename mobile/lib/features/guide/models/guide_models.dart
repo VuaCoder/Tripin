@@ -1,8 +1,11 @@
-DateTime? _parseDate(dynamic value) => value is String ? DateTime.tryParse(value) : null;
+DateTime? _parseDate(dynamic value) =>
+    value is String ? DateTime.tryParse(value) : null;
 
 /// A tour the logged-in guide is assigned to (`GET /guide/tours`).
 class GuideAssignedTour {
   const GuideAssignedTour({
+    this.departureId,
+    this.endDate,
     required this.id,
     required this.title,
     required this.destination,
@@ -15,6 +18,15 @@ class GuideAssignedTour {
   });
 
   final String id;
+  final String? departureId;
+  final DateTime? endDate;
+  DateTime? get effectiveEnd =>
+      endDate ?? nextDepartureDate?.add(Duration(days: durationDays));
+  bool get hasEnded => effectiveEnd?.isAfter(DateTime.now()) == false;
+  bool get isOngoing =>
+      !hasEnded &&
+      nextDepartureDate != null &&
+      !nextDepartureDate!.isAfter(DateTime.now());
   final String title;
   final String destination;
   final int durationDays;
@@ -30,6 +42,8 @@ class GuideAssignedTour {
   GuideAssignedTour copyWith({String? assignmentStatus}) {
     return GuideAssignedTour(
       id: id,
+      departureId: departureId,
+      endDate: endDate,
       title: title,
       destination: destination,
       durationDays: durationDays,
@@ -46,6 +60,8 @@ class GuideAssignedTour {
     final agency = json['agency'] as Map<String, dynamic>?;
     return GuideAssignedTour(
       id: json['id'] as String,
+      departureId: json['departureId'] as String?,
+      endDate: _parseDate(json['endDate']),
       title: json['title'] as String? ?? '',
       destination: json['destination'] as String? ?? '',
       durationDays: (json['durationDays'] as num?)?.toInt() ?? 0,
@@ -173,7 +189,9 @@ class GuideRoster {
       tourId: json['tourId'] as String? ?? '',
       tourTitle: json['tourTitle'] as String? ?? '',
       total: (json['total'] as num?)?.toInt() ?? items.length,
-      checkedIn: (json['checkedIn'] as num?)?.toInt() ?? items.where((item) => item.checkedIn).length,
+      checkedIn:
+          (json['checkedIn'] as num?)?.toInt() ??
+          items.where((item) => item.checkedIn).length,
       items: items,
     );
   }

@@ -1,4 +1,5 @@
 import type { PersistedRole } from '@travel-platform/constants';
+import { kickMailOutbox } from '../notifications/mail-outbox';
 import { AppError } from '../../utils/app-error';
 import { buildPage, type Page } from '../../utils/pagination';
 import { assertTransition } from '../../utils/state-machine';
@@ -28,7 +29,7 @@ export class SupportService {
   constructor(
     private readonly tickets: Pick<
       SupportRepository,
-      'create' | 'findById' | 'appendMessage' | 'transition' | 'listByUser' | 'listForModeration' | 'countByStatus'
+      'staffTransition' | 'create' | 'findById' | 'appendMessage' | 'transition' | 'listByUser' | 'listForModeration' | 'countByStatus'
     > = supportRepository,
     private readonly bookings: Pick<BookingsService, 'getFacts'> = bookingsService,
     private readonly users: Pick<UsersService, 'getSummaries'> = usersService,
@@ -102,51 +103,18 @@ export class SupportService {
    * A moderator answers. OPEN/IN_PROGRESS -> IN_PROGRESS, or RESOLVED when `resolve` is set. The first answering
    * moderator becomes the assignee. The user is notified in-app and by email.
    */
-  async replyAsStaff(actor: Actor, id: string, input: { text: string; resolve?: boolean }): Promise<ModerationTicketDto> {
-    const ticket = await this.tickets.findById(id);
-    if (!ticket) throw AppError.notFound('Ticket not found');
-    const next = input.resolve ? TICKET_STATUS.RESOLVED : TICKET_STATUS.IN_PROGRESS;
-    if (ticket.status === TICKET_STATUS.RESOLVED || ticket.status === TICKET_STATUS.CLOSED) {
-      throw AppError.invalidTransition(ticket.status, next, ENTITY);
-    }
-    if (next !== ticket.status) assertTransition(TICKET_TRANSITIONS, ticket.status as TicketStatus, next, ENTITY);
-
-    const updated = await this.tickets.appendMessage(
-      id,
-      [ticket.status as TicketStatus],
-      { authorId: actor.userId, authorKind: 'STAFF', text: input.text },
-      next,
-      ticket.assignedToId ? {} : { assignedToId: actor.userId },
-    );
-    if (!updated) throw this.appendFailure(ticket);
-
-    await this.notifications.notify(
-      ticket.userId,
-      {
-        type: NOTIFICATION_TYPE.SUPPORT_REPLIED,
-        title: input.resolve ? 'Your support ticket was resolved' : 'Support replied to your ticket',
-        body: `Re: ${ticket.subject}`,
-        data: { ticketId: id },
-      },
-      { email: true },
-    );
+  async replyAsStaff(actor: Actor, id: string, input: { text: string; resolve?: boolean; resolutionNote?: string }): Promise<ModerationTicketDto> {
+    const updated = await this.tickets.staffTransition(id, actor.userId, Boolean(input.resolve), input.resolutionNote, input.text);
+    await this.notifications.notify(updated.userId, { type: NOTIFICATION_TYPE.SUPPORT_REPLIED, title: input.resolve ? 'Your support ticket was resolved' : 'Support replied to your ticket', body: `${updated.supportCode}: ${updated.subject}`, data: { ticketId: id } }, { email: !input.resolve });
+    if (input.resolve) kickMailOutbox();
     return toModerationTicketDto(updated, await this.namesFor(updated));
   }
 
-  /** Status change without a message (e.g. claim a ticket, or mark it resolved). */
-  async setStatus(_actor: Actor, id: string, next: 'IN_PROGRESS' | 'RESOLVED'): Promise<ModerationTicketDto> {
-    const ticket = await this.tickets.findById(id);
-    if (!ticket) throw AppError.notFound('Ticket not found');
-    assertTransition(TICKET_TRANSITIONS, ticket.status as TicketStatus, next, ENTITY);
-    const updated = await this.tickets.transition(id, [ticket.status as TicketStatus], next);
-    if (!updated) throw AppError.conflict('The ticket changed, please retry', 'CONCURRENT_UPDATE');
-    if (next === TICKET_STATUS.RESOLVED) {
-      await this.notifications.notify(ticket.userId, {
-        type: NOTIFICATION_TYPE.SUPPORT_REPLIED,
-        title: 'Your support ticket was resolved',
-        body: `Re: ${ticket.subject}`,
-        data: { ticketId: id },
-      });
+  async setStatus(actor: Actor, id: string, next: 'IN_PROGRESS' | 'RESOLVED', resolutionNote?: string): Promise<ModerationTicketDto> {
+    const updated = await this.tickets.staffTransition(id, actor.userId, next === 'RESOLVED', resolutionNote);
+    if (next === 'RESOLVED') {
+      await this.notifications.notify(updated.userId, { type: NOTIFICATION_TYPE.SUPPORT_REPLIED, title: 'Your support ticket was resolved', body: `${updated.supportCode}: ${updated.subject}`, data: { ticketId: id } });
+      kickMailOutbox();
     }
     return toModerationTicketDto(updated, await this.namesFor(updated));
   }

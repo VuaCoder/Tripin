@@ -34,7 +34,7 @@ export type BookingRecord = Omit<Booking, FlattenedColumns> & {
   redemptions?: PromotionRedemption[];
 };
 
-type BookingScalars = Omit<Booking, 'id' | 'createdAt' | 'updatedAt' | 'guestPricing' | FlattenedColumns> & { guestPricing: Prisma.InputJsonValue };
+type BookingScalars = Omit<Booking, 'id' | 'createdAt' | 'updatedAt' | 'guestPricing' | 'cancellationPolicySnapshot' | FlattenedColumns> & { guestPricing: Prisma.InputJsonValue; cancellationPolicySnapshot: Prisma.InputJsonValue };
 
 export type NewBooking = Pick<
   Booking,
@@ -123,7 +123,18 @@ export class BookingsRepository {
 
   /** Compare-and-set on status: returns null when the booking is no longer in one of the expected statuses. */
   async transition(id: string, expected: readonly BookingStatus[], patch: BookingPatch, db: DbExecutor = prisma): Promise<BookingRecord | null> {
-    const row = await db.booking.update({ where: { id, status: { in: [...expected] } }, data: patch }).catch(nullIfNotFound);
+    // Reuse the caller's transaction for voucher/refund changes; standalone calls need the same atomic boundary.
+    if (db === prisma) return prisma.$transaction(tx => this.transition(id, expected, patch, tx));
+    const row = await (async () => {
+      const updated = await db.booking.update({
+        where: { id, status: { in: [...expected] }, ...(patch.status === BOOKING_STATUS.COMPLETED ? { endDate: { lte: new Date() } } : {}) },
+        data: patch,
+      });
+      if (patch.status === BOOKING_STATUS.CANCELLED) {
+        await db.eTicket.updateMany({ where: { bookingId: id, status: 'VALID' }, data: { status: 'CANCELLED', cancelledAt: new Date() } });
+      }
+      return updated;
+    })().catch(nullIfNotFound);
     return row ? toRecord(row) : null;
   }
 
@@ -146,6 +157,8 @@ export class BookingsRepository {
         .update({ where: { id: input.id, status: { in: [...input.expected] } }, data: input.patch })
         .catch(nullIfNotFound);
       if (!row) return null;
+
+      await tx.eTicket.updateMany({ where: { bookingId: input.id, status: 'VALID' }, data: { status: 'CANCELLED', cancelledAt: new Date() } });
 
       await tx.$executeRaw`
         UPDATE "TourDeparture" SET "remaining" = LEAST("capacity", "remaining" + ${input.seats})
@@ -198,7 +211,7 @@ export class BookingsRepository {
 
   /** CONFIRMED bookings whose tour has ended. */
   async findDueForCompletion(now: Date, limit: number): Promise<BookingRecord[]> {
-    const rows = await prisma.booking.findMany({ where: { status: BOOKING_STATUS.CONFIRMED, endDate: { lt: now } }, take: limit });
+    const rows = await prisma.booking.findMany({ where: { status: BOOKING_STATUS.CONFIRMED, endDate: { lte: now } }, take: limit });
     return rows.map(toRecord);
   }
 

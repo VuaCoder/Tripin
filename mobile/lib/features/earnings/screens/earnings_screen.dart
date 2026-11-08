@@ -20,7 +20,8 @@ class EarningsScreen extends StatefulWidget {
   State<EarningsScreen> createState() => _EarningsScreenState();
 }
 
-class _EarningsScreenState extends State<EarningsScreen> with AutomaticKeepAliveClientMixin {
+class _EarningsScreenState extends State<EarningsScreen>
+    with AutomaticKeepAliveClientMixin {
   late final EarningsApi _api = widget.api ?? DioEarningsApi();
 
   @override
@@ -62,7 +63,9 @@ class _EarningsView extends StatelessWidget {
             ),
             actions: [
               IconButton(
-                onPressed: busy ? null : () => context.read<EarningsCubit>().refresh(),
+                onPressed: busy
+                    ? null
+                    : () => context.read<EarningsCubit>().refresh(),
                 icon: const Icon(Icons.refresh),
                 tooltip: 'Làm mới',
               ),
@@ -75,11 +78,15 @@ class _EarningsView extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
                 if (state.listLoading && state.items.isNotEmpty) ...[
-                  const LinearProgressIndicator(minHeight: 2, color: AppColors.primary),
+                  const LinearProgressIndicator(
+                    minHeight: 2,
+                    color: AppColors.primary,
+                  ),
                   const SizedBox(height: 8),
                 ],
                 _SummaryCard(state: state),
-                if (state.summary != null && state.summary!.byMonth.isNotEmpty) ...[
+                if (state.summary != null &&
+                    state.summary!.byMonth.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   _EarningsChart(summary: state.summary!),
                 ],
@@ -111,7 +118,10 @@ class _SummaryCard extends StatelessWidget {
         onRetry: () => context.read<EarningsCubit>().retrySummary(),
       );
     } else if (state.summaryLoading && summary == null) {
-      child = const SizedBox(height: 150, child: Center(child: CircularProgressIndicator()));
+      child = const SizedBox(
+        height: 150,
+        child: Center(child: CircularProgressIndicator()),
+      );
     } else if (summary == null) {
       child = const SizedBox(height: 150);
     } else {
@@ -123,14 +133,25 @@ class _SummaryCard extends StatelessWidget {
               Container(
                 width: 38,
                 height: 38,
-                decoration: const BoxDecoration(color: AppColors.primarySurface, shape: BoxShape.circle),
-                child: const Icon(Icons.account_balance_wallet_outlined, color: AppColors.primary, size: 20),
+                decoration: const BoxDecoration(
+                  color: AppColors.primarySurface,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 10),
               const Expanded(
                 child: Text(
                   'Tổng quan thù lao',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
             ],
@@ -138,24 +159,37 @@ class _SummaryCard extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'Tổng thù lao ${_periodLabel(state.filter)}',
-            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             formatVnd(summary.totalAmount),
-            style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: AppColors.primary),
+            style: const TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+            ),
           ),
           const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
-                child: _Metric(label: 'Tour đã hoàn thành', value: '${summary.count}'),
+                child: _Metric(
+                  label: 'Tour đã hoàn thành',
+                  value: '${summary.count}',
+                ),
               ),
               Container(width: 1, height: 34, color: AppColors.border),
               const Expanded(
                 child: Padding(
                   padding: EdgeInsets.only(left: 16),
-                  child: _Metric(label: 'Chờ quyết toán', value: 'Chưa theo dõi'),
+                  child: _Metric(
+                    label: 'Chờ quyết toán',
+                    value: 'Chưa theo dõi',
+                  ),
                 ),
               ),
             ],
@@ -171,7 +205,11 @@ class _SummaryCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Thù lao được ghi nhận từ booking hoàn tất; hệ thống chưa theo dõi trạng thái chi trả.',
-                  style: TextStyle(fontSize: 11.5, color: AppColors.textMuted, height: 1.35),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.textMuted,
+                    height: 1.35,
+                  ),
                 ),
               ),
             ],
@@ -198,13 +236,23 @@ class _Metric extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11.5,
+            color: AppColors.textSecondary,
+          ),
+        ),
         const SizedBox(height: 4),
         Text(
           value,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
         ),
       ],
     );
@@ -235,10 +283,16 @@ class _EarningsChartState extends State<_EarningsChart> {
 
   @override
   Widget build(BuildContext context) {
-    final periods = earningsPeriods(widget.summary.byMonth, quarterly: _quarterly);
+    final periods = earningsPeriods(
+      widget.summary.byMonth,
+      quarterly: _quarterly,
+    );
     if (periods.isEmpty) return const SizedBox.shrink();
     final total = periods.fold<int>(0, (sum, p) => sum + p.totalAmount);
-    final colors = [for (var i = 0; i < periods.length; i++) _sliceColors[i % _sliceColors.length]];
+    final colors = [
+      for (var i = 0; i < periods.length; i++)
+        _sliceColors[i % _sliceColors.length],
+    ];
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration,
@@ -250,20 +304,35 @@ class _EarningsChartState extends State<_EarningsChart> {
               const Expanded(
                 child: Text(
                   'Thu nhập theo thời gian',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 2,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primarySurface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
-                    value: _safeFilterValue(context.watch<EarningsCubit>().state.filter),
-                    icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.primaryDark, size: 20),
+                    value: _safeFilterValue(
+                      context.watch<EarningsCubit>().state.filter,
+                    ),
+                    icon: const Icon(
+                      Icons.arrow_drop_down_rounded,
+                      color: AppColors.primaryDark,
+                      size: 20,
+                    ),
                     isDense: true,
                     style: const TextStyle(
                       fontSize: 12,
@@ -303,7 +372,10 @@ class _EarningsChartState extends State<_EarningsChart> {
                 width: 148,
                 height: 148,
                 child: CustomPaint(
-                  painter: _PiePainter(values: [for (final p in periods) p.totalAmount], colors: colors),
+                  painter: _PiePainter(
+                    values: [for (final p in periods) p.totalAmount],
+                    colors: colors,
+                  ),
                 ),
               ),
             ),
@@ -339,7 +411,11 @@ class _PiePainter extends CustomPainter {
       canvas.drawArc(rect, start, math.max(sweep - gap, 0.004), true, paint);
       start += sweep;
     }
-    canvas.drawCircle(size.center(Offset.zero), size.shortestSide * 0.29, Paint()..color = AppColors.surface);
+    canvas.drawCircle(
+      size.center(Offset.zero),
+      size.shortestSide * 0.29,
+      Paint()..color = AppColors.surface,
+    );
   }
 
   /// Cheap to redraw, and every parent rebuild carries new slices.
@@ -348,7 +424,11 @@ class _PiePainter extends CustomPainter {
 }
 
 class _PieLegend extends StatelessWidget {
-  const _PieLegend({required this.period, required this.color, required this.total});
+  const _PieLegend({
+    required this.period,
+    required this.color,
+    required this.total,
+  });
 
   final EarningsPeriod period;
   final Color color;
@@ -356,21 +436,38 @@ class _PieLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final percent = total == 0 ? '0%' : '${(period.totalAmount * 100 / total).round()}%';
+    final percent = total == 0
+        ? '0%'
+        : '${(period.totalAmount * 100 / total).round()}%';
     return Row(
       children: [
-        Container(width: 9, height: 9, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
         const SizedBox(width: 8),
         Text(
           period.label,
-          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          style: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
         ),
         const SizedBox(width: 6),
-        Text(percent, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+        Text(
+          percent,
+          style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+        ),
         const Spacer(),
         Text(
           formatVnd(period.totalAmount),
-          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+          style: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.bold,
+            color: AppColors.primaryDark,
+          ),
         ),
       ],
     );
@@ -403,7 +500,10 @@ class _HistorySection extends StatelessWidget {
           if (state.listError != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: _InlineError(message: state.listError!, onRetry: cubit.retryList),
+              child: _InlineError(
+                message: state.listError!,
+                onRetry: cubit.retryList,
+              ),
             ),
           for (var i = 0; i < state.items.length; i++) ...[
             if (i > 0) const Divider(height: 1, color: AppColors.borderLight),
@@ -412,7 +512,11 @@ class _HistorySection extends StatelessWidget {
           if (state.loadingMore)
             const Padding(
               padding: EdgeInsets.only(top: 12),
-              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
             )
           else if (state.canLoadMore)
             Padding(
@@ -436,7 +540,11 @@ class _HistorySection extends StatelessWidget {
               const Expanded(
                 child: Text(
                   'Lịch sử thu nhập',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
               Container(
@@ -449,7 +557,11 @@ class _HistorySection extends StatelessWidget {
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _safeFilterValue(state.filter),
-                    icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textPrimary, size: 18),
+                    icon: const Icon(
+                      Icons.arrow_drop_down_rounded,
+                      color: AppColors.textPrimary,
+                      size: 18,
+                    ),
                     isDense: true,
                     style: const TextStyle(
                       fontSize: 11.5,
@@ -499,8 +611,15 @@ class _EarningTile extends StatelessWidget {
           Container(
             width: 38,
             height: 38,
-            decoration: const BoxDecoration(color: AppColors.primarySurface, shape: BoxShape.circle),
-            child: const Icon(Icons.payments_outlined, size: 19, color: AppColors.primary),
+            decoration: const BoxDecoration(
+              color: AppColors.primarySurface,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.payments_outlined,
+              size: 19,
+              color: AppColors.primary,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -511,20 +630,48 @@ class _EarningTile extends StatelessWidget {
                   earning.tourTitle,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   formatEarnedAt(earning.earnedAt),
-                  style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary, height: 1.35),
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.textSecondary,
+                    height: 1.35,
+                  ),
                 ),
+                Text(
+                  earning.payoutStatus == 'TRANSFERRED'
+                      ? 'Đã chuyển tiền'
+                      : 'Chờ chuyển tiền',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                if (earning.transferredAt != null)
+                  Text(
+                    'Ngày chi trả: ${formatEarnedAt(earning.transferredAt)}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                if (earning.transferReference != null)
+                  Text(
+                    'Mã giao dịch: ${earning.transferReference}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
               ],
             ),
           ),
           const SizedBox(width: 8),
           Text(
             '+${formatVnd(earning.amount)}',
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
           ),
         ],
       ),
@@ -544,12 +691,20 @@ class _EmptyEarnings extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 26),
       child: Column(
         children: [
-          const Icon(Icons.receipt_long_outlined, size: 48, color: AppColors.textMuted),
+          const Icon(
+            Icons.receipt_long_outlined,
+            size: 48,
+            color: AppColors.textMuted,
+          ),
           const SizedBox(height: 12),
           Text(
             filtered ? 'Không có thu nhập trong kỳ này' : 'Chưa có thu nhập',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
@@ -557,7 +712,11 @@ class _EmptyEarnings extends StatelessWidget {
                 ? 'Thù lao được ghi nhận sau khi booking hoàn tất. Thử chọn "Toàn bộ" để xem tất cả.'
                 : 'Thu nhập sẽ được ghi nhận khi booking hoàn tất và bạn đã chấp nhận phân công tour.',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary, height: 1.4),
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
           ),
         ],
       ),
@@ -582,16 +741,26 @@ class _BankSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.account_balance_outlined, size: 20, color: AppColors.primary),
+              const Icon(
+                Icons.account_balance_outlined,
+                size: 20,
+                color: AppColors.primary,
+              ),
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
                   'Tài khoản nhận thù lao',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
               TextButton(
-                onPressed: state.savingBank ? null : () => _openBankSheet(context, state),
+                onPressed: state.savingBank
+                    ? null
+                    : () => _openBankSheet(context, state),
                 child: Text(bank == null ? 'Cập nhật' : 'Sửa'),
               ),
             ],
@@ -599,7 +768,10 @@ class _BankSection extends StatelessWidget {
           if (state.bankLoading)
             const Padding(
               padding: EdgeInsets.only(top: 8),
-              child: LinearProgressIndicator(minHeight: 2, color: AppColors.primary),
+              child: LinearProgressIndicator(
+                minHeight: 2,
+                color: AppColors.primary,
+              ),
             )
           else if (state.bankError != null)
             _InlineError(message: state.bankError!, onRetry: cubit.retryBank)
@@ -608,13 +780,20 @@ class _BankSection extends StatelessWidget {
               padding: EdgeInsets.only(top: 4),
               child: Text(
                 'Chưa cập nhật tài khoản nhận thù lao. Thêm tài khoản để công ty chuyển thù lao quyết toán.',
-                style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary, height: 1.4),
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppColors.textSecondary,
+                  height: 1.4,
+                ),
               ),
             )
           else ...[
             const SizedBox(height: 8),
             _BankRow(label: 'Ngân hàng', value: bank.bankName),
-            _BankRow(label: 'Số tài khoản', value: maskAccountNumber(bank.accountNumber)),
+            _BankRow(
+              label: 'Số tài khoản',
+              value: maskAccountNumber(bank.accountNumber),
+            ),
             _BankRow(label: 'Tên chủ thẻ', value: bank.accountHolder),
           ],
         ],
@@ -659,12 +838,22 @@ class _BankRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 92,
-            child: Text(label, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: AppColors.textSecondary,
+              ),
+            ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
         ],
@@ -689,7 +878,11 @@ class _InlineError extends StatelessWidget {
         Expanded(
           child: Text(
             message,
-            style: const TextStyle(fontSize: 12.5, color: AppColors.error, height: 1.35),
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: AppColors.error,
+              height: 1.35,
+            ),
           ),
         ),
         TextButton(onPressed: onRetry, child: const Text('Thử lại')),

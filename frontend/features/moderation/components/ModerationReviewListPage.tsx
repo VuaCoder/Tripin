@@ -63,7 +63,7 @@ export function ModerationReviewListPage() {
       requiresReason: true,
       onConfirm: (reason) =>
         void decide(
-          () => moderateReview({ id: selected.id, hide: true, reason }).unwrap(),
+          () => moderateReview({ id: selected.id, contentVersion: selected.contentVersion, hide: true, reason }).unwrap(),
           'Đã ẩn đánh giá và cập nhật điểm của tour.',
           'Không thể ẩn đánh giá lúc này. Vui lòng thử lại.',
         ),
@@ -74,10 +74,10 @@ export function ModerationReviewListPage() {
       key: 'restore',
       label: 'Khôi phục đánh giá',
       tone: 'positive',
-      requiresReason: false,
-      onConfirm: () =>
+      requiresReason: true,
+      onConfirm: (restorationReason) =>
         void decide(
-          () => moderateReview({ id: selected.id, hide: false }).unwrap(),
+          () => moderateReview({ id: selected.id, contentVersion: selected.contentVersion, hide: false, restorationReason }).unwrap(),
           'Đã khôi phục đánh giá và cập nhật điểm của tour.',
           'Không thể khôi phục đánh giá lúc này. Vui lòng thử lại.',
         ),
@@ -187,7 +187,7 @@ export function ModerationReviewListPage() {
       <DecisionDialog
         open={Boolean(selected)}
         title="Chi tiết đánh giá"
-        reasonLabel={selected?.status === 'HIDDEN' ? 'Lý do (bắt buộc khi khoá tài khoản)' : 'Lý do ẩn đánh giá (bắt buộc)'}
+        reasonLabel={selected?.status === 'HIDDEN' ? 'Lý do khôi phục đánh giá (bắt buộc)' : 'Lý do ẩn đánh giá (bắt buộc)'}
         actions={actions}
         isSubmitting={isModerating || isBanning}
         serverError={serverError}

@@ -1,5 +1,5 @@
 import type { DateRange } from '../../utils/date-range';
-import { PAYMENT_PURPOSE } from '@travel-platform/constants';
+import { PAYMENT_PURPOSE, PERMISSIONS } from '@travel-platform/constants';
 import { TtlCache } from '../../utils/ttl-cache';
 import { bookingsService, type BookingsService } from '../bookings';
 import { paymentsService, type PaymentsService } from '../payments';
@@ -61,27 +61,32 @@ export class DashboardsService {
   }
 
   /** Use case "View moderation dashboard": the queues that need a human. */
-  moderationDashboard(): Promise<ModerationDashboardDto> {
-    return this.moderationCache.getOrCompute('all', async () => {
+  moderationDashboard(permissions: readonly string[] = Object.values(PERMISSIONS)): Promise<ModerationDashboardDto> {
+    const can = (permission: string) => permissions.includes(permission);
+    const tours = can(PERMISSIONS.TOUR_LIST_ALL);
+    const agencies = can(PERMISSIONS.AGENCY_VERIFY);
+    const reports = can(PERMISSIONS.DISPUTE_RESOLVE);
+    const tickets = can(PERMISSIONS.COMPLAINT_HANDLE);
+    const reviews = can(PERMISSIONS.REVIEW_MODERATE);
+    const key = [tours, agencies, reports, tickets, reviews].map(Number).join('');
+    return this.moderationCache.getOrCompute(key, async () => {
       const [tourCounts, userStats, reportCounts, ticketCounts, reviewCounts] = await Promise.all([
-        this.tours.countByStatus(),
-        this.users.getStats(),
-        this.reports.countByStatus(),
-        this.support.countByStatus(),
-        this.reviews.countByStatus(),
+        tours ? this.tours.countByStatus() : Promise.resolve({} as Record<string, number>),
+        agencies ? this.users.getStats() : Promise.resolve({ agenciesPendingVerification: 0 }),
+        reports ? this.reports.countByStatus() : Promise.resolve({} as Record<string, number>),
+        tickets ? this.support.countByStatus() : Promise.resolve({} as Record<string, number>),
+        reviews ? this.reviews.countByStatus() : Promise.resolve({} as Record<string, number>),
       ]);
       return {
         generatedAt: new Date().toISOString(),
         queues: {
-          toursPendingReview: tourCounts.PENDING_REVIEW ?? 0,
-          agenciesPendingVerification: userStats.agenciesPendingVerification,
-          reportsOpen: reportCounts.OPEN ?? 0,
-          reportsAwaitingDecision: reportCounts.AGENCY_RESPONDED ?? 0,
-          supportTicketsOpen: ticketCounts.OPEN ?? 0,
-          supportTicketsInProgress: ticketCounts.IN_PROGRESS ?? 0,
+          ...(tours ? { toursPendingReview: tourCounts.PENDING_REVIEW ?? 0 } : {}),
+          ...(agencies ? { agenciesPendingVerification: userStats.agenciesPendingVerification } : {}),
+          ...(reports ? { reportsOpen: reportCounts.OPEN ?? 0, reportsAwaitingDecision: reportCounts.AGENCY_RESPONDED ?? 0 } : {}),
+          ...(tickets ? { supportTicketsOpen: ticketCounts.OPEN ?? 0, supportTicketsInProgress: ticketCounts.IN_PROGRESS ?? 0 } : {}),
         },
-        tours: tourCounts,
-        reviews: { visible: reviewCounts.VISIBLE ?? 0, hidden: reviewCounts.HIDDEN ?? 0 },
+        ...(tours ? { tours: tourCounts } : {}),
+        ...(reviews ? { reviews: { visible: reviewCounts.VISIBLE ?? 0, hidden: reviewCounts.HIDDEN ?? 0 } } : {}),
       };
     });
   }

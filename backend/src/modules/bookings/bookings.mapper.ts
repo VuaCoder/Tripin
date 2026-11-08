@@ -80,6 +80,7 @@ export function toBookingFacts(booking: BookingRecord): BookingFacts {
     tourTitle: booking.tourTitle,
     departureId: booking.departureId,
     departureDate: booking.departureDate,
+    endDate: booking.endDate,
     participants: booking.participants,
     contactName: booking.contact.fullName,
     totalAmount: booking.totalAmount,

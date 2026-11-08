@@ -74,7 +74,7 @@ describe('audit log (integration)', () => {
     const traveler = await createUser('TRAVELER', 'traveler@example.com');
 
     await request(app).post(`/api/v1/moderation/users/${traveler.id}/ban`).set(bearer(moderator.token)).send({ reason: 'Fraudulent chargebacks' });
-    await request(app).put('/api/v1/admin/settings/commission').set(bearer(admin.token)).send({ ratePercent: 8 });
+    await request(app).put('/api/v1/admin/settings/commission').set(bearer(admin.token)).send({ ratePercent: 8, expectedVersion: 0 });
     await request(app).post('/api/v1/admin/categories').set(bearer(admin.token)).send({ name: 'Wellness' });
 
     const logs = (query = '', token = admin.token) => request(app).get(`/api/v1/admin/audit-logs${query}`).set(bearer(token));
@@ -96,7 +96,7 @@ describe('audit log (integration)', () => {
     expect(JSON.stringify(all.body)).not.toMatch(/passwordHash|token/i);
 
     expect((await logs('', moderator.token)).status).toBe(403);
-    expect((await logs('', traveler.token)).status).toBe(403);
+    expect((await logs('', traveler.token)).status).toBe(401); // ban revoked this session
     expect((await request(app).delete('/api/v1/admin/audit-logs')).status).toBeGreaterThanOrEqual(401);
     expect(await prisma.auditLog.count()).toBe(3);
   });
