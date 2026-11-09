@@ -4,27 +4,12 @@ import type { AuthState, UserProfile } from '../types';
 
 const STORAGE_KEY = 'tripri_auth_session';
 
-function getStoredSession(): { user: UserProfile; accessToken: string } | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && parsed.user && parsed.accessToken) {
-      return parsed;
-    }
-  } catch {
-    // Ignore corrupt storage
-  }
-  return null;
-}
-
-const stored = getStoredSession();
-
+// Keep the server and first client render identical. AuthBootstrap restores
+// the persisted session in an effect after hydration.
 const initialState: AuthState = {
-  user: stored?.user ?? null,
-  accessToken: stored?.accessToken ?? null,
-  status: stored ? 'authenticated' : 'idle',
+  user: null,
+  accessToken: null,
+  status: 'idle',
 };
 
 const authSlice = createSlice({
