@@ -1,3 +1,4 @@
+import { selectFormValue } from '@/test/select';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { MyReport } from '../types';
@@ -81,7 +82,7 @@ describe('ReportButton', () => {
     mockCreate.mockReturnValue(unwrapOk());
     render(<ReportButton targetType="TOUR" targetId="t1" />);
     fireEvent.click(screen.getByRole('button', { name: /Báo cáo/ }));
-    fireEvent.change(screen.getByLabelText('Loại vấn đề'), { target: { value: 'PAYMENT_OR_REFUND' } });
+    await selectFormValue('Loại vấn đề', 'PAYMENT_OR_REFUND');
     fireEvent.change(screen.getByLabelText('Mô tả chi tiết'), { target: { value: '  Đã trả tiền nhưng không nhận được vé.  ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Gửi báo cáo' }));
 

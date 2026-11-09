@@ -1,3 +1,4 @@
+import { selectFormValue } from '@/test/select';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../components/StaffActions', () => ({ InviteStaff: () => null, UserLifecycleAction: () => null }));
@@ -46,14 +47,14 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 describe('ADMIN-01 screen behavior', () => {
-  it('applies Vietnam date bounds to dashboard, switches chart metric, and resets to all time', () => {
+  it('applies Vietnam date bounds to dashboard, switches chart metric, and resets to all time', async () => {
     render(<AdminDashboardPage />);
     fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2026-10-01' } });
     fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2026-10-05' } });
     fireEvent.click(screen.getByRole('button', { name: 'Áp dụng' }));
     expect(mocks.dashboard.mock.calls.at(-1)![0]).toEqual({ from: '2026-09-30T17:00:00.000Z', to: '2026-10-05T16:59:59.999Z' });
     expect(screen.getByRole('img', { name: 'Biểu đồ so sánh tổng tiền, doanh thu đại lý và hoa hồng' })).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Chỉ số biểu đồ'), { target: { value: 'bookings' } });
+    await selectFormValue('Chỉ số biểu đồ', 'bookings');
     expect(screen.getByRole('img', { name: 'Biểu đồ số booking theo tháng' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Toàn thời gian' }));
     expect(mocks.dashboard.mock.calls.at(-1)![0]).toEqual({});
@@ -66,21 +67,21 @@ describe('ADMIN-01 screen behavior', () => {
     expect(screen.getByText('Vui lòng chọn đủ ngày bắt đầu và kết thúc.')).toBeTruthy();
     expect(mocks.dashboard.mock.calls.at(-1)![0]).toEqual(initial);
   });
-  it('searches categories without accents and filters inactive categories', () => {
+  it('searches categories without accents and filters inactive categories', async () => {
     mocks.categories.mockReturnValue(query([{ id: 'a', name: 'Đà Nẵng', slug: 'da-nang', isActive: true, sortOrder: 2 }, { id: 'b', name: 'Ẩm thực', slug: 'am-thuc', isActive: false, sortOrder: 1 }]));
     render(<AdminCategoriesPage />);
     fireEvent.change(screen.getByLabelText('Tìm danh mục'), { target: { value: 'da nang' } });
     expect(screen.getByRole('button', { name: 'Sửa Đà Nẵng' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Sửa Ẩm thực' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Đặt lại' }));
-    fireEvent.change(screen.getByLabelText('Trạng thái danh mục'), { target: { value: 'inactive' } });
+    await selectFormValue('Trạng thái danh mục', 'inactive');
     expect(screen.getByRole('button', { name: 'Sửa Ẩm thực' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Sửa Đà Nẵng' })).toBeNull();
   });
-  it('sends promotion text, type and date overlap filters to the backend, resetting page', () => {
+  it('sends promotion text, type and date overlap filters to the backend, resetting page', async () => {
     render(<AdminPromotionsPage />);
     fireEvent.change(screen.getByLabelText('Mã hoặc tên khuyến mãi'), { target: { value: 'SAVE' } });
-    fireEvent.change(screen.getByLabelText('Loại giảm giá'), { target: { value: 'FIXED' } });
+    await selectFormValue('Loại giảm giá', 'FIXED');
     fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2026-10-01' } });
     fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2026-10-05' } });
     fireEvent.click(screen.getByRole('button', { name: 'Áp dụng bộ lọc' }));
@@ -201,7 +202,7 @@ describe('ADMIN-01 screen behavior', () => {
     render(<AdminUsersPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Phân quyền Target User' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'audit:view (Super Admin)' }));
-    fireEvent.change(screen.getByLabelText('Vai trò'), { target: { value: 'MODERATOR' } });
+    await selectFormValue('Vai trò', 'MODERATOR');
     fireEvent.click(screen.getByRole('button', { name: 'Xem lại thay đổi' }));
     expect(mocks.access).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Xác nhận phân quyền' }));
@@ -210,13 +211,13 @@ describe('ADMIN-01 screen behavior', () => {
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.queryByText(/Đã lưu quyền cho/)).toBeNull();
   });
-  it('disables changing the acting admin and resets users pagination when filters change', () => {
+  it('disables changing the acting admin and resets users pagination when filters change', async () => {
     mocks.users.mockReturnValue(query({ items: [{ ...user, id: 'admin' }], meta: { ...meta, total: 20, totalPages: 2 } }));
     render(<AdminUsersPage />);
     expect((screen.getByRole('button', { name: 'Tài khoản của bạn' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
     expect(mocks.users.mock.calls.at(-1)![0].page).toBe(2);
-    fireEvent.change(screen.getByLabelText('Lọc vai trò'), { target: { value: 'MODERATOR' } });
+    await selectFormValue('Lọc vai trò', 'MODERATOR');
     expect(mocks.users.mock.calls.at(-1)![0]).toMatchObject({ page: 1, role: 'MODERATOR' });
   });
   it('loads promotion details, locks redeemed discount and reports update failure without closing draft', async () => {

@@ -1,3 +1,4 @@
+import { selectFormValue } from '@/test/select';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MyReview, PublicReview, ReviewableBooking } from '../types';
@@ -145,10 +146,10 @@ describe('TourReviewsSection', () => {
     expect(screen.getByText(/\d{2}\/\d{2}\/\d{4}/)).toBeTruthy();
   });
 
-  it('re-reads the list from page 1 when the sort changes', () => {
+  it('re-reads the list from page 1 when the sort changes', async () => {
     renderSection();
 
-    fireEvent.change(screen.getByLabelText(/Sắp xếp/), { target: { value: 'rating_desc' } });
+    await selectFormValue(/Sắp xếp/, 'rating_desc');
 
     const lastArgs = getTourReviews.mock.calls.at(-1)?.[0] as { sort: string; page: number };
     expect(lastArgs).toMatchObject({ sort: 'rating_desc', page: 1, tourId: 't1' });
