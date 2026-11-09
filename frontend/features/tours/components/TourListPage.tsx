@@ -6,6 +6,7 @@ import { Button, Input, Pagination, AntSelect, AntDateRangePicker } from '@/comp
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
 import { useGetTourCategoriesQuery, useGetToursQuery } from '../api/toursApi';
 import type { ListToursArgs, TourSort } from '../types';
+import { GuestCountInput } from './GuestCountInput';
 import { TourCard } from './TourCard';
 import { formatCategoryName, formatVnd } from '../utils';
 import { cn } from '@/components/ui/cn';
@@ -113,6 +114,9 @@ export function TourListPage() {
       ...(stringParam(searchParams.get('departureFrom')) ? { departureFrom: stringParam(searchParams.get('departureFrom')) } : {}),
       ...(stringParam(searchParams.get('departureTo')) ? { departureTo: stringParam(searchParams.get('departureTo')) } : {}),
       ...(numberParam(searchParams.get('minRating')) !== undefined ? { minRating: numberParam(searchParams.get('minRating')) } : {}),
+      adults: positiveIntParam(searchParams.get('adults') ?? searchParams.get('guests'), 0) || undefined,
+      children: positiveIntParam(searchParams.get('children'), 0) || undefined,
+      infants: positiveIntParam(searchParams.get('infants'), 0) || undefined,
       sort,
     };
   }, [queryString, searchParams]);
@@ -184,7 +188,7 @@ export function TourListPage() {
     args.minRating !== undefined && args.minRating > 0,
     Boolean(args.departureFrom || args.departureTo),
     Boolean(args.minDays || args.maxDays),
-    positiveIntParam(searchParams.get('guests'), 0) > 0,
+    Boolean(args.adults || args.children || args.infants),
   ].filter(Boolean).length;
 
   if (isError && !data) {
@@ -205,7 +209,6 @@ export function TourListPage() {
       <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Khám phá tour</h1>
-          <p className="mt-1 text-sm text-slate-500">Tìm hành trình phù hợp từ hàng trăm lựa chọn trên Tripri</p>
         </div>
       </div>
 
@@ -360,33 +363,19 @@ export function TourListPage() {
                 <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">group</span>
                 Số lượng khách
               </p>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const current = positiveIntParam(searchParams.get('guests') ?? '', 0);
-                    updateQuery({ guests: current > 1 ? current - 1 : undefined });
-                  }}
-                  className="flex size-8 items-center justify-center rounded-full border border-slate-300 text-slate-500 transition hover:border-slate-800 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
-                  disabled={!searchParams.get('guests') || Number(searchParams.get('guests')) <= 0}
-                >
-                  <span className="material-symbols-outlined text-[18px]">remove</span>
-                </button>
-                <span className="min-w-[2.5rem] text-center text-sm font-bold text-slate-800">
-                  {searchParams.get('guests') || '—'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const current = positiveIntParam(searchParams.get('guests') ?? '', 0);
-                    updateQuery({ guests: current + 1 });
-                  }}
-                  className="flex size-8 items-center justify-center rounded-full border border-slate-300 text-slate-500 transition hover:border-slate-800 hover:text-slate-800 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[18px]">add</span>
-                </button>
-                <span className="text-xs text-slate-500">khách</span>
-              </div>
+              <div className="space-y-3">{([
+                ['adults', 'Người lớn', 'Từ 13 tuổi trở lên'],
+                ['children', 'Trẻ em', 'Độ tuổi 2 - 12'],
+                ['infants', 'Em bé', 'Dưới 2 tuổi'],
+              ] as const).map(([key, label, age]) => {
+                const current = positiveIntParam(searchParams.get(key) ?? (key === 'adults' ? searchParams.get('guests') : null), 0);
+                const change = (n: number) => updateQuery({ [key]: Math.max(0, Math.min(key === 'adults' ? 50 : 49, Math.trunc(n))) || undefined, guests: undefined });
+                return <div key={key} className="flex items-center justify-between gap-2"><div><strong className="text-xs">{label}</strong><p className="text-[10px] text-slate-500">{age}</p></div><div className="flex items-center gap-1">
+                  <button type="button" aria-label={`- ${label}`} disabled={current === 0} onClick={() => change(current - 1)} className="size-7 rounded-full border disabled:opacity-30">-</button>
+                  <GuestCountInput label={label} max={key === 'adults' ? 50 : 49} value={current} onChange={change} className="w-10 rounded border text-center text-sm" />
+                  <button type="button" aria-label={`+ ${label}`} disabled={current >= (key === 'adults' ? 50 : 49)} onClick={() => change(current + 1)} className="size-7 rounded-full border">+</button>
+                </div></div>;
+              })}</div>
             </div>
 
             {/* 7. Số sao (Đánh giá) */}

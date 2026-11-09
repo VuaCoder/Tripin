@@ -29,6 +29,7 @@ const fullBleedRoutes = new Set([
  */
 export function GlobalSiteShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  if (/^\/tours\/[^/]+\/print\/?$/.test(pathname)) return <>{children}</>;
 
   if (
     pathname === '/' ||

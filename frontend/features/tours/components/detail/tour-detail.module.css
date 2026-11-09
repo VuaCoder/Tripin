@@ -1,4 +1,16 @@
 .page { max-width: 1440px; margin: 0 auto; color: #1b2b34; }
+.skeletonBlock { position: relative; overflow: hidden; border-radius: 6px; background: #e2e8ec; max-width: 100%; }
+.skeletonBlock::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, #ffffff80, transparent); animation: detailShimmer 1.5s infinite; }
+.skeletonTitle { flex: 1; min-width: 0; }
+.skeletonAgency { display: flex; align-items: center; gap: 12px; margin: 16px 0; padding: 12px 0; }
+.skeletonAgency > :first-child { flex-shrink: 0; border-radius: 50%; }
+.skeletonAgency .skeletonTitle { display: grid; gap: 8px; }
+.skeletonTab { padding: 16px 20px; flex-shrink: 0; }
+.skeletonItinerary { display: grid; gap: 12px; margin-top: 22px; }
+.skeletonItinerary .dayContent { display: grid; gap: 14px; }
+.skeletonPrice { margin: 6px 0 12px; }
+@keyframes detailShimmer { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .skeletonBlock::after { animation: none; } }
 .page button:focus-visible, .page a:focus-visible, .page summary:focus-visible { outline: 3px solid #087e8b; outline-offset: 4px; }
 .breadcrumb { display: flex; align-items: center; gap: 8px; color: #5a6e78; font-size: 13px; margin: 0 0 22px; }
 .titleRow { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 24px; }

@@ -1,5 +1,6 @@
 'use client';
 
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useState, useEffect } from 'react';
 import type { TourContentInput } from '../types';
 import { TourAgePricingFields } from './TourAgePricingFields';
@@ -332,7 +333,7 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
                     }
                     className="w-13 rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-center text-xs font-bold text-slate-900 outline-none focus:border-[#087e8b] focus:ring-1 focus:ring-[#087e8b]"
                   />
-                  <select
+                  <FormSelect
                     value={milestone.timeUnit}
                     aria-label={`Đơn vị thời gian mốc ${index + 1}`}
                     onChange={(e) =>
@@ -344,7 +345,7 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
                   >
                     <option value="day">ngày</option>
                     <option value="hour">giờ</option>
-                  </select>
+                  </FormSelect>
                 </div>
 
                 <span className="text-xs text-slate-400 font-bold shrink-0">→</span>

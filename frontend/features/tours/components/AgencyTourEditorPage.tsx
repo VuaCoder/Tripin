@@ -872,7 +872,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label htmlFor={fieldId('basePrice')} className="text-sm font-bold text-slate-800">
-                    Giá cơ bản (VND)
+                    Giá người lớn · từ 13 tuổi trở lên (VND)
                   </label>
                   <div className="relative">
                     <input

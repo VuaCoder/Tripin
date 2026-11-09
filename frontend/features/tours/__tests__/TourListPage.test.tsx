@@ -26,6 +26,15 @@ import { TourListPage } from '../components/TourListPage';
 beforeEach(() => { vi.clearAllMocks(); mocks.params = new URLSearchParams(); });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 describe('Tour filters', () => {
+  it('sends all age counts to the API and accepts a typed quantity', () => {
+    mocks.params = new URLSearchParams('adults=2&children=1&infants=1');
+    render(<TourListPage />);
+    expect(mocks.tours).toHaveBeenCalledWith(expect.objectContaining({ adults: 2, children: 1, infants: 1 }));
+    const input = screen.getByLabelText('Trẻ em');
+    fireEvent.change(input, { target: { value: '3' } });
+    fireEvent.blur(input);
+    expect(mocks.replace).toHaveBeenLastCalledWith('/tours?adults=2&children=3&infants=1', { scroll: false });
+  });
   it('places categories inside the filter and hides reset without conditions', () => {
     render(<TourListPage />);
     expect(within(document.querySelector('aside')!).getByLabelText('Danh mục tour')).toBeTruthy();

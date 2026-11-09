@@ -20,6 +20,11 @@ export class ToursDiscoveryService {
 
   /** One endpoint serves search, filters and the plain list. Only APPROVED tours are ever returned. */
   async search(query: SearchToursQuery): Promise<Page<TourListItemDto>> {
+    // Seat availability and supported age groups must reflect the latest booking/agency edit.
+    if (query.adults || query.children || query.infants) {
+      const { items, total } = await this.tours.searchPublic(query);
+      return buildPage(await this.views.listItems(items), total, query);
+    }
     const key = JSON.stringify(query);
     return this.searchCache.getOrCompute(key, async () => {
       const { items, total } = await this.tours.searchPublic(query);
