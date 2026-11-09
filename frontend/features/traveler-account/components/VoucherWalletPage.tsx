@@ -53,7 +53,7 @@ export function VoucherWalletPage() {
               <TicketPercent className="size-5" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Ví voucher & Ưu đãi</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Ví voucher</h1>
               <p className="text-xs sm:text-sm text-slate-500">
                 Quản lý mã giảm giá và voucher thu thập được áp dụng cho các chuyến đi của bạn
               </p>

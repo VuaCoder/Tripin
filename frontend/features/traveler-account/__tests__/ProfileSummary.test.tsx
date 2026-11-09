@@ -13,6 +13,6 @@ it('offers an accessible icon edit action and removes duplicate voucher and secu
   expect(button.textContent?.trim()).toBe('edit');
   fireEvent.click(button);
   expect(edit).toHaveBeenCalledOnce();
-  expect(screen.queryByText('Ví voucher & Ưu đãi')).toBeNull();
+  expect(screen.queryByText('Ví voucher')).toBeNull();
   expect(screen.queryByText('Xác thực hai lớp')).toBeNull();
 });

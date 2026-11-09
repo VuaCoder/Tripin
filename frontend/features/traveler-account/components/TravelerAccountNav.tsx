@@ -14,7 +14,7 @@ import {
 const navItems = [
   { name: 'Premium', href: '/premium', Icon: ShieldCheck },
   { name: 'Hồ sơ', href: '/settings/profile', Icon: User },
-  { name: 'Ví voucher & Ưu đãi', href: '/settings/vouchers', Icon: TicketPercent },
+  { name: 'Ví voucher', href: '/settings/vouchers', Icon: TicketPercent },
   { name: 'Chuyến đi', href: '/settings/history', Icon: CalendarCheck },
   { name: 'Danh sách yêu thích', href: '/settings/wishlist', Icon: Heart },
   { name: 'Báo cáo của tôi', href: '/settings/reports', Icon: Flag },

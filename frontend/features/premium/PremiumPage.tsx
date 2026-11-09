@@ -5,6 +5,7 @@ import { selectUser } from '@/features/auth';
 import { useAppSelector } from '@/store/hooks';
 import { getApiErrorMessage } from '@/features/auth/utils/apiError';
 import { openCheckout } from '@/features/payment/utils/checkout';
+import { PremiumVoucherCard } from '@/features/traveler-account/components/VoucherCard';
 import {
   PremiumAvatar,
   PremiumStatusText,
@@ -39,49 +40,15 @@ const labels: Record<string, string> = {
 
 export function VoucherList({ vouchers }: { vouchers: PremiumVoucher[] }) {
   return (
-    <div className="divide-y divide-slate-200">
+    <div className="space-y-4">
       {!vouchers.length && (
         <p className="py-5 text-sm text-slate-600">
           Chưa có voucher Premium được cấp. Voucher của kỳ gia hạn sẽ xuất hiện
           khi kỳ bắt đầu.
         </p>
       )}
-      {vouchers.map((v) => (
-        <article
-          key={v.id}
-          className="flex flex-wrap items-center justify-between gap-3 py-5"
-        >
-          <div>
-            <h3 className="font-semibold text-slate-900">{v.terms.title}</h3>
-            <p className="mt-1 text-sm text-slate-600">
-              Giảm{' '}
-              {v.terms.discountType === 'PERCENT'
-                ? `${v.terms.discountValue}%${v.terms.maxDiscountAmount ? `, tối đa ${premiumMoney(v.terms.maxDiscountAmount)}` : ''}`
-                : premiumMoney(v.terms.discountValue)}{' '}
-              · Đơn từ {premiumMoney(v.terms.minOrderAmount)}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Hạn dùng {premiumDate(v.endsAt)}
-            </p>
-          </div>
-          <span className="text-sm font-semibold text-amber-800">
-            {v.bookingId
-              ? 'Đã dùng / đang giữ cho booking'
-              : new Date(v.endsAt) <= new Date()
-                ? 'Đã hết hạn'
-                : v.heldAt
-                  ? 'Đang xử lý đặt tour'
-                  : 'Sẵn sàng sử dụng'}
-          </span>
-          {!v.heldAt && new Date(v.endsAt) > new Date() && (
-            <Link
-              className="text-sm font-semibold text-teal-800 underline"
-              href={`/tours/${v.terms.tourIds[0]}`}
-            >
-              Xem tour áp dụng
-            </Link>
-          )}
-        </article>
+      {vouchers.map((voucher) => (
+        <PremiumVoucherCard key={voucher.id} voucher={voucher} />
       ))}
     </div>
   );
@@ -112,6 +79,22 @@ function PremiumContent() {
   const [message, setMessage] = useState('');
   const [refundId, setRefundId] = useState('');
   const [reason, setReason] = useState('');
+  const showStatus =
+    eligible &&
+    (status.isLoading ||
+      status.isError ||
+      status.premium?.active ||
+      status.premium?.expired);
+  const showHistory =
+    eligible &&
+    (history.isLoading ||
+      history.isError ||
+      !!history.currentData?.items.length ||
+      historyPage > 1);
+  const showVouchers =
+    eligible &&
+    role === 'TRAVELER' &&
+    (vouchers.isLoading || vouchers.isError || !!vouchers.currentData?.length);
   const buy = async (id: string) => {
     if (!eligible) return;
     setError('');
@@ -127,17 +110,10 @@ function PremiumContent() {
   return (
     <main className="mx-auto max-w-5xl space-y-10 px-4 py-10 sm:px-6">
       <header className="grid gap-7 border-b border-slate-200 pb-8 sm:grid-cols-[1fr_auto] sm:items-center">
-        <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
-            Premium
-          </h1>
-          <p className="mt-3 max-w-xl text-base leading-7 text-slate-600">
-            {role === 'TOUR_GUIDE'
-              ? 'Giới thiệu chuyên môn rõ ràng hơn, nổi bật trước Agency và theo dõi công việc của bạn.'
-              : 'Thêm ưu đãi cho mỗi hành trình với bộ voucher dành riêng cho hội viên.'}
-          </p>
-        </div>
-        {eligible && (
+        <h1 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
+          Premium
+        </h1>
+        {showStatus && (
           <div className="flex items-center gap-4">
             <PremiumAvatar
               url={user!.avatarUrl}
@@ -186,7 +162,7 @@ function PremiumContent() {
       )}
       <section aria-labelledby="premium-plans">
         <h2 id="premium-plans" className="text-xl font-bold text-slate-900">
-          Chọn thời gian đồng hành
+          Chọn gói Premium
         </h2>
         {plans.isError ? (
           <Retry onRetry={() => void plans.refetch()} />
@@ -196,15 +172,14 @@ function PremiumContent() {
           </p>
         ) : !plans.currentData?.length ? (
           <p className="mt-4 text-sm text-slate-600">
-            Premium chưa mở bán cho nhóm này. Các quyền lợi đã mua vẫn được giữ
-            theo kỳ của bạn.
+            Chưa có gói Premium dành cho nhóm này.
           </p>
         ) : (
           <div className="mt-5 grid gap-5 md:grid-cols-2">
             {plans.currentData.map((plan) => (
               <article
                 key={plan.id}
-                className="rounded-xl border border-amber-300 bg-amber-50/40 p-6"
+                className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
               >
                 <h3 className="text-lg font-bold text-slate-900">
                   {plan.name}
@@ -215,43 +190,40 @@ function PremiumContent() {
                     / {plan.durationDays} ngày
                   </span>
                 </p>
-                {plan.description && (
-                  <p className="mt-3 text-sm leading-6 text-slate-600">
-                    {plan.description}
-                  </p>
-                )}
                 <ul className="my-5 list-disc space-y-2 pl-5 text-sm text-slate-700">
-                  {plan.benefits.map((b) => (
+                  {Array.from(new Set(plan.benefits)).map((b) => (
                     <li key={b}>{b}</li>
                   ))}
-                  {plan.vouchers?.map((v, i) => (
-                    <li key={i}>
-                      {v.quantity} voucher {v.title} ·{' '}
-                      {v.discountType === 'PERCENT'
-                        ? `${v.discountValue}%, tối đa ${premiumMoney(v.maxDiscountAmount ?? 0)}`
-                        : premiumMoney(v.discountValue)}{' '}
-                      · Đơn từ {premiumMoney(v.minOrderAmount)}
-                    </li>
-                  ))}
+                  {!plan.benefits.length &&
+                    plan.vouchers?.map((v, i) => (
+                      <li key={i}>
+                        {v.quantity} voucher · Giảm{' '}
+                        {v.discountType === 'PERCENT'
+                          ? `${v.discountValue}%${v.maxDiscountAmount ? `, tối đa ${premiumMoney(v.maxDiscountAmount)}` : ''}`
+                          : premiumMoney(v.discountValue)}{' '}
+                        · Đơn từ {premiumMoney(v.minOrderAmount)}
+                      </li>
+                    ))}
                 </ul>
                 {eligible ? (
                   <button
-                    className={premiumButton}
+                    className={premiumButton + ' mt-auto w-full justify-center'}
                     disabled={subscriptionState.isLoading}
                     onClick={() => void buy(plan.id)}
                   >
                     {subscriptionState.isLoading
                       ? 'Đang mở thanh toán…'
-                      : status.premium?.active
-                        ? 'Gia hạn Premium'
-                        : 'Đăng ký Premium'}
+                      : 'Đăng ký gói'}
                   </button>
                 ) : user ? (
                   <p className="text-sm text-slate-600">
                     Gói dành cho tài khoản Traveler hoặc Guide.
                   </p>
                 ) : (
-                  <Link className={premiumButton} href="/login?next=/premium">
+                  <Link
+                    className={premiumButton + ' mt-auto w-full justify-center'}
+                    href="/login?next=/premium"
+                  >
                     Đăng nhập để đăng ký
                   </Link>
                 )}
@@ -259,14 +231,28 @@ function PremiumContent() {
             ))}
           </div>
         )}
-        <p className="mt-5 max-w-prose text-xs leading-6 text-slate-600">
-          Thanh toán trả trước qua PayOS; gia hạn chủ động. Voucher được cấp khi
-          kỳ bắt đầu, hết hạn cuối kỳ và không cộng với mã khác. Chỉ kỳ đã thanh
-          toán nhưng chưa bắt đầu mới được yêu cầu hoàn toàn bộ; admin duyệt và
-          chuyển tiền thủ công.
-        </p>
+        {!!plans.currentData?.length && (
+          <details className="mt-5 text-sm text-slate-600">
+            <summary className="w-fit cursor-pointer font-medium text-slate-700">
+              Điều kiện sử dụng
+            </summary>
+            <ul className="mt-3 max-w-prose list-disc space-y-2 pl-5 leading-6">
+              <li>Thanh toán trước qua PayOS, không tự động gia hạn.</li>
+              {role === 'TRAVELER' && (
+                <li>
+                  Voucher có hiệu lực trong kỳ Premium và không dùng chung với mã
+                  khác.
+                </li>
+              )}
+              <li>
+                Chỉ kỳ đã thanh toán nhưng chưa bắt đầu mới được yêu cầu hoàn toàn
+                bộ, sau khi được duyệt.
+              </li>
+            </ul>
+          </details>
+        )}
       </section>
-      {eligible && (
+      {showHistory && (
         <section>
           <h2 className="text-xl font-bold text-slate-900">
             Các kỳ Premium của bạn
@@ -409,12 +395,9 @@ function PremiumContent() {
           )}
         </section>
       )}
-      {eligible && role === 'TRAVELER' && (
+      {showVouchers && (
         <section>
-          <h2 className="text-xl font-bold">Ví voucher Premium</h2>
-          <p className="mt-2 text-xs text-slate-600">
-            Hiển thị tối đa 500 voucher gần nhất, ưu tiên kỳ đang hiệu lực.
-          </p>
+          <h2 className="mb-4 text-xl font-bold">Ví voucher Premium</h2>
           {vouchers.isError ? (
             <Retry onRetry={() => void vouchers.refetch()} />
           ) : vouchers.isLoading ? (
