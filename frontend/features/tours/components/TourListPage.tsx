@@ -6,10 +6,10 @@ import { Button, Input, Pagination, AntSelect, AntDateRangePicker } from '@/comp
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
 import { useGetTourCategoriesQuery, useGetToursQuery } from '../api/toursApi';
 import type { ListToursArgs, TourSort } from '../types';
-import { GuestCountInput } from './GuestCountInput';
 import { TourCard } from './TourCard';
 import { formatCategoryName, formatVnd } from '../utils';
 import { cn } from '@/components/ui/cn';
+import { readSearchGuests, guestSearchParams, tourDetailHref } from '../utils/searchContext';
 
 const PAGE_SIZE = 12;
 const SORT_OPTIONS: { value: TourSort; label: string }[] = [
@@ -81,6 +81,8 @@ export function TourListPage() {
   const queryString = searchParams.toString();
   const qFromUrl = searchParams.get('q') ?? '';
   const [searchTerm, setSearchTerm] = useState(qFromUrl);
+  const guests = readSearchGuests(searchParams);
+  const view = searchParams.get('view') === 'list' ? 'list' : 'grid';
   // --- Price slider local state ---
 
   const urlMinPrice = numberParam(searchParams.get('minPrice')) ?? PRICE_MIN;
@@ -114,9 +116,6 @@ export function TourListPage() {
       ...(stringParam(searchParams.get('departureFrom')) ? { departureFrom: stringParam(searchParams.get('departureFrom')) } : {}),
       ...(stringParam(searchParams.get('departureTo')) ? { departureTo: stringParam(searchParams.get('departureTo')) } : {}),
       ...(numberParam(searchParams.get('minRating')) !== undefined ? { minRating: numberParam(searchParams.get('minRating')) } : {}),
-      adults: positiveIntParam(searchParams.get('adults') ?? searchParams.get('guests'), 0) || undefined,
-      children: positiveIntParam(searchParams.get('children'), 0) || undefined,
-      infants: positiveIntParam(searchParams.get('infants'), 0) || undefined,
       sort,
     };
   }, [queryString, searchParams]);
@@ -148,6 +147,22 @@ export function TourListPage() {
 
   const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category.name])), [categories]);
   const activeCategoryId = searchParams.get('categoryId') ?? '';
+  const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(false);
+  const COLLAPSED_CATEGORIES_LIMIT = 8;
+
+  const displayedCategories = useMemo(() => {
+    if (isCategoriesExpanded || categories.length <= COLLAPSED_CATEGORIES_LIMIT) {
+      return categories;
+    }
+    const top = categories.slice(0, COLLAPSED_CATEGORIES_LIMIT);
+    if (activeCategoryId && !top.some((c) => c.id === activeCategoryId)) {
+      const selected = categories.find((c) => c.id === activeCategoryId);
+      if (selected) {
+        return [...top.slice(0, COLLAPSED_CATEGORIES_LIMIT - 1), selected];
+      }
+    }
+    return top;
+  }, [categories, isCategoriesExpanded, activeCategoryId]);
 
   useEffect(() => () => { if (sliderDebounceRef.current) clearTimeout(sliderDebounceRef.current); }, []);
 
@@ -188,7 +203,7 @@ export function TourListPage() {
     args.minRating !== undefined && args.minRating > 0,
     Boolean(args.departureFrom || args.departureTo),
     Boolean(args.minDays || args.maxDays),
-    Boolean(args.adults || args.children || args.infants),
+    ['guests', 'adults', 'children', 'infants'].some(key => positiveIntParam(searchParams.get(key), 0) > 0),
   ].filter(Boolean).length;
 
   if (isError && !data) {
@@ -197,8 +212,6 @@ export function TourListPage() {
 
   const items = data?.items ?? [];
   const meta = data?.meta ?? { page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 };
-  const firstResult = meta.total === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
-  const lastResult = Math.min(meta.page * meta.limit, meta.total);
   const minPricePercent = ((localMinPrice - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100;
   const maxPricePercent = ((localMaxPrice - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100;
   const currentMinRating = numberParam(searchParams.get('minRating'));
@@ -209,9 +222,57 @@ export function TourListPage() {
       <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Khám phá tour</h1>
+          <p className="mt-1 text-sm text-slate-500">Tìm hành trình phù hợp từ hàng trăm lựa chọn trên Tripri</p>
         </div>
       </div>
 
+      {/* Danh mục tour */}
+      <div className="mb-6 flex flex-wrap items-center gap-2" aria-label="Thanh danh mục tour">
+        <button
+          type="button"
+          onClick={() => updateQuery({ categoryId: undefined })}
+          className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-bold transition cursor-pointer ${
+            !activeCategoryId
+              ? 'border-primary-container bg-primary-container text-white shadow-xs'
+              : 'border-slate-200 bg-white text-slate-700 hover:border-primary-container'
+          }`}
+        >
+          Tất cả
+        </button>
+        {displayedCategories.map((category) => (
+          <button
+            key={category.id}
+            type="button"
+            onClick={() => updateQuery({ categoryId: category.id })}
+            className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-bold transition cursor-pointer ${
+              activeCategoryId === category.id
+                ? 'border-primary-container bg-primary-container text-white shadow-xs'
+                : 'border-slate-200 bg-white text-slate-700 hover:border-primary-container'
+            }`}
+          >
+            {formatCategoryName(category.name)}
+          </button>
+        ))}
+        {categories.length > COLLAPSED_CATEGORIES_LIMIT && (
+          <button
+            type="button"
+            onClick={() => setIsCategoriesExpanded((prev) => !prev)}
+            className="inline-flex items-center gap-1 shrink-0 rounded-full border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-600 transition hover:border-primary-container hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
+          >
+            {isCategoriesExpanded ? (
+              <>
+                <span>Thu gọn</span>
+                <span className="material-symbols-outlined text-[16px]" aria-hidden="true">expand_less</span>
+              </>
+            ) : (
+              <>
+                <span>+{categories.length - displayedCategories.length} danh mục</span>
+                <span className="material-symbols-outlined text-[16px]" aria-hidden="true">expand_more</span>
+              </>
+            )}
+          </button>
+        )}
+      </div>
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         {/* ======================== BỘ LỌC BÊN TRÁI ======================== */}
         <aside className="h-fit max-h-[calc(100vh-7rem)] overflow-y-auto ant-scrollbar rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">
@@ -363,19 +424,18 @@ export function TourListPage() {
                 <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">group</span>
                 Số lượng khách
               </p>
-              <div className="space-y-3">{([
-                ['adults', 'Người lớn', 'Từ 13 tuổi trở lên'],
-                ['children', 'Trẻ em', 'Độ tuổi 2 - 12'],
-                ['infants', 'Em bé', 'Dưới 2 tuổi'],
-              ] as const).map(([key, label, age]) => {
-                const current = positiveIntParam(searchParams.get(key) ?? (key === 'adults' ? searchParams.get('guests') : null), 0);
-                const change = (n: number) => updateQuery({ [key]: Math.max(0, Math.min(key === 'adults' ? 50 : 49, Math.trunc(n))) || undefined, guests: undefined });
-                return <div key={key} className="flex items-center justify-between gap-2"><div><strong className="text-xs">{label}</strong><p className="text-[10px] text-slate-500">{age}</p></div><div className="flex items-center gap-1">
-                  <button type="button" aria-label={`- ${label}`} disabled={current === 0} onClick={() => change(current - 1)} className="size-7 rounded-full border disabled:opacity-30">-</button>
-                  <GuestCountInput label={label} max={key === 'adults' ? 50 : 49} value={current} onChange={change} className="w-10 rounded border text-center text-sm" />
-                  <button type="button" aria-label={`+ ${label}`} disabled={current >= (key === 'adults' ? 50 : 49)} onClick={() => change(current + 1)} className="size-7 rounded-full border">+</button>
-                </div></div>;
-              })}</div>
+              <div className="space-y-3">
+                {([{ key: 'adults', label: 'Người lớn' }, { key: 'children', label: 'Trẻ em' }, { key: 'infants', label: 'Em bé' }] as const).map(({ key, label }) => (
+                  <div key={key} className="flex items-center justify-between gap-2 text-sm">
+                    <span>{label}</span>
+                    <div className="flex items-center gap-3">
+                      <button type="button" aria-label={`Giảm ${label.toLowerCase()}`} disabled={guests[key] <= (key === 'adults' ? 1 : 0)} onClick={() => updateQuery(Object.fromEntries(guestSearchParams({ ...guests, [key]: guests[key] - 1 })))} className="flex size-8 items-center justify-center rounded-full border border-slate-300 disabled:opacity-30">−</button>
+                      <output aria-label={label} className="min-w-5 text-center font-bold">{guests[key]}</output>
+                      <button type="button" aria-label={`Tăng ${label.toLowerCase()}`} disabled={guests.adults + guests.children + guests.infants >= 50} onClick={() => updateQuery(Object.fromEntries(guestSearchParams({ ...guests, [key]: guests[key] + 1 })))} className="flex size-8 items-center justify-center rounded-full border border-slate-300 disabled:opacity-30">+</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* 7. Số sao (Đánh giá) */}
@@ -411,14 +471,12 @@ export function TourListPage() {
 
         {/* ======================== KẾT QUẢ ======================== */}
         <section aria-live="polite" aria-busy={isFetching}>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            {isLoading && !data ? (
-              <div className="h-5 w-36 rounded bg-slate-200 animate-pulse" />
-            ) : (
-              <p className="text-sm text-slate-600">
-                <strong className="text-slate-900">{meta.total}</strong> tour phù hợp{meta.total > 0 && <span className="hidden sm:inline"> · Hiển thị {firstResult}–{lastResult}</span>}
-              </p>
-            )}
+          <div className="mb-4 flex justify-end gap-1" role="group" aria-label="Kiểu hiển thị tour">
+            {([{ value: 'grid', label: 'Dạng lưới', icon: 'grid_view' }, { value: 'list', label: 'Dạng danh sách', icon: 'view_list' }] as const).map(option => (
+              <button key={option.value} type="button" aria-label={option.label} aria-pressed={view === option.value} onClick={() => updateQuery({ view: option.value }, false)} className={cn('flex size-10 items-center justify-center rounded-lg border transition', view === option.value ? 'border-primary-container bg-primary-container/10 text-primary-container' : 'border-slate-200 bg-white text-slate-500')}>
+                <span className="material-symbols-outlined" aria-hidden="true">{option.icon}</span>
+              </button>
+            ))}
           </div>
 
           {isLoading && !data ? (
@@ -426,8 +484,8 @@ export function TourListPage() {
           ) : items.length === 0 ? (
             <EmptyState title="Chưa tìm thấy tour phù hợp" description="Thử thay đổi từ khóa hoặc mở rộng bộ lọc để khám phá thêm lựa chọn." actionLabel={activeFilterCount > 0 ? "Xóa bộ lọc" : undefined} onAction={activeFilterCount > 0 ? clearFilters : undefined} />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {items.map((tour) => <TourCard key={tour.id} tour={tour} categoryName={tour.categoryIds.map((id) => categoryById.get(id)).find(Boolean)} />)}
+            <div className={view === 'list' ? 'grid gap-4' : 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3'}>
+              {items.map((tour) => <TourCard key={tour.id} tour={tour} href={tourDetailHref(tour.id, searchParams)} view={view} categoryName={tour.categoryIds.map((id) => categoryById.get(id)).find(Boolean)} />)}
             </div>
           )}
 

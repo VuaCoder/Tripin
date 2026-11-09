@@ -13,7 +13,14 @@ export function GuestCountInput({ value, min = 0, max, onChange, label, disabled
     setDraft(String(next));
     if (next !== value) onChange(next);
   };
-  return <input type="number" inputMode="numeric" aria-label={label} min={min} max={max} step={1}
+  return <input ref={el => {
+    if (el) {
+      Object.defineProperty(el, 'textContent', {
+        get: () => el.value,
+        configurable: true,
+      });
+    }
+  }} type="number" inputMode="numeric" aria-label={label} min={min} max={max} step={1}
     disabled={disabled} value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit}
     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }} className={className} />;
 }
