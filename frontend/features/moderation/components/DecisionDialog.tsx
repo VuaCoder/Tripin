@@ -1,4 +1,5 @@
 'use client';
+'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { Modal } from '@/components/ui';
@@ -12,13 +13,16 @@ export interface DecisionAction {
   requiresReason: boolean;
   /** Backend maximum for this action's reason when it differs from the shared 1000 (e.g. a resolution note). */
   maxReason?: number;
+  /** Hide the icon on the action button */
+  hideIcon?: boolean;
   onConfirm: (reason: string) => void;
 }
 
 interface DecisionDialogProps {
   open: boolean;
   title: string;
-  reasonLabel: string;
+  reasonLabel?: string;
+  hideReasonInput?: boolean;
   /** Facts about the item being decided. */
   children: ReactNode;
   /** Empty when the item can no longer be decided (or the moderator lacks the permission). */
@@ -34,12 +38,12 @@ const TONE = {
   positive: {
     icon: 'check_circle',
     className:
-      'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-600/25 hover:from-emerald-600 hover:to-emerald-700 hover:shadow-emerald-600/40 focus-visible:ring-emerald-500',
+      'bg-emerald-600 text-white shadow-xs hover:bg-emerald-700 focus-visible:ring-emerald-500',
   },
   negative: {
     icon: 'block',
     className:
-      'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-lg shadow-red-600/25 hover:from-rose-600 hover:to-red-700 hover:shadow-red-600/40 focus-visible:ring-red-500',
+      'bg-rose-600 text-white shadow-xs hover:bg-rose-700 focus-visible:ring-rose-500',
   },
 } as const;
 
@@ -50,7 +54,18 @@ const CLOSE_CLASS =
   'inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 active:translate-y-0 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0';
 
 /** Shared "decide with an optional/required reason" dialog for tour validation, suspension, agency verification, disputes and reviews. */
-export function DecisionDialog({ open, title, reasonLabel, children, actions, isSubmitting, serverError, className, onClose }: DecisionDialogProps) {
+export function DecisionDialog({
+  open,
+  title,
+  reasonLabel = '',
+  hideReasonInput = false,
+  children,
+  actions,
+  isSubmitting,
+  serverError,
+  className,
+  onClose,
+}: DecisionDialogProps) {
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -74,6 +89,7 @@ export function DecisionDialog({ open, title, reasonLabel, children, actions, is
 
   // The textarea accepts whatever the most permissive action of this dialog allows.
   const reasonMax = actions.reduce((max, action) => Math.max(max, action.maxReason ?? REASON_MAX), REASON_MAX);
+  const showTextarea = !hideReasonInput && actions.some((a) => a.requiresReason);
 
   return (
     <Modal open={open} onClose={onClose} closeOnBackdrop={!isSubmitting} title={title} className={className ?? "max-h-[90vh] max-w-xl overflow-y-auto"}>
@@ -88,38 +104,45 @@ export function DecisionDialog({ open, title, reasonLabel, children, actions, is
 
       {actions.length > 0 ? (
         <div className="mt-4 space-y-2">
-          <label htmlFor="moderation-reason" className="block text-sm font-semibold text-slate-700">
-            {reasonLabel}
-          </label>
-          <textarea
-            id="moderation-reason"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            rows={3}
-            maxLength={reasonMax}
-            disabled={isSubmitting}
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? 'moderation-reason-error' : undefined}
-            className="w-full rounded-xl border border-slate-200 p-3 text-sm text-slate-800 focus:border-purple-400 focus:outline-none"
-          />
-          {error && (
-            <p id="moderation-reason-error" role="alert" className="text-xs font-semibold text-red-600">
-              {error}
-            </p>
+          {showTextarea && (
+            <>
+              {reasonLabel && (
+                <label htmlFor="moderation-reason" className="block text-sm font-semibold text-slate-700">
+                  {reasonLabel}
+                </label>
+              )}
+              <textarea
+                id="moderation-reason"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                rows={3}
+                maxLength={reasonMax}
+                disabled={isSubmitting}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? 'moderation-reason-error' : undefined}
+                className="w-full rounded-2xl border border-slate-200/90 p-3 text-sm text-slate-800 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15 focus:outline-none"
+              />
+              {error && (
+                <p id="moderation-reason-error" role="alert" className="text-xs font-semibold text-red-600">
+                  {error}
+                </p>
+              )}
+            </>
           )}
-          <div className="flex flex-wrap justify-end gap-2 pt-1">
+
+          <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-slate-100">
             <button type="button" onClick={onClose} disabled={isSubmitting} className={CLOSE_CLASS}>
-              Đóng
+              Hủy
             </button>
             {actions.map((a) => (
               <button key={a.key} type="button" disabled={isSubmitting} onClick={() => run(a)} className={`${ACTION_CLASS} ${TONE[a.tone].className}`}>
                 {isSubmitting ? (
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />
-                ) : (
+                ) : !a.hideIcon ? (
                   <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
                     {TONE[a.tone].icon}
                   </span>
-                )}
+                ) : null}
                 {isSubmitting ? 'Đang xử lý...' : a.label}
               </button>
             ))}

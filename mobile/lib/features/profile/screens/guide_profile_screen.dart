@@ -1,14 +1,17 @@
 import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../auth/widgets/auth_text_field.dart';
 import '../bloc/profile_bloc.dart';
 import '../bloc/profile_event.dart';
 import '../bloc/profile_state.dart';
 import '../models/user_profile_model.dart';
+import '../widgets/guide_avatar_actions.dart';
 
 class GuideProfileScreen extends StatefulWidget {
   final UserProfileModel user;
@@ -28,6 +31,26 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
 
   final List<String> _languages = [];
   final ImagePicker _picker = ImagePicker();
+  UserProfileModel? _latestUser;
+
+  Future<void> _pickAvatar() async {
+    try {
+      final file = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1024,
+      );
+      if (file != null && mounted) {
+        context.read<ProfileBloc>().add(AvatarUploadRequested(File(file.path)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không thể mở thư viện ảnh.')),
+        );
+      }
+    }
+  }
 
   final List<String> _commonLanguages = [
     'Tiếng Việt',
@@ -43,8 +66,12 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
   void initState() {
     super.initState();
     final guide = widget.user.guideProfile;
-    _licenseNumberController = TextEditingController(text: guide?.licenseNumber ?? '');
-    _yearsController = TextEditingController(text: guide?.experienceYears?.toString() ?? '');
+    _licenseNumberController = TextEditingController(
+      text: guide?.licenseNumber ?? '',
+    );
+    _yearsController = TextEditingController(
+      text: guide?.experienceYears?.toString() ?? '',
+    );
     _bioController = TextEditingController(text: guide?.bio ?? '');
     _languageInputController = TextEditingController();
 
@@ -72,7 +99,9 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
       maxWidth: 1600,
     );
     if (pickedFile != null && mounted) {
-      context.read<ProfileBloc>().add(LicenseImageUploadRequested(File(pickedFile.path)));
+      context.read<ProfileBloc>().add(
+        LicenseImageUploadRequested(File(pickedFile.path)),
+      );
     }
   }
 
@@ -128,6 +157,7 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
       body: BlocConsumer<ProfileBloc, ProfileState>(
         listener: (context, state) {
           if (state is ProfileUpdateSuccess) {
+            _latestUser = state.user;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
@@ -150,8 +180,10 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
           final user = (state is ProfileLoaded)
               ? state.user
               : (state is ProfileUpdateSuccess)
-                  ? state.user
-                  : widget.user;
+              ? state.user
+              : (state is ProfileFailure ? state.currentUser : null) ??
+                    _latestUser ??
+                    widget.user;
           final licenseUrl = user.guideProfile?.licenseImageUrl;
 
           return SingleChildScrollView(
@@ -161,17 +193,35 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Center(
+                    child: GuideAvatarActions(
+                      avatarUrl: user.avatarUrl,
+                      onUpload: isLoading ? null : _pickAvatar,
+                      onRemove: isLoading
+                          ? null
+                          : () => context.read<ProfileBloc>().add(
+                              const AvatarRemoveRequested(),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   // Banner thông báo vai trò
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: AppColors.primarySurface,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.primaryLight.withValues(alpha: 0.3)),
+                      border: Border.all(
+                        color: AppColors.primaryLight.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.verified_user, color: AppColors.primary, size: 28),
+                        const Icon(
+                          Icons.verified_user,
+                          color: AppColors.primary,
+                          size: 28,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -259,12 +309,26 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
                     runSpacing: 8,
                     children: _languages.map((lang) {
                       return Chip(
-                        label: Text(lang, style: const TextStyle(fontSize: 13, color: AppColors.primaryDark)),
+                        label: Text(
+                          lang,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.primaryDark,
+                          ),
+                        ),
                         backgroundColor: AppColors.primarySurface,
-                        deleteIcon: const Icon(Icons.close, size: 16, color: AppColors.primary),
+                        deleteIcon: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: AppColors.primary,
+                        ),
                         onDeleted: () => _removeLanguage(lang),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        side: BorderSide(color: AppColors.primaryLight.withValues(alpha: 0.3)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        side: BorderSide(
+                          color: AppColors.primaryLight.withValues(alpha: 0.3),
+                        ),
                       );
                     }).toList(),
                   ),
@@ -278,14 +342,23 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
                     children: _commonLanguages
                         .where((lang) => !_languages.contains(lang))
                         .map((lang) {
-                      return ActionChip(
-                        label: Text('+ $lang', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                        backgroundColor: AppColors.surface,
-                        onPressed: () => _addLanguage(lang),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        side: const BorderSide(color: AppColors.border),
-                      );
-                    }).toList(),
+                          return ActionChip(
+                            label: Text(
+                              '+ $lang',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            backgroundColor: AppColors.surface,
+                            onPressed: () => _addLanguage(lang),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            side: const BorderSide(color: AppColors.border),
+                          );
+                        })
+                        .toList(),
                   ),
 
                   const SizedBox(height: 20),
@@ -304,10 +377,16 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
                     controller: _bioController,
                     maxLines: 4,
                     maxLength: 1000,
-                    style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textPrimary,
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Mô tả ngắn gọn về tính cách, thế mạnh tuyến điểm, văn hóa vùng miền bạn phụ trách...',
-                      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                      hintStyle: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 13,
+                      ),
                       filled: true,
                       fillColor: AppColors.surface,
                       border: OutlineInputBorder(
@@ -320,7 +399,10 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                        borderSide: const BorderSide(
+                          color: AppColors.primary,
+                          width: 1.5,
+                        ),
                       ),
                     ),
                   ),
@@ -347,7 +429,9 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: licenseUrl != null ? AppColors.primary : AppColors.border,
+                          color: licenseUrl != null
+                              ? AppColors.primary
+                              : AppColors.border,
                           width: 1.5,
                         ),
                       ),
@@ -361,31 +445,47 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
                                     imageUrl: licenseUrl,
                                     fit: BoxFit.cover,
                                     placeholder: (context, url) => const Center(
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
                                     ),
-                                    errorWidget: (context, url, error) => const Icon(
-                                      Icons.broken_image_outlined,
-                                      size: 48,
-                                      color: AppColors.textMuted,
-                                    ),
+                                    errorWidget: (context, url, error) =>
+                                        const Icon(
+                                          Icons.broken_image_outlined,
+                                          size: 48,
+                                          color: AppColors.textMuted,
+                                        ),
                                   ),
                                   Positioned(
                                     bottom: 12,
                                     right: 12,
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: 0.7),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.7,
+                                        ),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: const Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(Icons.camera_alt, color: Colors.white, size: 14),
+                                          Icon(
+                                            Icons.camera_alt,
+                                            color: Colors.white,
+                                            size: 14,
+                                          ),
                                           SizedBox(width: 4),
                                           Text(
                                             'Đổi ảnh',
-                                            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -397,7 +497,11 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
                           : Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: const [
-                                Icon(Icons.add_a_photo_outlined, size: 40, color: AppColors.primary),
+                                Icon(
+                                  Icons.add_a_photo_outlined,
+                                  size: 40,
+                                  color: AppColors.primary,
+                                ),
                                 SizedBox(height: 8),
                                 Text(
                                   'Chạm để tải ảnh chụp thẻ HDV',
@@ -410,7 +514,10 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
                                 SizedBox(height: 4),
                                 Text(
                                   'Định dạng JPG, PNG (Tối đa 5MB)',
-                                  style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                                  style: TextStyle(
+                                    color: AppColors.textMuted,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ],
                             ),

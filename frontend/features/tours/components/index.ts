@@ -6,3 +6,5 @@ export * from './AgencyTourListPage';
 export * from './AgencyTourWorkspacePage';
 export * from './AgencyTourLivePreview';
 export * from './TourItemCombobox';
+export * from './AirbnbTourCarousel';
+export * from './HotVouchersSection';

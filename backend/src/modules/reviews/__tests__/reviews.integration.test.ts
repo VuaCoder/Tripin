@@ -8,6 +8,7 @@ import { createApp } from '../../../app';
 import { bookingsService } from '../../bookings';
 import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase, loadTour } from '../../../test/integration';
 import { prisma } from '../../../config/database';
+import { reviewContentVersion } from '../reviews.revision';
 
 // Real Express app + real PostgreSQL: reviews, rating statistics and guide earnings after a trip is completed.
 const app = createApp();
@@ -77,7 +78,7 @@ describe('reviews (integration)', () => {
     expect((await request(app).get('/api/v1/reviews').query({ guideId: guide.id, tourId })).status).toBe(400);
     expect((await request(app).get('/api/v1/reviews').query({ guideId: 'invalid' })).status).toBe(400);
     expect((await request(app).post('/api/v1/bookings').send({})).status).toBe(401);
-    await request(app).post(`/api/v1/moderation/reviews/${created.body.data.id}/moderate`).set(bearer(moderator.token)).send({ hide: true, reason: 'Hidden for test' }).expect(200);
+    await request(app).post(`/api/v1/moderation/reviews/${created.body.data.id}/moderate`).set(bearer(moderator.token)).send({ hide: true, reason: 'Hidden for test', contentVersion: reviewContentVersion(created.body.data) }).expect(200);
     const hidden = await request(app).get('/api/v1/reviews').query({ guideId: guide.id });
     expect(hidden.body.data).toEqual([]);
     expect(hidden.body.meta.total).toBe(0);
@@ -143,7 +144,7 @@ describe('reviews (integration)', () => {
     expect((await loadTour(tourId))!.ratingCount).toBe(1);
 
     const moderate = (body: object, token = moderator.token) =>
-      request(app).post(`/api/v1/moderation/reviews/${reviewId}/moderate`).set(bearer(token)).send(body);
+      request(app).post(`/api/v1/moderation/reviews/${reviewId}/moderate`).set(bearer(token)).send({ contentVersion: reviewContentVersion(created.body.data), ...body });
     expect((await moderate({ hide: true }, traveler.token)).status).toBe(403);
     expect((await moderate({ hide: true })).status).toBe(400); // reason required
     const hides = await Promise.all([moderate({ hide: true, reason: 'Offensive' }), moderate({ hide: true, reason: 'Offensive' })]);
@@ -154,7 +155,8 @@ describe('reviews (integration)', () => {
     // The author still sees (and is told about) the hidden review.
     expect((await request(app).get('/api/v1/reviews/me').set(bearer(traveler.token))).body.data).toHaveLength(1);
 
-    expect((await moderate({ hide: false })).status).toBe(200);
+    expect((await moderate({ hide: false })).status).toBe(400);
+    expect((await moderate({ hide: false, restorationReason: 'Review complies with the rules' })).status).toBe(200);
     expect(await loadTour(tourId).then((t) => [t!.ratingCount, t!.ratingAvg])).toEqual([1, 4]);
   });
 

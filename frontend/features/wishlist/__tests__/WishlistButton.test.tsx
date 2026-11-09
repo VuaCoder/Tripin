@@ -46,6 +46,23 @@ describe('WishlistButton', () => {
     expect(screen.getByRole('link').getAttribute('href')).toBe('/login');
   });
 
+  it('triggers onGuestClick callback when provided for guest', () => {
+    setState({ status: 'guest' });
+    const onGuestClick = vi.fn();
+    render(<WishlistButton tourId="t1" onGuestClick={onGuestClick} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Lưu tour/ }));
+    expect(onGuestClick).toHaveBeenCalled();
+  });
+
+  it('triggers toggle and remove when un-saving a saved tour', () => {
+    const state = setState({ isSaved: true });
+    render(<WishlistButton tourId="t1" tourTitle="Tour Đà Lạt" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ lưu tour' }));
+    expect(state.toggle).toHaveBeenCalled();
+  });
+
   it('renders nothing for non-travelers', () => {
     setState({ status: 'not-traveler' });
     const { container } = render(<WishlistButton tourId="t1" />);
@@ -58,5 +75,27 @@ describe('WishlistButton', () => {
     render(<WishlistButton tourId="t1" />);
 
     expect(screen.getByRole('alert').textContent).toMatch(/full/);
+  });
+
+  it('renders pill variant with label text for saved and unsaved states', () => {
+    setState({ isSaved: false });
+    const { rerender } = render(<WishlistButton tourId="t1" variant="pill" />);
+    expect(screen.getByText('Lưu')).toBeDefined();
+
+    setState({ isSaved: true });
+    rerender(<WishlistButton tourId="t1" variant="pill" />);
+    expect(screen.getByText('Đã lưu')).toBeDefined();
+  });
+
+  it('renders circle variant as an icon-only button without label text', () => {
+    setState({ isSaved: false });
+    const { rerender } = render(<WishlistButton tourId="t1" variant="circle" />);
+    expect(screen.getByRole('button', { name: /Lưu tour/ })).toBeDefined();
+    expect(screen.queryByText('Lưu')).toBeNull();
+
+    setState({ isSaved: true });
+    rerender(<WishlistButton tourId="t1" variant="circle" />);
+    expect(screen.getByRole('button', { name: 'Bỏ lưu tour' })).toBeDefined();
+    expect(screen.queryByText('Đã lưu')).toBeNull();
   });
 });

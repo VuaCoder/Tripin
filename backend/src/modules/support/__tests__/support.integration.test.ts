@@ -56,14 +56,14 @@ describe('support (integration)', () => {
     expect(answered.body.data.assignedToName).toBe('MODERATOR mod@example.com');
     expect(answered.body.data.assignedTo).toBe(moderator.id);
 
-    expect((await staffReply(moderator2.token, id, { text: 'I also checked the logs.' })).status).toBe(200);
+    expect((await staffReply(moderator2.token, id, { text: 'I also checked the logs.' })).status).toBe(403);
     const stored = (await prisma.supportTicket.findUnique({ where: { id: id } }))!;
     expect(stored.status).toBe('IN_PROGRESS');
     expect(stored.assignedToId).toBe(moderator.id);
-    expect(stored.messageCount).toBe(3);
+    expect(stored.messageCount).toBe(2);
 
     const notices = await request(app).get('/api/v1/notifications').set(bearer(traveler.token));
-    expect(notices.body.data.filter((n: { type: string }) => n.type === 'SUPPORT_REPLIED').length).toBe(2);
+    expect(notices.body.data.filter((n: { type: string }) => n.type === 'SUPPORT_REPLIED').length).toBe(1);
   });
 
   it('parallel messages on one ticket are all kept, in a consistent counter', async () => {
@@ -82,7 +82,8 @@ describe('support (integration)', () => {
     const { traveler, moderator } = await setup();
     const id = (await open(traveler.token)).body.data.id;
 
-    expect((await staffReply(moderator.token, id, { text: 'Fixed on our side.', resolve: true })).status).toBe(200);
+    await request(app).patch(`/api/v1/moderation/support-tickets/${id}/status`).set(bearer(moderator.token)).send({ status: 'IN_PROGRESS' });
+    expect((await staffReply(moderator.token, id, { text: 'Fixed on our side.', resolve: true, resolutionNote: 'Investigated and resolved' })).status).toBe(200);
     expect((await staffReply(moderator.token, id, { text: 'One more thing.' })).status).toBe(409); // staff cannot write on a RESOLVED ticket
     const reopened = await request(app).post(`/api/v1/support/tickets/${id}/messages`).set(bearer(traveler.token)).send({ text: 'Still broken, sorry.' });
     expect(reopened.status).toBe(201);

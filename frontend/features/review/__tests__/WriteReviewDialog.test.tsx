@@ -1,3 +1,4 @@
+import { selectFormValue } from '@/test/select';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -77,6 +78,21 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('WriteReviewDialog', () => {
+  it('retains an in-progress draft on prop rerenders and restores it after remount', async () => {
+    localStorage.clear();
+    const props = { userId: 'draft-owner', open: true, onClose: vi.fn(), tourTitle: 'Tour', onCreated: vi.fn(), eligibleBookings: [BOOKING] };
+    const view = render(<WriteReviewDialog {...props} />);
+    await waitFor(() => expect((screen.getByLabelText('4 sao') as HTMLButtonElement).disabled).toBe(false));
+    chooseRating(4); typeComment(VALID_COMMENT);
+    view.rerender(<WriteReviewDialog {...props} eligibleBookings={[{ ...BOOKING }]} />);
+    expect((screen.getByLabelText(/Cảm nhận của bạn/) as HTMLTextAreaElement).value).toBe(VALID_COMMENT);
+    view.unmount();
+    render(<WriteReviewDialog {...props} />);
+    await waitFor(() => expect((screen.getByLabelText(/Cảm nhận của bạn/) as HTMLTextAreaElement).value).toBe(VALID_COMMENT));
+    submit();
+    await waitFor(() => expect(createReview).toHaveBeenCalledWith({ bookingId: 'b1', rating: 4, comment: VALID_COMMENT }));
+    await waitFor(() => expect(localStorage.getItem('tripri:review-draft:v1:draft-owner:b1')).toBeNull());
+  });
   it('uploads selected images and sends only verified public IDs with the review', async () => {
     renderDialog(); chooseRating(5); typeComment(VALID_COMMENT);
     fireEvent.change(screen.getByLabelText('Thêm ảnh chuyến đi'), { target: { files: [new File(['photo'], 'trip.jpg', { type: 'image/jpeg' })] } });
@@ -142,7 +158,7 @@ describe('WriteReviewDialog', () => {
   it('lets the traveler pick which eligible booking to review', async () => {
     renderDialog({ eligibleBookings: [BOOKING, SECOND_BOOKING] });
 
-    fireEvent.change(screen.getByLabelText(/Đặt chỗ bạn muốn đánh giá/), { target: { value: 'b2' } });
+    await selectFormValue(/Đặt chỗ bạn muốn đánh giá/, 'b2');
     chooseRating(5);
     typeComment(VALID_COMMENT);
     submit();

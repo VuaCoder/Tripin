@@ -17,7 +17,7 @@ beforeEach(resetDatabase);
 
 const realProvider = (aiService as unknown as { provider: AiProvider }).provider;
 const calls: AiGenerateInput[] = [];
-let answer: (input: AiGenerateInput) => Promise<{ text: string }>;
+let answer: (input: AiGenerateInput) => Promise<{ text: string; incomplete?: boolean }>;
 
 function useFakeModel() {
   calls.length = 0;
@@ -47,6 +47,20 @@ describe('AI assistant (integration)', () => {
 
   describe('with a model', () => {
     beforeEach(useFakeModel);
+    it('preserves partial response metadata across a history reload and continues the same thread', async () => {
+      const owner = await createUser('TRAVELER', 'partial-owner@example.com');
+      answer = async () => ({ text: 'Partial answer', incomplete: true });
+      const first = await chat(owner.token, { message: 'Plan a long trip' });
+      expect(first.status).toBe(200);
+      expect(first.body.data.reply.incomplete).toBe(true);
+      const id = first.body.data.conversationId;
+      const history = await request(app).get(`/api/v1/ai/conversations/${id}`).set(bearer(owner.token));
+      expect(history.body.data.messages.at(-1)).toMatchObject({ content: 'Partial answer', incomplete: true });
+      answer = async () => ({ text: 'The rest of the answer' });
+      const continuation = await chat(owner.token, { conversationId: id, message: 'Continue the incomplete answer' });
+      expect(continuation.body.data.conversationId).toBe(id);
+      expect(continuation.body.data.reply.incomplete).toBeUndefined();
+    });
 
     it('summarizes all pages, reads only through the displayed reply and rejects foreign boundaries', async () => {
       const owner = await createUser('TRAVELER', 'history-owner@example.com');

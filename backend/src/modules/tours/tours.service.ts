@@ -43,7 +43,7 @@ export class ToursService {
     private readonly tours: Repo = toursRepository,
     private readonly users: Pick<UsersService, 'assertActiveWithRole' | 'assertAgencyVerified'> = usersService,
     private readonly categories: Pick<CategoriesService, 'assertActiveIds' | 'upsertActive'> = categoriesService,
-    private readonly audit: Pick<AuditService, 'record'> = auditService,
+    _audit: Pick<AuditService, 'record'> = auditService,
     private readonly views: Pick<TourViewBuilder, 'manage' | 'manageMany' | 'guideItems'> = tourViewBuilder,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
   ) {}
@@ -310,17 +310,17 @@ export class ToursService {
       reviewedAt: new Date(),
       reviewedById: actor.userId,
       statusReason: decision.approve ? null : decision.reason,
-    });
-    if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
-
-    await this.audit.record({
+    }, {
       actorId: actor.userId,
       actorRole: actor.role,
       action: AUDIT_ACTIONS.TOUR_VALIDATED,
       targetType: 'tour',
       targetId: id,
-      metadata: { approved: decision.approve, reason: decision.reason },
+      metadata: { before: { status: tour.status, statusReason: tour.statusReason }, after: { status: next, statusReason: decision.approve ? null : decision.reason }, approved: decision.approve, reason: decision.reason },
     });
+    if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
+
+
     await this.notifications.notify(
       tour.agencyId,
       {
@@ -345,17 +345,17 @@ export class ToursService {
       reviewedAt: new Date(),
       reviewedById: actor.userId,
       statusReason: reason,
-    });
-    if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
-
-    await this.audit.record({
+    }, {
       actorId: actor.userId,
       actorRole: actor.role,
       action: AUDIT_ACTIONS.TOUR_SUSPENDED,
       targetType: 'tour',
       targetId: id,
-      metadata: { reason },
+      metadata: { before: { status: tour.status, statusReason: tour.statusReason }, after: { status: TOUR_STATUS.SUSPENDED, statusReason: reason }, reason },
     });
+    if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
+
+
     await this.notifications.notify(
       tour.agencyId,
       {

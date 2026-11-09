@@ -74,13 +74,7 @@ export default function SecurityProfileSettingsPage() {
   } else {
     content = (
       <div className="space-y-7">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary-container">Bảo mật tài khoản</p>
-          <h2 className="mt-1 text-2xl font-bold text-slate-900">Bảo mật & đăng nhập</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
-            Kiểm soát lớp xác thực bổ sung cho tài khoản Traveler của bạn.
-          </p>
-        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Bảo mật & đăng nhập</h1>
 
         {successMsg && (
           <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800" role="status">
@@ -90,13 +84,6 @@ export default function SecurityProfileSettingsPage() {
         )}
 
         <TwoFactorCard settings={data.data} onToggle={handleToggle} />
-
-        <div className="flex gap-3 rounded-2xl border border-surface-container bg-surface-container-low/50 p-5 text-sm leading-6 text-slate-600">
-          <span className="material-symbols-outlined mt-0.5 text-[20px] text-primary-container" aria-hidden="true">mark_email_read</span>
-          <p>
-            Khi 2FA được bật, Tripri chỉ tạo phiên đăng nhập sau khi mật khẩu và mã OTP gửi qua email đều hợp lệ.
-          </p>
-        </div>
 
         <ConfirmPasswordModal
           isOpen={modalState.isOpen}

@@ -1,5 +1,6 @@
 'use client';
 
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button, FormField, Modal, cn } from '@/components/ui';
 import { getApiErrorCode, getApiErrorMessage } from '@/features/auth';
@@ -16,8 +17,10 @@ import { formatDate } from '../utils/format';
 import { hasReviewFormErrors, validateReviewForm, type ReviewFormErrors } from '../utils/validation';
 import { RatingInput } from './RatingInput';
 import { ReviewPhotoPicker } from './ReviewPhotoPicker';
+import { loadReviewDraft, saveReviewDraft, clearReviewDraft } from '../utils/draftStorage';
 
 export interface WriteReviewDialogProps {
+  userId?: string;
   open: boolean;
   onClose: () => void;
   tourTitle: string;
@@ -36,6 +39,7 @@ const FIELD_CLASS =
  * (`createReviewBody`); the backend validates again and owns the eligibility rule.
  */
 export function WriteReviewDialog({
+  userId,
   open,
   onClose,
   tourTitle,
@@ -50,23 +54,36 @@ export function WriteReviewDialog({
   const [progress, setProgress] = useState('');
   const uploaded = useRef(new Map<File, string>());
   const submitting = useRef(false);
-  const busy = isLoading || uploading;
+  const [hydrating, setHydrating] = useState(false);
+  const busy = isLoading || uploading || hydrating;
   const [bookingId, setBookingId] = useState('');
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [errors, setErrors] = useState<ReviewFormErrors>({});
+  const [readyKey, setReadyKey] = useState<string>();
+  const cleared = useRef(false);
+  const key = userId && bookingId ? `${userId}:${bookingId}` : undefined;
+  const eligibleIds = eligibleBookings.map((booking) => booking.id).join(',');
 
-  // Every opening starts clean, on the first eligible booking.
+  // New prop array identities must never reset an in-progress draft.
   useEffect(() => {
     if (!open) return;
-    setBookingId(eligibleBookings[0]?.id ?? '');
-    setRating(0);
-    setComment('');
-    setErrors({});
-    setFiles([]);
-    uploaded.current.clear();
-    setProgress('');
-  }, [open, eligibleBookings]);
+    if (!eligibleBookings.some((booking) => booking.id === bookingId)) setBookingId(eligibleBookings[0]?.id ?? '');
+  }, [open, eligibleIds, userId]);
+  useEffect(() => {
+    if (!open || !key) return;
+    let active = true;
+    cleared.current = false; setHydrating(true); setReadyKey(undefined);
+    void loadReviewDraft(key).then((draft) => {
+      if (!active) return;
+      setRating(draft?.rating ?? 0); setComment(draft?.comment ?? ''); setFiles(draft?.files ?? []);
+      uploaded.current.clear(); setErrors({}); setReadyKey(key); setHydrating(false);
+    });
+    return () => { active = false; };
+  }, [open, key]);
+  useEffect(() => {
+    if (key && readyKey === key && !cleared.current) saveReviewDraft(key, { rating, comment, files, updatedAt: Date.now() });
+  }, [key, readyKey, rating, comment, files]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -96,6 +113,8 @@ export function WriteReviewDialog({
       }
       setProgress('Đang gửi đánh giá…');
       const created = await createReview(body).unwrap();
+      cleared.current = true;
+      if (key) await clearReviewDraft(key);
       onCreated(created);
     } catch (error) {
       const code = getApiErrorCode(error);
@@ -133,7 +152,7 @@ export function WriteReviewDialog({
 
         {eligibleBookings.length > 1 && (
           <FormField label="Đặt chỗ bạn muốn đánh giá" htmlFor="review-booking" required error={errors.bookingId}>
-            <select
+            <FormSelect
               id="review-booking"
               value={bookingId}
               onChange={(event) => { setBookingId(event.target.value); setFiles([]); uploaded.current.clear(); }}
@@ -146,7 +165,7 @@ export function WriteReviewDialog({
                   {booking.bookingCode} · Khởi hành {formatDate(booking.departureDate)}
                 </option>
               ))}
-            </select>
+            </FormSelect>
           </FormField>
         )}
 

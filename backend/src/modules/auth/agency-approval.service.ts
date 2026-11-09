@@ -1,6 +1,6 @@
-import { createHmac } from 'node:crypto';
+import { signOnboardingToken, readOnboardingToken } from './onboarding.tokens';
 import { AGENCY_VERIFICATION_STATUS, ROLES } from '@travel-platform/constants';
-import { env, isProduction } from '../../config/env';
+import { isProduction } from '../../config/env';
 import { mailProvider, type MailProvider } from '../../integrations/mail';
 import { AppError } from '../../utils/app-error';
 import { usersRepository, type UsersRepository } from '../users/users.repository';
@@ -50,37 +50,26 @@ export class AgencyApprovalService {
     private readonly mail: MailProvider = mailProvider,
   ) {}
 
-  generateStatusToken(email: string): string {
-    const secret = env.JWT_ACCESS_SECRET;
-    const payload = Buffer.from(email.toLowerCase().trim()).toString('base64url');
-    const signature = createHmac('sha256', secret).update(payload).digest('base64url');
-    return `${payload}.${signature}`;
+  generateStatusToken(email: string, tokenVersion = 0): string {
+    return signOnboardingToken(email, tokenVersion);
   }
 
-  verifyStatusToken(token: string): string {
-    const parts = token.trim().split('.');
-    const [payload, signature] = parts;
-    if (parts.length !== 2 || !payload || !signature) throw AppError.badRequest('Token xác thực không hợp lệ');
-    const secret = env.JWT_ACCESS_SECRET;
-    const expected = createHmac('sha256', secret).update(payload).digest('base64url');
-    if (signature !== expected) throw AppError.badRequest('Token xác thực không hợp lệ hoặc đã bị thay đổi');
-    return Buffer.from(payload, 'base64url').toString('utf-8');
-  }
+  verifyStatusToken(token: string): string { return readOnboardingToken(token).email; }
 
-  private resolveEmail(query: { email?: string; token?: string; userId?: string }): Promise<string> {
-    if (query.token) {
-      return Promise.resolve(this.verifyStatusToken(query.token));
-    }
-    if (query.email) {
-      return Promise.resolve(query.email.toLowerCase().trim());
-    }
+  private async resolveEmail(query: { email?: string; token?: string; userId?: string }): Promise<string> {
+    // Authenticated identity takes precedence over every client-supplied selector.
     if (query.userId) {
-      return this.users.findById(query.userId).then((user) => {
-        if (!user) throw AppError.unauthenticated('Tài khoản không tồn tại');
-        return user.email;
-      });
+      const user = await this.users.findById(query.userId);
+      if (!user || user.role !== ROLES.AGENCY) throw AppError.forbidden('Agency account required');
+      return user.email;
     }
-    throw AppError.badRequest('Thiếu thông tin xác thực hồ sơ');
+    if (query.token) {
+      const payload = readOnboardingToken(query.token);
+      const user = await this.users.findByEmail(payload.email);
+      if (!user || user.role !== ROLES.AGENCY || user.status !== 'ACTIVE' || user.tokenVersion !== payload.tokenVersion) throw AppError.unauthenticated('Onboarding session revoked');
+      return user.email;
+    }
+    throw AppError.unauthenticated('Sign in or use a valid onboarding token');
   }
 
   async getStatus(query: { email?: string; token?: string; userId?: string }): Promise<AgencyStatusDto> {
@@ -90,14 +79,14 @@ export class AgencyApprovalService {
       throw AppError.notFound('Không tìm thấy thông tin Agency');
     }
 
-    const token = this.generateStatusToken(user.email);
+    const token = query.userId ? this.generateStatusToken(user.email, user.tokenVersion) : query.token!;
     return {
       email: user.email,
       fullName: user.fullName,
       companyName: user.agencyProfile.companyName || user.fullName,
       verificationStatus: user.agencyProfile.verificationStatus,
       verificationNote: user.agencyProfile.verificationNote,
-      submittedAt: user.agencyProfile.verifiedAt?.toISOString() || user.createdAt.toISOString(),
+      submittedAt: user.agencyProfile.submittedAt?.toISOString() || user.createdAt.toISOString(),
       token,
     };
   }
@@ -129,7 +118,7 @@ export class AgencyApprovalService {
     const companyName = user.agencyProfile.companyName || user.fullName;
     await this.mail.send(buildAgencyApprovedMail(user.email, companyName)).catch(() => undefined);
 
-    const updatedStatus = await this.getStatus({ email: user.email });
+    const updatedStatus = await this.getStatus({ userId: user.id });
     return { success: true, message: 'Hồ sơ đã được phê duyệt thành công', status: updatedStatus };
   }
 
@@ -165,7 +154,7 @@ export class AgencyApprovalService {
     const companyName = user.agencyProfile.companyName || user.fullName;
     await this.mail.send(buildAgencyRejectedMail(user.email, companyName, reason)).catch(() => undefined);
 
-    const updatedStatus = await this.getStatus({ email: user.email });
+    const updatedStatus = await this.getStatus({ userId: user.id });
     return { success: true, message: 'Đã từ chối hồ sơ thành công', status: updatedStatus };
   }
 
@@ -204,11 +193,11 @@ export class AgencyApprovalService {
       throw AppError.notFound('Không tìm thấy hồ sơ doanh nghiệp');
     }
 
-    if (user.agencyProfile.verificationStatus !== AGENCY_VERIFICATION_STATUS.REJECTED) {
+    if (![AGENCY_VERIFICATION_STATUS.REJECTED, AGENCY_VERIFICATION_STATUS.INFORMATION_REQUESTED].includes(user.agencyProfile.verificationStatus as "REJECTED" | "INFORMATION_REQUESTED")) {
       throw AppError.badRequest('Chỉ có thể chỉnh sửa và gửi lại hồ sơ khi đang ở trạng thái bị từ chối');
     }
 
-    await this.users.updateById(user.id, {
+    const updated = await this.users.updateAgencyVerificationIf(user.id, user.agencyProfile.verificationStatus, {
       fullName: input.fullName.trim(),
       phone: input.phone.trim(),
       agencyProfile: {
@@ -220,11 +209,14 @@ export class AgencyApprovalService {
         description: input.description?.trim() || null,
         website: input.website?.trim() || null,
         verificationStatus: AGENCY_VERIFICATION_STATUS.PENDING,
+              submittedAt: new Date(),
+              submissionDateEstimated: false,
         verificationNote: null,
       },
     });
 
-    const status = await this.getStatus({ email: user.email });
+    if (!updated) throw AppError.conflict('Agency application changed; reload and retry', 'CONCURRENT_UPDATE');
+    const status = await this.getStatus({ userId: user.id });
     return { success: true, message: 'Đã gửi lại hồ sơ thành công. Hồ sơ đang được chờ xét duyệt.', status };
   }
 }

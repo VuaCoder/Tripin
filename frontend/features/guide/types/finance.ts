@@ -58,6 +58,7 @@ export interface Earning {
   tour: { id: string; title: string };
   amount: number;
   earnedAt: string;
+  payout?: { id: string; status: 'PENDING' | 'TRANSFERRED'; transferredAt?: string; transferReference?: string };
 }
 export interface EarningsSummary {
   totalAmount: number;

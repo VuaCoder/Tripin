@@ -660,6 +660,8 @@ export class ComplaintsService {
         lastMessageAt: t.lastMessageAt.toISOString(),
         resolvedAt: t.resolvedAt?.toISOString() ?? null,
         closedAt: t.closedAt?.toISOString() ?? null,
+        slaDeadlineAt: t.slaDeadlineAt?.toISOString() ?? null,
+        escalationDeadlineAt: t.escalationDeadlineAt?.toISOString() ?? null,
         escalatedAt: t.escalatedAt?.toISOString() ?? null,
         hasFeedback: !!t.feedback,
         rating: t.feedback?.rating ?? null,

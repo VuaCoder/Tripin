@@ -80,10 +80,10 @@ export const moderationApi = baseApi.injectEndpoints({
     }),
 
     verifyAgency: build.mutation<ModerationAgency, VerifyAgencyInput>({
-      query: ({ id, approve, note }) => ({
+      query: ({ id, approve, note, requestInformation }) => ({
         url: `/moderation/agencies/${id}/verify`,
         method: 'POST',
-        body: { approve, ...(note ? { note } : {}) },
+        body: { approve, ...(requestInformation ? { requestInformation } : {}), ...(note ? { note } : {}) },
       }),
       transformResponse: (r: ModerationApiResponse<ModerationAgency>) => unwrap(r),
       invalidatesTags: [AGENCIES_TAG, DASHBOARD_TAG],
@@ -110,10 +110,10 @@ export const moderationApi = baseApi.injectEndpoints({
     }),
 
     moderateReview: build.mutation<ModerationReview, ModerateReviewInput>({
-      query: ({ id, hide, reason }) => ({
+      query: ({ id, hide, reason, restorationReason, contentVersion }) => ({
         url: `/moderation/reviews/${id}/moderate`,
         method: 'POST',
-        body: { hide, ...(reason ? { reason } : {}) },
+        body: { hide, ...(contentVersion ? { contentVersion } : {}), ...(reason ? { reason } : {}), ...(restorationReason ? { restorationReason } : {}) },
       }),
       transformResponse: (r: ModerationApiResponse<ModerationReview>) => unwrap(r),
       // Hiding a review also changes the public list of its tour, the tour's recomputed rating, and the report
@@ -139,17 +139,17 @@ export const moderationApi = baseApi.injectEndpoints({
     }),
 
     replyToModerationTicket: build.mutation<ModerationTicket, TicketReplyInput>({
-      query: ({ id, text, resolve }) => ({
+      query: ({ id, text, resolve, resolutionNote }) => ({
         url: `/moderation/support-tickets/${id}/reply`,
         method: 'POST',
-        body: { text, ...(resolve ? { resolve: true } : {}) },
+        body: { text, resolutionNote, ...(resolve ? { resolve: true } : {}) },
       }),
       transformResponse: (r: ModerationApiResponse<ModerationTicket>) => unwrap(r),
       invalidatesTags: (result, error, { id }) => [TICKETS_TAG, { type: 'SupportTicket', id }, DASHBOARD_TAG],
     }),
 
     setModerationTicketStatus: build.mutation<ModerationTicket, TicketStatusInput>({
-      query: ({ id, status }) => ({ url: `/moderation/support-tickets/${id}/status`, method: 'PATCH', body: { status } }),
+      query: ({ id, status, resolutionNote }) => ({ url: `/moderation/support-tickets/${id}/status`, method: 'PATCH', body: { status, resolutionNote } }),
       transformResponse: (r: ModerationApiResponse<ModerationTicket>) => unwrap(r),
       invalidatesTags: (result, error, { id }) => [TICKETS_TAG, { type: 'SupportTicket', id }, DASHBOARD_TAG],
     }),

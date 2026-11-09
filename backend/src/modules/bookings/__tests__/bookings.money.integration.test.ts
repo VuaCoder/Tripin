@@ -52,7 +52,7 @@ describe('money invariants (integration)', () => {
     const agency = await createUser('AGENCY', 'agency@example.com');
     const traveler = await createUser('TRAVELER', 'traveler@example.com');
     const admin = await createUser('SUPER_ADMIN', 'admin@example.com');
-    expect((await request(app).put('/api/v1/admin/settings/commission').set(bearer(admin.token)).send({ ratePercent: 12.34 })).status).toBe(200);
+    expect((await request(app).put('/api/v1/admin/settings/commission').set(bearer(admin.token)).send({ ratePercent: 12.34, expectedVersion: 0 })).status).toBe(200);
     const { tourId, departureId } = await createApprovedTour(agency.id, { price, capacity: 50 });
     expect((await request(app).post('/api/v1/cart/items').set(bearer(traveler.token)).send({ tourId, departureId, participants: 50 })).status).toBe(201);
     const cart = await request(app).get('/api/v1/cart').set(bearer(traveler.token));
@@ -123,7 +123,7 @@ describe('money invariants (integration)', () => {
     for (let round = 0; round < 6; round += 1) {
       // A new commission rate and a new tour (odd prices to provoke rounding) each round.
       const ratePercent = pick(random, [0, 0.01, 3.33, 7.5, 10, 12.34, 33.33, 99.99, 100]);
-      expect((await request(app).put('/api/v1/admin/settings/commission').set(bearer(admin.token)).send({ ratePercent })).status).toBe(200);
+      expect((await request(app).put('/api/v1/admin/settings/commission').set(bearer(admin.token)).send({ ratePercent, expectedVersion: round })).status).toBe(200);
       const price = between(random, 1, 5_000_000) * (round % 2 ? 1 : 1) + 1; // 2 .. 5,000,001
       const { tourId, departureId } = await createApprovedTour(agency.id, { capacity: 500, price });
 

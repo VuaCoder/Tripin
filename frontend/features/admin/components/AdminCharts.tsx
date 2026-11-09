@@ -1,4 +1,5 @@
 'use client';
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useState } from 'react';
 import { BarChart3, Activity } from 'lucide-react';
 import type { Dashboard } from '../types';
@@ -36,7 +37,7 @@ export function RevenueChart({ rows, scopeLabel = 'Tháng UTC' }: { rows: Dashbo
   const format = (value: number) => view === 'revenue' ? money(value) : value.toLocaleString('vi-VN');
   const selected = active === null ? undefined : rows[active];
   return <section className={panel}>
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-4"><div><h2 className="flex items-center gap-2 font-bold text-slate-900"><Activity size={18} className="text-teal-600" />Xu hướng theo tháng</h2><p className="mt-1 text-xs text-slate-400">{view === 'revenue' ? 'Tổng tiền, phần đại lý và hoa hồng' : 'Booking đã xác nhận / hoàn tất'} · {scopeLabel}</p></div><select aria-label="Chỉ số biểu đồ" className={`${control} !w-auto`} value={view} onChange={(e) => { setView(e.target.value as typeof view); setActive(null); }}><option value="revenue">Doanh thu (VND)</option><option value="bookings">Số booking</option></select></div>
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-4"><div><h2 className="flex items-center gap-2 font-bold text-slate-900"><Activity size={18} className="text-teal-600" />Xu hướng theo tháng</h2><p className="mt-1 text-xs text-slate-400">{view === 'revenue' ? 'Tổng tiền, phần đại lý và hoa hồng' : 'Booking đã xác nhận / hoàn tất'} · {scopeLabel}</p></div><FormSelect aria-label="Chỉ số biểu đồ" className={`${control} !w-auto`} value={view} onChange={(e) => { setView(e.target.value as typeof view); setActive(null); }}><option value="revenue">Doanh thu (VND)</option><option value="bookings">Số booking</option></FormSelect></div>
     <div className="mb-3 flex flex-wrap gap-5 text-xs">{series.map((s) => <span key={s.label} className="flex items-center gap-2 text-slate-500"><span className="h-2 w-5 rounded-full" style={{ background: s.color }} />{s.label}</span>)}</div>
     {rows.length ? <>
       <div className="overflow-x-auto"><svg viewBox="0 0 760 264" role="img" aria-label={view === 'revenue' ? 'Biểu đồ so sánh tổng tiền, doanh thu đại lý và hoa hồng' : 'Biểu đồ số booking theo tháng'} className="min-w-[500px] w-full">

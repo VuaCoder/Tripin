@@ -1,7 +1,9 @@
-import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
+import { isUniqueViolation, nullIfNotFound, prisma, type Prisma } from '../../config/database';
 import type { SupportTicket, SupportTicketMessage } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
 import { SUPPORT_LIMITS, type ListModerationTicketsQuery, type TicketStatus } from './support.types';
+import { AppError } from '../../utils/app-error';
+import { enqueueMail } from '../notifications/mail-outbox';
 
 export type TicketMessageRecord = SupportTicketMessage;
 
@@ -15,13 +17,40 @@ export type NewTicket = Pick<SupportTicket, 'userId' | 'subject' | 'category'> &
 const withMessages = { messages: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } } satisfies Prisma.SupportTicketInclude;
 
 export class SupportRepository {
-  /** Creates the ticket together with its first message. */
-  create(data: NewTicket): Promise<SupportTicketRecord> {
-    const { message, ...ticket } = data;
-    return prisma.supportTicket.create({
-      data: { ...ticket, messageCount: 1, messages: { create: message } },
-      include: withMessages,
+  async staffTransition(id: string, actorId: string, resolve: boolean, note?: string, message?: string): Promise<SupportTicketRecord> {
+    return prisma.$transaction(async (tx) => {
+      const ticket = await tx.supportTicket.findUnique({ where: { id } });
+      if (!ticket) throw AppError.notFound('Ticket not found');
+      if (!['OPEN', 'IN_PROGRESS'].includes(ticket.status)) throw AppError.conflict('Ticket is no longer open');
+      if (resolve && !ticket.assignedToId) throw AppError.badRequest('Claim the ticket before resolving it');
+      if (ticket.assignedToId && ticket.assignedToId !== actorId) throw AppError.forbidden('Only the assigned staff member can handle this ticket');
+      if (resolve && (!note || note.trim().length < 10)) throw AppError.badRequest('Resolution note must contain at least 10 characters');
+      if (message && ticket.messageCount >= SUPPORT_LIMITS.MAX_MESSAGES_PER_TICKET) throw AppError.conflict('Ticket message limit reached');
+      const updated = await tx.supportTicket.updateMany({ where: { id, status: ticket.status, assignedToId: ticket.assignedToId, messageCount: ticket.messageCount }, data: {
+        status: resolve ? 'RESOLVED' : 'IN_PROGRESS', assignedToId: actorId,
+        ...(resolve ? { resolutionNote: note!.trim(), resolvedAt: new Date() } : {}),
+        ...(message ? { messageCount: { increment: 1 }, lastMessageAt: new Date() } : {}),
+      } });
+      if (updated.count !== 1) throw AppError.conflict('Ticket changed; reload and try again', 'CONCURRENT_UPDATE');
+      if (message) await tx.supportTicketMessage.create({ data: { ticketId: id, authorId: actorId, authorKind: 'STAFF', text: message } });
+      if (resolve) {
+        const user = await tx.user.findUnique({ where: { id: ticket.userId } });
+        if (user) await enqueueMail(tx, `support-resolved:${id}:${ticket.updatedAt.toISOString()}`, user.email, `Đã giải quyết yêu cầu ${ticket.supportCode}`, `${ticket.supportCode} — ${ticket.subject}\n${note!.trim()}`);
+      }
+      return tx.supportTicket.findUniqueOrThrow({ where: { id }, include: withMessages });
     });
+  }
+
+  /** Creates the ticket together with its first message. */
+  async create(data: NewTicket): Promise<SupportTicketRecord> {
+    const { message, ...ticket } = data;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await prisma.supportTicket.create({
+          data: { ...ticket, messageCount: 1, messages: { create: message } }, include: withMessages,
+        });
+      } catch (error) { if (attempt >= 3 || !isUniqueViolation(error, 'supportCode')) throw error; }
+    }
   }
 
   findById(id: string): Promise<SupportTicketRecord | null> {

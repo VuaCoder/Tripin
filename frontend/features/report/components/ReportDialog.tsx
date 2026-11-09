@@ -1,5 +1,6 @@
 'use client';
 
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useEffect, useState } from 'react';
 import { Button, Modal } from '@/components/ui';
 import { REPORT_CATEGORY_LABELS, REPORT_TARGET_LABELS, validateReportDescription } from '../labels';
@@ -73,7 +74,7 @@ export function ReportDialog({
         <label htmlFor="report-category" className="block text-sm font-semibold text-slate-700">
           Loại vấn đề
         </label>
-        <select
+        <FormSelect
           id="report-category"
           value={category}
           disabled={isSubmitting}
@@ -85,7 +86,7 @@ export function ReportDialog({
               {REPORT_CATEGORY_LABELS[value]}
             </option>
           ))}
-        </select>
+        </FormSelect>
 
         <label htmlFor="report-description" className="block text-sm font-semibold text-slate-700">
           Mô tả chi tiết

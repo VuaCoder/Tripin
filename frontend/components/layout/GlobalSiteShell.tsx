@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { AppShell } from './AppShell';
+import { WishlistToast } from '@/features/wishlist';
 
 const authRoutes = new Set([
   '/login',
@@ -28,15 +29,22 @@ const fullBleedRoutes = new Set([
  */
 export function GlobalSiteShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  if (/^\/tours\/[^/]+\/print\/?$/.test(pathname)) return <>{children}</>;
 
   if (
     pathname === '/' ||
     pathname.startsWith('/agency') ||
+    pathname.startsWith('/moderator') ||
     pathname.startsWith('/application-status') ||
     authRoutes.has(pathname) ||
     pathname.startsWith('/register/')
   ) {
-    return <>{children}</>;
+    return (
+      <>
+        {children}
+        <WishlistToast />
+      </>
+    );
   }
 
   const isConversations = pathname.startsWith('/conversations');
@@ -47,6 +55,7 @@ export function GlobalSiteShell({ children }: { children: ReactNode }) {
       footer={!isConversations}
     >
       {children}
+      <WishlistToast />
     </AppShell>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
-import { selectAuthStatus, selectIsAuthenticated, selectRole } from '@/features/auth';
+import { selectAuthStatus, selectIsAuthenticated, selectRole, selectUser } from '@/features/auth';
 import { useAppSelector } from '@/store/hooks';
 import { useGetMyCompletedBookingsQuery, useGetMyReviewsQuery } from '../api/reviewApi';
 import { MY_REVIEWS_FETCH_LIMIT, type MyReview, type ReviewableBooking } from '../types';
@@ -16,6 +16,7 @@ export type ReviewEligibilityStatus =
   | 'error';
 
 export interface ReviewEligibility {
+  userId?: string;
   status: ReviewEligibilityStatus;
   /** COMPLETED bookings of this tour that have no review yet (what the dialog may post). */
   eligibleBookings: ReviewableBooking[];
@@ -37,6 +38,7 @@ export interface ReviewEligibility {
  * backend's answer on submit.
  */
 export function useTourReviewEligibility(tourId: string): ReviewEligibility {
+  const userId = useAppSelector(selectUser)?.id;
   const authStatus = useAppSelector(selectAuthStatus);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const role = useAppSelector(selectRole);
@@ -91,5 +93,5 @@ export function useTourReviewEligibility(tourId: string): ReviewEligibility {
     completedBookings.length,
   ]);
 
-  return { status, eligibleBookings, completedBookings, myReviews, retry };
+  return { userId, status, eligibleBookings, completedBookings, myReviews, retry };
 }

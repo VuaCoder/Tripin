@@ -428,6 +428,7 @@ export function AiThread() {
                       Câu trả lời chưa đầy đủ. Bạn có thể yêu cầu AI nói tiếp.
                     </p>
                   )}
+                  {message.incomplete && index === messages.length - 1 && <button type="button" disabled={pendingSend || loading} className="mt-2 rounded border px-3 py-1 text-sm" onClick={() => void handleSend('Tiếp tục câu trả lời chưa hoàn chỉnh ngay trước đó, từ phần đang dang dở.')}>Tiếp tục tạo...</button>}
                 </div>
 
                 <div

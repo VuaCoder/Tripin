@@ -1,4 +1,8 @@
-import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
+import { writeAudit } from '../audit/audit.writer';
+import { writeNotification } from '../notifications/notifications.writer';
+import { formatReviewModeratedTravelerEmail, formatReviewModeratedAgencyEmail } from '../notifications/email-templates';
+import type { AuditEntry } from '../audit/audit.types';
+import { nullIfNotFound, prisma, type Prisma, type DbExecutor } from '../../config/database';
 import { Prisma as Sql } from '../../generated/prisma/client';
 import type { Review } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
@@ -19,7 +23,12 @@ const SORTS: Record<ReviewSort, Prisma.ReviewOrderByWithRelationInput[]> = {
 
 export class ReviewsRepository {
   create(data: NewReview): Promise<ReviewRecord> {
-    return prisma.review.create({ data });
+    return prisma.$transaction(async (tx) => {
+      await this.lockTour(tx, data.tourId);
+      const review = await tx.review.create({ data });
+      await this.refreshRating(tx, data.tourId);
+      return review;
+    });
   }
 
   findById(id: string): Promise<ReviewRecord | null> {
@@ -31,8 +40,63 @@ export class ReviewsRepository {
   }
 
   /** Compare-and-set on the status so two moderators cannot overwrite each other. */
-  transition(id: string, expected: ReviewStatus, patch: ReviewPatch): Promise<ReviewRecord | null> {
-    return prisma.review.update({ where: { id, status: expected }, data: patch }).catch(nullIfNotFound);
+  async transition(id: string, expected: ReviewStatus, patch: ReviewPatch, audit?: AuditEntry, content?: Pick<Review, 'comment' | 'rating' | 'images'>): Promise<ReviewRecord | null> {
+    return prisma.$transaction(async (tx) => {
+      const current = await tx.review.findUnique({ where: { id }, select: { tourId: true } });
+      if (!current) return null;
+      await this.lockTour(tx, current.tourId);
+      const updated = await tx.review.update({ where: { id, status: expected, ...(content ? { comment: content.comment, rating: content.rating, images: { equals: content.images } } : {}) }, data: patch });
+      if (audit) await writeAudit(tx, audit);
+      await this.refreshRating(tx, current.tourId);
+      if (audit) {
+        const hidden = updated.status === REVIEW_STATUS.HIDDEN;
+        const reason = String(audit.metadata?.reason ?? '');
+        const [traveler, agency] = await Promise.all([
+          tx.user.findUnique({ where: { id: updated.travelerId }, select: { fullName: true } }),
+          tx.user.findUnique({ where: { id: updated.agencyId }, select: { fullName: true } }),
+        ]);
+
+        await writeNotification(tx, updated.travelerId, {
+          type: 'REVIEW_MODERATED',
+          title: hidden ? 'Đánh giá đã bị ẩn' : 'Đánh giá đã được khôi phục',
+          body: `Đánh giá về "${updated.tourTitle}" đã ${hidden ? 'bị ẩn' : 'được khôi phục'}. Lý do kiểm duyệt: ${reason}`,
+          data: { reviewId: id, tourId: updated.tourId },
+          emailSubject: hidden ? '[TripRI] Thông báo tạm ẩn đánh giá của bạn' : '[TripRI] Đánh giá của bạn đã được hiển thị trở lại',
+          emailText: formatReviewModeratedTravelerEmail({
+            travelerName: traveler?.fullName,
+            tourTitle: updated.tourTitle,
+            hidden,
+            reason,
+          }),
+        });
+
+        if (updated.agencyId !== updated.travelerId) {
+          await writeNotification(tx, updated.agencyId, {
+            type: 'REVIEW_MODERATED',
+            title: hidden ? 'Đánh giá tour đã bị ẩn' : 'Đánh giá tour đã được khôi phục',
+            body: `Đánh giá về "${updated.tourTitle}" đã ${hidden ? 'bị ẩn' : 'được khôi phục'}. Lý do kiểm duyệt: ${reason}`,
+            data: { reviewId: id, tourId: updated.tourId },
+            emailSubject: hidden ? `[TripRI] Cập nhật trạng thái đánh giá tour "${updated.tourTitle}"` : `[TripRI] Đánh giá cho tour "${updated.tourTitle}" đã được khôi phục`,
+            emailText: formatReviewModeratedAgencyEmail({
+              agencyName: agency?.fullName,
+              tourTitle: updated.tourTitle,
+              hidden,
+              reason,
+            }),
+          });
+        }
+      }
+      return updated;
+    }).catch(nullIfNotFound);
+  }
+
+  private async lockTour(tx: DbExecutor, tourId: string): Promise<void> {
+    await tx.$queryRaw`SELECT "id" FROM "Tour" WHERE "id" = ${tourId}::uuid FOR UPDATE`;
+  }
+
+  private async refreshRating(tx: DbExecutor, tourId: string): Promise<void> {
+    const stats = await tx.review.aggregate({ where: { tourId, status: REVIEW_STATUS.VISIBLE }, _avg: { rating: true }, _count: { _all: true } });
+    await tx.tour.updateMany({ where: { id: tourId }, data: { ratingAvg: Math.round((stats._avg.rating ?? 0) * 100) / 100, ratingCount: stats._count._all } });
   }
 
   listPublic(query: ListPublicReviewsQuery) {
@@ -77,6 +141,16 @@ export class ReviewsRepository {
   async visibleStats(tourId: string): Promise<{ avg: number; count: number }> {
     const stats = await prisma.review.aggregate({ where: { tourId, status: REVIEW_STATUS.VISIBLE }, _avg: { rating: true }, _count: { _all: true } });
     return { avg: stats._avg.rating ?? 0, count: stats._count._all };
+  }
+
+  async tourImagesFor(tourIds: string[]): Promise<Map<string, string>> {
+    const unique = [...new Set(tourIds.filter(Boolean))];
+    if (unique.length === 0) return new Map();
+    const rows = await prisma.tour.findMany({
+      where: { id: { in: unique } },
+      select: { id: true, images: true },
+    });
+    return new Map(rows.map((row) => [row.id, row.images?.[0] ?? '']));
   }
 
   private async paginate(where: Prisma.ReviewWhereInput, orderBy: Prisma.ReviewOrderByWithRelationInput[], page: PageRequest) {

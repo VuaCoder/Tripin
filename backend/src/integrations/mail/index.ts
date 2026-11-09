@@ -20,6 +20,7 @@ export class ConsoleMailProvider implements MailProvider {
 
 class DynamicMailProvider implements MailProvider {
   async send(message: MailMessage): Promise<void> {
+    if (process.env.NODE_ENV === 'test') throw new Error('Mail transport must be mocked in tests');
     // Load .env for local development.
     // On Render, environment variables come from Render Environment Variables.
     dotenv.config({

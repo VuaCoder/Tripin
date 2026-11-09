@@ -168,7 +168,7 @@ export function AgencyCommissionSettings() {
 
           {/* Sample Price Picker */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500 hidden sm:inline">Giá tour mẫu:</span>
+            <span className="text-xs font-semibold text-slate-500 hidden sm:inline">Giá tour tham khảo:</span>
             <div className="flex gap-1.5">
               {[1500000, 3500000, 6000000, 10000000].map((preset) => (
                 <button

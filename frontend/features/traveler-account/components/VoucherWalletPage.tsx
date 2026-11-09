@@ -46,20 +46,8 @@ export function VoucherWalletPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-teal-50 text-brand-teal border border-teal-100/80">
-              <TicketPercent className="size-5" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Ví voucher</h1>
-              <p className="text-xs sm:text-sm text-slate-500">
-                Quản lý mã giảm giá và voucher thu thập được áp dụng cho các chuyến đi của bạn
-              </p>
-            </div>
-          </div>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Ví voucher</h1>
       </div>
 
       {/* Tabs lọc trạng thái voucher */}

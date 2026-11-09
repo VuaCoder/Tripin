@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useGetTourDestinationsQuery } from '@/features/tours';
+import { useGetTourDestinationsQuery, useGetToursQuery, AirbnbTourCarousel, HotVouchersSection, getRecentlyViewedTours, type TourListItem } from '@/features/tours';
 import { guestSearchParams } from '@/features/tours/utils/searchContext';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated, selectRole } from '@/features/auth';
@@ -26,7 +26,7 @@ const HERO_SLIDES: Slide[] = [
     title: 'Chạm Bản Sắc Việt — Hành Trình Độc Bản Theo Phong Cách Riêng',
     subtitle: 'Trải nghiệm du lịch bản địa trọn vẹn với lộ trình cá nhân hóa, đối tác tuyển chọn và giá niêm yết minh bạch.',
     location: 'Vịnh Hạ Long & Lan Hạ, Quảng Ninh',
-    image: 'https://lh3.googleusercontent.com/aida/AEtjO1VT-raw4Y7ggYsBWZPl-Nku0oxeiVqxgdI3-1EIOmFtTrp5cBOsWjxgarLKYM9JL2IuUa1Kyi-kIG0EFwTpZPtRQakqeJ0C_EGDdJ2WsQrI93jh2HDnAF_94dslOiqzv0v0IydU4ewcH3KOmXSyIBS2xN-X5RlFUEDt37fi1ppzD2LVBjxTXcEn65ezCNnEfOH0TFu-ZM6tKzSh6aJp6Az6WKA3HSETd5iCK9Tzj1CY6Bfv-MyXpgwaGdM',
+    image: 'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=2400&q=85',
   },
   {
     badge: 'Di sản văn hóa & thiên nhiên',
@@ -34,7 +34,7 @@ const HERO_SLIDES: Slide[] = [
     title: 'Tuyệt Tác Non Nước Ninh Bình',
     subtitle: 'Lững lờ trôi thuyền giữa dòng sông Sao Khê xanh mát, xuyên qua những hang động huyền bí nguyên sơ.',
     location: 'Tràng An, Ninh Bình',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAnVWy_neifdgwOmSNs-YIyAsDXmiQW08ypGzk3B2ngxdkDpHBdanHNjRCUlOAMZlMpos15kGSDw3aeS_Y1tguW2ayn9eStYAi7Qc_dY-RyYcyj6_AyvX3MM3VKkJB1pRSrmCqQfI_KpaLq9lWPMk27DxTMKigHtZYcoiDNP1RLl3JS-4X_DsrxzO_W930Y8qSzbhyOxfSOq7TN82HuWGi8kQbZSUYCPCEJTsS9RKnkMFOcYiIS7GUU7g',
+    image: 'https://images.unsplash.com/photo-1574950578143-858c6fc58922?auto=format&fit=crop&w=2400&q=85',
   },
   {
     badge: 'Đô thị cổ quyến rũ',
@@ -42,206 +42,17 @@ const HERO_SLIDES: Slide[] = [
     title: 'Đêm Hoài Phố Đèn Lồng Lung Linh',
     subtitle: 'Dạo bước giữa những bức tường vàng rêu phong và nghe nhịp chèo khua bóng nước sông Hoài bình yên.',
     location: 'Phố Cổ Hội An, Quảng Nam',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDX1N3f-pvzvDYsBDNERiwEh7h89QIc_OffUr0ucrldukmz_beDvFaEgzAV5JoLdfwYJN0TCD_RlPSbqH4o8saymA7leJ0sg1s1ZpyirazSItZBQfJMcdJdrIa0Mj7K_cMfZxxLvBmnWZMKWtp0awgntGg1KeN_RiEH9IErrGTi8ZlbpnG6a0a5QaxKJa5mnzuaAfGuE7O5PJQuS0_E4oH7EvPij2eMlllXiM9oBTnwdrZMAwuXF0RfIw',
+    image: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=2400&q=85',
+  },
+  {
+    badge: 'Thiên đường biển đảo',
+    badgeIcon: 'beach_access',
+    title: 'Hoàng Hôn Đảo Ngọc Phú Quốc',
+    subtitle: 'Thả mình giữa làn nước ngọc bích, ngắm hoàng hôn rực rỡ và thưởng thức hải sản tươi ngon đậm vị biển.',
+    location: 'Phú Quốc, Kiên Giang',
+    image: 'https://images.unsplash.com/photo-1589308078059-be1415eab4c3?auto=format&fit=crop&w=2400&q=85',
   },
 ];
-
-type SearchTab = 'tour' | 'stay' | 'transport' | 'activity';
-
-interface ProductCard {
-  id: string;
-  tag: string;
-  title: string;
-  rating: number;
-  price: string;
-  unit?: string;
-  image: string;
-  meta: string;
-  location?: string;
-}
-
-const CATEGORY_PRODUCTS: Record<SearchTab, ProductCard[]> = {
-  tour: [
-    {
-      id: 'tour-1',
-      tag: 'Hạ Long • 2N1Đ',
-      title: 'Du thuyền 5 Sao Hạ Long Lan Hạ & Hang Sửng Sốt',
-      rating: 4.95,
-      price: '2.450.000 ₫',
-      meta: 'Hướng dẫn viên song ngữ',
-      location: 'Vịnh Hạ Long, Quảng Ninh',
-      image: 'https://lh3.googleusercontent.com/aida/AEtjO1VT-raw4Y7ggYsBWZPl-Nku0oxeiVqxgdI3-1EIOmFtTrp5cBOsWjxgarLKYM9JL2IuUa1Kyi-kIG0EFwTpZPtRQakqeJ0C_EGDdJ2WsQrI93jh2HDnAF_94dslOiqzv0v0IydU4ewcH3KOmXSyIBS2xN-X5RlFUEDt37fi1ppzD2LVBjxTXcEn65ezCNnEfOH0TFu-ZM6tKzSh6aJp6Az6WKA3HSETd5iCK9Tzj1CY6Bfv-MyXpgwaGdM',
-    },
-    {
-      id: 'tour-2',
-      tag: 'Ninh Bình • Trong ngày',
-      title: 'Tour Tràng An - Bái Đính: Thuyền sampan & cơm cháy',
-      rating: 4.89,
-      price: '980.000 ₫',
-      meta: 'Đưa đón từ Hà Nội',
-      location: 'Tràng An, Ninh Bình',
-      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAnVWy_neifdgwOmSNs-YIyAsDXmiQW08ypGzk3B2ngxdkDpHBdanHNjRCUlOAMZlMpos15kGSDw3aeS_Y1tguW2ayn9eStYAi7Qc_dY-RyYcyj6_AyvX3MM3VKkJB1pRSrmCqQfI_KpaLq9lWPMk27DxTMKigHtZYcoiDNP1RLl3JS-4X_DsrxzO_W930Y8qSzbhyOxfSOq7TN82HuWGi8kQbZSUYCPCEJTsS9RKnkMFOcYiIS7GUU7g',
-    },
-    {
-      id: 'tour-3',
-      tag: 'Hội An • Chiều tối',
-      title: 'Đêm Hoài Phố: Thả hoa đăng, làm lồng đèn & nếm ẩm thực',
-      rating: 4.92,
-      price: '550.000 ₫',
-      meta: 'Hướng dẫn viên bản địa',
-      location: 'Hội An, Quảng Nam',
-      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDX1N3f-pvzvDYsBDNERiwEh7h89QIc_OffUr0ucrldukmz_beDvFaEgzAV5JoLdfwYJN0TCD_RlPSbqH4o8saymA7leJ0sg1s1ZpyirazSItZBQfJMcdJdrIa0Mj7K_cMfZxxLvBmnWZMKWtp0awgntGg1KeN_RiEH9IErrGTi8ZlbpnG6a0a5QaxKJa5mnzuaAfGuE7O5PJQuS0_E4oH7EvPij2eMlllXiM9oBTnwdrZMAwuXF0RfIw',
-    },
-    {
-      id: 'tour-4',
-      tag: 'Đà Nẵng • 1 Ngày',
-      title: 'Cano cao tốc Cù Lao Chàm & Lặn ngắm san hô Bãi Chồng',
-      rating: 4.87,
-      price: '720.000 ₫',
-      meta: 'Bao gồm ăn trưa hải sản',
-      location: 'Cù Lao Chàm, Đà Nẵng',
-      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAnVWy_neifdgwOmSNs-YIyAsDXmiQW08ypGzk3B2ngxdkDpHBdanHNjRCUlOAMZlMpos15kGSDw3aeS_Y1tguW2ayn9eStYAi7Qc_dY-RyYcyj6_AyvX3MM3VKkJB1pRSrmCqQfI_KpaLq9lWPMk27DxTMKigHtZYcoiDNP1RLl3JS-4X_DsrxzO_W930Y8qSzbhyOxfSOq7TN82HuWGi8kQbZSUYCPCEJTsS9RKnkMFOcYiIS7GUU7g',
-    },
-  ],
-  stay: [
-    {
-      id: 'stay-1',
-      tag: '5 Sao • Quảng Ninh',
-      title: 'Legacy Yên Tử - MGallery Resort',
-      rating: 4.96,
-      price: '3.200.000 ₫',
-      unit: '/ đêm',
-      meta: 'Bao gồm bữa sáng Hoàng gia',
-      location: 'Uông Bí, Quảng Ninh',
-      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAnVWy_neifdgwOmSNs-YIyAsDXmiQW08ypGzk3B2ngxdkDpHBdanHNjRCUlOAMZlMpos15kGSDw3aeS_Y1tguW2ayn9eStYAi7Qc_dY-RyYcyj6_AyvX3MM3VKkJB1pRSrmCqQfI_KpaLq9lWPMk27DxTMKigHtZYcoiDNP1RLl3JS-4X_DsrxzO_W930Y8qSzbhyOxfSOq7TN82HuWGi8kQbZSUYCPCEJTsS9RKnkMFOcYiIS7GUU7g',
-    },
-    {
-      id: 'stay-2',
-      tag: 'Eco Resort • Sapa',
-      title: 'Topas Ecolodge Sapa - Đỉnh Núi Mây Ngàn',
-      rating: 4.91,
-      price: '4.850.000 ₫',
-      unit: '/ đêm',
-      meta: 'Hồ bơi vô cực nhìn thung lũng',
-      location: 'Bản Lếch, Sapa',
-      image: 'https://lh3.googleusercontent.com/aida/AEtjO1VT-raw4Y7ggYsBWZPl-Nku0oxeiVqxgdI3-1EIOmFtTrp5cBOsWjxgarLKYM9JL2IuUa1Kyi-kIG0EFwTpZPtRQakqeJ0C_EGDdJ2WsQrI93jh2HDnAF_94dslOiqzv0v0IydU4ewcH3KOmXSyIBS2xN-X5RlFUEDt37fi1ppzD2LVBjxTXcEn65ezCNnEfOH0TFu-ZM6tKzSh6aJp6Az6WKA3HSETd5iCK9Tzj1CY6Bfv-MyXpgwaGdM',
-    },
-    {
-      id: 'stay-3',
-      tag: 'Boutique • Hội An',
-      title: 'Hoi An Memories Resort & Spa Ven Sông Hoài',
-      rating: 4.88,
-      price: '1.950.000 ₫',
-      unit: '/ đêm',
-      meta: 'Tặng vé xem Ký Ức Hội An',
-      location: 'Cồn Hến, Hội An',
-      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDX1N3f-pvzvDYsBDNERiwEh7h89QIc_OffUr0ucrldukmz_beDvFaEgzAV5JoLdfwYJN0TCD_RlPSbqH4o8saymA7leJ0sg1s1ZpyirazSItZBQfJMcdJdrIa0Mj7K_cMfZxxLvBmnWZMKWtp0awgntGg1KeN_RiEH9IErrGTi8ZlbpnG6a0a5QaxKJa5mnzuaAfGuE7O5PJQuS0_E4oH7EvPij2eMlllXiM9oBTnwdrZMAwuXF0RfIw',
-    },
-    {
-      id: 'stay-4',
-      tag: 'Bán Đảo Sơn Trà',
-      title: 'InterContinental Danang Sun Peninsula Resort',
-      rating: 4.98,
-      price: '8.900.000 ₫',
-      unit: '/ đêm',
-      meta: 'Khu nghỉ dưỡng sang trọng hàng đầu',
-      location: 'Sơn Trà, Đà Nẵng',
-      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAnVWy_neifdgwOmSNs-YIyAsDXmiQW08ypGzk3B2ngxdkDpHBdanHNjRCUlOAMZlMpos15kGSDw3aeS_Y1tguW2ayn9eStYAi7Qc_dY-RyYcyj6_AyvX3MM3VKkJB1pRSrmCqQfI_KpaLq9lWPMk27DxTMKigHtZYcoiDNP1RLl3JS-4X_DsrxzO_W930Y8qSzbhyOxfSOq7TN82HuWGi8kQbZSUYCPCEJTsS9RKnkMFOcYiIS7GUU7g',
-    },
-  ],
-  transport: [
-    {
-      id: 'transport-1',
-      tag: 'Limousine VIP 9 Chỗ',
-      title: 'Tuyến Hà Nội ↔ Tuần Châu / Hạ Long Đón Tận Nơi',
-      rating: 4.94,
-      price: '260.000 ₫',
-      unit: '/ vé',
-      meta: 'Xe chạy cao tốc 2 giờ',
-      location: 'Hà Nội - Hạ Long',
-      image: 'https://lh3.googleusercontent.com/aida/AEtjO1VT-raw4Y7ggYsBWZPl-Nku0oxeiVqxgdI3-1EIOmFtTrp5cBOsWjxgarLKYM9JL2IuUa1Kyi-kIG0EFwTpZPtRQakqeJ0C_EGDdJ2WsQrI93jh2HDnAF_94dslOiqzv0v0IydU4ewcH3KOmXSyIBS2xN-X5RlFUEDt37fi1ppzD2LVBjxTXcEn65ezCNnEfOH0TFu-ZM6tKzSh6aJp6Az6WKA3HSETd5iCK9Tzj1CY6Bfv-MyXpgwaGdM',
-    },
-    {
-      id: 'transport-2',
-      tag: 'Cabin Đôi Hoàng Gia',
-      title: 'Xe Giường Nằm VIP Hà Nội ↔ Trung Tâm Thị Xã Sapa',
-      rating: 4.9,
-      price: '380.000 ₫',
-      unit: '/ vé',
-      meta: 'Cổng sạc, rèm riêng tư, massage',
-      location: 'Hà Nội - Sapa',
-      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAnVWy_neifdgwOmSNs-YIyAsDXmiQW08ypGzk3B2ngxdkDpHBdanHNjRCUlOAMZlMpos15kGSDw3aeS_Y1tguW2ayn9eStYAi7Qc_dY-RyYcyj6_AyvX3MM3VKkJB1pRSrmCqQfI_KpaLq9lWPMk27DxTMKigHtZYcoiDNP1RLl3JS-4X_DsrxzO_W930Y8qSzbhyOxfSOq7TN82HuWGi8kQbZSUYCPCEJTsS9RKnkMFOcYiIS7GUU7g',
-    },
-    {
-      id: 'transport-3',
-      tag: 'Xe Riêng 7 Chỗ',
-      title: 'Đưa Đón Riêng Sân Bay Đà Nẵng ↔ Khách Sạn Phố Cổ Hội An',
-      rating: 4.97,
-      price: '320.000 ₫',
-      unit: '/ chuyến',
-      meta: 'Bao gồm phí cầu đường & chờ',
-      location: 'Đà Nẵng - Hội An',
-      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDX1N3f-pvzvDYsBDNERiwEh7h89QIc_OffUr0ucrldukmz_beDvFaEgzAV5JoLdfwYJN0TCD_RlPSbqH4o8saymA7leJ0sg1s1ZpyirazSItZBQfJMcdJdrIa0Mj7K_cMfZxxLvBmnWZMKWtp0awgntGg1KeN_RiEH9IErrGTi8ZlbpnG6a0a5QaxKJa5mnzuaAfGuE7O5PJQuS0_E4oH7EvPij2eMlllXiM9oBTnwdrZMAwuXF0RfIw',
-    },
-    {
-      id: 'transport-4',
-      tag: 'Limousine 11 Chỗ',
-      title: 'Tuyến Hà Nội ↔ Tràng An - Tam Cốc Ninh Bình',
-      rating: 4.88,
-      price: '180.000 ₫',
-      unit: '/ vé',
-      meta: 'Khởi hành liên tục mỗi 60 phút',
-      location: 'Hà Nội - Ninh Bình',
-      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAnVWy_neifdgwOmSNs-YIyAsDXmiQW08ypGzk3B2ngxdkDpHBdanHNjRCUlOAMZlMpos15kGSDw3aeS_Y1tguW2ayn9eStYAi7Qc_dY-RyYcyj6_AyvX3MM3VKkJB1pRSrmCqQfI_KpaLq9lWPMk27DxTMKigHtZYcoiDNP1RLl3JS-4X_DsrxzO_W930Y8qSzbhyOxfSOq7TN82HuWGi8kQbZSUYCPCEJTsS9RKnkMFOcYiIS7GUU7g',
-    },
-  ],
-  activity: [
-    {
-      id: 'act-1',
-      tag: 'Show Thực Cảnh Lớn Nhất',
-      title: 'Vé Xem Đại Show Thực Cảnh "Ký Ức Hội An"',
-      rating: 4.97,
-      price: '600.000 ₫',
-      unit: '/ vé',
-      meta: 'Vào cổng trực tiếp bằng QR Code',
-      location: 'Hội An, Quảng Nam',
-      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDX1N3f-pvzvDYsBDNERiwEh7h89QIc_OffUr0ucrldukmz_beDvFaEgzAV5JoLdfwYJN0TCD_RlPSbqH4o8saymA7leJ0sg1s1ZpyirazSItZBQfJMcdJdrIa0Mj7K_cMfZxxLvBmnWZMKWtp0awgntGg1KeN_RiEH9IErrGTi8ZlbpnG6a0a5QaxKJa5mnzuaAfGuE7O5PJQuS0_E4oH7EvPij2eMlllXiM9oBTnwdrZMAwuXF0RfIw',
-    },
-    {
-      id: 'act-2',
-      tag: 'Kỷ Lục Guinness',
-      title: 'Vé Cáp Treo Fansipan Sun World Legend Khứ Hồi',
-      rating: 4.92,
-      price: '850.000 ₫',
-      unit: '/ vé',
-      meta: 'Chinh phục nóc nhà Đông Dương',
-      location: 'Sapa, Lào Cai',
-      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAnVWy_neifdgwOmSNs-YIyAsDXmiQW08ypGzk3B2ngxdkDpHBdanHNjRCUlOAMZlMpos15kGSDw3aeS_Y1tguW2ayn9eStYAi7Qc_dY-RyYcyj6_AyvX3MM3VKkJB1pRSrmCqQfI_KpaLq9lWPMk27DxTMKigHtZYcoiDNP1RLl3JS-4X_DsrxzO_W930Y8qSzbhyOxfSOq7TN82HuWGi8kQbZSUYCPCEJTsS9RKnkMFOcYiIS7GUU7g',
-    },
-    {
-      id: 'act-3',
-      tag: 'Trải Nghiệm Sinh Thái',
-      title: 'Vé Chèo Thuyền Thúng Rừng Dừa Bảy Mẫu Cẩm Thanh',
-      rating: 4.88,
-      price: '150.000 ₫',
-      unit: '/ vé',
-      meta: 'Múa thúng & giăng lưới bắt cá',
-      location: 'Hội An, Quảng Nam',
-      image: 'https://lh3.googleusercontent.com/aida/AEtjO1VT-raw4Y7ggYsBWZPl-Nku0oxeiVqxgdI3-1EIOmFtTrp5cBOsWjxgarLKYM9JL2IuUa1Kyi-kIG0EFwTpZPtRQakqeJ0C_EGDdJ2WsQrI93jh2HDnAF_94dslOiqzv0v0IydU4ewcH3KOmXSyIBS2xN-X5RlFUEDt37fi1ppzD2LVBjxTXcEn65ezCNnEfOH0TFu-ZM6tKzSh6aJp6Az6WKA3HSETd5iCK9Tzj1CY6Bfv-MyXpgwaGdM',
-    },
-    {
-      id: 'act-4',
-      tag: 'Vé Thuyền & Tham Quan',
-      title: 'Vé Thuyền Danh Thắng Tràng An Tuyến 1, 2, 3',
-      rating: 4.91,
-      price: '250.000 ₫',
-      unit: '/ vé',
-      meta: 'Khám phá hang động huyền thoại',
-      location: 'Hoa Lư, Ninh Bình',
-      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAnVWy_neifdgwOmSNs-YIyAsDXmiQW08ypGzk3B2ngxdkDpHBdanHNjRCUlOAMZlMpos15kGSDw3aeS_Y1tguW2ayn9eStYAi7Qc_dY-RyYcyj6_AyvX3MM3VKkJB1pRSrmCqQfI_KpaLq9lWPMk27DxTMKigHtZYcoiDNP1RLl3JS-4X_DsrxzO_W930Y8qSzbhyOxfSOq7TN82HuWGi8kQbZSUYCPCEJTsS9RKnkMFOcYiIS7GUU7g',
-    },
-  ],
-};
 
 function CalendarOutlineIcon({ className = "text-slate-500" }: { className?: string }) {
   return (
@@ -336,24 +147,27 @@ export default function Home() {
   const [selectedTourPrompt, setSelectedTourPrompt] = useState<{ title?: string; href?: string }>({});
 
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [searchTab, setSearchTab] = useState<SearchTab>('tour');
-  const [categoryTab, setCategoryTab] = useState<SearchTab>('tour');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchSticky, setIsSearchSticky] = useState(false);
 
-  const handleSearchTabChange = (tab: SearchTab) => {
-    if (tab === searchTab) return;
-    setSearchTab(tab);
-  };
+  // Real tours from database for favorites and recent
+  const { data: favoritesRes, isLoading: isLoadingFavorites } = useGetToursQuery({
+    sort: 'rating',
+    minRating: 4.5,
+    limit: 12,
+  });
+  const { data: recentRes, isLoading: isLoadingRecent } = useGetToursQuery({
+    sort: 'newest',
+    limit: 12,
+  });
+  const favoriteTours = favoritesRes?.items || [];
+  const recentTours = recentRes?.items || [];
 
-  const handleCategoryTabChange = (tab: SearchTab) => {
-    if (tab === categoryTab) return;
-    setCategoryTab(tab);
-  };
-
-  const handleProductCardClick = (_product: ProductCard) => {
-    router.push('/tours');
-  };
+  // Recently viewed tours from localStorage
+  const [viewedTours, setViewedTours] = useState<TourListItem[]>([]);
+  useEffect(() => {
+    setViewedTours(getRecentlyViewedTours());
+  }, []);
 
   const flexibleMonths = useMemo(() => getDynamicFlexibleMonths(), []);
 
@@ -418,12 +232,14 @@ export default function Home() {
     const handleScroll = () => {
       const searchConsole = document.getElementById('search-console');
       if (searchConsole) {
-        setIsSearchSticky(window.scrollY > searchConsole.offsetTop + searchConsole.offsetHeight - 80);
+        const rect = searchConsole.getBoundingClientRect();
+        // Chỉ hiện thanh tìm kiếm mini khi người dùng đã cuộn qua hết toàn bộ thanh search chính
+        setIsSearchSticky(rect.bottom <= 0);
       } else {
-        setIsSearchSticky(window.scrollY > 600);
+        setIsSearchSticky(window.scrollY > 650);
       }
     };
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     
     return () => {
       clearInterval(timer);
@@ -619,66 +435,72 @@ export default function Home() {
     <>
       <div className="flex flex-col w-full -mt-20">
         {/* ========================================================================= */}
-        {/* 1. HERO SECTION WITH BACKGROUND CAROUSEL                                  */}
+        {/* 1. HERO SECTION WITH BACKGROUND CAROUSEL & SEARCH CONSOLE                 */}
         {/* ========================================================================= */}
-        <section className="relative w-full h-[620px] lg:h-[700px] overflow-hidden bg-surface-container-highest">
-          {HERO_SLIDES.map((item, index) => {
-            const isActive = index === currentSlide;
-            return (
-              <div
-                key={item.location}
-                className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ${
-                  isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-                }`}
-              >
-                {/* Background Image with Ambient Filter */}
+        <section className="relative w-full min-h-[640px] lg:min-h-[720px] overflow-visible bg-white flex flex-col justify-between">
+          {/* Background slides container: reaches down only to the horizontal midline of the search bar */}
+          <div className="absolute inset-x-0 top-0 bottom-[120px] md:bottom-[39px] overflow-hidden bg-[#0d1d26] pointer-events-none">
+            {HERO_SLIDES.map((item, index) => {
+              const isActive = index === currentSlide;
+              return (
                 <div
-                  className={`absolute inset-0 bg-cover bg-center transition-transform duration-[6000ms] ${
-                    isActive ? 'scale-105' : 'scale-100'
+                  key={item.location}
+                  className={`absolute inset-0 w-full h-full ${
+                    isActive ? 'opacity-100 z-10' : 'opacity-0 z-0'
                   }`}
-                  style={{
-                    backgroundImage: `url("${item.image}")`,
-                    filter: 'brightness(0.85) saturate(1.1) contrast(1.02)',
-                  }}
-                />
+                >
+                  {/* Background Image with Ambient Filter */}
+                  <div
+                    className={`absolute inset-0 bg-cover bg-center transition-transform duration-[6000ms] ${
+                      isActive ? 'scale-105' : 'scale-100'
+                    }`}
+                    style={{
+                      backgroundImage: `url("${item.image}")`,
+                      filter: 'brightness(0.85) saturate(1.1) contrast(1.02)',
+                    }}
+                  />
 
-                {/* Gradient Overlays */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0d1d26] via-[#0d1d26]/40 to-black/30" />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#004f57]/50 via-transparent to-transparent" />
+                  {/* Gradient Overlays */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0d1d26] via-[#0d1d26]/40 to-black/30" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#004f57]/50 via-transparent to-transparent" />
 
-                {/* Hero Content */}
-                <Container className="relative h-full flex flex-col justify-end pb-32 lg:pb-36 pt-24 text-white">
-                  <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/20 backdrop-blur-md w-fit mb-4 text-secondary-fixed border border-white/20 shadow-sm">
-                    <span className="material-symbols-outlined text-[16px]">{item.badgeIcon}</span>
-                    <span className="text-xs uppercase font-bold tracking-wider">{item.badge}</span>
-                  </div>
+                  {/* Smooth bottom fade out across the midline of the search bar so the image looks cut / cleanly faded out */}
+                  <div className="absolute inset-x-0 bottom-0 h-32 sm:h-44 bg-gradient-to-b from-transparent via-[#0d1d26]/40 to-white pointer-events-none" />
+                </div>
+              );
+            })}
+          </div>
 
-                  <h1 className="text-3xl sm:text-5xl font-extrabold max-w-3xl mb-4 leading-tight drop-shadow-md">
-                    {item.title}
-                  </h1>
+          {/* Hero Content (Top / Center) */}
+          <Container className="relative z-10 flex min-h-[600px] flex-1 flex-col pt-28 pb-16 text-white md:min-h-[562px] md:pb-20 lg:min-h-[642px] lg:pt-36">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/20 backdrop-blur-md w-fit mb-4 text-secondary-fixed border border-white/20 shadow-sm">
+              <span className="material-symbols-outlined text-[16px]">{slide.badgeIcon}</span>
+              <span className="text-xs uppercase font-bold tracking-wider">{slide.badge}</span>
+            </div>
 
-                  <p className="text-base sm:text-lg text-surface-container-low max-w-xl mb-6 drop-shadow leading-relaxed">
-                    {item.subtitle}
-                  </p>
+            <h1 className="text-3xl sm:text-5xl font-extrabold max-w-3xl mb-4 leading-tight drop-shadow-md">
+              {slide.title}
+            </h1>
 
-                  <div className="flex items-center gap-4 flex-wrap">
-                    <Link
-                      href="/tours"
-                      className="inline-flex items-center justify-center gap-2 bg-[#087e8b] hover:bg-[#00636e] text-white font-semibold text-sm sm:text-base px-6 py-3 rounded-2xl shadow-xl shadow-primary-container/30 transition-all transform hover:-translate-y-0.5 border border-white/20 h-12"
-                    >
-                      <span>Khám phá ngay</span>
-                      <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
-                    </Link>
+            <p className="text-base sm:text-lg text-surface-container-low max-w-xl mb-6 drop-shadow leading-relaxed">
+              {slide.subtitle}
+            </p>
 
-                    <span className="text-xs sm:text-sm text-surface-variant flex items-center gap-1.5 backdrop-blur-md px-3.5 py-2 rounded-xl bg-slate-900/40 border border-white/10 shadow-sm h-12">
-                      <span className="material-symbols-outlined text-[16px] text-secondary-fixed">photo_camera</span>
-                      {item.location}
-                    </span>
-                  </div>
-                </Container>
-              </div>
-            );
-          })}
+            <div className="mt-auto flex flex-wrap items-center gap-4">
+              <Link
+                href="/tours"
+                className="inline-flex items-center justify-center gap-2 bg-[#087e8b] hover:bg-[#00636e] text-white font-semibold text-sm sm:text-base px-6 py-3 rounded-2xl shadow-xl shadow-primary-container/30 transition-all transform hover:-translate-y-0.5 border border-white/20 h-12"
+              >
+                <span>Khám phá ngay</span>
+                <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
+              </Link>
+
+              <span className="text-xs sm:text-sm text-surface-variant flex items-center gap-1.5 backdrop-blur-md px-3.5 py-2 rounded-xl bg-slate-900/40 border border-white/10 shadow-sm h-12">
+                <span className="material-symbols-outlined text-[16px] text-secondary-fixed">photo_camera</span>
+                {slide.location}
+              </span>
+            </div>
+          </Container>
 
           {/* Carousel navigation */}
           <div className="pointer-events-none absolute inset-x-0 top-1/2 z-20 flex -translate-y-1/2 items-center justify-between px-3 sm:px-5 lg:px-8">
@@ -686,7 +508,7 @@ export default function Home() {
               type="button"
               onClick={() => setCurrentSlide((prev) => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)}
               aria-label="Slide trước"
-              className="pointer-events-auto flex size-11 items-center justify-center rounded-full border border-white/30 bg-slate-950/25 text-white backdrop-blur-md transition-colors hover:bg-slate-950/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              className="pointer-events-auto flex size-11 items-center justify-center rounded-full border border-white/30 bg-slate-950/25 text-white backdrop-blur-md transition-colors hover:bg-slate-950/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer"
             >
               <span className="material-symbols-outlined text-[22px]">chevron_left</span>
             </button>
@@ -694,64 +516,32 @@ export default function Home() {
               type="button"
               onClick={() => setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length)}
               aria-label="Slide tiếp theo"
-              className="pointer-events-auto flex size-11 items-center justify-center rounded-full border border-white/30 bg-slate-950/25 text-white backdrop-blur-md transition-colors hover:bg-slate-950/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              className="pointer-events-auto flex size-11 items-center justify-center rounded-full border border-white/30 bg-slate-950/25 text-white backdrop-blur-md transition-colors hover:bg-slate-950/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer"
             >
               <span className="material-symbols-outlined text-[22px]">chevron_right</span>
             </button>
           </div>
 
-          <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-surface via-surface/40 to-transparent pointer-events-none z-10" />
-        </section>
-
-        {/* ========================================================================= */}
-        {/* 2. OVERLAPPING SEARCH CONSOLE                                             */}
-        {/* ========================================================================= */}
-        <Container as="section" id="search-console" className="relative z-30 -mt-16 lg:-mt-20 mb-16 transition-all duration-300">
-          {activeDropdown && (
-             <div className="fixed inset-0 z-20 bg-black/5" onClick={() => setActiveDropdown(null)} />
-          )}
-          <div className={`rounded-3xl backdrop-blur-2xl shadow-[0_25px_60px_-15px_rgba(8,126,139,0.22),0_12px_30px_-10px_rgba(0,0,0,0.1)] border border-white/80 relative z-30 ${activeDropdown ? 'bg-surface-container-low' : 'bg-white/90'}`}>
-            {/* Search Category Tabs */}
-            <div data-no-preloader="true" className="flex border-b border-surface-container/60 bg-surface-container-low/50 overflow-x-auto justify-between rounded-t-3xl">
-                {[
-                  { key: 'tour', label: 'Tour du lịch', icon: 'tour' },
-                  { key: 'stay', label: 'Khách sạn & Lưu trú', icon: 'hotel' },
-                  { key: 'transport', label: 'Vé xe & Di chuyển', icon: 'directions_car' },
-                  { key: 'activity', label: 'Vé vui chơi & Trải nghiệm', icon: 'attractions' },
-                ].map((tab) => {
-                  const isActive = searchTab === tab.key;
-                  return (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      data-no-preloader="true"
-                      onClick={() => handleSearchTabChange(tab.key as SearchTab)}
-                      className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 text-sm font-semibold transition-all whitespace-nowrap ${
-                        isActive
-                          ? 'text-primary-container border-b-2 border-primary-container bg-surface-container-lowest shadow-sm'
-                          : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-[20px]">{tab.icon}</span>
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-            {/* Tab Inputs Panel */}
-            <div className="p-4 lg:p-6">
+          {/* SEARCH CONSOLE SITS AT THE BOTTOM, EXACTLY BRIDGING HALF OVER THE HERO IMAGE AND HALF ON WHITE BACKGROUND */}
+          <div className="relative z-30 pb-0 px-4 w-full">
+            <Container as="div" id="search-console" className="max-w-4xl mx-auto">
+              {activeDropdown && (
+                <div 
+                  className="fixed inset-0 z-30 bg-black/25 backdrop-blur-[2px] transition-opacity" 
+                  onClick={() => setActiveDropdown(null)} 
+                />
+              )}
               <div 
                 onMouseLeave={() => setHoveredField(null)}
-                className={`flex flex-col md:flex-row items-stretch h-auto md:h-[66px] bg-transparent md:rounded-full md:border md:border-slate-200 md:shadow-sm relative gap-2 md:gap-0 transition-colors ${
-                  activeDropdown ? 'md:bg-slate-100/90' : 'md:bg-white'
+                className={`flex flex-col md:flex-row items-stretch h-auto md:h-[78px] bg-white rounded-3xl md:rounded-full border border-white/90 shadow-[0_16px_36px_rgba(0,0,0,0.22)] relative gap-2 md:gap-0 transition-colors z-40 p-2 md:p-0 ${
+                  activeDropdown ? 'md:bg-slate-100/95' : 'md:bg-white'
                 }`}
               >
                 {/* Field 1: Destination / Route */}
                 <div 
-                  className={`relative flex-1 w-full h-auto md:h-full p-3 md:py-0 md:px-7 rounded-2xl md:rounded-full transition-all cursor-pointer group flex flex-col justify-center ${
+                  className={`relative flex-1 w-full h-auto md:h-full p-3.5 md:py-0 md:px-8 rounded-2xl md:rounded-full transition-all cursor-pointer group flex flex-col justify-center ${
                     activeDropdown === 'location' 
-                      ? 'bg-white shadow-[0_6px_20px_rgba(0,0,0,0.12)] z-10 md:rounded-full border border-slate-200 md:border-transparent' 
+                      ? 'bg-white shadow-[0_6px_20px_rgba(0,0,0,0.12)] z-50 md:rounded-full border border-slate-200 md:border-transparent' 
                       : hoveredField === 'location'
                       ? 'bg-slate-200/80 md:bg-slate-200/80'
                       : 'bg-surface-container-low md:bg-transparent hover:bg-slate-200/80 md:hover:bg-slate-200/80'
@@ -759,7 +549,7 @@ export default function Home() {
                   onMouseEnter={() => setHoveredField('location')}
                   onClick={() => setActiveDropdown('location')}
                 >
-                  <label className="block text-xs font-bold text-on-surface mb-0.5 cursor-pointer">
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800 mb-0.5 cursor-pointer">
                     Địa điểm
                   </label>
                   <div className="flex items-center justify-between">
@@ -768,7 +558,7 @@ export default function Home() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Tìm kiếm điểm đến"
-                      className="w-full bg-transparent text-sm font-semibold text-on-surface placeholder:text-on-surface-variant focus:outline-none cursor-pointer truncate"
+                      className="w-full bg-transparent text-sm md:text-base font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none cursor-pointer truncate"
                     />
                     {activeDropdown === 'location' && searchQuery && (
                       <button 
@@ -784,7 +574,7 @@ export default function Home() {
                   </div>
                   {/* Location Popup */}
                   {activeDropdown === 'location' && (
-                    <div className="absolute top-[120%] left-0 w-[calc(100vw-32px)] sm:w-[480px] md:w-[520px] bg-white rounded-3xl shadow-2xl border border-slate-100 p-5 sm:p-6 z-[70] cursor-default" onClick={e => e.stopPropagation()}>
+                    <div className="absolute top-[calc(100%+14px)] left-0 w-[calc(100vw-32px)] sm:w-[480px] md:w-[520px] bg-white rounded-3xl shadow-2xl border border-slate-100 p-5 sm:p-6 z-[100] cursor-default" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
                         <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
                           Điểm đến theo tour du lịch
@@ -845,9 +635,9 @@ export default function Home() {
 
                 {/* Field 2: Date Selector */}
                 <div 
-                  className={`relative flex-1 w-full h-auto md:h-full p-3 md:py-0 md:px-7 rounded-2xl md:rounded-full transition-all cursor-pointer group flex flex-col justify-center ${
+                  className={`relative flex-1 w-full h-auto md:h-full p-3.5 md:py-0 md:px-8 rounded-2xl md:rounded-full transition-all cursor-pointer group flex flex-col justify-center ${
                     activeDropdown === 'date' 
-                      ? 'bg-white shadow-[0_6px_20px_rgba(0,0,0,0.12)] z-10 md:rounded-full border border-slate-200 md:border-transparent' 
+                      ? 'bg-white shadow-[0_6px_20px_rgba(0,0,0,0.12)] z-50 md:rounded-full border border-slate-200 md:border-transparent' 
                       : hoveredField === 'date'
                       ? 'bg-slate-200/80 md:bg-slate-200/80'
                       : 'bg-surface-container-low md:bg-transparent hover:bg-slate-200/80 md:hover:bg-slate-200/80'
@@ -855,7 +645,7 @@ export default function Home() {
                   onMouseEnter={() => setHoveredField('date')}
                   onClick={() => setActiveDropdown('date')}
                 >
-                  <label className="block text-xs font-bold text-on-surface mb-0.5 cursor-pointer">
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800 mb-0.5 cursor-pointer">
                     Thời gian
                   </label>
                   <div className="flex items-center justify-between">
@@ -864,7 +654,7 @@ export default function Home() {
                       readOnly
                       value={displayDateText}
                       placeholder={datePlaceholder}
-                      className="w-full bg-transparent text-sm font-semibold text-on-surface placeholder:text-on-surface-variant focus:outline-none cursor-pointer truncate"
+                      className="w-full bg-transparent text-sm md:text-base font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none cursor-pointer truncate"
                     />
                     {activeDropdown === 'date' && hasDateValue && (
                       <button 
@@ -887,16 +677,19 @@ export default function Home() {
                   </div>
                   {/* Date Popup */}
                   {activeDropdown === 'date' && (
-                    <div className="absolute top-[120%] left-1/2 -translate-x-1/2 w-[calc(100vw-32px)] sm:w-[720px] md:w-[760px] bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 md:p-8 z-[70] cursor-default" onClick={e => e.stopPropagation()}>
+                    <div className="absolute top-[calc(100%+14px)] left-1/2 -translate-x-1/2 w-[calc(100vw-32px)] sm:w-[720px] md:w-[760px] bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 md:p-8 z-[100] cursor-default" onClick={e => e.stopPropagation()}>
                        {/* Header Switcher: Ngày vs Linh hoạt */}
                        <div className="flex justify-center mb-6">
-                         <div className="bg-slate-100 p-1 rounded-full flex gap-1">
+                         <div className="bg-slate-100 p-1.5 rounded-full flex gap-1.5" onClick={(e) => e.stopPropagation()}>
                            <button 
                              type="button"
-                             onClick={() => setDateMode('exact')}
-                             className={`px-7 py-2 rounded-full text-sm font-bold transition-all ${
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               setDateMode('exact');
+                             }}
+                             className={`px-8 py-2.5 rounded-full text-sm font-bold transition-all cursor-pointer ${
                                dateMode === 'exact' 
-                                 ? 'bg-white text-slate-900 shadow-sm' 
+                                 ? 'bg-white text-slate-900 shadow-md' 
                                  : 'text-slate-600 hover:text-slate-900'
                              }`}
                            >
@@ -904,10 +697,13 @@ export default function Home() {
                            </button>
                            <button 
                              type="button"
-                             onClick={() => setDateMode('flexible')}
-                             className={`px-7 py-2 rounded-full text-sm font-bold transition-all ${
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               setDateMode('flexible');
+                             }}
+                             className={`px-8 py-2.5 rounded-full text-sm font-bold transition-all cursor-pointer ${
                                dateMode === 'flexible' 
-                                 ? 'bg-white text-slate-900 shadow-sm' 
+                                 ? 'bg-white text-slate-900 shadow-md' 
                                  : 'text-slate-600 hover:text-slate-900'
                              }`}
                            >
@@ -991,7 +787,7 @@ export default function Home() {
                                    <div key={`m1-empty-${idx}`} className="h-10 md:h-11" />
                                  ))}
                                  {month1Data.days.map((d) => renderDayCell(d, month1Data.totalDays))}
-                               </div>
+                                </div>
                              </div>
 
                              {/* Month 2 */}
@@ -1004,13 +800,13 @@ export default function Home() {
                                    <div key={`m2-empty-${idx}`} className="h-10 md:h-11" />
                                  ))}
                                  {month2Data.days.map((d) => renderDayCell(d, month2Data.totalDays))}
-                               </div>
+                                </div>
                              </div>
                            </div>
                          </div>
                        ) : (
-                         /* FLEXIBLE VIEW (MATCHING IMAGES 1, 2, 3) */
-                         <div className="flex flex-col items-center pt-2">
+                         /* FLEXIBLE VIEW */
+                         <div className="flex flex-col items-center pt-2" onClick={(e) => e.stopPropagation()}>
                            {/* Section 1: Bạn muốn ở trong bao lâu? */}
                            <h3 className="font-bold text-slate-900 text-base md:text-lg mb-4 text-center">
                              Bạn muốn ở trong bao lâu?
@@ -1026,10 +822,13 @@ export default function Home() {
                                  <button
                                    key={dur.key}
                                    type="button"
-                                   onClick={() => selectDuration(dur.key as 'weekend' | 'week' | 'month')}
-                                   className={`px-6 py-2.5 rounded-full text-sm transition-all ${
+                                   onClick={(e) => {
+                                     e.stopPropagation();
+                                     selectDuration(dur.key as 'weekend' | 'week' | 'month');
+                                   }}
+                                   className={`px-7 py-2.5 rounded-full text-sm transition-all cursor-pointer ${
                                      isSelected
-                                       ? 'border-2 border-slate-900 bg-slate-50 text-slate-900 font-bold shadow-sm'
+                                       ? 'border-2 border-slate-900 bg-slate-900 text-white font-bold shadow-sm'
                                        : 'border border-slate-300 hover:border-slate-800 text-slate-700 font-medium bg-white'
                                    }`}
                                  >
@@ -1056,7 +855,10 @@ export default function Home() {
                                    <button
                                      key={item.id}
                                      type="button"
-                                     onClick={() => toggleMonth(item.id)}
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       toggleMonth(item.id);
+                                     }}
                                      className={`w-[110px] md:w-[120px] h-[126px] md:h-[134px] rounded-3xl p-3 flex flex-col items-center justify-center shrink-0 transition-all cursor-pointer ${
                                        isSelected
                                          ? 'border-2 border-slate-900 bg-slate-50/90 shadow-sm'
@@ -1079,23 +881,30 @@ export default function Home() {
                                })}
                              </div>
 
-                             {/* Right Arrow Button */}
+                             {/* Left Navigation Button */}
                              <button
                                type="button"
-                               onClick={() => scrollMonths('right')}
-                               aria-label="Xem thêm tháng"
-                               className="w-8 h-8 rounded-full border border-slate-200 bg-white shadow-md flex items-center justify-center text-slate-700 hover:scale-105 transition-transform absolute -right-3 top-1/2 -translate-y-1/2 z-10"
-                             >
-                               <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-                             </button>
-                             {/* Left Arrow Button */}
-                             <button
-                               type="button"
-                               onClick={() => scrollMonths('left')}
-                               aria-label="Tháng trước"
-                               className="w-8 h-8 rounded-full border border-slate-200 bg-white shadow-md flex items-center justify-center text-slate-700 hover:scale-105 transition-transform absolute -left-3 top-1/2 -translate-y-1/2 z-10"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 scrollMonths('left');
+                               }}
+                               aria-label="Cuộn sang trái"
+                               className="absolute -left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-700 hover:text-slate-900 hover:scale-105 transition-all z-10 cursor-pointer"
                              >
                                <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+                             </button>
+
+                             {/* Right Navigation Button */}
+                             <button
+                               type="button"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 scrollMonths('right');
+                               }}
+                               aria-label="Cuộn sang phải"
+                               className="absolute -right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-700 hover:text-slate-900 hover:scale-105 transition-all z-10 cursor-pointer"
+                             >
+                               <span className="material-symbols-outlined text-[18px]">chevron_right</span>
                              </button>
                            </div>
                          </div>
@@ -1111,11 +920,11 @@ export default function Home() {
                   }`}
                 />
 
-                {/* Field 3: Guests / Tickets */}
+                {/* Field 3: Guest Selector */}
                 <div 
-                  className={`relative flex-1 w-full h-auto md:h-full p-3 md:py-0 md:pl-7 md:pr-2.5 rounded-2xl md:rounded-full transition-all cursor-pointer group flex items-center justify-between ${
+                  className={`relative flex-[1.3] w-full h-auto md:h-full p-3.5 md:py-0 md:pl-7 md:pr-2.5 rounded-2xl md:rounded-full transition-all cursor-pointer group flex items-center justify-between ${
                     activeDropdown === 'guests' 
-                      ? 'bg-white shadow-[0_6px_20px_rgba(0,0,0,0.12)] z-10 md:rounded-full border border-slate-200 md:border-transparent' 
+                      ? 'bg-white shadow-[0_6px_20px_rgba(0,0,0,0.12)] z-50 md:rounded-full border border-slate-200 md:border-transparent' 
                       : hoveredField === 'guests'
                       ? 'bg-slate-200/80 md:bg-slate-200/80'
                       : 'bg-surface-container-low md:bg-transparent hover:bg-slate-200/80 md:hover:bg-slate-200/80'
@@ -1124,18 +933,22 @@ export default function Home() {
                   onClick={() => setActiveDropdown('guests')}
                 >
                   <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <label className="block text-xs font-bold text-on-surface mb-0.5 cursor-pointer">
+                    <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800 mb-0.5 cursor-pointer">
                       Khách
                     </label>
                     <div className="flex items-center justify-between">
-                      <span className={`text-sm font-semibold truncate ${adults + children + infants > 0 ? 'text-on-surface' : 'text-on-surface-variant'}`}>
-                        {adults + children + infants > 0 ? `${adults + children} khách${infants > 0 ? `, ${infants} em bé` : ''}${pets > 0 ? `, ${pets} thú cưng` : ''}` : 'Thêm khách'}
-                      </span>
-                      {activeDropdown === 'guests' && adults + children + infants + pets > 0 && (
+                      <input
+                        type="text"
+                        readOnly
+                        value={adults + children > 0 ? `${adults + children} khách${infants > 0 ? `, ${infants} em bé` : ''}${pets > 0 ? `, ${pets} thú cưng` : ''}` : ''}
+                        placeholder="Thêm khách"
+                        className="w-full bg-transparent text-sm md:text-base font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none cursor-pointer truncate"
+                      />
+                      {activeDropdown === 'guests' && (adults + children + infants + pets > 0) && (
                         <button 
                           type="button" 
-                          title="Xóa lựa chọn khách"
-                          aria-label="Xóa lựa chọn khách"
+                          title="Xóa khách"
+                          aria-label="Xóa khách"
                           onClick={(e) => { 
                             e.stopPropagation(); 
                             setAdults(0);
@@ -1150,19 +963,20 @@ export default function Home() {
                       )}
                     </div>
                   </div>
-                  {/* Search Button for Desktop */}
-                  <div className="hidden md:block ml-3 flex-shrink-0">
+
+                  {/* Search Button for Desktop (TO, TRÒN RA, NẰM GỌN TRÊN MÉP PHẢI) */}
+                  <div className="hidden md:flex items-center ml-3 flex-shrink-0">
                     <Link
                       href={tourSearchHref}
                       onClick={(e) => e.stopPropagation()}
-                      className="w-12 h-12 bg-[#087e8b] hover:bg-[#00636e] text-white rounded-full flex items-center justify-center transition-transform transform hover:scale-105 shadow-md"
+                      className="size-14 bg-[#087e8b] hover:bg-[#00636e] text-white rounded-full flex items-center justify-center transition-transform transform hover:scale-105 shadow-md"
                     >
-                      <span className="material-symbols-outlined text-[24px]">search</span>
+                      <span className="material-symbols-outlined text-[26px]">search</span>
                     </Link>
                   </div>
                   {/* Guests Popup */}
                   {activeDropdown === 'guests' && (
-                    <div className="absolute top-[120%] right-0 w-[calc(100vw-32px)] sm:w-[350px] bg-white rounded-3xl shadow-xl border border-slate-100 p-6 z-[70] cursor-default" onClick={e => e.stopPropagation()}>
+                    <div className="absolute top-[calc(100%+14px)] right-0 w-[calc(100vw-32px)] sm:w-[350px] bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 z-[100] cursor-default" onClick={e => e.stopPropagation()}>
                        <div className="flex flex-col gap-6 divide-y divide-slate-100">
                           <div className="flex items-center justify-between pt-2">
                              <div>
@@ -1170,9 +984,9 @@ export default function Home() {
                                <div className="text-xs text-slate-500">Từ 13 tuổi trở lên</div>
                              </div>
                              <div className="flex items-center gap-3">
-                               <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setAdults(Math.max(0, adults - 1))}>-</button>
+                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setAdults(Math.max(0, adults - 1)); }}>-</button>
                                <span className="w-4 text-center font-semibold text-sm text-slate-800">{adults}</span>
-                               <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setAdults(adults + 1)}>+</button>
+                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setAdults(adults + 1); }}>+</button>
                              </div>
                           </div>
                           <div className="flex items-center justify-between pt-6">
@@ -1181,9 +995,9 @@ export default function Home() {
                                <div className="text-xs text-slate-500">Độ tuổi 2 – 12</div>
                              </div>
                              <div className="flex items-center gap-3">
-                               <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setChildren(Math.max(0, children - 1))}>-</button>
+                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setChildren(Math.max(0, children - 1)); }}>-</button>
                                <span className="w-4 text-center font-semibold text-sm text-slate-800">{children}</span>
-                               <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setChildren(children + 1)}>+</button>
+                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setChildren(children + 1); }}>+</button>
                              </div>
                           </div>
                           <div className="flex items-center justify-between pt-6">
@@ -1192,9 +1006,9 @@ export default function Home() {
                                <div className="text-xs text-slate-500">Dưới 2 tuổi</div>
                              </div>
                              <div className="flex items-center gap-3">
-                               <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setInfants(Math.max(0, infants - 1))}>-</button>
+                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setInfants(Math.max(0, infants - 1)); }}>-</button>
                                <span className="w-4 text-center font-semibold text-sm text-slate-800">{infants}</span>
-                               <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setInfants(infants + 1)}>+</button>
+                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setInfants(infants + 1); }}>+</button>
                              </div>
                           </div>
                           <div className="flex items-center justify-between pt-6">
@@ -1203,9 +1017,9 @@ export default function Home() {
                                <div className="text-xs text-slate-500 underline cursor-pointer hover:text-slate-800">Bạn sẽ mang theo động vật phục vụ?</div>
                              </div>
                              <div className="flex items-center gap-3">
-                               <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setPets(Math.max(0, pets - 1))}>-</button>
+                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setPets(Math.max(0, pets - 1)); }}>-</button>
                                <span className="w-4 text-center font-semibold text-sm text-slate-800">{pets}</span>
-                               <button className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={() => setPets(pets + 1)}>+</button>
+                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setPets(pets + 1); }}>+</button>
                              </div>
                           </div>
                        </div>
@@ -1217,16 +1031,16 @@ export default function Home() {
                 <div className="md:hidden mt-2 w-full">
                   <Link
                     href={tourSearchHref}
-                    className="w-full min-h-[54px] bg-[#087e8b] hover:bg-[#00636e] text-white text-sm font-bold rounded-2xl shadow-lg shadow-[#087e8b]/25 flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5"
+                    className="w-full min-h-[56px] bg-[#087e8b] hover:bg-[#00636e] text-white text-base font-bold rounded-2xl shadow-lg shadow-[#087e8b]/25 flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5"
                   >
-                    <span className="material-symbols-outlined text-[20px]">search</span>
+                    <span className="material-symbols-outlined text-[22px]">search</span>
                     <span>Tìm kiếm</span>
                   </Link>
                 </div>
               </div>
-            </div>
+            </Container>
           </div>
-        </Container>
+        </section>
 
         {/* Floating Mini Search Console in Header */}
         <div className={`fixed top-4 lg:top-3 left-1/2 -translate-x-1/2 z-[60] transition-all duration-300 shadow-[0_8px_30px_rgb(0,0,0,0.08)] rounded-full ${
@@ -1266,228 +1080,124 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ========================================================================= */}
-        {/* 3. CATEGORY SWITCHER & CARDS SHOWCASE                                     */}
-        {/* ========================================================================= */}
-        <Container as="section" className="mb-20">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-primary-container block mb-1">
-                Lựa chọn hàng đầu
+        <div className="flex flex-col gap-12 sm:gap-16 pt-12 sm:pt-16 pb-16">
+          {/* ========================================================================= */}
+          {/* 2. CÁC TOUR BẠN ĐÃ XEM                                                   */}
+          {/* ========================================================================= */}
+          {viewedTours.length > 5 && (
+            <Container as="section">
+              <AirbnbTourCarousel
+                title="Các tour bạn đã xem"
+                badgeText="Đã xem gần đây"
+                viewAllHref="/tours"
+                tours={viewedTours}
+              />
+            </Container>
+          )}
+
+          {/* ========================================================================= */}
+          {/* 3. VOUCHER HOT (REAL TIME TỪ DATABASE)                                    */}
+          {/* ========================================================================= */}
+          <Container as="section">
+            <HotVouchersSection />
+          </Container>
+
+          {/* ========================================================================= */}
+          {/* 4. CÁC TOUR ĐƯỢC KHÁCH YÊU THÍCH (SAO > 4.5)                             */}
+          {/* ========================================================================= */}
+          <Container as="section">
+            <AirbnbTourCarousel
+              title="Các tour được khách yêu thích"
+              badgeText="Được khách yêu thích"
+              viewAllHref="/tours?sort=rating"
+              tours={favoriteTours}
+              isLoading={isLoadingFavorites}
+            />
+          </Container>
+
+          {/* ========================================================================= */}
+          {/* 5. CÁC TOUR ĐƯỢC THÊM GẦN ĐÂY (MỚI NHẤT)                                  */}
+          {/* ========================================================================= */}
+          <Container as="section">
+            <AirbnbTourCarousel
+              title="Các tour được thêm gần đây"
+              badgeText="Mới ra mắt"
+              viewAllHref="/tours?sort=newest"
+              tours={recentTours}
+              isLoading={isLoadingRecent}
+            />
+          </Container>
+
+          {/* ========================================================================= */}
+          {/* 5. TRUST & CORE VALUES                                                    */}
+          {/* ========================================================================= */}
+          <Container as="section">
+            <div className="text-center max-w-2xl mx-auto mb-12">
+              <span className="text-xs font-bold uppercase tracking-wider text-primary-container block mb-2">
+                Giá trị cốt lõi
               </span>
-              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">
-                Trải Nghiệm &amp; Điểm Đến Được Tuyển Chọn
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-3">
+                An Tâm Trọn Vẹn Khi Đặt Chỗ Tại Tripri
               </h2>
             </div>
-            <Link
-              href="/tours"
-              className="inline-flex items-center gap-1.5 text-sm font-bold text-primary hover:text-primary-container transition-colors"
-            >
-              <span>Xem tất cả sản phẩm</span>
-              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-            </Link>
-          </div>
 
-          {/* 4 Category Filter Buttons */}
-          <div data-no-preloader="true" className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            {[
-              { key: 'tour', label: 'Tour & Trải nghiệm', sub: 'Được kiểm định chất lượng', icon: 'tour' },
-              { key: 'stay', label: 'Khách sạn & Lưu trú', sub: 'Resort & boutique chọn lọc', icon: 'hotel' },
-              { key: 'transport', label: 'Vé xe & Di chuyển', sub: 'Limousine & xe đón tận nơi', icon: 'directions_car' },
-              { key: 'activity', label: 'Vé tham quan & Show', sub: 'Vé điện tử vào cổng nhanh', icon: 'attractions' },
-            ].map((cat) => {
-              const active = categoryTab === cat.key;
-              return (
-                <button
-                  key={cat.key}
-                  type="button"
-                  data-no-preloader="true"
-                  onClick={() => handleCategoryTabChange(cat.key as SearchTab)}
-                  className={`rounded-2xl p-4 flex items-center gap-3 transition-all duration-300 text-left ${
-                    active
-                      ? 'bg-primary-container text-white shadow-lg shadow-primary-container/30 -translate-y-1'
-                      : 'bg-white/80 backdrop-blur-md border border-slate-100 text-on-surface hover:bg-white hover:shadow-xl hover:-translate-y-0.5'
-                  }`}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                {
+                  icon: 'verified_user',
+                  title: 'Đối tác kiểm định',
+                },
+                {
+                  icon: 'payments',
+                  title: 'Minh bạch chi phí',
+                },
+                {
+                  icon: 'published_with_changes',
+                  title: 'Chính sách hủy linh hoạt',
+                },
+                {
+                  icon: 'support_agent',
+                  title: 'Đồng hành 24/7',
+                },
+              ].map((val) => (
+                <div
+                  key={val.title}
+                  className="rounded-2xl bg-white shadow-[0_8px_25px_-5px_rgba(0,0,0,0.06)] border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all p-6"
                 >
-                  <div
-                    className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${
-                      active ? 'bg-white/20 text-white' : 'bg-primary-container/10 text-primary-container'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-[24px]">{cat.icon}</span>
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-4 shadow-sm">
+                    <span className="material-symbols-outlined text-[28px]">{val.icon}</span>
                   </div>
-                  <div>
-                    <div className="text-sm font-bold leading-snug">{cat.label}</div>
-                    <div className={`text-xs ${active ? 'text-white/80' : 'text-on-surface-variant'}`}>{cat.sub}</div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {CATEGORY_PRODUCTS[categoryTab].map((item) => (
-              <div
-                key={item.id}
-                onClick={() => handleProductCardClick(item)}
-                className="rounded-3xl bg-white shadow-[0_12px_35px_-6px_rgba(0,0,0,0.08)] hover:shadow-[0_22px_45px_-6px_rgba(8,126,139,0.2)] border border-slate-100 hover:-translate-y-1.5 transition-all overflow-hidden flex flex-col group cursor-pointer"
-              >
-                {/* Image Cover */}
-                <div className="relative w-full aspect-[16/10] overflow-hidden">
-                  <div
-                    className="w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
-                    style={{ backgroundImage: `url('${item.image}')` }}
-                  />
-                  <div className="absolute top-3.5 left-3.5">
-                    <span className="px-3 py-1 rounded-full bg-white/90 backdrop-blur-md text-slate-900 font-bold text-xs shadow-sm">
-                      {item.tag}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!isAuthenticated) {
-                        setSelectedTourPrompt({ title: item.title, href: '/tours' });
-                        setGuestModalOpen(true);
-                      }
-                    }}
-                    aria-label="Lưu mục yêu thích"
-                    className="absolute top-3.5 right-3.5 w-8 h-8 rounded-full bg-white/85 backdrop-blur-md flex items-center justify-center text-on-surface-variant hover:text-red-500 transition-colors shadow-sm"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">favorite</span>
-                  </button>
+                  <h3 className="font-bold text-base text-slate-900">{val.title}</h3>
                 </div>
+              ))}
+            </div>
+          </Container>
 
-                {/* Card Content */}
-                <div className="p-5 flex flex-col flex-1 justify-between">
-                  <div>
-                    {item.location && (
-                      <div className="flex items-center gap-1.5 text-on-surface-variant text-xs mb-1">
-                        <span className="material-symbols-outlined text-[15px] text-primary-container">location_on</span>
-                        <span>{item.location}</span>
-                      </div>
-                    )}
-                    <h3 className="font-bold text-base text-slate-900 mb-2 line-clamp-2 group-hover:text-primary transition-colors leading-snug">
-                      {item.title}
-                    </h3>
-                    <div className="flex items-center gap-2 mb-3 text-xs text-on-surface-variant">
-                      <div className="flex items-center text-amber-500 font-bold">
-                        <span className="material-symbols-outlined text-[16px]">star</span>
-                        <span className="ml-1 text-slate-900">{item.rating}</span>
-                      </div>
-                      <span>• {item.meta}</span>
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between mt-auto">
-                    <div>
-                      <span className="text-[11px] text-on-surface-variant block">Giá từ</span>
-                      <span className="font-bold text-base text-primary-container">
-                        {item.price}
-                        {item.unit && <span className="text-xs font-normal text-slate-500">{item.unit}</span>}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleProductCardClick(item);
-                      }}
-                      className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-xl bg-surface-container hover:bg-primary-container hover:text-white text-primary text-xs font-bold transition-all shadow-sm"
-                    >
-                      Xem chi tiết
-                    </button>
-                  </div>
+          {/* ========================================================================= */}
+          {/* 6. PARTNER CALLOUT BANNER                                                 */}
+          {/* ========================================================================= */}
+          <Container as="section">
+            <div className="rounded-3xl shadow-xl border border-surface-container bg-gradient-to-r from-surface-container-high to-surface-container p-6 lg:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-primary-container text-white flex items-center justify-center shrink-0 shadow-lg shadow-primary-container/25">
+                  <span className="material-symbols-outlined text-[28px]">handshake</span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-on-surface">Bạn là hướng dẫn viên hay công ty lữ hành?</h3>
                 </div>
               </div>
-            ))}
-          </div>
-        </Container>
-
-
-
-        {/* ========================================================================= */}
-        {/* 5. TRUST & CORE VALUES                                                    */}
-        {/* ========================================================================= */}
-        <Container as="section" className="mb-20">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-xs font-bold uppercase tracking-wider text-primary-container block mb-2">
-              Giá trị cốt lõi
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-3">
-              An Tâm Trọn Vẹn Khi Đặt Chỗ Tại Tripri
-            </h2>
-            <p className="text-sm text-slate-600">
-              Chúng tôi đề cao tính chân thực, bảo vệ quyền lợi du khách và xây dựng tiêu chuẩn trải nghiệm du lịch chuẩn mực tại Việt Nam.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              {
-                icon: 'verified_user',
-                title: 'Đối tác kiểm định',
-                desc: 'Mọi đơn vị lữ hành và hướng dẫn viên cá nhân đều được đối chiếu giấy phép hành nghề trước khi mở bán tour.',
-              },
-              {
-                icon: 'payments',
-                title: 'Minh bạch chi phí',
-                desc: 'Giá niêm yết rõ ràng theo VNĐ, liệt kê chi tiết các khoản đã bao gồm và chưa bao gồm, không phí ẩn.',
-              },
-              {
-                icon: 'published_with_changes',
-                title: 'Chính sách hủy linh hoạt',
-                desc: 'Quy trình hoàn tiền rõ ràng tuân thủ theo mốc thời gian quy định sẵn, giải quyết nhanh chóng qua cổng hỗ trợ.',
-              },
-              {
-                icon: 'support_agent',
-                title: 'Đồng hành 24/7',
-                desc: 'Đội ngũ chăm sóc khách hàng địa phương sẵn sàng hỗ trợ bạn từ khi lên kế hoạch cho đến khi kết thúc tour.',
-              },
-            ].map((val) => (
-              <div
-                key={val.title}
-                className="rounded-2xl bg-white shadow-[0_8px_25px_-5px_rgba(0,0,0,0.06)] border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all p-6"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-4 shadow-sm">
-                  <span className="material-symbols-outlined text-[28px]">{val.icon}</span>
-                </div>
-                <h3 className="font-bold text-base text-slate-900 mb-2">{val.title}</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">{val.desc}</p>
-              </div>
-            ))}
-          </div>
-        </Container>
-
-        {/* ========================================================================= */}
-        {/* 6. PARTNER CALLOUT BANNER                                                 */}
-        {/* ========================================================================= */}
-        <Container as="section" className="mb-16">
-          <div className="rounded-3xl shadow-xl border border-surface-container bg-gradient-to-r from-surface-container-high to-surface-container p-6 lg:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-primary-container text-white flex items-center justify-center shrink-0 shadow-lg shadow-primary-container/25">
-                <span className="material-symbols-outlined text-[28px]">handshake</span>
-              </div>
-              <div>
-                <h3 className="font-bold text-lg text-on-surface">Bạn là hướng dẫn viên hay công ty lữ hành?</h3>
-                <p className="text-sm text-on-surface-variant">
-                  Gia nhập mạng lưới Tripri để tiếp cận du khách trong và ngoài nước có nhu cầu khám phá trải nghiệm chân thực.
-                </p>
+              <div className="shrink-0">
+                <Link
+                  href="/agency"
+                  className="inline-flex items-center gap-2 bg-on-surface text-white hover:bg-primary font-bold text-sm px-6 py-3 rounded-2xl transition-all shadow-md transform hover:-translate-y-0.5"
+                >
+                  <span>Truy cập Cổng đối tác</span>
+                  <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                </Link>
               </div>
             </div>
-            <div className="shrink-0">
-              <Link
-                href="/agency"
-                className="inline-flex items-center gap-2 bg-on-surface text-white hover:bg-primary font-bold text-sm px-6 py-3 rounded-2xl transition-all shadow-md transform hover:-translate-y-0.5"
-              >
-                <span>Truy cập Cổng đối tác</span>
-                <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-              </Link>
-            </div>
-          </div>
-        </Container>
+          </Container>
+        </div>
       </div>
 
       <GuestLoginPromptModal

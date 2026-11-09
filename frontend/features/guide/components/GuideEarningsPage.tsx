@@ -216,6 +216,8 @@ export function EarningsContent() {
                     <p className="mt-1 text-xs text-slate-500">
                       Ghi nhận: {formatGuideDate(earning.earnedAt)}
                     </p>
+                    <p className="text-xs text-slate-600">{earning.payout?.status === 'TRANSFERRED' ? 'Đã chuyển tiền' : 'Chờ chuyển tiền'}</p>
+                    {earning.payout?.transferredAt && <p className="text-xs text-slate-600">Ngày chi trả: {formatGuideDate(earning.payout.transferredAt)} · {earning.payout.transferReference}</p>}
                   </div>
                   <p className="shrink-0 font-bold text-teal-800">
                     {formatGuideMoney(earning.amount)}

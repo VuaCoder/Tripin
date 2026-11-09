@@ -3,8 +3,8 @@ import type { PrivateUserDto } from '../users/users.types';
 
 export interface AccessTokenPayload {
   sub: string;
-  role: PersistedRole;
   tokenVersion: number;
+  role: PersistedRole;
 }
 
 export interface RegisterInput {
@@ -47,7 +47,7 @@ export type LoginResult =
   | { twoFactorRequired: false; session: Session };
 
 export type AgencyOtpResult =
-  | { registrationComplete: true; email: string; agencyVerificationStatus: 'PENDING' }
+  | { registrationComplete: true; email: string; agencyVerificationStatus: 'PENDING'; statusToken: string }
   | { registrationComplete: false; session: Session };
 
 export interface RequestContext {

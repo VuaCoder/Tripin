@@ -32,7 +32,7 @@ export const updateProfileBody = z
         companyName: z.string().trim().min(2).max(200),
         description: trimmed(5000),
         address: trimmed(500),
-        website: z.url().max(300),
+        website: z.union([z.literal(''), z.url().max(300)]).nullable().transform((value) => value || null),
         licenseNumber: z.string().trim().min(3).max(100),
       })
       .partial()
@@ -54,6 +54,8 @@ export const updateProfileBody = z
   .strict()
   .refine((value) => Object.keys(value).length > 0, 'Nothing to update');
 
+export const guideRejectionBody = z.object({ reason: z.string().trim().min(3).max(1000) }).strict();
+
 export const publicProfileParams = idParamsSchema;
 export const guideApplicationBody = z.object({
   licenseNumber: z.string().trim().min(3).max(100),
@@ -63,9 +65,7 @@ export const guideApplicationBody = z.object({
   bio: trimmed(5000).optional(),
   licenseImageUrl: imageUrl.unwrap().optional(),
 }).strict();
-export const rejectGuideApplicationBody = z.object({
-  reason: z.string().trim().min(1).max(2000).optional(),
-}).strict().default({});
+export const rejectGuideApplicationBody = guideRejectionBody;
 export type GuideApplicationBody = z.infer<typeof guideApplicationBody>;
 export type RejectGuideApplicationBody = z.infer<typeof rejectGuideApplicationBody>;
 export const listAgencyGuidesQuery = paginationQuerySchema.extend({ q: z.string().trim().max(120).optional() });
@@ -91,10 +91,11 @@ export const assignAccessParams = z.object({ id: idSchema });
 export const assignAccessBody = z
   .object({
     role: z.enum(PERSISTED_ROLES).optional(),
+    revokedPermissions: z.array(z.enum(Object.values(PERMISSIONS) as [string, ...string[]])).max(100).optional(),
     extraPermissions: z.array(z.enum(Object.values(PERMISSIONS) as [string, ...string[]])).max(100).optional(),
   })
   .strict()
-  .refine((value) => value.role !== undefined || value.extraPermissions !== undefined, 'role or extraPermissions is required');
+  .refine((value) => value.role !== undefined || value.extraPermissions !== undefined || value.revokedPermissions !== undefined, 'role or extraPermissions is required');
 
 export const updatePreferencesBody = z
   .object({
@@ -103,8 +104,8 @@ export const updatePreferencesBody = z
         z.object({
           id: z.string().trim().max(50),
           name: z.string().trim().max(100),
-          start: z.string().trim().regex(/^\d{1,2}:\d{2}$/, 'Invalid time format HH:mm'),
-          end: z.string().trim().regex(/^\d{1,2}:\d{2}$/, 'Invalid time format HH:mm'),
+          start: z.string().trim().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Time must use HH:mm (00:00–23:59)'),
+          end: z.string().trim().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Time must use HH:mm (00:00–23:59)'),
           enabled: z.boolean(),
         }),
       )
@@ -113,7 +114,23 @@ export const updatePreferencesBody = z
     voucherExpiryAlerts: z.boolean().optional(),
     emailAlerts: z.boolean().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    const slots = value.freeTimeSlots ?? [];
+    for (const [index, slot] of slots.entries()) {
+      if (slot.start >= slot.end) {
+        ctx.addIssue({ code: 'custom', path: ['freeTimeSlots', index, 'end'], message: 'End time must be after start time' });
+      }
+      if (!slot.enabled) continue;
+      for (let previous = 0; previous < index; previous += 1) {
+        const other = slots[previous]!;
+        if (other.enabled && slot.start < other.end && other.start < slot.end) {
+          ctx.addIssue({ code: 'custom', path: ['freeTimeSlots', index, 'start'], message: 'Enabled time slots must not overlap' });
+          break;
+        }
+      }
+    }
+  });
 
 export type UpdateProfileBody = z.infer<typeof updateProfileBody>;
 export type UpdatePreferencesBody = z.infer<typeof updatePreferencesBody>;

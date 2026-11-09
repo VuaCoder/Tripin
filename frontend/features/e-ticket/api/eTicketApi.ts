@@ -17,6 +17,7 @@ export const eTicketApi = baseApi.injectEndpoints({
           ? {
               ...(params.page ? { page: params.page } : {}),
               ...(params.limit ? { limit: params.limit } : {}),
+              ...(params.status ? { status: params.status } : {}),
             }
           : undefined,
       }),

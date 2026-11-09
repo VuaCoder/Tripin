@@ -9,7 +9,7 @@ export const fieldStep = (field: EditorField) => field === 'agePricing' || field
 export function validateTourEditor(value: TourContentInput): EditorErrors {
   const errors: EditorErrors = {};
   const pricing = value.agePricing;
-  if (pricing && (!Object.values(pricing).every(Number.isInteger) || pricing.childMinAge < 1 || pricing.adultMinAge > 18 || pricing.childMinAge >= pricing.adultMinAge || pricing.childPercent < 0 || pricing.childPercent > 100 || pricing.infantPercent < 0 || pricing.infantPercent > 100)) errors.agePricing = 'Kiểm tra khoảng tuổi và tỷ lệ giá từ 0 đến 100%.';
+  if (pricing && (!Object.entries(pricing).every(([key, n]) => (key === 'childPrice' || key === 'infantPrice') ? n === null || (Number.isInteger(n) && n >= 0 && n <= 1000000000) : Number.isInteger(n)) || pricing.childMinAge < 1 || pricing.adultMinAge > 18 || pricing.childMinAge >= pricing.adultMinAge || pricing.childPercent < 0 || pricing.childPercent > 100 || pricing.infantPercent < 0 || pricing.infantPercent > 100)) errors.agePricing = 'Kiểm tra khoảng tuổi và tỷ lệ giá từ 0 đến 100%.';
   if (value.title.trim().length < 5 || value.title.trim().length > 200) errors.title = 'Nhập tên tour từ 5 đến 200 ký tự nhé.';
   if (value.destination.trim().length < 2 || value.destination.trim().length > 120) errors.destination = 'Nhập điểm đến từ 2 đến 120 ký tự nhé.';
   if (!Number.isInteger(value.durationDays) || value.durationDays < 1 || value.durationDays > 365) errors.durationDays = 'Chọn số ngày từ 1 đến 365, không dùng số lẻ.';

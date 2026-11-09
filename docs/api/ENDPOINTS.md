@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 219 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 236 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -32,11 +32,20 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/admin/dashboard` | role: `SUPER_ADMIN` + `admin:dashboard` |
 
+## `/admin/export`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/admin/export/audit-logs` | role: `SUPER_ADMIN` + `audit:view` |
+| GET | `/api/v1/admin/export/moderation` | role: `SUPER_ADMIN` + `audit:view` |
+
 ## `/admin/policies`
 
 | Method | Path | Access |
 |---|---|---|
 | PUT | `/api/v1/admin/policies/:key` | role: `SUPER_ADMIN` + `policy:configure` |
+| GET | `/api/v1/admin/policies/:key/history` | role: `SUPER_ADMIN` + `policy:configure` |
+| POST | `/api/v1/admin/policies/:key/rollback` | role: `SUPER_ADMIN` + `policy:configure` |
 
 ## `/admin/premium`
 
@@ -70,6 +79,14 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/admin/settings/commission` | role: `SUPER_ADMIN` + `commission:configure` |
 | PUT | `/api/v1/admin/settings/commission` | role: `SUPER_ADMIN` + `commission:configure` |
+
+## `/admin/staff`
+
+| Method | Path | Access |
+|---|---|---|
+| POST | `/api/v1/admin/staff/:id/disable` | role: `SUPER_ADMIN` + `user:assign-permissions` |
+| POST | `/api/v1/admin/staff/:id/reinvite` | role: `SUPER_ADMIN` + `user:assign-permissions` |
+| POST | `/api/v1/admin/staff/invite` | role: `SUPER_ADMIN` + `user:assign-permissions` |
 
 ## `/admin/users`
 
@@ -207,6 +224,12 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | PATCH | `/api/v1/auth/two-factor` | login |
 | POST | `/api/v1/auth/verify-otp` | public |
 
+## `/auth/staff`
+
+| Method | Path | Access |
+|---|---|---|
+| POST | `/api/v1/auth/staff/activate` | public |
+
 ## `/bookings`
 
 | Method | Path | Access |
@@ -242,6 +265,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | GET | `/api/v1/chat/conversations/:id/messages` | `chat:use` |
 | POST | `/api/v1/chat/conversations/:id/messages` | `chat:use` |
 | POST | `/api/v1/chat/conversations/:id/read` | `chat:use` |
+| POST | `/api/v1/chat/upload-image` | `chat:use` |
 
 ## `/complaints`
 
@@ -263,13 +287,16 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | GET | `/api/v1/e-tickets` | `eticket:view-own` |
 | GET | `/api/v1/e-tickets/:id` | `eticket:view-own` |
 | GET | `/api/v1/e-tickets/booking/:bookingId` | `eticket:view-own` |
+| POST | `/api/v1/e-tickets/scan` | `guide:check-in` |
 
 ## `/earnings`
 
 | Method | Path | Access |
 |---|---|---|
 | GET | `/api/v1/earnings/me` | `earnings:view` |
+| GET | `/api/v1/earnings/me/ledger` | `earnings:view` |
 | GET | `/api/v1/earnings/me/summary` | `earnings:view` |
+| POST | `/api/v1/earnings/payouts/:id/transfer` | `tour:update-own` |
 
 ## `/guide/e-tickets`
 
@@ -312,7 +339,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/moderation/tours/:id/suspend` | `tour:suspend` |
 | POST | `/api/v1/moderation/tours/:id/validate` | `tour:validate` |
 | POST | `/api/v1/moderation/users/:id/ban` | `account:ban` |
-| POST | `/api/v1/moderation/users/:id/unban` | `account:ban` |
+| POST | `/api/v1/moderation/users/:id/unban` | role: `SUPER_ADMIN` + `account:ban` |
 
 ## `/moderation/complaint-tickets`
 
@@ -330,6 +357,19 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | Method | Path | Access |
 |---|---|---|
 | GET | `/api/v1/moderation/dashboard` | `moderation:dashboard` |
+
+## `/moderation/review-triage`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/moderation/review-triage` | `review:moderate`, `dispute:resolve` |
+| POST | `/api/v1/moderation/review-triage/:id/decision` | `review:moderate`, `dispute:resolve` |
+
+## `/moderation/sla`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/moderation/sla` | `dispute:resolve` |
 
 ## `/notifications`
 
@@ -355,6 +395,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/policies` | public |
 | GET | `/api/v1/policies/:key` | public |
+| POST | `/api/v1/policies/accept` | login |
 
 ## `/premium`
 
@@ -380,6 +421,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/promotions/available` | `booking:create` |
 | POST | `/api/v1/promotions/collect` | `booking:create` |
+| GET | `/api/v1/promotions/hot` | public |
 | GET | `/api/v1/promotions/my-vouchers` | `booking:create` |
 | GET | `/api/v1/promotions/preview` | `booking:create` |
 

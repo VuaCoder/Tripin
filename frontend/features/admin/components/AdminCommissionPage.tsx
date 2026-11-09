@@ -23,7 +23,7 @@ function CommissionForm({ saved, onDenied }: { saved: Commission; onDenied: (err
     if (rate === null || isLoading) return;
     setError(null); setSuccess(null);
     try {
-      const result = await save(rate).unwrap(); dirty.current = false; setConfirmed(result); setValue(String(result.ratePercent)); setConfirm(false); setSuccess('Đã lưu mức hoa hồng theo xác nhận của backend.');
+      const result = await save({ ratePercent: rate, expectedVersion: confirmed.version ?? 0 }).unwrap(); dirty.current = false; setConfirmed(result); setValue(String(result.ratePercent)); setConfirm(false); setSuccess('Đã lưu mức hoa hồng theo xác nhận của backend.');
     } catch (e) { setConfirm(false); setError(adminError(e)); if (forbidden(e)) onDenied(e); }
   };
   return <section className={panel}>

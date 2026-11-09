@@ -13,6 +13,7 @@ const booking = {
   tourTitle: 'Ha Long',
   departureId: 'd1',
   departureDate: new Date(),
+  endDate: new Date(),
   participants: 2,
   contactName: 'Ann',
   totalAmount: 2_000_000,

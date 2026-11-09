@@ -14,6 +14,7 @@ const booking = {
   tourTitle: 'Ha Long 3D2N',
   departureId: 'd1',
   departureDate: new Date('2026-12-01T00:00:00Z'),
+  endDate: new Date('2026-12-04T00:00:00Z'),
   participants: 2,
   contactName: 'Ann Nguyen',
   totalAmount: 2_000_000,

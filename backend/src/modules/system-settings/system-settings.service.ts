@@ -1,6 +1,6 @@
 import type { PersistedRole } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
-import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
+import { auditService, type AuditService } from '../audit';
 import { systemSettingsRepository, type SystemSettingsRepository } from './system-settings.repository';
 import type { SystemSettingRecord } from './system-settings.repository';
 import {
@@ -20,8 +20,8 @@ const updatedAtOf = (doc: SystemSettingRecord | null | undefined) =>
 
 export class SystemSettingsService {
   constructor(
-    private readonly settings: Pick<SystemSettingsRepository, 'findByKey' | 'findByKeys' | 'upsert'> = systemSettingsRepository,
-    private readonly audit: Pick<AuditService, 'record'> = auditService,
+    private readonly settings: Pick<SystemSettingsRepository, 'findByKey' | 'findByKeys' | 'upsert' | 'saveRevision' | 'effectivePolicy'> = systemSettingsRepository,
+    _audit: Pick<AuditService, 'record'> = auditService,
   ) {}
 
   // -------------------------------------------------------- Commission
@@ -35,36 +35,27 @@ export class SystemSettingsService {
   async getCommission(): Promise<CommissionDto> {
     const doc = await this.settings.findByKey(SETTING_KEYS.COMMISSION);
     const rateBps = (doc?.value as { rateBps?: number } | undefined)?.rateBps ?? DEFAULT_COMMISSION_BPS;
-    return { ratePercent: rateBps / 100, rateBps, updatedAt: updatedAtOf(doc) };
+    return { ratePercent: rateBps / 100, rateBps, version: doc?.version ?? 0, updatedAt: updatedAtOf(doc) };
   }
 
   /** Use case "Set platform commission rates". Applies to bookings created AFTER the change. */
-  async setCommission(actor: Actor, ratePercent: number): Promise<CommissionDto> {
-    const before = await this.getCommissionBps();
+  async setCommission(actor: Actor, ratePercent: number, expectedVersion = 0): Promise<CommissionDto> {
     const rateBps = Math.round(ratePercent * 100);
-    const doc = await this.settings.upsert(SETTING_KEYS.COMMISSION, { rateBps }, actor.userId);
-    await this.audit.record({
-      actorId: actor.userId,
-      actorRole: actor.role,
-      action: AUDIT_ACTIONS.COMMISSION_UPDATED,
-      targetType: 'setting',
-      targetId: SETTING_KEYS.COMMISSION,
-      metadata: { fromBps: before, toBps: rateBps },
-    });
-    return { ratePercent: rateBps / 100, rateBps, updatedAt: updatedAtOf(doc) };
+    const doc = await this.settings.saveRevision(SETTING_KEYS.COMMISSION, { rateBps }, actor, expectedVersion, 'Commission configuration updated');
+    return { ratePercent: rateBps / 100, rateBps, version: doc.version, updatedAt: updatedAtOf(doc) };
   }
 
   // ---------------------------------------------------------- Policies
 
   /** Public list of every policy (defaults filled in for those never edited). */
   async listPolicies(): Promise<PolicyDto[]> {
-    const docs = await this.settings.findByKeys(POLICY_KEYS.map(SETTING_KEYS.policy));
-    const byKey = new Map(docs.map((doc) => [doc.key, doc]));
-    return POLICY_KEYS.map((key) => this.toDto(key, byKey.get(SETTING_KEYS.policy(key))));
+    return Promise.all(POLICY_KEYS.map((key) => this.getPolicy(key)));
   }
 
   async getPolicy(key: PolicyKey): Promise<PolicyDto> {
-    return this.toDto(key, await this.settings.findByKey(SETTING_KEYS.policy(key)));
+    const [doc, active] = await Promise.all([this.settings.findByKey(SETTING_KEYS.policy(key)), this.settings.effectivePolicy(key)]);
+    const dto = this.toDto(key, active ? { ...doc, value: active.value } as SystemSettingRecord : doc);
+    return { ...dto, version: doc?.version ?? 0, policyVersionId: active?.id, activeVersion: active?.versionNumber ?? 0 };
   }
 
   /** Typed numeric knob for other modules, e.g. `getPolicyNumber('cancellation', 'cancellationWindowHours')`. */
@@ -77,24 +68,24 @@ export class SystemSettingsService {
   async setPolicy(
     actor: Actor,
     key: PolicyKey,
-    input: { title: string; content: string; params?: Record<string, PolicyParamValue> },
+    input: { title: string; content: string; params?: Record<string, PolicyParamValue>; expectedVersion?: number; reason?: string; effectiveFrom?: string; rollbackOf?: string },
   ): Promise<PolicyDto> {
     const windowHours = input.params?.cancellationWindowHours;
     if (key === 'cancellation' && windowHours !== undefined &&
       (typeof windowHours !== 'number' || !Number.isFinite(windowHours) || windowHours < 0)) {
       throw AppError.badRequest('cancellationWindowHours must be a finite non-negative number');
     }
-    const value = { title: input.title, content: input.content, params: input.params ?? {} };
-    const doc = await this.settings.upsert(SETTING_KEYS.policy(key), value, actor.userId);
-    await this.audit.record({
-      actorId: actor.userId,
-      actorRole: actor.role,
-      action: AUDIT_ACTIONS.POLICY_UPDATED,
-      targetType: 'setting',
-      targetId: SETTING_KEYS.policy(key),
-      metadata: { title: input.title, params: value.params },
+    if (key === 'moderation') {
+      for (const name of ['slaHours', 'escalationSlaHours']) {
+        const value = input.params?.[name];
+        if (value !== undefined && (typeof value !== 'number' || value <= 0 || value > 8760)) throw AppError.badRequest('SLA hours must be positive and at most one year');
+      }
+    }
+    const value = { title: input.title, content: input.content, params: { ...DEFAULT_POLICIES[key].params, ...input.params } };
+    await this.settings.saveRevision(SETTING_KEYS.policy(key), value, actor, input.expectedVersion ?? 0, input.reason ?? 'Policy configuration updated', {
+      effectiveFrom: input.effectiveFrom ? new Date(input.effectiveFrom) : undefined, rollbackOf: input.rollbackOf, baseline: DEFAULT_POLICIES[key],
     });
-    return this.toDto(key, doc);
+    return this.getPolicy(key);
   }
 
   private toDto(key: PolicyKey, doc: SystemSettingRecord | null | undefined): PolicyDto {
@@ -106,6 +97,7 @@ export class SystemSettingsService {
       content: stored?.content ?? defaults.content,
       // Stored params override the defaults key by key, so a default knob survives until it is explicitly set.
       params: { ...defaults.params, ...(stored?.params ?? {}) },
+      version: doc?.version ?? 0,
       updatedAt: updatedAtOf(doc),
     };
   }

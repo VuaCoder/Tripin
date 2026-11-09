@@ -42,7 +42,7 @@ There is no create endpoint: tickets exist only as a consequence of a verified p
 5. Issuing notifies the traveler (`ETICKET_ISSUED`, in-app and email).
 6. Guide check-in stamps `usedAt` once (`status` stays VALID), so the traveler's ticket is not shown as completed before the trip. The guide's roster counts `usedAt != null` (or `USED`) as present; a second scan answers `TICKET_ALREADY_USED`. The check-in is a compare-and-set on `{ id, status: VALID, usedAt: null }`.
 7. A guide can only check in tickets of a tour whose assignment is ACCEPTED and not archived; the assignment is verified before the code is looked up.
-8. The roster joins the booking behind each ticket for the contact phone, the adult/child/infant breakdown and the booking notes; a booking without age pricing counts every participant as an adult.
+8. The roster joins booking guest counts and a masked phone; free-form booking notes are excluded to avoid leaking contact/medical details. A booking without age pricing counts every participant as an adult.
 
 ## State machine
 `VALID → USED` (trip done) · `VALID → CANCELLED` (booking cancelled). `USED` and `CANCELLED` are terminal; each status change is a compare-and-set on `VALID`. Guide check-in is **not** a status change: it stamps `usedAt` while the ticket remains `VALID` until the booking completes.
@@ -70,6 +70,8 @@ Subscribes to `bookingEvents.onConfirmed / onCancelled / onCompleted` in `index.
 End-to-end (Playwright, real Postgres + HTTP + traveler web ticket): `docs/testing/guide-check-in/README.md`.
 
 ## Not implemented / follow-ups
-* Persisting "trip started / trip finished" — there is no trip-state field; the mobile buttons are UI-only.
+* A separate trip-state entity is not implemented. Starting a trip remains local UI state; completing a departure persists its eligible bookings as COMPLETED after the end-time guard.
 * PDF/QR image generation – the frontend renders the QR from `code`.
-* A repair job for confirmed bookings whose ticket handler failed (re-run `issueForBooking`, it is idempotent).
+* Ticket delivery is repaired by `eTickets.retryFulfillment` every minute after a paid booking has lacked a ticket for three minutes. Creation and cancellation serialize on the booking row; the worker also repairs completed trips as USED. See `e-tickets.lifecycle.integration.test.ts`.
+
+`POST /e-tickets/scan { tourId, departureId?, code }` is the guide scan entry point; the original guide check-in URL remains supported. Check-in responds with `status: CHECKED_IN`, while the ticket remains VALID until trip completion. Roster phone numbers are masked, free-form booking notes are excluded, and `departureId` scopes the roster/scan. An ambiguous multi-departure roster returns `DEPARTURE_REQUIRED`. Traveler ticket lists support a `status` filter and include pickup information.

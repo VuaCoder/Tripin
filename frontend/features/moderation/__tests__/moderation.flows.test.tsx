@@ -1,3 +1,4 @@
+import { selectFormValue, selectOption } from '@/test/select';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ModerationReport, ModerationReview, ModerationTicket } from '../types';
@@ -50,6 +51,7 @@ const unwrapFail = (code: string) => ({ unwrap: () => Promise.reject({ data: { e
 
 const report = (over: Partial<ModerationReport> = {}): ModerationReport => ({
   id: 'r1',
+  code: 'RP-001',
   targetType: 'TOUR',
   targetId: 't1',
   targetName: 'Đà Nẵng 3N2Đ',
@@ -146,20 +148,20 @@ describe('ModerationReportListPage', () => {
     expect(screen.getByText('Không có báo cáo nào')).toBeTruthy();
   });
 
-  it('forwards every queue filter to the backend', () => {
+  it('forwards every queue filter to the backend', async () => {
     allowResolve();
     mockReports.mockReturnValue(q({ data: { items: [report()], meta: META } }));
     render(<ModerationReportListPage />);
     expect(mockReports).toHaveBeenLastCalledWith({ page: 1, limit: 10 }, { skip: false });
 
-    fireEvent.change(screen.getByLabelText('Lọc theo trạng thái'), { target: { value: 'AGENCY_RESPONDED' } });
+    await selectFormValue('Lọc theo trạng thái', 'AGENCY_RESPONDED');
     expect(mockReports).toHaveBeenLastCalledWith({ page: 1, limit: 10, status: 'AGENCY_RESPONDED' }, { skip: false });
-    fireEvent.change(screen.getByLabelText('Lọc theo đối tượng'), { target: { value: 'USER' } });
+    await selectOption(screen.getByRole('combobox', { name: 'Lọc theo đối tượng' }), 'Tài khoản đối tác');
     expect(mockReports).toHaveBeenLastCalledWith(
       { page: 1, limit: 10, status: 'AGENCY_RESPONDED', targetType: 'USER' },
       { skip: false },
     );
-    fireEvent.change(screen.getByLabelText('Lọc theo loại vấn đề'), { target: { value: 'SAFETY' } });
+    await selectOption(screen.getByRole('combobox', { name: 'Lọc theo loại vấn đề' }), 'An toàn');
     expect(mockReports).toHaveBeenLastCalledWith(
       { page: 1, limit: 10, status: 'AGENCY_RESPONDED', targetType: 'USER', category: 'SAFETY' },
       { skip: false },
@@ -352,7 +354,7 @@ describe('ModerationReviewListPage', () => {
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã ẩn đánh giá'));
   });
 
-  it('restores a hidden review without a reason', async () => {
+  it('requires a reason to restore a hidden review', async () => {
     permissions = ['review:moderate'];
     mockReviews.mockReturnValue(q({ data: { items: [review({ status: 'HIDDEN', hiddenReason: 'Nhầm lẫn' })], meta: META } }));
     mockModerate.mockReturnValue(unwrapOk());
@@ -361,7 +363,10 @@ describe('ModerationReviewListPage', () => {
     expect(screen.queryByText('Ẩn đánh giá')).toBeNull();
     fireEvent.click(screen.getByText('Khôi phục đánh giá'));
 
-    await waitFor(() => expect(mockModerate).toHaveBeenCalledWith({ id: 'v1', hide: false }));
+    expect(mockModerate).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Review is compliant' } });
+    fireEvent.click(screen.getByRole('button', { name: /Khôi phục đánh giá/ }));
+    await waitFor(() => expect(mockModerate).toHaveBeenCalledWith({ id: 'v1', hide: false, restorationReason: 'Review is compliant' }));
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã khôi phục đánh giá'));
   });
 
@@ -370,11 +375,12 @@ describe('ModerationReviewListPage', () => {
     mockReviews.mockReturnValue(q({ data: { items: [review()], meta: META } }));
     mockBan.mockReturnValue(unwrapOk());
     render(<ModerationReviewListPage />);
-    fireEvent.click(screen.getByText('Xem & xử lý'));
-    fireEvent.change(screen.getByLabelText(/Lý do ẩn đánh giá/), { target: { value: 'Tài khoản spam' } });
-    fireEvent.click(screen.getByText('Khoá tài khoản tác giả'));
+    fireEvent.click(screen.getAllByTitle('Khoá tài khoản')[0]);
+    expect(screen.getByText(/Bạn có chắc chắn muốn khoá tài khoản của/)).toBeTruthy();
+    const banButtons = screen.getAllByRole('button', { name: 'Khoá' });
+    fireEvent.click(banButtons[banButtons.length - 1]);
 
-    await waitFor(() => expect(mockBan).toHaveBeenCalledWith({ id: 'u-traveler', reason: 'Tài khoản spam' }));
+    await waitFor(() => expect(mockBan).toHaveBeenCalledWith(expect.objectContaining({ id: 'u-traveler' })));
   });
 });
 
@@ -397,16 +403,18 @@ describe('ModerationTicketListPage', () => {
     expect(screen.getByText(/ít nhất 2 ký tự/)).toBeTruthy();
   });
 
-  it('replies and marks the ticket resolved in one call', async () => {
+  it('replies and marks a claimed ticket resolved with a note', async () => {
     allowHandle();
+    mockTicket.mockReturnValue(q({ data: { ...ticket(), assignedTo: 'm1', status: 'IN_PROGRESS' } }));
     mockReply.mockReturnValue(unwrapOk());
     render(<ModerationTicketListPage />);
     fireEvent.click(screen.getByText('Xem & xử lý'));
     fireEvent.change(screen.getByLabelText('Trả lời du khách'), { target: { value: 'Chúng tôi đã gửi lại vé.' } });
+    fireEvent.change(screen.getByLabelText('Ghi chú giải quyết'), { target: { value: 'Đã xác minh và gửi lại vé' } });
     fireEvent.click(screen.getByLabelText(/Đánh dấu khiếu nại đã được giải quyết/));
     fireEvent.click(screen.getByText('Gửi trả lời'));
 
-    await waitFor(() => expect(mockReply).toHaveBeenCalledWith({ id: 's1', text: 'Chúng tôi đã gửi lại vé.', resolve: true }));
+    await waitFor(() => expect(mockReply).toHaveBeenCalledWith({ id: 's1', text: 'Chúng tôi đã gửi lại vé.', resolve: true, resolutionNote: 'Đã xác minh và gửi lại vé' }));
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã gửi trả lời'));
   });
 

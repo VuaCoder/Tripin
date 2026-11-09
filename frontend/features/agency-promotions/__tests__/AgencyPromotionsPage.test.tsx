@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { selectOption } from '@/test/select';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AgencyPromotion } from '../types';
 
@@ -133,8 +134,15 @@ describe('AgencyPromotionsPage', () => {
     render(<AgencyPromotionsPage />);
     fireEvent.click(screen.getByText('Tắt'));
 
+    const textarea = screen.getByPlaceholderText(/Ví dụ: Hết ngân sách/);
+    fireEvent.change(textarea, { target: { value: 'Hết ngân sách khuyến mãi tháng này' } });
+    fireEvent.click(screen.getByText('Xác nhận dừng'));
+
     await waitFor(() => expect(screen.getByText('Không thể tắt')).toBeTruthy());
-    expect(mockUpdate).toHaveBeenCalledWith({ id: 'p1', patch: { isActive: false } });
+    expect(mockUpdate).toHaveBeenCalledWith({
+      id: 'p1',
+      patch: { isActive: false, deactivationReason: 'Hết ngân sách khuyến mãi tháng này' },
+    });
     expect(refetch).toHaveBeenCalled();
   });
 
@@ -150,16 +158,12 @@ describe('AgencyPromotionsPage', () => {
 
     // AntSelect filter dropdown for apply type
     const typeDropdown = screen.getByLabelText('Lọc theo hình thức');
-    fireEvent.click(typeDropdown);
-    const sharedOption = screen.getByRole('option', { name: /Public Promo Code/ });
-    fireEvent.click(sharedOption);
+    await selectOption(typeDropdown, /Public Promo Code/);
     expect(mockQuery).toHaveBeenCalledWith(expect.objectContaining({ applyType: 'CODE', codeType: 'SHARED' }));
 
     // AntSelect filter dropdown for status
     const statusDropdown = screen.getByLabelText('Lọc theo trạng thái');
-    fireEvent.click(statusDropdown);
-    const activeOption = screen.getByRole('option', { name: /Đang hoạt động/ });
-    fireEvent.click(activeOption);
+    await selectOption(statusDropdown, /Đang hoạt động/);
     expect(mockQuery).toHaveBeenCalledWith(expect.objectContaining({ isActive: true }));
 
     // Quick filter pill
@@ -209,7 +213,7 @@ describe('AgencyPromotionsPage', () => {
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
-  it('filters by archived status via status dropdown and shows distinct archived card', () => {
+  it('filters by archived status via status dropdown and shows distinct archived card', async () => {
     const archivedPromotion: AgencyPromotion = {
       ...promotion,
       id: 'p2',
@@ -223,9 +227,7 @@ describe('AgencyPromotionsPage', () => {
 
     // Select "Đã lưu trữ" from status filter dropdown
     const statusDropdown = screen.getByLabelText('Lọc theo trạng thái');
-    fireEvent.click(statusDropdown);
-    const archivedOption = screen.getByRole('option', { name: /Đã lưu trữ/ });
-    fireEvent.click(archivedOption);
+    await selectOption(statusDropdown, /Đã lưu trữ/);
 
     expect(mockQuery).toHaveBeenCalledWith(expect.objectContaining({ isArchived: true }));
     expect(screen.getByText('(Đã lưu trữ)')).toBeTruthy();

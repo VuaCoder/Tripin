@@ -37,11 +37,11 @@ export class ETicketsService {
    * Issues the ticket of a CONFIRMED booking. Idempotent (one ticket per booking): a repeated event returns the
    * existing ticket and sends nothing again. The traveler is notified in-app and by email.
    */
-  async issueForBooking(booking: BookingFacts): Promise<ETicketDto> {
+  async issueForBooking(booking: BookingFacts, repairCompleted = false): Promise<ETicketDto> {
     const existing = await this.tickets.findByBookingId(booking.id);
     if (existing) return toETicketDto(existing);
 
-    const ticket = await this.createWithUniqueCode(booking);
+    const ticket = await this.createWithUniqueCode(booking, repairCompleted);
     if (!ticket.fresh) return toETicketDto(ticket.doc);
 
     await this.notifications.notify(
@@ -97,11 +97,12 @@ export class ETicketsService {
   // ------------------------------------------------- Tour guide check-in
 
   /** Use case "Scan QR check-in": the roster of the tour the guide is leading. */
-  async rosterForGuide(guideId: string, tourId: string): Promise<GuideRosterDto> {
+  async rosterForGuide(guideId: string, tourId: string, departureId?: string): Promise<GuideRosterDto> {
     const assignment = await this.assertGuideTour(guideId, tourId);
     const tickets = await this.tickets.listByTour(tourId);
     const bookings = await this.tickets.findRosterBookings(tickets.map((ticket) => ticket.bookingId));
-    const items = tickets.map((ticket) => toGuideRosterItem(ticket, bookings.get(ticket.bookingId)));
+    if (!departureId && new Set([...bookings.values()].map((booking) => booking.departureId).filter(Boolean)).size > 1) throw AppError.conflict('Choose the departure to view its roster', 'DEPARTURE_REQUIRED');
+    const items = tickets.filter((ticket) => !departureId || bookings.get(ticket.bookingId)?.departureId === departureId).map((ticket) => toGuideRosterItem(ticket, bookings.get(ticket.bookingId)));
     return {
       tourId,
       tourTitle: assignment.tour.title,
@@ -115,12 +116,16 @@ export class ETicketsService {
    * Validates a ticket code against the guide's tour and stamps `usedAt` once. The ticket stays VALID so the
    * traveler's e-ticket is not displayed as completed before the trip actually ends.
    */
-  async checkInForGuide(guideId: string, tourId: string, code: string): Promise<GuideCheckInDto> {
+  async checkInForGuide(guideId: string, tourId: string, code: string, departureId?: string): Promise<GuideCheckInDto> {
     const assignment = await this.assertGuideTour(guideId, tourId);
     const normalized = code.trim().toUpperCase();
     const ticket = await this.tickets.findByCode(normalized);
     if (!ticket) throw AppError.notFound('Ticket not found', 'TICKET_NOT_FOUND');
     if (ticket.tourId !== tourId) throw AppError.conflict('This ticket belongs to another tour', 'TICKET_WRONG_TOUR');
+    if (departureId) {
+      const bookings = await this.tickets.findRosterBookings([ticket.bookingId]);
+      if (bookings.get(ticket.bookingId)?.departureId !== departureId) throw AppError.conflict('This ticket belongs to another departure', 'TICKET_WRONG_DEPARTURE');
+    }
     if (ticket.status === ETICKET_STATUS.CANCELLED) throw AppError.conflict('This ticket was cancelled', 'TICKET_CANCELLED');
     if (ticket.status === ETICKET_STATUS.USED || ticket.usedAt) throw AppError.conflict('This ticket was already checked in', 'TICKET_ALREADY_USED');
 
@@ -139,7 +144,7 @@ export class ETicketsService {
    * Complete trip for the tour: transitions all CONFIRMED bookings of this tour to COMPLETED,
    * emits completion events which triggers earnings creation for the tour guide and notifies travelers.
    */
-  async completeTripForGuide(guideId: string, tourId: string): Promise<{ completedCount: number }> {
+  async completeTripForGuide(guideId: string, tourId: string, departureId?: string): Promise<{ completedCount: number }> {
     await this.assertGuideTour(guideId, tourId);
     const tickets = await this.tickets.listByTour(tourId);
     const bookingIds = [...new Set(tickets.map((t) => t.bookingId))];
@@ -149,8 +154,14 @@ export class ETicketsService {
     const { bookingEvents } = await import('../bookings/bookings.events');
     const { toBookingFacts } = await import('../bookings/bookings.mapper');
 
-    for (const bookingId of bookingIds) {
-      const booking = await bookingsRepository.findById(bookingId);
+    const bookings = (await Promise.all(bookingIds.map((id) => bookingsRepository.findById(id))))
+      .filter((booking) => booking && booking.status === 'CONFIRMED' && (!departureId || booking.departureId === departureId));
+    const ended = bookings.filter((booking) => booking!.endDate.getTime() <= Date.now());
+    if (bookings.length && !ended.length) throw AppError.conflict('Chuyến đi chưa kết thúc', 'TRIP_NOT_ENDED');
+    if (!departureId && new Set(ended.map((booking) => booking!.departureId)).size > 1) {
+      throw AppError.conflict('Choose the departure to complete', 'DEPARTURE_REQUIRED');
+    }
+    for (const booking of ended) {
       if (booking && booking.status === 'CONFIRMED') {
         const done = await bookingsRepository.transition(booking.id, ['CONFIRMED'], {
           status: 'COMPLETED',
@@ -187,7 +198,7 @@ export class ETicketsService {
     return ticket;
   }
 
-  private async createWithUniqueCode(booking: BookingFacts): Promise<{ doc: ETicketRecord; fresh: boolean }> {
+  private async createWithUniqueCode(booking: BookingFacts, repairCompleted = false): Promise<{ doc: ETicketRecord; fresh: boolean }> {
     for (let attempt = 1; ; attempt += 1) {
       try {
         const doc = await this.tickets.create({
@@ -202,7 +213,7 @@ export class ETicketsService {
           participants: booking.participants,
           holderName: booking.contactName,
           issuedAt: new Date(),
-        });
+        }, repairCompleted);
         return { doc, fresh: true };
       } catch (error) {
         if (!isUniqueViolation(error)) throw error;

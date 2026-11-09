@@ -1,11 +1,26 @@
 .page { max-width: 1440px; margin: 0 auto; color: #1b2b34; }
+.skeletonBlock { position: relative; overflow: hidden; border-radius: 6px; background: #e2e8ec; max-width: 100%; }
+.skeletonBlock::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, #ffffff80, transparent); animation: detailShimmer 1.5s infinite; }
+.skeletonTitle { flex: 1; min-width: 0; }
+.skeletonAgency { display: flex; align-items: center; gap: 12px; margin: 16px 0; padding: 12px 0; }
+.skeletonAgency > :first-child { flex-shrink: 0; border-radius: 50%; }
+.skeletonAgency .skeletonTitle { display: grid; gap: 8px; }
+.skeletonTab { padding: 16px 20px; flex-shrink: 0; }
+.skeletonItinerary { display: grid; gap: 12px; margin-top: 22px; }
+.skeletonItinerary .dayContent { display: grid; gap: 14px; }
+.skeletonPrice { margin: 6px 0 12px; }
+@keyframes detailShimmer { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .skeletonBlock::after { animation: none; } }
 .page button:focus-visible, .page a:focus-visible, .page summary:focus-visible { outline: 3px solid #087e8b; outline-offset: 4px; }
 .breadcrumb { display: flex; align-items: center; gap: 8px; color: #5a6e78; font-size: 13px; margin: 0 0 22px; }
 .titleRow { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 24px; }
 .titleRow h1 { font-size: clamp(26px, 3.2vw, 40px); font-weight: 800; line-height: 1.3; letter-spacing: -.03em; }
-.titleActions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.outlineButton { display: inline-flex; gap: 8px; align-items: center; justify-content: center; border: 1px solid #d7e2e5; border-radius: 10px; background: white; padding: 12px 16px; font-weight: 600; font-size: 13px; }
-.outlineButton:hover { background: #edf7f7; }
+.titleActions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+.outlineButton { display: inline-flex; gap: 6px; align-items: center; justify-content: center; border: 1px solid #e2e8f0; border-radius: 9999px; background: white; padding: 8px 16px; font-weight: 600; font-size: 14px; color: #475569; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); transition: all 0.15s ease; cursor: pointer; }
+.outlineButton:hover { background: #f8fafc; border-color: #cbd5e1; color: #1e293b; }
+.iconActionButton { display: inline-flex; width: 40px; height: 40px; align-items: center; justify-content: center; border-radius: 9999px; border: 1px solid #e2e8f0; background: white; color: #475569; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); transition: all 0.15s ease; cursor: pointer; }
+.iconActionButton:hover { background: #f8fafc; border-color: #cbd5e1; color: #1e293b; }
+.iconActionButton:active { transform: scale(0.95); }
 .ratings { display: flex; gap: 12px; align-items: center; margin-top: 12px; font-size: 13px; color: #5a6e78; }
 .gallery { display: grid; grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; gap: 5px; height: clamp(300px, 35vw, 490px); position: relative; overflow: hidden; border-radius: 16px; background: #e9f0f1; }
 .photo { overflow: hidden; min-height: 0; }
@@ -16,12 +31,24 @@
 .twoPhotos .photo:nth-child(2) { grid-row: span 2; }
 .allPhotos { position: absolute; right: 18px; bottom: 18px; display: flex; gap: 8px; align-items: center; background: white; border-radius: 8px; padding: 11px 15px; color: #1b2b34; font-size: 13px; font-weight: 700; box-shadow: 0 4px 16px #1b2b3420; }
 .noPhotos { min-height: 260px; border-radius: 16px; background: #eaf1f1; display: flex; gap: 12px; align-items: center; justify-content: center; color: #5a6e78; }
-.galleryDialog { max-width: 1100px; width: calc(100% - 32px); max-height: 90dvh; padding: 0; border: none; border-radius: 16px; }
-.galleryDialog::backdrop { background: #12252cbd; }
-.dialogHeader { padding: 20px 24px; display: flex; gap: 24px; align-items: center; justify-content: space-between; position: sticky; top: 0; background: white; z-index: 1; }
-.dialogHeader h2 { font-size: 18px; font-weight: 700; }
-.photoCollection { display: grid; gap: 12px; padding: 0 24px 24px; }
-.photoCollection img { width: 100%; border-radius: 8px; }
+.galleryDialog { box-sizing: border-box; width: 100%; max-width: none; height: 100dvh; max-height: none; margin: 0; padding: 0; border: none; overflow: hidden; background: transparent; color: white; }
+.galleryDialog::backdrop { background: #000000eb; -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+.lightbox { box-sizing: border-box; position: relative; display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; padding: 8px 16px 16px; }
+.lightboxHeader { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; padding: 8px 0; }
+.lightboxCounter { font-size: 14px; font-weight: 700; letter-spacing: .04em; color: #cfe0e4; }
+.lightboxClose { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; color: white; background: #ffffff14; }
+.lightboxClose:hover { background: #ffffff26; }
+.lightboxStage { flex: 1; min-height: 0; min-width: 0; display: flex; align-items: center; justify-content: center; }
+.lightboxImage { display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; image-rendering: auto; filter: brightness(1.04) contrast(1.02) saturate(1.04); box-shadow: 0 12px 48px #00000066; }
+.lightboxNav { position: absolute; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: center; width: 46px; height: 46px; border-radius: 50%; background: #ffffff1f; color: white; z-index: 1; }
+.lightboxNav:hover { background: #ffffff36; }
+.lightboxPrev { left: 24px; }
+.lightboxNext { right: 24px; }
+.lightboxThumbs { display: flex; flex-shrink: 0; gap: 8px; width: fit-content; max-width: 100%; margin-inline: auto; overflow-x: auto; padding: 12px 0 0; scrollbar-width: none; }
+.lightboxThumbs::-webkit-scrollbar { display: none; }
+.lightboxThumb, .lightboxThumbActive { flex-shrink: 0; width: 84px; height: 56px; overflow: hidden; border-radius: 6px; border: 2px solid transparent; opacity: .55; }
+.lightboxThumbActive { border-color: #ffffff; opacity: 1; }
+.lightboxThumb img, .lightboxThumbActive img { width: 100%; height: 100%; object-fit: cover; }
 .bodyGrid { display: grid; grid-template-columns: minmax(0, 1fr) 370px; gap: 32px; align-items: start; margin-top: 32px; }
 .facts { display: flex; flex-wrap: wrap; gap: 18px 32px; font-size: 14px; margin-bottom: 26px; }
 .facts span { display: flex; align-items: center; gap: 8px; }

@@ -6,6 +6,7 @@ export interface EarningDto {
   /** Integer VND the agency owes the guide for this booking (the fee set when the guide was assigned). */
   amount: number;
   earnedAt: string;
+  payout?: { id: string; status: string; transferredAt?: string; transferReference?: string };
 }
 
 export interface EarningsSummaryDto {

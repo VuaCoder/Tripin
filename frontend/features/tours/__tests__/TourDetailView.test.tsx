@@ -32,7 +32,7 @@ describe('Tour detail content', () => {
     expect(screen.queryByText('Thêm vào giỏ hàng')).toBeNull();
     fireEvent.click(screen.getByRole('tab', { name: 'Chính sách giá' }));
     expect(screen.getByText('Xe đưa đón')).toBeTruthy();
-    expect(screen.getByText('50% giá tour')).toBeTruthy();
+    expect(screen.getAllByText('500000 đ').length).toBeGreaterThan(0);
     expect(screen.queryByText('Đi thuyền qua các hang động.')).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Giấy tờ tùy thân' })).toBeNull();
     fireEvent.click(screen.getByRole('tab', { name: 'Hướng dẫn' }));
@@ -47,7 +47,7 @@ describe('Tour detail content', () => {
     render(<TourDetailView tour={tour} />);
     fireEvent.click(screen.getByRole('button', { name: 'Tăng trẻ em' }));
     expect(screen.getByText('1500000 đ')).toBeTruthy();
-    expect(screen.getByLabelText('Trẻ em').textContent).toBe('1');
+    expect((screen.getByLabelText('Trẻ em') as HTMLInputElement).value).toBe('1');
   });
   it('shows unpublished fields honestly for legacy tours', () => {
     render(<TourDetailView tour={{ ...tour, agePricing: null, itinerary: [], childPricingPolicy: '', cancellationPolicy: '', requiredDocuments: '' }} />);

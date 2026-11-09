@@ -1,5 +1,6 @@
 import type { ReviewRecord } from './reviews.repository';
 import type { ModerationReviewDto, MyReviewDto, PublicReviewDto, ReviewStatus } from './reviews.types';
+import { reviewContentVersion } from './reviews.revision';
 
 const createdAtOf = (review: ReviewRecord) => review.createdAt.toISOString();
 
@@ -39,11 +40,12 @@ export function toMyReviewDto(review: ReviewRecord): MyReviewDto {
 }
 
 /** Display names resolved for a review; an account that no longer exists just has no name. */
-export type ReviewNames = Pick<ModerationReviewDto, 'travelerName' | 'agencyName'>;
+export type ReviewNames = Pick<ModerationReviewDto, 'travelerName' | 'agencyName' | 'tourImage'>;
 
 export function toModerationReviewDto(review: ReviewRecord, names: ReviewNames = {}): ModerationReviewDto {
   return {
     ...toMyReviewDto(review),
+    contentVersion: reviewContentVersion(review),
     travelerId: review.travelerId,
     agencyId: review.agencyId,
     moderatedAt: review.moderatedAt?.toISOString(),

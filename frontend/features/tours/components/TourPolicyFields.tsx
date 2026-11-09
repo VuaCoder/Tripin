@@ -1,5 +1,6 @@
 'use client';
 
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useState, useEffect } from 'react';
 import type { TourContentInput } from '../types';
 import { TourAgePricingFields } from './TourAgePricingFields';
@@ -279,7 +280,7 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
         <div className="space-y-1.5">
           <span className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
             <Sparkles size={13} className="text-amber-500" />
-            Chọn nhanh gói mẫu:
+            Chọn nhanh chính sách đề xuất:
           </span>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {CANCELLATION_TEMPLATES.map((tmpl) => (
@@ -332,7 +333,7 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
                     }
                     className="w-13 rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-center text-xs font-bold text-slate-900 outline-none focus:border-[#087e8b] focus:ring-1 focus:ring-[#087e8b]"
                   />
-                  <select
+                  <FormSelect
                     value={milestone.timeUnit}
                     aria-label={`Đơn vị thời gian mốc ${index + 1}`}
                     onChange={(e) =>
@@ -344,7 +345,7 @@ export function TourPolicyFields({ value, onChange, includeAgePricing = false }:
                   >
                     <option value="day">ngày</option>
                     <option value="hour">giờ</option>
-                  </select>
+                  </FormSelect>
                 </div>
 
                 <span className="text-xs text-slate-400 font-bold shrink-0">→</span>

@@ -15,6 +15,7 @@ import { homeForRole } from '@/features/auth/utils/roles';
 import { Dropdown } from '@/components/shared';
 import { OwnPremiumIdentity, PremiumStatusText, useOwnPremium } from '@/features/premium/PremiumIdentity';
 import { AgencyRightSidebar } from '@/features/agency/AgencyUi';
+import { ModeratorSidebar } from '@/features/moderation';
 import { cn } from '../ui/cn';
 
 import { useConversationsQuery } from '@/features/chat/api';
@@ -160,8 +161,11 @@ export function Header({ role }: { role?: AppRole }) {
   if (effectiveRole === 'AGENCY') {
     return <AgencyRightSidebar />;
   }
+  if (effectiveRole === 'MODERATOR') {
+    return <ModeratorSidebar />;
+  }
 
-  const items = navigationByRole[effectiveRole] || navigationByRole.PUBLIC;
+  const items = (navigationByRole[effectiveRole] || navigationByRole.PUBLIC).filter((item) => !item.permission || user?.permissions.includes(item.permission));
   const accountMenuItems = accountMenuForRole(effectiveRole);
 
   return (
@@ -199,30 +203,36 @@ export function Header({ role }: { role?: AppRole }) {
         </div>
 
         <div className="flex items-center gap-2.5 sm:gap-3">
-          {!user && (
-            <button
-              type="button"
-              onClick={() => router.push('/premium')}
-              aria-label="Khám phá Tripri Premium"
-              title="Khám phá đặc quyền Tripri Premium"
-              className="group btn-premium-gold relative inline-flex h-10 items-center justify-center gap-1.5 rounded-2xl px-3.5 text-xs sm:text-sm font-bold shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 cursor-pointer"
+          {/* Active Premium badge in Header (Only when user has active subscription) */}
+          {premium.premium?.active && (
+            <Link
+              href="/premium"
+              aria-label="Tài khoản Premium"
+              className={cn(
+                'group flex items-center gap-2.5 rounded-2xl border px-3 py-1.5 transition-all shadow-2xs hover:shadow-sm cursor-pointer',
+                isTransparent
+                  ? 'border-amber-400/50 bg-slate-900/40 text-white backdrop-blur-md hover:bg-slate-900/60'
+                  : 'border-amber-300 bg-gradient-to-r from-amber-50 to-amber-100/70 text-slate-900 hover:border-amber-400',
+              )}
             >
-              <span className="premium-shine-rtl" aria-hidden="true" />
-              <span
-                className="material-symbols-outlined text-[20px] text-amber-950 shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-                aria-hidden="true"
-              >
-                workspace_premium
+              <span className="flex size-7 items-center justify-center rounded-full bg-amber-500 text-slate-950 shadow-2xs">
+                <span
+                  className="material-symbols-outlined text-[16px] leading-none"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                  aria-hidden="true"
+                >
+                  workspace_premium
+                </span>
               </span>
-              <span className="font-extrabold tracking-wide text-amber-950">Premium</span>
-              <span
-                className="material-symbols-outlined hidden text-[15px] text-amber-900/80 transition-transform duration-300 group-hover:scale-125 sm:inline"
-                aria-hidden="true"
-              >
-                auto_awesome
-              </span>
-            </button>
+              <div className="flex flex-col text-left leading-tight">
+                <span className={cn('text-xs font-extrabold', isTransparent ? 'text-amber-300' : 'text-amber-950')}>
+                  Premium
+                </span>
+                <span className={cn('text-[10px] font-medium', isTransparent ? 'text-slate-200' : 'text-slate-600')}>
+                  Hoạt động đến {new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(premium.premium.endsAt!))}
+                </span>
+              </div>
+            </Link>
           )}
 
           {isAuthenticated && user ? (

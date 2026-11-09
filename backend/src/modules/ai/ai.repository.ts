@@ -8,7 +8,7 @@ export type AiMessageRecord = AiMessage;
 /** Detail records load the transcript; list records load only the latest message. */
 export type AiConversationRecord = AiConversation & { messages: AiMessageRecord[]; unreadCount?: number };
 
-type NewMessage = { role: 'user' | 'assistant'; content: string };
+type NewMessage = { role: 'user' | 'assistant'; content: string; incomplete?: boolean };
 
 const withMessages = { messages: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } } satisfies Prisma.AiConversationInclude;
 const withSummary = {

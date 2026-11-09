@@ -100,8 +100,8 @@ export class PromotionsRepository {
     return row ? numericRecord(row) : null;
   }
 
-  async list(filter: { scope: PromotionScope; ownerId?: string } & Omit<ListPromotionsQuery, 'page' | 'limit'>, page: PageRequest) {
-    const where: Prisma.PromotionWhereInput = { scope: filter.scope };
+  async list(filter: { scope?: PromotionScope; ownerId?: string } & Omit<ListPromotionsQuery, 'page' | 'limit'>, page: PageRequest) {
+    const where: Prisma.PromotionWhereInput = filter.scope ? { scope: filter.scope } : {};
     if (filter.ownerId) where.ownerId = filter.ownerId;
     if (filter.isActive !== undefined) where.isActive = filter.isActive;
     if (filter.isArchived !== undefined) where.isArchived = filter.isArchived;

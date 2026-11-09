@@ -154,6 +154,36 @@ function ApplicationStatusContent() {
     return () => { active = false; };
   }, [token, email, attempt]);
 
+  // Real-time polling while status is pending so agency sees approval immediately
+  useEffect(() => {
+    if (!statusData || statusData.verificationStatus !== 'PENDING') return;
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        agencyAuthApi
+          .getApplicationStatus({ token: token || statusData.token, email: email || statusData.email })
+          .then((updated) => {
+            if (updated.verificationStatus !== 'PENDING') {
+              setStatusData(updated);
+            }
+          })
+          .catch(() => {});
+      }
+    }, 5000); // Polling every 5s while waiting for approval
+
+    const onFocus = () => {
+      agencyAuthApi
+        .getApplicationStatus({ token: token || statusData.token, email: email || statusData.email })
+        .then((updated) => setStatusData(updated))
+        .catch(() => {});
+    };
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [statusData?.verificationStatus, statusData?.token, statusData?.email, token, email]);
+
   const runTestAction = async (action: 'accept' | 'reject') => {
     if (!isDev || !statusData || testAction || statusData.verificationStatus !== 'PENDING') return;
     setTestError('');
@@ -192,7 +222,7 @@ function ApplicationStatusContent() {
       <h1 className={styles.title}>Hồ sơ của bạn đã được phê duyệt!</h1>
       <Link href="/agency/login" className={styles.action}>Đăng nhập Agency</Link>
     </>;
-  } else if (statusData?.verificationStatus === 'REJECTED') {
+  } else if (statusData && ['REJECTED', 'INFORMATION_REQUESTED'].includes(statusData.verificationStatus)) {
     const query = new URLSearchParams(statusData.token ? { token: statusData.token } : { email: statusData.email });
     message = <>
       <h1 className={styles.title}>Hồ sơ cần được bổ sung</h1>
@@ -232,7 +262,7 @@ function ApplicationStatusContent() {
 
   const visual = !loading && !error && statusData?.verificationStatus === 'VERIFIED'
     ? 'approved'
-    : !loading && !error && statusData?.verificationStatus === 'REJECTED' ? 'incomplete' : 'waiting';
+    : !loading && !error && (['REJECTED', 'INFORMATION_REQUESTED'].includes(statusData?.verificationStatus ?? '')) ? 'incomplete' : 'waiting';
   return <StatusScene visual={visual}>{message}</StatusScene>;
 }
 

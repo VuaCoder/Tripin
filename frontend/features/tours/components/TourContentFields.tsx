@@ -3,6 +3,7 @@
 import type { TourCategory, TourContentInput } from '../types';
 import { formatCurrencyVndInput, parseCurrencyVndInput } from '../utils/format';
 import { TourPolicyFields } from './TourPolicyFields';
+import { TourAgePricingFields } from './TourAgePricingFields';
 
 type Props = { value: TourContentInput; onChange: (value: TourContentInput) => void; categories: TourCategory[] };
 
@@ -25,7 +26,7 @@ export function TourContentFields({ value, onChange, categories }: Props) {
         <label className="space-y-1.5 text-sm font-semibold text-slate-700">Số ngày
           <input className={inputClass} type="number" min={1} max={365} required value={value.durationDays} onChange={(e) => set('durationDays', Number(e.target.value))} />
         </label>
-        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Giá cơ bản (VND)
+        <label className="space-y-1.5 text-sm font-semibold text-slate-700">Giá người lớn · từ 13 tuổi trở lên (VND)
           <input
             className={inputClass}
             type="text"
@@ -40,6 +41,10 @@ export function TourContentFields({ value, onChange, categories }: Props) {
           <input className={inputClass} type="number" min={1} max={10000} value={value.maxGroupSize ?? ''} onChange={(e) => set('maxGroupSize', e.target.value ? Number(e.target.value) : undefined)} placeholder="Ví dụ: 25" />
         </label>
       </div>
+      <fieldset className="rounded-xl border border-slate-200 p-4">
+        <legend className="px-2 text-sm font-semibold text-slate-700">Giá theo độ tuổi</legend>
+        <TourAgePricingFields value={value} onChange={onChange} />
+      </fieldset>
       <label className="block space-y-1.5 text-sm font-semibold text-slate-700">Tóm tắt <span className="font-normal text-slate-500">(Optional)</span>
         <textarea className={inputClass} rows={2} maxLength={500} value={value.summary ?? ''} onChange={(e) => set('summary', e.target.value || undefined)} />
       </label>

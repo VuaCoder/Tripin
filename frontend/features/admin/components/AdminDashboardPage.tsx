@@ -24,7 +24,7 @@ export function AdminDashboardPage() {
   const [args, setArgs] = useState<DashboardArgs>(() => dateSelectionQuery(recentDays(30)));
   const [preset, setPreset] = useState<number | null>(30);
   const [error, setError] = useState<string | null>(null);
-  const query = useGetAdminDashboardQuery(args, { skip: !ready, refetchOnMountOrArgChange: true });
+  const query = useGetAdminDashboardQuery(args, { skip: !ready, refetchOnMountOrArgChange: true, pollingInterval: 3_600_000, refetchOnFocus: true });
   const d = query.currentData;
   const apply = (range: DateSelection) => {
     const found = dateSelectionError(range, 366); setError(found);

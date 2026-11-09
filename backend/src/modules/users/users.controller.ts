@@ -1,3 +1,4 @@
+import { toProfileDto } from './users.mapper';
 import type { RequestHandler } from 'express';
 import type { Permission, UserStatus } from '@travel-platform/constants';
 import { userActor } from '../../middlewares/authorize';
@@ -19,7 +20,7 @@ export class UsersController {
   };
 
   getMe: RequestHandler = async (req, res) => {
-    sendOk(res, await this.service.getMe(userActor(req).userId));
+    sendOk(res, toProfileDto(await this.service.getMe(userActor(req).userId)));
   };
 
   getPreferences: RequestHandler = async (req, res) => {
@@ -33,7 +34,7 @@ export class UsersController {
 
   updateMe: RequestHandler = async (req, res) => {
     const { body } = validated<UpdateProfileBody>(req);
-    sendOk(res, await this.service.updateMe(userActor(req).userId, body));
+    sendOk(res, toProfileDto(await this.service.updateMe(userActor(req).userId, body)));
   };
 
   createAvatarUploadSignature: RequestHandler = async (req, res) => {
@@ -42,11 +43,11 @@ export class UsersController {
 
   completeAvatarUpload: RequestHandler = async (req, res) => {
     const { body } = validated<CompleteImageUploadBody>(req);
-    sendOk(res, await this.service.completeTravelerAvatarUpload(userActor(req).userId, body.publicId));
+    sendOk(res, toProfileDto(await this.service.completeTravelerAvatarUpload(userActor(req).userId, body.publicId)));
   };
 
   removeAvatar: RequestHandler = async (req, res) => {
-    sendOk(res, await this.service.removeTravelerAvatar(userActor(req).userId));
+    sendOk(res, toProfileDto(await this.service.removeTravelerAvatar(userActor(req).userId)));
   };
 
   createGuideLicenseUploadSignature: RequestHandler = async (req, res) => {
@@ -55,11 +56,11 @@ export class UsersController {
 
   completeGuideLicenseUpload: RequestHandler = async (req, res) => {
     const { body } = validated<CompleteImageUploadBody>(req);
-    sendOk(res, await this.service.completeGuideLicenseUpload(userActor(req).userId, body.publicId));
+    sendOk(res, toProfileDto(await this.service.completeGuideLicenseUpload(userActor(req).userId, body.publicId)));
   };
 
   requestAgencyVerification: RequestHandler = async (req, res) => {
-    sendOk(res, await this.service.requestAgencyVerification(userActor(req).userId), 202);
+    sendOk(res, toProfileDto(await this.service.requestAgencyVerification(userActor(req).userId)), 202);
   };
 
   applyGuide: RequestHandler = async (req, res) => {
@@ -103,6 +104,7 @@ export class UsersController {
       await this.service.assignAccess({ userId: userActor(req).userId, role: userActor(req).role }, params.id, {
         role: body.role,
         extraPermissions: body.extraPermissions as Permission[] | undefined,
+        revokedPermissions: body.revokedPermissions as Permission[] | undefined,
       }),
     );
   };

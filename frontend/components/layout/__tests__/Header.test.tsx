@@ -8,6 +8,25 @@ import { baseApi } from '@/store/api/baseApi';
 import { Header } from '../Header';
 const { premiumNavigate } = vi.hoisted(() => ({ premiumNavigate: vi.fn() }));
 vi.mock('@/features/premium/api', () => ({ useMyPremiumQuery: () => ({currentData:{active:false,endsAt:null,expired:false},refetch:vi.fn()}) }));
+vi.mock('@/features/notifications/api/notificationsApi', () => ({
+  useGetNotificationsQuery: vi.fn().mockReturnValue({
+    data: {
+      data: [
+        {
+          id: 'notif-1',
+          type: 'BOOKING_CONFIRMED',
+          title: 'Đặt lịch thành công!',
+          body: 'Bạn đã đặt thành công tour. Giảm 25% khi đặt sớm!',
+          createdAt: new Date().toISOString(),
+          isRead: false,
+        },
+      ],
+    },
+  }),
+  useGetUnreadCountQuery: () => ({ data: { count: 1 } }),
+  useMarkNotificationAsReadMutation: () => [vi.fn()],
+  useMarkAllNotificationsAsReadMutation: () => [vi.fn()],
+}));
 
 // Mock Next.js navigation and image
 vi.mock('next/navigation', () => ({
@@ -48,7 +67,7 @@ describe('Header Traveler Dropdown & Premium', () => {
 
   afterEach(cleanup);
 
-  it('shows external Premium button for guest (not logged in)', () => {
+  it('shows Bảng giá navigation link for guest (not logged in)', () => {
     const store = createTestStore();
     render(
       <Provider store={store}>
@@ -56,8 +75,9 @@ describe('Header Traveler Dropdown & Premium', () => {
       </Provider>,
     );
 
-    const premiumBtn = screen.getByRole('button', { name: /khám phá tripri premium/i });
-    expect(premiumBtn).toBeTruthy();
+    const pricingLink = screen.getByRole('link', { name: /bảng giá/i });
+    expect(pricingLink).toBeTruthy();
+    expect(pricingLink.getAttribute('href')).toBe('/premium');
   });
 
   it('hides external Premium button and places Premium inside Traveler dropdown with exactly 3 items', () => {

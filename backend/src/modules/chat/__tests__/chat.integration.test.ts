@@ -107,7 +107,7 @@ describe('chat REST (integration)', () => {
 
     const moderator = await createUser('MODERATOR', 'mod@example.com');
     await request(app).post(`/api/v1/moderation/users/${traveler.id}/ban`).set(bearer(moderator.token)).send({ reason: 'Harassment of guides' });
-    expect((await send(traveler.token, id, 'still here')).status).toBe(403);
+    expect((await send(traveler.token, id, 'still here')).status).toBe(401);
     expect((await send(guide.token, id, 'hello?')).status).toBeLessThan(300); // the other side is unaffected
   });
 });

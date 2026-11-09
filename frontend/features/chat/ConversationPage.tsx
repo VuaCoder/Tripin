@@ -9,21 +9,15 @@ import {
   ChevronRight,
   MessageSquare,
   Send,
-  ShieldAlert,
   X,
   Bot,
   Search,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth/store/authSlice';
 import { getApiErrorMessage } from '@/features/auth/utils/apiError';
 import { containsProfanity, PROFANITY_ERROR_MESSAGE } from '@travel-platform/constants';
-import {
-  useGetAgencyComplaintsQuery,
-  useGetMyComplaintsQuery,
-} from '@/features/complaints/api/complaintsApi';
-import { ComplaintConversationView } from '@/features/complaints/components/ComplaintConversationView';
-import { STATUS_LABELS } from '@/features/complaints/labels';
 import {
   chatApi,
   useConversationQuery,
@@ -81,6 +75,7 @@ function ChatWorkspace({ id }: { id?: string }) {
   const { data, isLoading, error, refetch, isFetching } = useConversationsQuery(page, {
     refetchOnFocus: true,
     refetchOnReconnect: true,
+    pollingInterval: 30_000,
   });
   const chat = useChat();
   const now = useChatClock();
@@ -114,88 +109,11 @@ function ChatWorkspace({ id }: { id?: string }) {
   );
 
   const isAgency = user?.role === 'AGENCY';
-  const myComplaintsQuery = useGetMyComplaintsQuery(undefined, { skip: isAgency });
-  const agencyComplaintsQuery = useGetAgencyComplaintsQuery(undefined, { skip: !isAgency });
-
-  const complaintListResult = isAgency ? agencyComplaintsQuery.data : myComplaintsQuery.data;
-  const complaints = complaintListResult?.items ?? [];
-  const complaintsLoading = isAgency ? agencyComplaintsQuery.isLoading : myComplaintsQuery.isLoading;
-  const activeComplaints = complaints.filter((c) => c.status !== 'CLOSED');
-  const activeComplaintsCount = activeComplaints.length;
-  const complaintsCount = complaints.length;
-
-  const [isBannerDismissed, setIsBannerDismissed] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      return sessionStorage.getItem(`dismissed_complaint_banner_${user?.id || 'guest'}`) === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  const handleDismissBanner = useCallback(() => {
-    setIsBannerDismissed(true);
-    try {
-      sessionStorage.setItem(`dismissed_complaint_banner_${user?.id || 'guest'}`, 'true');
-    } catch {
-      // ignore
-    }
-  }, [user?.id]);
-
-  const [activeTab, setActiveTab] = useState<'chats' | 'complaints'>(() => {
-    if (!id && (paramTab === 'complaints' || paramTicketId)) return 'complaints';
-    return 'chats';
-  });
-
-  const [selectedTicketId, setSelectedTicketId] = useState<string | undefined>(
-    paramTicketId ?? (complaints[0]?.id || undefined),
-  );
-
-  const handleOpenComplaintsTab = useCallback(() => {
-    handleDismissBanner();
-    setActiveTab('complaints');
-    if (!selectedTicketId && complaints[0]) {
-      setSelectedTicketId(complaints[0].id);
-    }
-  }, [complaints, handleDismissBanner, selectedTicketId]);
-
-  useEffect(() => {
-    if (!id && !paramTab && !isLoading && !data?.data?.length && activeComplaintsCount > 0 && !isBannerDismissed) {
-      setActiveTab('complaints');
-      if (!selectedTicketId && complaints[0]) {
-        setSelectedTicketId(complaints[0].id);
-      }
-    }
-  }, [isLoading, data?.data?.length, activeComplaintsCount, isBannerDismissed, id, paramTab, complaints, selectedTicketId]);
-
-  useEffect(() => {
-    if (paramTicketId) {
-      setSelectedTicketId(paramTicketId);
-      setActiveTab('complaints');
-    }
-  }, [paramTicketId]);
-
-  useEffect(() => {
-    if (activeTab === 'complaints' && !selectedTicketId && complaints[0]) {
-      setSelectedTicketId(complaints[0].id);
-    }
-  }, [activeTab, selectedTicketId, complaints]);
-
-  const isComplaintDetailOpenOnMobile = activeTab === 'complaints' && Boolean(selectedTicketId);
 
   return (
-    <section aria-label="Tin nhắn & Khiếu nại" className="w-full flex-1 flex flex-col min-h-0">
-      <div className="mb-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shrink-0">
+    <section aria-label="Tin nhắn" className="w-full flex-1 flex flex-col min-h-0">
+      <div className="mb-2.5 flex items-center justify-between gap-2 shrink-0">
         <h1 className="text-xl font-bold text-slate-900">Hộp thư &amp; Tin nhắn</h1>
-        {activeComplaintsCount > 0 ? (
-          <span className="text-xs font-semibold text-slate-500">
-            Bạn có <strong className="text-brand-teal">{activeComplaintsCount}</strong> phiếu khiếu nại cần xử lý
-          </span>
-        ) : complaintsCount > 0 ? (
-          <span className="text-xs font-semibold text-slate-400">
-            {complaintsCount} phiếu khiếu nại (đã hoàn tất)
-          </span>
-        ) : null}
       </div>
 
       {!chat.connected && (
@@ -214,179 +132,150 @@ function ChatWorkspace({ id }: { id?: string }) {
         {/* Sidebar danh sách */}
         <aside
           aria-label="Danh sách hộp thư"
-          className={`${id || isComplaintDetailOpenOnMobile ? 'hidden md:flex' : 'flex'} flex-col border-r border-slate-200/80 bg-slate-50/40`}
+          className={`${id ? 'hidden md:flex' : 'flex'} flex-col border-r border-slate-200/80 bg-slate-50/40`}
         >
-          {/* Chuyển tab Trò chuyện / Phiếu khiếu nại */}
-          <div className="flex border-b border-slate-200 bg-white">
-            <button
-              type="button"
-              onClick={() => setActiveTab('chats')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-bold transition-colors border-b-2 ${
-                activeTab === 'chats'
-                  ? 'border-brand-teal text-brand-teal bg-teal-50/30'
-                  : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-              }`}
-            >
-              <MessageSquare size={15} />
-              <span>Trò chuyện trực tiếp</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleOpenComplaintsTab}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-bold transition-colors border-b-2 ${
-                activeTab === 'complaints'
-                  ? 'border-brand-teal text-brand-teal bg-teal-50/30'
-                  : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-              }`}
-            >
-              <ShieldAlert size={15} />
-              <span>Phiếu khiếu nại</span>
-              {activeComplaintsCount > 0 && (
-                <span className="rounded-full bg-brand-teal px-1.5 py-0.2 text-[10px] font-extrabold text-white">
-                  {activeComplaintsCount}
-                </span>
-              )}
-            </button>
+          {/* Thanh tìm kiếm */}
+          <div className="border-b border-slate-200/80 p-3 sm:p-4 bg-white">
+            <div className="relative">
+              <Search size={15} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm kiếm cuộc trò chuyện hoặc AI..."
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/60 py-1.5 pl-8 pr-3 text-xs text-slate-800 placeholder-slate-400 focus:border-teal-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-teal-500/20 transition-all"
+              />
+            </div>
           </div>
 
-          {activeTab === 'chats' ? (
-            /* Tab 1: Danh sách cuộc trò chuyện trực tiếp */
-            <>
-              <div className="border-b border-slate-200/80 p-3 sm:p-4">
-                <div className="relative">
-                  <Search size={15} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Tìm kiếm cuộc trò chuyện hoặc AI..."
-                    className="w-full rounded-xl border border-slate-200 bg-white py-1.5 pl-8 pr-3 text-xs text-slate-800 placeholder-slate-400 focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-500/20"
-                  />
+          {isLoading ? (
+            <ConversationListSkeleton />
+          ) : error ? (
+            <div role="alert" className="p-4 text-sm text-red-600">
+              Không thể tải danh sách.{' '}
+              <button onClick={() => void refetch()} className="underline">
+                Thử lại
+              </button>
+            </div>
+          ) : !filteredItems.length && !matchesAi ? (
+            <div className="flex-1 flex flex-col justify-between p-5 text-sm leading-6 text-slate-500">
+              <p className="hidden md:block">Chưa có cuộc trò chuyện nào.</p>
+              {!id && (
+                <div className="h-full md:hidden">
+                  <ConversationWelcome guide={user?.role === 'TOUR_GUIDE'} />
                 </div>
-              </div>
-
-              {isLoading ? (
-                <ConversationListSkeleton />
-              ) : error ? (
-                <div role="alert" className="p-4 text-sm text-red-600">
-                  Không thể tải danh sách.{' '}
-                  <button onClick={() => void refetch()} className="underline">
-                    Thử lại
-                  </button>
-                </div>
-              ) : !filteredItems.length && !matchesAi ? (
-                <div className="flex-1 flex flex-col justify-between">
-                  <div className="p-5 text-sm leading-6 text-slate-500">
-                    <p className="hidden md:block">Chưa có cuộc trò chuyện trực tiếp nào.</p>
-                    {!isBannerDismissed && activeComplaintsCount > 0 && (
-                      <div className="relative mt-3 rounded-xl border border-teal-200 bg-teal-50/70 p-3 text-xs text-teal-900 shadow-2xs">
-                        <button
-                          type="button"
-                          onClick={handleDismissBanner}
-                          className="absolute right-2 top-2 p-1 text-slate-400 hover:text-slate-700 rounded-md transition-colors cursor-pointer"
-                          title="Đóng thông báo"
-                          aria-label="Đóng thông báo"
-                        >
-                          <X size={14} />
-                        </button>
-                        <p className="font-bold flex items-center gap-1.5 pr-6">
-                          <ShieldAlert size={14} className="text-brand-teal shrink-0" />
-                          <span>Bạn đang có {activeComplaintsCount} phiếu khiếu nại tour</span>
-                        </p>
-                        <button
-                          type="button"
-                          onClick={handleOpenComplaintsTab}
-                          className="mt-1.5 font-bold text-brand-teal underline hover:text-teal-950 block text-left cursor-pointer"
-                        >
-                          Chuyển sang xem phiếu khiếu nại ➔
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  {!id && (
-                    <div className="h-full md:hidden">
-                      <ConversationWelcome guide={user?.role === 'TOUR_GUIDE'} />
+              )}
+            </div>
+          ) : (
+            <nav className="flex-1 overflow-y-auto ant-scrollbar">
+              {matchesAi && (
+                <Link
+                  href="/conversations/ai"
+                  onClick={() => setAiEntryVersion((value) => value + 1)}
+                  aria-current={id === 'ai' ? 'page' : undefined}
+                  className={`block border-b border-slate-100 p-3.5 transition-colors hover:bg-slate-100/70 ${
+                    id === 'ai'
+                      ? 'bg-teal-50/90 font-medium border-l-4 border-l-primary-container'
+                      : 'bg-gradient-to-r from-teal-50/50 to-indigo-50/20'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="relative flex size-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-teal-600 via-primary-container to-indigo-600 text-white shadow-xs">
+                      <Bot size={20} />
+                      <span className="absolute -bottom-0.5 -right-0.5 flex size-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
                     </div>
-                  )}
-                </div>
-              ) : (
-                <nav className="flex-1 overflow-y-auto ant-scrollbar">
-                  {matchesAi && (
-                    <Link
-                      href="/conversations/ai"
-                      onClick={() => setAiEntryVersion((value) => value + 1)}
-                      aria-current={id === 'ai' ? 'page' : undefined}
-                      className={`block border-b border-slate-100 p-3.5 transition-colors hover:bg-slate-100/70 ${
-                        id === 'ai'
-                          ? 'bg-teal-50/90 font-medium border-l-4 border-l-primary-container'
-                          : 'bg-gradient-to-r from-teal-50/50 to-indigo-50/20'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="relative flex size-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-teal-600 via-primary-container to-indigo-600 text-white shadow-xs">
-                          <Bot size={20} />
-                          <span className="absolute -bottom-0.5 -right-0.5 flex size-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-1">
-                            <span className={`truncate text-slate-900 flex items-center gap-1.5 text-sm ${aiUnread ? 'font-bold' : 'font-medium'}`}>
-                              Trợ lý AI Tripri
-                              <span className="rounded-full bg-teal-100/90 px-1.5 py-0.2 text-[10px] font-bold text-primary-container">
-                                AI
-                              </span>
-                            </span>
-                            <UnreadBadge count={aiUnread} />
-                          </div>
-                          <p className={`mt-0.5 truncate text-xs ${aiUnread ? 'font-bold text-slate-900' : 'text-slate-500'}`}>
-                            {latestAi?.lastMessage ? `${latestAi.lastMessage.role === 'user' ? 'Bạn' : 'AI'}: ${preview(latestAi.lastMessage.content)}` : 'Chưa có tin nhắn'}
-                          </p>
-                          {latestAi?.lastMessage && (
-                            <time
-                              dateTime={latestAi.lastMessage.createdAt}
-                              title={fullTime(latestAi.lastMessage.createdAt)}
-                              aria-label={fullTime(latestAi.lastMessage.createdAt)}
-                              className="mt-1 block text-xs text-slate-500"
-                            >
-                              {inboxTime(latestAi.lastMessage.createdAt, now)}
-                            </time>
-                          )}
-                        </div>
-                      </div>
-                    </Link>
-                  )}
-
-                  {filteredItems.map((item) => (
-                    <Link
-                      key={item.id}
-                      href={`/conversations/${item.id}`}
-                      aria-current={id === item.id ? 'page' : undefined}
-                      className={`block border-b border-slate-100 p-4 transition-colors hover:bg-slate-100/70 ${
-                        id === item.id ? 'bg-teal-50/80 font-medium' : ''
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`truncate text-slate-900 ${item.unreadCount ? 'font-bold' : 'font-medium'}`}>
-                          {item.counterpart?.fullName || 'Tài khoản không còn khả dụng'}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className={`truncate text-slate-900 flex items-center gap-1.5 text-sm ${aiUnread ? 'font-bold' : 'font-medium'}`}>
+                          Trợ lý AI Tripri
+                          <span className="rounded-full bg-teal-100/90 px-1.5 py-0.2 text-[10px] font-bold text-primary-container">
+                            AI
+                          </span>
                         </span>
-                        <UnreadBadge count={item.unreadCount} />
+                        <UnreadBadge count={aiUnread} />
                       </div>
-                      <p className={`mt-1 truncate text-sm ${item.unreadCount ? 'font-bold text-slate-900' : 'text-slate-500'}`}>
-                        {item.lastMessage ? `${item.lastMessage.senderId === user?.id ? 'Bạn' : item.counterpart?.fullName || 'Người gửi'}: ${preview(item.lastMessage.text)}` : 'Chưa có tin nhắn'}
+                      <p className={`mt-0.5 truncate text-xs ${aiUnread ? 'font-bold text-slate-900' : 'text-slate-500'}`}>
+                        {aiUnread > 5
+                          ? '5+ tin nhắn mới'
+                          : latestAi?.lastMessage
+                            ? `${latestAi.lastMessage.role === 'user' ? 'Bạn' : 'AI'}: ${preview(latestAi.lastMessage.content)}`
+                            : 'Chưa có tin nhắn'}
                       </p>
-                      <time
-                        dateTime={item.lastMessage?.sentAt || item.updatedAt}
-                        title={fullTime(item.lastMessage?.sentAt || item.updatedAt)}
-                        aria-label={fullTime(item.lastMessage?.sentAt || item.updatedAt)}
-                        className="mt-1 block text-xs text-slate-500"
-                      >
-                        {inboxTime(item.lastMessage?.sentAt || item.updatedAt, now)}
-                      </time>
-                    </Link>
-                  ))}
-                </nav>
+                      {latestAi?.lastMessage && (
+                        <time
+                          dateTime={latestAi.lastMessage.createdAt}
+                          title={fullTime(latestAi.lastMessage.createdAt)}
+                          aria-label={fullTime(latestAi.lastMessage.createdAt)}
+                          className="mt-1 block text-xs text-slate-500"
+                        >
+                          {inboxTime(latestAi.lastMessage.createdAt, now)}
+                        </time>
+                      )}
+                    </div>
+                  </div>
+                </Link>
               )}
 
-              {Boolean(data && data.meta.totalPages > 1) && (
+              {filteredItems.map((item) => {
+                const counterpartName = item.counterpart?.fullName || 'Tài khoản không còn khả dụng';
+                const counterpartAvatar = item.counterpart?.avatarUrl;
+                const initial = counterpartName.charAt(0).toUpperCase();
+
+                return (
+                  <Link
+                    key={item.id}
+                    href={`/conversations/${item.id}`}
+                    aria-current={id === item.id ? 'page' : undefined}
+                    className={`block border-b border-slate-100 p-3.5 transition-colors hover:bg-slate-100/70 ${
+                      id === item.id ? 'bg-teal-50/80 font-medium' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {/* Avatar with initial fallback and online indicator */}
+                      <div className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-800 font-bold text-sm shadow-2xs overflow-hidden">
+                        {counterpartAvatar ? (
+                          <img
+                            src={counterpartAvatar}
+                            alt={counterpartName}
+                            className="size-full object-cover"
+                          />
+                        ) : (
+                          <span>{initial}</span>
+                        )}
+                        <span className="absolute -bottom-0.5 -right-0.5 flex size-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className={`truncate text-slate-900 text-sm ${item.unreadCount ? 'font-bold' : 'font-medium'}`}>
+                            {counterpartName}
+                          </span>
+                          <UnreadBadge count={item.unreadCount} />
+                        </div>
+                        <p className={`mt-0.5 truncate text-xs ${item.unreadCount ? 'font-bold text-slate-900' : 'text-slate-500'}`}>
+                          {item.unreadCount > 5
+                            ? '5+ tin nhắn mới'
+                            : item.lastMessage
+                              ? `${item.lastMessage.senderId === user?.id ? 'Bạn' : counterpartName}: ${preview(item.lastMessage.text)}`
+                              : 'Chưa có tin nhắn'}
+                        </p>
+                        <time
+                          dateTime={item.lastMessage?.sentAt || item.updatedAt}
+                          title={fullTime(item.lastMessage?.sentAt || item.updatedAt)}
+                          aria-label={fullTime(item.lastMessage?.sentAt || item.updatedAt)}
+                          className="mt-1 block text-xs text-slate-400"
+                        >
+                          {inboxTime(item.lastMessage?.sentAt || item.updatedAt, now)}
+                        </time>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
+
+          {Boolean(data && data.meta.totalPages > 1) && (
                 <div className="flex items-center justify-between border-t border-slate-200/80 bg-white p-3 text-sm">
                   <button
                     type="button"
@@ -411,54 +300,6 @@ function ChatWorkspace({ id }: { id?: string }) {
                   </button>
                 </div>
               )}
-            </>
-          ) : (
-            /* Tab 2: Danh sách phiếu khiếu nại dịch vụ tour */
-            <>
-              {complaintsLoading ? (
-                <p role="status" className="p-4 text-sm text-slate-500">
-                  Đang tải danh sách khiếu nại…
-                </p>
-              ) : complaints.length === 0 ? (
-                <div className="flex-1 p-6 text-center text-xs text-slate-500">
-                  <ShieldAlert className="mx-auto mb-2 size-8 text-slate-300" />
-                  <p className="font-semibold text-slate-700">Chưa có phiếu khiếu nại nào</p>
-                  <p className="mt-1 text-slate-400 leading-relaxed">
-                    Nếu chuyến đi phát sinh vấn đề không đúng cam kết, bạn có thể gửi phiếu khiếu nại từ trang chi tiết tour.
-                  </p>
-                </div>
-              ) : (
-                <nav className="flex-1 overflow-y-auto ant-scrollbar">
-                  {complaints.map((item) => {
-                    const statusInfo = STATUS_LABELS[item.status] || { label: item.status, className: '' };
-                    const isSelected = selectedTicketId === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setSelectedTicketId(item.id)}
-                        className={`w-full text-left border-b border-slate-100 p-3.5 transition-colors hover:bg-slate-100/70 cursor-pointer ${
-                          isSelected ? 'bg-teal-50/90 font-medium' : ''
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-1.5 mb-1">
-                          <span className="font-mono text-xs font-bold text-brand-teal">{item.ticketCode}</span>
-                          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusInfo.className}`}>
-                            {statusInfo.label}
-                          </span>
-                        </div>
-                        <p className="truncate text-sm font-semibold text-slate-900">{item.subject}</p>
-                        <p className="mt-0.5 truncate text-xs text-slate-500">Tour: {item.tourTitle || 'Tour'}</p>
-                        <time className="mt-1 block text-[11px] text-slate-400">
-                          {time(item.lastMessageAt || item.createdAt)}
-                        </time>
-                      </button>
-                    );
-                  })}
-                </nav>
-              )}
-            </>
-          )}
         </aside>
 
         {/* Khung nội dung bên phải */}
@@ -466,27 +307,6 @@ function ChatWorkspace({ id }: { id?: string }) {
           <AiThread key={aiEntryVersion} />
         ) : id ? (
           <Thread key={id} id={id} />
-        ) : activeTab === 'complaints' ? (
-          selectedTicketId ? (
-            <div className="h-full min-h-0 flex-1 overflow-hidden p-2 sm:p-3 bg-slate-100/60 flex flex-col">
-              <ComplaintConversationView
-                ticketId={selectedTicketId}
-                userRole={user?.role as any}
-                userId={user?.id || ''}
-                onBack={() => setSelectedTicketId(undefined)}
-              />
-            </div>
-          ) : (
-            <div className="hidden min-w-0 md:flex flex-col items-center justify-center p-8 text-center bg-slate-50/30">
-              <div className="flex size-14 items-center justify-center rounded-2xl bg-teal-50 text-brand-teal mb-3 shadow-2xs">
-                <ShieldAlert size={28} />
-              </div>
-              <h3 className="text-base font-bold text-slate-900">Hộp thư khiếu nại dịch vụ</h3>
-              <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">
-                Chọn một phiếu khiếu nại từ danh sách bên trái để theo dõi tiến trình và trao đổi phương án xử lý trực tiếp với đối tác.
-              </p>
-            </div>
-          )
         ) : (
           <div className="hidden min-w-0 md:block">
             {!isLoading && !error && (
@@ -506,11 +326,50 @@ function ChatWorkspace({ id }: { id?: string }) {
   );
 }
 
+function renderMessageContent(text: string, isMine: boolean) {
+  const imgMarkdownMatch = text.match(/!\[(.*?)\]\((https?:\/\/[^\s)]+)\)/);
+  const isDirectImageUrl = /^(https?:\/\/[^\s]+(?:\.(?:jpg|jpeg|png|webp)|res\.cloudinary\.com[^\s]+))$/i.test(text.trim());
+
+  if (imgMarkdownMatch) {
+    const [, alt, url] = imgMarkdownMatch;
+    const textWithoutImg = text.replace(/!\[(.*?)\]\((https?:\/\/[^\s)]+)\)/, '').trim();
+    return (
+      <div className="space-y-1.5">
+        <a href={url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-xl group max-w-xs sm:max-w-sm">
+          <img
+            src={url}
+            alt={alt || 'Hình ảnh'}
+            className="max-h-64 w-full rounded-xl object-cover transition-transform group-hover:scale-102"
+          />
+        </a>
+        {textWithoutImg && (
+          <p className="whitespace-pre-wrap break-words text-sm">{textWithoutImg}</p>
+        )}
+      </div>
+    );
+  }
+
+  if (isDirectImageUrl) {
+    const url = text.trim();
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-xl group max-w-xs sm:max-w-sm">
+        <img
+          src={url}
+          alt="Hình ảnh"
+          className="max-h-64 w-full rounded-xl object-cover transition-transform group-hover:scale-102"
+        />
+      </a>
+    );
+  }
+
+  return <p className="whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere]">{text}</p>;
+}
+
 function Thread({ id }: { id: string }) {
   const now = useChatClock();
   const dispatch = useAppDispatch();
   const chat = useChat();
-  const detail = useConversationQuery(id);
+  const detail = useConversationQuery(id, { pollingInterval: 30_000 });
   const [sendRest] = useSendMessageMutation();
   const [markRead] = useReadConversationMutation();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -551,6 +410,37 @@ function Thread({ id }: { id: string }) {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
+
+  // Image attachment state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setSendError('Chỉ hỗ trợ file ảnh JPG, PNG hoặc WebP');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setSendError('Ảnh không được vượt quá 5MB');
+      return;
+    }
+    setSelectedImage(file);
+    setImagePreview(URL.createObjectURL(file));
+    if (sendError) setSendError('');
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+      setImagePreview(null);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
   const [newMessages, setNewMessages] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const [visible, setVisible] = useState(true);
@@ -598,9 +488,12 @@ function Thread({ id }: { id: string }) {
         ),
       );
       requests.current.add(request);
+      // A hung request must not wedge syncQueue forever: abort it and surface the retry banner.
+      const timeout = setTimeout(() => request.abort(), 15_000);
       try {
         return await request.unwrap();
       } finally {
+        clearTimeout(timeout);
         requests.current.delete(request);
       }
     },
@@ -750,9 +643,9 @@ function Thread({ id }: { id: string }) {
   }
 
   async function send() {
-    const text = draft.trim();
-    if (!text || text.length > 2000 || sendingRef.current || blocked || loading || !!historyError) return;
-    if (containsProfanity(text)) {
+    let text = draft.trim();
+    if ((!text && !selectedImage) || text.length > 2000 || sendingRef.current || blocked || loading || !!historyError) return;
+    if (text && containsProfanity(text)) {
       setSendError(PROFANITY_ERROR_MESSAGE);
       return;
     }
@@ -760,6 +653,23 @@ function Thread({ id }: { id: string }) {
     setSending(true);
     setSendError('');
     try {
+      if (selectedImage) {
+        setUploadingImage(true);
+        const formData = new FormData();
+        formData.append('file', selectedImage);
+        const res = await fetch('/api/v1/chat/upload-image', {
+          method: 'POST',
+          body: formData,
+        });
+        const json = await res.json();
+        if (!res.ok || !json.data?.url) {
+          throw new Error(json.error?.message || 'Không thể tải ảnh lên');
+        }
+        const imgUrl = json.data.url;
+        text = text ? `![ảnh](${imgUrl})\n${text}` : `![ảnh](${imgUrl})`;
+        handleRemoveImage();
+      }
+
       const request = chat.send(id, text);
       const message = await (request ?? sendRest({ id, text }).unwrap());
       if (!mounted.current) return;
@@ -780,6 +690,7 @@ function Thread({ id }: { id: string }) {
         await synchronize();
       }
     } finally {
+      setUploadingImage(false);
       sendingRef.current = false;
       if (mounted.current) setSending(false);
     }
@@ -809,11 +720,27 @@ function Thread({ id }: { id: string }) {
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col">
-      <header className="flex items-center gap-3 border-b p-4">
-        <Link href="/conversations" aria-label="Về danh sách" className="md:hidden">
-          <ArrowLeft size={20} />
+      <header className="flex items-center gap-3 border-b p-3.5 sm:p-4 bg-white">
+        <Link href="/conversations" aria-label="Về danh sách" className="md:hidden flex size-8 items-center justify-center rounded-full hover:bg-slate-100 text-slate-700">
+          <ArrowLeft size={18} />
         </Link>
-        <h2 className="truncate font-semibold">{detail.data?.counterpart?.fullName || 'Cuộc trò chuyện'}</h2>
+        <div className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-800 font-bold text-sm shadow-2xs overflow-hidden">
+          {detail.data?.counterpart?.avatarUrl ? (
+            <img
+              src={detail.data.counterpart.avatarUrl}
+              alt={detail.data.counterpart.fullName}
+              className="size-full object-cover"
+            />
+          ) : (
+            <span>{(detail.data?.counterpart?.fullName || 'U').charAt(0).toUpperCase()}</span>
+          )}
+          <span className="absolute -bottom-0.5 -right-0.5 flex size-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate font-bold text-slate-900 text-sm sm:text-base leading-tight">
+            {detail.data?.counterpart?.fullName || 'Cuộc trò chuyện'}
+          </h2>
+        </div>
       </header>
       {historyError && (
         <div role="alert" className="bg-red-50 p-3 text-sm text-red-800">
@@ -870,15 +797,15 @@ function Thread({ id }: { id: string }) {
                 )}
                 <div className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}>
                   <div className="max-w-[85%] sm:max-w-[75%]">
-                    <p
+                    <div
                       className={`whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm [overflow-wrap:anywhere] ${
                         message.isMine
                           ? 'rounded-br-sm bg-primary-container text-white'
                           : 'rounded-bl-sm border border-slate-200 bg-white text-slate-900'
                       }`}
                     >
-                      {message.text}
-                    </p>
+                      {renderMessageContent(message.text, message.isMine)}
+                    </div>
                     <div className={`mt-1 text-xs text-slate-600 ${message.isMine ? 'text-right' : ''}`}>
                       <time
                         dateTime={message.createdAt}
@@ -918,14 +845,53 @@ function Thread({ id }: { id: string }) {
         </button>
       )}
       <form
-        className="border-t p-4"
+        className="border-t p-3 sm:p-4 bg-white"
         onSubmit={(event) => {
           event.preventDefault();
           void send();
         }}
       >
         {sendError && <p role="alert" className="mb-2 text-sm text-red-700">{sendError}</p>}
+        {imagePreview && (
+          <div className="relative mb-2.5 inline-block">
+            <img
+              src={imagePreview}
+              alt="Ảnh đính kèm"
+              className="h-20 w-20 rounded-xl object-cover border border-slate-200 shadow-sm"
+            />
+            <button
+              type="button"
+              onClick={handleRemoveImage}
+              className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-slate-900 text-white text-xs hover:bg-slate-700 shadow-md cursor-pointer"
+              title="Xóa ảnh"
+            >
+              <X size={12} />
+            </button>
+            {uploadingImage && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/40 text-[11px] font-semibold text-white">
+                Đang tải...
+              </div>
+            )}
+          </div>
+        )}
         <div className="flex items-end gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={handleImageSelect}
+          />
+          <button
+            type="button"
+            disabled={sending || loading || !detail.data}
+            onClick={() => fileInputRef.current?.click()}
+            className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 sm:p-3 text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 transition-colors cursor-pointer"
+            title="Đính kèm hình ảnh"
+            aria-label="Đính kèm hình ảnh"
+          >
+            <ImageIcon size={20} />
+          </button>
           <textarea
             aria-label="Nội dung tin nhắn"
             placeholder="Nhập tin nhắn…"
@@ -944,12 +910,12 @@ function Thread({ id }: { id: string }) {
                 void send();
               }
             }}
-            className="min-w-0 flex-1 resize-none rounded-lg border border-slate-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-700"
+            className="min-w-0 flex-1 resize-none rounded-lg border border-slate-300 p-2.5 sm:p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-700"
           />
           <button
             aria-label="Gửi tin nhắn"
-            disabled={sending || loading || !detail.data || !draft.trim() || !!historyError}
-            className="rounded-lg bg-primary-container p-3 text-white disabled:opacity-40"
+            disabled={sending || loading || !detail.data || (!draft.trim() && !selectedImage) || !!historyError}
+            className="rounded-lg bg-primary-container p-2.5 sm:p-3 text-white disabled:opacity-40 transition-colors cursor-pointer"
           >
             <Send size={20} />
           </button>

@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../models/ai_models.dart';
 import '../storage/ai_storage.dart';
 import 'ai_repository.dart';
@@ -21,12 +22,11 @@ class AiState extends Equatable {
     bool? typing,
     String? error,
     bool clearError = false,
-  }) =>
-      AiState(
-        messages: messages ?? this.messages,
-        typing: typing ?? this.typing,
-        error: clearError ? null : (error ?? this.error),
-      );
+  }) => AiState(
+    messages: messages ?? this.messages,
+    typing: typing ?? this.typing,
+    error: clearError ? null : (error ?? this.error),
+  );
 
   @override
   List<Object?> get props => [messages, typing, error];
@@ -37,18 +37,63 @@ class AiCubit extends Cubit<AiState> {
   final AiStorage _storage;
   String? _conversationId;
   String? _failedQuestion;
+  int _revision = 0;
+  String? _readBoundary;
+
+  Future<({List<AiConversationSummary> items, int totalPages})>
+  listConversations({int page = 1}) => _repo.listConversations(page: page);
+
+  Future<void> openConversation(String id) async {
+    if (state.typing) return;
+    final revision = ++_revision;
+    try {
+      final messages = await _repo.getConversation(id);
+      if (isClosed || revision != _revision) return;
+      _conversationId = id;
+      _failedQuestion = null;
+      _readBoundary = null;
+      emit(AiState(messages: messages));
+      await _storage.saveMessages(messages: messages, conversationId: id);
+    } catch (_) {
+      if (!isClosed && revision == _revision) {
+        emit(
+          state.copyWith(
+            error: 'Không tải được cuộc trò chuyện. Vui lòng thử lại.',
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> markVisibleRead() async {
+    final id = _conversationId;
+    final replies = state.messages.where(
+      (message) => message.role == AiRole.assistant && message.id != null,
+    );
+    if (id == null || replies.isEmpty) return;
+    final boundary = replies.last.id!;
+    if (_readBoundary == '$id:$boundary') return;
+    try {
+      await _repo.markRead(id, boundary);
+      if (!isClosed && id == _conversationId) _readBoundary = '$id:$boundary';
+    } catch (_) {
+      /* Retry when the visible thread reaches the bottom again. */
+    }
+  }
 
   AiCubit({AiRepository? repository, AiStorage? storage})
-      : _repo = repository ?? AiRepository(),
-        _storage = storage ?? AiStorage(),
-        super(const AiState()) {
+    : _repo = repository ?? AiRepository(),
+      _storage = storage ?? AiStorage(),
+      super(const AiState()) {
     _loadHistory();
   }
 
   Future<void> _loadHistory() async {
+    final revision = _revision;
     try {
       final savedMessages = await _storage.getMessages();
       final savedConvId = await _storage.getConversationId();
+      if (isClosed || revision != _revision) return;
       if (_conversationId == null && savedConvId != null) {
         _conversationId = savedConvId;
       }
@@ -59,6 +104,9 @@ class AiCubit extends Cubit<AiState> {
   }
 
   Future<void> clearHistory() async {
+    if (state.typing) return;
+    _revision += 1;
+    _readBoundary = null;
     _conversationId = null;
     _failedQuestion = null;
     await _storage.clear();
@@ -70,6 +118,7 @@ class AiCubit extends Cubit<AiState> {
   Future<void> ask(String raw) async {
     final text = raw.trim();
     if (text.isEmpty || state.typing) return;
+    _revision += 1;
     _failedQuestion = null;
     final userMsg = AiMessage(
       role: AiRole.user,
@@ -79,7 +128,10 @@ class AiCubit extends Cubit<AiState> {
     );
     final updated = [...state.messages, userMsg];
     emit(state.copyWith(messages: updated, typing: true, clearError: true));
-    await _storage.saveMessages(messages: updated, conversationId: _conversationId);
+    await _storage.saveMessages(
+      messages: updated,
+      conversationId: _conversationId,
+    );
     await _send(text);
   }
 
@@ -106,7 +158,10 @@ class AiCubit extends Cubit<AiState> {
       }).toList()..add(reply.reply);
 
       emit(state.copyWith(messages: updatedMessages, typing: false));
-      await _storage.saveMessages(messages: updatedMessages, conversationId: _conversationId);
+      await _storage.saveMessages(
+        messages: updatedMessages,
+        conversationId: _conversationId,
+      );
     } on AiException catch (e) {
       if (isClosed) return;
       _failedQuestion = text;
@@ -116,7 +171,13 @@ class AiCubit extends Cubit<AiState> {
         }
         return m;
       }).toList();
-      emit(state.copyWith(messages: updatedMessages, typing: false, error: e.message));
+      emit(
+        state.copyWith(
+          messages: updatedMessages,
+          typing: false,
+          error: e.message,
+        ),
+      );
     }
   }
 }

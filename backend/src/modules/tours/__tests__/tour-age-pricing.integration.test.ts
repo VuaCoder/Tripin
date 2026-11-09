@@ -6,6 +6,21 @@ const app = createApp();
 beforeAll(startDatabase, 120000); afterAll(stopDatabase); beforeEach(resetDatabase);
 const pricing = { childMinAge: 2, adultMinAge: 12, childPercent: 50, infantPercent: 0 };
 describe('Tour policies and age pricing', () => {
+  it('filters by available seats and configured age prices, including free infants', async () => {
+    const agency = await createUser('AGENCY', 'filter-age@test.dev');
+    const { tourId } = await createApprovedTour(agency.id, { capacity: 5 });
+    const fixed = { childMinAge: 2, adultMinAge: 13, childPercent: 100, infantPercent: 100, childPrice: null, infantPrice: 0 };
+    const saved = await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(agency.token)).send({ agePricing: fixed });
+    expect(saved.status).toBe(200);
+    const search = async (query: string) => (await request(app).get(`/api/v1/tours?${query}`)).body.data.map((tour: { id: string }) => tour.id);
+    expect(await search('adults=1&infants=1')).toContain(tourId);
+    expect(await search('adults=1&children=1')).not.toContain(tourId);
+    expect(await search('adults=6')).not.toContain(tourId);
+    await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(agency.token)).send({ agePricing: { ...fixed, childPrice: 200000 } });
+    expect(await search('adults=1&children=1')).toContain(tourId);
+    await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(agency.token)).send({ agePricing: pricing });
+    expect(await search('adults=1&children=1')).toContain(tourId);
+  });
   it('persists agency policies and uses the same age prices for cart and booking snapshots', async () => {
     const agency = await createUser('AGENCY', 'age-agency@test.dev');
     const traveler = await createUser('TRAVELER', 'age-traveler@test.dev');

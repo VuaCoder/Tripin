@@ -41,7 +41,7 @@ describe('ADMIN-01 HTTP contracts', () => {
     const fetch = vi.fn().mockImplementation(async () => response({ success: true, data: user }));
     vi.stubGlobal('fetch', fetch); const store = setup();
     await store.dispatch(adminApi.endpoints.assignAdminAccess.initiate({ id: 'target', role: 'MODERATOR', extraPermissions: [] })).unwrap();
-    await store.dispatch(adminApi.endpoints.setAdminCommission.initiate(12.5)).unwrap();
+    await store.dispatch(adminApi.endpoints.setAdminCommission.initiate({ ratePercent: 12.5, expectedVersion: 0 })).unwrap();
     const body = { title: policy.title, content: policy.content, params: policy.params };
     await store.dispatch(adminApi.endpoints.setAdminPolicy.initiate({ key: 'cancellation', body })).unwrap();
     const create = { code: 'NEW10', title: 'New discount', discountType: 'PERCENT' as const, discountValue: 10, startsAt: promotion.startsAt, endsAt: promotion.endsAt };
@@ -50,7 +50,7 @@ describe('ADMIN-01 HTTP contracts', () => {
     const requests = fetch.mock.calls.map(([r]) => r as Request);
     expect(requests.map((r) => r.method)).toEqual(['PATCH', 'PUT', 'PUT', 'POST', 'PATCH']);
     expect(await requests[0].json()).toEqual({ role: 'MODERATOR', extraPermissions: [] });
-    expect(await requests[1].json()).toEqual({ ratePercent: 12.5 });
+    expect(await requests[1].json()).toEqual({ ratePercent: 12.5, expectedVersion: 0 });
     expect(await requests[2].json()).toEqual(body);
     expect(requests[2].url).toMatch(/\/admin\/policies\/cancellation$/);
     expect(await requests[3].json()).toEqual(create);
@@ -81,7 +81,7 @@ describe('ADMIN-01 HTTP contracts', () => {
       .mockImplementationOnce(async () => response({ success: false, error: { code: 'FAILED', message: 'Rejected' } }, status));
     vi.stubGlobal('fetch', fetch); const store = setup();
     await store.dispatch(adminApi.endpoints.getAdminCommission.initiate());
-    await expect(store.dispatch(adminApi.endpoints.setAdminCommission.initiate(50)).unwrap()).rejects.toMatchObject({ status });
+    await expect(store.dispatch(adminApi.endpoints.setAdminCommission.initiate({ ratePercent: 50, expectedVersion: 0 })).unwrap()).rejects.toMatchObject({ status });
     expect(adminApi.endpoints.getAdminCommission.select()(store.getState()).data?.ratePercent).toBe(10);
     expect(fetch).toHaveBeenCalledTimes(2);
   });
@@ -100,7 +100,7 @@ describe('ADMIN-01 HTTP contracts', () => {
       .mockRejectedValueOnce(new TypeError('Network disconnected'));
     vi.stubGlobal('fetch', fetch); const store = setup();
     await store.dispatch(adminApi.endpoints.getAdminCommission.initiate());
-    await expect(store.dispatch(adminApi.endpoints.setAdminCommission.initiate(50)).unwrap()).rejects.toMatchObject({ status: 'FETCH_ERROR' });
+    await expect(store.dispatch(adminApi.endpoints.setAdminCommission.initiate({ ratePercent: 50, expectedVersion: 0 })).unwrap()).rejects.toMatchObject({ status: 'FETCH_ERROR' });
     expect(adminApi.endpoints.getAdminCommission.select()(store.getState()).data?.rateBps).toBe(1000);
     expect(fetch).toHaveBeenCalledTimes(2);
   });

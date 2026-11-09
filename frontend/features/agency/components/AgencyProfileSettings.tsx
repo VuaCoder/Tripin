@@ -65,7 +65,7 @@ export function AgencyProfileSettings() {
         agencyProfile: {
           companyName: companyName.trim() || undefined,
           address: address.trim() || undefined,
-          website: website.trim() || undefined,
+          website: website.trim() || null,
           licenseNumber: licenseNumber.trim() || undefined,
           description: description.trim() || undefined,
         },
@@ -310,6 +310,7 @@ export function AgencyProfileSettings() {
             <span className="text-xs text-slate-400">Điền các trường cần cập nhật</span>
           </div>
 
+          {user?.agencyProfile?.verificationStatus === 'VERIFIED' && <p className="text-sm text-amber-800">Thông tin pháp lý đã được xác minh. Vui lòng liên hệ hỗ trợ để yêu cầu thay đổi và xét duyệt lại.</p>}
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1.5">Họ và tên người đại diện *</label>
@@ -337,6 +338,7 @@ export function AgencyProfileSettings() {
               <label className="text-xs font-bold text-slate-700 block mb-1.5">Tên công ty / Doanh nghiệp</label>
               <input
                 type="text"
+                readOnly={user?.agencyProfile?.verificationStatus === 'VERIFIED'}
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:border-primary focus:ring-2 focus:ring-primary/20"
@@ -347,6 +349,7 @@ export function AgencyProfileSettings() {
               <label className="text-xs font-bold text-slate-700 block mb-1.5">Số GPKD / Mã số thuế</label>
               <input
                 type="text"
+                readOnly={user?.agencyProfile?.verificationStatus === 'VERIFIED'}
                 value={licenseNumber}
                 onChange={(e) => setLicenseNumber(e.target.value)}
                 className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:border-primary focus:ring-2 focus:ring-primary/20"

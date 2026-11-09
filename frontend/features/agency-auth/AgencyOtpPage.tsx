@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AgencyApiError, agencyAuthApi } from './api';
 import type { AgencyOtpPurpose } from './types';
+import { useAppDispatch } from '@/store/hooks';
+import { setCredentials } from '@/features/auth/store/authSlice';
 
 interface AgencyOtpPageProps {
   email: string;
@@ -13,6 +15,7 @@ interface AgencyOtpPageProps {
 
 export function AgencyOtpPage({ email, purpose, expiresInSeconds = 600 }: AgencyOtpPageProps) {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timeLeft, setTimeLeft] = useState(Math.max(0, expiresInSeconds));
   const [resendCooldown, setResendCooldown] = useState(60);
@@ -102,6 +105,12 @@ export function AgencyOtpPage({ email, purpose, expiresInSeconds = 600 }: Agency
         purpose,
       });
 
+      if (!result.registrationComplete) {
+        dispatch(setCredentials({ accessToken: result.accessToken, user: result.user }));
+        setIsSuccess(true);
+        router.replace(result.user.agencyProfile?.verificationStatus === 'VERIFIED' ? '/agency' : '/application-status');
+        return;
+      }
       setIsSuccess(true);
       setTimeout(() => {
         if ('statusToken' in result && result.statusToken) {

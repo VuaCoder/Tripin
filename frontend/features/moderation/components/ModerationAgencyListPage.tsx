@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
-import { Pagination } from '@/components/ui';
+import { Pagination, AntSelect, type AntSelectOption } from '@/components/ui';
 import { useGetModerationAgenciesQuery, useVerifyAgencyMutation } from '../api/moderationApi';
 import { AGENCY_STATUS_LABELS, PERMISSION } from '../labels';
 import type { AgencyVerificationStatus, ModerationAgency } from '../types';
@@ -18,7 +19,7 @@ export function ModerationAgencyListPage() {
   const [filter, setFilter] = useState<AgencyVerificationStatus>('PENDING');
   const { data, isLoading, isFetching, isError, refetch } = useGetModerationAgenciesQuery(
     { page, limit: PAGE_SIZE, status: filter },
-    { skip: !canVerify },
+    { skip: !canVerify, pollingInterval: 15_000, refetchOnFocus: true },
   );
   const [verify, { isLoading: isVerifying }] = useVerifyAgencyMutation();
 
@@ -36,12 +37,12 @@ export function ModerationAgencyListPage() {
     setServerError(null);
   };
 
-  const decide = async (approve: boolean, note: string) => {
+  const decide = async (approve: boolean, note: string, requestInformation = false) => {
     if (!selected) return;
     setServerError(null);
     try {
-      await verify({ id: selected.id, approve, ...(note ? { note } : {}) }).unwrap();
-      setFeedback({ message: approve ? `Đã xác minh agency "${name(selected)}".` : `Đã từ chối hồ sơ agency "${name(selected)}".`, type: 'success' });
+      await verify({ id: selected.id, approve, ...(requestInformation ? { requestInformation } : {}), ...(note ? { note } : {}) }).unwrap();
+      setFeedback({ message: requestInformation ? 'Đã yêu cầu Agency bổ sung thông tin.' : approve ? `Đã xác minh agency "${name(selected)}".` : `Đã từ chối hồ sơ agency "${name(selected)}".`, type: 'success' });
       close();
     } catch (err: unknown) {
       setServerError(moderationErrorMessage(err, 'Không thể xử lý hồ sơ lúc này. Vui lòng thử lại.'));
@@ -54,44 +55,47 @@ export function ModerationAgencyListPage() {
     selected?.agencyProfile?.verificationStatus === 'PENDING'
       ? [
           { key: 'verify', label: 'Xác minh', tone: 'positive', requiresReason: false, onConfirm: (note) => void decide(true, note) },
+          { key: 'request-information', label: 'Yêu cầu bổ sung', tone: 'negative', requiresReason: true, onConfirm: (note) => void decide(false, note, true) },
           { key: 'reject', label: 'Từ chối', tone: 'negative', requiresReason: true, onConfirm: (note) => void decide(false, note) },
         ]
       : [];
 
   const profile = selected?.agencyProfile;
 
+  const agencyStatusOptions: AntSelectOption<AgencyVerificationStatus>[] = (
+    Object.keys(AGENCY_STATUS_LABELS) as AgencyVerificationStatus[]
+  ).map((s) => ({
+    value: s,
+    label: AGENCY_STATUS_LABELS[s].label,
+  }));
+
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-1 py-2 sm:px-0">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-5">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Xác minh hồ sơ agency</h1>
-          <p className="mt-1 text-sm text-slate-500">Kiểm tra giấy phép kinh doanh và thông tin đối tác trước khi cho phép đăng tour.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Xác minh hồ sơ agency</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <select
+        <div className="flex items-center gap-2.5">
+          <AntSelect<AgencyVerificationStatus>
             aria-label="Lọc theo trạng thái"
             value={filter}
-            onChange={(e) => {
-              setFilter(e.target.value as AgencyVerificationStatus);
+            onChange={(val) => {
+              setFilter(val);
               setPage(1);
             }}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-          >
-            {(Object.keys(AGENCY_STATUS_LABELS) as AgencyVerificationStatus[]).map((s) => (
-              <option key={s} value={s}>
-                {AGENCY_STATUS_LABELS[s].label}
-              </option>
-            ))}
-          </select>
+            options={agencyStatusOptions}
+            size="middle"
+            className="min-w-[190px]"
+          />
           <button
             type="button"
             disabled={isFetching}
             onClick={() => void refetch()}
             aria-label="Làm mới"
             title="Làm mới"
-            className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            className="flex size-10 items-center justify-center rounded-2xl border border-slate-200/90 bg-white text-slate-600 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
           >
-            <span className={`material-symbols-outlined text-[20px] ${isFetching ? 'animate-spin' : ''}`} aria-hidden="true">refresh</span>
+            <RefreshCw className={`size-4 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </header>
@@ -117,7 +121,7 @@ export function ModerationAgencyListPage() {
                     <div className="min-w-0">
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${status.className}`}>{status.label}</span>
                       <p className="mt-2 text-sm font-semibold text-slate-900">{name(a)}</p>
-                      <p className="mt-1 text-xs text-slate-500">{a.email} · Đăng ký {dateTime.format(new Date(a.createdAt))}</p>
+                      <p className="mt-1 text-xs text-slate-500">{a.email} · Nộp hồ sơ {dateTime.format(new Date(a.agencyProfile?.submittedAt ?? a.createdAt))}{(!a.agencyProfile?.submittedAt || a.agencyProfile.submissionDateEstimated) ? ' (ước lượng)' : ''}</p>
                     </div>
                     <button
                       type="button"
@@ -125,7 +129,7 @@ export function ModerationAgencyListPage() {
                         setServerError(null);
                         setSelectedId(a.id);
                       }}
-                      className="rounded-xl border border-purple-200 px-3 py-1.5 text-sm font-semibold text-purple-800 hover:bg-purple-50"
+                      className="rounded-xl border border-teal-200 bg-teal-50/50 px-3.5 py-1.5 text-sm font-semibold text-teal-900 transition hover:bg-teal-100/80 cursor-pointer"
                     >
                       {a.agencyProfile?.verificationStatus === 'PENDING' ? 'Xem & xử lý' : 'Xem chi tiết'}
                     </button>
@@ -160,7 +164,7 @@ export function ModerationAgencyListPage() {
               {profile?.taxId && (<><dt className="text-slate-500">Mã số thuế</dt><dd>{profile.taxId}</dd></>)}
             </dl>
             {profile?.businessLicenseUrl && (
-              <a href={profile.businessLicenseUrl} target="_blank" rel="noopener noreferrer" className="inline-block font-semibold text-purple-700 underline">
+              <a href={profile.businessLicenseUrl} target="_blank" rel="noopener noreferrer" className="inline-block font-semibold text-teal-700 hover:text-teal-900 underline">
                 Xem giấy phép kinh doanh
               </a>
             )}

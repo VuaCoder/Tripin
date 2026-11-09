@@ -22,6 +22,8 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `CONCURRENT_UPDATE` | 409 | Somebody changed the record between read and write; reload and retry |
 | `RATE_LIMITED` | 429 | Too many requests from this client |
 | `SERVICE_UNAVAILABLE` | 503 | A required provider (payment, mail, AI, Google) is not configured or not reachable |
+| `PAYOUT_NOT_CONFIGURED` | 503 | The server payout encryption keyring or required key version is unavailable |
+| `PAYOUT_ACCOUNT_UNAVAILABLE` | 503 | Stored payout details failed authentication or cannot be decoded |
 | `PROFANITY_DETECTED` | 400 | The message or content contains vulgar, offensive, or profane language |
 | `INTERNAL_ERROR` | 500 | Unexpected server error; details are only in the server log |
 
@@ -86,6 +88,13 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `CANCELLATION_WINDOW_PASSED` | 409 | Too close to departure to cancel under the cancellation policy |
 | `PAYMENT_IN_PROGRESS` | 409 | A parallel request is creating the payment link; retry in a moment |
 | `BOOKING_NOT_COMPLETED` | 409 | Only a COMPLETED booking can be reviewed |
+| `BOOKING_NOT_CONFIRMED` | 409 | Normal ticket issuance requires the persisted booking to be paid and CONFIRMED |
+| `TRIP_NOT_ENDED` | 409 | The departure has not ended; completion and review creation remain unavailable |
+| `GUIDE_SCHEDULE_CONFLICT` | 409 | The guide has an overlapping assigned departure; no seats are reserved |
+| `DEPARTURE_REQUIRED` | 409 | Choose a specific departure instead of operating on multiple trips of one tour |
+| `PAYOUT_ALREADY_TRANSFERRED` | 409 | A payout already has a different transfer reference |
+| `REVIEW_REVISION_CONFLICT` | 409 | Review content changed since it was displayed; reload before deciding |
+| `REPORT_SNAPSHOT_CONFLICT` | 409 | One or more displayed reports changed or were already resolved; reload the queue |
 | `REVIEW_EXISTS` | 409 | The booking already has a review |
 
 ## E-tickets (`e-tickets`)
@@ -95,6 +104,7 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `TICKET_NOT_FOUND` | 404 | No ticket has this code (fake, mistyped, or not an e-ticket QR) |
 | `TICKET_ALREADY_USED` | 409 | The ticket was already checked in by a guide, or its trip already completed |
 | `TICKET_WRONG_TOUR` | 409 | The ticket belongs to a different tour than the one being checked in |
+| `TICKET_WRONG_DEPARTURE` | 409 | The ticket belongs to another departure of the tour |
 | `TICKET_CANCELLED` | 409 | The ticket was cancelled with its booking and cannot be honoured |
 
 ## Community (`reports`, `support`, `wishlists`, `carts`, `ai`)
@@ -118,3 +128,10 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `AI_CONTENT_BLOCKED` | 503 | AI provider blocked the response |
 | `AI_EMPTY_RESPONSE` | 503 | AI provider returned no usable text |
 | `AI_INCOMPLETE_RESPONSE` | 503 | AI output was incomplete and cannot be accepted |
+
+## Staff and policy updates
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| `SETTINGS_CONFLICT` | 409 | The settings revision changed; reload before saving. |
+| `AGENCY_REVERIFICATION_REQUIRED` | 409 | Verified legal identity cannot be edited directly. |

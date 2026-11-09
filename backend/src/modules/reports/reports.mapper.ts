@@ -53,6 +53,7 @@ export type ReportExtras = Pick<
 export function toModerationReportDto(report: ReportRecord, extras: ReportExtras = {}): ModerationReportDto {
   return {
     ...base(report),
+    totalReportsCount: report.totalReportsCount,
     reporterId: report.reporterId,
     agencyId: report.agencyId ? report.agencyId : undefined,
     tourId: report.tourId ? report.tourId : undefined,

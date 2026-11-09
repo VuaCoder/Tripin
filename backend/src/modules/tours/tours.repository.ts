@@ -1,3 +1,6 @@
+import { writeAudit } from '../audit/audit.writer';
+import { assertGuideAvailability, lockGuideSchedules } from './guide-availability';
+import type { AuditEntry } from '../audit/audit.types';
 import { TOUR_STATUS, type TourStatus } from '@travel-platform/constants';
 import { nullIfNotFound, prisma, type DbExecutor, type Prisma } from '../../config/database';
 import type { GuideAssignmentStatus, Tour as StoredTour, TourDeparture, TourGuideAssignment } from '../../generated/prisma/client';
@@ -135,15 +138,18 @@ export class ToursRepository {
   }
 
   /** Compare-and-set on status so a concurrent moderator decision / agency edit cannot be overwritten. */
-  async updateIfStatus(id: string, expected: readonly TourStatus[], patch: TourPatch): Promise<TourRecord | null> {
+  async updateIfStatus(id: string, expected: readonly TourStatus[], patch: TourPatch, audit?: AuditEntry): Promise<TourRecord | null> {
     try {
       return await prisma.$transaction(async (tx) => {
+          await lockGuideSchedules(tx);
         // Removing the assignment happens first; if the status guard below fails (P2025) the whole transaction rolls back.
           const previous = patch.guide !== undefined ? await tx.tourGuideAssignment.findUnique({ where: { tourId: id } }) : null;
           if (patch.guide === null) await tx.tourGuideAssignment.deleteMany({ where: { tourId: id } });
           const updated = await tx.tour.update({ where: { id, status: { in: [...expected] } }, data: writeData(patch), include });
+          await assertGuideAvailability(tx, id, patch.guide?.guideId);
           if (previous && (!patch.guide || patch.guide.guideId !== previous.guideId)) await tx.premiumGuideActivity.create({ data: { userId: previous.guideId, tourId: id, tourTitle: updated.title, action: 'UNASSIGNED' } });
           if (patch.guide) await tx.premiumGuideActivity.create({ data: { userId: patch.guide.guideId, tourId: id, tourTitle: updated.title, action: 'ASSIGNED' } });
+          if (audit) await writeAudit(tx, audit);
           return toRecord(updated);
       });
     } catch (error) {
@@ -158,11 +164,13 @@ export class ToursRepository {
     answer: { status: GuideAssignmentStatus; respondedAt: Date; note?: string },
   ): Promise<TourRecord | null> {
     return prisma.$transaction(async tx => {
+    await lockGuideSchedules(tx);
     const result = await tx.tourGuideAssignment.updateMany({
       where: { tourId, guideId, status: 'PENDING', tour: { is: { status: { not: TOUR_STATUS.ARCHIVED } } } },
       data: answer,
     });
     if (!result.count) return null;
+    if (answer.status === 'ACCEPTED') await assertGuideAvailability(tx, tourId, guideId);
     const tour = await tx.tour.findUniqueOrThrow({ where: { id: tourId }, include });
     await tx.premiumGuideActivity.create({ data: { userId: guideId, tourId, tourTitle: tour.title, action: answer.status, occurredAt: answer.respondedAt } });
     return toRecord(tour);
@@ -174,6 +182,17 @@ export class ToursRepository {
   async searchPublic(query: SearchToursQuery): Promise<{ items: TourRecord[]; total: number }> {
     const where: Prisma.TourWhereInput = { status: TOUR_STATUS.APPROVED };
     const and: Prisma.TourWhereInput[] = [];
+    const guests = (query.adults ?? 0) + (query.children ?? 0) + (query.infants ?? 0);
+    if (guests > 0) {
+      and.push({ OR: [{ maxGroupSize: null }, { maxGroupSize: { gte: guests } }] });
+      and.push({ departures: { some: { isOpen: true, date: { gte: query.departureFrom && query.departureFrom > new Date() ? query.departureFrom : new Date(), lte: query.departureTo }, remaining: { gte: guests } } } });
+    }
+    for (const [count, price, percent] of [[query.children, 'childPrice', 'childPercent'], [query.infants, 'infantPrice', 'infantPercent']] as const) {
+      if (count) and.push({ OR: [
+        { agePricing: { path: [price], gte: 0 } },
+        { AND: [{ agePricing: { path: [price], equals: PrismaRuntime.DbNull } }, { agePricing: { path: [percent], gte: 0 } }] },
+      ] });
+    }
     if (query.agencyId) and.push({ agencyId: query.agencyId });
     if (query.q) and.push({ OR: [{ title: containsText(query.q) }, { destination: containsText(query.q) }, { summary: containsText(query.q) }] });
     if (query.destination) and.push({ destination: containsText(query.destination) });
@@ -276,7 +295,10 @@ export class ToursRepository {
    * Returns false when the departure is missing/closed/past/sold out — never oversells.
    */
   async reserveSeats(tourId: string, departureId: string, seats: number): Promise<boolean> {
-    const result = await prisma.tourDeparture.updateMany({
+    return prisma.$transaction(async (tx) => {
+    await lockGuideSchedules(tx);
+    await assertGuideAvailability(tx, tourId, undefined, departureId);
+    const result = await tx.tourDeparture.updateMany({
       where: {
         id: departureId,
         tourId,
@@ -288,6 +310,7 @@ export class ToursRepository {
       data: { remaining: { decrement: seats } },
     });
     return result.count === 1;
+    });
   }
 
   /** Gives seats back (booking cancelled / payment expired). Never exceeds capacity. */
@@ -306,6 +329,7 @@ export class ToursRepository {
     const conflict = Symbol('conflict');
     try {
       await prisma.$transaction(async (tx) => {
+        await lockGuideSchedules(tx);
         for (const change of changes) {
           if (change.kind === 'create') {
             await tx.tourDeparture.create({ data: { tourId, ...change.data } });
@@ -333,6 +357,7 @@ export class ToursRepository {
             if (updated.count !== 1) throw conflict;
           }
         }
+        await assertGuideAvailability(tx, tourId);
       });
     } catch (error) {
       if (error === conflict) return null;

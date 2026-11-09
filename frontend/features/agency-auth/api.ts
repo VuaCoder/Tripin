@@ -1,3 +1,24 @@
+import { refreshSession } from '@/store/api/baseApi';
+import { setCredentials } from '@/features/auth/store/authSlice';
+import { store } from '@/store';
+
+const authorization = (): Record<string, string> => { const token = store.getState().auth.accessToken; return token ? { Authorization: `Bearer ${token}` } : {}; };
+async function applicationHeaders(token?: string): Promise<Record<string, string>> {
+  if (token) return {}; // Onboarding credentials are already scoped; unrelated logged-in identities must not override them.
+  if (!store.getState().auth.accessToken) { const session = await refreshSession(); if (session) store.dispatch(setCredentials(session)); }
+  return authorization();
+}
+
+async function applicationFetch(url: string, init: RequestInit, token?: string): Promise<Response> {
+  const perform = async () => fetch(url, { ...init, credentials: 'include', headers: { ...init.headers as Record<string, string>, ...await applicationHeaders(token) } });
+  let response = await perform();
+  if (response.status === 401 && !token) {
+    const session = await refreshSession();
+    if (session) { store.dispatch(setCredentials(session)); response = await perform(); }
+  }
+  return response;
+}
+
 import type {
   AgencyApplicationDetailsDto,
   AgencyApplicationStatusDto,
@@ -95,10 +116,9 @@ export const agencyAuthApi = {
 
     let response: Response;
     try {
-      response = await fetch(url.toString(), {
+      response = await applicationFetch(url.toString(), {
         method: 'GET',
-        credentials: 'include',
-      });
+      }, params.token);
     } catch {
       throw new AgencyApiError('Không thể lấy trạng thái hồ sơ. Vui lòng kiểm tra kết nối mạng.', 'NETWORK_ERROR');
     }
@@ -113,10 +133,9 @@ export const agencyAuthApi = {
 
     let response: Response;
     try {
-      response = await fetch(url.toString(), {
+      response = await applicationFetch(url.toString(), {
         method: 'GET',
-        credentials: 'include',
-      });
+      }, params.token);
     } catch {
       throw new AgencyApiError('Không thể tải chi tiết hồ sơ. Vui lòng thử lại.', 'NETWORK_ERROR');
     }
@@ -125,7 +144,7 @@ export const agencyAuthApi = {
   },
 
   updateApplication(payload: UpdateAgencyApplicationPayload) {
-    return request<{ success: true; message: string; status: AgencyApplicationStatusDto }>('/auth/agency/application', payload, 'PUT');
+    return applicationFetch(`${API_BASE_URL}/auth/agency/application`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }, payload.token).then(handleResponse<{ success: true; message: string; status: AgencyApplicationStatusDto }>);
   },
 
   devAccept(params: { token?: string; email?: string }) {

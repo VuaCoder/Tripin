@@ -1,5 +1,14 @@
 import 'package:flutter/material.dart';
+
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../../core/storage/token_storage.dart';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../bloc/tour_review_bloc.dart';
 import '../bloc/tour_review_event.dart';
@@ -42,6 +51,84 @@ class _TourReviewFormModalState extends State<TourReviewFormModal> {
   int _selectedRating = 5;
   final TextEditingController _commentController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  String? _draftKey;
+  bool _dirty = false;
+  bool _submitted = false;
+  Timer? _saveTimer;
+  Future<void> _writes = Future.value();
+
+  @override
+  void initState() {
+    super.initState();
+    _commentController.addListener(_changed);
+    _restoreDraft();
+  }
+
+  void _changed() {
+    _dirty = true;
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(milliseconds: 300), _persistDraft);
+  }
+
+  Future<void> _restoreDraft() async {
+    try {
+      final owner = (await TokenStorage().getUserInfo())['id'];
+      if (!mounted || owner == null || owner.isEmpty) return;
+      _draftKey = 'review_draft_v1_${owner}_${widget.bookingId}';
+      if (_submitted) {
+        _clearDraft();
+        return;
+      }
+      final prefs = await SharedPreferences.getInstance();
+      if (!mounted) return;
+      if (_dirty) {
+        _persistDraft();
+        return;
+      }
+      final value = prefs.getString(_draftKey!);
+      if (value == null) return;
+      final draft = jsonDecode(value) as Map<String, dynamic>;
+      final rating = draft['rating'] as int;
+      if (rating < 1 || rating > 5) return;
+      _commentController.removeListener(_changed);
+      setState(() {
+        _selectedRating = rating;
+        _commentController.text = draft['comment'] as String;
+      });
+      _commentController.addListener(_changed);
+    } catch (_) {
+      /* Missing or broken storage must not block writing a review. */
+    }
+  }
+
+  void _persistDraft() {
+    final key = _draftKey;
+    if (key == null || _submitted) return;
+    final value = jsonEncode({
+      'rating': _selectedRating,
+      'comment': _commentController.text,
+    });
+    _writes = _writes
+        .then((_) async {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(key, value);
+        })
+        .catchError((_) {});
+  }
+
+  void _clearDraft() {
+    _submitted = true;
+    _saveTimer?.cancel();
+    final key = _draftKey;
+    if (key != null) {
+      _writes = _writes
+          .then((_) async {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove(key);
+          })
+          .catchError((_) {});
+    }
+  }
 
   static const List<String> _ratingLabels = [
     'Rất thất vọng',
@@ -53,6 +140,9 @@ class _TourReviewFormModalState extends State<TourReviewFormModal> {
 
   @override
   void dispose() {
+    _saveTimer?.cancel();
+    _persistDraft();
+    _commentController.removeListener(_changed);
     _commentController.dispose();
     super.dispose();
   }
@@ -60,12 +150,12 @@ class _TourReviewFormModalState extends State<TourReviewFormModal> {
   void _submit() {
     if (_formKey.currentState?.validate() ?? false) {
       context.read<TourReviewBloc>().add(
-            TourReviewSubmitRequested(
-              bookingId: widget.bookingId,
-              rating: _selectedRating,
-              comment: _commentController.text.trim(),
-            ),
-          );
+        TourReviewSubmitRequested(
+          bookingId: widget.bookingId,
+          rating: _selectedRating,
+          comment: _commentController.text.trim(),
+        ),
+      );
     }
   }
 
@@ -76,6 +166,7 @@ class _TourReviewFormModalState extends State<TourReviewFormModal> {
     return BlocConsumer<TourReviewBloc, TourReviewState>(
       listener: (context, state) {
         if (state.submitSuccess) {
+          _clearDraft();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Cảm ơn bạn đã gửi đánh giá chuyến đi!'),
@@ -87,7 +178,9 @@ class _TourReviewFormModalState extends State<TourReviewFormModal> {
             state.submitError!.contains('đã được đánh giá trước đó')) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Chuyến đi này đã có đánh giá. Trạng thái đã được cập nhật: Đã đánh giá.'),
+              content: Text(
+                'Chuyến đi này đã có đánh giá. Trạng thái đã được cập nhật: Đã đánh giá.',
+              ),
               backgroundColor: Color(0xFF0F766E),
             ),
           );
@@ -152,9 +245,12 @@ class _TourReviewFormModalState extends State<TourReviewFormModal> {
                             return GestureDetector(
                               onTap: () {
                                 setState(() => _selectedRating = star);
+                                _changed();
                               },
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
                                 child: Icon(
                                   star <= _selectedRating
                                       ? Icons.star_rounded
@@ -186,8 +282,7 @@ class _TourReviewFormModalState extends State<TourReviewFormModal> {
                     maxLines: 4,
                     maxLength: 2000,
                     decoration: InputDecoration(
-                      hintText:
-                          'Chia sẻ trải nghiệm của bạn về hướng dẫn viên, dịch vụ, điểm tham quan... (tối thiểu 10 ký tự)',
+                      hintText: 'Chia sẻ trải nghiệm của bạn về hướng dẫn viên, dịch vụ, điểm tham quan... (tối thiểu 10 ký tự)',
                       hintStyle: const TextStyle(
                         fontSize: 13,
                         color: AppColors.textMuted,
@@ -205,7 +300,10 @@ class _TourReviewFormModalState extends State<TourReviewFormModal> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                        borderSide: const BorderSide(
+                          color: AppColors.primary,
+                          width: 2,
+                        ),
                       ),
                     ),
                     validator: (value) {
@@ -228,7 +326,11 @@ class _TourReviewFormModalState extends State<TourReviewFormModal> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+                          const Icon(
+                            Icons.error_outline_rounded,
+                            color: AppColors.error,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -283,4 +385,3 @@ class _TourReviewFormModalState extends State<TourReviewFormModal> {
     );
   }
 }
-

@@ -680,7 +680,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                     <span className="material-symbols-outlined text-4xl text-slate-400">photo_library</span>
                     <p className="mt-2 text-sm font-bold text-slate-700">Chưa có hình ảnh nào cho tour</p>
                     <p className="text-xs text-slate-500 mt-1">
-                      Hãy tải ảnh từ máy tính hoặc chọn từ bộ ảnh mẫu gợi ý bên dưới.
+                      Hãy tải ảnh từ máy tính hoặc chọn từ bộ ảnh gợi ý bên dưới.
                     </p>
                   </div>
                 ) : (
@@ -872,7 +872,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label htmlFor={fieldId('basePrice')} className="text-sm font-bold text-slate-800">
-                    Giá cơ bản (VND)
+                    Giá người lớn · từ 13 tuổi trở lên (VND)
                   </label>
                   <div className="relative">
                     <input

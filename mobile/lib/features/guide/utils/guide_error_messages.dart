@@ -3,6 +3,14 @@ import '../api/guide_check_in_api.dart';
 /// Vietnamese messages for the stable backend codes. Unknown codes fall back to a safe generic text.
 String guideErrorMessage(GuideApiException error) {
   switch (error.code) {
+    case 'TICKET_WRONG_DEPARTURE':
+      return 'Vé thuộc đợt khởi hành khác. Vui lòng kiểm tra lại chuyến đi.';
+    case 'GUIDE_SCHEDULE_CONFLICT':
+      return 'Bạn đã có lịch dẫn tour trong thời gian này. Vui lòng kiểm tra lại lịch.';
+    case 'TRIP_NOT_ENDED':
+      return 'Chuyến đi chưa kết thúc.';
+    case 'DEPARTURE_REQUIRED':
+      return 'Vui lòng chọn đợt khởi hành cần hoàn thành.';
     case 'TICKET_NOT_FOUND':
       return 'Mã vé không tồn tại hoặc không hợp lệ.';
     case 'TICKET_ALREADY_USED':

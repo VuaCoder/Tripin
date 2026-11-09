@@ -1,16 +1,16 @@
 'use client';
 
 import { Suspense } from 'react';
-import { LoadingState } from '@/components/shared';
 import {
   TravelerAccountShell,
   VoucherWalletPage,
+  VoucherSkeleton,
 } from '@/features/traveler-account/components';
 
 export default function SettingsVouchersPage() {
   return (
     <TravelerAccountShell>
-      <Suspense fallback={<LoadingState label="Đang tải ví voucher..." />}>
+      <Suspense fallback={<VoucherSkeleton />}>
         <VoucherWalletPage />
       </Suspense>
     </TravelerAccountShell>

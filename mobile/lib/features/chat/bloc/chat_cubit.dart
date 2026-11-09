@@ -1,6 +1,8 @@
 import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../models/chat_models.dart';
 import 'chat_repository.dart';
 import 'chat_socket.dart';
@@ -34,19 +36,26 @@ class ChatState extends Equatable {
     bool clearError = false,
     bool? connected,
     bool? peerTyping,
-  }) =>
-      ChatState(
-        messages: messages ?? this.messages,
-        loading: loading ?? this.loading,
-        loadingMore: loadingMore ?? this.loadingMore,
-        hasMore: hasMore ?? this.hasMore,
-        error: clearError ? null : (error ?? this.error),
-        connected: connected ?? this.connected,
-        peerTyping: peerTyping ?? this.peerTyping,
-      );
+  }) => ChatState(
+    messages: messages ?? this.messages,
+    loading: loading ?? this.loading,
+    loadingMore: loadingMore ?? this.loadingMore,
+    hasMore: hasMore ?? this.hasMore,
+    error: clearError ? null : (error ?? this.error),
+    connected: connected ?? this.connected,
+    peerTyping: peerTyping ?? this.peerTyping,
+  );
 
   @override
-  List<Object?> get props => [messages, loading, loadingMore, hasMore, error, connected, peerTyping];
+  List<Object?> get props => [
+    messages,
+    loading,
+    loadingMore,
+    hasMore,
+    error,
+    connected,
+    peerTyping,
+  ];
 }
 
 /// Một cuộc trò chuyện: lịch sử qua REST, tin mới tức thì qua Socket.IO (AC2),
@@ -59,7 +68,7 @@ class ChatCubit extends Cubit<ChatState> {
 
   final List<StreamSubscription<dynamic>> _subs = [];
   Timer? _typingClear;
-  DateTime? _lastTypingSent;
+  Timer? _typingSend;
   int _localSeq = 0;
 
   ChatCubit({
@@ -67,14 +76,26 @@ class ChatCubit extends Cubit<ChatState> {
     required ChatRepository repository,
     required this._socket,
     this.typingTimeout = const Duration(seconds: 3),
-  })  : _repo = repository,
-        super(const ChatState());
+  }) : _repo = repository,
+       super(const ChatState());
 
   Future<void> start() async {
     _subs
-      ..add(_socket.messages.where((m) => m.conversationId == conversationId).listen(_onIncoming))
-      ..add(_socket.typing.where((id) => id == conversationId).listen((_) => _onPeerTyping()))
-      ..add(_socket.delivered.where((d) => d.conversationId == conversationId).listen((d) => _markDelivered(d.messageId)))
+      ..add(
+        _socket.messages
+            .where((m) => m.conversationId == conversationId)
+            .listen(_onIncoming),
+      )
+      ..add(
+        _socket.typing
+            .where((id) => id == conversationId)
+            .listen((_) => _onPeerTyping()),
+      )
+      ..add(
+        _socket.delivered
+            .where((d) => d.conversationId == conversationId)
+            .listen((d) => _markDelivered(d.messageId)),
+      )
       ..add(_socket.connection.listen(_onConnection));
     emit(state.copyWith(connected: _socket.isConnected));
     await _socket.connect();
@@ -88,12 +109,14 @@ class ChatCubit extends Cubit<ChatState> {
       // Giữ lại tin đang gửi / gửi lỗi chưa có trên server.
       final pending = state.messages.where((m) => m.isLocal).toList();
       final merged = [...pending, ...page.items];
-      emit(state.copyWith(
-        messages: merged,
-        loading: false,
-        hasMore: initial ? page.hasMore : state.hasMore || page.hasMore,
-        clearError: true,
-      ));
+      emit(
+        state.copyWith(
+          messages: merged,
+          loading: false,
+          hasMore: initial ? page.hasMore : state.hasMore || page.hasMore,
+          clearError: true,
+        ),
+      );
       _socket.sendRead(conversationId);
       unawaited(_repo.markRead(conversationId).catchError((_) {}));
     } on ChatException catch (e) {
@@ -104,27 +127,46 @@ class ChatCubit extends Cubit<ChatState> {
   Future<void> loadMore() async {
     final s = state;
     if (s.loadingMore || !s.hasMore || s.messages.isEmpty) return;
-    final oldest = s.messages.lastWhere((m) => !m.isLocal, orElse: () => s.messages.last);
+    final oldest = s.messages.lastWhere(
+      (m) => !m.isLocal,
+      orElse: () => s.messages.last,
+    );
     emit(s.copyWith(loadingMore: true));
     try {
       final page = await _repo.listMessages(conversationId, before: oldest.id);
       if (isClosed) return;
-      emit(state.copyWith(messages: [...state.messages, ...page.items], loadingMore: false, hasMore: page.hasMore));
+      emit(
+        state.copyWith(
+          messages: [...state.messages, ...page.items],
+          loadingMore: false,
+          hasMore: page.hasMore,
+        ),
+      );
     } on ChatException catch (e) {
       if (!isClosed) emit(state.copyWith(loadingMore: false, error: e.message));
     }
   }
 
   void _onConnection(bool connected) {
+    if (!connected) {
+      _typingSend?.cancel();
+      _typingClear?.cancel();
+      if (!isClosed) emit(state.copyWith(peerTyping: false));
+    }
     if (isClosed) return;
     emit(state.copyWith(connected: connected));
     // Vừa kết nối lại: lấy các tin đã lỡ trong lúc mất mạng.
-    if (connected && !state.loading) unawaited(_syncMissed().then((_) => _resendFailed()));
+    if (connected && !state.loading) {
+      unawaited(_syncMissed().then((_) => _resendFailed()));
+    }
   }
 
   /// Tin gửi lỗi do mất mạng được gửi lại tự động khi đã kết nối lại.
   Future<void> _resendFailed() async {
-    final failed = state.messages.where((m) => m.status == MessageStatus.failed).toList().reversed;
+    final failed = state.messages
+        .where((m) => m.status == MessageStatus.failed)
+        .toList()
+        .reversed;
     for (final m in failed) {
       if (isClosed) return;
       await retry(m.id);
@@ -147,7 +189,9 @@ class ChatCubit extends Cubit<ChatState> {
     _insertServerMessage(message);
     if (!message.isMine) {
       _socket.sendRead(conversationId);
-      if (!isClosed && state.peerTyping) emit(state.copyWith(peerTyping: false));
+      if (!isClosed && state.peerTyping) {
+        emit(state.copyWith(peerTyping: false));
+      }
     }
   }
 
@@ -157,7 +201,12 @@ class ChatCubit extends Cubit<ChatState> {
     final list = [...state.messages];
     if (list.any((m) => m.id == message.id)) return;
     if (message.isMine) {
-      final i = list.lastIndexWhere((m) => m.isLocal && m.text == message.text && m.status == MessageStatus.sending);
+      final i = list.lastIndexWhere(
+        (m) =>
+            m.isLocal &&
+            m.text == message.text &&
+            m.status == MessageStatus.sending,
+      );
       if (i >= 0) {
         list[i] = message;
         emit(state.copyWith(messages: list));
@@ -172,7 +221,9 @@ class ChatCubit extends Cubit<ChatState> {
     if (isClosed) return;
     final list = [
       for (final m in state.messages)
-        m.id == messageId && m.status == MessageStatus.sent ? m.copyWith(status: MessageStatus.delivered) : m,
+        m.id == messageId && m.status == MessageStatus.sent
+            ? m.copyWith(status: MessageStatus.delivered)
+            : m,
     ];
     emit(state.copyWith(messages: list));
   }
@@ -187,15 +238,16 @@ class ChatCubit extends Cubit<ChatState> {
   }
 
   /// Gọi khi người dùng gõ; chỉ báo "đang gõ" tối đa 1 lần / 2 giây.
-  void onTyping() {
-    final now = DateTime.now();
-    final last = _lastTypingSent;
-    if (last != null && now.difference(last) < const Duration(seconds: 2)) return;
-    _lastTypingSent = now;
-    _socket.sendTyping(conversationId);
+  void onTyping([String? text]) {
+    _typingSend?.cancel();
+    if (text != null && text.isEmpty) return;
+    _typingSend = Timer(const Duration(milliseconds: 500), () {
+      if (!isClosed && _socket.isConnected) _socket.sendTyping(conversationId);
+    });
   }
 
   Future<void> send(String rawText) async {
+    _typingSend?.cancel();
     final text = rawText.trim();
     if (text.isEmpty) return;
     final local = ChatMessage(
@@ -249,11 +301,16 @@ class ChatCubit extends Cubit<ChatState> {
 
   void _replace(String id, ChatMessage next) {
     if (isClosed) return;
-    emit(state.copyWith(messages: [for (final m in state.messages) m.id == id ? next : m]));
+    emit(
+      state.copyWith(
+        messages: [for (final m in state.messages) m.id == id ? next : m],
+      ),
+    );
   }
 
   @override
   Future<void> close() {
+    _typingSend?.cancel();
     _typingClear?.cancel();
     for (final s in _subs) {
       s.cancel();

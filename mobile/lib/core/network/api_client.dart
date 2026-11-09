@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../constants/api_endpoints.dart';
 import '../storage/token_storage.dart';
 
@@ -7,9 +8,14 @@ class ApiClient {
   final TokenStorage tokenStorage;
 
   ApiClient({TokenStorage? storage}) : tokenStorage = storage ?? TokenStorage() {
+    final currentBaseUrl = ApiEndpoints.baseUrl;
+    if (kDebugMode) {
+      debugPrint('🚀 [ApiClient] BaseUrl: $currentBaseUrl');
+    }
+
     dio = Dio(
       BaseOptions(
-        baseUrl: ApiEndpoints.baseUrl,
+        baseUrl: currentBaseUrl,
         connectTimeout: const Duration(seconds: 45),
         receiveTimeout: const Duration(seconds: 45),
         headers: {
@@ -18,6 +24,20 @@ class ApiClient {
         },
       ),
     );
+
+    if (kDebugMode) {
+      dio.interceptors.add(
+        LogInterceptor(
+          request: true,
+          requestHeader: true,
+          requestBody: true,
+          responseHeader: false,
+          responseBody: true,
+          error: true,
+          logPrint: (obj) => debugPrint('[DIO] $obj'),
+        ),
+      );
+    }
 
     dio.interceptors.add(
       InterceptorsWrapper(

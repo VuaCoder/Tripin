@@ -1,3 +1,4 @@
+import { selectFormValue } from '@/test/select';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@/features/premium/api',() => ({usePublicGuidePremiumQuery:() => ({currentData:{active:false,profile:null}})}));
@@ -25,7 +26,7 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe('Public profiles without a session', () => {
-  it('renders agency information and masked public reviews without a login gate', () => {
+  it('renders agency information and masked public reviews without a login gate', async () => {
     render(<PublicProfilePage kind="agency" />);
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Du lịch An');
     expect(screen.getByText('Đối tác đã xác minh')).toBeTruthy();
@@ -35,7 +36,7 @@ describe('Public profiles without a session', () => {
     expect(mocks.reviews).toHaveBeenLastCalledWith({ kind: 'agency', id: 'public-id', page: 1, sort: 'newest' });
     fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
     expect(mocks.reviews).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'rating_asc' } });
+    await selectFormValue(/Sắp xếp/, 'rating_asc');
     expect(mocks.reviews).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, sort: 'rating_asc' }));
   });
   it('renders guide information and explains that reviews rate the trip', () => {

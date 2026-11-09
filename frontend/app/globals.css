@@ -417,3 +417,17 @@ html {
   scrollbar-color: #cbd5e1 transparent;
 }
 
+
+/* Native select layout classes stay on the wrapper; Ant Design owns the control. */
+.tripri-form-select {
+  display: inline-block;
+  position: relative;
+  min-width: 120px;
+  max-width: 100%;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  vertical-align: middle;
+}
+.tripri-form-select > .tripri-select { width: 100%; }

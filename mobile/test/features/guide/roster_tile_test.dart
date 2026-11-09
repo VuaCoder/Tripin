@@ -19,21 +19,23 @@ GuideRosterItem rosterItem({bool checkedIn = false, DateTime? checkedInAt}) {
 }
 
 void main() {
-  testWidgets('shows guest counts, phone, notes and the not-arrived status', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: RosterTile(item: rosterItem())),
-      ),
-    );
+  testWidgets(
+    'shows guest counts and attendance while masking phone and omitting private notes',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: RosterTile(item: rosterItem())),
+        ),
+      );
 
-    expect(find.text('Nguyễn An'), findsOneWidget);
-    expect(find.textContaining('2 người lớn · 1 trẻ em'), findsOneWidget);
-    expect(find.text('Chưa đến'), findsOneWidget);
-    expect(find.text('0901234567'), findsOneWidget);
-    expect(find.text('Dị ứng hải sản'), findsOneWidget);
-  });
+      expect(find.text('Nguyễn An'), findsOneWidget);
+      expect(find.textContaining('2 người lớn · 1 trẻ em'), findsOneWidget);
+      expect(find.text('Chưa đến'), findsOneWidget);
+      expect(find.text('****4567'), findsOneWidget);
+      expect(find.text('0901234567'), findsNothing);
+      expect(find.text('Dị ứng hải sản'), findsNothing);
+    },
+  );
 
   testWidgets('shows the check-in time when the group is on board', (
     tester,

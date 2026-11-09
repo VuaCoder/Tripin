@@ -66,6 +66,7 @@ export interface MyReviewDto {
 
 /** Minimal facts for other modules: a report about a review, or an agency disputing one. */
 export interface ReviewFacts {
+  contentVersion: string;
   id: string;
   tourId: string;
   agencyId: string;
@@ -79,10 +80,12 @@ export interface ReviewFacts {
 
 /** Moderator view. The ids stay for the actions; the names are what the queue displays. */
 export interface ModerationReviewDto extends MyReviewDto {
+  contentVersion: string;
   travelerId: string;
   travelerName?: string;
   agencyId: string;
   agencyName?: string;
+  tourImage?: string;
   moderatedAt?: string;
   moderatedBy?: string;
 }

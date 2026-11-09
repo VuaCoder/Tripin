@@ -1,5 +1,6 @@
 'use client';
 
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui';
@@ -193,7 +194,7 @@ export function TourReviewsSection({ tourId, tourTitle, ratingAvg, ratingCount }
 
         <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
           Sắp xếp
-          <select
+          <FormSelect
             value={sort}
             onChange={(event) => handleSortChange(event.target.value as ReviewSort)}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none transition focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/20"
@@ -203,7 +204,7 @@ export function TourReviewsSection({ tourId, tourTitle, ratingAvg, ratingCount }
                 {option.label}
               </option>
             ))}
-          </select>
+          </FormSelect>
         </label>
       </header>
 
@@ -267,6 +268,8 @@ export function TourReviewsSection({ tourId, tourTitle, ratingAvg, ratingCount }
       </div>
 
       <WriteReviewDialog
+        key={eligibility.userId ?? 'guest'}
+        userId={eligibility.userId}
         open={dialogOpen && eligibility.status === 'eligible'}
         onClose={() => setDialogOpen(false)}
         tourTitle={tourTitle}

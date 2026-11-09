@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Clock, MessageSquare, Star, User } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
-import { Pagination } from '@/components/ui';
+import { Pagination, AntSelect, type AntSelectOption } from '@/components/ui';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth';
 import { useGetMyComplaintsQuery } from '../api/complaintsApi';
@@ -14,6 +14,13 @@ import { ComplaintConversationView } from './ComplaintConversationView';
 const PAGE_SIZE = 10;
 type StatusFilter = 'ALL' | ComplaintTicketStatus;
 const dateTime = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
+const STATUS_OPTIONS: AntSelectOption<StatusFilter>[] = [
+  { value: 'ALL', label: 'Tất cả trạng thái' },
+  ...(Object.keys(STATUS_LABELS) as ComplaintTicketStatus[]).map((status) => ({
+    value: status,
+    label: STATUS_LABELS[status].label,
+  })),
+];
 
 export function MyComplaintsPage() {
   const user = useAppSelector(selectUser);
@@ -48,29 +55,18 @@ export function MyComplaintsPage() {
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Khiếu nại dịch vụ tour của tôi</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Theo dõi tiến trình xử lý, trao đổi trực tiếp với đối tác tour và đánh giá chất lượng phục vụ sau khi đóng phiếu.
-          </p>
-        </div>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">Khiếu nại dịch vụ tour</h1>
         <div className="flex items-center gap-2">
-          <select
+          <AntSelect
             aria-label="Lọc theo trạng thái"
             value={filter}
-            onChange={(e) => {
-              setFilter(e.target.value as StatusFilter);
+            onChange={(value) => {
+              setFilter(value);
               setPage(1);
             }}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none"
-          >
-            <option value="ALL">Tất cả trạng thái</option>
-            {(Object.keys(STATUS_LABELS) as ComplaintTicketStatus[]).map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABELS[s].label}
-              </option>
-            ))}
-          </select>
+            options={STATUS_OPTIONS}
+            className="min-w-[180px]"
+          />
           <button
             type="button"
             disabled={isFetching}

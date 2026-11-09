@@ -48,6 +48,19 @@ function make({ assigned = true, tickets = [] as T[], bookings = [] as T[] } = {
 }
 
 describe('rosterForGuide', () => {
+  it('scopes roster and scans to the chosen departure and never exposes raw phone or notes', async () => {
+    const { service, repo } = make({ tickets: [stored(), stored({ id: 'e2', bookingId: 'b2', code: 'ETK-BBBBBBBBBBBBBBBB' })], bookings: [
+      { id: 'b1', departureId: 'd1', contactPhone: '0901234567', notes: 'Call me at 0901234567 or private@example.com', guestPricing: null },
+      { id: 'b2', departureId: 'd2', contactPhone: '0987654321', notes: null, guestPricing: null },
+    ] });
+    await expect(service.rosterForGuide(GUIDE, TOUR)).rejects.toMatchObject({ code: 'DEPARTURE_REQUIRED' });
+    const roster = await service.rosterForGuide(GUIDE, TOUR, 'd1');
+    expect(roster.items).toHaveLength(1);
+    expect(roster.items[0]).toMatchObject({ contactPhone: '****4567', status: 'VALID' });
+    expect(JSON.stringify(roster)).not.toMatch(/0901234567|private@example.com|notes/);
+    await expect(service.checkInForGuide(GUIDE, TOUR, 'ETK-BBBBBBBBBBBBBBBB', 'd1')).rejects.toMatchObject({ code: 'TICKET_WRONG_DEPARTURE' });
+    expect(repo.markCheckedIn).not.toHaveBeenCalled();
+  });
   it('lists the tour tickets without cancelled ones and counts the checked-in groups', async () => {
     const { service } = make({
       tickets: [
@@ -84,8 +97,7 @@ describe('rosterForGuide', () => {
     const roster = await service.rosterForGuide(GUIDE, TOUR);
 
     expect(roster.items[0]).toMatchObject({
-      contactPhone: '0901234567',
-      notes: 'Dị ứng hải sản',
+      contactPhone: '****4567',
       guests: { adults: 1, children: 1, infants: 0 },
     });
   });

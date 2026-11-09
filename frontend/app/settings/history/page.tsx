@@ -1,14 +1,13 @@
 'use client';
 
 import { Suspense } from 'react';
-import { LoadingState } from '@/components/shared';
-import { BookingHistoryPage } from '@/features/booking';
+import { BookingHistoryPage, BookingHistorySkeleton } from '@/features/booking';
 import { TravelerAccountShell } from '@/features/traveler-account/components';
 
 export default function SettingsBookingHistoryPage() {
   return (
     <TravelerAccountShell>
-      <Suspense fallback={<LoadingState label="Đang tải lịch sử đặt chỗ..." />}>
+      <Suspense fallback={<BookingHistorySkeleton />}>
         <BookingHistoryPage />
       </Suspense>
     </TravelerAccountShell>

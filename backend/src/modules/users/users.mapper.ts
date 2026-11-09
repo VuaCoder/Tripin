@@ -1,13 +1,20 @@
 import { AGENCY_VERIFICATION_STATUS, isPermission, resolvePermissions, type Role } from '@travel-platform/constants';
 import type { PublicGuideRecord, UserRecord } from './users.repository';
 import type { PrivateUserDto, PublicAgencyDto, PublicGuideDto } from './users.types';
+import { maskedPayoutAccount } from './payout-account.crypto';
 
 /** Effective permissions of a stored user (role defaults + extras granted by SUPER_ADMIN). */
-export function permissionsOf(user: Pick<UserRecord, 'role' | 'extraPermissions'>) {
-  return resolvePermissions(user.role as Role, (user.extraPermissions ?? []).filter(isPermission));
+export function permissionsOf(user: Pick<UserRecord, 'role' | 'extraPermissions'> & Partial<Pick<UserRecord, 'revokedPermissions'>>) {
+  return resolvePermissions(user.role as Role, (user.extraPermissions ?? []).filter(isPermission), (user.revokedPermissions ?? []).filter(isPermission));
 }
 
 const iso = (date?: Date | null) => date?.toISOString();
+
+/** Owner/session representation: raw access configuration belongs only to admin DTOs. */
+export function toProfileDto(user: PrivateUserDto) {
+  const { extraPermissions: _grants, revokedPermissions: _revokes, staffStatus: _lifecycle, ...profile } = user;
+  return profile;
+}
 
 export function toPrivateUserDto(user: UserRecord): PrivateUserDto {
   const agency = user.agencyProfile;
@@ -23,6 +30,8 @@ export function toPrivateUserDto(user: UserRecord): PrivateUserDto {
     status: user.status as PrivateUserDto['status'],
     permissions: permissionsOf(user),
     extraPermissions: (user.extraPermissions ?? []).filter(isPermission),
+    revokedPermissions: (user.revokedPermissions ?? []).filter(isPermission),
+    staffStatus: user.staffStatus,
     twoFactorEnabled: user.twoFactorEnabled,
     emailVerifiedAt: iso(user.emailVerifiedAt),
     createdAt: user.createdAt.toISOString(),
@@ -38,6 +47,8 @@ export function toPrivateUserDto(user: UserRecord): PrivateUserDto {
           licenseNumber: agency.licenseNumber ?? undefined,
           taxId: agency.taxId ?? undefined,
           businessLicenseUrl: agency.businessLicenseUrl ?? undefined,
+          submittedAt: iso(agency.submittedAt),
+          submissionDateEstimated: agency.submissionDateEstimated,
           verificationStatus: agency.verificationStatus as NonNullable<PrivateUserDto['agencyProfile']>['verificationStatus'],
           verificationNote: agency.verificationNote ?? undefined,
         }
@@ -85,9 +96,11 @@ export function toPublicAgencyDto(user: UserRecord): PublicAgencyDto {
 
 /** Only the three known payout fields, whatever else happens to live in the preferences JSON. */
 function bankAccountOf(user: UserRecord): PrivateUserDto['bankAccount'] {
+  if (user.role !== 'TOUR_GUIDE') return undefined;
+  if (user.payoutAccount) return maskedPayoutAccount(user.id, user.payoutAccount);
   const stored = (user.preferences as { bankAccount?: Record<string, unknown> | null } | null)?.bankAccount;
   if (!stored || typeof stored !== 'object') return undefined;
   const { bankName, accountNumber, accountHolder } = stored;
   if (typeof bankName !== 'string' || typeof accountNumber !== 'string' || typeof accountHolder !== 'string') return undefined;
-  return { bankName, accountNumber, accountHolder };
+  return { bankName, accountNumber: `****${accountNumber.slice(-4)}`, accountHolder };
 }

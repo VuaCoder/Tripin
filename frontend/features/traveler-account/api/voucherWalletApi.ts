@@ -53,7 +53,13 @@ export interface UserPreferencesDto {
 }
 
 export const voucherWalletApi = baseApi.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
+    getHotPromotions: builder.query<{ success: boolean; data: PromotionDto[] }, void>({
+      query: () => '/promotions/hot',
+      providesTags: ['Promotion'],
+    }),
+
     getMyVouchers: builder.query<{ success: boolean; data: UserVoucherItem[] }, void>({
       query: () => '/promotions/my-vouchers',
       providesTags: ['Promotion'],
@@ -88,10 +94,10 @@ export const voucherWalletApi = baseApi.injectEndpoints({
       invalidatesTags: ['User'],
     }),
   }),
-  overrideExisting: false,
 });
 
 export const {
+  useGetHotPromotionsQuery,
   useGetMyVouchersQuery,
   useCollectVoucherMutation,
   useGetUserPreferencesQuery,

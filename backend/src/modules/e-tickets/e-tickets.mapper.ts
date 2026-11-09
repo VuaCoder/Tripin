@@ -48,8 +48,8 @@ export function toGuideRosterItem(ticket: ETicketRecord, booking?: BookingRoster
     holderName: ticket.holderName,
     participants: ticket.participants,
     guests: guestCountsOf(ticket.participants, booking?.guestPricing),
-    ...(booking?.contactPhone ? { contactPhone: booking.contactPhone } : {}),
-    ...(booking?.notes ? { notes: booking.notes } : {}),
+    ...(booking?.contactPhone ? { contactPhone: `****${booking.contactPhone.replace(/\D/g, '').slice(-4)}` } : {}),
+    status: ticket.usedAt !== null || ticket.status === ETICKET_STATUS.USED ? 'CHECKED_IN' : 'VALID',
     departureDate: ticket.departureDate.toISOString(),
     checkedIn: ticket.usedAt !== null || ticket.status === ETICKET_STATUS.USED,
     ...(ticket.usedAt ? { checkedInAt: ticket.usedAt.toISOString() } : {}),
@@ -66,6 +66,7 @@ function guestCountsOf(participants: number, guestPricing: unknown): GuestCounts
 
 export function toGuideCheckIn(ticket: ETicketRecord, tourTitle: string): GuideCheckInDto {
   return {
+    status: 'CHECKED_IN',
     ticketId: ticket.id,
     holderName: ticket.holderName,
     participants: ticket.participants,

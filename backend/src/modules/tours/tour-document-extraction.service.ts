@@ -3,6 +3,7 @@ import { MONEY_LIMITS } from '@travel-platform/constants';
 import mammoth from 'mammoth';
 import { z } from 'zod';
 import { AppError, ERROR_CODES } from '../../utils/app-error';
+import { agePricingSchema } from '../../utils/age-pricing';
 import { categoriesService, type CategoriesService } from '../categories';
 import { createAiProvider, type AiProvider } from '../ai';
 import { TOUR_LIMITS } from './tours.types';
@@ -24,6 +25,7 @@ const candidateSchema = z.object({
   destination: z.string().trim().min(2).max(120).optional(),
   durationDays: z.number().int().min(1).max(365).optional(),
   basePrice: vnd.optional(),
+  agePricing: agePricingSchema.nullable().optional(),
   maxGroupSize: z.number().int().min(1).max(10_000).optional(),
   categoryIds: z.array(z.string().uuid()).max(10).optional(),
   images: z.array(z.url().max(500)).max(TOUR_LIMITS.MAX_IMAGES).optional(),
@@ -86,6 +88,7 @@ export class TourDocumentExtractionService {
       `Extract at most ${TOUR_DOCUMENT_LIMITS.MAX_EXTRACTED_TOURS} distinct tours.`,
       `Each candidate may contain only title (5-200 chars), summary (<=500), description (<=20000), destination (2-120), durationDays (integer 1-365), basePrice (integer VND 0-${MONEY_LIMITS.MAX_UNIT_PRICE}), maxGroupSize (integer 1-10000), categoryIds (UUID array <=10), images (URL array <=20), inclusions (string array <=50), exclusions (string array <=50).`,
       'Use Vietnamese text when the source is Vietnamese. Return missing or uncertain fields as absent.',
+      'Also allow agePricing when age prices are explicitly stated: {childMinAge:2,adultMinAge:13,childPercent:100,infantPercent:100,childPrice:integer VND or null,infantPrice:integer VND or null}. basePrice is the adult price (13+); children are 2-12; infants are under 2. Use null for an unstated child/infant price and 0 only for explicitly free tickets. If only a percentage is stated, convert it using the stated adult price; otherwise omit agePricing.',
     ].join(' ');
     const { text: answer } = await this.provider.generate({
       system,

@@ -3,6 +3,7 @@ import { POLICY_KEYS } from './system-settings.types';
 
 export const commissionBody = z
   .object({
+    expectedVersion: z.number().int().nonnegative(),
     ratePercent: z
       .number()
       .min(0)
@@ -15,6 +16,9 @@ export const policyKeyParams = z.object({ key: z.enum(POLICY_KEYS) });
 
 export const policyBody = z
   .object({
+    expectedVersion: z.number().int().nonnegative(),
+    reason: z.string().trim().min(10).max(1000),
+    effectiveFrom: z.iso.datetime().optional(),
     title: z.string().trim().min(2).max(200),
     content: z.string().max(50_000),
     params: z

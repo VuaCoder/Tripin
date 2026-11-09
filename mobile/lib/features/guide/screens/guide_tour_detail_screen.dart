@@ -20,8 +20,12 @@ class GuideTourDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final baseApi = api ?? DioGuideCheckInApi();
+    final scopedApi = baseApi is DioGuideCheckInApi
+        ? baseApi.forDeparture(tour.departureId)
+        : baseApi;
     return BlocProvider(
-      create: (_) => GuideCheckInCubit(api ?? DioGuideCheckInApi(), tour.id)..loadRoster(),
+      create: (_) => GuideCheckInCubit(scopedApi, tour.id)..loadRoster(),
       child: _GuideTourDetailView(tour: tour),
     );
   }
@@ -63,7 +67,9 @@ class _GuideTourDetailView extends StatelessWidget {
               _RosterSection(roster: roster),
               const SizedBox(height: 20),
               ElevatedButton.icon(
-                onPressed: state.submitting ? null : () => _openScanner(context),
+                onPressed: state.submitting
+                    ? null
+                    : () => _openScanner(context),
                 icon: const Icon(Icons.qr_code_scanner),
                 label: const Text('Quét QR Điểm Danh'),
               ),
@@ -71,7 +77,10 @@ class _GuideTourDetailView extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: state.submitting
                     ? null
-                    : () => runManualCheckIn(context, context.read<GuideCheckInCubit>()),
+                    : () => runManualCheckIn(
+                        context,
+                        context.read<GuideCheckInCubit>(),
+                      ),
                 icon: const Icon(Icons.keyboard_outlined),
                 label: const Text('Điểm danh thủ công'),
               ),
@@ -105,7 +114,8 @@ class _TourHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final departure = tour.nextDepartureDate;
-    final totalGuests = roster?.items.fold<int>(0, (sum, item) => sum + item.participants) ?? 0;
+    final totalGuests =
+        roster?.items.fold<int>(0, (sum, item) => sum + item.participants) ?? 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -127,7 +137,11 @@ class _TourHeader extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'Đoàn: $totalGuests khách',
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
         if (departure != null) ...[
@@ -165,10 +179,16 @@ class _ProgressCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Tiến độ điểm danh', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  'Tiến độ điểm danh',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 Text(
                   '$checkedIn/$total vé',
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
                 ),
               ],
             ),
@@ -179,13 +199,20 @@ class _ProgressCard extends StatelessWidget {
                 value: value,
                 minHeight: 8,
                 backgroundColor: AppColors.surfaceVariant,
-                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.success),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  AppColors.success,
+                ),
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              total == 0 ? 'Tour chưa có vé nào.' : 'Đã điểm danh $checkedIn trên $total vé.',
-              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              total == 0
+                  ? 'Tour chưa có vé nào.'
+                  : 'Đã điểm danh $checkedIn trên $total vé.',
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         ),
@@ -214,7 +241,10 @@ class _AllCheckedInBanner extends StatelessWidget {
           Expanded(
             child: Text(
               'Đã điểm danh đủ đoàn',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.success),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.success,
+              ),
             ),
           ),
         ],
@@ -234,7 +264,10 @@ class _RosterSection extends StatelessWidget {
     if (items.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 12),
-        child: Text('Chưa có vé nào trong tour này.', style: TextStyle(color: AppColors.textSecondary)),
+        child: Text(
+          'Chưa có vé nào trong tour này.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
       );
     }
     return Card(
@@ -269,7 +302,11 @@ class _TripActions extends StatelessWidget {
         ),
         child: const Row(
           children: [
-            Icon(Icons.directions_run_rounded, color: AppColors.success, size: 24),
+            Icon(
+              Icons.directions_run_rounded,
+              color: AppColors.success,
+              size: 24,
+            ),
             SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -301,7 +338,10 @@ class _TripActions extends StatelessWidget {
             child: Text(
               'Còn $remaining vé chưa điểm danh.',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
       ],
@@ -313,10 +353,18 @@ class _TripActions extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Bắt đầu chuyến đi?'),
-        content: const Text('Toàn bộ vé đã được điểm danh. Bắt đầu chuyến đi ngay bây giờ?'),
+        content: const Text(
+          'Toàn bộ vé đã được điểm danh. Bắt đầu chuyến đi ngay bây giờ?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Hủy')),
-          ElevatedButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Bắt đầu')),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Bắt đầu'),
+          ),
         ],
       ),
     );
@@ -343,9 +391,17 @@ class _ErrorState extends StatelessWidget {
           children: [
             const Icon(Icons.cloud_off, size: 56, color: AppColors.error),
             const SizedBox(height: 16),
-            Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary)),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
             const SizedBox(height: 16),
-            ElevatedButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: const Text('Thử lại')),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Thử lại'),
+            ),
           ],
         ),
       ),

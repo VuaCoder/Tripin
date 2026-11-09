@@ -1,30 +1,38 @@
 import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/chat/bloc/chat_cubit.dart';
 import 'package:mobile/features/chat/bloc/chat_repository.dart';
 import 'package:mobile/features/chat/bloc/chat_socket.dart';
 import 'package:mobile/features/chat/models/chat_models.dart';
 
-ChatMessage msg(String id, String text, {bool mine = false, String conv = 'c1'}) => ChatMessage(
-      id: id,
-      conversationId: conv,
-      senderId: mine ? 'me' : 'peer',
-      text: text,
-      isMine: mine,
-      createdAt: DateTime(2026, 10, 29, 10),
-      status: MessageStatus.sent,
-    );
+ChatMessage msg(
+  String id,
+  String text, {
+  bool mine = false,
+  String conv = 'c1',
+}) => ChatMessage(
+  id: id,
+  conversationId: conv,
+  senderId: mine ? 'me' : 'peer',
+  text: text,
+  isMine: mine,
+  createdAt: DateTime(2026, 10, 29, 10),
+  status: MessageStatus.sent,
+);
 
 class FakeSocket implements ChatSocket {
   final _conn = StreamController<bool>.broadcast();
   final _msgs = StreamController<ChatMessage>.broadcast();
   final _typing = StreamController<String>.broadcast();
-  final _delivered = StreamController<({String conversationId, String messageId})>.broadcast();
+  final _delivered =
+      StreamController<({String conversationId, String messageId})>.broadcast();
   final _notifs = StreamController<Map<String, dynamic>>.broadcast();
 
   bool online = true;
   int sent = 0;
   int reads = 0;
+  int typingEvents = 0;
 
   @override
   Stream<bool> get connection => _conn.stream;
@@ -35,7 +43,8 @@ class FakeSocket implements ChatSocket {
   @override
   Stream<String> get typing => _typing.stream;
   @override
-  Stream<({String conversationId, String messageId})> get delivered => _delivered.stream;
+  Stream<({String conversationId, String messageId})> get delivered =>
+      _delivered.stream;
   @override
   Stream<Map<String, dynamic>> get notifications => _notifs.stream;
 
@@ -50,7 +59,7 @@ class FakeSocket implements ChatSocket {
   }
 
   @override
-  void sendTyping(String conversationId) {}
+  void sendTyping(String conversationId) => typingEvents++;
   @override
   void sendRead(String conversationId) => reads++;
   @override
@@ -58,7 +67,8 @@ class FakeSocket implements ChatSocket {
 
   void pushMessage(ChatMessage m) => _msgs.add(m);
   void pushTyping(String id) => _typing.add(id);
-  void pushDelivered(String id) => _delivered.add((conversationId: 'c1', messageId: id));
+  void pushDelivered(String id) =>
+      _delivered.add((conversationId: 'c1', messageId: id));
   void setConnected(bool v) {
     online = v;
     _conn.add(v);
@@ -73,12 +83,17 @@ class FakeRepo extends ChatRepository {
   FakeRepo(this.history);
 
   @override
-  Future<MessagesPage> listMessages(String conversationId, {String? before, int limit = 30}) async =>
-      MessagesPage(history, false);
+  Future<MessagesPage> listMessages(
+    String conversationId, {
+    String? before,
+    int limit = 30,
+  }) async => MessagesPage(history, false);
 
   @override
   Future<ChatMessage> sendMessage(String conversationId, String text) async {
-    if (failSend) throw const ChatException('Không kết nối được máy chủ', offline: true);
+    if (failSend) {
+      throw const ChatException('Không kết nối được máy chủ', offline: true);
+    }
     restSends++;
     return msg('rest-$restSends', text, mine: true, conv: conversationId);
   }
@@ -128,16 +143,23 @@ void main() {
     expect(cubit.state.messages.where((m) => m.id == 'm3').length, 1);
   });
 
-  test('a sent message is saved through the socket and not duplicated by its echo', () async {
-    final sending = cubit.send('  Em đã tới  ');
-    socket.pushMessage(msg('srv-1', 'Em đã tới', mine: true)); // echo to the sender's own sockets
-    await sending;
-    await settle();
-    final mine = cubit.state.messages.where((m) => m.text == 'Em đã tới').toList();
-    expect(mine.length, 1);
-    expect(mine.single.id, 'srv-1');
-    expect(mine.single.status, MessageStatus.sent);
-  });
+  test(
+    'a sent message is saved through the socket and not duplicated by its echo',
+    () async {
+      final sending = cubit.send('  Em đã tới  ');
+      socket.pushMessage(
+        msg('srv-1', 'Em đã tới', mine: true),
+      ); // echo to the sender's own sockets
+      await sending;
+      await settle();
+      final mine = cubit.state.messages
+          .where((m) => m.text == 'Em đã tới')
+          .toList();
+      expect(mine.length, 1);
+      expect(mine.single.id, 'srv-1');
+      expect(mine.single.status, MessageStatus.sent);
+    },
+  );
 
   test('falls back to REST when the socket is down so the message is not lost (AC1)', () async {
     socket.setConnected(false);
@@ -157,18 +179,28 @@ void main() {
     repo.failSend = false;
     await cubit.retry(failed.id);
     expect(cubit.state.messages.first.status, MessageStatus.sent);
-    expect(cubit.state.messages.where((m) => m.text == 'Thử lại sau').length, 1);
+    expect(
+      cubit.state.messages.where((m) => m.text == 'Thử lại sau').length,
+      1,
+    );
   });
 
-  test('messages missed while offline are recovered on reconnect (AC1)', () async {
-    socket.setConnected(false);
-    await settle();
-    repo.history = [msg('m4', 'Tin lỡ 2'), msg('m3', 'Tin lỡ 1'), ...repo.history];
-    socket.setConnected(true);
-    await settle();
-    expect(cubit.state.connected, isTrue);
-    expect(cubit.state.messages.map((m) => m.id), ['m4', 'm3', 'm2', 'm1']);
-  });
+  test(
+    'messages missed while offline are recovered on reconnect (AC1)',
+    () async {
+      socket.setConnected(false);
+      await settle();
+      repo.history = [
+        msg('m4', 'Tin lỡ 2'),
+        msg('m3', 'Tin lỡ 1'),
+        ...repo.history,
+      ];
+      socket.setConnected(true);
+      await settle();
+      expect(cubit.state.connected, isTrue);
+      expect(cubit.state.messages.map((m) => m.id), ['m4', 'm3', 'm2', 'm1']);
+    },
+  );
 
   test('typing indicator shows then clears itself', () async {
     socket.pushTyping('c1');
@@ -177,6 +209,23 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 120));
     expect(cubit.state.peerTyping, isFalse);
   });
+
+  test(
+    'outgoing typing waits for 500ms of idle and clearing input cancels it',
+    () async {
+      cubit.onTyping('a');
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      cubit.onTyping('ab');
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(socket.typingEvents, 0);
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      expect(socket.typingEvents, 1);
+      cubit.onTyping('abc');
+      cubit.onTyping('');
+      await Future<void>.delayed(const Duration(milliseconds: 550));
+      expect(socket.typingEvents, 1);
+    },
+  );
 
   test('typing in another conversation is ignored', () async {
     socket.pushTyping('other');
@@ -201,7 +250,9 @@ void main() {
     repo.failSend = false;
     socket.setConnected(true);
     await Future<void>.delayed(const Duration(milliseconds: 80));
-    final sent = cubit.state.messages.where((m) => m.text == 'Gửi khi mất mạng').toList();
+    final sent = cubit.state.messages
+        .where((m) => m.text == 'Gửi khi mất mạng')
+        .toList();
     expect(sent.length, 1);
     expect(sent.single.status, MessageStatus.sent);
   });

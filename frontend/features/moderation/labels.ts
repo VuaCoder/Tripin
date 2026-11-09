@@ -10,6 +10,7 @@ export const TOUR_STATUS_LABELS: Record<ModerationTourStatus, { label: string; c
 };
 
 export const AGENCY_STATUS_LABELS: Record<AgencyVerificationStatus, { label: string; className: string }> = {
+  INFORMATION_REQUESTED: { label: 'Cần bổ sung thông tin', className: 'bg-amber-50 text-amber-800' },
   UNVERIFIED: { label: 'Chưa gửi hồ sơ', className: 'bg-slate-100 text-slate-600' },
   PENDING: { label: 'Chờ xác minh', className: 'bg-amber-50 text-amber-700' },
   VERIFIED: { label: 'Đã xác minh', className: 'bg-emerald-50 text-emerald-700' },

@@ -13,6 +13,7 @@ interface ComplaintButtonProps {
   bookingId?: string;
   bookingCode?: string;
   className?: string;
+  iconOnly?: boolean;
 }
 
 export function ComplaintButton({
@@ -21,6 +22,7 @@ export function ComplaintButton({
   bookingId,
   bookingCode,
   className,
+  iconOnly = false,
 }: ComplaintButtonProps) {
   const allowed = useAppSelector(selectUser)?.permissions.includes('report:create') ?? false;
   const [open, setOpen] = useState(false);
@@ -34,20 +36,31 @@ export function ComplaintButton({
         <Link
           href="/conversations?tab=complaints"
           role="status"
-          title="Nhấn để theo dõi và trao đổi trong Hộp thư tin nhắn"
-          className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100 shadow-2xs"
+          aria-label={`Đã mở phiếu (${sentCode})`}
+          title={`Đã mở phiếu (${sentCode})`}
+          className={
+            iconOnly
+              ? 'inline-flex size-10 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-800 transition hover:bg-emerald-100 shadow-2xs'
+              : 'inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100 shadow-2xs'
+          }
         >
-          <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
-          <span>Đã mở phiếu ({sentCode})</span>
+          <CheckCircle2 className={`${iconOnly ? 'size-5' : 'size-4'} text-emerald-600 shrink-0`} />
+          {!iconOnly && <span>Đã mở phiếu ({sentCode})</span>}
         </Link>
       ) : (
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50/50 px-4 py-2 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100/80 cursor-pointer"
+          aria-label="Khiếu nại dịch vụ"
+          title="Khiếu nại dịch vụ"
+          className={
+            iconOnly
+              ? 'inline-flex size-10 items-center justify-center rounded-full border border-amber-200 bg-amber-50/50 text-amber-800 transition-colors hover:bg-amber-100/80 cursor-pointer shadow-2xs active:scale-95'
+              : 'inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50/50 px-4 py-2 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100/80 cursor-pointer'
+          }
         >
-          <AlertCircle className="size-4 text-amber-600" />
-          <span>Khiếu nại dịch vụ</span>
+          <AlertCircle className={`${iconOnly ? 'size-5' : 'size-4'} text-amber-600 shrink-0`} />
+          {!iconOnly && <span>Khiếu nại dịch vụ</span>}
         </button>
       )}
 

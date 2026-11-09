@@ -114,6 +114,8 @@ export interface ComplaintFeedbackDto {
 }
 
 export interface ComplaintTicketSummaryDto {
+  slaDeadlineAt?: string | null;
+  escalationDeadlineAt?: string | null;
   id: string;
   ticketCode: string;
   tourId: string;
