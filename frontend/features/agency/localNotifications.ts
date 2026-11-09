@@ -15,7 +15,7 @@ export function getLocalNotifications(): AgencyNotification[] {
 }
 
 export function saveLocalNotifications(notifications: AgencyNotification[]): void {
-  if (typeof window === 'undefined') return [];
+  if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(LOCAL_NOTIFICATIONS_STORAGE_KEY, JSON.stringify(notifications));
   } catch {
