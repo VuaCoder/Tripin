@@ -52,6 +52,28 @@ describe('BoatIllustration', () => {
 });
 
 describe('BoatPreloader', () => {
+  it('animates SVG without measuring or reparenting its nodes across remounts', () => {
+    const measure = vi.fn(() => { throw new Error('SVG measurement unavailable'); });
+    const original = Object.getOwnPropertyDescriptor(SVGElement.prototype, 'getBBox');
+    Object.defineProperty(SVGElement.prototype, 'getBBox', { configurable: true, value: measure });
+    try {
+      const view = render(<React.StrictMode><BoatPreloader active /></React.StrictMode>);
+      const boat = view.container.querySelector('#tripri-boat-group')!;
+      const parent = boat.parentNode;
+      act(() => {
+        gsap.getTweensOf(boat).forEach(tween => tween.progress(0.5));
+      });
+      expect(boat.getAttribute('transform')).toContain('rotate(');
+      expect(boat.parentNode).toBe(parent);
+      expect(measure).not.toHaveBeenCalled();
+      view.unmount();
+      expect(gsap.getTweensOf(boat)).toHaveLength(0);
+    } finally {
+      if (original) Object.defineProperty(SVGElement.prototype, 'getBBox', original);
+      else Reflect.deleteProperty(SVGElement.prototype, 'getBBox');
+    }
+  });
+
   it('renders with role="status" and accessible label', () => {
     render(<BoatPreloader active={true} accessibleLabel="Đang tải dữ liệu..." />);
 
