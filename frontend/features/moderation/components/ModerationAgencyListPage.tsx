@@ -19,7 +19,7 @@ export function ModerationAgencyListPage() {
   const [filter, setFilter] = useState<AgencyVerificationStatus>('PENDING');
   const { data, isLoading, isFetching, isError, refetch } = useGetModerationAgenciesQuery(
     { page, limit: PAGE_SIZE, status: filter },
-    { skip: !canVerify },
+    { skip: !canVerify, pollingInterval: 15_000, refetchOnFocus: true },
   );
   const [verify, { isLoading: isVerifying }] = useVerifyAgencyMutation();
 

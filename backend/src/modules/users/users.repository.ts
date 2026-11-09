@@ -6,6 +6,7 @@ import { toSkip, type PageRequest } from '../../utils/pagination';
 import { containsText } from '../../utils/search';
 import { AppError } from '../../utils/app-error';
 import { enqueueMail } from '../notifications/mail-outbox';
+import { formatBanEmail, formatUnbanEmail } from '../notifications/email-templates';
 import { writeAudit } from '../audit/audit.writer';
 import { AUDIT_ACTIONS } from '../audit/audit.types';
 
@@ -94,7 +95,23 @@ export class UsersRepository {
       await tx.refreshToken.updateMany({ where: { userId: targetId, revokedAt: null }, data: { revokedAt: new Date() } });
       await writeAudit(tx, { actorId: actor.userId, actorRole: actor.role, action: ban ? AUDIT_ACTIONS.USER_BANNED : AUDIT_ACTIONS.USER_UNBANNED,
         targetType: 'user', targetId, metadata: { before: { status: before.status, banReason: before.banReason, bannedAt: before.bannedAt }, after: { status: after.status, banReason: after.banReason, bannedAt: after.bannedAt }, reason } });
-      if (!ban) await enqueueMail(tx, `unban:${targetId}:${after.tokenVersion}`, before.email, 'Tài khoản của bạn đã được mở khóa', reason);
+      if (ban) {
+        await enqueueMail(
+          tx,
+          `ban:${targetId}:${after.tokenVersion}`,
+          before.email,
+          '[TripRI] Thông báo tạm khóa tài khoản người dùng',
+          formatBanEmail({ fullName: before.fullName, email: before.email, reason }),
+        );
+      } else {
+        await enqueueMail(
+          tx,
+          `unban:${targetId}:${after.tokenVersion}`,
+          before.email,
+          '[TripRI] Tài khoản của bạn đã được mở khóa thành công',
+          formatUnbanEmail({ fullName: before.fullName, email: before.email, reason }),
+        );
+      }
       return after;
     });
   }

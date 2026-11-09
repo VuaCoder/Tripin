@@ -375,12 +375,12 @@ describe('ModerationReviewListPage', () => {
     mockReviews.mockReturnValue(q({ data: { items: [review()], meta: META } }));
     mockBan.mockReturnValue(unwrapOk());
     render(<ModerationReviewListPage />);
-    fireEvent.click(screen.getAllByTitle('Khoá tài khoản tác giả')[0]);
-    fireEvent.change(screen.getByLabelText(/Lý do khoá tài khoản/), { target: { value: 'Tài khoản spam' } });
-    const banButtons = screen.getAllByRole('button', { name: 'Khoá tài khoản tác giả' });
+    fireEvent.click(screen.getAllByTitle('Khoá tài khoản')[0]);
+    expect(screen.getByText(/Bạn có chắc chắn muốn khoá tài khoản của/)).toBeTruthy();
+    const banButtons = screen.getAllByRole('button', { name: 'Khoá' });
     fireEvent.click(banButtons[banButtons.length - 1]);
 
-    await waitFor(() => expect(mockBan).toHaveBeenCalledWith({ id: 'u-traveler', reason: 'Tài khoản spam' }));
+    await waitFor(() => expect(mockBan).toHaveBeenCalledWith(expect.objectContaining({ id: 'u-traveler' })));
   });
 });
 

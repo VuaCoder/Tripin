@@ -1,7 +1,19 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Bell, CheckCheck, Trash2, RefreshCw, X } from 'lucide-react';
-import { useAgencyNotificationsQuery, useReadAgencyNotificationMutation, useReadAllAgencyNotificationsMutation, useDeleteAgencyNotificationMutation } from '../notifications';
+import {
+  useAgencyNotificationsQuery,
+  useReadAgencyNotificationMutation,
+  useReadAllAgencyNotificationsMutation,
+  useDeleteAgencyNotificationMutation,
+  type AgencyNotification,
+} from '../notifications';
+import {
+  getLocalNotifications,
+  markLocalNotificationRead,
+  markAllLocalNotificationsRead,
+  deleteLocalNotification,
+} from '../localNotifications';
 import { AgencyError, AgencyLoading, agencyButton, dateTime } from '../AgencyUi';
 import { getTourApiMessage } from '@/features/tours/api/toursApi';
 
@@ -120,11 +132,23 @@ export interface AgencyNotificationInboxProps {
 export function AgencyNotificationInbox({ compact = false, onClose, closeRef }: AgencyNotificationInboxProps) {
   const [page, setPage] = useState(1);
   const [failure, setFailure] = useState('');
+  const [localItems, setLocalItems] = useState<AgencyNotification[]>([]);
   const { currentData: result, isLoading, isFetching, error, refetch } = useAgencyNotificationsQuery(page, { pollingInterval: 30000, skipPollingIfUnfocused: true, refetchOnFocus: true, refetchOnReconnect: true });
   const [read, readState] = useReadAgencyNotificationMutation();
   const [readAll, allState] = useReadAllAgencyNotificationsMutation();
   const [remove, deleteState] = useDeleteAgencyNotificationMutation();
   const busy = readState.isLoading || allState.isLoading || deleteState.isLoading;
+
+  useEffect(() => {
+    setLocalItems(getLocalNotifications());
+    const onUpdate = () => setLocalItems(getLocalNotifications());
+    window.addEventListener('tripri:notification', onUpdate);
+    window.addEventListener('tripri:notification-read', onUpdate);
+    return () => {
+      window.removeEventListener('tripri:notification', onUpdate);
+      window.removeEventListener('tripri:notification-read', onUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     if (result && page > Math.max(1, result.meta.totalPages)) {
@@ -141,7 +165,40 @@ export function AgencyNotificationInbox({ compact = false, onClose, closeRef }: 
     }
   };
 
-  const unreadCount = result?.data.filter((item) => !item.isRead).length ?? 0;
+  const handleRead = async (id: string) => {
+    if (id.startsWith('notif-')) {
+      markLocalNotificationRead(id);
+    } else {
+      await run(() => read(id).unwrap());
+    }
+  };
+
+  const handleRemove = async (id: string) => {
+    if (id.startsWith('notif-')) {
+      deleteLocalNotification(id);
+    } else {
+      await run(() => remove(id).unwrap());
+    }
+  };
+
+  const handleReadAll = async () => {
+    markAllLocalNotificationsRead();
+    if (result?.data && result.data.some((i) => !i.isRead)) {
+      await run(() => readAll().unwrap());
+    }
+  };
+
+  // Merge backend notifications with local notifications (avoid duplicates)
+  const combinedData = useMemo(() => {
+    const backendItems = result?.data ?? [];
+    const seen = new Set(backendItems.map((b) => b.id));
+    const uniqueLocal = localItems.filter((l) => !seen.has(l.id));
+    return [...uniqueLocal, ...backendItems].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  }, [result?.data, localItems]);
+
+  const unreadCount = combinedData.filter((item) => !item.isRead).length;
 
   return (
     <div className="space-y-3.5 text-slate-900">
@@ -174,7 +231,7 @@ export function AgencyNotificationInbox({ compact = false, onClose, closeRef }: 
             type="button"
             className="grid size-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors disabled:opacity-40 cursor-pointer"
             disabled={busy || unreadCount === 0}
-            onClick={() => void run(() => readAll().unwrap())}
+            onClick={() => void handleReadAll()}
             title="Đánh dấu tất cả đã đọc"
             aria-label="Đánh dấu tất cả đã đọc"
           >
@@ -202,14 +259,14 @@ export function AgencyNotificationInbox({ compact = false, onClose, closeRef }: 
         </p>
       )}
 
-      {isLoading || (!result && isFetching) ? (
+      {isLoading || (!result && combinedData.length === 0 && isFetching) ? (
         <AgencyLoading />
-      ) : error ? (
+      ) : error && combinedData.length === 0 ? (
         <AgencyError message={getTourApiMessage(error, 'Không thể tải thông báo.')} retry={() => void refetch()} />
-      ) : result ? (
+      ) : (result || combinedData.length > 0) ? (
         <>
           <div className={compact ? 'max-h-[52dvh] overflow-y-auto overscroll-contain pr-0.5 space-y-2.5' : 'space-y-3'} aria-busy={isFetching}>
-            {result.data.length === 0 ? (
+            {combinedData.length === 0 ? (
               <div className="rounded-2xl bg-teal-50/60 border border-teal-100 px-4 py-10 text-center">
                 <Bell size={28} className="mx-auto mb-2.5 text-teal-600" />
                 <h3 className="font-bold text-teal-950 text-sm">Bạn đã cập nhật hết rồi</h3>
@@ -217,7 +274,7 @@ export function AgencyNotificationInbox({ compact = false, onClose, closeRef }: 
               </div>
             ) : (
               <ul className="space-y-2.5">
-                {result.data.map((item) => {
+                {combinedData.map((item) => {
                   const { title: localizedTitle, body: localizedBody } = localizeNotificationContent(item.title, item.body);
 
                   return (
@@ -237,7 +294,7 @@ export function AgencyNotificationInbox({ compact = false, onClose, closeRef }: 
                           <button
                             type="button"
                             aria-label="Đánh dấu đã đọc"
-                            onClick={() => void run(() => read(item.id).unwrap())}
+                            onClick={() => void handleRead(item.id)}
                             className="inline-flex items-center gap-1 rounded-md bg-teal-100 px-2 py-0.5 text-[11px] font-bold text-teal-800 hover:bg-teal-200 transition-colors shrink-0 cursor-pointer"
                             title="Bấm để đánh dấu đã đọc"
                           >
@@ -270,7 +327,7 @@ export function AgencyNotificationInbox({ compact = false, onClose, closeRef }: 
                           disabled={busy}
                           onClick={() => {
                             if (window.confirm('Xoá thông báo này? Thao tác này không thể hoàn tác.')) {
-                              void run(() => remove(item.id).unwrap());
+                              void handleRemove(item.id);
                             }
                           }}
                         >
@@ -284,7 +341,7 @@ export function AgencyNotificationInbox({ compact = false, onClose, closeRef }: 
             )}
           </div>
 
-          {result.meta.totalPages > 1 && (
+          {result && result.meta.totalPages > 1 && (
             <div className="flex items-center justify-between gap-2 text-xs pt-2 border-t border-slate-100">
               <button
                 type="button"

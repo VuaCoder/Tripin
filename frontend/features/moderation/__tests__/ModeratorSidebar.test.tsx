@@ -27,8 +27,10 @@ vi.mock('@/store/hooks', () => ({
   useAppDispatch: () => vi.fn(),
 }));
 
+const notificationsMock = { count: 0, connected: true, latest: '' };
+
 vi.mock('@/features/agency/notifications', () => ({
-  useAgencyNotifications: () => ({ count: 0, connected: true, latest: '' }),
+  useAgencyNotifications: () => notificationsMock,
 }));
 
 vi.mock('@/features/auth', () => ({
@@ -84,6 +86,13 @@ describe('ModeratorSidebar', () => {
     const logoutBtn = screen.getByText('Đăng xuất');
     fireEvent.click(logoutBtn);
     expect(mocks.logout).toHaveBeenCalledTimes(1);
+  });
+
+  it('displays 9+ when notification count is over 9', () => {
+    notificationsMock.count = 12;
+    render(<ModeratorSidebar initialExpanded={true} />);
+    expect(screen.getByText('9+')).toBeTruthy();
+    expect(screen.getByLabelText(/9\+ tin nhắn/)).toBeTruthy();
   });
 });
 

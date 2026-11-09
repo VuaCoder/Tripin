@@ -39,6 +39,10 @@ export interface NotifyInput {
   body: string;
   /** Small, non-sensitive references for deep links, e.g. `{ tourId }`, `{ bookingId }`. */
   data?: Record<string, string>;
+  /** Optional custom email subject if different from in-app title */
+  emailSubject?: string;
+  /** Optional custom human-readable email body */
+  emailText?: string;
 }
 
 export interface NotifyOptions {
