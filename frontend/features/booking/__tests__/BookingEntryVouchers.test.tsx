@@ -4,10 +4,13 @@ import { BookingEntryPage } from '../components/BookingEntryPage';
 vi.mock('@/features/premium/api', () => ({usePremiumVouchersQuery:() => ({currentData:[],refetch:vi.fn()})}));
 
 const mockPush = vi.fn();
+const mockReplace = vi.fn();
+const mockCreateBooking = vi.fn();
+const mockRefetchTour = vi.fn();
 const mockParams = new URLSearchParams('tourId=tour-1&departureId=dep-1&participants=2');
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
   useSearchParams: () => mockParams,
 }));
 
@@ -89,13 +92,13 @@ const mockMyVouchers = [
 const mockPreviewPromotion = vi.fn();
 
 vi.mock('@/features/tours', () => ({
-  useGetTourQuery: () => ({ data: mockTour, isLoading: false, isError: false }),
+  useGetTourQuery: () => ({ data: mockTour, isLoading: false, isError: false, refetch: mockRefetchTour }),
 }));
 
 vi.mock('../api/bookingApi', () => ({
   useGetAvailablePromotionsQuery: () => ({ data: { platform: [], agency: [] } }),
   useGetMyVouchersQuery: () => ({ data: mockMyVouchers }),
-  useCreateBookingMutation: () => [vi.fn(), { isLoading: false }],
+  useCreateBookingMutation: () => [mockCreateBooking, { isLoading: false }],
   useLazyPreviewPromotionQuery: () => [
     mockPreviewPromotion,
     { isFetching: false },
@@ -105,6 +108,8 @@ vi.mock('../api/bookingApi', () => ({
 describe('BookingEntryPage Shopee-style Voucher Selector', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRefetchTour.mockReturnValue({ unwrap: async () => mockTour });
+    mockCreateBooking.mockReturnValue({ unwrap: async () => ({ id: 'new-booking' }) });
   });
 
   afterEach(() => {
@@ -203,5 +208,50 @@ describe('BookingEntryPage Shopee-style Voucher Selector', () => {
     await waitFor(() => {
       expect(screen.getByText('Mã giảm giá này đã được sử dụng. Vui lòng chọn mã khác.')).toBeDefined();
     });
+  });
+
+  it('creates one booking on the first submit and suppresses a concurrent submit during availability checks', async () => {
+    let resolveTour!: (value: typeof mockTour) => void;
+    mockRefetchTour.mockReturnValue({ unwrap: () => new Promise(resolve => { resolveTour = resolve; }) });
+    const { container } = render(<BookingEntryPage />);
+    const form = container.querySelector('form')!;
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+    expect(mockRefetchTour).toHaveBeenCalledTimes(1);
+    resolveTour(mockTour);
+    await waitFor(() => expect(mockCreateBooking).toHaveBeenCalledTimes(1));
+    expect(mockCreateBooking).toHaveBeenCalledWith(expect.objectContaining({ participants: 2, tourId: 'tour-1', departureId: 'dep-1' }));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/settings/history/new-booking'));
+  });
+
+  it('explains an existing pending booking and links to it instead of silently creating another', async () => {
+    mockCreateBooking.mockReturnValue({ unwrap: async () => { throw { status: 409, data: { error: {
+      code: 'PENDING_BOOKING_EXISTS', details: { bookingId: 'pending-qa-booking' },
+    } } }; } });
+    const { container } = render(<BookingEntryPage />);
+    fireEvent.submit(container.querySelector('form')!);
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Bạn đã có đơn chờ thanh toán'));
+    expect(screen.getByRole('link', { name: 'Mở đơn đang chờ thanh toán' }).getAttribute('href')).toBe('/settings/history/pending-qa-booking');
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('uses freshly checked vouchers and subtracts the agency discount only once before checking the platform code', async () => {
+    mockPreviewPromotion.mockImplementation(({ code, subtotal }: { code: string; subtotal: number }) => ({ unwrap: async () => ({
+      promotionId: code === 'AGENCY10' ? 'p-agency' : 'p-platform', code,
+      scope: code === 'AGENCY10' ? 'AGENCY' : 'PLATFORM',
+      discountAmount: code === 'AGENCY10' ? 300000 : 50000,
+      finalAmount: subtotal - (code === 'AGENCY10' ? 300000 : 50000),
+    }) }));
+    const { container } = render(<BookingEntryPage />);
+    fireEvent.click(screen.getByText('Chọn hoặc nhập mã'));
+    fireEvent.click(screen.getByText('Voucher đại lý 10%'));
+    await waitFor(() => expect(screen.getByText('AGENCY10')).toBeTruthy());
+    fireEvent.click(screen.getByText('Voucher toàn sàn 50k'));
+    await waitFor(() => expect(screen.getByText('PLATFORM50')).toBeTruthy());
+    mockPreviewPromotion.mockClear();
+    fireEvent.submit(container.querySelector('form')!);
+    await waitFor(() => expect(mockCreateBooking).toHaveBeenCalledTimes(1));
+    expect(mockPreviewPromotion).toHaveBeenCalledWith({ code: 'PLATFORM50', tourId: 'tour-1', subtotal: 2700000 });
+    expect(mockCreateBooking).toHaveBeenCalledWith(expect.objectContaining({ agencyPromotionCode: 'AGENCY10', platformPromotionCode: 'PLATFORM50' }));
   });
 });

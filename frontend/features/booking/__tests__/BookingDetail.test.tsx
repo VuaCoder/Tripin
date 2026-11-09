@@ -7,6 +7,11 @@ const mockCancelBooking = vi.fn();
 const mockCheckoutBooking = vi.fn();
 
 const mockCompleteBooking = vi.fn();
+const mockReviews = vi.hoisted(() => ({ items: [] as any[] }));
+
+vi.mock('@/features/tours/api/toursApi', () => ({
+  useGetTourQuery: () => ({ data: { coverImage: 'https://example.com/real-tour.jpg' } }),
+}));
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -30,7 +35,7 @@ vi.mock('@/features/e-ticket', () => ({
 }));
 
 vi.mock('@/features/review/api/reviewApi', () => ({
-  useGetMyReviewsQuery: () => ({ data: { items: [] }, refetch: vi.fn() }),
+  useGetMyReviewsQuery: () => ({ data: mockReviews, refetch: vi.fn() }),
 }));
 
 vi.mock('@/features/review/components', () => ({
@@ -62,6 +67,7 @@ const mockBooking: BookingDto = {
 };
 
 beforeEach(() => {
+  mockReviews.items = [];
   mockUseGetBookingByIdQuery.mockReset();
   mockCancelBooking.mockReset();
   mockCheckoutBooking.mockReset();
@@ -70,6 +76,34 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('BookingDetailPage', () => {
+  it('shows the tour image, opens both tour links in a new tab and places the voucher before subtotal', () => {
+    mockUseGetBookingByIdQuery.mockReturnValue({ isLoading: false, data: mockBooking });
+    render(<BookingDetailPage bookingId="b-1" />);
+    expect(screen.getByRole('img', { name: /Ảnh tour/ }).getAttribute('src')).toBe('https://example.com/real-tour.jpg');
+    for (const name of [mockBooking.tour.title, 'Xem trang tour']) {
+      const link = screen.getByRole('link', { name });
+      expect(link.getAttribute('href')).toBe('/tours/t-1');
+      expect(link.getAttribute('target')).toBe('_blank');
+    }
+    const terms = Array.from(document.querySelectorAll('dt')).map(node => node.textContent);
+    expect(terms.findIndex(text => text?.includes('Mã ưu đãi'))).toBeLessThan(terms.indexOf('Tạm tính'));
+  });
+
+  it('renders an existing review beneath the status history', () => {
+    mockUseGetBookingByIdQuery.mockReturnValue({ isLoading: false, data: { ...mockBooking, status: 'COMPLETED', isPaid: true } });
+    mockReviews.items = [{ id: 'r1', bookingId: 'b-1', rating: 5, comment: 'Tour rất tốt, hướng dẫn tận tình.', createdAt: '2026-11-01' }];
+    render(<BookingDetailPage bookingId="b-1" />);
+    const timeline = screen.getByRole('heading', { name: 'Lịch sử trạng thái' });
+    const review = screen.getByRole('region', { name: 'Đánh giá của bạn' });
+    expect(timeline.compareDocumentPosition(review) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(review).getByText('Tour rất tốt, hướng dẫn tận tình.')).toBeTruthy();
+  });
+
+  it('hides the voucher line for a booking without a discount', () => {
+    mockUseGetBookingByIdQuery.mockReturnValue({ isLoading: false, data: { ...mockBooking, discountAmount: 0, promotion: undefined } });
+    render(<BookingDetailPage bookingId="b-1" />);
+    expect(screen.queryByText(/Mã ưu đãi/)).toBeNull();
+  });
   it('displays loading state while fetching detail', () => {
     mockUseGetBookingByIdQuery.mockReturnValue({
       isLoading: true,

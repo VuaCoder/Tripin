@@ -123,6 +123,19 @@ export class BookingsRepository {
     return row ? toRecord(row) : null;
   }
 
+  /** Serialize the pending-booking check for this traveler/departure without a schema change. */
+  async lockPendingDeparture(travelerId: string, departureId: string, db: DbExecutor): Promise<void> {
+    await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('booking-pending'), hashtext(${`${travelerId}:${departureId}`}))`;
+  }
+
+  findPendingForDeparture(travelerId: string, tourId: string, departureId: string, db: DbExecutor = prisma) {
+    return db.booking.findFirst({
+      where: { travelerId, tourId, departureId, status: BOOKING_STATUS.PENDING },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, bookingCode: true },
+    });
+  }
+
   /** Compare-and-set on status: returns null when the booking is no longer in one of the expected statuses. */
   async transition(id: string, expected: readonly BookingStatus[], patch: BookingPatch, db: DbExecutor = prisma): Promise<BookingRecord | null> {
     // Reuse the caller's transaction for voucher/refund changes; standalone calls need the same atomic boundary.

@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
 vi.mock('@/store/hooks', () => ({ useAppSelector: () => null }));
 vi.mock('@/features/wishlist', () => ({ WishlistButton: () => <button>Yêu thích</button> }));
 vi.mock('@/features/report', () => ({ ReportButton: () => null }));

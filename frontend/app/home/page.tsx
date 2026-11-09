@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useGetTourDestinationsQuery, useGetToursQuery, AirbnbTourCarousel, HotVouchersSection, getRecentlyViewedTours, type TourListItem } from '@/features/tours';
+import { guestSearchParams } from '@/features/tours/utils/searchContext';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated, selectRole } from '@/features/auth';
 import { GuestLoginPromptModal } from '@/components/shared';
@@ -200,11 +201,13 @@ export default function Home() {
       params.set('departureFrom', fmt(startDate));
       if (endDate) params.set('departureTo', fmt(endDate));
     }
-    const totalGuests = adults + children;
-    if (totalGuests > 0) params.set('guests', String(totalGuests));
+    const totalGuests = adults + children + infants;
+    if (totalGuests > 0) {
+      guestSearchParams({ adults: Math.max(1, adults), children, infants }).forEach((value, key) => params.set(key, value));
+    }
     const qs = params.toString();
     return qs ? `/tours?${qs}` : '/tours';
-  }, [searchQuery, startDate, endDate, adults, children]);
+  }, [searchQuery, startDate, endDate, adults, children, infants]);
 
   // Fetch real destinations directly from database via backend API
   const { data: databaseDestinations = [] } = useGetTourDestinationsQuery();

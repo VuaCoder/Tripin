@@ -7,13 +7,7 @@ import { BackButton } from './BackButton';
 import { AuthContainer } from './AuthContainer';
 import { LoginResultData, RegisterResultData } from '../types';
 import { homeForRole } from '../utils/roles';
-
-/** `?next=` is honoured only for internal paths, so a link cannot send a fresh session off-site. */
-function safeNextPath(next: string | null): string | undefined {
-  if (!next) return undefined;
-  if (!next.startsWith('/') || next.startsWith('//')) return undefined;
-  return next;
-}
+import { safeNextPath } from '../utils/safeNextPath';
 
 export const LoginPage: React.FC = () => {
   const router = useRouter();
@@ -22,7 +16,7 @@ export const LoginPage: React.FC = () => {
 
   const handleLoginSuccess = (data: LoginResultData) => {
     if (data.twoFactorRequired) {
-      router.push(`/verify-otp?email=${encodeURIComponent(data.email)}&purpose=LOGIN_2FA`);
+      router.push(`/verify-otp?email=${encodeURIComponent(data.email)}&purpose=LOGIN_2FA${nextPath ? `&next=${encodeURIComponent(nextPath)}` : ''}`);
       return;
     }
 

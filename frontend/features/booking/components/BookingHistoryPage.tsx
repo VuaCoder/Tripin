@@ -203,7 +203,7 @@ export function BookingHistoryPage() {
             </div>
           )}
 
-          <div key={selectedStatus} className="animate-slide-up-fade space-y-3">
+          <div key={selectedStatus} className="animate-slide-up-fade space-y-5 rounded-[2rem] bg-slate-100/70 p-3 sm:space-y-6 sm:p-4">
             {data.items.map((booking) => (
               <BookingHistoryCard
                 key={booking.id}

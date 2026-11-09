@@ -61,6 +61,8 @@ function make(seed: B[] = [], opts: { commissionBps?: number; windowHours?: numb
     }),
     findById: vi.fn(async (id: string) => db.find((b) => b.id === id) ?? null),
     findByRequestId: vi.fn(async (travelerId: string, key: string) => db.find((b) => b.travelerId === travelerId && b.clientRequestId === key) ?? null),
+    findPendingForDeparture: vi.fn(async (travelerId: string, tourId: string, departureId: string) => db.find(b => b.travelerId === travelerId && b.tourId === tourId && b.departureId === departureId && b.status === 'PENDING') ?? null),
+    lockPendingDeparture: vi.fn(async () => undefined),
     transition: vi.fn(async (id: string, expected: string[], update: B) => {
       const doc = db.find((b) => b.id === id);
       if (!doc || !expected.includes(doc.status)) return null;
@@ -131,6 +133,31 @@ const input = {
 };
 
 describe('createBooking', () => {
+  it('rejects a new pending booking for the same traveler and departure before reserving seats', async () => {
+    const { service, tours, repo } = make([booking()]);
+    await expect(service.createBooking('u1', { ...input, clientRequestId: 'another-request' })).rejects.toMatchObject({
+      code: 'PENDING_BOOKING_EXISTS', statusCode: 409, details: { bookingId: 'b1', bookingCode: 'TRP-ABCD2345' },
+    });
+    expect(tours.reserveSeats).not.toHaveBeenCalled();
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  it('allows another departure and allows booking again after the old booking was cancelled', async () => {
+    const fixture = make([booking()]);
+    await expect(fixture.service.createBooking('u1', { ...input, departureId: 'd2' })).resolves.toMatchObject({ status: 'PENDING', departureId: 'd2' });
+    const cancelled = make([booking({ status: 'CANCELLED' })]);
+    await expect(cancelled.service.createBooking('u1', input)).resolves.toMatchObject({ status: 'PENDING' });
+  });
+
+  it('checks again inside the lock and compensates seats if a competing request already created a pending booking', async () => {
+    const { service, repo, tours } = make();
+    repo.findPendingForDeparture.mockResolvedValueOnce(null).mockResolvedValueOnce(booking());
+    await expect(service.createBooking('u1', input)).rejects.toMatchObject({ code: 'PENDING_BOOKING_EXISTS' });
+    expect(repo.lockPendingDeparture).toHaveBeenCalledOnce();
+    expect(repo.create).not.toHaveBeenCalled();
+    expect(tours.releaseSeats).toHaveBeenCalledWith('t1', 'd1', 2);
+  });
+
   it('prices on the server, reserves seats atomically and snapshots commission', async () => {
     const { service, tours, repo } = make();
     const dto = await service.createBooking('u1', { ...input, participants: 3 });

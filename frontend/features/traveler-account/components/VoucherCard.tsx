@@ -7,27 +7,88 @@ import {
   Copy,
   Check,
   Clock,
-  AlertTriangle,
   ChevronDown,
   ChevronUp,
   Flame,
   ArrowRight,
-  Info,
   Calendar,
-  Users,
 } from 'lucide-react';
-import type { UserVoucherItem } from '../api/voucherWalletApi';
+import type { PromotionDto, UserVoucherItem } from '../api/voucherWalletApi';
+import type { PremiumVoucher } from '@/features/premium/api';
 
 interface VoucherCardProps {
   voucher: UserVoucherItem;
 }
 
 export function VoucherCard({ voucher }: VoucherCardProps) {
+  if (!voucher.promotion) return null;
+  return (
+    <VoucherTicketCard
+      promo={voucher.promotion}
+      isUsed={voucher.isUsed}
+      useHref="/tours"
+    />
+  );
+}
+
+export function PremiumVoucherCard({ voucher }: { voucher: PremiumVoucher }) {
+  return (
+    <VoucherTicketCard
+      promo={{
+        ...voucher.terms,
+        discountType: voucher.terms.discountType === 'PERCENT' ? 'PERCENT' : 'FIXED',
+        scope: 'PREMIUM',
+        startsAt: voucher.startsAt,
+        endsAt: voucher.endsAt,
+        isActive: true,
+        firstBookingOnly: false,
+        usageLimitPerUser: 1,
+      }}
+      isUsed={!!voucher.bookingId}
+      isHeld={!!voucher.heldAt}
+      usedLabel="Đã dùng / đang giữ cho đơn"
+      useHref={
+        voucher.terms.tourIds[0]
+          ? `/tours/${voucher.terms.tourIds[0]}`
+          : undefined
+      }
+    />
+  );
+}
+
+type VoucherDisplay = Pick<
+  PromotionDto,
+  | 'title'
+  | 'description'
+  | 'code'
+  | 'discountType'
+  | 'discountValue'
+  | 'maxDiscountAmount'
+  | 'minOrderAmount'
+  | 'minParticipants'
+  | 'daysInAdvance'
+  | 'firstBookingOnly'
+  | 'usageLimitPerUser'
+  | 'startsAt'
+  | 'endsAt'
+  | 'isActive'
+> & { scope: PromotionDto['scope'] | 'PREMIUM' };
+
+function VoucherTicketCard({
+  promo,
+  isUsed,
+  isHeld = false,
+  usedLabel = 'Đã sử dụng',
+  useHref,
+}: {
+  promo: VoucherDisplay;
+  isUsed: boolean;
+  isHeld?: boolean;
+  usedLabel?: string;
+  useHref?: string;
+}) {
   const [copied, setCopied] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-
-  const promo = voucher.promotion;
-  if (!promo) return null;
 
   const now = new Date();
   const endsAt = new Date(promo.endsAt);
@@ -35,9 +96,11 @@ export function VoucherCard({ voucher }: VoucherCardProps) {
   const remainingHours = (endsAt.getTime() - now.getTime()) / (1000 * 60 * 60);
 
   const isExpired = remainingHours <= 0 || !promo.isActive;
-  const isUsed = voucher.isUsed;
-  const isUrgent = !isExpired && !isUsed && remainingHours <= 3;
-  const isExpiringSoon = !isExpired && !isUsed && remainingHours <= 48 && remainingHours > 3;
+  const isPremium = promo.scope === 'PREMIUM';
+  const isUpcoming = startsAt > now;
+  const canUse = !isExpired && !isUsed && !isHeld && !isUpcoming;
+  const isUrgent = canUse && remainingHours <= 3;
+  const isExpiringSoon = canUse && remainingHours <= 48 && remainingHours > 3;
 
   const handleCopy = () => {
     if (!promo.code) return;
@@ -65,6 +128,7 @@ export function VoucherCard({ voucher }: VoucherCardProps) {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    timeZone: 'Asia/Ho_Chi_Minh',
   });
 
   return (
@@ -72,11 +136,13 @@ export function VoucherCard({ voucher }: VoucherCardProps) {
       className={`group relative flex flex-col sm:flex-row overflow-hidden rounded-2xl border transition-all duration-200 ${
         isUsed || isExpired
           ? 'border-slate-200/80 bg-slate-50/70 opacity-75'
-          : isUrgent
-            ? 'border-amber-300 bg-white shadow-xs hover:border-amber-400 hover:shadow-md'
-            : isExpiringSoon
-              ? 'border-orange-200 bg-white shadow-xs hover:border-orange-300 hover:shadow-md'
-              : 'border-slate-200/90 bg-white shadow-xs hover:border-brand-teal/80 hover:shadow-md'
+          : isPremium
+            ? 'border-amber-300 bg-amber-50/30 shadow-xs hover:border-amber-400 hover:shadow-md'
+            : isUrgent
+              ? 'border-amber-300 bg-white shadow-xs hover:border-amber-400 hover:shadow-md'
+              : isExpiringSoon
+                ? 'border-orange-200 bg-white shadow-xs hover:border-orange-300 hover:shadow-md'
+                : 'border-slate-200/90 bg-white shadow-xs hover:border-brand-teal/80 hover:shadow-md'
       }`}
     >
       {/* Cạnh trái: Badge giảm giá & Cuống vé */}
@@ -84,11 +150,13 @@ export function VoucherCard({ voucher }: VoucherCardProps) {
         className={`flex sm:flex-col items-center justify-between sm:justify-center p-4 sm:p-5 sm:w-36 shrink-0 border-b sm:border-b-0 sm:border-r border-dashed ${
           isUsed || isExpired
             ? 'border-slate-200 bg-slate-100/70 text-slate-500'
-            : isUrgent
-              ? 'border-amber-200 bg-amber-50/60 text-amber-700'
-              : isExpiringSoon
-                ? 'border-orange-200 bg-orange-50/50 text-orange-700'
-                : 'border-teal-100 bg-teal-50/60 text-brand-teal'
+            : isPremium
+              ? 'border-amber-300 bg-amber-100/70 text-amber-800'
+              : isUrgent
+                ? 'border-amber-200 bg-amber-50/60 text-amber-700'
+                : isExpiringSoon
+                  ? 'border-orange-200 bg-orange-50/50 text-orange-700'
+                  : 'border-teal-100 bg-teal-50/60 text-brand-teal'
         }`}
       >
         <div className="flex items-center gap-1.5 sm:flex-col sm:items-center text-center">
@@ -103,12 +171,14 @@ export function VoucherCard({ voucher }: VoucherCardProps) {
         <div className="mt-0 sm:mt-3">
           <span
             className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
-              promo.scope === 'PLATFORM'
-                ? 'bg-purple-100 text-purple-700'
-                : 'bg-teal-100 text-teal-800'
+              isPremium
+                ? 'bg-amber-200 text-amber-900'
+                : promo.scope === 'PLATFORM'
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'bg-teal-100 text-teal-800'
             }`}
           >
-            {promo.scope === 'PLATFORM' ? 'Toàn sàn' : 'Đại lý'}
+            {isPremium ? 'Premium' : promo.scope === 'PLATFORM' ? 'Toàn sàn' : 'Đại lý'}
           </span>
         </div>
       </div>
@@ -124,13 +194,25 @@ export function VoucherCard({ voucher }: VoucherCardProps) {
 
             {isUsed && (
               <span className="inline-flex items-center gap-1 rounded-full bg-slate-200/80 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
-                <Check className="size-3.5" /> Đã sử dụng
+                <Check className="size-3.5" /> {usedLabel}
               </span>
             )}
 
             {isExpired && !isUsed && (
               <span className="inline-flex items-center gap-1 rounded-full bg-slate-200/80 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
                 <Clock className="size-3.5" /> Hết hạn
+              </span>
+            )}
+
+            {isHeld && !isUsed && !isExpired && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+                <Clock className="size-3.5" /> Đang xử lý đặt tour
+              </span>
+            )}
+
+            {isUpcoming && !isUsed && !isExpired && !isHeld && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                <Clock className="size-3.5" /> Chưa đến hạn sử dụng
               </span>
             )}
 
@@ -164,7 +246,7 @@ export function VoucherCard({ voucher }: VoucherCardProps) {
               <button
                 type="button"
                 onClick={handleCopy}
-                disabled={isUsed || isExpired}
+                disabled={!canUse}
                 className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer disabled:opacity-40"
                 title="Sao chép mã"
               >
@@ -193,17 +275,18 @@ export function VoucherCard({ voucher }: VoucherCardProps) {
             <button
               type="button"
               onClick={() => setShowDetails(!showDetails)}
-              className="text-slate-500 hover:text-brand-teal flex items-center gap-0.5 font-medium cursor-pointer"
+              aria-expanded={showDetails}
+              className={`text-slate-500 flex items-center gap-0.5 font-medium cursor-pointer ${isPremium ? 'hover:text-amber-800' : 'hover:text-brand-teal'}`}
             >
               Điều kiện
               {showDetails ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
             </button>
           </div>
 
-          {!isUsed && !isExpired && (
+          {canUse && useHref && (
             <Link
-              href="/tours"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-primary-container px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition-all hover:bg-primary hover:shadow-xs cursor-pointer"
+              href={useHref}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold shadow-2xs transition-all hover:shadow-xs cursor-pointer ${isPremium ? 'bg-amber-400 text-amber-950 hover:bg-amber-500' : 'bg-primary-container text-white hover:bg-primary'}`}
             >
               <span>Dùng ngay</span>
               <ArrowRight className="size-3.5" />
@@ -213,7 +296,7 @@ export function VoucherCard({ voucher }: VoucherCardProps) {
 
         {/* Chi tiết điều kiện mở rộng */}
         {showDetails && (
-          <div className="mt-3 rounded-xl border border-slate-200/80 bg-slate-50/80 p-3.5 text-xs text-slate-600 space-y-1.5">
+          <div className={`mt-3 rounded-xl border p-3.5 text-xs text-slate-600 space-y-1.5 ${isPremium ? 'border-amber-200 bg-amber-50/80' : 'border-slate-200/80 bg-slate-50/80'}`}>
             {promo.description && <p className="text-slate-700 font-medium">{promo.description}</p>}
             <ul className="list-disc list-inside space-y-1 text-slate-500">
               <li>{formattedMinOrder}</li>
@@ -225,7 +308,12 @@ export function VoucherCard({ voucher }: VoucherCardProps) {
               {promo.daysInAdvance && (
                 <li>Cần đặt trước ngày khởi hành tối thiểu {promo.daysInAdvance} ngày.</li>
               )}
-              <li>Mỗi tài khoản được dùng tối đa {promo.usageLimitPerUser} lần.</li>
+              {isPremium ? (
+                <li>Mỗi voucher chỉ dùng cho một đơn.</li>
+              ) : (
+                <li>Mỗi tài khoản được dùng tối đa {promo.usageLimitPerUser} lần.</li>
+              )}
+              {isPremium && <li>Không dùng chung với mã giảm giá khác.</li>}
             </ul>
           </div>
         )}

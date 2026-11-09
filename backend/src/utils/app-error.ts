@@ -66,8 +66,8 @@ export class AppError extends Error {
   static notFound(message = 'Resource not found', code: ErrorCode = ERROR_CODES.NOT_FOUND) {
     return new AppError(404, code, message);
   }
-  static conflict(message: string, code: ErrorCode = ERROR_CODES.CONFLICT) {
-    return new AppError(409, code, message);
+  static conflict(message: string, code: ErrorCode = ERROR_CODES.CONFLICT, details?: unknown) {
+    return new AppError(409, code, message, details);
   }
   static invalidTransition(from: string, to: string, entity = 'Resource') {
     return new AppError(409, ERROR_CODES.INVALID_STATE_TRANSITION, `${entity} cannot move from ${from} to ${to}`);

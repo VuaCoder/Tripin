@@ -12,7 +12,7 @@ export function PremiumWalletSection() {
   if (!user || user.role !== 'TRAVELER') return null;
   return (
     <section className="border-t border-amber-200 pt-6">
-      <h2 className="text-xl font-bold text-slate-900">Voucher Premium</h2>
+      <h2 className="mb-5 text-xl font-bold text-slate-900">Voucher Premium</h2>
       {query.isError ? (
         <Retry onRetry={() => void query.refetch()} />
       ) : query.isLoading ? (
