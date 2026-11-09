@@ -436,13 +436,13 @@ export default function Home() {
         {/* ========================================================================= */}
         <section className="relative w-full min-h-[640px] lg:min-h-[720px] overflow-visible bg-white flex flex-col justify-between">
           {/* Background slides container: reaches down only to the horizontal midline of the search bar */}
-          <div className="absolute inset-x-0 top-0 bottom-[120px] md:bottom-[39px] overflow-hidden pointer-events-none">
+          <div className="absolute inset-x-0 top-0 bottom-[120px] md:bottom-[39px] overflow-hidden bg-[#0d1d26] pointer-events-none">
             {HERO_SLIDES.map((item, index) => {
               const isActive = index === currentSlide;
               return (
                 <div
                   key={item.location}
-                  className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ${
+                  className={`absolute inset-0 w-full h-full ${
                     isActive ? 'opacity-100 z-10' : 'opacity-0 z-0'
                   }`}
                 >
@@ -469,7 +469,7 @@ export default function Home() {
           </div>
 
           {/* Hero Content (Top / Center) */}
-          <Container className="relative z-10 flex flex-col justify-end pt-28 lg:pt-36 pb-6 text-white">
+          <Container className="relative z-10 flex min-h-[600px] flex-1 flex-col pt-28 pb-16 text-white md:min-h-[562px] md:pb-20 lg:min-h-[642px] lg:pt-36">
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/20 backdrop-blur-md w-fit mb-4 text-secondary-fixed border border-white/20 shadow-sm">
               <span className="material-symbols-outlined text-[16px]">{slide.badgeIcon}</span>
               <span className="text-xs uppercase font-bold tracking-wider">{slide.badge}</span>
@@ -483,7 +483,7 @@ export default function Home() {
               {slide.subtitle}
             </p>
 
-            <div className="flex items-center gap-4 flex-wrap">
+            <div className="mt-auto flex flex-wrap items-center gap-4">
               <Link
                 href="/tours"
                 className="inline-flex items-center justify-center gap-2 bg-[#087e8b] hover:bg-[#00636e] text-white font-semibold text-sm sm:text-base px-6 py-3 rounded-2xl shadow-xl shadow-primary-container/30 transition-all transform hover:-translate-y-0.5 border border-white/20 h-12"
@@ -1085,7 +1085,6 @@ export default function Home() {
             <Container as="section">
               <AirbnbTourCarousel
                 title="Các tour bạn đã xem"
-                subtitle="Những trải nghiệm bạn vừa khám phá gần đây"
                 badgeText="Đã xem gần đây"
                 viewAllHref="/tours"
                 tours={viewedTours}
@@ -1106,7 +1105,6 @@ export default function Home() {
           <Container as="section">
             <AirbnbTourCarousel
               title="Các tour được khách yêu thích"
-              subtitle="Được du khách đánh giá cao từ 4.5 sao trở lên"
               badgeText="Được khách yêu thích"
               viewAllHref="/tours?sort=rating"
               tours={favoriteTours}
@@ -1120,7 +1118,6 @@ export default function Home() {
           <Container as="section">
             <AirbnbTourCarousel
               title="Các tour được thêm gần đây"
-              subtitle="Những hành trình mới nhất vừa được các đối tác mở bán"
               badgeText="Mới ra mắt"
               viewAllHref="/tours?sort=newest"
               tours={recentTours}
@@ -1139,9 +1136,6 @@ export default function Home() {
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-3">
                 An Tâm Trọn Vẹn Khi Đặt Chỗ Tại Tripri
               </h2>
-              <p className="text-sm text-slate-600">
-                Chúng tôi đề cao tính chân thực, bảo vệ quyền lợi du khách và xây dựng tiêu chuẩn trải nghiệm du lịch chuẩn mực tại Việt Nam.
-              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1149,22 +1143,18 @@ export default function Home() {
                 {
                   icon: 'verified_user',
                   title: 'Đối tác kiểm định',
-                  desc: 'Mọi đơn vị lữ hành và hướng dẫn viên cá nhân đều được đối chiếu giấy phép hành nghề trước khi mở bán tour.',
                 },
                 {
                   icon: 'payments',
                   title: 'Minh bạch chi phí',
-                  desc: 'Giá niêm yết rõ ràng theo VNĐ, liệt kê chi tiết các khoản đã bao gồm và chưa bao gồm, không phí ẩn.',
                 },
                 {
                   icon: 'published_with_changes',
                   title: 'Chính sách hủy linh hoạt',
-                  desc: 'Quy trình hoàn tiền rõ ràng tuân thủ theo mốc thời gian quy định sẵn, giải quyết nhanh chóng qua cổng hỗ trợ.',
                 },
                 {
                   icon: 'support_agent',
                   title: 'Đồng hành 24/7',
-                  desc: 'Đội ngũ chăm sóc khách hàng địa phương sẵn sàng hỗ trợ bạn từ khi lên kế hoạch cho đến khi kết thúc tour.',
                 },
               ].map((val) => (
                 <div
@@ -1174,8 +1164,7 @@ export default function Home() {
                   <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-4 shadow-sm">
                     <span className="material-symbols-outlined text-[28px]">{val.icon}</span>
                   </div>
-                  <h3 className="font-bold text-base text-slate-900 mb-2">{val.title}</h3>
-                  <p className="text-xs text-slate-600 leading-relaxed">{val.desc}</p>
+                  <h3 className="font-bold text-base text-slate-900">{val.title}</h3>
                 </div>
               ))}
             </div>
@@ -1192,9 +1181,6 @@ export default function Home() {
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-on-surface">Bạn là hướng dẫn viên hay công ty lữ hành?</h3>
-                  <p className="text-sm text-on-surface-variant">
-                    Gia nhập mạng lưới Tripri để tiếp cận du khách trong và ngoài nước có nhu cầu khám phá trải nghiệm chân thực.
-                  </p>
                 </div>
               </div>
               <div className="shrink-0">
