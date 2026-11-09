@@ -128,21 +128,6 @@ export function ModerationReviewListPage({ hideTitle = false }: Props = {}) {
           ),
       });
     }
-    // The review author can also be banned from the moderation view if needed
-    if (selected && canBan) {
-      actions.push({
-        key: 'ban',
-        label: 'Khoá tài khoản tác giả',
-        tone: 'negative',
-        requiresReason: true,
-        onConfirm: (reason) =>
-          void decide(
-            () => banAccount({ id: selected.travelerId, reason }).unwrap(),
-            'Đã khoá tài khoản vi phạm.',
-            'Không thể khoá tài khoản này. Vui lòng kiểm tra lại quyền và trạng thái tài khoản.',
-          ),
-      });
-    }
   }
 
   const dialogTitle =
@@ -571,6 +556,11 @@ export function ModerationReviewListPage({ hideTitle = false }: Props = {}) {
             ) : (
               <div className="space-y-3">
                 <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5">
+                  <p className="font-bold text-sm sm:text-base text-slate-900 mb-2.5">
+                    {selected.status === 'HIDDEN'
+                      ? 'Bạn có muốn khôi phục hiển thị đánh giá này không?'
+                      : 'Bạn có muốn ẩn đánh giá này khỏi tour không?'}
+                  </p>
                   <div className="flex flex-wrap items-center gap-2">
                     <RatingStars value={selected.rating} size="sm" />
                     <span className="font-bold text-slate-900 text-sm">{selected.travelerName || 'Khách du lịch'}</span>

@@ -374,9 +374,10 @@ describe('ModerationReviewListPage', () => {
     mockReviews.mockReturnValue(q({ data: { items: [review()], meta: META } }));
     mockBan.mockReturnValue(unwrapOk());
     render(<ModerationReviewListPage />);
-    fireEvent.click(screen.getByText('Xem & xử lý'));
-    fireEvent.change(screen.getByLabelText(/Lý do ẩn đánh giá/), { target: { value: 'Tài khoản spam' } });
-    fireEvent.click(screen.getByText('Khoá tài khoản tác giả'));
+    fireEvent.click(screen.getAllByTitle('Khoá tài khoản tác giả')[0]);
+    fireEvent.change(screen.getByLabelText(/Lý do khoá tài khoản/), { target: { value: 'Tài khoản spam' } });
+    const banButtons = screen.getAllByRole('button', { name: 'Khoá tài khoản tác giả' });
+    fireEvent.click(banButtons[banButtons.length - 1]);
 
     await waitFor(() => expect(mockBan).toHaveBeenCalledWith({ id: 'u-traveler', reason: 'Tài khoản spam' }));
   });
