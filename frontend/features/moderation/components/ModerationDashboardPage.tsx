@@ -43,42 +43,11 @@ export function ModerationDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6 pb-12">
-      {/* Bento Block 1: Header Welcome Banner (NO subtitle, NO icons) */}
-      <div className="flex flex-col justify-between gap-4 rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xs sm:p-7 md:flex-row md:items-center">
-        <div>
-          <span className="mb-2 inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-slate-700">
-            Ban Kiểm Duyệt Nội Dung
-          </span>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-            Xin chào, {user?.fullName || 'Kiểm duyệt viên'}!
-          </h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {canReports && (
-            <Link
-              href="/moderator/complaints"
-              className="rounded-xl bg-rose-700 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-rose-800"
-            >
-              Tranh chấp tour ({complaintError ? 'Lỗi tải dữ liệu' : complaintData?.meta.total ?? '…'})
-            </Link>
-          )}
-          {canTours && (
-            <Link
-              href="/moderator/tours"
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-50"
-            >
-              Danh sách tour
-            </Link>
-          )}
-          {canAgencies && (
-            <Link
-              href="/moderator/agencies"
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-50"
-            >
-              Xác minh agency
-            </Link>
-          )}
-        </div>
+      {/* Header Banner - Traveler Profile Style: prominent bold title, zero subtitles */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+          Xin chào, {user?.fullName || 'Kiểm duyệt viên'}!
+        </h1>
       </div>
 
       {canReports && complaintError && (

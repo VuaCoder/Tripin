@@ -71,9 +71,9 @@ export function ModerationAgencyListPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-1 py-2 sm:px-0">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-5">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Xác minh hồ sơ agency</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Xác minh hồ sơ agency</h1>
         </div>
         <div className="flex items-center gap-2.5">
           <AntSelect<AgencyVerificationStatus>

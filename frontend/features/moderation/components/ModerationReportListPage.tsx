@@ -198,6 +198,12 @@ export function ModerationReportListPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-5">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Báo cáo vi phạm</h1>
+        </div>
+      </header>
+
       <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-slate-200/90 bg-white p-4 shadow-2xs">
         <div className="flex flex-col sm:flex-row flex-1 min-w-[240px] gap-2">
           <input

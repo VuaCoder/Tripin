@@ -4,13 +4,11 @@ import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
-  BarChart2,
   Building2,
   CheckCircle2,
   Compass,
   RefreshCw,
   Search,
-  Shield,
   ShieldAlert,
   Star,
   User,
@@ -21,7 +19,7 @@ import { AntSelect } from '@/components/ui';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth';
 import { useGetAgencyQualityDashboardQuery, useGetModeratorComplaintsQuery } from '../api/complaintsApi';
-import { getCategoryLabel, PRIORITY_LABELS } from '../labels';
+import { getCategoryLabel } from '../labels';
 import { ComplaintConversationView } from './ComplaintConversationView';
 
 const dateTime = new Intl.DateTimeFormat('vi-VN', {
@@ -31,11 +29,10 @@ const dateTime = new Intl.DateTimeFormat('vi-VN', {
 
 export function ModeratorQualityDashboardPage() {
   const user = useAppSelector(selectUser);
-  const [activeTab, setActiveTab] = useState<'QUALITY' | 'ESCALATED'>('QUALITY');
+  const [activeTab, setActiveTab] = useState<'ESCALATED' | 'QUALITY'>('ESCALATED');
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [agencySearch, setAgencySearch] = useState('');
   const [sortBy, setSortBy] = useState<'RATING' | 'COMPLAINTS' | 'RESOLUTION'>('RATING');
-  const [showStats, setShowStats] = useState(true);
 
   const {
     data: escalatedData,
@@ -130,150 +127,111 @@ export function ModeratorQualityDashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-      {/* Header Banner - Polished executive look with Tripin teal theme */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200/90 bg-gradient-to-br from-white via-slate-50/50 to-teal-50/20 p-6 sm:p-7 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-200/60 bg-teal-50/80 px-2.5 py-0.5 text-xs font-semibold text-teal-800">
-              <span>Kiểm duyệt sàn • CSAT đối tác</span>
+      {/* Header Toolbar - Traveler Profile Style: prominent bold title, zero subtitles */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+          Giám sát tranh chấp tour
+        </h1>
+
+        <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+          <button
+            type="button"
+            disabled={isFetching}
+            onClick={handleRefreshAll}
+            className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-200/90 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+          >
+            <RefreshCw className={`size-3.5 text-slate-500 ${isFetching ? 'animate-spin text-brand-teal' : ''}`} />
+            <span>{isFetching ? 'Đang tải...' : 'Làm mới'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 4 Metric Cards - Clear, simple, human-friendly terms */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        {/* Card 1: Tranh chấp cần can thiệp */}
+        <div
+          onClick={() => setActiveTab('ESCALATED')}
+          className={`cursor-pointer rounded-2xl border p-4 transition-all shadow-2xs hover:shadow-xs ${
+            overviewStats.escalatedCount > 0
+              ? 'border-rose-300 bg-rose-50/50 hover:border-rose-400'
+              : 'border-slate-200/90 bg-white hover:border-slate-300'
+          }`}
+        >
+          <div className="flex items-center justify-between text-slate-500">
+            <span className={`text-xs font-semibold ${overviewStats.escalatedCount > 0 ? 'text-rose-800' : 'text-slate-500'}`}>
+              Cần Sàn xử lý
+            </span>
+            <div
+              className={`size-7 rounded-lg flex items-center justify-center ${
+                overviewStats.escalatedCount > 0 ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              <ShieldAlert className="size-3.5" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
-              Giám sát Tranh chấp &amp; Chất lượng CSAT
-            </h1>
           </div>
-
-          <div className="flex items-center gap-2 shrink-0 self-start md:self-auto">
-            {/* Toggle show/hide stats */}
-            <button
-              type="button"
-              onClick={() => setShowStats((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-50 hover:border-slate-300 cursor-pointer"
-              title="Ẩn / hiện phần báo cáo thống kê"
-            >
-              <BarChart2 className="size-3.5 text-slate-500" />
-              <span>{showStats ? 'Ẩn thống kê' : 'Hiện thống kê'}</span>
-            </button>
-
-            <button
-              type="button"
-              disabled={isFetching}
-              onClick={handleRefreshAll}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 cursor-pointer"
-            >
-              <RefreshCw className={`size-3.5 text-slate-500 ${isFetching ? 'animate-spin text-brand-teal' : ''}`} />
-              <span>{isFetching ? 'Đang tải...' : 'Làm mới'}</span>
-            </button>
+          <div className="mt-1.5 flex items-baseline gap-1.5">
+            <span className={`text-2xl font-black ${overviewStats.escalatedCount > 0 ? 'text-rose-700' : 'text-slate-900'}`}>
+              {overviewStats.escalatedCount}
+            </span>
+            <span className={`text-xs font-medium ${overviewStats.escalatedCount > 0 ? 'text-rose-700 font-semibold' : 'text-slate-400'}`}>
+              {overviewStats.escalatedCount > 0 ? 'vụ bế tắc' : 'ổn định'}
+            </span>
           </div>
         </div>
 
-        {/* 4 Metric Cards - Refined white cards with subtle icon boxes, no black background */}
-        {showStats && (
-          <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-3.5 pt-5 border-t border-slate-200/60">
-            {/* Card 1: Vụ việc leo thang */}
-            <div
-              onClick={() => setActiveTab('ESCALATED')}
-              className={`cursor-pointer rounded-2xl border p-4 transition-all shadow-2xs hover:shadow-xs ${
-                overviewStats.escalatedCount > 0
-                  ? 'border-rose-300 bg-rose-50/50 hover:border-rose-400'
-                  : 'border-slate-200/90 bg-white hover:border-slate-300'
-              }`}
-            >
-              <div className="flex items-center justify-between text-slate-500">
-                <span className={`text-xs font-semibold ${overviewStats.escalatedCount > 0 ? 'text-rose-800' : 'text-slate-500'}`}>
-                  Vụ việc leo thang
-                </span>
-                <div
-                  className={`size-7 rounded-lg flex items-center justify-center ${
-                    overviewStats.escalatedCount > 0 ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  <ShieldAlert className="size-3.5" />
-                </div>
-              </div>
-              <div className="mt-1.5 flex items-baseline gap-1.5">
-                <span className={`text-2xl font-black ${overviewStats.escalatedCount > 0 ? 'text-rose-700' : 'text-slate-900'}`}>
-                  {overviewStats.escalatedCount}
-                </span>
-                <span className={`text-xs font-medium ${overviewStats.escalatedCount > 0 ? 'text-rose-700 font-semibold' : 'text-slate-400'}`}>
-                  {overviewStats.escalatedCount > 0 ? 'cần xử lý' : 'ổn định'}
-                </span>
-              </div>
-            </div>
-
-            {/* Card 2: Đối tác được theo dõi */}
-            <div
-              onClick={() => setActiveTab('QUALITY')}
-              className="cursor-pointer rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs transition-all hover:border-slate-300 hover:shadow-xs"
-            >
-              <div className="flex items-center justify-between text-slate-500">
-                <span className="text-xs font-semibold">Đối tác theo dõi</span>
-                <div className="size-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
-                  <Building2 className="size-3.5" />
-                </div>
-              </div>
-              <div className="mt-1.5 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-slate-900">{overviewStats.totalAgencies}</span>
-                <span className="text-xs text-slate-400 font-medium">đối tác</span>
-              </div>
-            </div>
-
-            {/* Card 3: CSAT Toàn sàn */}
-            <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs">
-              <div className="flex items-center justify-between text-slate-500">
-                <span className="text-xs font-semibold">CSAT Toàn sàn</span>
-                <div className="size-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-                  <Star className="size-3.5 fill-amber-400 text-amber-500" />
-                </div>
-              </div>
-              <div className="mt-1.5 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-slate-900">
-                  {overviewStats.avgRatingScore > 0 ? `${overviewStats.avgRatingScore}/5` : '5.0/5'}
-                </span>
-                <span className="text-xs text-slate-400 font-medium">
-                  {overviewStats.totalFeedbacks > 0 ? `(${overviewStats.totalFeedbacks} đánh giá)` : ''}
-                </span>
-              </div>
-            </div>
-
-            {/* Card 4: Tỷ lệ tự giải quyết */}
-            <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs">
-              <div className="flex items-center justify-between text-slate-500">
-                <span className="text-xs font-semibold">Tự giải quyết</span>
-                <div className="size-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                  <CheckCircle2 className="size-3.5" />
-                </div>
-              </div>
-              <div className="mt-1.5 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-slate-900">{overviewStats.avgResolutionRate}%</span>
-                <span className="text-xs text-slate-400 font-medium">hòa giải</span>
-              </div>
+        {/* Card 2: Đối tác hoạt động */}
+        <div
+          onClick={() => setActiveTab('QUALITY')}
+          className="cursor-pointer rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs transition-all hover:border-slate-300 hover:shadow-xs"
+        >
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-semibold">Đối tác theo dõi</span>
+            <div className="size-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+              <Building2 className="size-3.5" />
             </div>
           </div>
-        )}
+          <div className="mt-1.5 flex items-baseline gap-1.5">
+            <span className="text-2xl font-black text-slate-900">{overviewStats.totalAgencies}</span>
+            <span className="text-xs text-slate-400 font-medium">đối tác</span>
+          </div>
+        </div>
+
+        {/* Card 3: Đánh giá hài lòng */}
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-semibold">Đánh giá trung bình</span>
+            <div className="size-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+              <Star className="size-3.5 fill-amber-400 text-amber-500" />
+            </div>
+          </div>
+          <div className="mt-1.5 flex items-baseline gap-1.5">
+            <span className="text-2xl font-black text-slate-900">
+              {overviewStats.avgRatingScore > 0 ? `${overviewStats.avgRatingScore}/5` : '5.0/5'}
+            </span>
+            <span className="text-xs text-slate-400 font-medium">
+              {overviewStats.totalFeedbacks > 0 ? `(${overviewStats.totalFeedbacks} đánh giá)` : ''}
+            </span>
+          </div>
+        </div>
+
+        {/* Card 4: Tự hòa giải */}
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-semibold">Tự hòa giải</span>
+            <div className="size-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+              <CheckCircle2 className="size-3.5" />
+            </div>
+          </div>
+          <div className="mt-1.5 flex items-baseline gap-1.5">
+            <span className="text-2xl font-black text-slate-900">{overviewStats.avgResolutionRate}%</span>
+            <span className="text-xs text-slate-400 font-medium">thành công</span>
+          </div>
+        </div>
       </div>
 
       {/* Tabs Navigation & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-1">
         <div className="flex items-center gap-1.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pb-px">
-          <button
-            type="button"
-            onClick={() => setActiveTab('QUALITY')}
-            className={`flex items-center gap-2 px-3.5 py-2 font-bold text-xs sm:text-sm whitespace-nowrap border-b-2 transition-all cursor-pointer ${
-              activeTab === 'QUALITY'
-                ? 'border-brand-teal text-brand-teal'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <span>Bảng xếp hạng CSAT</span>
-            <span
-              className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                activeTab === 'QUALITY' ? 'bg-teal-50 text-teal-800 border border-teal-200/60' : 'bg-slate-100 text-slate-600'
-              }`}
-            >
-              {overviewStats.totalAgencies}
-            </span>
-          </button>
-
           <button
             type="button"
             onClick={() => setActiveTab('ESCALATED')}
@@ -283,7 +241,7 @@ export function ModeratorQualityDashboardPage() {
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            <span>Vụ việc leo thang</span>
+            <span>Khiếu nại cần Sàn xử lý</span>
             {overviewStats.escalatedCount > 0 ? (
               <span className="rounded-full bg-rose-50 text-rose-700 border border-rose-200/60 px-2 py-0.5 text-xs font-bold animate-pulse">
                 {overviewStats.escalatedCount}
@@ -294,9 +252,28 @@ export function ModeratorQualityDashboardPage() {
               </span>
             )}
           </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('QUALITY')}
+            className={`flex items-center gap-2 px-3.5 py-2 font-bold text-xs sm:text-sm whitespace-nowrap border-b-2 transition-all cursor-pointer ${
+              activeTab === 'QUALITY'
+                ? 'border-brand-teal text-brand-teal'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <span>Đánh giá chất lượng đối tác</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                activeTab === 'QUALITY' ? 'bg-teal-50 text-teal-800 border border-teal-200/60' : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {overviewStats.totalAgencies}
+            </span>
+          </button>
         </div>
 
-        {/* Tab 2 Filter Controls */}
+        {/* Tab Filter Controls */}
         {activeTab === 'QUALITY' && (
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <div className="relative flex-1 sm:w-60">
@@ -324,8 +301,8 @@ export function ModeratorQualityDashboardPage() {
               value={sortBy}
               onChange={(val) => setSortBy(val)}
               options={[
-                { value: 'RATING', label: 'Điểm CSAT' },
-                { value: 'RESOLUTION', label: 'Tỷ lệ hòa giải' },
+                { value: 'RATING', label: 'Điểm đánh giá' },
+                { value: 'RESOLUTION', label: 'Tỷ lệ tự hòa giải' },
                 { value: 'COMPLAINTS', label: 'Tổng khiếu nại' },
               ]}
               size="small"
@@ -481,11 +458,9 @@ export function ModeratorQualityDashboardPage() {
                   <thead className="border-b border-slate-200/80 bg-slate-50/70 text-xs font-semibold text-slate-500">
                     <tr>
                       <th className="px-5 py-3.5">Đối tác lữ hành</th>
-                      <th className="px-5 py-3.5">CSAT</th>
-                      <th className="px-5 py-3.5">Tốc độ</th>
-                      <th className="px-5 py-3.5">Thái độ</th>
-                      <th className="px-5 py-3.5">Khiếu nại</th>
-                      <th className="px-5 py-3.5">Tỷ lệ hòa giải</th>
+                      <th className="px-5 py-3.5">Đánh giá hài lòng</th>
+                      <th className="px-5 py-3.5">Tổng khiếu nại</th>
+                      <th className="px-5 py-3.5">Tự hòa giải</th>
                       <th className="px-5 py-3.5">Trạng thái</th>
                     </tr>
                   </thead>
@@ -515,7 +490,7 @@ export function ModeratorQualityDashboardPage() {
                             </div>
                           </td>
 
-                          {/* CSAT */}
+                          {/* Đánh giá */}
                           <td className="px-5 py-4">
                             {item.totalFeedbacks > 0 ? (
                               <div>
@@ -533,38 +508,16 @@ export function ModeratorQualityDashboardPage() {
                             )}
                           </td>
 
-                          {/* Speed */}
-                          <td className="px-5 py-4">
-                            {item.avgSpeedScore > 0 ? (
-                              <span className="font-medium text-slate-700">
-                                {item.avgSpeedScore.toFixed(1)} / 5
-                              </span>
-                            ) : (
-                              <span className="text-slate-400">—</span>
-                            )}
-                          </td>
-
-                          {/* Attitude */}
-                          <td className="px-5 py-4">
-                            {item.avgAttitudeScore > 0 ? (
-                              <span className="font-medium text-slate-700">
-                                {item.avgAttitudeScore.toFixed(1)} / 5
-                              </span>
-                            ) : (
-                              <span className="text-slate-400">—</span>
-                            )}
-                          </td>
-
                           {/* Complaints */}
                           <td className="px-5 py-4">
                             <span className="font-medium text-slate-800">{item.totalComplaints} vụ việc</span>
                             {item.escalatedCount > 0 ? (
                               <div className="text-[11px] text-rose-600 font-medium">
-                                {item.escalatedCount} leo thang
+                                {item.escalatedCount} cần sàn xử lý
                               </div>
                             ) : (
                               <div className="text-[11px] text-slate-400">
-                                0 leo thang
+                                0 cần sàn xử lý
                               </div>
                             )}
                           </td>

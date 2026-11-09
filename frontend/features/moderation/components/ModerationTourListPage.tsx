@@ -122,12 +122,7 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
       {/* Header Toolbar */}
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Kiểm duyệt tour</h1>
-          {data && (
-            <span className="text-xs font-semibold text-slate-500">
-              Tổng cộng {data.meta.total} tour trong hệ thống
-            </span>
-          )}
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Kiểm duyệt tour</h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
