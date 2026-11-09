@@ -1,5 +1,6 @@
 'use client';
 
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useEffect, useState } from 'react';
 import {
   Ticket,
@@ -430,7 +431,7 @@ export function PromotionFormDialog({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label="Loại giảm giá" htmlFor="promo-type" required hint={isEdit ? 'Không thể đổi loại sau khi tạo.' : undefined}>
-              <select
+              <FormSelect
                 id="promo-type"
                 className={`${selectClass} h-11 sm:h-12 font-medium cursor-pointer`}
                 value={values.discountType}
@@ -446,7 +447,7 @@ export function PromotionFormDialog({
               >
                 <option value="PERCENT">Phần trăm (%)</option>
                 <option value="FIXED">Số tiền cố định (₫)</option>
-              </select>
+              </FormSelect>
             </FormField>
 
             <FormField

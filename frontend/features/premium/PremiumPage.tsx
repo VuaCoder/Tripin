@@ -1,5 +1,6 @@
 'use client';
 
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useState } from 'react';
 import Link from 'next/link';
 import { selectUser } from '@/features/auth';
@@ -132,9 +133,9 @@ function PremiumContent() {
   );
 
   return (
-    <main className="mx-auto max-w-4xl space-y-10 px-4 py-12 sm:px-6">
+    <main className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6">
       {/* 1. HEADER: TIÊU ĐỀ & MÔ TẢ GIÁ TRỊ THỰC TẾ */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-slate-200 pb-8">
+      <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/10 via-amber-400/25 to-amber-500/10 px-3.5 py-1 text-[11px] font-extrabold uppercase tracking-widest text-amber-900 shadow-2xs mb-3 backdrop-blur-xs">
             <span
@@ -145,14 +146,14 @@ function PremiumContent() {
             </span>
             <span>TripRi Privilege Club · Hội Viên Đặc Quyền</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight">
             Mở Rộng Đặc Quyền, Nâng Tầm Mọi Chuyến Đi
           </h1>
-          <p className="mt-3 text-sm sm:text-base text-slate-600 max-w-2xl leading-relaxed">
-            {role === 'TOUR_GUIDE'
-              ? 'Khẳng định chuyên môn và độ tin cậy với huy hiệu xác minh uy tín, gia tăng cơ hội kết nối với các công ty lữ hành hàng đầu và tối ưu thu nhập bền vững.'
-              : 'Tận hưởng quyền ưu tiên giữ chỗ cao nhất, nhận trọn bộ voucher giảm giá độc quyền cho mọi hành trình cùng sự đồng hành và hỗ trợ chuyên biệt 24/7.'}
-          </p>
+          {role === 'TOUR_GUIDE' && (
+            <p className="mt-3 text-sm sm:text-base text-slate-600 max-w-2xl leading-relaxed">
+              Khẳng định chuyên môn và độ tin cậy với huy hiệu xác minh uy tín, gia tăng cơ hội kết nối với các công ty lữ hành hàng đầu và tối ưu thu nhập bền vững.
+            </p>
+          )}
         </div>
 
         {eligible && (status.premium?.active || status.isError) && (
@@ -186,7 +187,7 @@ function PremiumContent() {
           <label htmlFor="premium-audience" className="text-xs font-bold text-slate-700">
             Khám phá quyền lợi:
           </label>
-          <select
+          <FormSelect
             id="premium-audience"
             className={premiumInput + ' max-w-xs text-xs'}
             value={audience}
@@ -194,7 +195,7 @@ function PremiumContent() {
           >
             <option value="TRAVELER">Khách du lịch (Traveler)</option>
             <option value="TOUR_GUIDE">Hướng dẫn viên (Tour Guide)</option>
-          </select>
+          </FormSelect>
         </div>
       )}
 
@@ -214,15 +215,17 @@ function PremiumContent() {
       )}
 
       {/* 2. PRICING PLANS: NGƯỜI DÙNG CHỌN GÓI & THANH TOÁN */}
-      <section aria-labelledby="premium-plans" className="space-y-6">
+      <section aria-labelledby="premium-plans" className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
           <div>
-            <h2 id="premium-plans" className="text-xl sm:text-2xl font-extrabold text-slate-900">
+            <h2 id="premium-plans" className="text-lg sm:text-xl font-extrabold text-slate-900">
               Chọn thời gian đồng hành
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Nhấp chọn gói phù hợp với kế hoạch du lịch hoặc công việc của bạn
-            </p>
+            {role === 'TOUR_GUIDE' && (
+              <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                Nhấp chọn gói phù hợp với kế hoạch du lịch hoặc công việc của bạn
+              </p>
+            )}
           </div>
         </div>
 
@@ -240,7 +243,7 @@ function PremiumContent() {
           </p>
         ) : (
           <>
-            <div className="grid gap-6 md:grid-cols-2 items-stretch">
+            <div className="grid gap-5 md:grid-cols-2 items-stretch">
               {plans.currentData.map((plan) => {
                 const isSelected = plan.id === activePlanId;
                 const isPopular = plan.durationDays >= 90;
@@ -255,9 +258,9 @@ function PremiumContent() {
                   <article
                     key={plan.id}
                     onClick={() => setSelectedPlanId(plan.id)}
-                    className={`flex flex-col justify-between rounded-3xl p-7 transition-all cursor-pointer relative ${
+                    className={`flex flex-col justify-between rounded-2xl p-5 transition-all cursor-pointer relative ${
                       isSelected
-                        ? 'border-2 border-amber-500 bg-amber-50/30 ring-4 ring-amber-400/20 shadow-lg scale-[1.01]'
+                        ? 'border-2 border-amber-500 bg-amber-50/30 ring-4 ring-amber-400/20 shadow-lg'
                         : isPopular
                           ? 'border-2 border-amber-300 bg-amber-50/10 hover:border-amber-400 hover:shadow-md'
                           : 'border border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
@@ -271,7 +274,7 @@ function PremiumContent() {
 
                     <div>
                       {/* Selection header with radio checkmark */}
-                      <div className="flex items-center justify-between gap-3 mb-3">
+                      <div className="flex items-center justify-between gap-3 mb-2">
                         <div className="flex items-center gap-2">
                           <div
                             className={`flex size-5 items-center justify-center rounded-full transition-all ${
@@ -296,12 +299,12 @@ function PremiumContent() {
                         </div>
                       </div>
 
-                      <h3 className="text-xl font-extrabold text-slate-900">
+                      <h3 className="text-lg font-extrabold text-slate-900">
                         {cleanTitle}
                       </h3>
 
-                      <div className="mt-3 flex items-baseline gap-1.5">
-                        <span className="text-3xl font-extrabold text-slate-900">
+                      <div className="mt-2 flex flex-wrap items-baseline gap-1.5">
+                        <span className="text-2xl sm:text-3xl font-extrabold text-slate-900">
                           {premiumMoney(plan.price)}
                         </span>
                         <span className="text-xs font-medium text-slate-500">
@@ -309,13 +312,13 @@ function PremiumContent() {
                         </span>
                       </div>
 
-                      {cleanDesc && (
+                      {role === 'TOUR_GUIDE' && cleanDesc && (
                         <p className="mt-3 text-xs leading-5 text-slate-600">
                           {cleanDesc}
                         </p>
                       )}
 
-                      <ul className="my-5 space-y-2.5 text-xs text-slate-700">
+                      <ul className="my-3 space-y-1.5 text-sm leading-5 text-slate-700">
                         {plan.benefits.map((b) => {
                           const cleanB = b
                             .replace(/tour demo/gi, 'mọi tour tuyển chọn')
@@ -349,14 +352,14 @@ function PremiumContent() {
                       </ul>
                     </div>
 
-                    <div className="mt-4 pt-2">
+                    <div className="mt-2">
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedPlanId(plan.id);
                         }}
-                        className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                        className={`w-full min-h-11 py-2.5 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                           isSelected
                             ? 'bg-amber-500 text-slate-950 font-extrabold shadow-xs'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
@@ -379,13 +382,13 @@ function PremiumContent() {
 
             {/* Bottom Checkout Action Panel for the Selected Plan */}
             {selectedPlan && (
-              <div className="mt-8 rounded-3xl border border-amber-300/80 bg-gradient-to-r from-amber-50/90 via-amber-100/50 to-amber-50/90 p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6 animate-fadeIn">
+              <div className="rounded-2xl border border-amber-300/80 bg-gradient-to-r from-amber-50/90 via-amber-100/50 to-amber-50/90 p-4 sm:p-5 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 animate-fadeIn">
                 <div className="space-y-1 text-center sm:text-left">
                   <span className="text-[11px] font-extrabold uppercase tracking-widest text-amber-800 flex items-center justify-center sm:justify-start gap-1">
                     <span className="material-symbols-outlined text-[15px] text-amber-600">stars</span>
                     Gói hội viên đang được chọn
                   </span>
-                  <h3 className="text-xl sm:text-2xl font-black text-slate-900">
+                  <h3 className="text-lg sm:text-xl font-black text-slate-900">
                     {selectedPlan.name.replace(/^\[DEV Premium\]\s*/i, '')}
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-600 font-medium">

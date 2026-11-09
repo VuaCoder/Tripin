@@ -1,4 +1,5 @@
 'use client';
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useState, type FormEvent } from 'react';
 import { RoleGuard, selectUser } from '@/features/auth';
 import { useAppSelector } from '@/store/hooks';
@@ -255,14 +256,14 @@ function ManagementContent({ admin }: { admin: boolean }) {
                 />
                 <label className="text-sm font-semibold">
                   Đối tượng
-                  <select
+                  <FormSelect
                     className={premiumInput}
                     value={audience}
                     onChange={(e) => setAudience(e.target.value)}
                   >
                     <option value="TRAVELER">Traveler</option>
                     <option value="TOUR_GUIDE">Guide</option>
-                  </select>
+                  </FormSelect>
                 </label>
                 <Field
                   label="Phiên bản"
@@ -376,10 +377,10 @@ function ManagementContent({ admin }: { admin: boolean }) {
                 />
                 <label className="text-sm font-semibold">
                   Hình thức giảm
-                  <select name="discountType" className={premiumInput}>
+                  <FormSelect name="discountType" className={premiumInput}>
                     <option value="PERCENT">Phần trăm</option>
                     <option value="FIXED">Số tiền VND</option>
-                  </select>
+                  </FormSelect>
                 </label>
                 <Field
                   label="Mức giảm (% hoặc VND)"

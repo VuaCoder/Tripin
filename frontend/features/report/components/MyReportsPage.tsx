@@ -1,5 +1,6 @@
 'use client';
 
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useState } from 'react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
 import { Pagination } from '@/components/ui';
@@ -27,7 +28,7 @@ export function MyReportsPage() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-bold tracking-tight text-slate-900">Báo cáo vi phạm sàn</h1>
         <div className="flex items-center gap-2">
-          <select
+          <FormSelect
             aria-label="Lọc theo trạng thái"
             value={filter}
             onChange={(e) => {
@@ -42,7 +43,7 @@ export function MyReportsPage() {
                 {REPORT_STATUS_LABELS[s].label}
               </option>
             ))}
-          </select>
+          </FormSelect>
           <button
             type="button"
             disabled={isFetching}

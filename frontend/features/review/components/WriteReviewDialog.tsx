@@ -1,5 +1,6 @@
 'use client';
 
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button, FormField, Modal, cn } from '@/components/ui';
 import { getApiErrorCode, getApiErrorMessage } from '@/features/auth';
@@ -151,7 +152,7 @@ export function WriteReviewDialog({
 
         {eligibleBookings.length > 1 && (
           <FormField label="Đặt chỗ bạn muốn đánh giá" htmlFor="review-booking" required error={errors.bookingId}>
-            <select
+            <FormSelect
               id="review-booking"
               value={bookingId}
               onChange={(event) => { setBookingId(event.target.value); setFiles([]); uploaded.current.clear(); }}
@@ -164,7 +165,7 @@ export function WriteReviewDialog({
                   {booking.bookingCode} · Khởi hành {formatDate(booking.departureDate)}
                 </option>
               ))}
-            </select>
+            </FormSelect>
           </FormField>
         )}
 

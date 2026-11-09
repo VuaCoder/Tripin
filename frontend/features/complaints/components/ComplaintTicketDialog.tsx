@@ -1,5 +1,6 @@
 'use client';
 
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useEffect, useState } from 'react';
 import { AlertCircle, ShieldAlert } from 'lucide-react';
 import { Button, Modal } from '@/components/ui';
@@ -158,7 +159,7 @@ export function ComplaintTicketDialog({
           <label htmlFor="complaint-category" className="block text-sm font-bold text-slate-700">
             1. Nhóm vấn đề chính
           </label>
-          <select
+          <FormSelect
             id="complaint-category"
             value={category}
             disabled={busy}
@@ -170,7 +171,7 @@ export function ComplaintTicketDialog({
                 {group.label}
               </option>
             ))}
-          </select>
+          </FormSelect>
         </div>
 
         {/* Cấp 2: Vấn đề chi tiết */}
@@ -183,7 +184,7 @@ export function ComplaintTicketDialog({
               {PRIORITY_LABELS[priority].label}
             </span>
           </div>
-          <select
+          <FormSelect
             id="complaint-subcategory"
             value={subCategory}
             disabled={busy}
@@ -195,7 +196,7 @@ export function ComplaintTicketDialog({
                 {sub.label}
               </option>
             ))}
-          </select>
+          </FormSelect>
         </div>
 
         {/* Tiêu đề tóm tắt */}

@@ -1,4 +1,5 @@
 'use client';
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAppSelector } from '@/store/hooks';
@@ -26,13 +27,14 @@ function TicketListContent({ userId }: { userId?: string }) {
   const errorStatus = query.error && 'status' in query.error ? query.error.status : undefined;
   const canUseCache = query.isError && (errorStatus === 'FETCH_ERROR' || errorStatus === 'TIMEOUT_ERROR');
   const result = query.currentData ?? (canUseCache ? cached : undefined);
-  return <div className="space-y-5">
+  return <div className="flex min-h-[max(400px,calc(100svh-16rem))] flex-col gap-5">
     <h1 className="text-2xl font-bold">Vé điện tử của tôi</h1>
     {!userId ? <Link href="/login">Đăng nhập để xem vé</Link> : <>
-      <label>Trạng thái vé<select className="ml-3 rounded border p-2" value={status} onChange={(e) => { setPage(1); setStatus(e.target.value as ETicketStatus | ''); }}><option value="">Tất cả</option><option value="VALID">Vé hợp lệ</option><option value="USED">Đã hoàn tất</option><option value="CANCELLED">Đã hủy</option></select></label>
+      <label>Trạng thái vé<FormSelect className="ml-3 rounded border p-2" value={status} onChange={(e) => { setPage(1); setStatus(e.target.value as ETicketStatus | ''); }}><option value="">Tất cả</option><option value="VALID">Vé hợp lệ</option><option value="USED">Đã hoàn tất</option><option value="CANCELLED">Đã hủy</option></FormSelect></label>
+      <div className="flex flex-1 flex-col gap-5">
       {query.isError && <p role="status">{canUseCache && cached ? 'Đang xem vé đã lưu trên thiết bị. Trạng thái sẽ được kiểm tra khi quét vé.' : 'Không tải được vé. Vui lòng kiểm tra kết nối hoặc đăng nhập lại.'}</p>}
       {query.isFetching && !result && <p>Đang tải vé...</p>}
-      {result?.items.length === 0 && <p>Chưa có vé phù hợp.</p>}
+      {result?.items.length === 0 && <p className="flex flex-1 items-center justify-center text-center text-slate-400">Chưa có vé phù hợp.</p>}
       {result?.items.map((ticket) => <article key={ticket.id} className="rounded-2xl border p-4">
         <h2 className="font-semibold">{ticket.tour.title}</h2>
         <p>{new Date(ticket.departureDate).toLocaleString('vi-VN')} · {ticket.participants} khách</p>
@@ -41,7 +43,8 @@ function TicketListContent({ userId }: { userId?: string }) {
         {ticket.status === 'VALID' && <QRCodeDisplay value={ticket.code} />}
         <Link className="underline" href={`/traveler/tickets/${ticket.id}`}>Xem chi tiết vé</Link>
       </article>)}
-      {result && <div className="flex items-center gap-4"><button disabled={page <= 1 || query.isFetching} onClick={() => setPage(page - 1)}>Trang trước</button><span>Trang {page}/{Math.max(1, result.meta.totalPages)}</span><button disabled={page >= result.meta.totalPages || query.isFetching} onClick={() => setPage(page + 1)}>Trang sau</button></div>}
+      </div>
+      {result && <div className="flex flex-wrap items-center justify-center gap-4 pt-4 text-slate-400"><button className="transition-colors hover:text-slate-800 focus-visible:text-slate-800" disabled={page <= 1 || query.isFetching} onClick={() => setPage(page - 1)}>Trang trước</button><span className="transition-colors hover:text-slate-800">Trang {page}/{Math.max(1, result.meta.totalPages)}</span><button className="transition-colors hover:text-slate-800 focus-visible:text-slate-800" disabled={page >= result.meta.totalPages || query.isFetching} onClick={() => setPage(page + 1)}>Trang sau</button></div>}
     </>}
   </div>;
 }

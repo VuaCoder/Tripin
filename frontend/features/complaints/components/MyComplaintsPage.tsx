@@ -1,5 +1,6 @@
 'use client';
 
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useState } from 'react';
 import { Clock, MessageSquare, Star, User } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
@@ -50,7 +51,7 @@ export function MyComplaintsPage() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-bold tracking-tight text-slate-900">Khiếu nại dịch vụ tour</h1>
         <div className="flex items-center gap-2">
-          <select
+          <FormSelect
             aria-label="Lọc theo trạng thái"
             value={filter}
             onChange={(e) => {
@@ -65,7 +66,7 @@ export function MyComplaintsPage() {
                 {STATUS_LABELS[s].label}
               </option>
             ))}
-          </select>
+          </FormSelect>
           <button
             type="button"
             disabled={isFetching}
