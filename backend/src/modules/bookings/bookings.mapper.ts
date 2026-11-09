@@ -11,7 +11,7 @@ export function toBookingDto(booking: BookingRecord): BookingDto {
     premiumVoucherId: booking.premiumVoucherId ?? undefined,
     bookingCode: booking.bookingCode,
     status: booking.status as BookingStatus,
-    tour: { id: booking.tourId, title: booking.tourTitle },
+    tour: { id: booking.tourId, title: booking.tourTitle, coverImage: booking.tourImages?.[0] },
     departureId: booking.departureId,
     departureDate: booking.departureDate.toISOString(),
     endDate: booking.endDate.toISOString(),

@@ -148,14 +148,15 @@ describe('MyReportsPage', () => {
     expect(screen.getByText('Xe đưa đón không có dây an toàn.')).toBeTruthy();
     expect(screen.getByText('Chúng tôi đã hoàn tiền.')).toBeTruthy();
     expect(screen.getByText('Đã xác minh và xử lý.')).toBeTruthy();
-    expect(screen.getAllByText('Đã giải quyết').length).toBeGreaterThan(1);
+    expect(screen.getAllByText('Đã giải quyết')).toHaveLength(1);
   });
 
-  it('forwards the status filter and resets to page 1', () => {
+  it('forwards the status filter and resets to page 1', async () => {
     mockReports.mockReturnValue(queryResult({ data: { items: [report()], meta: META } }));
     render(<MyReportsPage />);
     expect(mockReports).toHaveBeenLastCalledWith({ page: 1, limit: 10 });
-    fireEvent.change(screen.getByLabelText('Lọc theo trạng thái'), { target: { value: 'REJECTED' } });
+    fireEvent.keyDown(screen.getByRole('combobox', { name: 'Lọc theo trạng thái' }), { key: 'ArrowDown', code: 'ArrowDown', keyCode: 40 });
+    fireEvent.click(await screen.findByText('Đã bác bỏ'));
     expect(mockReports).toHaveBeenLastCalledWith({ page: 1, limit: 10, status: 'REJECTED' });
   });
 });

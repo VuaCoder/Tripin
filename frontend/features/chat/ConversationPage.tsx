@@ -75,6 +75,7 @@ function ChatWorkspace({ id }: { id?: string }) {
   const { data, isLoading, error, refetch, isFetching } = useConversationsQuery(page, {
     refetchOnFocus: true,
     refetchOnReconnect: true,
+    pollingInterval: 30_000,
   });
   const chat = useChat();
   const now = useChatClock();
@@ -194,7 +195,11 @@ function ChatWorkspace({ id }: { id?: string }) {
                         <UnreadBadge count={aiUnread} />
                       </div>
                       <p className={`mt-0.5 truncate text-xs ${aiUnread ? 'font-bold text-slate-900' : 'text-slate-500'}`}>
-                        {latestAi?.lastMessage ? `${latestAi.lastMessage.role === 'user' ? 'Bạn' : 'AI'}: ${preview(latestAi.lastMessage.content)}` : 'Chưa có tin nhắn'}
+                        {aiUnread > 5
+                          ? '5+ tin nhắn mới'
+                          : latestAi?.lastMessage
+                            ? `${latestAi.lastMessage.role === 'user' ? 'Bạn' : 'AI'}: ${preview(latestAi.lastMessage.content)}`
+                            : 'Chưa có tin nhắn'}
                       </p>
                       {latestAi?.lastMessage && (
                         <time
@@ -248,7 +253,11 @@ function ChatWorkspace({ id }: { id?: string }) {
                           <UnreadBadge count={item.unreadCount} />
                         </div>
                         <p className={`mt-0.5 truncate text-xs ${item.unreadCount ? 'font-bold text-slate-900' : 'text-slate-500'}`}>
-                          {item.lastMessage ? `${item.lastMessage.senderId === user?.id ? 'Bạn' : counterpartName}: ${preview(item.lastMessage.text)}` : 'Chưa có tin nhắn'}
+                          {item.unreadCount > 5
+                            ? '5+ tin nhắn mới'
+                            : item.lastMessage
+                              ? `${item.lastMessage.senderId === user?.id ? 'Bạn' : counterpartName}: ${preview(item.lastMessage.text)}`
+                              : 'Chưa có tin nhắn'}
                         </p>
                         <time
                           dateTime={item.lastMessage?.sentAt || item.updatedAt}
@@ -360,7 +369,7 @@ function Thread({ id }: { id: string }) {
   const now = useChatClock();
   const dispatch = useAppDispatch();
   const chat = useChat();
-  const detail = useConversationQuery(id);
+  const detail = useConversationQuery(id, { pollingInterval: 30_000 });
   const [sendRest] = useSendMessageMutation();
   const [markRead] = useReadConversationMutation();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -479,9 +488,12 @@ function Thread({ id }: { id: string }) {
         ),
       );
       requests.current.add(request);
+      // A hung request must not wedge syncQueue forever: abort it and surface the retry banner.
+      const timeout = setTimeout(() => request.abort(), 15_000);
       try {
         return await request.unwrap();
       } finally {
+        clearTimeout(timeout);
         requests.current.delete(request);
       }
     },
@@ -728,10 +740,6 @@ function Thread({ id }: { id: string }) {
           <h2 className="truncate font-bold text-slate-900 text-sm sm:text-base leading-tight">
             {detail.data?.counterpart?.fullName || 'Cuộc trò chuyện'}
           </h2>
-          <span className="text-xs text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
-            <span className="inline-block size-1.5 rounded-full bg-emerald-500" />
-            Đang hoạt động
-          </span>
         </div>
       </header>
       {historyError && (

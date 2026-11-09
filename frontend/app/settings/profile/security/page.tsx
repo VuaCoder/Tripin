@@ -85,13 +85,6 @@ export default function SecurityProfileSettingsPage() {
 
         <TwoFactorCard settings={data.data} onToggle={handleToggle} />
 
-        <div className="flex gap-3 rounded-2xl border border-surface-container bg-surface-container-low/50 p-5 text-sm leading-6 text-slate-600">
-          <span className="material-symbols-outlined mt-0.5 text-[20px] text-primary-container" aria-hidden="true">mark_email_read</span>
-          <p>
-            Khi 2FA được bật, Tripri chỉ tạo phiên đăng nhập sau khi mật khẩu và mã OTP gửi qua email đều hợp lệ.
-          </p>
-        </div>
-
         <ConfirmPasswordModal
           isOpen={modalState.isOpen}
           onClose={handleCloseModal}
