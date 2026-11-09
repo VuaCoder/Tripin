@@ -23,7 +23,7 @@ function collectOptions(children: React.ReactNode): AntSelectOption<string>[] {
 }
 
 /** Ant Design control with a native form field for FormData and change handlers. */
-export function FormSelect({ children, className, style, id, value, defaultValue, ...props }: FormSelectProps) {
+export function FormSelect({ children, className, style, id, value, defaultValue, 'aria-label': ariaLabel, ...props }: FormSelectProps) {
   const nativeRef = useRef<HTMLSelectElement>(null);
   const options = collectOptions(children);
   const [localValue, setLocalValue] = useState(String(defaultValue ?? options[0]?.value ?? ''));
@@ -39,7 +39,7 @@ export function FormSelect({ children, className, style, id, value, defaultValue
   return <span className={`tripri-form-select ${className ?? ''}`} style={style}>
     <AntSelect
       id={id}
-      aria-label={props['aria-label']}
+      aria-label={ariaLabel}
       value={selected}
       options={options}
       disabled={props.disabled}
