@@ -203,10 +203,7 @@ function StaticLandingHero() {
       <div className="fade-up-anim relative z-10 mt-16 flex w-full flex-col gap-8 border-t border-[#173640]/25 pt-8">
         <div className="max-w-4xl">
           <p className="text-xl font-bold leading-8 text-[#173640] sm:text-2xl lg:whitespace-nowrap">
-            Tìm điểm đến. Chọn tour. Đặt chỗ. Thanh toán. Nhận e-ticket.
-          </p>
-          <p className="mt-3 text-base leading-7 text-[#49636b]">
-            TRIPRI gom cả hành trình vào một nơi rõ ràng — để bạn dành nhiều thời gian hơn cho trải nghiệm đang chờ phía trước.
+            Khám phá vẻ đẹp bản địa, trọn vẹn từng khoảnh khắc.
           </p>
         </div>
       </div>

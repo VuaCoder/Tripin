@@ -106,11 +106,11 @@ export function SlaTrends() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5">
         <div className="flex items-center gap-2.5">
           <span className="h-2.5 w-2.5 rounded-full bg-blue-600 inline-block shadow-xs" />
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight">Biểu Đồ Xu Hướng SLA Kiểm Duyệt</h2>
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight">Tiến độ xử lý đúng hạn</h2>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <AntSelect<number>
-            aria-label="Khoảng thời gian SLA"
+            aria-label="Khoảng thời gian thống kê"
             value={days}
             onChange={(val) => setDays(val)}
             options={[
@@ -128,11 +128,11 @@ export function SlaTrends() {
       <div className="flex flex-wrap items-center gap-6 text-xs sm:text-sm font-semibold text-slate-700 mt-4 mb-2">
         <div className="flex items-center gap-2">
           <span className="h-3 w-3 rounded-full bg-blue-600 border border-white shadow-xs inline-block" />
-          <span>Lượt đúng hạn (On-time: {totalOnTime})</span>
+          <span>Xử lý đúng hạn: {totalOnTime} phiếu</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="h-3 w-3 rounded-full bg-cyan-500 border border-white shadow-xs inline-block" />
-          <span>Quá hạn (Breached: {totalBreached})</span>
+          <span>Bị trễ hạn: {totalBreached} phiếu</span>
         </div>
       </div>
 
@@ -143,7 +143,7 @@ export function SlaTrends() {
         </div>
       ) : query.isError ? (
         <div className="flex h-64 flex-col items-center justify-center gap-2 text-sm text-rose-600">
-          <p>Không tải được dữ liệu xu hướng SLA.</p>
+          <p>Không tải được dữ liệu tiến độ xử lý.</p>
           <button
             type="button"
             onClick={() => void query.refetch()}

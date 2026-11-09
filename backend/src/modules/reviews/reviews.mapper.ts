@@ -40,7 +40,7 @@ export function toMyReviewDto(review: ReviewRecord): MyReviewDto {
 }
 
 /** Display names resolved for a review; an account that no longer exists just has no name. */
-export type ReviewNames = Pick<ModerationReviewDto, 'travelerName' | 'agencyName'>;
+export type ReviewNames = Pick<ModerationReviewDto, 'travelerName' | 'agencyName' | 'tourImage'>;
 
 export function toModerationReviewDto(review: ReviewRecord, names: ReviewNames = {}): ModerationReviewDto {
   return {

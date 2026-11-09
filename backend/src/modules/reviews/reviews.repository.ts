@@ -116,6 +116,16 @@ export class ReviewsRepository {
     return { avg: stats._avg.rating ?? 0, count: stats._count._all };
   }
 
+  async tourImagesFor(tourIds: string[]): Promise<Map<string, string>> {
+    const unique = [...new Set(tourIds.filter(Boolean))];
+    if (unique.length === 0) return new Map();
+    const rows = await prisma.tour.findMany({
+      where: { id: { in: unique } },
+      select: { id: true, images: true },
+    });
+    return new Map(rows.map((row) => [row.id, row.images?.[0] ?? '']));
+  }
+
   private async paginate(where: Prisma.ReviewWhereInput, orderBy: Prisma.ReviewOrderByWithRelationInput[], page: PageRequest) {
     const [items, total] = await Promise.all([
       prisma.review.findMany({ where, orderBy, skip: toSkip(page), take: page.limit }),

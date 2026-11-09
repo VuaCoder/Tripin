@@ -33,7 +33,7 @@ export class ReviewsService {
   constructor(
     private readonly reviews: Pick<
       ReviewsRepository,
-      'create' | 'findById' | 'findByBookingId' | 'transition' | 'listPublic' | 'listByTraveler' | 'listForModeration' | 'visibleStats' | 'countByStatus'
+      'create' | 'findById' | 'findByBookingId' | 'transition' | 'listPublic' | 'listByTraveler' | 'listForModeration' | 'visibleStats' | 'countByStatus' | 'tourImagesFor'
     > = reviewsRepository,
     private readonly bookings: Pick<BookingsService, 'getFacts'> = bookingsService,
     _tours: Pick<ToursService, 'updateRatingStats'> = toursService,
@@ -200,9 +200,12 @@ export class ReviewsService {
 
   // ============================================================ helpers
 
-  /** Display names of a page of reviews (author + agency), so the moderator queue shows no raw ids. */
+  /** Display names of a page of reviews (author + agency + tour image), so the moderator queue shows no raw ids. */
   private async namesFor(items: ReviewRecord[]): Promise<Map<string, ReviewNames>> {
-    const people = await this.users.getSummaries(items.flatMap((review) => [review.travelerId, review.agencyId]));
+    const [people, tourImages] = await Promise.all([
+      this.users.getSummaries(items.flatMap((review) => [review.travelerId, review.agencyId])),
+      this.reviews.tourImagesFor ? this.reviews.tourImagesFor(items.map((r) => r.tourId)) : Promise.resolve(new Map<string, string>()),
+    ]);
     return new Map(
       items.map((review) => {
         const agency = people.get(review.agencyId);
@@ -211,6 +214,7 @@ export class ReviewsService {
           {
             travelerName: people.get(review.travelerId)?.fullName,
             agencyName: agency ? (agency.companyName ?? agency.fullName) : undefined,
+            tourImage: tourImages.get(review.tourId) || undefined,
           },
         ];
       }),

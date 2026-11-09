@@ -85,6 +85,7 @@ export interface ModerationReviewDto extends MyReviewDto {
   travelerName?: string;
   agencyId: string;
   agencyName?: string;
+  tourImage?: string;
   moderatedAt?: string;
   moderatedBy?: string;
 }

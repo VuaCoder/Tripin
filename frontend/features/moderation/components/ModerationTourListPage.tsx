@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Search, RefreshCw, X, LayoutGrid, List, Compass, MapPin, Clock } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
-import { Pagination, AntSelect, type AntSelectOption } from '@/components/ui';
+import { Pagination, AntSelect, Modal, type AntSelectOption } from '@/components/ui';
 import { useGetModerationToursQuery, useSuspendTourMutation, useValidateTourMutation } from '../api/moderationApi';
 import { PERMISSION, TOUR_STATUS_LABELS } from '../labels';
 import type { ModerationTour, ModerationTourStatus } from '../types';
@@ -15,6 +15,23 @@ type StatusFilter = 'ALL' | ModerationTourStatus;
 
 interface Props {
   initialStatus?: StatusFilter;
+}
+
+/** Formats tour date: "18:48 - 01/11", or "18:48 - 01/11/26" if another year */
+export function formatTourDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const now = new Date();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const time = `${hours}:${minutes}`;
+  if (d.getFullYear() !== now.getFullYear()) {
+    const yearShort = String(d.getFullYear()).slice(-2);
+    return `${time} - ${day}/${month}/${yearShort}`;
+  }
+  return `${time} - ${day}/${month}`;
 }
 
 /** Use cases "View tour lists", "Validate tour" and "Suspend tours". */
@@ -48,6 +65,7 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
   const [suspend, { isLoading: isSuspending }] = useSuspendTourMutation();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [quickActionTour, setQuickActionTour] = useState<{ id: string; action: 'suspend' | 'reject'; title: string } | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
@@ -122,62 +140,72 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
       {/* Header Toolbar */}
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Kiểm duyệt tour</h1>
-          {data && (
-            <span className="text-xs font-semibold text-slate-500">
-              Tổng cộng {data.meta.total} tour trong hệ thống
-            </span>
-          )}
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Kiểm duyệt tour</h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Expandable Search */}
-          {isSearchExpanded || search ? (
-            <div className="relative flex items-center animate-in fade-in zoom-in-95 duration-150">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-              <input
-                ref={searchInputRef}
-                type="search"
-                aria-label="Tìm theo tên tour"
-                placeholder="Tìm theo tên tour..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape' && !search) {
-                    setIsSearchExpanded(false);
-                  }
-                }}
-                className="h-10 w-56 sm:w-72 rounded-2xl border border-slate-200/90 bg-white pl-9 pr-8 text-sm font-medium text-slate-800 placeholder:text-slate-400 shadow-2xs outline-none transition hover:border-slate-300 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15"
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={() => {
+          {/* Smooth Expandable Search */}
+          <div
+            className={`relative flex h-10 items-center transition-all duration-300 ease-out ${
+              isSearchExpanded || search ? 'w-56 sm:w-72' : 'w-10'
+            }`}
+          >
+            <input
+              ref={searchInputRef}
+              type="search"
+              aria-label="Tìm theo tên tour"
+              placeholder="Tìm theo tên tour..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onFocus={() => setIsSearchExpanded(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
                   setSearch('');
                   setQ('');
                   setIsSearchExpanded(false);
-                  setPage(1);
-                }}
-                aria-label="Đóng tìm kiếm"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded-full"
-              >
-                <X className="size-3.5" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setIsSearchExpanded(true);
-                setTimeout(() => searchInputRef.current?.focus(), 50);
+                  searchInputRef.current?.blur();
+                }
               }}
-              aria-label="Tìm kiếm theo tên tour"
-              title="Tìm kiếm theo tên tour"
-              className="flex size-10 items-center justify-center rounded-2xl border border-slate-200/90 bg-white text-slate-600 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 cursor-pointer"
-            >
-              <Search className="size-4" />
-            </button>
-          )}
+              className={`h-10 w-full rounded-2xl border border-slate-200/90 bg-white text-sm font-medium text-slate-800 placeholder:text-slate-400 shadow-2xs outline-none transition-all duration-300 ease-out hover:border-slate-300 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15 ${
+                isSearchExpanded || search
+                  ? 'pl-9 pr-8 opacity-100 cursor-text'
+                  : 'pl-10 pr-0 opacity-0 pointer-events-none cursor-pointer'
+              }`}
+            />
+
+            {isSearchExpanded || search ? (
+              <>
+                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 transition-opacity duration-200" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch('');
+                    setQ('');
+                    setIsSearchExpanded(false);
+                    setPage(1);
+                  }}
+                  aria-label="Đóng tìm kiếm"
+                  title="Đóng tìm kiếm (Esc)"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 flex size-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
+                >
+                  <X className="size-3.5 transition-transform duration-200 hover:rotate-90" />
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSearchExpanded(true);
+                  setTimeout(() => searchInputRef.current?.focus(), 50);
+                }}
+                aria-label="Tìm kiếm theo tên tour"
+                title="Tìm kiếm theo tên tour"
+                className="absolute inset-0 flex size-10 items-center justify-center rounded-2xl border border-slate-200/90 bg-white text-slate-600 shadow-2xs transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 hover:text-brand-teal active:scale-95 cursor-pointer"
+              >
+                <Search className="size-4 transition-transform duration-200 group-hover:scale-110" />
+              </button>
+            )}
+          </div>
 
           {/* AntSelect Filter Dropdown */}
           <AntSelect<StatusFilter>
@@ -309,18 +337,32 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
                     {/* Footer Actions */}
                     <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-3 flex items-center justify-between">
                       <span className="text-[11px] text-slate-400">
-                        Cập nhật {dateTime.format(new Date(t.updatedAt))}
+                        {formatTourDate(t.updatedAt)}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setServerError(null);
-                          setSelectedId(t.id);
-                        }}
-                        className="rounded-xl border border-teal-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-teal-900 shadow-2xs transition hover:bg-teal-50 cursor-pointer"
-                      >
-                        {t.status === 'PENDING_REVIEW' || t.status === 'APPROVED' ? 'Xem & xử lý' : 'Xem chi tiết'}
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        {t.status === 'APPROVED' && canSuspend && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setServerError(null);
+                              setQuickActionTour({ id: t.id, action: 'suspend', title: t.title });
+                            }}
+                            className="rounded-xl border border-rose-300 bg-rose-100 px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-200 cursor-pointer"
+                          >
+                            Tạm ngưng
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setServerError(null);
+                            setSelectedId(t.id);
+                          }}
+                          className="rounded-xl border border-teal-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-teal-900 shadow-2xs transition hover:bg-teal-50 cursor-pointer"
+                        >
+                          {t.status === 'PENDING_REVIEW' || t.status === 'APPROVED' ? 'Xem & xử lý' : 'Xem chi tiết'}
+                        </button>
+                      </div>
                     </div>
                   </li>
                 );
@@ -383,23 +425,37 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
                               {money.format(t.basePrice)}
                             </span>
                             <span className="text-slate-400">
-                              Cập nhật {dateTime.format(new Date(t.updatedAt))}
+                              {formatTourDate(t.updatedAt)}
                             </span>
                           </div>
                         </div>
                       </div>
 
                       {/* Action */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setServerError(null);
-                          setSelectedId(t.id);
-                        }}
-                        className="self-end sm:self-center shrink-0 rounded-xl border border-teal-200 bg-teal-50/50 px-4 py-2 text-sm font-semibold text-teal-900 transition hover:bg-teal-100/80 cursor-pointer"
-                      >
-                        {t.status === 'PENDING_REVIEW' || t.status === 'APPROVED' ? 'Xem & xử lý' : 'Xem chi tiết'}
-                      </button>
+                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                        {t.status === 'APPROVED' && canSuspend && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setServerError(null);
+                              setQuickActionTour({ id: t.id, action: 'suspend', title: t.title });
+                            }}
+                            className="rounded-xl border border-rose-300 bg-rose-100 px-3.5 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-200 cursor-pointer"
+                          >
+                            Tạm ngưng
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setServerError(null);
+                            setSelectedId(t.id);
+                          }}
+                          className="rounded-xl border border-teal-200 bg-teal-50/50 px-4 py-2 text-sm font-semibold text-teal-900 transition hover:bg-teal-100/80 cursor-pointer"
+                        >
+                          {t.status === 'PENDING_REVIEW' || t.status === 'APPROVED' ? 'Xem & xử lý' : 'Xem chi tiết'}
+                        </button>
+                      </div>
                     </div>
                   </li>
                 );
@@ -439,7 +495,7 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
             <h3 className="text-base font-bold text-slate-900">{selected.title}</h3>
             <p className="text-xs text-slate-500">
               {selected.destination} · {selected.durationDays} ngày · {money.format(selected.basePrice)}
-              {selected.submittedAt ? ` · Gửi duyệt ${dateTime.format(new Date(selected.submittedAt))}` : ''}
+              {selected.submittedAt ? ` · Gửi duyệt ${formatTourDate(selected.submittedAt)}` : ''}
             </p>
             {selected.description || selected.summary ? (
               <p className="whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-slate-800">{selected.description || selected.summary}</p>
@@ -464,6 +520,63 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
           </>
         )}
       </DecisionDialog>
+
+      {/* Quick Confirmation Modal */}
+      {quickActionTour && (
+        <Modal
+          open={Boolean(quickActionTour)}
+          onClose={() => setQuickActionTour(null)}
+          title={quickActionTour.action === 'suspend' ? 'Xác nhận tạm ngưng tour' : 'Xác nhận từ chối tour'}
+          className="max-w-md"
+        >
+          <div className="space-y-4 text-sm">
+            <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-4 text-rose-900">
+              <p className="font-bold text-sm sm:text-base text-rose-900">
+                {quickActionTour.action === 'suspend'
+                  ? 'Bạn có chắc chắn muốn tạm ngưng tour này không?'
+                  : 'Bạn có chắc chắn muốn từ chối tour này không?'}
+              </p>
+              <p className="mt-1.5 text-xs text-rose-700">
+                Tour: <strong className="text-slate-900">{quickActionTour.title}</strong>
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setQuickActionTour(null)}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={isValidating || isSuspending}
+                onClick={async () => {
+                  const target = quickActionTour;
+                  setQuickActionTour(null);
+                  if (target.action === 'suspend') {
+                    await decide(
+                      () => suspend({ id: target.id, reason: 'Tạm ngưng theo yêu cầu kiểm duyệt' }).unwrap(),
+                      `Đã tạm ngưng tour "${target.title}".`,
+                      'Không thể tạm ngưng tour lúc này. Vui lòng thử lại.',
+                    );
+                  } else {
+                    await decide(
+                      () => validate({ id: target.id, approve: false, reason: 'Không đạt tiêu chuẩn kiểm duyệt của sàn' }).unwrap(),
+                      `Đã từ chối tour "${target.title}".`,
+                      'Không thể từ chối tour lúc này. Vui lòng thử lại.',
+                    );
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-rose-700 transition cursor-pointer disabled:opacity-50"
+              >
+                {isValidating || isSuspending ? 'Đang xử lý...' : 'OK'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

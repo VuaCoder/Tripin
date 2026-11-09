@@ -37,9 +37,9 @@ describe('SlaTrends', () => {
     });
 
     render(<SlaTrends />);
-    expect(screen.getByText('Biểu Đồ Xu Hướng SLA Kiểm Duyệt')).toBeTruthy();
-    expect(screen.getByText(/Lượt đúng hạn \(On-time: 232\)/)).toBeTruthy();
-    expect(screen.getByText(/Quá hạn \(Breached: 34\)/)).toBeTruthy();
+    expect(screen.getByText('Tiến độ xử lý đúng hạn')).toBeTruthy();
+    expect(screen.getByText(/Xử lý đúng hạn: 232 phiếu/)).toBeTruthy();
+    expect(screen.getByText(/Bị trễ hạn: 34 phiếu/)).toBeTruthy();
     expect(screen.getByRole('img', { name: 'Biểu đồ xu hướng SLA' })).toBeTruthy();
   });
 
@@ -65,7 +65,7 @@ describe('SlaTrends', () => {
     });
 
     render(<SlaTrends />);
-    expect(screen.getByText('Không tải được dữ liệu xu hướng SLA.')).toBeTruthy();
+    expect(screen.getByText('Không tải được dữ liệu tiến độ xử lý.')).toBeTruthy();
   });
 });
 

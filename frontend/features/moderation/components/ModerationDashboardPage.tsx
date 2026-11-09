@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { SlaTrends } from './SlaTrends';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth';
 import { ErrorState, LoadingState } from '@/components/shared';
@@ -43,42 +42,11 @@ export function ModerationDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6 pb-12">
-      {/* Bento Block 1: Header Welcome Banner (NO subtitle, NO icons) */}
-      <div className="flex flex-col justify-between gap-4 rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xs sm:p-7 md:flex-row md:items-center">
-        <div>
-          <span className="mb-2 inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-slate-700">
-            Ban Kiểm Duyệt Nội Dung
-          </span>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-            Xin chào, {user?.fullName || 'Kiểm duyệt viên'}!
-          </h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {canReports && (
-            <Link
-              href="/moderator/complaints"
-              className="rounded-xl bg-rose-700 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-rose-800"
-            >
-              Tranh chấp tour ({complaintError ? 'Lỗi tải dữ liệu' : complaintData?.meta.total ?? '…'})
-            </Link>
-          )}
-          {canTours && (
-            <Link
-              href="/moderator/tours"
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-50"
-            >
-              Danh sách tour
-            </Link>
-          )}
-          {canAgencies && (
-            <Link
-              href="/moderator/agencies"
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-50"
-            >
-              Xác minh agency
-            </Link>
-          )}
-        </div>
+      {/* Header Banner - Traveler Profile Style: prominent bold title, zero subtitles */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+          Xin chào, {user?.fullName || 'Kiểm duyệt viên'}!
+        </h1>
       </div>
 
       {canReports && complaintError && (
@@ -141,48 +109,34 @@ export function ModerationDashboardPage() {
               })}
           </div>
 
-          {/* Bento Block 3 & 4: SLA Trends Chart + Status Overview */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            {canReports && (
-              <div className={canTours ? 'lg:col-span-8' : 'lg:col-span-12'}>
-                <SlaTrends />
+          {/* Status Overview */}
+          {canTours && (
+            <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-4 mb-4">
+                <span className="h-2.5 w-2.5 rounded-full bg-brand-teal inline-block" />
+                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Thống kê tour theo trạng thái</h2>
               </div>
-            )}
-
-            {canTours && (
-              <div
-                className={`flex flex-col justify-between rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs ${
-                  canReports ? 'lg:col-span-4' : 'lg:col-span-12'
-                }`}
-              >
-                <div>
-                  <div className="flex items-center gap-2 border-b border-slate-100 pb-4 mb-4">
-                    <span className="h-2.5 w-2.5 rounded-full bg-slate-900 inline-block" />
-                    <h2 className="text-lg font-bold text-slate-900 tracking-tight">Tour theo trạng thái</h2>
-                  </div>
-                  {Object.keys(data.tours ?? {}).length === 0 ? (
-                    <p className="text-sm text-slate-500">Chưa có tour nào trên hệ thống.</p>
-                  ) : (
-                    <dl className="grid grid-cols-2 gap-3">
-                      {Object.entries(data.tours ?? {}).map(([status, count]) => (
-                        <div
-                          key={status}
-                          className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5 transition-colors hover:bg-slate-100/70"
-                        >
-                          <dt className="text-xs font-semibold text-slate-500">{status}</dt>
-                          <dd className="mt-1 text-xl font-extrabold text-slate-900">{count}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  )}
-                </div>
-                <div className="mt-6 border-t border-slate-100 pt-3 text-[11px] text-slate-400">
-                  Cập nhật lúc {dateTime.format(new Date(data.generatedAt))}
-                  {isFetching ? ' · đang làm mới...' : ''}
-                </div>
+              {Object.keys(data.tours ?? {}).length === 0 ? (
+                <p className="text-sm text-slate-500">Chưa có tour nào trên hệ thống.</p>
+              ) : (
+                <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                  {Object.entries(data.tours ?? {}).map(([status, count]) => (
+                    <div
+                      key={status}
+                      className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 transition-colors hover:bg-slate-100/70"
+                    >
+                      <dt className="text-xs font-semibold text-slate-500">{status}</dt>
+                      <dd className="mt-1.5 text-2xl font-black text-slate-900">{count}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              <div className="mt-6 border-t border-slate-100 pt-3 text-[11px] text-slate-400">
+                Cập nhật lúc {dateTime.format(new Date(data.generatedAt))}
+                {isFetching ? ' · đang làm mới...' : ''}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </>
       )}
     </div>

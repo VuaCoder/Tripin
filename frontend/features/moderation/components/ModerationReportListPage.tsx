@@ -198,108 +198,28 @@ export function ModerationReportListPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
-      <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-slate-200/90 bg-white p-4 shadow-2xs">
-        <div className="flex flex-col sm:flex-row flex-1 min-w-[240px] gap-2">
-          <input
-            placeholder="Tìm nội dung báo cáo..."
-            className="h-10 flex-1 rounded-2xl border border-slate-200/90 bg-white px-3.5 text-sm font-medium text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            maxLength={100}
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-400">Từ</span>
-            <input
-              type="date"
-              aria-label="Từ ngày"
-              className="h-10 rounded-2xl border border-slate-200/90 bg-white px-3 text-xs text-slate-800 outline-none transition focus:border-brand-teal"
-              value={from}
-              onChange={(e) => { setFrom(e.target.value); setPage(1); }}
-            />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-400">Đến</span>
-            <input
-              type="date"
-              aria-label="Đến ngày"
-              className="h-10 rounded-2xl border border-slate-200/90 bg-white px-3 text-xs text-slate-800 outline-none transition focus:border-brand-teal"
-              value={to}
-              onChange={(e) => { setTo(e.target.value); setPage(1); }}
-            />
-          </div>
-        </div>
-        <div className="w-44">
-          <AntSelect<'newest' | 'reports_desc'>
-            aria-label="Sắp xếp"
-            value={sort}
-            onChange={(val) => { setSort(val); setPage(1); }}
-            options={sortOptions}
-            size="middle"
-          />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+          Báo cáo vi phạm
+        </h1>
+
+        <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+          <button
+            type="button"
+            disabled={isFetching}
+            onClick={() => void refetch()}
+            aria-label="Làm mới"
+            title="Làm mới"
+            className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-200/90 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+          >
+            <RefreshCw className={`size-3.5 text-slate-500 ${isFetching ? 'animate-spin text-brand-teal' : ''}`} />
+            <span>{isFetching ? 'Đang tải...' : 'Làm mới'}</span>
+          </button>
         </div>
       </div>
-      {/* Notice Banner - Link to Escalated Disputes */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-teal-200/80 bg-teal-50/60 p-3.5 sm:px-4 text-xs text-teal-900 shadow-2xs">
-        <div className="flex items-center gap-2.5">
-          <div className="size-7 rounded-lg bg-teal-100 flex items-center justify-center text-brand-teal shrink-0">
-            <ShieldAlert className="size-4" />
-          </div>
-          <span>
-            Bạn cần phân xử các <strong>phiếu khiếu nại tour leo thang</strong> giữa Du khách và Đối tác?
-          </span>
-        </div>
-        <Link
-          href="/moderator/complaints"
-          className="inline-flex items-center gap-1.5 rounded-xl bg-teal-700 px-3.5 py-1.5 font-bold text-white shadow-2xs hover:bg-teal-800 transition cursor-pointer"
-        >
-          <span>Đến mục Tranh chấp &amp; CSAT</span>
-          <ArrowRight className="size-3.5" />
-        </Link>
-      </div>
 
-      {/* Header Banner - Polished executive look with Tripin teal theme */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200/90 bg-gradient-to-br from-white via-slate-50/50 to-teal-50/20 p-6 sm:p-7 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1.5 max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-teal-200/70 bg-teal-50/80 px-3 py-0.5 text-xs font-bold text-teal-800">
-              <span>Ban Kiểm Duyệt Sàn • Báo cáo vi phạm</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-              Báo cáo &amp; Tranh chấp cộng đồng
-            </h1>
-          </div>
-
-          <div className="flex items-center gap-2.5 shrink-0 self-start md:self-auto">
-            {/* Toggle show/hide stats */}
-            <button
-              type="button"
-              onClick={() => setShowStats((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-50 hover:border-slate-300 cursor-pointer"
-              title="Ẩn / hiện phần báo cáo thống kê"
-            >
-              <BarChart2 className="size-3.5 text-slate-500" />
-              <span>{showStats ? 'Ẩn thống kê' : 'Hiện thống kê'}</span>
-            </button>
-
-            <button
-              type="button"
-              disabled={isFetching}
-              onClick={() => void refetch()}
-              aria-label="Làm mới"
-              title="Làm mới"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 cursor-pointer"
-            >
-              <RefreshCw className={`size-3.5 text-slate-500 ${isFetching ? 'animate-spin text-brand-teal' : ''}`} />
-              <span>{isFetching ? 'Đang tải...' : 'Làm mới'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 4 Metric Cards - Refined white cards with subtle icon boxes */}
-        {showStats && (
-          <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-3.5 pt-5 border-t border-slate-200/60">
+      {/* 4 Metric Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
             {/* Card 1: Tổng số báo cáo */}
             <div
               onClick={() => {
@@ -408,8 +328,6 @@ export function ModerationReportListPage() {
               </div>
             </div>
           </div>
-        )}
-      </div>
 
       {/* Navigation Status Tabs */}
       <div className="border-b border-slate-200">
@@ -508,20 +426,77 @@ export function ModerationReportListPage() {
         </div>
       </div>
 
-      {/* Filter Dropdowns - Placed on their own dedicated row below the tabs */}
-      <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
-        <AntSelect<StatusFilter>
+      {/* Unified Filter Toolbar */}
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
+        <div className="relative flex-1 min-w-[200px]">
+          <input
+            placeholder="Tìm nội dung báo cáo..."
+            className="h-10 w-full rounded-xl border border-slate-200/90 bg-white pl-3.5 pr-8 text-xs font-medium text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-brand-teal focus:ring-1 focus:ring-brand-teal/20"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            maxLength={100}
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                setPage(1);
+              }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-400">Từ</span>
+            <input
+              type="date"
+              aria-label="Từ ngày"
+              className="h-10 rounded-xl border border-slate-200/90 bg-white px-2.5 text-xs text-slate-800 outline-none transition focus:border-brand-teal"
+              value={from}
+              onChange={(e) => {
+                setFrom(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-400">Đến</span>
+            <input
+              type="date"
+              aria-label="Đến ngày"
+              className="h-10 rounded-xl border border-slate-200/90 bg-white px-2.5 text-xs text-slate-800 outline-none transition focus:border-brand-teal"
+              value={to}
+              onChange={(e) => {
+                setTo(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+        </div>
+
+        <select
           aria-label="Lọc theo trạng thái"
+          className="sr-only"
           value={status}
-          onChange={(val) => {
-            setStatus(val);
+          onChange={(e) => {
+            setStatus(e.target.value as StatusFilter);
             setPage(1);
           }}
-          options={statusOptions}
-          size="middle"
-          className="min-w-[170px]"
-          triggerClassName={status !== 'ALL' ? 'border-brand-teal/60 bg-teal-50/20 text-teal-900 font-semibold' : ''}
-        />
+        >
+          {statusOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
 
         <AntSelect<TargetFilter>
           aria-label="Lọc theo đối tượng"
@@ -532,7 +507,7 @@ export function ModerationReportListPage() {
           }}
           options={targetOptions}
           size="middle"
-          className="min-w-[160px]"
+          className="min-w-[140px]"
           triggerClassName={targetType !== 'ALL' ? 'border-brand-teal/60 bg-teal-50/20 text-teal-900 font-semibold' : ''}
         />
 
@@ -545,20 +520,34 @@ export function ModerationReportListPage() {
           }}
           options={categoryOptions}
           size="middle"
-          className="min-w-[170px]"
+          className="min-w-[150px]"
           triggerClassName={category !== 'ALL' ? 'border-brand-teal/60 bg-teal-50/20 text-teal-900 font-semibold' : ''}
         />
 
-        {(status !== 'ALL' || targetType !== 'ALL' || category !== 'ALL') && (
+        <AntSelect<'newest' | 'reports_desc'>
+          aria-label="Sắp xếp"
+          value={sort}
+          onChange={(val) => {
+            setSort(val);
+            setPage(1);
+          }}
+          options={sortOptions}
+          size="middle"
+          className="min-w-[140px]"
+        />
+
+        {(search || from || to || targetType !== 'ALL' || category !== 'ALL') && (
           <button
             type="button"
             onClick={() => {
-              setStatus('ALL');
+              setSearch('');
+              setFrom('');
+              setTo('');
               setTargetType('ALL');
               setCategory('ALL');
               setPage(1);
             }}
-            className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
+            className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
           >
             <X className="size-3 text-slate-400" />
             <span>Xóa lọc</span>

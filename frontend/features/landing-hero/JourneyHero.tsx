@@ -164,17 +164,7 @@ export function JourneyHero({ onUnavailable }: JourneyHeroProps) {
         <div ref={copyRef} className="tj-copy">
           <div className="tj-eyebrow"><i />Một cách khác để đi</div>
           <h1>Đi gần hơn.<br />Sống sâu hơn.</h1>
-          <h2>Tìm điểm đến. Chọn tour. Đặt chỗ. Thanh toán. Nhận e-ticket.</h2>
-          <p>TRIPRI gom cả hành trình vào một nơi rõ ràng — để bạn dành nhiều thời gian hơn cho trải nghiệm đang chờ phía trước.</p>
-          <div className="tj-scroll-guide">
-            <div className="tj-scroll-mouse">
-              <span className="tj-scroll-wheel" />
-            </div>
-            <div className="tj-scroll-info">
-              <span>Cuộn chuột để bắt đầu hành trình</span>
-              <span className="material-symbols-outlined tj-scroll-arrow">keyboard_arrow_down</span>
-            </div>
-          </div>
+          <h2>Khám phá vẻ đẹp bản địa, trọn vẹn từng khoảnh khắc.</h2>
         </div>
 
         {/* Story: each block fades in beside the boat; the scene drives opacity / transform / word reveal. */}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppSelector } from '@/store/hooks';
@@ -16,12 +16,17 @@ interface RoleGuardProps {
 
 export const RoleGuard = ({ allowedRoles, children, loginPath = '/login' }: RoleGuardProps) => {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const status = useAppSelector(selectAuthStatus);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const role = useAppSelector(selectRole);
 
   useEffect(() => {
-    if (status === 'idle') return;
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted || status === 'idle') return;
     if (!isAuthenticated) {
       router.replace(loginPath);
       return;
@@ -29,9 +34,9 @@ export const RoleGuard = ({ allowedRoles, children, loginPath = '/login' }: Role
     if (role && !allowedRoles.includes(role)) {
       router.replace(homeForRole(role));
     }
-  }, [status, isAuthenticated, role, allowedRoles, loginPath, router]);
+  }, [mounted, status, isAuthenticated, role, allowedRoles, loginPath, router]);
 
-  if (status === 'idle') {
+  if (!mounted || status === 'idle') {
     return (
       <div className="w-full min-h-[60vh] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-pulse" role="status" aria-label="Đang chuẩn bị dữ liệu...">
         <div className="h-8 w-48 rounded-lg bg-slate-200/80 mb-6" />

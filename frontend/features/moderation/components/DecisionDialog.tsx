@@ -35,12 +35,12 @@ const TONE = {
   positive: {
     icon: 'check_circle',
     className:
-      'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-600/25 hover:from-emerald-600 hover:to-emerald-700 hover:shadow-emerald-600/40 focus-visible:ring-emerald-500',
+      'bg-emerald-600 text-white shadow-xs hover:bg-emerald-700 focus-visible:ring-emerald-500',
   },
   negative: {
     icon: 'block',
     className:
-      'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-lg shadow-red-600/25 hover:from-rose-600 hover:to-red-700 hover:shadow-red-600/40 focus-visible:ring-red-500',
+      'bg-rose-600 text-white shadow-xs hover:bg-rose-700 focus-visible:ring-rose-500',
   },
 } as const;
 
@@ -109,9 +109,6 @@ export function DecisionDialog({ open, title, reasonLabel, children, actions, is
             </p>
           )}
           <div className="flex flex-wrap justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} disabled={isSubmitting} className={CLOSE_CLASS}>
-              Đóng
-            </button>
             {actions.map((a) => (
               <button key={a.key} type="button" disabled={isSubmitting} onClick={() => run(a)} className={`${ACTION_CLASS} ${TONE[a.tone].className}`}>
                 {isSubmitting ? (

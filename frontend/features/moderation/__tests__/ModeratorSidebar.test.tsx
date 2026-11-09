@@ -24,6 +24,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/store/hooks', () => ({
   useAppSelector: () => mocks.user,
+  useAppDispatch: () => vi.fn(),
+}));
+
+vi.mock('@/features/agency/notifications', () => ({
+  useAgencyNotifications: () => ({ count: 0, connected: true, latest: '' }),
 }));
 
 vi.mock('@/features/auth', () => ({
