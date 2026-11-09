@@ -112,7 +112,6 @@ describe('money invariants (integration)', () => {
   it('randomised bookings: totals add up, in whole VND, never negative, commission snapshot is exact', async () => {
     const admin = await createUser('SUPER_ADMIN', 'admin@example.com');
     const agency = await createUser('AGENCY', 'agency@example.com');
-    const traveler = await createUser('TRAVELER', 'traveler@example.com');
     const random = rng(20261002);
 
     await promotion(agency.token, 'PCT7', { discountType: 'PERCENT', discountValue: 7, usageLimitPerUser: 100 });
@@ -129,6 +128,8 @@ describe('money invariants (integration)', () => {
       const { tourId, departureId } = await createApprovedTour(agency.id, { capacity: 500, price });
 
       for (let i = 0; i < 8; i += 1) {
+        // Each independent pricing scenario uses a different traveler under the one-pending-per-departure rule.
+        const traveler = await createUser('TRAVELER', `money-${round}-${i}@example.com`);
         const participants = between(random, 1, 9);
         const code = pick(random, [undefined, 'PCT7', 'PCT33CAP', 'FIX120K', 'MIN1M']);
         const res = await request(app)

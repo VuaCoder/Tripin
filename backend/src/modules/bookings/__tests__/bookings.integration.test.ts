@@ -38,10 +38,11 @@ describe('bookings (integration)', () => {
   });
 
   it('never oversells: parallel bookings beyond capacity get 409 and the counter stays consistent', async () => {
-    const { traveler, tourId, departureId } = await setup(3);
+    const { tourId, departureId } = await setup(3);
+    const travelers = await Promise.all(Array.from({ length: 8 }, (_, i) => createUser('TRAVELER', `capacity-${i}@example.com`)));
 
     const results = await Promise.all(
-      Array.from({ length: 8 }, (_, i) => book(traveler.token, tourId, departureId, 1, { clientRequestId: `req-${i}-abcdefgh` })),
+      travelers.map((traveler, i) => book(traveler.token, tourId, departureId, 1, { clientRequestId: `req-${i}-abcdefgh` })),
     );
     const created = results.filter((r) => r.status === 201);
     expect(created).toHaveLength(3);
@@ -49,6 +50,44 @@ describe('bookings (integration)', () => {
     expect(results.filter((r) => r.status === 409).every((r) => ['NOT_ENOUGH_SEATS', 'DEPARTURE_UNAVAILABLE'].includes(r.body.error.code))).toBe(true);
     expect(await remainingOf(tourId)).toBe(0);
     expect(await prisma.booking.count()).toBe(3);
+  });
+
+  it('blocks another PENDING booking for the same departure, allows a different date, and allows booking after cancellation', async () => {
+    const { traveler, tourId, departureId } = await setup(24);
+    const first = await book(traveler.token, tourId, departureId, 4);
+    expect(first.status).toBe(201);
+    expect(await remainingOf(tourId)).toBe(20);
+    const blocked = await book(traveler.token, tourId, departureId, 10, { clientRequestId: 'new-key-same-departure' });
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.error).toMatchObject({ code: 'PENDING_BOOKING_EXISTS', details: { bookingId: first.body.data.id } });
+    expect(await remainingOf(tourId)).toBe(20);
+
+    const otherDate = await prisma.tourDeparture.create({ data: { tourId, date: new Date(Date.now() + 60 * 86400000), capacity: 24, remaining: 24, isOpen: true } });
+    expect((await book(traveler.token, tourId, otherDate.id, 10)).status).toBe(201);
+    expect((await prisma.tourDeparture.findUnique({ where: { id: otherDate.id } }))!.remaining).toBe(14);
+
+    expect((await request(app).post(`/api/v1/bookings/${first.body.data.id}/cancel`).set(bearer(traveler.token)).send({})).status).toBe(200);
+    expect((await book(traveler.token, tourId, departureId, 10)).status).toBe(201);
+    expect((await prisma.tourDeparture.findUnique({ where: { id: departureId } }))!.remaining).toBe(14);
+  });
+
+  it.each([false, true])('creates one pending booking for concurrent distinct requests (voucher=%s)', async withVoucher => {
+    const { agency, traveler, tourId, departureId } = await setup(24);
+    if (withVoucher) {
+      const promotion = await request(app).post('/api/v1/agency/promotions').set(bearer(agency.token)).send({
+        code: 'PENDING10', title: 'QA Pending Discount', discountType: 'FIXED', discountValue: 100000,
+        startsAt: new Date(Date.now() - 86400000).toISOString(), endsAt: new Date(Date.now() + 86400000).toISOString(), usageLimit: 10,
+      });
+      expect(promotion.status).toBe(201);
+    }
+    const results = await Promise.all(Array.from({ length: 6 }, (_, i) => book(traveler.token, tourId, departureId, 2, {
+      clientRequestId: `distinct-pending-key-${i}`, ...(withVoucher ? { agencyPromotionCode: 'PENDING10' } : {}),
+    })));
+    expect(results.filter(result => result.status === 201)).toHaveLength(1);
+    expect(results.filter(result => result.status === 409 && result.body.error.code === 'PENDING_BOOKING_EXISTS')).toHaveLength(5);
+    expect(await prisma.booking.count()).toBe(1);
+    expect(await remainingOf(tourId)).toBe(22);
+    if (withVoucher) expect((await prisma.promotion.findFirst({ where: { code: 'PENDING10' } }))!.usedCount).toBe(1);
   });
 
   it('the same clientRequestId creates one booking and reserves seats once, even when sent in parallel', async () => {

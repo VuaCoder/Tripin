@@ -7,7 +7,12 @@ import { TourDetailView } from '@/features/tours/components/detail/TourDetailVie
 
 export default function TourDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data: tour, isLoading, error, refetch } = useGetTourDetailQuery(id, { skip: !id });
+  const { data: tour, isLoading, error, refetch } = useGetTourDetailQuery(id, {
+    skip: !id,
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
 
   if (isLoading) return <LoadingState label="Đang tải thông tin tour…" />;
   if (!tour || error) {

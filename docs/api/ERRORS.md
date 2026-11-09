@@ -55,6 +55,7 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `CAPACITY_BELOW_BOOKED` | 409 | Capacity cannot go below the seats already sold |
 | `DEPARTURE_HAS_BOOKINGS` | 409 | A departure with sold seats cannot be moved or removed (close it instead) |
 | `DEPARTURE_UNAVAILABLE` | 409 | The departure is closed, past, or sold out |
+| `PENDING_BOOKING_EXISTS` | 409 | The traveler already has a PENDING booking for the same tour and departure; pay or cancel it first. Details contain that traveler's existing bookingId and bookingCode. A retry with the same clientRequestId still returns the original booking. |
 | `CATEGORY_EXISTS` | 409 | A category with the same slug exists |
 | `PROMOTION_CODE_EXISTS` | 409 | The promotion code is already used |
 | `PROMOTION_IN_USE` | 409 | The discount of a promotion that has been used cannot change |

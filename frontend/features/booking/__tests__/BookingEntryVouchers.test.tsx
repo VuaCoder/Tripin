@@ -224,6 +224,17 @@ describe('BookingEntryPage Shopee-style Voucher Selector', () => {
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/settings/history/new-booking'));
   });
 
+  it('explains an existing pending booking and links to it instead of silently creating another', async () => {
+    mockCreateBooking.mockReturnValue({ unwrap: async () => { throw { status: 409, data: { error: {
+      code: 'PENDING_BOOKING_EXISTS', details: { bookingId: 'pending-qa-booking' },
+    } } }; } });
+    const { container } = render(<BookingEntryPage />);
+    fireEvent.submit(container.querySelector('form')!);
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Bạn đã có đơn chờ thanh toán'));
+    expect(screen.getByRole('link', { name: 'Mở đơn đang chờ thanh toán' }).getAttribute('href')).toBe('/settings/history/pending-qa-booking');
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
   it('uses freshly checked vouchers and subtracts the agency discount only once before checking the platform code', async () => {
     mockPreviewPromotion.mockImplementation(({ code, subtotal }: { code: string; subtotal: number }) => ({ unwrap: async () => ({
       promotionId: code === 'AGENCY10' ? 'p-agency' : 'p-platform', code,

@@ -1,7 +1,7 @@
 import type { DateRange } from '../../utils/date-range';
 import { premiumRepository } from '../premium/premium.repository';
 import { BOOKING_CANCEL_REASON, BOOKING_STATUS, PROMOTION_SCOPE, ratioVnd, sumVnd, type BookingCancelReason, type BookingStatus, type PromotionScope } from '@travel-platform/constants';
-import { isUniqueViolation, runInTransaction, type TransactionRunner } from '../../config/database';
+import { isUniqueViolation, runInTransaction, type DbExecutor, type TransactionRunner } from '../../config/database';
 import { AppError } from '../../utils/app-error';
 import { randomInt, randomUUID } from 'node:crypto';
 import { buildPage, type Page } from '../../utils/pagination';
@@ -36,7 +36,7 @@ const MINUTE_MS = 60 * 1000;
 
 type Repo = Pick<
   BookingsRepository,
-  | 'create' | 'findById' | 'findByRequestId' | 'transition' | 'updateById' | 'cancelWithInventoryRelease' | 'listByTraveler' | 'listByAgency'
+  | 'create' | 'findById' | 'findByRequestId' | 'findPendingForDeparture' | 'lockPendingDeparture' | 'transition' | 'updateById' | 'cancelWithInventoryRelease' | 'listByTraveler' | 'listByAgency'
   | 'findExpiredPending' | 'findDueForCompletion' | 'statusCounts' | 'revenueTotals' | 'dailyNet' | 'monthlyTotals' | 'topTours' | 'listPaidForTour' | 'customerCount'
 > & Partial<Pick<BookingsRepository, 'countByTraveler'>>;
 
@@ -109,6 +109,8 @@ export class BookingsService {
       if (duplicate) return toBookingDto(duplicate);
     }
 
+    await this.assertNoPendingDeparture(travelerId, input);
+
     const departure = await this.tours.getBookableDeparture(input.tourId, input.departureId);
     if (input.participants > departure.remaining) {
       throw AppError.conflict('Not enough seats left on this departure', 'NOT_ENOUGH_SEATS');
@@ -129,10 +131,12 @@ export class BookingsService {
       for (let attempt = 1; ; attempt += 1) {
         try {
           result = await this.transact(async (tx) => {
+            await this.bookings.lockPendingDeparture(travelerId, input.departureId, tx);
             if (input.clientRequestId) {
               const existing = await this.bookings.findByRequestId(travelerId, input.clientRequestId, tx);
               if (existing) return { booking: existing, created: false };
             }
+            await this.assertNoPendingDeparture(travelerId, input, tx);
             const codes = input.agencyPromotionCode || input.platformPromotionCode
               ? [input.agencyPromotionCode, input.platformPromotionCode].filter((code): code is string => !!code)
               : input.promotionCode ? [input.promotionCode] : [];
@@ -255,6 +259,16 @@ export class BookingsService {
   async listMine(travelerId: string, query: ListBookingsQuery): Promise<Page<BookingDto>> {
     const { items, total } = await this.bookings.listByTraveler(travelerId, query.status, query);
     return buildPage(items.map(toBookingDto), total, query);
+  }
+
+  private async assertNoPendingDeparture(travelerId: string, input: CreateBookingInput, tx?: DbExecutor): Promise<void> {
+    const pending = await this.bookings.findPendingForDeparture(travelerId, input.tourId, input.departureId, tx);
+    if (pending) {
+      throw AppError.conflict(
+        'Bạn đã có đơn chờ thanh toán cho tour và lịch khởi hành này. Vui lòng thanh toán hoặc hủy đơn đó trước khi đặt thêm.',
+        'PENDING_BOOKING_EXISTS',
+        { bookingId: pending.id, bookingCode: pending.bookingCode });
+    }
   }
 
   async getMine(travelerId: string, id: string): Promise<BookingDto> {
@@ -604,11 +618,6 @@ export class BookingsService {
     }
   }
 
-  private async compensate(
-    input: CreateBookingInput,
-  ): Promise<void> {
-    await this.releaseReservedSeats(input);
-  }
 }
 
 export function generateBookingCode(): string {

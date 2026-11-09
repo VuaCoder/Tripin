@@ -32,6 +32,12 @@ async function fixture(quota = 50) {
 }
 
 type Fixture = Awaited<ReturnType<typeof fixture>>;
+async function anotherDeparture(f: Fixture, daysAhead = 60, priceOverride?: number) {
+  return prisma.tourDeparture.create({ data: {
+    tourId: f.tourId, date: new Date(Date.now() + daysAhead * day), capacity: 50, remaining: 50, isOpen: true,
+    ...(priceOverride !== undefined ? { priceOverride } : {}),
+  } });
+}
 const book = (f: Fixture, token = f.traveler.token, extra: object = {}) => request(app).post('/api/v1/bookings')
   .set(bearer(token)).send({ tourId: f.tourId, departureId: f.departureId, participants: 1, contact, promotionCode: f.instance.code, ...extra });
 const cancel = (f: Fixture, id: string) => request(app).post(`/api/v1/bookings/${id}/cancel`).set(bearer(f.traveler.token)).send({});
@@ -60,7 +66,9 @@ describe('unique batch voucher transaction', () => {
     expect(first.body.data.redemptions.map((r: { discountAmount: number }) => r.discountAmount).sort()).toEqual([3_000_000_000, 4_000_000_000]);
     expect(await prisma.promotionRedemption.count()).toBe(2);
     expect(await promotionsRepository.countUserUsages(f.traveler.id, platform.id)).toBe(1);
-    const replay = await book(f, f.traveler.token, extra);
+    // A different departure reaches voucher validation rather than the pending-booking guard.
+    const nextDeparture = await anotherDeparture(f, 60, 1_000_000_000);
+    const replay = await book(f, f.traveler.token, { ...extra, departureId: nextDeparture.id });
     expect(replay.body.error.code).toBe('PROMOTION_USER_LIMIT_REACHED');
     expect((await cancel(f, first.body.data.id)).status).toBe(200);
     expect((await prisma.promotion.findUniqueOrThrow({ where: { id: shared.id } })).usedCount).toBe(0);
@@ -71,7 +79,8 @@ describe('unique batch voucher transaction', () => {
   it('serializes concurrent bookings by the same user at per-user limit one', async () => {
     const f = await fixture();
     await prisma.promotion.update({ where: { id: f.promotion.id }, data: { codeType: 'SHARED', code: 'SHARED_LIMIT', usageLimitPerUser: 1 } });
-    const results = await Promise.all(Array.from({ length: 12 }, () => book(f, f.traveler.token, { promotionCode: 'SHARED_LIMIT' })));
+    const departures = await Promise.all(Array.from({ length: 12 }, (_, i) => anotherDeparture(f, 60 + i)));
+    const results = await Promise.all(departures.map(departure => book(f, f.traveler.token, { departureId: departure.id, promotionCode: 'SHARED_LIMIT' })));
     expect(results.filter((r) => r.status === 201)).toHaveLength(1);
     expect(results.filter((r) => r.body.error?.code === 'PROMOTION_USER_LIMIT_REACHED')).toHaveLength(11);
     expect(await prisma.booking.count()).toBe(1);
@@ -91,7 +100,8 @@ describe('unique batch voucher transaction', () => {
     const used = (await prisma.promotionCodeInstance.findUnique({ where: { id: f.instance.id } }))!;
     expect(used).toMatchObject({ isUsed: true, usedById: f.traveler.id, bookingId: response.body.data.id });
     expect(used.usedAt).toBeInstanceOf(Date);
-    const reused = await book(f);
+    const nextDeparture = await anotherDeparture(f);
+    const reused = await book(f, f.traveler.token, { departureId: nextDeparture.id });
     expect(reused.status).toBe(409);
     expect(reused.body.error.code).toBe('PROMOTION_CODE_USED');
     const previewUsed = await request(app).get('/api/v1/promotions/preview').set(bearer(f.traveler.token))
@@ -218,7 +228,8 @@ describe('unique batch voucher transaction', () => {
     expect(first.status).toBe(201);
     const create = bookingsRepository.create.bind(bookingsRepository);
     const spy = vi.spyOn(bookingsRepository, 'create').mockImplementationOnce((data, tx) => create({ ...data, bookingCode: first.body.data.bookingCode }, tx));
-    const response = await book(f);
+    const other = await createUser('TRAVELER', 'code-collision@example.com');
+    const response = await book(f, other.token);
     expect(response.status, JSON.stringify(response.body)).toBe(201);
     expect(spy).toHaveBeenCalledTimes(2);
     expect(await prisma.booking.count()).toBe(2);

@@ -59,7 +59,10 @@ export const bookingApi = baseApi.injectEndpoints({
     createBooking: build.mutation<BookingDto, CreateBookingInput>({
       query: (body) => ({ url: '/bookings', method: 'POST', body }),
       transformResponse: (response: BookingApiResponse<BookingDto>) => response.data,
-      invalidatesTags: [{ type: 'Booking', id: 'LIST' }],
+      invalidatesTags: (result) => [
+        { type: 'Booking', id: 'LIST' },
+        ...(result ? [{ type: 'Tour' as const, id: result.tour.id }] : []),
+      ],
     }),
 
     previewPromotion: build.query<PromotionPreview, PromotionPreviewInput>({
@@ -165,9 +168,10 @@ export const bookingApi = baseApi.injectEndpoints({
         body: reason ? { reason } : {},
       }),
       transformResponse: (response: BookingApiResponse<BookingDto>) => response.data,
-      invalidatesTags: (_result, _error, { id }) => [
+      invalidatesTags: (result, _error, { id }) => [
         { type: 'Booking', id },
         { type: 'Booking', id: 'LIST' },
+        ...(result ? [{ type: 'Tour' as const, id: result.tour.id }] : []),
       ],
     }),
 

@@ -4,6 +4,7 @@ import { calculateGuestPrice, guestTotal, type GuestCounts } from '@travel-platf
 import { TourGuestSelector } from '@/features/tours/components/detail/TourGuestSelector';
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, FormField, Input } from '@/components/ui';
 import { ErrorState, LoadingState } from '@/components/shared';
@@ -28,6 +29,8 @@ function retryKey(): string {
 
 function bookingErrorMessage(error: unknown, fallback: string): string {
   switch (getApiErrorCode(error)) {
+    case 'PENDING_BOOKING_EXISTS':
+      return 'Bạn đã có đơn chờ thanh toán cho tour và lịch khởi hành này. Vui lòng thanh toán hoặc hủy đơn đó trước khi đặt thêm.';
     case 'NOT_ENOUGH_SEATS':
       return 'Số chỗ trống vừa thay đổi. Hãy giảm số khách hoặc chọn ngày khởi hành khác.';
     case 'DEPARTURE_UNAVAILABLE':
@@ -67,6 +70,9 @@ export function BookingEntryPage() {
 
   const { data: tour, isLoading: isTourLoading, isError: isTourError, refetch: refetchTour } = useGetTourQuery(tourId, {
     skip: !tourId,
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
   });
   const { data: availablePromos } = useGetAvailablePromotionsQuery({ tourId }, { skip: !tourId });
   const { data: myVouchers } = useGetMyVouchersQuery(undefined, { skip: !user });
@@ -102,6 +108,7 @@ export function BookingEntryPage() {
     Number.isFinite(participantsParam) && participantsParam > 0 ? participantsParam : 1,
   );
   const [errors, setErrors] = useState<{ fullName?: string; phone?: string; general?: string }>({});
+  const [pendingBookingId, setPendingBookingId] = useState<string | null>(null);
   const [children, setChildren] = useState(() => Math.max(0, Number(params.get('children')) || 0));
   const [infants, setInfants] = useState(() => Math.max(0, Number(params.get('infants')) || 0));
   const clientRequestId = useRef(retryKey());
@@ -344,6 +351,7 @@ export function BookingEntryPage() {
   const departureDate = departure.date;
 
   const submitBooking = async () => {
+    setPendingBookingId(null);
     const next: typeof errors = {};
     if (fullName.trim().length < 2) next.fullName = 'Vui lòng nhập họ tên (ít nhất 2 ký tự).';
     if (!PHONE_PATTERN.test(phone.trim())) next.phone = 'Số điện thoại không hợp lệ.';
@@ -412,6 +420,10 @@ export function BookingEntryPage() {
       }).unwrap();
       router.replace(`/settings/history/${created.id}`);
     } catch (error) {
+      if (getApiErrorCode(error) === 'PENDING_BOOKING_EXISTS') {
+        const details = (error as { data?: { error?: { details?: { bookingId?: string } } } })?.data?.error?.details;
+        if (details?.bookingId) setPendingBookingId(details.bookingId);
+      }
       setErrors({ general: bookingErrorMessage(error, 'Không tạo được đặt chỗ. Vui lòng thử lại.') });
     }
   };
@@ -585,6 +597,7 @@ export function BookingEntryPage() {
           <textarea id="booking-notes" value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} maxLength={500} placeholder="Yêu cầu đặc biệt cho chuyến đi..." className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/20" />
         </FormField>
         {errors.general && <p role="alert" className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{errors.general}</p>}
+        {pendingBookingId && <Link href={`/settings/history/${encodeURIComponent(pendingBookingId)}`} className="inline-block text-sm font-semibold text-primary underline">Mở đơn đang chờ thanh toán</Link>}
         <Button type="submit" className="w-full" loading={isSubmitting || isCheckingBooking}>Xác nhận đặt chỗ</Button>
       </form>
 
