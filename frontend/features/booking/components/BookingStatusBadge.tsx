@@ -8,66 +8,50 @@ export interface BookingStatusBadgeProps {
   className?: string;
 }
 
+/**
+ * One pill for the whole lifecycle: later states override earlier ones, so the card never lists
+ * "Đã xác nhận" and "Đã thanh toán" side by side.
+ */
 export function BookingStatusBadge({
   status,
   isPaid,
   refundRequired,
   className = '',
 }: BookingStatusBadgeProps) {
-  let statusBg = 'bg-slate-100 text-slate-700 border-slate-200';
-  let statusIcon = 'info';
-  let statusText = 'Không xác định';
+  let tone = 'bg-slate-100 text-slate-700 border-slate-200';
+  let icon = 'info';
+  let label = 'Không xác định';
 
-  switch (status) {
-    case 'PENDING':
-      statusBg = 'bg-amber-50 text-amber-800 border-amber-200/80';
-      statusIcon = 'schedule';
-      statusText = 'Chờ thanh toán';
-      break;
-    case 'CONFIRMED':
-      statusBg = 'bg-emerald-50 text-emerald-800 border-emerald-200/80';
-      statusIcon = 'check_circle';
-      statusText = 'Đã xác nhận';
-      break;
-    case 'COMPLETED':
-      statusBg = 'bg-teal-50 text-teal-800 border-teal-200/80';
-      statusIcon = 'task_alt';
-      statusText = 'Đã hoàn thành';
-      break;
-    case 'CANCELLED':
-      statusBg = 'bg-rose-50 text-rose-700 border-rose-200/80';
-      statusIcon = 'cancel';
-      statusText = 'Đã hủy';
-      break;
+  if (status === 'CANCELLED') {
+    tone = 'bg-rose-50 text-rose-700 border-rose-200/80';
+    icon = 'cancel';
+    label = 'Đã hủy';
+  } else if (refundRequired) {
+    tone = 'bg-purple-50 text-purple-700 border-purple-200';
+    icon = 'currency_exchange';
+    label = 'Chờ hoàn tiền';
+  } else if (status === 'COMPLETED') {
+    tone = 'bg-teal-50 text-teal-800 border-teal-200/80';
+    icon = 'task_alt';
+    label = 'Đã hoàn thành';
+  } else if (isPaid) {
+    tone = 'bg-primary-container/10 text-primary border-primary-container/20';
+    icon = 'payments';
+    label = 'Đã thanh toán';
+  } else if (status === 'CONFIRMED') {
+    tone = 'bg-emerald-50 text-emerald-800 border-emerald-200/80';
+    icon = 'check_circle';
+    label = 'Đã xác nhận';
+  } else if (status === 'PENDING') {
+    tone = 'bg-amber-50 text-amber-800 border-amber-200/80';
+    icon = 'schedule';
+    label = 'Chờ thanh toán';
   }
 
   return (
-    <div className={`inline-flex items-center gap-1.5 flex-wrap ${className}`}>
-      {/* Booking Lifecycle Status Badge */}
-      <span
-        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${statusBg}`}
-      >
-        <span className="material-symbols-outlined text-[15px]">{statusIcon}</span>
-        <span>{statusText}</span>
-      </span>
-
-      {/* Payment Status Pill */}
-      {refundRequired ? (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border bg-purple-50 text-purple-700 border-purple-200">
-          <span className="material-symbols-outlined text-[14px]">currency_exchange</span>
-          <span>Chờ hoàn tiền</span>
-        </span>
-      ) : isPaid ? (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border bg-primary-container/10 text-primary border-primary-container/20">
-          <span className="material-symbols-outlined text-[14px]">payments</span>
-          <span>Đã thanh toán</span>
-        </span>
-      ) : status === 'PENDING' ? (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border bg-slate-50 text-slate-600 border-slate-200">
-          <span className="material-symbols-outlined text-[14px]">pending</span>
-          <span>Chưa thanh toán</span>
-        </span>
-      ) : null}
-    </div>
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold whitespace-nowrap ${tone} ${className}`}>
+      <span className="material-symbols-outlined text-[15px]" aria-hidden="true">{icon}</span>
+      <span>{label}</span>
+    </span>
   );
 }

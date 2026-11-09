@@ -148,7 +148,7 @@ describe('MyReportsPage', () => {
     expect(screen.getByText('Xe đưa đón không có dây an toàn.')).toBeTruthy();
     expect(screen.getByText('Chúng tôi đã hoàn tiền.')).toBeTruthy();
     expect(screen.getByText('Đã xác minh và xử lý.')).toBeTruthy();
-    expect(screen.getAllByText('Đã giải quyết').length).toBeGreaterThan(1);
+    expect(screen.getAllByText('Đã giải quyết')).toHaveLength(1);
   });
 
   it('forwards the status filter and resets to page 1', () => {

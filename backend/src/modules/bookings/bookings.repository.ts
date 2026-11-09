@@ -32,6 +32,8 @@ export type BookingRecord = Omit<Booking, FlattenedColumns> & {
   contact: { fullName: string; phone: string };
   promotion?: PromotionSnapshot;
   redemptions?: PromotionRedemption[];
+  /** The tour's gallery, filled only by the traveler list query (no Tour relation on Booking). */
+  tourImages?: string[];
 };
 
 type BookingScalars = Omit<Booking, 'id' | 'createdAt' | 'updatedAt' | 'guestPricing' | 'cancellationPolicySnapshot' | FlattenedColumns> & { guestPricing: Prisma.InputJsonValue; cancellationPolicySnapshot: Prisma.InputJsonValue };
@@ -188,7 +190,7 @@ export class BookingsRepository {
   }
 
   listByTraveler(travelerId: string, status: BookingStatus | undefined, page: PageRequest) {
-    return this.paginate({ travelerId, ...(status ? { status } : {}) }, NEWEST_FIRST, page);
+    return this.paginate({ travelerId, ...(status ? { status } : {}) }, NEWEST_FIRST, page, { withTourImages: true });
   }
 
   async countByTraveler(travelerId: string, db: DbExecutor = prisma): Promise<number> {
@@ -287,12 +289,25 @@ export class BookingsRepository {
     return rows.map((row) => ({ ...row, net: safeVndNumber(row.net) }));
   }
 
-  private async paginate(where: Prisma.BookingWhereInput, orderBy: Prisma.BookingOrderByWithRelationInput[], page: PageRequest) {
+  private async paginate(
+    where: Prisma.BookingWhereInput,
+    orderBy: Prisma.BookingOrderByWithRelationInput[],
+    page: PageRequest,
+    options: { withTourImages?: boolean } = {},
+  ) {
     const [rows, total] = await Promise.all([
       prisma.booking.findMany({ where, orderBy, skip: toSkip(page), take: page.limit }),
       prisma.booking.count({ where }),
     ]);
-    return { items: rows.map(toRecord), total };
+    const items = rows.map(toRecord);
+    if (!options.withTourImages || !items.length) return { items, total };
+    // Booking has no Tour relation, so the card cover is fetched in one extra query for this page only.
+    const tours = await prisma.tour.findMany({
+      where: { id: { in: Array.from(new Set(items.map(row => row.tourId))) } },
+      select: { id: true, images: true },
+    });
+    const covers = new Map(tours.map(tour => [tour.id, tour.images]));
+    return { items: items.map(row => ({ ...row, tourImages: covers.get(row.tourId) ?? [] })), total };
   }
 }
 
