@@ -312,8 +312,8 @@ export function ModeratorSidebar({ initialExpanded = true }: ModeratorSidebarPro
               aria-haspopup="dialog"
               aria-expanded={showNotificationModal}
               className={styles.notification}
-              aria-label={`Thông báo${count !== undefined && count > 0 ? `, ${count} chưa đọc` : ''}`}
-              title="Thông báo"
+              aria-label={`Thông báo${count !== undefined && count > 0 ? `, ${count > 9 ? '9+ tin nhắn' : `${count} chưa đọc`}` : ''}`}
+              title={count !== undefined && count > 9 ? '9+ tin nhắn' : 'Thông báo'}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -321,7 +321,11 @@ export function ModeratorSidebar({ initialExpanded = true }: ModeratorSidebarPro
               }}
             >
               <Bell size={20} aria-hidden="true" />
-              {count !== undefined && count > 0 && <span className={styles.badge}>{count > 99 ? '99+' : count}</span>}
+              {count !== undefined && count > 0 && (
+                <span className={styles.badge} aria-hidden="true">
+                  {count > 9 ? '9+' : count}
+                </span>
+              )}
             </button>
           </div>
           {showProfileMenu && (

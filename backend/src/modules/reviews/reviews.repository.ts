@@ -1,5 +1,6 @@
 import { writeAudit } from '../audit/audit.writer';
 import { writeNotification } from '../notifications/notifications.writer';
+import { formatReviewModeratedTravelerEmail, formatReviewModeratedAgencyEmail } from '../notifications/email-templates';
 import type { AuditEntry } from '../audit/audit.types';
 import { nullIfNotFound, prisma, type Prisma, type DbExecutor } from '../../config/database';
 import { Prisma as Sql } from '../../generated/prisma/client';
@@ -50,12 +51,38 @@ export class ReviewsRepository {
       if (audit) {
         const hidden = updated.status === REVIEW_STATUS.HIDDEN;
         const reason = String(audit.metadata?.reason ?? '');
-        for (const userId of new Set([updated.travelerId, updated.agencyId])) {
-          await writeNotification(tx, userId, {
+        const [traveler, agency] = await Promise.all([
+          tx.user.findUnique({ where: { id: updated.travelerId }, select: { fullName: true } }),
+          tx.user.findUnique({ where: { id: updated.agencyId }, select: { fullName: true } }),
+        ]);
+
+        await writeNotification(tx, updated.travelerId, {
+          type: 'REVIEW_MODERATED',
+          title: hidden ? 'Đánh giá đã bị ẩn' : 'Đánh giá đã được khôi phục',
+          body: `Đánh giá về "${updated.tourTitle}" đã ${hidden ? 'bị ẩn' : 'được khôi phục'}. Lý do kiểm duyệt: ${reason}`,
+          data: { reviewId: id, tourId: updated.tourId },
+          emailSubject: hidden ? '[TripRI] Thông báo tạm ẩn đánh giá của bạn' : '[TripRI] Đánh giá của bạn đã được hiển thị trở lại',
+          emailText: formatReviewModeratedTravelerEmail({
+            travelerName: traveler?.fullName,
+            tourTitle: updated.tourTitle,
+            hidden,
+            reason,
+          }),
+        });
+
+        if (updated.agencyId !== updated.travelerId) {
+          await writeNotification(tx, updated.agencyId, {
             type: 'REVIEW_MODERATED',
-            title: hidden ? 'Đánh giá đã bị ẩn' : 'Đánh giá đã được khôi phục',
+            title: hidden ? 'Đánh giá tour đã bị ẩn' : 'Đánh giá tour đã được khôi phục',
             body: `Đánh giá về "${updated.tourTitle}" đã ${hidden ? 'bị ẩn' : 'được khôi phục'}. Lý do kiểm duyệt: ${reason}`,
             data: { reviewId: id, tourId: updated.tourId },
+            emailSubject: hidden ? `[TripRI] Cập nhật trạng thái đánh giá tour "${updated.tourTitle}"` : `[TripRI] Đánh giá cho tour "${updated.tourTitle}" đã được khôi phục`,
+            emailText: formatReviewModeratedAgencyEmail({
+              agencyName: agency?.fullName,
+              tourTitle: updated.tourTitle,
+              hidden,
+              reason,
+            }),
           });
         }
       }

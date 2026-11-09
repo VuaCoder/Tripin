@@ -154,6 +154,36 @@ function ApplicationStatusContent() {
     return () => { active = false; };
   }, [token, email, attempt]);
 
+  // Real-time polling while status is pending so agency sees approval immediately
+  useEffect(() => {
+    if (!statusData || statusData.verificationStatus !== 'PENDING') return;
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        agencyAuthApi
+          .getApplicationStatus({ token: token || statusData.token, email: email || statusData.email })
+          .then((updated) => {
+            if (updated.verificationStatus !== 'PENDING') {
+              setStatusData(updated);
+            }
+          })
+          .catch(() => {});
+      }
+    }, 5000); // Polling every 5s while waiting for approval
+
+    const onFocus = () => {
+      agencyAuthApi
+        .getApplicationStatus({ token: token || statusData.token, email: email || statusData.email })
+        .then((updated) => setStatusData(updated))
+        .catch(() => {});
+    };
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [statusData?.verificationStatus, statusData?.token, statusData?.email, token, email]);
+
   const runTestAction = async (action: 'accept' | 'reject') => {
     if (!isDev || !statusData || testAction || statusData.verificationStatus !== 'PENDING') return;
     setTestError('');

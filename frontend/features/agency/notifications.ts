@@ -34,6 +34,65 @@ export const notificationsApi = baseApi.injectEndpoints({
 });
 export const { useAgencyNotificationsQuery, useAgencyUnreadQuery, useReadAgencyNotificationMutation, useReadAllAgencyNotificationsMutation, useDeleteAgencyNotificationMutation } = notificationsApi;
 
+export {
+  getLocalNotifications,
+  saveLocalNotifications,
+  markLocalNotificationRead,
+  markAllLocalNotificationsRead,
+  deleteLocalNotification,
+} from './localNotifications';
+import {
+  getLocalNotifications,
+  saveLocalNotifications,
+} from './localNotifications';
+
+export function pushNotification(
+  dispatch: any,
+  notification: { title: string; body: string; type?: string },
+) {
+  const item: AgencyNotification = {
+    id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    type: notification.type || 'MODERATION_UPDATE',
+    title: notification.title,
+    body: notification.body,
+    isRead: false,
+    createdAt: new Date().toISOString(),
+  };
+
+  // 1. Save to localStorage so it persists when opening popup
+  const current = getLocalNotifications();
+  saveLocalNotifications([item, ...current]);
+
+  try {
+    dispatch(
+      notificationsApi.util.updateQueryData('agencyUnread', undefined, (draft) => {
+        return (draft ?? 0) + 1;
+      }),
+    );
+  } catch {
+    // ignore if cache entry not initialized
+  }
+
+  try {
+    dispatch(
+      notificationsApi.util.updateQueryData('agencyNotifications', 1, (draft) => {
+        if (draft && draft.data) {
+          draft.data.unshift(item);
+          if (draft.meta) {
+            draft.meta.total = (draft.meta.total ?? 0) + 1;
+          }
+        }
+      }),
+    );
+  } catch {
+    // ignore if cache entry not initialized
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('tripri:notification', { detail: item }));
+  }
+}
+
 /** One connection in the Agency shell; inbox queries share RTK's authenticated cache. */
 export function useAgencyNotifications() {
   const user = useAppSelector(selectUser);
@@ -41,7 +100,33 @@ export function useAgencyNotifications() {
   const dispatch = useAppDispatch();
   const [connected, setConnected] = useState(false);
   const [latest, setLatest] = useState('');
+  const [localUnread, setLocalUnread] = useState(0);
+
   const { data: count } = useAgencyUnreadQuery(undefined, { skip: !user?.id || !token, pollingInterval: 30000, skipPollingIfUnfocused: true, refetchOnFocus: true, refetchOnReconnect: true });
+
+  useEffect(() => {
+    const updateLocalCount = () => {
+      setLocalUnread(getLocalNotifications().filter((n) => !n.isRead).length);
+    };
+    updateLocalCount();
+
+    const onLocalNotif = (e: Event) => {
+      const customEvent = e as CustomEvent<AgencyNotification>;
+      if (customEvent.detail?.title) {
+        setLatest(customEvent.detail.title);
+      }
+      updateLocalCount();
+    };
+
+    window.addEventListener('tripri:notification', onLocalNotif);
+    window.addEventListener('tripri:notification-read', updateLocalCount);
+
+    return () => {
+      window.removeEventListener('tripri:notification', onLocalNotif);
+      window.removeEventListener('tripri:notification-read', updateLocalCount);
+    };
+  }, []);
+
   useEffect(() => {
     setConnected(false);
     setLatest('');
@@ -57,6 +142,7 @@ export function useAgencyNotifications() {
       setLatest(notification.title);
       invalidate();
     });
+
     socket.on('connect_error', async (error) => {
       setConnected(false);
       if (!['TOKEN_INVALID', 'UNAUTHENTICATED'].includes(error.message) || refreshing) return;
@@ -67,7 +153,14 @@ export function useAgencyNotifications() {
     });
     const reconnect = () => { if (document.visibilityState === 'visible') { invalidate(); if (!socket.connected) socket.connect(); } };
     document.addEventListener('visibilitychange', reconnect);
-    return () => { disposed = true; document.removeEventListener('visibilitychange', reconnect); socket.removeAllListeners(); socket.disconnect(); };
+    return () => {
+      disposed = true;
+      document.removeEventListener('visibilitychange', reconnect);
+      socket.removeAllListeners();
+      socket.disconnect();
+    };
   }, [dispatch, token, user?.id]);
-  return { count, connected, latest };
+
+  const totalCount = (count ?? 0) + localUnread;
+  return { count: totalCount, connected, latest };
 }
