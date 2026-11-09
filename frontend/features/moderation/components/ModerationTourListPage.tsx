@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Search, RefreshCw, X, LayoutGrid, List, Compass, MapPin, Clock } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
-import { Pagination, AntSelect, type AntSelectOption } from '@/components/ui';
+import { Pagination, AntSelect, Modal, type AntSelectOption } from '@/components/ui';
 import { useGetModerationToursQuery, useSuspendTourMutation, useValidateTourMutation } from '../api/moderationApi';
 import { PERMISSION, TOUR_STATUS_LABELS } from '../labels';
 import type { ModerationTour, ModerationTourStatus } from '../types';
@@ -15,6 +15,23 @@ type StatusFilter = 'ALL' | ModerationTourStatus;
 
 interface Props {
   initialStatus?: StatusFilter;
+}
+
+/** Formats tour date: "18:48 - 01/11", or "18:48 - 01/11/26" if another year */
+export function formatTourDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const now = new Date();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const time = `${hours}:${minutes}`;
+  if (d.getFullYear() !== now.getFullYear()) {
+    const yearShort = String(d.getFullYear()).slice(-2);
+    return `${time} - ${day}/${month}/${yearShort}`;
+  }
+  return `${time} - ${day}/${month}`;
 }
 
 /** Use cases "View tour lists", "Validate tour" and "Suspend tours". */
@@ -48,6 +65,7 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
   const [suspend, { isLoading: isSuspending }] = useSuspendTourMutation();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [quickActionTour, setQuickActionTour] = useState<{ id: string; action: 'suspend' | 'reject'; title: string } | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
@@ -319,18 +337,32 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
                     {/* Footer Actions */}
                     <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-3 flex items-center justify-between">
                       <span className="text-[11px] text-slate-400">
-                        Cập nhật {dateTime.format(new Date(t.updatedAt))}
+                        {formatTourDate(t.updatedAt)}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setServerError(null);
-                          setSelectedId(t.id);
-                        }}
-                        className="rounded-xl border border-teal-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-teal-900 shadow-2xs transition hover:bg-teal-50 cursor-pointer"
-                      >
-                        {t.status === 'PENDING_REVIEW' || t.status === 'APPROVED' ? 'Xem & xử lý' : 'Xem chi tiết'}
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        {t.status === 'APPROVED' && canSuspend && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setServerError(null);
+                              setQuickActionTour({ id: t.id, action: 'suspend', title: t.title });
+                            }}
+                            className="rounded-xl border border-rose-300 bg-rose-100 px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-200 cursor-pointer"
+                          >
+                            Tạm ngưng
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setServerError(null);
+                            setSelectedId(t.id);
+                          }}
+                          className="rounded-xl border border-teal-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-teal-900 shadow-2xs transition hover:bg-teal-50 cursor-pointer"
+                        >
+                          {t.status === 'PENDING_REVIEW' || t.status === 'APPROVED' ? 'Xem & xử lý' : 'Xem chi tiết'}
+                        </button>
+                      </div>
                     </div>
                   </li>
                 );
@@ -393,23 +425,37 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
                               {money.format(t.basePrice)}
                             </span>
                             <span className="text-slate-400">
-                              Cập nhật {dateTime.format(new Date(t.updatedAt))}
+                              {formatTourDate(t.updatedAt)}
                             </span>
                           </div>
                         </div>
                       </div>
 
                       {/* Action */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setServerError(null);
-                          setSelectedId(t.id);
-                        }}
-                        className="self-end sm:self-center shrink-0 rounded-xl border border-teal-200 bg-teal-50/50 px-4 py-2 text-sm font-semibold text-teal-900 transition hover:bg-teal-100/80 cursor-pointer"
-                      >
-                        {t.status === 'PENDING_REVIEW' || t.status === 'APPROVED' ? 'Xem & xử lý' : 'Xem chi tiết'}
-                      </button>
+                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                        {t.status === 'APPROVED' && canSuspend && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setServerError(null);
+                              setQuickActionTour({ id: t.id, action: 'suspend', title: t.title });
+                            }}
+                            className="rounded-xl border border-rose-300 bg-rose-100 px-3.5 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-200 cursor-pointer"
+                          >
+                            Tạm ngưng
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setServerError(null);
+                            setSelectedId(t.id);
+                          }}
+                          className="rounded-xl border border-teal-200 bg-teal-50/50 px-4 py-2 text-sm font-semibold text-teal-900 transition hover:bg-teal-100/80 cursor-pointer"
+                        >
+                          {t.status === 'PENDING_REVIEW' || t.status === 'APPROVED' ? 'Xem & xử lý' : 'Xem chi tiết'}
+                        </button>
+                      </div>
                     </div>
                   </li>
                 );
@@ -449,7 +495,7 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
             <h3 className="text-base font-bold text-slate-900">{selected.title}</h3>
             <p className="text-xs text-slate-500">
               {selected.destination} · {selected.durationDays} ngày · {money.format(selected.basePrice)}
-              {selected.submittedAt ? ` · Gửi duyệt ${dateTime.format(new Date(selected.submittedAt))}` : ''}
+              {selected.submittedAt ? ` · Gửi duyệt ${formatTourDate(selected.submittedAt)}` : ''}
             </p>
             {selected.description || selected.summary ? (
               <p className="whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-slate-800">{selected.description || selected.summary}</p>
@@ -474,6 +520,63 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
           </>
         )}
       </DecisionDialog>
+
+      {/* Quick Confirmation Modal */}
+      {quickActionTour && (
+        <Modal
+          open={Boolean(quickActionTour)}
+          onClose={() => setQuickActionTour(null)}
+          title={quickActionTour.action === 'suspend' ? 'Xác nhận tạm ngưng tour' : 'Xác nhận từ chối tour'}
+          className="max-w-md"
+        >
+          <div className="space-y-4 text-sm">
+            <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-4 text-rose-900">
+              <p className="font-bold text-sm sm:text-base text-rose-900">
+                {quickActionTour.action === 'suspend'
+                  ? 'Bạn có chắc chắn muốn tạm ngưng tour này không?'
+                  : 'Bạn có chắc chắn muốn từ chối tour này không?'}
+              </p>
+              <p className="mt-1.5 text-xs text-rose-700">
+                Tour: <strong className="text-slate-900">{quickActionTour.title}</strong>
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setQuickActionTour(null)}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={isValidating || isSuspending}
+                onClick={async () => {
+                  const target = quickActionTour;
+                  setQuickActionTour(null);
+                  if (target.action === 'suspend') {
+                    await decide(
+                      () => suspend({ id: target.id, reason: 'Tạm ngưng theo yêu cầu kiểm duyệt' }).unwrap(),
+                      `Đã tạm ngưng tour "${target.title}".`,
+                      'Không thể tạm ngưng tour lúc này. Vui lòng thử lại.',
+                    );
+                  } else {
+                    await decide(
+                      () => validate({ id: target.id, approve: false, reason: 'Không đạt tiêu chuẩn kiểm duyệt của sàn' }).unwrap(),
+                      `Đã từ chối tour "${target.title}".`,
+                      'Không thể từ chối tour lúc này. Vui lòng thử lại.',
+                    );
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-rose-700 transition cursor-pointer disabled:opacity-50"
+              >
+                {isValidating || isSuspending ? 'Đang xử lý...' : 'OK'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
