@@ -12,10 +12,12 @@ import { formatCategoryName, formatDepartureDate, formatDuration, formatVnd } fr
 export interface TourCardProps {
   tour: TourListItem;
   categoryName?: string;
+  href?: string;
+  view?: 'grid' | 'list';
 }
 
 /** Card công khai cho 1 tour — hiển thị trên trang khám phá. */
-export function TourCard({ tour, categoryName }: TourCardProps) {
+export function TourCard({ tour, categoryName, href = `/tours/${tour.id}`, view = 'grid' }: TourCardProps) {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const providerName = tour.agency?.name ?? 'Nhà cung cấp Tripri';
@@ -39,7 +41,7 @@ export function TourCard({ tour, categoryName }: TourCardProps) {
 
   const cardInner = (
     <>
-      <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-teal-900 via-primary-container to-teal-500">
+      <div className={`relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-teal-900 via-primary-container to-teal-500 ${view === 'list' ? 'sm:aspect-auto sm:w-64 sm:shrink-0' : ''}`}>
         {tour.coverImage && !coverFailed ? (
           // Tour cover URLs are configured by agencies and may come from different remote hosts.
           // eslint-disable-next-line @next/next/no-img-element
@@ -114,13 +116,13 @@ export function TourCard({ tour, categoryName }: TourCardProps) {
 
   return (
     <>
-      <Link href={`/tours/${tour.id}`} className={cardClassName}>
+      <Link href={href} className={`${cardClassName} ${view === 'list' ? 'sm:flex-row' : ''}`}>
         {cardInner}
       </Link>
       <GuestLoginPromptModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
-        redirectUrl={`/tours/${tour.id}`}
+        redirectUrl={href}
         tourTitle={tour.title}
       />
     </>

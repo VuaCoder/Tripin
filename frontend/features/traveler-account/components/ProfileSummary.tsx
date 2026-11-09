@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import type { UserProfile } from '@/features/auth/types';
 import { Badge, Button } from '@/components/ui';
 import { OwnPremiumIdentity, OwnPremiumStatus } from '@/features/premium/PremiumIdentity';
@@ -23,9 +22,8 @@ export function ProfileSummary({ user, onEdit }: ProfileSummaryProps) {
           <h2 className="mt-1 text-headline-md font-bold text-on-surface">Thông tin cá nhân</h2>
           <p className="mt-1 text-sm text-on-surface-variant">Thông tin được dùng cho tài khoản và các giao dịch của bạn.</p>
         </div>
-        <Button onClick={onEdit} variant="outline" className="self-start">
+        <Button onClick={onEdit} variant="outline" className="self-start" aria-label="Chỉnh sửa thông tin cá nhân" title="Chỉnh sửa">
           <span className="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
-          Chỉnh sửa
         </Button>
       </div>
 
@@ -50,40 +48,6 @@ export function ProfileSummary({ user, onEdit }: ProfileSummaryProps) {
         <ProfileDetail icon="verified_user" label="Trạng thái tài khoản" value={user.status === 'ACTIVE' ? 'Đang hoạt động' : user.status} />
       </dl>
 
-      <div className="flex flex-col gap-4 border-t border-surface-container pt-6 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-bold text-on-surface">Ví voucher & Ưu đãi</p>
-          <p className="mt-1 text-sm text-on-surface-variant">Quản lý và sử dụng các mã giảm giá cho chuyến đi của bạn.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/settings/vouchers"
-            className="inline-flex items-center gap-1 text-sm font-bold text-primary hover:text-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container"
-          >
-            Quản lý ví voucher
-            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_forward</span>
-          </Link>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-4 border-t border-surface-container pt-6 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-bold text-on-surface">Xác thực hai lớp</p>
-          <p className="mt-1 text-sm text-on-surface-variant">Bảo vệ đăng nhập bằng mã OTP gửi qua email.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Badge variant={user.twoFactorEnabled ? 'success' : 'default'}>
-            {user.twoFactorEnabled ? 'Đang bật' : 'Đang tắt'}
-          </Badge>
-          <Link
-            href="/settings/profile/security"
-            className="inline-flex items-center gap-1 text-sm font-bold text-primary hover:text-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container"
-          >
-            Quản lý
-            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_forward</span>
-          </Link>
-        </div>
-      </div>
     </div>
   );
 }

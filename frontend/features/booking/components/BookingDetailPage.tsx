@@ -16,6 +16,7 @@ import { ETicketModal, useGetETicketByBookingIdQuery } from '@/features/e-ticket
 import { WriteReviewDialog } from '@/features/review/components';
 import { useGetMyReviewsQuery } from '@/features/review/api/reviewApi';
 import type { MyReview } from '@/features/review/types';
+import { useGetTourQuery } from '@/features/tours/api/toursApi';
 
 export interface BookingDetailPageProps {
   bookingId: string;
@@ -27,6 +28,9 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
   const backHref = pathname?.startsWith('/settings') ? '/settings/history' : '/traveler/bookings';
 
   const { data: booking, isLoading, isError, error, refetch } = useGetBookingByIdQuery(bookingId);
+  const { data: tour } = useGetTourQuery(booking?.tour.id ?? '', { skip: !booking });
+  const [failedCover, setFailedCover] = useState<string | null>(null);
+  const coverImage = tour?.coverImage || tour?.images?.[0];
   const [checkoutBooking, { isLoading: isPaying }] = useCheckoutBookingMutation();
   const [cancelBooking, { isLoading: isCancelling }] = useCancelBookingMutation();
   const [completeBooking, { isLoading: isCompleting }] = useCompleteBookingMutation();
@@ -42,9 +46,8 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
     { skip: !booking },
   );
 
-  const hasReviewedThisBooking = Boolean(
-    myReviewsData?.items?.some((r) => r.bookingId === bookingId),
-  );
+  const bookingReview = myReviewsData?.items?.find((review) => review.bookingId === bookingId);
+  const hasReviewedThisBooking = Boolean(bookingReview);
 
   const isEligibleForTicket = Boolean(booking?.isPaid && (booking?.status === 'CONFIRMED' || booking?.status === 'COMPLETED'));
   const { data: ticket } = useGetETicketByBookingIdQuery(bookingId, { skip: !isEligibleForTicket });
@@ -205,6 +208,10 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
 
       {/* Hero Header Card */}
       <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
+        {coverImage && failedCover !== coverImage && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={coverImage} alt={`Ảnh tour ${booking.tour.title}`} onError={() => setFailedCover(coverImage)} className="mb-5 aspect-[16/7] w-full rounded-2xl object-cover" />
+        )}
         <div className="flex flex-col justify-between gap-5 xl:flex-row xl:items-start">
           <div className="min-w-0 space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
@@ -218,7 +225,7 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
               </span>
             </div>
             <h1 className="max-w-2xl text-xl font-extrabold leading-snug tracking-tight text-slate-900 sm:text-2xl">
-              {booking.tour.title}
+              <Link href={`/tours/${booking.tour.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-primary-container hover:underline">{booking.tour.title}</Link>
             </h1>
           </div>
 
@@ -278,10 +285,12 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
 
             <Link
               href={`/tours/${booking.tour.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2.5 text-xs font-semibold transition-colors"
             >
               <span>Xem trang tour</span>
-              <span className="material-symbols-outlined text-base">open_in_new</span>
+              <span className="material-symbols-outlined text-base" aria-hidden="true">open_in_new</span>
             </Link>
           </div>
         </div>
@@ -418,7 +427,7 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
           {/* Timeline Milestones */}
           <div className="space-y-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
             <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 sm:text-lg">
-              <span className="material-symbols-outlined text-primary-container text-xl">timeline</span>
+              <span className="material-symbols-outlined text-primary-container text-xl" aria-hidden="true">timeline</span>
               <span>Lịch sử trạng thái</span>
             </h2>
 
@@ -466,6 +475,14 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
               )}
             </div>
           </div>
+          {bookingReview && (
+            <section className="space-y-3 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6" aria-label="Đánh giá của bạn">
+              <h2 className="text-base font-bold text-slate-900">Đánh giá của bạn</h2>
+              <p className="text-sm font-semibold text-amber-700">{bookingReview.rating}/5 sao</p>
+              <p className="whitespace-pre-wrap break-words text-sm text-slate-700">{bookingReview.comment}</p>
+              <p className="text-xs text-slate-500">{new Date(bookingReview.createdAt).toLocaleDateString('vi-VN')}</p>
+            </section>
+          )}
         </div>
 
         {/* Right Column (1 col): Payment & Financial Summary */}
@@ -490,17 +507,16 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
                 {booking.guestPricing.guests.children > 0 && <div className="flex justify-between gap-3 text-slate-600"><dt>Trẻ em × {booking.guestPricing.guests.children}</dt><dd>{formatVnd(booking.guestPricing.childUnitPrice * booking.guestPricing.guests.children)}</dd></div>}
                 {booking.guestPricing.guests.infants > 0 && <div className="flex justify-between gap-3 text-slate-600"><dt>Em bé × {booking.guestPricing.guests.infants}</dt><dd>{formatVnd(booking.guestPricing.infantUnitPrice * booking.guestPricing.guests.infants)}</dd></div>}
               </>}
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 text-slate-600">
-                <dt>Tạm tính</dt>
-                <dd className="whitespace-nowrap font-semibold text-slate-800">{formatVnd(booking.subtotal)}</dd>
-              </div>
-
               {booking.discountAmount > 0 && (
                 <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 rounded-xl bg-emerald-50/70 p-3 text-emerald-700">
                   <dt>Mã ưu đãi {booking.promotion ? `(${booking.promotion.code})` : ''}</dt>
                   <dd className="whitespace-nowrap font-bold">-{formatVnd(booking.discountAmount)}</dd>
                 </div>
               )}
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 text-slate-600">
+                <dt>Tạm tính</dt>
+                <dd className="whitespace-nowrap font-semibold text-slate-800">{formatVnd(booking.subtotal)}</dd>
+              </div>
             </dl>
 
             <div className="rounded-2xl border border-teal-100 bg-teal-50/70 px-4 py-3.5">

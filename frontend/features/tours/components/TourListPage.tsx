@@ -9,6 +9,7 @@ import type { ListToursArgs, TourSort } from '../types';
 import { TourCard } from './TourCard';
 import { formatCategoryName, formatVnd } from '../utils';
 import { cn } from '@/components/ui/cn';
+import { readSearchGuests, guestSearchParams, tourDetailHref } from '../utils/searchContext';
 
 const PAGE_SIZE = 12;
 const SORT_OPTIONS: { value: TourSort; label: string }[] = [
@@ -80,6 +81,8 @@ export function TourListPage() {
   const queryString = searchParams.toString();
   const qFromUrl = searchParams.get('q') ?? '';
   const [searchTerm, setSearchTerm] = useState(qFromUrl);
+  const guests = readSearchGuests(searchParams);
+  const view = searchParams.get('view') === 'list' ? 'list' : 'grid';
   // --- Price slider local state ---
 
   const urlMinPrice = numberParam(searchParams.get('minPrice')) ?? PRICE_MIN;
@@ -200,7 +203,7 @@ export function TourListPage() {
     args.minRating !== undefined && args.minRating > 0,
     Boolean(args.departureFrom || args.departureTo),
     Boolean(args.minDays || args.maxDays),
-    positiveIntParam(searchParams.get('guests'), 0) > 0,
+    ['guests', 'adults', 'children', 'infants'].some(key => positiveIntParam(searchParams.get(key), 0) > 0),
   ].filter(Boolean).length;
 
   if (isError && !data) {
@@ -209,8 +212,6 @@ export function TourListPage() {
 
   const items = data?.items ?? [];
   const meta = data?.meta ?? { page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 };
-  const firstResult = meta.total === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
-  const lastResult = Math.min(meta.page * meta.limit, meta.total);
   const minPricePercent = ((localMinPrice - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100;
   const maxPricePercent = ((localMaxPrice - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100;
   const currentMinRating = numberParam(searchParams.get('minRating'));
@@ -423,32 +424,17 @@ export function TourListPage() {
                 <span className="material-symbols-outlined mr-1 align-middle text-[16px]" aria-hidden="true">group</span>
                 Số lượng khách
               </p>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const current = positiveIntParam(searchParams.get('guests') ?? '', 0);
-                    updateQuery({ guests: current > 1 ? current - 1 : undefined });
-                  }}
-                  className="flex size-8 items-center justify-center rounded-full border border-slate-300 text-slate-500 transition hover:border-slate-800 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
-                  disabled={!searchParams.get('guests') || Number(searchParams.get('guests')) <= 0}
-                >
-                  <span className="material-symbols-outlined text-[18px]">remove</span>
-                </button>
-                <span className="min-w-[2.5rem] text-center text-sm font-bold text-slate-800">
-                  {searchParams.get('guests') || '—'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const current = positiveIntParam(searchParams.get('guests') ?? '', 0);
-                    updateQuery({ guests: current + 1 });
-                  }}
-                  className="flex size-8 items-center justify-center rounded-full border border-slate-300 text-slate-500 transition hover:border-slate-800 hover:text-slate-800 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[18px]">add</span>
-                </button>
-                <span className="text-xs text-slate-500">khách</span>
+              <div className="space-y-3">
+                {([{ key: 'adults', label: 'Người lớn' }, { key: 'children', label: 'Trẻ em' }, { key: 'infants', label: 'Em bé' }] as const).map(({ key, label }) => (
+                  <div key={key} className="flex items-center justify-between gap-2 text-sm">
+                    <span>{label}</span>
+                    <div className="flex items-center gap-3">
+                      <button type="button" aria-label={`Giảm ${label.toLowerCase()}`} disabled={guests[key] <= (key === 'adults' ? 1 : 0)} onClick={() => updateQuery(Object.fromEntries(guestSearchParams({ ...guests, [key]: guests[key] - 1 })))} className="flex size-8 items-center justify-center rounded-full border border-slate-300 disabled:opacity-30">−</button>
+                      <output aria-label={label} className="min-w-5 text-center font-bold">{guests[key]}</output>
+                      <button type="button" aria-label={`Tăng ${label.toLowerCase()}`} disabled={guests.adults + guests.children + guests.infants >= 50} onClick={() => updateQuery(Object.fromEntries(guestSearchParams({ ...guests, [key]: guests[key] + 1 })))} className="flex size-8 items-center justify-center rounded-full border border-slate-300 disabled:opacity-30">+</button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -485,14 +471,12 @@ export function TourListPage() {
 
         {/* ======================== KẾT QUẢ ======================== */}
         <section aria-live="polite" aria-busy={isFetching}>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            {isLoading && !data ? (
-              <div className="h-5 w-36 rounded bg-slate-200 animate-pulse" />
-            ) : (
-              <p className="text-sm text-slate-600">
-                <strong className="text-slate-900">{meta.total}</strong> tour phù hợp{meta.total > 0 && <span className="hidden sm:inline"> · Hiển thị {firstResult}–{lastResult}</span>}
-              </p>
-            )}
+          <div className="mb-4 flex justify-end gap-1" role="group" aria-label="Kiểu hiển thị tour">
+            {([{ value: 'grid', label: 'Dạng lưới', icon: 'grid_view' }, { value: 'list', label: 'Dạng danh sách', icon: 'view_list' }] as const).map(option => (
+              <button key={option.value} type="button" aria-label={option.label} aria-pressed={view === option.value} onClick={() => updateQuery({ view: option.value }, false)} className={cn('flex size-10 items-center justify-center rounded-lg border transition', view === option.value ? 'border-primary-container bg-primary-container/10 text-primary-container' : 'border-slate-200 bg-white text-slate-500')}>
+                <span className="material-symbols-outlined" aria-hidden="true">{option.icon}</span>
+              </button>
+            ))}
           </div>
 
           {isLoading && !data ? (
@@ -500,8 +484,8 @@ export function TourListPage() {
           ) : items.length === 0 ? (
             <EmptyState title="Chưa tìm thấy tour phù hợp" description="Thử thay đổi từ khóa hoặc mở rộng bộ lọc để khám phá thêm lựa chọn." actionLabel={activeFilterCount > 0 ? "Xóa bộ lọc" : undefined} onAction={activeFilterCount > 0 ? clearFilters : undefined} />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {items.map((tour) => <TourCard key={tour.id} tour={tour} categoryName={tour.categoryIds.map((id) => categoryById.get(id)).find(Boolean)} />)}
+            <div className={view === 'list' ? 'grid gap-4' : 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3'}>
+              {items.map((tour) => <TourCard key={tour.id} tour={tour} href={tourDetailHref(tour.id, searchParams)} view={view} categoryName={tour.categoryIds.map((id) => categoryById.get(id)).find(Boolean)} />)}
             </div>
           )}
 

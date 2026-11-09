@@ -8,6 +8,7 @@ import { useAppDispatch } from "@/store/hooks";
 import { setCredentials } from "../store/authSlice";
 import { getApiErrorCode, getApiErrorMessage } from "../utils/apiError";
 import { LoginFormValues, LoginResultData } from "../types";
+import { safeNextPath } from '../utils/safeNextPath';
 
 interface UseLoginFormProps {
   onSuccess?: (data: LoginResultData) => void;
@@ -95,8 +96,9 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
 
       // Tài khoản chưa xác thực email → đưa sang trang OTP
       if (getApiErrorCode(err) === "ACCOUNT_NOT_VERIFIED") {
+        const nextPath = safeNextPath(searchParams.get('next'));
         router.push(
-          `/verify-otp?email=${encodeURIComponent(formData.credential)}&purpose=REGISTER`,
+          `/verify-otp?email=${encodeURIComponent(formData.credential)}&purpose=REGISTER${nextPath ? `&next=${encodeURIComponent(nextPath)}` : ''}`,
         );
         return;
       }

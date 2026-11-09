@@ -26,6 +26,17 @@ import { TourListPage } from '../components/TourListPage';
 beforeEach(() => { vi.clearAllMocks(); mocks.params = new URLSearchParams(); });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 describe('Tour filters', () => {
+  it('switches list/grid without losing passenger groups or pagination', () => {
+    mocks.params = new URLSearchParams('adults=2&children=1&infants=1&guests=4&page=2');
+    render(<TourListPage />);
+    expect(screen.getByLabelText('Người lớn').textContent).toBe('2');
+    expect(screen.getByLabelText('Trẻ em').textContent).toBe('1');
+    expect(screen.getByLabelText('Em bé').textContent).toBe('1');
+    expect(screen.queryByText(/tour phù hợp · Hiển thị/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Dạng danh sách' }));
+    const destination = new URL(mocks.replace.mock.calls[0][0], 'http://localhost');
+    expect(Object.fromEntries(destination.searchParams)).toMatchObject({ adults: '2', children: '1', infants: '1', guests: '4', page: '2', view: 'list' });
+  });
   it('places categories inside the filter and hides reset without conditions', () => {
     render(<TourListPage />);
     expect(within(document.querySelector('aside')!).getByLabelText('Danh mục tour')).toBeTruthy();

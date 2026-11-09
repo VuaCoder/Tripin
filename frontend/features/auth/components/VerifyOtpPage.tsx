@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthBackground } from './AuthBackground';
 import { BackButton } from './BackButton';
 import { useVerifyOtpMutation, useResendOtpMutation } from '../api/authApi';
@@ -9,6 +9,7 @@ import { useAppDispatch } from '@/store/hooks';
 import { setCredentials } from '../store/authSlice';
 import { homeForRole } from '../utils/roles';
 import { getApiErrorMessage } from '../utils/apiError';
+import { safeNextPath } from '../utils/safeNextPath';
 import type { ResendOtpPurpose, VerifyOtpPurpose } from '../types';
 
 interface VerifyOtpPageProps {
@@ -18,6 +19,8 @@ interface VerifyOtpPageProps {
 
 export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = 'REGISTER' }) => {
   const router = useRouter();
+  const params = useSearchParams();
+  const nextPath = safeNextPath(params.get('next'));
   const dispatch = useAppDispatch();
   const [verifyOtp] = useVerifyOtpMutation();
   const [resendOtp] = useResendOtpMutation();
@@ -116,7 +119,7 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
         if (purpose === 'FORGOT_PASSWORD') {
           router.push(`/reset-password?email=${encodeURIComponent(email || '')}&code=${encodeURIComponent(otpValue)}`);
         } else {
-          router.push(homeForRole(data.user.role));
+          router.push(nextPath ?? homeForRole(data.user.role));
         }
       }, 1200);
     } catch (err) {

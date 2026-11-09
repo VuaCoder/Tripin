@@ -71,6 +71,8 @@ export function BookingEntryPage() {
   const { data: availablePromos } = useGetAvailablePromotionsQuery({ tourId }, { skip: !tourId });
   const { data: myVouchers } = useGetMyVouchersQuery(undefined, { skip: !user });
   const [createBooking, { isLoading: isSubmitting }] = useCreateBookingMutation();
+  const [isCheckingBooking, setIsCheckingBooking] = useState(false);
+  const submissionInFlight = useRef(false);
   const [previewPromotion, { isFetching: isPreviewingPromotion }] = useLazyPreviewPromotionQuery();
 
   const departure = useMemo(
@@ -158,7 +160,7 @@ export function BookingEntryPage() {
     setPlatformPromotionError(null);
   };
 
-  const checkAgencyPromotion = async (codeToUse?: string, currentSubtotal?: number): Promise<boolean> => {
+  const checkAgencyPromotion = async (codeToUse?: string, currentSubtotal?: number): Promise<PromotionPreview | boolean> => {
     const code = (codeToUse ?? agencyPromotionCode).trim();
     if (!code) {
       setAgencyPromotionPreview(null);
@@ -187,7 +189,7 @@ export function BookingEntryPage() {
       setPremiumVoucherId('');
       setAgencyPromotionPreview(preview);
       setAgencyPromotionError(null);
-      return true;
+      return preview;
     } catch (error) {
       setAgencyPromotionPreview(null);
       setAgencyPromotionError(bookingErrorMessage(error, 'Không thể áp dụng mã ưu đãi của nhà cung cấp này.'));
@@ -195,7 +197,7 @@ export function BookingEntryPage() {
     }
   };
 
-  const checkPlatformPromotion = async (codeToUse?: string, currentSubtotal?: number): Promise<boolean> => {
+  const checkPlatformPromotion = async (codeToUse?: string, currentSubtotal?: number, agencyDiscountAmount = agencyPromotionPreview?.discountAmount ?? 0): Promise<PromotionPreview | boolean> => {
     const code = (codeToUse ?? platformPromotionCode).trim();
     if (!code) {
       setPlatformPromotionPreview(null);
@@ -207,7 +209,7 @@ export function BookingEntryPage() {
       setPlatformPromotionError('Mã gồm 3–30 ký tự: chữ cái, số, dấu gạch ngang hoặc gạch dưới.');
       return false;
     }
-    const orderSubtotal = Math.max(0, (currentSubtotal ?? subtotal) - (agencyPromotionPreview?.discountAmount ?? 0));
+    const orderSubtotal = Math.max(0, (currentSubtotal ?? subtotal) - agencyDiscountAmount);
     try {
       const preview = await previewPromotion({ code, tourId, subtotal: orderSubtotal }).unwrap();
       if (preview.scope !== 'PLATFORM') {
@@ -224,7 +226,7 @@ export function BookingEntryPage() {
       setPremiumVoucherId('');
       setPlatformPromotionPreview(preview);
       setPlatformPromotionError(null);
-      return true;
+      return preview;
     } catch (error) {
       setPlatformPromotionPreview(null);
       setPlatformPromotionError(bookingErrorMessage(error, 'Không thể áp dụng mã ưu đãi của sàn Tripin này.'));
@@ -341,8 +343,7 @@ export function BookingEntryPage() {
   const maxParticipants = Math.min(MAX_PARTICIPANTS, departure.remaining);
   const departureDate = departure.date;
 
-  const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault();
+  const submitBooking = async () => {
     const next: typeof errors = {};
     if (fullName.trim().length < 2) next.fullName = 'Vui lòng nhập họ tên (ít nhất 2 ký tự).';
     if (!PHONE_PATTERN.test(phone.trim())) next.phone = 'Số điện thoại không hợp lệ.';
@@ -383,9 +384,18 @@ export function BookingEntryPage() {
     catch { setErrors({ general: 'Chính sách giá đã thay đổi. Vui lòng chọn lại hành khách.' }); return; }
 
     if (premiumVoucherId && (!chosenPremium || agencyPromotionCode.trim() || platformPromotionCode.trim())) { setErrors({ general:'Voucher Premium không cộng với mã khác. Hãy xóa mã hoặc bỏ chọn voucher.' }); return; }
-    if (!premiumVoucherId && agencyPromotionCode.trim() && !(await checkAgencyPromotion(agencyPromotionCode.trim(), latestSubtotal))) return;
-    const subtotalAfterAgency = Math.max(0, latestSubtotal - (agencyPromotionPreview?.discountAmount ?? 0));
-    if (!premiumVoucherId && platformPromotionCode.trim() && !(await checkPlatformPromotion(platformPromotionCode.trim(), subtotalAfterAgency))) return;
+    let checkedAgency: PromotionPreview | undefined;
+    let checkedPlatform: PromotionPreview | undefined;
+    if (!premiumVoucherId && agencyPromotionCode.trim()) {
+      const result = await checkAgencyPromotion(agencyPromotionCode.trim(), latestSubtotal);
+      if (!result || typeof result !== 'object') return;
+      checkedAgency = result;
+    }
+    if (!premiumVoucherId && platformPromotionCode.trim()) {
+      const result = await checkPlatformPromotion(platformPromotionCode.trim(), latestSubtotal, checkedAgency?.discountAmount ?? 0);
+      if (!result || typeof result !== 'object') return;
+      checkedPlatform = result;
+    }
 
     try {
       const created = await createBooking({
@@ -396,13 +406,25 @@ export function BookingEntryPage() {
         contact: { fullName: fullName.trim(), phone: phone.trim() },
         ...(notes.trim() ? { notes: notes.trim() } : {}),
         ...(premiumVoucherId ? { premiumVoucherId } : {}),
-        ...(!premiumVoucherId && agencyPromotionPreview ? { agencyPromotionCode: agencyPromotionPreview.code } : {}),
-        ...(!premiumVoucherId && platformPromotionPreview ? { platformPromotionCode: platformPromotionPreview.code } : {}),
+        ...(checkedAgency ? { agencyPromotionCode: checkedAgency.code } : {}),
+        ...(checkedPlatform ? { platformPromotionCode: checkedPlatform.code } : {}),
         clientRequestId: clientRequestId.current,
       }).unwrap();
       router.replace(`/settings/history/${created.id}`);
     } catch (error) {
       setErrors({ general: bookingErrorMessage(error, 'Không tạo được đặt chỗ. Vui lòng thử lại.') });
+    }
+  };
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (submissionInFlight.current) return;
+    submissionInFlight.current = true;
+    setIsCheckingBooking(true);
+    try { await submitBooking(); }
+    finally {
+      submissionInFlight.current = false;
+      setIsCheckingBooking(false);
     }
   };
 
@@ -545,12 +567,12 @@ export function BookingEntryPage() {
           agencyPromotionCode={agencyPromotionCode}
           agencyPromotionPreview={agencyPromotionPreview}
           agencyPromotionError={agencyPromotionError}
-          onApplyAgencyCode={async (code) => checkAgencyPromotion(code, subtotal)}
+          onApplyAgencyCode={async (code) => Boolean(await checkAgencyPromotion(code, subtotal))}
           onClearAgencyCode={clearAgencyPromotion}
           platformPromotionCode={platformPromotionCode}
           platformPromotionPreview={platformPromotionPreview}
           platformPromotionError={platformPromotionError}
-          onApplyPlatformCode={async (code) => checkPlatformPromotion(code, subtotal)}
+          onApplyPlatformCode={async (code) => Boolean(await checkPlatformPromotion(code, subtotal))}
           onClearPlatformCode={clearPlatformPromotion}
           onApplyDirectCode={handleApplyDirectCode}
           availablePromos={availablePromos}
@@ -563,7 +585,7 @@ export function BookingEntryPage() {
           <textarea id="booking-notes" value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} maxLength={500} placeholder="Yêu cầu đặc biệt cho chuyến đi..." className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/20" />
         </FormField>
         {errors.general && <p role="alert" className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{errors.general}</p>}
-        <Button type="submit" className="w-full" loading={isSubmitting}>Xác nhận đặt chỗ</Button>
+        <Button type="submit" className="w-full" loading={isSubmitting || isCheckingBooking}>Xác nhận đặt chỗ</Button>
       </form>
 
       <aside className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm lg:sticky lg:top-24">
