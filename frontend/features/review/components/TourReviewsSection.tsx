@@ -1,9 +1,8 @@
 'use client';
 
-import { FormSelect } from '@/components/ui/FormSelect';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui';
+import { Button, AntSelect, type AntSelectOption } from '@/components/ui';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
 import { useGetTourReviewsQuery } from '../api/reviewApi';
 import { useTourReviewEligibility } from '../hooks';
@@ -13,7 +12,7 @@ import { RatingStars } from './RatingStars';
 import { ReviewCard } from './ReviewCard';
 import { WriteReviewDialog } from './WriteReviewDialog';
 
-const SORT_OPTIONS: { value: ReviewSort; label: string }[] = [
+const SORT_OPTIONS: AntSelectOption<ReviewSort>[] = [
   { value: 'newest', label: 'Mới nhất' },
   { value: 'rating_desc', label: 'Điểm cao nhất' },
   { value: 'rating_asc', label: 'Điểm thấp nhất' },
@@ -192,20 +191,32 @@ export function TourReviewsSection({ tourId, tourTitle, ratingAvg, ratingCount }
           </div>
         </div>
 
-        <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-          Sắp xếp
-          <FormSelect
-            value={sort}
-            onChange={(event) => handleSortChange(event.target.value as ReviewSort)}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none transition focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/20"
-          >
-            {SORT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </FormSelect>
-        </label>
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+          <span>Sắp xếp</span>
+          <div className="tripri-form-select">
+            <AntSelect<ReviewSort>
+              aria-label="Sắp xếp"
+              value={sort}
+              onChange={(val) => handleSortChange(val as ReviewSort)}
+              options={SORT_OPTIONS}
+              size="middle"
+              className="w-36 sm:w-40"
+            />
+            <select
+              aria-hidden="true"
+              tabIndex={-1}
+              className="sr-only"
+              value={sort}
+              onChange={(event) => handleSortChange(event.target.value as ReviewSort)}
+            >
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </header>
 
       <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">

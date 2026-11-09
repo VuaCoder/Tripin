@@ -5,7 +5,6 @@ import { ArrowRight } from 'lucide-react';
 import { calculateGuestPrice, guestTotal, type GuestCounts } from '@travel-platform/constants';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated, selectRole } from '@/features/auth';
-import { StartConversationButton } from '@/features/chat/StartConversationButton';
 import { formatVnd } from '@/features/review';
 import type { TourReviewContext } from '@/features/review/types';
 import { TourGuestSelector } from './TourGuestSelector';
@@ -40,7 +39,7 @@ export function TourBookingCard({ tour }: { tour: TourReviewContext }) {
     if (!authenticated) { router.push(`/login?next=${encodeURIComponent(bookingHref)}`); return; }
     if (role === 'TRAVELER') router.push(bookingHref);
   };
-  return <aside className={styles.booking} aria-label="Đặt tour"><div className={styles.priceHeader}><p>Giá từ</p><strong>{formatVnd(price)}</strong><small>/ khách</small><div className={styles.tourCode}><span>Mã tham chiếu</span><span>{tour.id.slice(0, 8).toUpperCase()}</span></div></div>
+  return <aside className={styles.booking} aria-label="Đặt tour"><div className={styles.priceHeader}><p>Giá từ</p><strong>{formatVnd(price)}</strong><small>/ khách</small></div>
     <div className={styles.bookingBody}><h2 className={styles.bookingLabel}>NGÀY KHỞI HÀNH</h2>{departures.length ? <div className={styles.departureGrid}>{departures.map(item => <button type="button" key={item.id} aria-pressed={departure?.id === item.id} aria-label={`Khởi hành ${new Date(item.date).toLocaleDateString('vi-VN')}`} onClick={() => setSelected(item.id)}>{new Date(item.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}<small>{formatVnd(item.price)}</small></button>)}</div> : <p className={styles.muted}>Tour hiện chưa có ngày khởi hành còn chỗ.</p>}
       {departure && <>
         <h2 className={styles.bookingLabel}>SỐ NGƯỜI · CÒN {departure.remaining} CHỖ</h2>
@@ -55,7 +54,6 @@ export function TourBookingCard({ tour }: { tour: TourReviewContext }) {
       {pricingError && <p role="alert" className={styles.muted}>{pricingError}</p>}
       {departure && count > max && <p role="alert">Chỉ còn {max} chỗ. Vui lòng điều chỉnh số khách hoặc chọn ngày khác.</p>}
       {(!authenticated || role === 'TRAVELER') && <button type="button" className={styles.primaryButton} disabled={!valid || !total} onClick={action}>{authenticated ? 'Yêu cầu đặt tour' : 'Đăng nhập để đặt tour'}<ArrowRight size={17} /></button>}
-      {role === 'TRAVELER' && tour.guide && <StartConversationButton participantId={tour.guide.id} tourId={tour.id} />}
       <p className={styles.footnote}>Giá và ưu đãi sẽ được kiểm tra lại trước khi xác nhận đặt chỗ. Mỗi hành khách, kể cả em bé, được tính một chỗ.</p>
     </div>
   </aside>;
