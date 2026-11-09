@@ -115,10 +115,18 @@ export function BookingEntryPage() {
   const [infants, setInfants] = useState(() => Math.max(0, Number(params.get('infants')) || 0));
   const clientRequestId = useRef(retryKey());
 
-  const myAgencyVouchers = useMemo(() => {
+  const voucherList = useMemo(() => {
     if (!myVouchers) return [];
+    if (Array.isArray(myVouchers)) return myVouchers;
+    if (Array.isArray((myVouchers as any).data)) return (myVouchers as any).data;
+    if (Array.isArray((myVouchers as any).items)) return (myVouchers as any).items;
+    return [];
+  }, [myVouchers]);
+
+  const myAgencyVouchers = useMemo(() => {
+    if (!voucherList.length) return [];
     const now = Date.now();
-    return myVouchers.filter((v) => {
+    return voucherList.filter((v: any) => {
       if (v.isUsed || !v.promotion || !v.promotion.code) return false;
       const promo = v.promotion;
       if (!promo.isActive) return false;
@@ -129,12 +137,12 @@ export function BookingEntryPage() {
       if (promo.targetTourIds?.length && !promo.targetTourIds.includes(tourId)) return false;
       return true;
     });
-  }, [myVouchers, tour?.agency?.id, tour?.agencyId, tourId]);
+  }, [voucherList, tour?.agency?.id, tour?.agencyId, tourId]);
 
   const myPlatformVouchers = useMemo(() => {
-    if (!myVouchers) return [];
+    if (!voucherList.length) return [];
     const now = Date.now();
-    return myVouchers.filter((v) => {
+    return voucherList.filter((v: any) => {
       if (v.isUsed || !v.promotion || !v.promotion.code) return false;
       const promo = v.promotion;
       if (!promo.isActive) return false;
@@ -143,7 +151,7 @@ export function BookingEntryPage() {
       if (promo.targetTourIds?.length && !promo.targetTourIds.includes(tourId)) return false;
       return true;
     });
-  }, [myVouchers, tourId]);
+  }, [voucherList, tourId]);
 
   useEffect(() => {
     if (user?.fullName && !fullName) setFullName(user.fullName);

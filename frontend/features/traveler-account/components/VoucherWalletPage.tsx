@@ -5,6 +5,7 @@ import {
   TicketPercent,
   Compass,
 } from 'lucide-react';
+import { RefreshButton } from '@/components/ui';
 import { useGetMyVouchersQuery } from '../api/voucherWalletApi';
 import { VoucherCard } from './VoucherCard';
 import { PremiumWalletSection } from '@/features/premium/PremiumWalletSection';
@@ -12,11 +13,11 @@ import { PremiumWalletSection } from '@/features/premium/PremiumWalletSection';
 type FilterTab = 'active' | 'used' | 'expired';
 
 export function VoucherWalletPage() {
-  const { data: vouchersData, isLoading } = useGetMyVouchersQuery();
+  const { data: vouchersData, isLoading, isFetching, refetch } = useGetMyVouchersQuery();
 
   const [activeTab, setActiveTab] = useState<FilterTab>('active');
 
-  const vouchers = vouchersData?.data ?? [];
+  const vouchers = Array.isArray(vouchersData) ? vouchersData : (vouchersData?.data ?? []);
 
   // Filter vouchers by tab
   const categorized = useMemo(() => {
@@ -46,20 +47,14 @@ export function VoucherWalletPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-teal-50 text-brand-teal border border-teal-100/80">
-              <TicketPercent className="size-5" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Ví voucher</h1>
-              <p className="text-xs sm:text-sm text-slate-500">
-                Quản lý mã giảm giá và voucher thu thập được áp dụng cho các chuyến đi của bạn
-              </p>
-            </div>
+      <div className="flex items-center justify-between gap-4 pb-4 border-b border-slate-100">
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-teal-50 text-brand-teal border border-teal-100/80">
+            <TicketPercent className="size-5" />
           </div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Ví voucher</h1>
         </div>
+        <RefreshButton onClick={() => void refetch()} isFetching={isFetching} />
       </div>
 
       {/* Tabs lọc trạng thái voucher */}

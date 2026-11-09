@@ -12,8 +12,6 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { name: 'Vé điện tử', href: '/traveler/tickets', Icon: TicketPercent },
-  { name: 'Premium', href: '/premium', Icon: ShieldCheck },
   { name: 'Hồ sơ', href: '/settings/profile', Icon: User },
   { name: 'Ví voucher', href: '/settings/vouchers', Icon: TicketPercent },
   { name: 'Chuyến đi', href: '/settings/history', Icon: CalendarCheck },
