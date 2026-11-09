@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
-import { Pagination } from '@/components/ui';
+import { Pagination, AntSelect, type AntSelectOption } from '@/components/ui';
 import { useGetMyReportsQuery } from '../api/reportApi';
 import { REPORT_CATEGORY_LABELS, REPORT_STATUS_LABELS, REPORT_TARGET_LABELS } from '../labels';
 import type { ReportStatus } from '../types';
@@ -11,6 +11,13 @@ const PAGE_SIZE = 10;
 type StatusFilter = 'ALL' | ReportStatus;
 
 const dateTime = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
+const STATUS_OPTIONS: AntSelectOption<StatusFilter>[] = [
+  { value: 'ALL', label: 'Tất cả trạng thái' },
+  ...(Object.keys(REPORT_STATUS_LABELS) as ReportStatus[]).map((status) => ({
+    value: status,
+    label: REPORT_STATUS_LABELS[status].label,
+  })),
+];
 
 /** Use case "Send report" (read side): the reports the logged-in traveler filed, with their outcome. */
 export function MyReportsPage() {
@@ -27,22 +34,16 @@ export function MyReportsPage() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-bold tracking-tight text-slate-900">Báo cáo vi phạm sàn</h1>
         <div className="flex items-center gap-2">
-          <select
+          <AntSelect
             aria-label="Lọc theo trạng thái"
             value={filter}
-            onChange={(e) => {
-              setFilter(e.target.value as StatusFilter);
+            onChange={(value) => {
+              setFilter(value);
               setPage(1);
             }}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-          >
-            <option value="ALL">Tất cả</option>
-            {(Object.keys(REPORT_STATUS_LABELS) as ReportStatus[]).map((s) => (
-              <option key={s} value={s}>
-                {REPORT_STATUS_LABELS[s].label}
-              </option>
-            ))}
-          </select>
+            options={STATUS_OPTIONS}
+            className="min-w-[180px]"
+          />
           <button
             type="button"
             disabled={isFetching}

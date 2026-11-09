@@ -92,7 +92,7 @@ export interface BookingDto {
   id: string;
   bookingCode: string;
   status: BookingStatus;
-  tour: { id: string; title: string };
+  tour: { id: string; title: string; coverImage?: string };
   departureId: string;
   departureDate: string;
   endDate: string;

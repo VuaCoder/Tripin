@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BookingDto } from '../types';
 
@@ -127,14 +127,13 @@ describe('BookingHistoryPage', () => {
     expect(screen.getByText('Tour Khám Phá Hạ Long 2N1Đ')).toBeTruthy();
     expect(screen.getByText('Tour Đà Nẵng - Hội An 3N2Đ')).toBeTruthy();
 
-    // Check booking codes
-    expect(screen.getByText('TRIP-1001')).toBeTruthy();
-    expect(screen.getByText('TRIP-1002')).toBeTruthy();
-
-    // Check status badges
-    expect(screen.getAllByText('Chờ thanh toán').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Đã xác nhận').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Đã thanh toán').length).toBeGreaterThan(0);
+    // One status pill per card: the paid CONFIRMED booking shows only "Đã thanh toán".
+    const cards = screen.getAllByRole('article');
+    expect(within(cards[0]).getByText('Chờ thanh toán')).toBeTruthy();
+    expect(within(cards[1]).getByText('Đã thanh toán')).toBeTruthy();
+    expect(within(cards[1]).queryByText('Đã xác nhận')).toBeNull();
+    expect(within(cards[1]).getByText(/tháng 12/)).toBeTruthy();
+    expect(within(cards[1]).getByRole('link').getAttribute('href')).toBe('/traveler/bookings/b-2');
   });
 
   it('allows canceling a booking via CancelBookingModal', async () => {
