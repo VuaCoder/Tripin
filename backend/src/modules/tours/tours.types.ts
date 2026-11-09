@@ -88,6 +88,9 @@ export interface SearchToursQuery {
   maxDays?: number;
   departureFrom?: Date;
   departureTo?: Date;
+  adults?: number;
+  children?: number;
+  infants?: number;
   minRating?: number;
   sort: TourSort;
 }

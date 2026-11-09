@@ -1,3 +1,4 @@
+import { selectFormValue } from '@/test/select';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -157,7 +158,7 @@ describe('WriteReviewDialog', () => {
   it('lets the traveler pick which eligible booking to review', async () => {
     renderDialog({ eligibleBookings: [BOOKING, SECOND_BOOKING] });
 
-    fireEvent.change(screen.getByLabelText(/Đặt chỗ bạn muốn đánh giá/), { target: { value: 'b2' } });
+    await selectFormValue(/Đặt chỗ bạn muốn đánh giá/, 'b2');
     chooseRating(5);
     typeComment(VALID_COMMENT);
     submit();

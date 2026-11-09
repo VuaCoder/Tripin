@@ -125,6 +125,9 @@ export const searchToursQuery = paginationQuerySchema
     maxDays: z.coerce.number().int().min(1).optional(),
     departureFrom: z.coerce.date().optional(),
     departureTo: z.coerce.date().optional(),
+    adults: z.coerce.number().int().min(0).max(50).optional(),
+    children: z.coerce.number().int().min(0).max(49).optional(),
+    infants: z.coerce.number().int().min(0).max(49).optional(),
     minRating: z.coerce.number().min(0).max(5).optional(),
     sort: z.enum(['newest', 'price_asc', 'price_desc', 'rating']).default('newest'),
   })

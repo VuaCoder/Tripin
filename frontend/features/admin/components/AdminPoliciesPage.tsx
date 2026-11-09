@@ -1,4 +1,5 @@
 'use client';
+import { FormSelect } from '@/components/ui/FormSelect';
 import { PolicyHistory } from './PolicyHistory';
 import { useState } from 'react';
 import { Button, FormField, Input, Modal } from '@/components/ui';
@@ -40,8 +41,8 @@ function PolicyForm({ policy, busy, serverError, onSave, onClose, onReload }: { 
           const cancellation = policy.key === 'cancellation' && r.name === 'cancellationWindowHours';
           return <div key={r.id} className="grid items-end gap-2 rounded-xl border p-3 sm:grid-cols-[1fr_100px_1fr_auto]">
             <FormField label={cancellation ? 'Tham số thời hạn hủy (giờ)' : 'Tên tham số'} htmlFor={`param-name-${r.id}`}><Input id={`param-name-${r.id}`} value={r.name} readOnly={cancellation} onChange={(e) => set(r.id, { name: e.target.value })} /></FormField>
-            <FormField label="Kiểu" htmlFor={`param-type-${r.id}`}><select id={`param-type-${r.id}`} className={control} value={r.type} disabled={cancellation} onChange={(e) => { const type = e.target.value as ParamRow['type']; set(r.id, { type, value: type === 'boolean' ? 'false' : '' }); }}><option value="number">Số</option><option value="string">Chữ</option><option value="boolean">Boolean</option></select></FormField>
-            <FormField label={cancellation ? 'Thời hạn hủy (giờ)' : 'Giá trị'} htmlFor={`param-value-${r.id}`}>{r.type === 'boolean' ? <select id={`param-value-${r.id}`} className={control} value={r.value} onChange={(e) => set(r.id, { value: e.target.value })}><option value="true">true</option><option value="false">false</option></select> : <Input id={`param-value-${r.id}`} value={r.value} inputMode={r.type === 'number' ? 'decimal' : 'text'} onChange={(e) => set(r.id, { value: e.target.value })} />}</FormField>
+            <FormField label="Kiểu" htmlFor={`param-type-${r.id}`}><FormSelect id={`param-type-${r.id}`} className={control} value={r.type} disabled={cancellation} onChange={(e) => { const type = e.target.value as ParamRow['type']; set(r.id, { type, value: type === 'boolean' ? 'false' : '' }); }}><option value="number">Số</option><option value="string">Chữ</option><option value="boolean">Boolean</option></FormSelect></FormField>
+            <FormField label={cancellation ? 'Thời hạn hủy (giờ)' : 'Giá trị'} htmlFor={`param-value-${r.id}`}>{r.type === 'boolean' ? <FormSelect id={`param-value-${r.id}`} className={control} value={r.value} onChange={(e) => set(r.id, { value: e.target.value })}><option value="true">true</option><option value="false">false</option></FormSelect> : <Input id={`param-value-${r.id}`} value={r.value} inputMode={r.type === 'number' ? 'decimal' : 'text'} onChange={(e) => set(r.id, { value: e.target.value })} />}</FormField>
             {!cancellation && <Button variant="ghost" aria-label={`Xóa tham số ${r.name || r.id}`} onClick={() => setRows((current) => current.filter((row) => row.id !== r.id))}>Xóa</Button>}
           </div>;
         })}
@@ -74,7 +75,7 @@ export function AdminPoliciesPage() {
   if (!ready) return null;
   return <AdminFrame title="Chính sách hệ thống" description="Chính sách có lịch sử phiên bản và thời điểm có hiệu lực. Nội dung công khai; chỉ Super Admin được cập nhật." error={denied || query.error} loading={!query.currentData} refreshing={query.isFetching && !!query.currentData} onRefresh={() => void query.refetch()}>
     <Feedback error={!editing ? error : null} success={success} />
-    <div className={`${toolbar} sm:grid-cols-[2fr_1fr_auto]`}><FormField label="Tìm chính sách" htmlFor="policy-search"><Input id="policy-search" value={search} placeholder="Tên hoặc nội dung chính sách..." onChange={(e) => setSearch(e.target.value)} /></FormField><FormField label="Loại chính sách" htmlFor="policy-filter"><select id="policy-filter" className={control} value={policyFilter} onChange={(e) => setPolicyFilter(e.target.value)}><option value="all">Tất cả chính sách</option>{POLICY_KEYS.map((key) => <option key={key} value={key}>{labels[key]}</option>)}</select></FormField><Button variant="ghost" onClick={() => { setSearch(''); setPolicyFilter('all'); }}>Đặt lại</Button></div>
+    <div className={`${toolbar} sm:grid-cols-[2fr_1fr_auto]`}><FormField label="Tìm chính sách" htmlFor="policy-search"><Input id="policy-search" value={search} placeholder="Tên hoặc nội dung chính sách..." onChange={(e) => setSearch(e.target.value)} /></FormField><FormField label="Loại chính sách" htmlFor="policy-filter"><FormSelect id="policy-filter" className={control} value={policyFilter} onChange={(e) => setPolicyFilter(e.target.value)}><option value="all">Tất cả chính sách</option>{POLICY_KEYS.map((key) => <option key={key} value={key}>{labels[key]}</option>)}</FormSelect></FormField><Button variant="ghost" onClick={() => { setSearch(''); setPolicyFilter('all'); }}>Đặt lại</Button></div>
     {!visibleKeys.length && <p className={`${panel} text-center text-sm text-slate-500`}>Không có chính sách phù hợp.</p>}
     <div className="grid gap-4 md:grid-cols-2">{visibleKeys.map((key) => {
       const p = query.currentData?.find((item) => item.key === key);

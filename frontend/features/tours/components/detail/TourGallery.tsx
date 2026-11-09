@@ -25,7 +25,9 @@ export function TourGallery({ images, title }: { images: string[]; title: string
           <button type="button" className={styles.lightboxClose} onClick={() => dialog.current?.close()} aria-label="Đóng thư viện ảnh"><X size={24} /></button>
         </div>
         {photos.length > 1 && <button type="button" className={`${styles.lightboxNav} ${styles.lightboxPrev}`} onClick={() => step(-1)} aria-label="Ảnh trước"><ChevronLeft size={26} /></button>}
-        <img className={styles.lightboxImage} src={photos[active]} alt={`${title} — ảnh ${active + 1}`} />
+        <div className={styles.lightboxStage}>
+          <img className={styles.lightboxImage} src={photos[active]} alt={`${title} — ảnh ${active + 1}`} />
+        </div>
         {photos.length > 1 && <button type="button" className={`${styles.lightboxNav} ${styles.lightboxNext}`} onClick={() => step(1)} aria-label="Ảnh sau"><ChevronRight size={26} /></button>}
         {photos.length > 1 && (
           <div className={styles.lightboxThumbs}>

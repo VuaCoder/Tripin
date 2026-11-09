@@ -1,3 +1,4 @@
+import { selectFormValue } from '@/test/select';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AgencyDashboardPage from '@/app/agency/page';
@@ -133,7 +134,7 @@ describe('Agency operation screens', () => {
     render(<AgencyBookingsPage />);
     expect(mocks.tourList.mock.lastCall?.[0]).toEqual({ page: 1, limit: 12 });
     expect(mocks.tourList.mock.lastCall?.[1]).toMatchObject({ skip: true });
-    fireEvent.click(screen.getByRole('button', { name: 'Tất cả tour' }));
+    fireEvent.keyDown(screen.getAllByRole('combobox')[1], { key: 'ArrowDown', keyCode: 40 });
     expect(mocks.tourList.mock.lastCall?.[1]).toMatchObject({ skip: false });
   });
 
@@ -141,7 +142,7 @@ describe('Agency operation screens', () => {
     mocks.bookings.mockReturnValue({ currentData: { items: [], meta: { page: 1, totalPages: 1, total: 0 } }, refetch: vi.fn() });
     mocks.tourList.mockReturnValue({ currentData: { items: [{ ...tour, id: 'tour-1' }], meta: { totalPages: 11 } }, refetch: vi.fn() });
     render(<AgencyBookingsPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Tất cả tour' }));
+    fireEvent.keyDown(screen.getAllByRole('combobox')[1], { key: 'ArrowDown', keyCode: 40 });
     fireEvent.click(screen.getByRole('button', { name: 'Sau →' }));
     expect(mocks.tourList.mock.lastCall?.[0]).toEqual({ page: 2, limit: 12 });
     fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm tour theo tên' }), { target: { value: 'Hạ Long' } });
@@ -168,11 +169,11 @@ describe('Agency operation screens', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     mocks.assign.mockReturnValue({ unwrap: () => Promise.reject({ data: { error: { code: 'CONCURRENT_UPDATE', message: 'Tour đã thay đổi, hãy tải lại.' } } }) });
     render(<AgencyGuidePanel tour={tour} />);
-    fireEvent.change(screen.getByLabelText('Chọn hướng dẫn viên'), { target: { value: 'guide-1' } });
+    await selectFormValue(/Chọn hướng dẫn viên/, 'guide-1');
     fireEvent.change(screen.getByLabelText('Phí mỗi đơn đặt chỗ (VND)'), { target: { value: '450000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Gửi phân công' }));
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Tour đã thay đổi'));
-    expect((screen.getByLabelText('Chọn hướng dẫn viên') as HTMLSelectElement).value).toBe('guide-1');
+    expect(screen.getByText(/Nguyễn An/, { selector: '.ant-select-content' })).toBeTruthy();
     expect((screen.getByLabelText('Phí mỗi đơn đặt chỗ (VND)') as HTMLInputElement).value).toBe('450.000');
     expect(screen.queryByRole('status')).toBeNull();
   });

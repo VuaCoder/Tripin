@@ -1,3 +1,4 @@
+import { selectFormValue } from '@/test/select';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ComplaintTicketDialog } from '../components/ComplaintTicketDialog';
@@ -33,7 +34,7 @@ afterEach(() => {
 });
 
 describe('ComplaintTicketDialog', () => {
-  it('hiển thị danh mục phân cấp và thay đổi danh mục con tương ứng', () => {
+  it('hiển thị danh mục phân cấp và thay đổi danh mục con tương ứng', async () => {
     render(
       <ComplaintTicketDialog
         open={true}
@@ -46,14 +47,15 @@ describe('ComplaintTicketDialog', () => {
     expect(screen.getByText('Mở phiếu khiếu nại dịch vụ tour')).toBeTruthy();
     expect(screen.getByText('Tour Ninh Bình 1 Ngày')).toBeTruthy();
 
-    const categorySelect = screen.getByLabelText('1. Nhóm vấn đề chính') as HTMLSelectElement;
-    expect(categorySelect.value).toBe('ITINERARY');
+    const category = screen.getByRole('combobox', { name: '1. Nhóm vấn đề chính' });
+    const categoryField = category.closest('.tripri-form-select')!.querySelector('select')!;
+    expect(categoryField.value).toBe('ITINERARY');
 
     // Đổi sang nhóm Phương tiện & Vận chuyển
-    fireEvent.change(categorySelect, { target: { value: 'TRANSPORT' } });
-    expect(categorySelect.value).toBe('TRANSPORT');
+    await selectFormValue('1. Nhóm vấn đề chính', 'TRANSPORT');
+    expect(categoryField.value).toBe('TRANSPORT');
 
-    const subSelect = screen.getByLabelText('2. Vấn đề chi tiết') as HTMLSelectElement;
+    const subSelect = screen.getByRole('combobox', { name: '2. Vấn đề chi tiết' }).closest('.tripri-form-select')!.querySelector('select')!;
     expect(subSelect.options.length).toBeGreaterThan(0);
   });
 

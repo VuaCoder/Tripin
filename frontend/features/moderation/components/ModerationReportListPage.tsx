@@ -1,5 +1,6 @@
 'use client';
 
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
@@ -482,7 +483,7 @@ export function ModerationReportListPage() {
           </div>
         </div>
 
-        <select
+        <FormSelect
           aria-label="Lọc theo trạng thái"
           className="sr-only"
           value={status}
@@ -496,7 +497,7 @@ export function ModerationReportListPage() {
               {opt.label}
             </option>
           ))}
-        </select>
+        </FormSelect>
 
         <AntSelect<TargetFilter>
           aria-label="Lọc theo đối tượng"

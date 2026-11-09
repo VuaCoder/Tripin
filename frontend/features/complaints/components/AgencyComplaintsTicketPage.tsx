@@ -1,5 +1,6 @@
 'use client';
 
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useMemo, useState } from 'react';
 import {
   AlertCircle,
@@ -404,7 +405,7 @@ export function AgencyComplaintsTicketPage() {
 
         {/* Priority & Category Dropdowns */}
         <div className="flex flex-wrap items-center gap-2">
-          <select
+          <FormSelect
             aria-label="Lọc theo mức độ ưu tiên"
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value as PriorityFilter)}
@@ -414,9 +415,9 @@ export function AgencyComplaintsTicketPage() {
             <option value="URGENT">Khẩn cấp</option>
             <option value="HIGH">Ưu tiên cao</option>
             <option value="NORMAL">Bình thường</option>
-          </select>
+          </FormSelect>
 
-          <select
+          <FormSelect
             aria-label="Lọc theo danh mục khiếu nại"
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
@@ -428,7 +429,7 @@ export function AgencyComplaintsTicketPage() {
                 {cat.label}
               </option>
             ))}
-          </select>
+          </FormSelect>
 
           {hasActiveFilters && (
             <button

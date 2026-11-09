@@ -1,3 +1,4 @@
+import { selectFormValue, selectOption } from '@/test/select';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ModerationReport, ModerationReview, ModerationTicket } from '../types';
@@ -147,20 +148,20 @@ describe('ModerationReportListPage', () => {
     expect(screen.getByText('Không có báo cáo nào')).toBeTruthy();
   });
 
-  it('forwards every queue filter to the backend', () => {
+  it('forwards every queue filter to the backend', async () => {
     allowResolve();
     mockReports.mockReturnValue(q({ data: { items: [report()], meta: META } }));
     render(<ModerationReportListPage />);
     expect(mockReports).toHaveBeenLastCalledWith({ page: 1, limit: 10 }, { skip: false });
 
-    fireEvent.change(screen.getByLabelText('Lọc theo trạng thái'), { target: { value: 'AGENCY_RESPONDED' } });
+    await selectFormValue('Lọc theo trạng thái', 'AGENCY_RESPONDED');
     expect(mockReports).toHaveBeenLastCalledWith({ page: 1, limit: 10, status: 'AGENCY_RESPONDED' }, { skip: false });
-    fireEvent.change(screen.getByLabelText('Lọc theo đối tượng'), { target: { value: 'USER' } });
+    await selectOption(screen.getByRole('combobox', { name: 'Lọc theo đối tượng' }), 'Tài khoản đối tác');
     expect(mockReports).toHaveBeenLastCalledWith(
       { page: 1, limit: 10, status: 'AGENCY_RESPONDED', targetType: 'USER' },
       { skip: false },
     );
-    fireEvent.change(screen.getByLabelText('Lọc theo loại vấn đề'), { target: { value: 'SAFETY' } });
+    await selectOption(screen.getByRole('combobox', { name: 'Lọc theo loại vấn đề' }), 'An toàn');
     expect(mockReports).toHaveBeenLastCalledWith(
       { page: 1, limit: 10, status: 'AGENCY_RESPONDED', targetType: 'USER', category: 'SAFETY' },
       { skip: false },

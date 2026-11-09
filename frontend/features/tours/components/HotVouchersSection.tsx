@@ -69,9 +69,6 @@ export function HotVouchersSection() {
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
             Mã ưu đãi đang áp dụng
           </h2>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Lưu mã và nhập tại bước thanh toán để nhận giảm giá trực tiếp
-          </p>
         </div>
         <Link
           href="/settings/vouchers"

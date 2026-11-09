@@ -1,3 +1,4 @@
+import { selectFormValue } from '@/test/select';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { MyReport } from '../types';
@@ -81,7 +82,7 @@ describe('ReportButton', () => {
     mockCreate.mockReturnValue(unwrapOk());
     render(<ReportButton targetType="TOUR" targetId="t1" />);
     fireEvent.click(screen.getByRole('button', { name: /Báo cáo/ }));
-    fireEvent.change(screen.getByLabelText('Loại vấn đề'), { target: { value: 'PAYMENT_OR_REFUND' } });
+    await selectFormValue('Loại vấn đề', 'PAYMENT_OR_REFUND');
     fireEvent.change(screen.getByLabelText('Mô tả chi tiết'), { target: { value: '  Đã trả tiền nhưng không nhận được vé.  ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Gửi báo cáo' }));
 
@@ -151,11 +152,12 @@ describe('MyReportsPage', () => {
     expect(screen.getAllByText('Đã giải quyết')).toHaveLength(1);
   });
 
-  it('forwards the status filter and resets to page 1', () => {
+  it('forwards the status filter and resets to page 1', async () => {
     mockReports.mockReturnValue(queryResult({ data: { items: [report()], meta: META } }));
     render(<MyReportsPage />);
     expect(mockReports).toHaveBeenLastCalledWith({ page: 1, limit: 10 });
-    fireEvent.change(screen.getByLabelText('Lọc theo trạng thái'), { target: { value: 'REJECTED' } });
+    fireEvent.keyDown(screen.getByRole('combobox', { name: 'Lọc theo trạng thái' }), { key: 'ArrowDown', code: 'ArrowDown', keyCode: 40 });
+    fireEvent.click(await screen.findByText('Đã bác bỏ'));
     expect(mockReports).toHaveBeenLastCalledWith({ page: 1, limit: 10, status: 'REJECTED' });
   });
 });

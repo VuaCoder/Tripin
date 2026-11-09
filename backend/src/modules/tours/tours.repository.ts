@@ -182,6 +182,17 @@ export class ToursRepository {
   async searchPublic(query: SearchToursQuery): Promise<{ items: TourRecord[]; total: number }> {
     const where: Prisma.TourWhereInput = { status: TOUR_STATUS.APPROVED };
     const and: Prisma.TourWhereInput[] = [];
+    const guests = (query.adults ?? 0) + (query.children ?? 0) + (query.infants ?? 0);
+    if (guests > 0) {
+      and.push({ OR: [{ maxGroupSize: null }, { maxGroupSize: { gte: guests } }] });
+      and.push({ departures: { some: { isOpen: true, date: { gte: query.departureFrom && query.departureFrom > new Date() ? query.departureFrom : new Date(), lte: query.departureTo }, remaining: { gte: guests } } } });
+    }
+    for (const [count, price, percent] of [[query.children, 'childPrice', 'childPercent'], [query.infants, 'infantPrice', 'infantPercent']] as const) {
+      if (count) and.push({ OR: [
+        { agePricing: { path: [price], gte: 0 } },
+        { AND: [{ agePricing: { path: [price], equals: PrismaRuntime.DbNull } }, { agePricing: { path: [percent], gte: 0 } }] },
+      ] });
+    }
     if (query.agencyId) and.push({ agencyId: query.agencyId });
     if (query.q) and.push({ OR: [{ title: containsText(query.q) }, { destination: containsText(query.q) }, { summary: containsText(query.q) }] });
     if (query.destination) and.push({ destination: containsText(query.destination) });

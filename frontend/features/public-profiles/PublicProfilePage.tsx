@@ -1,5 +1,6 @@
 'use client';
 
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -39,9 +40,9 @@ function PublicReviews({ kind, id }: { kind: ProfileKind; id: string }) {
     <div className="flex flex-wrap items-center justify-between gap-4">
       <h2 id="public-reviews-heading" className="text-2xl font-bold text-slate-900">Đánh giá từ du khách</h2>
       <label className="flex items-center gap-2 text-sm text-slate-600">Sắp xếp
-        <select className="rounded-lg border border-slate-300 bg-white p-2 focus-visible:outline-teal-700" value={sort} onChange={event => { setSort(event.target.value as ReviewSort); setPage(1); }}>
+        <FormSelect className="rounded-lg border border-slate-300 bg-white p-2 focus-visible:outline-teal-700" value={sort} onChange={event => { setSort(event.target.value as ReviewSort); setPage(1); }}>
           <option value="newest">Mới nhất</option><option value="rating_desc">Điểm cao nhất</option><option value="rating_asc">Điểm thấp nhất</option>
-        </select>
+        </FormSelect>
       </label>
     </div>
     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{kind === 'guide' ? 'Cảm nhận về các chuyến đi mà hướng dẫn viên đã dẫn. Điểm đánh giá dành cho toàn bộ trải nghiệm tour.' : 'Cảm nhận từ du khách đã hoàn thành chuyến đi do đơn vị tổ chức.'}</p>

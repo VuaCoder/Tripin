@@ -1,4 +1,6 @@
 'use client';
+import { FormSelect } from '@/components/ui/FormSelect';
+import { ageUnitPrice } from '@travel-platform/constants';
 import { usePremiumVouchersQuery } from '@/features/premium/api';
 import { calculateGuestPrice, guestTotal, type GuestCounts } from '@travel-platform/constants';
 import { TourGuestSelector } from '@/features/tours/components/detail/TourGuestSelector';
@@ -409,7 +411,7 @@ export function BookingEntryPage() {
   return (
     <div className="grid gap-6 pb-12 lg:grid-cols-[minmax(0,1fr)_340px]">
       <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6" noValidate>
-        <div className="space-y-2 border-b border-amber-200 pb-4"><label htmlFor="premium-booking-voucher" className="text-sm font-semibold text-amber-900">Voucher Premium</label>{premiumVouchers.isError ? <p role="alert" className="text-sm text-red-800">Không tải được voucher. <button type="button" className="underline" onClick={() => void premiumVouchers.refetch()}>Thử lại</button></p> : <select id="premium-booking-voucher" className="w-full rounded-lg border border-amber-300 bg-white p-3 text-sm" value={premiumVoucherId} onChange={e => { setPremiumVoucherId(e.target.value); if(e.target.value) { clearAgencyPromotion();clearPlatformPromotion(); } }}><option value="">Không dùng voucher Premium</option>{premiumVouchers.currentData?.filter(v => !v.heldAt && v.terms.tourIds.includes(tourId) && new Date(v.endsAt) > new Date() && subtotal >= v.terms.minOrderAmount).map(v => <option key={v.id} value={v.id}>{v.terms.title} · Hạn {new Date(v.endsAt).toLocaleDateString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}</option>)}</select>}<p className="text-xs text-slate-600">Mỗi đơn dùng một voucher Premium, không cộng với mã khác.{premiumVoucherId && ` Giảm dự kiến ${formatVnd(premiumDiscount)}.`}</p></div>
+        <div className="space-y-2 border-b border-amber-200 pb-4"><label htmlFor="premium-booking-voucher" className="text-sm font-semibold text-amber-900">Voucher Premium</label>{premiumVouchers.isError ? <p role="alert" className="text-sm text-red-800">Không tải được voucher. <button type="button" className="underline" onClick={() => void premiumVouchers.refetch()}>Thử lại</button></p> : <FormSelect id="premium-booking-voucher" className="w-full rounded-lg border border-amber-300 bg-white p-3 text-sm" value={premiumVoucherId} onChange={e => { setPremiumVoucherId(e.target.value); if(e.target.value) { clearAgencyPromotion();clearPlatformPromotion(); } }}><option value="">Không dùng voucher Premium</option>{premiumVouchers.currentData?.filter(v => !v.heldAt && v.terms.tourIds.includes(tourId) && new Date(v.endsAt) > new Date() && subtotal >= v.terms.minOrderAmount).map(v => <option key={v.id} value={v.id}>{v.terms.title} · Hạn {new Date(v.endsAt).toLocaleDateString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}</option>)}</FormSelect>}<p className="text-xs text-slate-600">Mỗi đơn dùng một voucher Premium, không cộng với mã khác.{premiumVoucherId && ` Giảm dự kiến ${formatVnd(premiumDiscount)}.`}</p></div>
         <div>
           <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Hoàn tất thông tin đặt chỗ</h1>
           <p className="mt-1 text-sm text-slate-500">Thông tin liên hệ dùng để xác nhận chuyến đi của bạn.</p>
@@ -575,8 +577,8 @@ export function BookingEntryPage() {
           {tour.agePricing && (
             <>
               <div className="flex justify-between gap-3"><dt>Người lớn × {guestCounts.adults}</dt><dd>{formatVnd(unitPrice * guestCounts.adults)}</dd></div>
-              <div className="flex justify-between gap-3"><dt>Trẻ em × {children}</dt><dd>{formatVnd(Math.round(unitPrice * tour.agePricing.childPercent / 100) * children)}</dd></div>
-              <div className="flex justify-between gap-3"><dt>Em bé × {infants}</dt><dd>{formatVnd(Math.round(unitPrice * tour.agePricing.infantPercent / 100) * infants)}</dd></div>
+              {children > 0 && <div className="flex justify-between gap-3"><dt>Trẻ em × {children}</dt><dd>{formatVnd((ageUnitPrice(unitPrice, tour.agePricing, 'child') ?? 0) * children)}</dd></div>}
+              {infants > 0 && <div className="flex justify-between gap-3"><dt>Em bé × {infants}</dt><dd>{formatVnd((ageUnitPrice(unitPrice, tour.agePricing, 'infant') ?? 0) * infants)}</dd></div>}
             </>
           )}
           <div className="flex items-center justify-between gap-3 text-slate-600">

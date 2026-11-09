@@ -1,0 +1,32 @@
+.page { min-height: 100vh; background: #f1f5f9; padding: 24px; color: #172b35; }
+.toolbar { max-width: 850px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.toolbar a { text-decoration: underline; }
+.toolbar button { background: #0f766e; color: white; border-radius: 8px; padding: 10px 18px; font-weight: 600; }
+.document { max-width: 850px; margin: auto; background: white; padding: 48px; box-shadow: 0 2px 12px #0f172a12; line-height: 1.7; }
+.header { border-bottom: 2px solid #0f766e; padding-bottom: 24px; margin-bottom: 24px; }
+.brand { color: #0f766e; font-weight: 800; font-size: 28px; }
+.header > p { letter-spacing: .12em; font-size: 12px; margin: 12px 0 4px; }
+.document h1 { font-size: 28px; font-weight: 750; line-height: 1.35; }
+.document h2 { font-size: 21px; font-weight: 700; margin: 28px 0 12px; color: #115e59; border-bottom: 1px solid #dbe5e7; padding-bottom: 8px; }
+.document h3 { font-size: 16px; font-weight: 700; margin: 18px 0 8px; }
+.document p { white-space: pre-line; margin: 8px 0; }
+.document ul { list-style: disc; padding-left: 22px; }
+.facts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; }
+.facts dt { font-size: 12px; color: #52636b; }
+.facts dd { font-weight: 600; overflow-wrap: anywhere; }
+.document table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.document th, .document td { text-align: left; border: 1px solid #dbe5e7; padding: 10px; }
+.document th { background: #f0fdfa; }
+.footer { border-top: 1px solid #dbe5e7; padding-top: 16px; margin-top: 32px; font-size: 12px; color: #52636b; }
+@media (max-width: 600px) { .page { padding: 12px; } .document { padding: 24px 18px; } .facts { grid-template-columns: 1fr; } .document h1 { font-size: 24px; } }
+@media print {
+  @page { size: A4; margin: 15mm; }
+  .page { background: white; padding: 0; min-height: auto; color: black; }
+  .toolbar { display: none; }
+  .document { max-width: none; padding: 0; box-shadow: none; font-size: 10.5pt; }
+  .document h1 { font-size: 22pt; }
+  .document h2, .document h3 { break-after: avoid; }
+  .document tr, .facts > div { break-inside: avoid; }
+  .document thead { display: table-header-group; }
+  .facts { grid-template-columns: 1fr 1fr; }
+}

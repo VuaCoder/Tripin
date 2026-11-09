@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { EmptyState, ErrorState } from '@/components/shared';
+import { ErrorState } from '@/components/shared';
+import Link from 'next/link';
 import {
   useCancelBookingMutation,
   useCompleteBookingMutation,
@@ -148,7 +149,7 @@ export function BookingHistoryPage() {
                 setSelectedStatus(tab.value);
                 setPage(1);
               }}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
                 isActive
                   ? 'bg-primary-container text-white shadow-sm shadow-primary-container/25'
                   : 'bg-white text-slate-600 border border-slate-200/80 hover:bg-surface-container-low hover:text-primary-container'
@@ -174,16 +175,25 @@ export function BookingHistoryPage() {
         </div>
       ) : !data || data.items.length === 0 ? (
         <div className="rounded-3xl bg-white border border-slate-100 p-8 shadow-sm text-center">
-          <EmptyState
-            title={
+          <div className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 p-6 text-center">
+            <span className="material-symbols-outlined text-3xl text-slate-400" aria-hidden="true">inbox</span>
+            <h3 className="text-base font-bold text-slate-800">
+              {
               selectedStatus === 'ALL'
                 ? 'Bạn chưa có đặt chỗ nào'
                 : `Không có đặt chỗ nào trong trạng thái "${STATUS_TABS.find((t) => t.value === selectedStatus)?.label}"`
-            }
-            description="Hãy bắt đầu chuyến hành trình tuyệt vời của bạn bằng cách khám phá các tour du lịch đa dạng của chúng tôi."
-            actionLabel="Khám phá tour ngay"
-            onAction={() => window.location.assign('/tours')}
-          />
+              }
+            </h3>
+            <p className="max-w-sm text-xs text-slate-500 sm:text-sm">
+              Hãy bắt đầu chuyến hành trình tuyệt vời của bạn bằng cách khám phá các tour du lịch đa dạng của chúng tôi.
+            </p>
+            <Link
+              href="/tours"
+              className="inline-flex items-center justify-center rounded-xl bg-primary-container px-4 py-2.5 text-xs font-bold text-white transition hover:bg-primary"
+            >
+              Khám phá tour ngay
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">

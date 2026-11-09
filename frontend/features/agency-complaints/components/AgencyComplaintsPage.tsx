@@ -1,5 +1,6 @@
 'use client';
 
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useState } from 'react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
 import { getApiErrorCode, getApiErrorMessage } from '@/features/auth/utils/apiError';
@@ -56,7 +57,7 @@ export function AgencyComplaintsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <select
+          <FormSelect
             aria-label="Lọc theo trạng thái"
             value={filter}
             onChange={(e) => {
@@ -71,7 +72,7 @@ export function AgencyComplaintsPage() {
                 {STATUS_LABELS[s].label}
               </option>
             ))}
-          </select>
+          </FormSelect>
           <button
             type="button"
             disabled={isFetching}

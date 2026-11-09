@@ -85,34 +85,27 @@ export function BoatPreloader({
         return;
       }
 
-      // 1. Boat bobbing (vertical flotation)
+      // Animate SVG attributes directly. CSS transform measurement can temporarily
+      // reparent SVG nodes, which conflicts with React during route transitions.
       if (boatRef.current) {
-        gsap.to(boatRef.current, {
-          y: -5,
-          duration: 1.5,
+        gsap.fromTo(boatRef.current, {
+          attr: { transform: 'translate(0 0) rotate(0 130 115)' },
+        }, {
+          attr: { transform: 'translate(0 -5) rotate(3.2 130 115)' },
+          duration: 1.8,
           ease: 'sine.inOut',
           yoyo: true,
           repeat: -1,
         });
 
-        // 2. Boat rotational sway (rocking on waves)
-        // Transform origin corresponds to the boat hull center (x: 130px, y: 115px)
-        gsap.to(boatRef.current, {
-          rotation: 3.2,
-          transformOrigin: '130px 115px',
-          duration: 2.1,
-          ease: 'sine.inOut',
-          yoyo: true,
-          repeat: -1,
-        });
       }
 
       // 3. Pennant flag flutter in the oceanic breeze
       if (flagRef.current) {
-        gsap.to(flagRef.current, {
-          scaleX: 0.82,
-          skewY: 3,
-          transformOrigin: '125px 33px',
+        gsap.fromTo(flagRef.current, {
+          attr: { transform: 'translate(125 33) scale(1 1) skewY(0) translate(-125 -33)' },
+        }, {
+          attr: { transform: 'translate(125 33) scale(0.82 1) skewY(3) translate(-125 -33)' },
           duration: 0.42,
           ease: 'sine.inOut',
           yoyo: true,
@@ -123,8 +116,10 @@ export function BoatPreloader({
       // 4. Multi-layer continuous wave flow
       // Wavelength is exactly 130px. Translating by -130px with linear ease creates a 100% seamless loop.
       if (waveBackRef.current) {
-        gsap.to(waveBackRef.current, {
-          x: -130,
+        gsap.fromTo(waveBackRef.current, {
+          attr: { transform: 'translate(0 0)' },
+        }, {
+          attr: { transform: 'translate(-130 0)' },
           duration: 4.4,
           ease: 'none',
           repeat: -1,
@@ -132,8 +127,10 @@ export function BoatPreloader({
       }
 
       if (waveMidRef.current) {
-        gsap.to(waveMidRef.current, {
-          x: -130,
+        gsap.fromTo(waveMidRef.current, {
+          attr: { transform: 'translate(0 0)' },
+        }, {
+          attr: { transform: 'translate(-130 0)' },
           duration: 3.3,
           ease: 'none',
           repeat: -1,
@@ -141,8 +138,10 @@ export function BoatPreloader({
       }
 
       if (waveFrontRef.current) {
-        gsap.to(waveFrontRef.current, {
-          x: -130,
+        gsap.fromTo(waveFrontRef.current, {
+          attr: { transform: 'translate(0 0)' },
+        }, {
+          attr: { transform: 'translate(-130 0)' },
           duration: 2.4,
           ease: 'none',
           repeat: -1,

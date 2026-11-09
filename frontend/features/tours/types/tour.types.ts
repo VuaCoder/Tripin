@@ -136,6 +136,9 @@ export interface ListToursArgs {
   maxDays?: number;
   departureFrom?: string;
   departureTo?: string;
+  adults?: number;
+  children?: number;
+  infants?: number;
   minRating?: number;
   sort?: TourSort;
 }

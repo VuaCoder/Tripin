@@ -20,28 +20,19 @@ const baseTour: TourContentInput = {
 };
 
 describe('TourAgePricingFields', () => {
-  it('renders age group and percentage inputs when enabled', () => {
+  it('converts legacy percentages to editable VND and can clear an age price', () => {
     const onChange = vi.fn();
     render(<TourAgePricingFields value={baseTour} onChange={onChange} />);
-
-    expect(screen.getByText('Tuổi nhóm trẻ em')).toBeDefined();
-    expect(screen.getByText('Tuổi nhóm người lớn')).toBeDefined();
-    expect(screen.getByText('Giá trẻ em (% người lớn)')).toBeDefined();
-    expect(screen.getByText('Giá em bé (% người lớn)')).toBeDefined();
+    const inputs = screen.getAllByRole('spinbutton') as HTMLInputElement[];
+    expect(inputs.map(input => input.value)).toEqual(['1000000', '0']);
+    fireEvent.change(inputs[0], { target: { value: '' } });
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ agePricing: expect.objectContaining({ adultMinAge: 13, childMinAge: 2, childPrice: null, infantPrice: 0 }) }));
+    fireEvent.change(inputs[1], { target: { value: '150000' } });
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ agePricing: expect.objectContaining({ infantPrice: 150000 }) }));
   });
-
-  it('appends child policy preset when clicked', () => {
-    const onChange = vi.fn();
-    render(<TourAgePricingFields value={baseTour} onChange={onChange} />);
-
-    const chip = screen.getByRole('button', { name: /\+ Dưới 2 tuổi: Miễn phí/i });
-    fireEvent.click(chip);
-
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        childPricingPolicy: expect.stringContaining('Dưới 2 tuổi: Miễn phí'),
-      })
-    );
+  it('starts with optional prices blank', () => {
+    render(<TourAgePricingFields value={{ ...baseTour, agePricing: null }} onChange={vi.fn()} />);
+    expect((screen.getAllByRole('spinbutton') as HTMLInputElement[]).map(input => input.value)).toEqual(['', '']);
   });
 });
 
