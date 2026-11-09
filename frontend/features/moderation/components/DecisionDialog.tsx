@@ -109,9 +109,6 @@ export function DecisionDialog({ open, title, reasonLabel, children, actions, is
             </p>
           )}
           <div className="flex flex-wrap justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} disabled={isSubmitting} className={CLOSE_CLASS}>
-              Đóng
-            </button>
             {actions.map((a) => (
               <button key={a.key} type="button" disabled={isSubmitting} onClick={() => run(a)} className={`${ACTION_CLASS} ${TONE[a.tone].className}`}>
                 {isSubmitting ? (

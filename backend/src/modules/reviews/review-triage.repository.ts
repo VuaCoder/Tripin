@@ -20,7 +20,7 @@ export class ReviewTriageRepository {
         prisma.report.findMany({ where: { ...openReports, targetId: review.id }, select: { id: true, category: true, description: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 100 }),
         prisma.report.count({ where: { ...openReports, targetId: review.id } }),
       ]);
-      return { id: review.id, tourTitle: review.tourTitle, comment: review.comment, rating: review.rating, status: review.status, contentVersion: reviewContentVersion(review), reports, reportCount };
+      return { id: review.id, tourTitle: review.tourTitle, comment: review.comment, rating: review.rating, status: review.status, contentVersion: reviewContentVersion(review), reports, reportCount, images: review.images ?? [] };
     }));
     return { items, total: Number(counts[0]?.total ?? 0) };
   }

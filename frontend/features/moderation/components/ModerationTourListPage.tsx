@@ -126,53 +126,68 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Expandable Search */}
-          {isSearchExpanded || search ? (
-            <div className="relative flex items-center animate-in fade-in zoom-in-95 duration-150">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-              <input
-                ref={searchInputRef}
-                type="search"
-                aria-label="Tìm theo tên tour"
-                placeholder="Tìm theo tên tour..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape' && !search) {
-                    setIsSearchExpanded(false);
-                  }
-                }}
-                className="h-10 w-56 sm:w-72 rounded-2xl border border-slate-200/90 bg-white pl-9 pr-8 text-sm font-medium text-slate-800 placeholder:text-slate-400 shadow-2xs outline-none transition hover:border-slate-300 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15"
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={() => {
+          {/* Smooth Expandable Search */}
+          <div
+            className={`relative flex h-10 items-center transition-all duration-300 ease-out ${
+              isSearchExpanded || search ? 'w-56 sm:w-72' : 'w-10'
+            }`}
+          >
+            <input
+              ref={searchInputRef}
+              type="search"
+              aria-label="Tìm theo tên tour"
+              placeholder="Tìm theo tên tour..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onFocus={() => setIsSearchExpanded(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
                   setSearch('');
                   setQ('');
                   setIsSearchExpanded(false);
-                  setPage(1);
-                }}
-                aria-label="Đóng tìm kiếm"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded-full"
-              >
-                <X className="size-3.5" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setIsSearchExpanded(true);
-                setTimeout(() => searchInputRef.current?.focus(), 50);
+                  searchInputRef.current?.blur();
+                }
               }}
-              aria-label="Tìm kiếm theo tên tour"
-              title="Tìm kiếm theo tên tour"
-              className="flex size-10 items-center justify-center rounded-2xl border border-slate-200/90 bg-white text-slate-600 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 cursor-pointer"
-            >
-              <Search className="size-4" />
-            </button>
-          )}
+              className={`h-10 w-full rounded-2xl border border-slate-200/90 bg-white text-sm font-medium text-slate-800 placeholder:text-slate-400 shadow-2xs outline-none transition-all duration-300 ease-out hover:border-slate-300 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15 ${
+                isSearchExpanded || search
+                  ? 'pl-9 pr-8 opacity-100 cursor-text'
+                  : 'pl-10 pr-0 opacity-0 pointer-events-none cursor-pointer'
+              }`}
+            />
+
+            {isSearchExpanded || search ? (
+              <>
+                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 transition-opacity duration-200" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch('');
+                    setQ('');
+                    setIsSearchExpanded(false);
+                    setPage(1);
+                  }}
+                  aria-label="Đóng tìm kiếm"
+                  title="Đóng tìm kiếm (Esc)"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 flex size-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
+                >
+                  <X className="size-3.5 transition-transform duration-200 hover:rotate-90" />
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSearchExpanded(true);
+                  setTimeout(() => searchInputRef.current?.focus(), 50);
+                }}
+                aria-label="Tìm kiếm theo tên tour"
+                title="Tìm kiếm theo tên tour"
+                className="absolute inset-0 flex size-10 items-center justify-center rounded-2xl border border-slate-200/90 bg-white text-slate-600 shadow-2xs transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 hover:text-brand-teal active:scale-95 cursor-pointer"
+              >
+                <Search className="size-4 transition-transform duration-200 group-hover:scale-110" />
+              </button>
+            )}
+          </div>
 
           {/* AntSelect Filter Dropdown */}
           <AntSelect<StatusFilter>

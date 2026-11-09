@@ -18,9 +18,12 @@ import {
   Search,
   X,
   Command,
+  Bell,
 } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, useLogout } from '@/features/auth';
+import { useAgencyNotifications } from '@/features/agency/notifications';
+import { AgencyNotificationPopover } from '@/features/agency/components/AgencyNotificationPopover';
 import styles from '@/features/agency/components/AgencySidebar.module.css';
 
 interface ModeratorSidebarProps {
@@ -31,13 +34,15 @@ export function ModeratorSidebar({ initialExpanded = true }: ModeratorSidebarPro
   const [expanded, setExpanded] = useState(initialExpanded);
   const [query, setQuery] = useState('');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
-  const profileRef = useRef<HTMLAnchorElement>(null);
+  const profileRef = useRef<HTMLButtonElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const focusSearch = useRef(false);
   const shortcut = '⌘K';
   const user = useAppSelector(selectUser);
+  const { count } = useAgencyNotifications();
   const logout = useLogout();
   const pathname = usePathname();
   const router = useRouter();
@@ -277,10 +282,11 @@ export function ModeratorSidebar({ initialExpanded = true }: ModeratorSidebarPro
 
         <div className={styles.footer}>
           <div className={styles.accountRow}>
-            <Link
-              href="/settings/profile"
+            <button
+              type="button"
               ref={profileRef}
               className={styles.profile}
+              data-no-preloader="true"
               aria-haspopup="menu"
               aria-expanded={showProfileMenu}
               aria-label={`Hồ sơ kiểm duyệt viên: ${moderatorName}`}
@@ -299,7 +305,24 @@ export function ModeratorSidebar({ initialExpanded = true }: ModeratorSidebarPro
                 )}
               </span>
               <span className={styles.company}>{moderatorName}</span>
-            </Link>
+            </button>
+            <button
+              type="button"
+              data-no-preloader="true"
+              aria-haspopup="dialog"
+              aria-expanded={showNotificationModal}
+              className={styles.notification}
+              aria-label={`Thông báo${count !== undefined && count > 0 ? `, ${count} chưa đọc` : ''}`}
+              title="Thông báo"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowNotificationModal((prev) => !prev);
+              }}
+            >
+              <Bell size={20} aria-hidden="true" />
+              {count !== undefined && count > 0 && <span className={styles.badge}>{count > 99 ? '99+' : count}</span>}
+            </button>
           </div>
           {showProfileMenu && (
             <div
@@ -334,6 +357,10 @@ export function ModeratorSidebar({ initialExpanded = true }: ModeratorSidebarPro
           )}
         </div>
       </aside>
+
+      {showNotificationModal && (
+        <AgencyNotificationPopover expanded={expanded} onClose={() => setShowNotificationModal(false)} />
+      )}
     </>
   );
 }

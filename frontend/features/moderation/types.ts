@@ -197,12 +197,14 @@ export interface ModerationReview {
   tourTitle: string;
   rating: number;
   comment: string;
+  images?: string[];
   status: ReviewStatus;
   hiddenReason?: string;
   travelerId: string;
   travelerName?: string;
   agencyId: string;
   agencyName?: string;
+  tourImage?: string;
   moderatedAt?: string;
   moderatedBy?: string;
   createdAt: string;

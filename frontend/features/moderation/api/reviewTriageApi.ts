@@ -2,6 +2,7 @@ import { baseApi } from '@/store/api/baseApi';
 export interface ReportedReview {
   id: string; tourTitle: string; comment: string; rating: number; status: string; contentVersion: string; reportCount: number;
   reports: { id: string; category: string; description: string; createdAt: string }[];
+  images?: string[];
 }
 export const reviewTriageApi = baseApi.injectEndpoints({ endpoints: (build) => ({
   reportedReviews: build.query<{ items: ReportedReview[]; meta: { page: number; totalPages: number } }, number>({
