@@ -145,39 +145,15 @@ function VoucherTicketCard({
                 : 'border-slate-200/90 bg-white shadow-xs hover:border-brand-teal/80 hover:shadow-md'
       }`}
     >
-      {/* 1. Inward corner notches (all 4 corners, matching ticket reference) */}
-      <span aria-hidden="true" className="absolute -top-2 -left-2 size-4 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-      <span aria-hidden="true" className="absolute -top-2 -right-2 size-4 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-      <span aria-hidden="true" className="absolute -bottom-2 -left-2 size-4 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-      <span aria-hidden="true" className="absolute -bottom-2 -right-2 size-4 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-
-      {/* 2. Left and Right Scalloped edge notches (3 notches on each side) */}
-      <span aria-hidden="true" className="absolute -left-2 top-1/4 -translate-y-1/2 size-3.5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-      <span aria-hidden="true" className="absolute -left-2 top-2/4 -translate-y-1/2 size-3.5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-      <span aria-hidden="true" className="absolute -left-2 top-3/4 -translate-y-1/2 size-3.5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-
-      <span aria-hidden="true" className="absolute -right-2 top-1/4 -translate-y-1/2 size-3.5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-      <span aria-hidden="true" className="absolute -right-2 top-2/4 -translate-y-1/2 size-3.5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-      <span aria-hidden="true" className="absolute -right-2 top-3/4 -translate-y-1/2 size-3.5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-
-      {/* 3. Semicircular ticket punch-hole notches at the perforation line */}
+      {/* Semicircular ticket punch-hole notches at the perforation line */}
       <span
         aria-hidden="true"
-        className="hidden sm:block absolute -top-3 left-36 -translate-x-1/2 size-6 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none"
+        className="hidden sm:block absolute -top-3 left-36 -translate-x-1/2 size-5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none"
       />
       <span
         aria-hidden="true"
-        className="hidden sm:block absolute -bottom-3 left-36 -translate-x-1/2 size-6 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none"
+        className="hidden sm:block absolute -bottom-3 left-36 -translate-x-1/2 size-5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none"
       />
-
-      {/* 4. Top center perforation dots decoration */}
-      <div aria-hidden="true" className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 pointer-events-none opacity-40 z-10">
-        <span className="size-1 rounded-full bg-slate-300" />
-        <span className="size-1 rounded-full bg-slate-300" />
-        <span className="size-1 rounded-full bg-slate-300" />
-        <span className="size-1 rounded-full bg-slate-300" />
-        <span className="size-1 rounded-full bg-slate-300" />
-      </div>
       {/* Cạnh trái: Badge giảm giá & Cuống vé */}
       <div
         className={`flex sm:flex-col items-center justify-between sm:justify-center p-4 sm:p-5 sm:w-36 shrink-0 border-b sm:border-b-0 sm:border-r border-dashed ${

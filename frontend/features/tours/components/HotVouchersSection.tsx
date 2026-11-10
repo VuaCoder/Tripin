@@ -137,32 +137,23 @@ export function HotVouchersSection() {
   const count = uncollectedVouchers.length;
 
   // Responsive Grid class depending on how many uncollected vouchers exist
-  // 1 voucher -> centered single hero card
-  // 2 vouchers -> 2 columns
-  // 3 vouchers -> 3 columns
-  // 4+ vouchers -> 4 columns / responsive grid
+  // Left-aligned grid naturally matching the page layout
   const gridLayoutClass =
     count === 1
-      ? 'max-w-xl mx-auto w-full'
+      ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-md sm:max-w-none'
       : count === 2
         ? 'grid grid-cols-1 md:grid-cols-2 gap-5'
         : count === 3
           ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5'
-          : 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5';
+          : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5';
 
   return (
     <section className="mb-14">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div className="flex items-center gap-2.5">
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Mã ưu đãi đang áp dụng
-          </h2>
-          <span className="inline-flex items-center gap-1 rounded-full bg-teal-100/80 px-2.5 py-0.5 text-xs font-bold text-teal-800">
-            <Sparkles className="size-3" />
-            <span>{count} mã mới</span>
-          </span>
-        </div>
+      <div className="flex items-center justify-between gap-4 mb-5">
+        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+          Mã ưu đãi đang áp dụng
+        </h2>
         <Link
           href="/settings/vouchers"
           className="text-xs sm:text-sm font-semibold text-primary-container hover:underline whitespace-nowrap"
@@ -182,7 +173,6 @@ export function HotVouchersSection() {
             onCopyCode={() => voucher.code && handleCopyCode(voucher.code)}
             onCollect={() => handleCollect(voucher.id, voucher.code)}
             isAuthenticated={isAuthenticated}
-            isHero={count === 1}
           />
         ))}
       </div>
@@ -197,7 +187,6 @@ interface TicketCardProps {
   onCopyCode: () => void;
   onCollect: () => void;
   isAuthenticated: boolean;
-  isHero?: boolean;
 }
 
 function TicketCard({
@@ -207,7 +196,6 @@ function TicketCard({
   onCopyCode,
   onCollect,
   isAuthenticated,
-  isHero = false,
 }: TicketCardProps) {
   const discountLabel =
     voucher.discountType === 'PERCENT'
@@ -229,57 +217,28 @@ function TicketCard({
     year: 'numeric',
   }).format(new Date(voucher.endsAt));
 
-  const stubWidth = isHero ? 'w-[125px] sm:w-[140px]' : 'w-[105px] sm:w-[115px]';
-  const stubPosition = isHero ? 'left-[125px] sm:left-[140px]' : 'left-[105px] sm:left-[115px]';
-
   return (
     <div className="relative group select-none">
-      {/* ================= TICKET BORDER ACCENTS (MATCHING TICKET REFERENCE IMAGE) ================= */}
-      {/* 1. Inward corner notches on all 4 corners */}
-      <span aria-hidden="true" className="absolute -top-2 -left-2 size-4 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-      <span aria-hidden="true" className="absolute -top-2 -right-2 size-4 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-      <span aria-hidden="true" className="absolute -bottom-2 -left-2 size-4 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-      <span aria-hidden="true" className="absolute -bottom-2 -right-2 size-4 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-
-      {/* 2. Left Edge Scalloped Notches (3 half circles) */}
-      <span aria-hidden="true" className="absolute -left-2 top-1/4 -translate-y-1/2 size-3.5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-      <span aria-hidden="true" className="absolute -left-2 top-2/4 -translate-y-1/2 size-3.5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-      <span aria-hidden="true" className="absolute -left-2 top-3/4 -translate-y-1/2 size-3.5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-
-      {/* 3. Right Edge Scalloped Notches (3 half circles) */}
-      <span aria-hidden="true" className="absolute -right-2 top-1/4 -translate-y-1/2 size-3.5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-      <span aria-hidden="true" className="absolute -right-2 top-2/4 -translate-y-1/2 size-3.5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-      <span aria-hidden="true" className="absolute -right-2 top-3/4 -translate-y-1/2 size-3.5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none" />
-
-      {/* 4. Top and Bottom Semicircular Perforation Cutouts at the Stub Line */}
+      {/* Semicircular ticket punch-hole cutouts at the perforation divider */}
       <span
         aria-hidden="true"
-        className={`absolute -top-3 ${stubPosition} -translate-x-1/2 size-6 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none`}
+        className="absolute -top-2.5 left-[110px] sm:left-[120px] -translate-x-1/2 size-5 rounded-full bg-white border border-slate-200/80 z-20 pointer-events-none shadow-2xs"
       />
       <span
         aria-hidden="true"
-        className={`absolute -bottom-3 ${stubPosition} -translate-x-1/2 size-6 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none`}
+        className="absolute -bottom-2.5 left-[110px] sm:left-[120px] -translate-x-1/2 size-5 rounded-full bg-white border border-slate-200/80 z-20 pointer-events-none shadow-2xs"
       />
-
-      {/* 5. Top Center Perforation Dots (matching • • • • • from ticket reference) */}
-      <div aria-hidden="true" className="absolute top-1.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 pointer-events-none opacity-40 z-10">
-        <span className="size-1 rounded-full bg-slate-300" />
-        <span className="size-1 rounded-full bg-slate-300" />
-        <span className="size-1 rounded-full bg-slate-300" />
-        <span className="size-1 rounded-full bg-slate-300" />
-        <span className="size-1 rounded-full bg-slate-300" />
-      </div>
 
       {/* ================= TICKET MAIN BODY ================= */}
       <div className="relative flex rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:shadow-md transition-all duration-200 overflow-hidden">
         {/* Left Column: Discount Highlight Ticket Stub */}
-        <div className={`${stubWidth} shrink-0 bg-slate-900 text-white flex flex-col justify-between p-3.5 relative select-none`}>
+        <div className="w-[110px] sm:w-[120px] shrink-0 bg-slate-900 text-white flex flex-col justify-between p-3.5 relative select-none">
           <span className="text-[10px] font-bold tracking-wider uppercase text-teal-300">
             {voucher.scope === 'PLATFORM' ? 'Toàn sàn' : 'Đối tác'}
           </span>
 
           <div className="my-auto py-2">
-            <div className={`${isHero ? 'text-2xl sm:text-3xl' : 'text-lg sm:text-xl'} font-black tracking-tight text-white leading-tight`}>
+            <div className="text-lg sm:text-xl font-black tracking-tight text-white leading-tight">
               {discountLabel}
             </div>
             {voucher.maxDiscountAmount && (
@@ -298,7 +257,7 @@ function TicketCard({
         {/* Right Column: Voucher Information & Action Button */}
         <div className="flex-1 min-w-0 p-3.5 sm:p-4 flex flex-col justify-between bg-white">
           <div>
-            <h3 className={`${isHero ? 'text-base sm:text-lg font-extrabold' : 'text-sm font-bold'} text-slate-900 line-clamp-1`}>
+            <h3 className="text-sm font-bold text-slate-900 line-clamp-1">
               {voucher.title}
             </h3>
             <div className="mt-1 space-y-0.5 text-xs text-slate-500">
