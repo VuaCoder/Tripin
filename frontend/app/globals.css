@@ -431,3 +431,17 @@ html {
   vertical-align: middle;
 }
 .tripri-form-select > .tripri-select { width: 100%; }
+
+.tripri-select.ant-select .ant-select-selector {
+  border-radius: 0.75rem !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease !important;
+}
+.tripri-select.ant-select:hover .ant-select-selector {
+  border-color: #cbd5e1 !important;
+}
+.tripri-select.ant-select.ant-select-focused .ant-select-selector {
+  border-color: #087e8b !important;
+  box-shadow: 0 0 0 2px rgba(8, 126, 139, 0.15) !important;
+}

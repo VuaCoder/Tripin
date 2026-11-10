@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { LayoutGrid, List } from 'lucide-react';
 import { Button, Input, Pagination, AntSelect, AntDateRangePicker } from '@/components/ui';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
 import { useGetTourCategoriesQuery, useGetToursQuery } from '../api/toursApi';
@@ -10,6 +11,8 @@ import { TourCard } from './TourCard';
 import { formatCategoryName, formatVnd } from '../utils';
 import { cn } from '@/components/ui/cn';
 import { readSearchGuests, guestSearchParams, tourDetailHref } from '../utils/searchContext';
+import { GuestCountInput } from './GuestCountInput';
+import { guestTotal } from '@travel-platform/constants';
 
 const PAGE_SIZE = 12;
 const SORT_OPTIONS: { value: TourSort; label: string }[] = [
@@ -116,9 +119,12 @@ export function TourListPage() {
       ...(stringParam(searchParams.get('departureFrom')) ? { departureFrom: stringParam(searchParams.get('departureFrom')) } : {}),
       ...(stringParam(searchParams.get('departureTo')) ? { departureTo: stringParam(searchParams.get('departureTo')) } : {}),
       ...(numberParam(searchParams.get('minRating')) !== undefined ? { minRating: numberParam(searchParams.get('minRating')) } : {}),
+      ...(guests.adults > 0 ? { adults: guests.adults } : {}),
+      ...(guests.children > 0 ? { children: guests.children } : {}),
+      ...(guests.infants > 0 ? { infants: guests.infants } : {}),
       sort,
     };
-  }, [queryString, searchParams]);
+  }, [queryString, searchParams, guests]);
 
   const { data, isLoading, isFetching, isError, refetch } = useGetToursQuery(args);
   const { data: categories = [] } = useGetTourCategoriesQuery();
@@ -202,9 +208,31 @@ export function TourListPage() {
 
   return (
     <div className="w-full pb-8">
-      {/* Tiêu đề trang */}
-      <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+      {/* Tiêu đề trang + Điều khiển Grid / List */}
+      <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Khám phá tour</h1>
+        <div className="inline-flex items-center rounded-xl border border-slate-200 bg-slate-50/80 p-1 shadow-2xs" role="group" aria-label="Kiểu hiển thị tour">
+          {([
+            { value: 'grid', label: 'Dạng lưới', icon: LayoutGrid },
+            { value: 'list', label: 'Dạng danh sách', icon: List },
+          ] as const).map(({ value: val, label, icon: Icon }) => (
+            <button
+              key={val}
+              type="button"
+              aria-label={label}
+              aria-pressed={view === val}
+              onClick={() => updateQuery({ view: val }, false)}
+              className={cn(
+                'flex size-9 items-center justify-center rounded-lg transition-all duration-150 cursor-pointer',
+                view === val
+                  ? 'bg-white text-primary-container shadow-xs font-semibold'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-white/60'
+              )}
+            >
+              <Icon className="size-4" />
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
@@ -226,6 +254,7 @@ export function TourListPage() {
               <label htmlFor="filter-category" className="mb-1.5 block text-xs font-bold text-slate-700">Danh mục tour</label>
               <AntSelect
                 id="filter-category"
+                aria-label="Danh mục tour"
                 value={activeCategoryId}
                 onChange={value => updateQuery({ categoryId: value || undefined })}
                 options={[{ value: '', label: 'Tất cả' }, ...categories.map(category => ({ value: category.id, label: formatCategoryName(category.name) }))]}
@@ -313,6 +342,8 @@ export function TourListPage() {
                 Sắp xếp theo
               </label>
               <AntSelect
+                id="filter-sort"
+                aria-label="Sắp xếp theo"
                 value={args.sort ?? 'newest'}
                 onChange={(val) => updateQuery({ sort: val })}
                 options={SORT_OPTIONS}
@@ -359,16 +390,43 @@ export function TourListPage() {
                 Số lượng khách
               </p>
               <div className="space-y-3">
-                {([{ key: 'adults', label: 'Người lớn' }, { key: 'children', label: 'Trẻ em' }, { key: 'infants', label: 'Em bé' }] as const).map(({ key, label }) => (
-                  <div key={key} className="flex items-center justify-between gap-2 text-sm">
-                    <span>{label}</span>
-                    <div className="flex items-center gap-3">
-                      <button type="button" aria-label={`Giảm ${label.toLowerCase()}`} disabled={guests[key] <= (key === 'adults' ? 1 : 0)} onClick={() => updateQuery(Object.fromEntries(guestSearchParams({ ...guests, [key]: guests[key] - 1 })))} className="flex size-8 items-center justify-center rounded-full border border-slate-300 disabled:opacity-30">−</button>
-                      <output aria-label={label} className="min-w-5 text-center font-bold">{guests[key]}</output>
-                      <button type="button" aria-label={`Tăng ${label.toLowerCase()}`} disabled={guests.adults + guests.children + guests.infants >= 50} onClick={() => updateQuery(Object.fromEntries(guestSearchParams({ ...guests, [key]: guests[key] + 1 })))} className="flex size-8 items-center justify-center rounded-full border border-slate-300 disabled:opacity-30">+</button>
+                {([{ key: 'adults', label: 'Người lớn' }, { key: 'children', label: 'Trẻ em' }, { key: 'infants', label: 'Em bé' }] as const).map(({ key, label }) => {
+                  const min = key === 'adults' ? 1 : 0;
+                  const max = 50 - (guestTotal(guests) - guests[key]);
+                  return (
+                    <div key={key} className="flex items-center justify-between gap-2 text-sm">
+                      <span className="text-slate-700">{label}</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          aria-label={`Giảm ${label.toLowerCase()}`}
+                          disabled={guests[key] <= min}
+                          onClick={() => updateQuery(Object.fromEntries(guestSearchParams({ ...guests, [key]: guests[key] - 1 })))}
+                          className="flex size-8 items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:border-slate-800 hover:text-slate-900 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                        >
+                          −
+                        </button>
+                        <GuestCountInput
+                          label={label}
+                          min={min}
+                          max={max}
+                          value={guests[key]}
+                          onChange={(n) => updateQuery(Object.fromEntries(guestSearchParams({ ...guests, [key]: n })))}
+                          className="w-12 rounded-lg border border-slate-200 bg-white py-1 text-center font-bold text-sm text-slate-800 outline-none transition focus:border-primary-container focus:ring-1 focus:ring-primary-container [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                        <button
+                          type="button"
+                          aria-label={`Tăng ${label.toLowerCase()}`}
+                          disabled={guests.adults + guests.children + guests.infants >= 50}
+                          onClick={() => updateQuery(Object.fromEntries(guestSearchParams({ ...guests, [key]: guests[key] + 1 })))}
+                          className="flex size-8 items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:border-slate-800 hover:text-slate-900 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -405,14 +463,6 @@ export function TourListPage() {
 
         {/* ======================== KẾT QUẢ ======================== */}
         <section aria-live="polite" aria-busy={isFetching}>
-          <div className="mb-4 flex justify-end gap-1" role="group" aria-label="Kiểu hiển thị tour">
-            {([{ value: 'grid', label: 'Dạng lưới', icon: 'grid_view' }, { value: 'list', label: 'Dạng danh sách', icon: 'view_list' }] as const).map(option => (
-              <button key={option.value} type="button" aria-label={option.label} aria-pressed={view === option.value} onClick={() => updateQuery({ view: option.value }, false)} className={cn('flex size-10 items-center justify-center rounded-lg border transition', view === option.value ? 'border-primary-container bg-primary-container/10 text-primary-container' : 'border-slate-200 bg-white text-slate-500')}>
-                <span className="material-symbols-outlined" aria-hidden="true">{option.icon}</span>
-              </button>
-            ))}
-          </div>
-
           {isLoading && !data ? (
             <TourGridSkeleton />
           ) : items.length === 0 ? (

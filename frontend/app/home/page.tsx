@@ -983,10 +983,22 @@ export default function Home() {
                                <div className="text-sm font-bold text-slate-800">Người lớn</div>
                                <div className="text-xs text-slate-500">Từ 13 tuổi trở lên</div>
                              </div>
-                             <div className="flex items-center gap-3">
-                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setAdults(Math.max(0, adults - 1)); }}>-</button>
-                               <span className="w-4 text-center font-semibold text-sm text-slate-800">{adults}</span>
-                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setAdults(adults + 1); }}>+</button>
+                             <div className="flex items-center gap-2">
+                               <button type="button" aria-label="Giảm người lớn" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" disabled={adults <= 0} onClick={(e) => { e.stopPropagation(); setAdults(Math.max(0, adults - 1)); }}>-</button>
+                               <input
+                                 type="number"
+                                 min={0}
+                                 max={50}
+                                 aria-label="Số người lớn"
+                                 value={adults}
+                                 onClick={(e) => e.stopPropagation()}
+                                 onChange={(e) => {
+                                   const val = parseInt(e.target.value, 10);
+                                   setAdults(isNaN(val) ? 0 : Math.max(0, Math.min(50, val)));
+                                 }}
+                                 className="w-12 rounded-lg border border-slate-200 bg-white py-1 text-center font-bold text-sm text-slate-800 outline-none transition focus:border-primary-container focus:ring-1 focus:ring-primary-container [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                               />
+                               <button type="button" aria-label="Tăng người lớn" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" disabled={adults + children + infants >= 50} onClick={(e) => { e.stopPropagation(); setAdults(adults + 1); }}>+</button>
                              </div>
                           </div>
                           <div className="flex items-center justify-between pt-6">
@@ -994,10 +1006,22 @@ export default function Home() {
                                <div className="text-sm font-bold text-slate-800">Trẻ em</div>
                                <div className="text-xs text-slate-500">Độ tuổi 2 – 12</div>
                              </div>
-                             <div className="flex items-center gap-3">
-                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setChildren(Math.max(0, children - 1)); }}>-</button>
-                               <span className="w-4 text-center font-semibold text-sm text-slate-800">{children}</span>
-                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setChildren(children + 1); }}>+</button>
+                             <div className="flex items-center gap-2">
+                               <button type="button" aria-label="Giảm trẻ em" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" disabled={children <= 0} onClick={(e) => { e.stopPropagation(); setChildren(Math.max(0, children - 1)); }}>-</button>
+                               <input
+                                 type="number"
+                                 min={0}
+                                 max={50}
+                                 aria-label="Số trẻ em"
+                                 value={children}
+                                 onClick={(e) => e.stopPropagation()}
+                                 onChange={(e) => {
+                                   const val = parseInt(e.target.value, 10);
+                                   setChildren(isNaN(val) ? 0 : Math.max(0, Math.min(50, val)));
+                                 }}
+                                 className="w-12 rounded-lg border border-slate-200 bg-white py-1 text-center font-bold text-sm text-slate-800 outline-none transition focus:border-primary-container focus:ring-1 focus:ring-primary-container [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                               />
+                               <button type="button" aria-label="Tăng trẻ em" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" disabled={adults + children + infants >= 50} onClick={(e) => { e.stopPropagation(); setChildren(children + 1); }}>+</button>
                              </div>
                           </div>
                           <div className="flex items-center justify-between pt-6">
@@ -1005,10 +1029,22 @@ export default function Home() {
                                <div className="text-sm font-bold text-slate-800">Em bé</div>
                                <div className="text-xs text-slate-500">Dưới 2 tuổi</div>
                              </div>
-                             <div className="flex items-center gap-3">
-                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setInfants(Math.max(0, infants - 1)); }}>-</button>
-                               <span className="w-4 text-center font-semibold text-sm text-slate-800">{infants}</span>
-                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setInfants(infants + 1); }}>+</button>
+                             <div className="flex items-center gap-2">
+                               <button type="button" aria-label="Giảm em bé" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" disabled={infants <= 0} onClick={(e) => { e.stopPropagation(); setInfants(Math.max(0, infants - 1)); }}>-</button>
+                               <input
+                                 type="number"
+                                 min={0}
+                                 max={50}
+                                 aria-label="Số em bé"
+                                 value={infants}
+                                 onClick={(e) => e.stopPropagation()}
+                                 onChange={(e) => {
+                                   const val = parseInt(e.target.value, 10);
+                                   setInfants(isNaN(val) ? 0 : Math.max(0, Math.min(50, val)));
+                                 }}
+                                 className="w-12 rounded-lg border border-slate-200 bg-white py-1 text-center font-bold text-sm text-slate-800 outline-none transition focus:border-primary-container focus:ring-1 focus:ring-primary-container [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                               />
+                               <button type="button" aria-label="Tăng em bé" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" disabled={adults + children + infants >= 50} onClick={(e) => { e.stopPropagation(); setInfants(infants + 1); }}>+</button>
                              </div>
                           </div>
                           <div className="flex items-center justify-between pt-6">
@@ -1016,10 +1052,22 @@ export default function Home() {
                                <div className="text-sm font-bold text-slate-800">Thú cưng</div>
                                <div className="text-xs text-slate-500 underline cursor-pointer hover:text-slate-800">Bạn sẽ mang theo động vật phục vụ?</div>
                              </div>
-                             <div className="flex items-center gap-3">
-                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setPets(Math.max(0, pets - 1)); }}>-</button>
-                               <span className="w-4 text-center font-semibold text-sm text-slate-800">{pets}</span>
-                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setPets(pets + 1); }}>+</button>
+                             <div className="flex items-center gap-2">
+                               <button type="button" aria-label="Giảm thú cưng" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" disabled={pets <= 0} onClick={(e) => { e.stopPropagation(); setPets(Math.max(0, pets - 1)); }}>-</button>
+                               <input
+                                 type="number"
+                                 min={0}
+                                 max={50}
+                                 aria-label="Số thú cưng"
+                                 value={pets}
+                                 onClick={(e) => e.stopPropagation()}
+                                 onChange={(e) => {
+                                   const val = parseInt(e.target.value, 10);
+                                   setPets(isNaN(val) ? 0 : Math.max(0, Math.min(50, val)));
+                                 }}
+                                 className="w-12 rounded-lg border border-slate-200 bg-white py-1 text-center font-bold text-sm text-slate-800 outline-none transition focus:border-primary-container focus:ring-1 focus:ring-primary-container [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                               />
+                               <button type="button" aria-label="Tăng thú cưng" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" disabled={pets >= 50} onClick={(e) => { e.stopPropagation(); setPets(pets + 1); }}>+</button>
                              </div>
                           </div>
                        </div>
