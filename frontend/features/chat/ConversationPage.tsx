@@ -182,7 +182,6 @@ function ChatWorkspace({ id }: { id?: string }) {
                   <div className="flex items-center gap-3">
                     <div className="relative flex size-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-teal-600 via-primary-container to-indigo-600 text-white shadow-xs">
                       <Bot size={20} />
-                      <span className="absolute -bottom-0.5 -right-0.5 flex size-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-1">
@@ -231,7 +230,7 @@ function ChatWorkspace({ id }: { id?: string }) {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      {/* Avatar with initial fallback and online indicator */}
+                      {/* Avatar with initial fallback */}
                       <div className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-800 font-bold text-sm shadow-2xs overflow-hidden">
                         {counterpartAvatar ? (
                           <img
@@ -242,7 +241,6 @@ function ChatWorkspace({ id }: { id?: string }) {
                         ) : (
                           <span>{initial}</span>
                         )}
-                        <span className="absolute -bottom-0.5 -right-0.5 flex size-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
                       </div>
 
                       <div className="min-w-0 flex-1">
@@ -734,7 +732,6 @@ function Thread({ id }: { id: string }) {
           ) : (
             <span>{(detail.data?.counterpart?.fullName || 'U').charAt(0).toUpperCase()}</span>
           )}
-          <span className="absolute -bottom-0.5 -right-0.5 flex size-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="truncate font-bold text-slate-900 text-sm sm:text-base leading-tight">

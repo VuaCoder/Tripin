@@ -23,7 +23,8 @@ export class NotificationsService {
       NotificationsRepository,
       'create' | 'insertMany' | 'findOwned' | 'list' | 'countUnread' | 'markRead' | 'markAllRead' | 'deleteCreatedBefore' | 'deleteOwned' | 'hasRecentVoucherAlert'
     > = notificationsRepository,
-    private readonly users: Pick<UsersService, 'getContact'> = usersService,
+    // `users` is cyclic with this module: resolve it on first use, not at construction.
+    private readonly users?: Pick<UsersService, 'getContact'>,
     private readonly mail: MailProvider = mailProvider,
   ) {}
 
@@ -108,7 +109,7 @@ export class NotificationsService {
   }
 
   private async sendEmail(userId: string, input: NotifyInput): Promise<void> {
-    const contact = await this.users.getContact(userId);
+    const contact = await (this.users ?? usersService).getContact(userId);
     if (!contact) return;
     await this.mail.send(buildNotificationMail(contact, input));
   }
