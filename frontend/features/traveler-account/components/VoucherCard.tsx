@@ -145,6 +145,15 @@ function VoucherTicketCard({
                 : 'border-slate-200/90 bg-white shadow-xs hover:border-brand-teal/80 hover:shadow-md'
       }`}
     >
+      {/* Semicircular ticket punch-hole notches at the perforation line */}
+      <span
+        aria-hidden="true"
+        className="hidden sm:block absolute -top-2.5 left-36 -translate-x-1/2 size-5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-10 pointer-events-none"
+      />
+      <span
+        aria-hidden="true"
+        className="hidden sm:block absolute -bottom-2.5 left-36 -translate-x-1/2 size-5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-10 pointer-events-none"
+      />
       {/* Cạnh trái: Badge giảm giá & Cuống vé */}
       <div
         className={`flex sm:flex-col items-center justify-between sm:justify-center p-4 sm:p-5 sm:w-36 shrink-0 border-b sm:border-b-0 sm:border-r border-dashed ${

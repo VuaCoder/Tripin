@@ -119,24 +119,12 @@ describe('Premium customer experience', () => {
       screen.getByRole('button', { name: 'Đăng ký gói' }),
     ).toBeTruthy();
   });
-  it('does not show the gold badge for a future-only period', () => {
+  it('does not show the gold badge for inactive membership', () => {
     mocks.status = { active: false, endsAt: null, expired: false };
-    mocks.history = [
-      {
-        id: 'future',
-        planName: 'Premium 30 ngày',
-        price: 99000,
-        status: 'ACTIVE',
-        startsAt: new Date(Date.now() + 86400000).toISOString(),
-        endsAt: new Date(Date.now() + 31 * 86400000).toISOString(),
-        revokedAt: null,
-      },
-    ];
     render(<PremiumPage />);
     expect(
       screen.queryByRole('img', { name: 'Thành viên Premium' }),
     ).toBeNull();
-    expect(screen.getByText(/Chờ kỳ bắt đầu/)).toBeTruthy();
   });
   it('treats a status failure as retryable instead of claiming membership has expired', () => {
     mocks.statusError = true;
@@ -165,7 +153,7 @@ describe('Premium customer experience', () => {
     expect(await screen.findByRole('alert')).toBeTruthy();
     expect(mocks.open).not.toHaveBeenCalled();
   });
-  it('submits a refund request for the chosen future period', async () => {
+  it('does not display redundant history cards or confusing terms', () => {
     mocks.history = [
       {
         id: 'future',
@@ -178,45 +166,8 @@ describe('Premium customer experience', () => {
       },
     ];
     render(<PremiumPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Yêu cầu hoàn tiền' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Lý do hoàn tiền' }), {
-      target: { value: 'Không sử dụng kỳ gia hạn' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Gửi yêu cầu' }));
-    await waitFor(() =>
-      expect(mocks.mutate).toHaveBeenCalledWith({
-        url: '/premium/subscriptions/future/refunds',
-        body: { reason: 'Không sử dụng kỳ gia hạn' },
-      }),
-    );
-  });
-  it('clears local refund editing state when the signed-in identity changes', () => {
-    mocks.history = [
-      {
-        id: 'future',
-        planName: 'Kỳ tiếp theo',
-        price: 99000,
-        status: 'ACTIVE',
-        startsAt: new Date(Date.now() + 86400000).toISOString(),
-        endsAt: new Date(Date.now() + 31 * 86400000).toISOString(),
-        revokedAt: null,
-      },
-    ];
-    const view = render(<PremiumPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Yêu cầu hoàn tiền' }));
-    expect(
-      screen.getByRole('textbox', { name: 'Lý do hoàn tiền' }),
-    ).toBeTruthy();
-    mocks.user = { id: 'traveler-b', role: 'TRAVELER', fullName: 'Trần Bình' };
-    mocks.history = [];
-    mocks.status = { active: false, endsAt: null, expired: false };
-    view.rerender(<PremiumPage />);
-    expect(
-      screen.queryByRole('textbox', { name: 'Lý do hoàn tiền' }),
-    ).toBeNull();
-    expect(
-      screen.queryByRole('img', { name: 'Thành viên Premium' }),
-    ).toBeNull();
+    expect(screen.queryByText('Các kỳ Premium của bạn')).toBeNull();
+    expect(screen.queryByText('Điều kiện sử dụng')).toBeNull();
   });
   it('lets guests inspect plans and directs them to sign in', () => {
     mocks.user = null;
@@ -227,7 +178,7 @@ describe('Premium customer experience', () => {
         .getAttribute('href'),
     ).toBe('/login?next=/premium');
   });
-  it('removes repetitive copy and empty sections while keeping optional terms collapsed', () => {
+  it('removes repetitive copy and empty sections', () => {
     mocks.status = { active: false, endsAt: null, expired: false };
     mocks.plans[0].description = 'Mô tả quảng bá dài không cần thiết';
     mocks.plans[0].benefits = ['2 voucher theo kỳ', '2 voucher theo kỳ'];
@@ -249,13 +200,11 @@ describe('Premium customer experience', () => {
     expect(screen.queryByText(/Chưa có Premium đang hiệu lực/)).toBeNull();
     expect(screen.queryByText('Các kỳ Premium của bạn')).toBeNull();
     expect(screen.queryByText('Ví voucher Premium')).toBeNull();
+    expect(screen.queryByText('Điều kiện sử dụng')).toBeNull();
     expect(screen.queryByText(/Hiển thị tối đa 500/)).toBeNull();
     expect(container.textContent).not.toMatch(
       /Privilege Club|Hội Viên Đặc Quyền|Nhấp để chọn|đang được chọn/,
     );
-    const terms = screen.getByText('Điều kiện sử dụng').closest('details');
-    expect(terms).not.toBeNull();
-    expect(terms!.hasAttribute('open')).toBe(false);
   });
   it('keeps voucher quantities and conditions when no benefit summary is configured', () => {
     mocks.plans[0].benefits = [];
@@ -274,16 +223,13 @@ describe('Premium customer experience', () => {
     expect(screen.queryByText(/tối đa/)).toBeNull();
     expect(screen.queryByText(/\[DEV Premium\]/)).toBeNull();
   });
-  it('does not hide history or voucher load failures as empty sections', () => {
-    mocks.historyError = true;
+  it('does not hide voucher load failures as empty sections', () => {
     mocks.vouchersError = true;
     render(<PremiumPage />);
-    expect(screen.getByText('Các kỳ Premium của bạn')).toBeTruthy();
     expect(screen.getByText('Ví voucher Premium')).toBeTruthy();
-    const retries = screen.getAllByRole('button', { name: 'Thử lại' });
-    expect(retries).toHaveLength(2);
-    retries.forEach((button) => fireEvent.click(button));
-    expect(mocks.retry).toHaveBeenCalledTimes(2);
+    const retryBtn = screen.getByRole('button', { name: 'Thử lại' });
+    fireEvent.click(retryBtn);
+    expect(mocks.retry).toHaveBeenCalled();
   });
   it('shows issued vouchers without the technical display-limit note', () => {
     mocks.vouchers = [

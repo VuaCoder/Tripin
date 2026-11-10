@@ -26,32 +26,17 @@ import {
   useOwnPremium,
 } from './PremiumIdentity';
 import {
-  usePremiumHistoryQuery,
   usePremiumPlansQuery,
   usePremiumSubscribeMutation,
-  usePremiumMutationMutation,
   usePremiumVouchersQuery,
   type PremiumVoucher,
 } from './api';
 import { GuidePremiumEditor } from './GuidePremiumEditor';
 import {
   premiumInput,
-  premiumButton,
   premiumMoney,
-  premiumDate,
   Retry,
 } from './ui';
-
-const labels: Record<string, string> = {
-  ACTIVE: 'Đã thanh toán',
-  PENDING_PAYMENT: 'Chờ thanh toán',
-  EXPIRED: 'Đã hết hạn',
-  CANCELLED: 'Đã hủy',
-  REQUESTED: 'Chờ duyệt hoàn',
-  APPROVED: 'Chờ chuyển tiền hoàn',
-  COMPLETED: 'Đã hoàn tiền',
-  REJECTED: 'Từ chối hoàn',
-};
 
 export function VoucherList({ vouchers }: { vouchers: PremiumVoucher[] }) {
   return (
@@ -81,20 +66,12 @@ function PremiumContent() {
   const plans = usePremiumPlansQuery(role);
   const status = useOwnPremium(user?.id);
   const [selectedPlanId, setSelectedPlanId] = useState<string>('');
-  const [historyPage, setHistoryPage] = useState(1);
-  const history = usePremiumHistoryQuery(
-    { userId: user?.id ?? '', page: historyPage },
-    { skip: !eligible },
-  );
   const vouchers = usePremiumVouchersQuery(user?.id ?? '', {
     skip: !eligible || role !== 'TRAVELER',
   });
   const [subscribe, subscriptionState] = usePremiumSubscribeMutation();
-  const [mutate, mutationState] = usePremiumMutationMutation();
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [refundId, setRefundId] = useState('');
-  const [reason, setReason] = useState('');
 
   const effectiveSelectedPlanId =
     selectedPlanId || plans.currentData?.[0]?.id || '';
@@ -108,13 +85,6 @@ function PremiumContent() {
       status.isError ||
       status.premium?.active ||
       status.premium?.expired);
-
-  const showHistory =
-    eligible &&
-    (history.isLoading ||
-      history.isError ||
-      !!history.currentData?.items.length ||
-      historyPage > 1);
 
   const showVouchers =
     eligible &&
@@ -136,43 +106,36 @@ function PremiumContent() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-12 px-4 py-10 sm:px-6 lg:px-8">
-      {/* 1. Header & Identity Section */}
-      <section className="relative overflow-hidden rounded-3xl border border-amber-200/70 bg-gradient-to-br from-amber-50/60 via-white to-emerald-50/40 p-6 shadow-xs sm:p-8 md:p-10">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="max-w-2xl">
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
-              Premium
-            </h1>
-          </div>
+      {/* 1. Header & Identity Section - Clean title, no border box */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+          Premium
+        </h1>
 
-          {/* User's Current Membership Card (shows real avatar + crown frame) */}
-          {showStatus && (
-            <div className="flex shrink-0 items-center gap-4 rounded-2xl border border-amber-200/80 bg-white/95 p-4 shadow-sm backdrop-blur-md">
-              <PremiumAvatar
-                url={user!.avatarUrl}
-                name={user!.fullName}
-                active={status.premium?.active}
-                size="md"
-              />
-              <div className="space-y-1">
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Tài khoản của bạn
-                </div>
-                <div className="text-sm font-bold text-slate-900">
-                  {user!.fullName || 'Thành viên'}
-                </div>
-                <PremiumStatusText
-                  status={status.premium}
-                  error={status.isError}
-                  loading={status.isLoading}
-                  showInactive
-                  onRetry={() => void status.refetch()}
-                />
+        {/* User's Current Membership Status */}
+        {showStatus && (
+          <div className="flex shrink-0 items-center gap-3">
+            <PremiumAvatar
+              url={user!.avatarUrl}
+              name={user!.fullName}
+              active={status.premium?.active}
+              size="md"
+            />
+            <div className="space-y-0.5">
+              <div className="text-sm font-bold text-slate-900">
+                {user!.fullName || 'Thành viên'}
               </div>
+              <PremiumStatusText
+                status={status.premium}
+                error={status.isError}
+                loading={status.isLoading}
+                showInactive
+                onRetry={() => void status.refetch()}
+              />
             </div>
-          )}
-        </div>
-      </section>
+          </div>
+        )}
+      </div>
 
       {/* Role audience switcher for guests */}
       {!eligible && (
@@ -389,182 +352,11 @@ function PremiumContent() {
             </div>
           </div>
         )}
-
-        {/* 3. Collapsible Terms & Conditions */}
-        {!!plans.currentData?.length && (
-          <details className="group mt-6 rounded-2xl border border-slate-200/90 bg-slate-50/70 p-5 transition hover:bg-slate-50">
-            <summary className="w-fit cursor-pointer font-bold text-slate-800 hover:text-slate-900 focus:outline-none">
-              Điều kiện sử dụng
-            </summary>
-            <ul className="mt-4 max-w-prose list-disc space-y-2.5 pl-5 text-xs sm:text-sm text-slate-600 leading-relaxed">
-              <li>Thanh toán trước qua PayOS, không tự động gia hạn.</li>
-              {role === 'TRAVELER' && (
-                <li>
-                  Voucher có hiệu lực trong kỳ Premium và không dùng chung với mã khác.
-                </li>
-              )}
-              <li>
-                Chỉ kỳ đã thanh toán nhưng chưa bắt đầu mới được yêu cầu hoàn toàn bộ, sau khi được duyệt.
-              </li>
-            </ul>
-          </details>
-        )}
       </section>
 
-      {/* 4. History Section */}
-      {showHistory && (
-        <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-900">
-              Các kỳ Premium của bạn
-            </h2>
-          </div>
-
-          {history.isError ? (
-            <Retry onRetry={() => void history.refetch()} />
-          ) : history.isLoading || (history.isFetching && !history.currentData) ? (
-            <p role="status" className="py-4 text-slate-500">Đang tải lịch sử…</p>
-          ) : !history.currentData?.items.length ? (
-            <p className="py-4 text-sm text-slate-600">
-              Bạn chưa đăng ký Premium.
-            </p>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {history.currentData.items.map((period) => (
-                <article
-                  key={period.id}
-                  className="flex flex-wrap items-center justify-between gap-4 py-4.5"
-                >
-                  <div className="space-y-1">
-                    <h3 className="font-bold text-slate-900">{period.planName}</h3>
-                    <p className="text-sm text-slate-600">
-                      {premiumDate(period.startsAt)} → {premiumDate(period.endsAt)} ·{' '}
-                      <span className="font-semibold text-slate-900">{premiumMoney(period.price)}</span>
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {period.revokedAt
-                        ? 'Đã thu hồi kỳ'
-                        : period.status === 'ACTIVE' &&
-                            period.startsAt &&
-                            new Date(period.startsAt) > new Date()
-                          ? 'Đã thanh toán · Chờ kỳ bắt đầu'
-                          : (labels[period.status] ?? period.status)}
-                      {period.premiumRefund &&
-                        ` · ${labels[period.premiumRefund.status] ?? period.premiumRefund.status}`}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    {period.status === 'PENDING_PAYMENT' &&
-                      period.planId &&
-                      !period.revokedAt && (
-                        <button
-                          disabled={subscriptionState.isLoading}
-                          className="rounded-lg bg-teal-50 px-3 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-100 transition-colors"
-                          onClick={() => void buy(period.planId!)}
-                        >
-                          Tiếp tục thanh toán
-                        </button>
-                      )}
-                    {period.status === 'ACTIVE' &&
-                      !period.revokedAt &&
-                      !period.premiumRefund &&
-                      period.startsAt &&
-                      new Date(period.startsAt) > new Date() && (
-                        <button
-                          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-                          onClick={() => setRefundId(period.id)}
-                        >
-                          Yêu cầu hoàn tiền
-                        </button>
-                      )}
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-
-          {history.currentData && history.currentData.meta.totalPages > 1 && (
-            <nav
-              className="flex items-center justify-between border-t border-slate-100 pt-4 text-xs font-medium text-slate-600"
-              aria-label="Phân trang Premium"
-            >
-              <button
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                disabled={historyPage <= 1 || history.isFetching}
-                onClick={() => setHistoryPage((p) => p - 1)}
-              >
-                Trang trước
-              </button>
-              <span>
-                Trang {historyPage} / {history.currentData.meta.totalPages}
-              </span>
-              <button
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                disabled={
-                  historyPage >= history.currentData.meta.totalPages ||
-                  history.isFetching
-                }
-                onClick={() => setHistoryPage((p) => p + 1)}
-              >
-                Trang sau
-              </button>
-            </nav>
-          )}
-
-          {refundId && (
-            <form
-              className="mt-5 space-y-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-5"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                setError('');
-                try {
-                  await mutate({
-                    url: `/premium/subscriptions/${refundId}/refunds`,
-                    body: { reason },
-                  }).unwrap();
-                  setRefundId('');
-                  setReason('');
-                  setMessage('Đã gửi yêu cầu hoàn tiền.');
-                } catch (e) {
-                  setError(getApiErrorMessage(e, 'Không gửi được yêu cầu.'));
-                }
-              }}
-            >
-              <label className="block space-y-2 text-xs font-bold text-slate-800">
-                Lý do hoàn tiền
-                <textarea
-                  required
-                  minLength={5}
-                  maxLength={1000}
-                  className={premiumInput}
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                />
-              </label>
-              <div className="flex gap-2.5">
-                <button
-                  className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50"
-                  disabled={mutationState.isLoading}
-                >
-                  Gửi yêu cầu
-                </button>
-                <button
-                  type="button"
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                  onClick={() => setRefundId('')}
-                >
-                  Đóng
-                </button>
-              </div>
-            </form>
-          )}
-        </section>
-      )}
-
-      {/* 5. Vouchers Section */}
+      {/* 3. Vouchers Section */}
       {showVouchers && (
-        <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
+        <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-slate-900">Ví voucher Premium</h2>
           </div>
@@ -578,7 +370,7 @@ function PremiumContent() {
         </section>
       )}
 
-      {/* 6. Guide editor */}
+      {/* 4. Guide editor */}
       {eligible && role === 'TOUR_GUIDE' && status.premium && (
         <GuidePremiumEditor
           userId={user!.id}
