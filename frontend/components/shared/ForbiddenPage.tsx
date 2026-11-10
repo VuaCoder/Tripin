@@ -54,7 +54,6 @@ export function ForbiddenPage({
               alt="Tripri"
               width={120}
               height={32}
-              priority
               className="h-8 w-auto object-contain"
             />
           </Link>

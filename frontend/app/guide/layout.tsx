@@ -5,7 +5,7 @@ import { RoleGuard } from '@/features/auth';
 
 export default function GuideLayout({ children }: { children: ReactNode }) {
   return (
-    <RoleGuard allowedRoles={['TOUR_GUIDE']}>
+    <RoleGuard allowedRoles={['TOUR_GUIDE']} showForbidden>
       {children}
     </RoleGuard>
   );

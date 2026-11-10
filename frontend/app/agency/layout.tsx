@@ -31,7 +31,7 @@ export default function AgencyLayout({ children }: { children: ReactNode }) {
   if (user?.role === 'AGENCY' && user.agencyProfile?.verificationStatus && user.agencyProfile.verificationStatus !== 'VERIFIED') return <p role="status">Đang mở trạng thái hồ sơ…</p>;
 
   return (
-    <RoleGuard allowedRoles={['AGENCY']} loginPath="/agency/login">
+    <RoleGuard allowedRoles={['AGENCY']} loginPath="/agency/login" showForbidden>
       <div className={`${sidebarStyles.shell} bg-[#f7f8f5]`}>
         <AgencyNav />
         <div className={sidebarStyles.body}><AntdRegistry>{children}</AntdRegistry></div>
