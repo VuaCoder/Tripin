@@ -1,9 +1,8 @@
 'use client';
-import { FormSelect } from '@/components/ui/FormSelect';
-import { ageUnitPrice } from '@travel-platform/constants';
+import { ageUnitPrice, calculateGuestPrice, guestTotal, type GuestCounts } from '@travel-platform/constants';
 import { usePremiumVouchersQuery } from '@/features/premium/api';
-import { calculateGuestPrice, guestTotal, type GuestCounts } from '@travel-platform/constants';
 import { TourGuestSelector } from '@/features/tours/components/detail/TourGuestSelector';
+import { readSearchGuests } from '@/features/tours/utils/searchContext';
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
@@ -16,8 +15,7 @@ import { useGetTourQuery } from '@/features/tours';
 import { useAppSelector } from '@/store/hooks';
 import { useCreateBookingMutation, useGetAvailablePromotionsQuery, useLazyPreviewPromotionQuery, useGetMyVouchersQuery } from '../api/bookingApi';
 import type { PromotionPreview } from '../types';
-import { Building2, CheckCircle2, ChevronRight, Sparkles, Tag, Ticket, TicketPercent, X } from 'lucide-react';
-import { handlePromotionCodeChange, handlePromotionCodeKeyDown } from '@/features/promotions/codeHelper';
+import { Building2, Calendar, CheckCircle2, ChevronRight, Sparkles, Tag, Ticket, TicketPercent, Users, X } from 'lucide-react';
 import { ShopeePromotionModal } from './ShopeePromotionModal';
 
 const PHONE_PATTERN = /^\+?[0-9 ().-]{6,20}$/;
@@ -64,11 +62,10 @@ export function BookingEntryPage() {
   const router = useRouter();
   const params = useSearchParams();
   const user = useAppSelector(selectUser);
-  const premiumVouchers = usePremiumVouchersQuery(user?.id ?? '',{ skip: !user || user.role !== 'TRAVELER' });
-  const [premiumVoucherId,setPremiumVoucherId] = useState('');
+  const premiumVouchers = usePremiumVouchersQuery(user?.id ?? '', { skip: !user || user.role !== 'TRAVELER' });
+  const [premiumVoucherId, setPremiumVoucherId] = useState('');
   const tourId = params.get('tourId') ?? '';
   const departureId = params.get('departureId') ?? '';
-  const participantsParam = Number(params.get('participants'));
 
   const { data: tour, isLoading: isTourLoading, isError: isTourError, refetch: refetchTour } = useGetTourQuery(tourId, {
     skip: !tourId,
@@ -106,13 +103,19 @@ export function BookingEntryPage() {
 
   const [voucherModalOpen, setVoucherModalOpen] = useState(false);
 
-  const [participants, setParticipants] = useState(
-    Number.isFinite(participantsParam) && participantsParam > 0 ? participantsParam : 1,
-  );
+  // Synchronize guest counts from params or fallback
+  const [guests, setGuests] = useState<GuestCounts>(() => {
+    const parsed = readSearchGuests(params);
+    const p = Number(params.get('participants'));
+    if (parsed.adults === 1 && parsed.children === 0 && parsed.infants === 0 && Number.isInteger(p) && p > 1) {
+      return { adults: p, children: 0, infants: 0 };
+    }
+    return parsed;
+  });
+
+  const participants = guestTotal(guests);
   const [errors, setErrors] = useState<{ fullName?: string; phone?: string; general?: string }>({});
   const [pendingBookingId, setPendingBookingId] = useState<string | null>(null);
-  const [children, setChildren] = useState(() => Math.max(0, Number(params.get('children')) || 0));
-  const [infants, setInfants] = useState(() => Math.max(0, Number(params.get('infants')) || 0));
   const clientRequestId = useRef(retryKey());
 
   const voucherList = useMemo(() => {
@@ -158,6 +161,26 @@ export function BookingEntryPage() {
     if (user?.phone && !phone) setPhone(user.phone);
   }, [user, fullName, phone]);
 
+  useEffect(() => {
+    if (tour && !tour.agePricing && (guests.children > 0 || guests.infants > 0)) {
+      setGuests((prev) => ({
+        adults: prev.adults + prev.children + prev.infants,
+        children: 0,
+        infants: 0,
+      }));
+    }
+  }, [tour, guests.children, guests.infants]);
+
+  const handleSelectPremiumVoucher = (id: string) => {
+    setPremiumVoucherId(id);
+    clearAgencyPromotion();
+    clearPlatformPromotion();
+  };
+
+  const handleClearPremiumVoucher = () => {
+    setPremiumVoucherId('');
+  };
+
   const clearAgencyPromotion = () => {
     setAgencyPromotionCode('');
     setAgencyPromotionPreview(null);
@@ -175,6 +198,7 @@ export function BookingEntryPage() {
     setAgencyPromotionError(null);
     setPlatformPromotionPreview(null);
     setPlatformPromotionError(null);
+    setPremiumVoucherId('');
   };
 
   const checkAgencyPromotion = async (codeToUse?: string, currentSubtotal?: number): Promise<PromotionPreview | boolean> => {
@@ -344,16 +368,35 @@ export function BookingEntryPage() {
 
   const title = tour.title;
   const unitPrice = departure.price;
-  const guestCounts: GuestCounts = { adults: participants - children - infants, children, infants };
   let subtotal = 0;
   let pricingError = '';
-  try { subtotal = calculateGuestPrice(unitPrice, participants, guestCounts, tour.agePricing).subtotal; }
-  catch { pricingError = 'Vui lòng kiểm tra số khách và chính sách độ tuổi của tour.'; }
+  try {
+    subtotal = calculateGuestPrice(unitPrice, participants, guests, tour.agePricing).subtotal;
+  } catch {
+    pricingError = 'Vui lòng kiểm tra số khách và chính sách độ tuổi của tour.';
+  }
 
   const agencyDiscount = agencyPromotionPreview?.discountAmount ?? 0;
   const platformDiscount = platformPromotionPreview?.discountAmount ?? 0;
-  const chosenPremium = premiumVouchers.currentData?.find(v => v.id === premiumVoucherId && !v.heldAt && v.terms.tourIds.includes(tourId) && new Date(v.endsAt) > new Date() && subtotal >= v.terms.minOrderAmount);
-  const premiumDiscount = chosenPremium ? Math.min(subtotal,chosenPremium.terms.discountType === 'PERCENT' ? Math.min(Math.floor(subtotal * chosenPremium.terms.discountValue / 100), chosenPremium.terms.maxDiscountAmount ?? subtotal) : chosenPremium.terms.discountValue) : 0;
+  const chosenPremium = premiumVouchers.currentData?.find(
+    (v) =>
+      v.id === premiumVoucherId &&
+      !v.heldAt &&
+      v.terms.tourIds.includes(tourId) &&
+      new Date(v.endsAt) > new Date() &&
+      subtotal >= v.terms.minOrderAmount,
+  );
+  const premiumDiscount = chosenPremium
+    ? Math.min(
+        subtotal,
+        chosenPremium.terms.discountType === 'PERCENT'
+          ? Math.min(
+              Math.floor((subtotal * chosenPremium.terms.discountValue) / 100),
+              chosenPremium.terms.maxDiscountAmount ?? subtotal,
+            )
+          : chosenPremium.terms.discountValue,
+      )
+    : 0;
   const totalDiscount = premiumVoucherId ? premiumDiscount : agencyDiscount + platformDiscount;
   const finalEstimate = Math.max(0, subtotal - totalDiscount);
 
@@ -377,7 +420,12 @@ export function BookingEntryPage() {
       const refreshedTour = await refetchTour().unwrap();
       latestAgePricing = refreshedTour.agePricing;
       const latestDeparture = refreshedTour.departures.find((d) => d.id === departureId);
-      if (!latestDeparture || !latestDeparture.isOpen || latestDeparture.remaining < 1 || new Date(latestDeparture.date).getTime() <= Date.now()) {
+      if (
+        !latestDeparture ||
+        !latestDeparture.isOpen ||
+        latestDeparture.remaining < 1 ||
+        new Date(latestDeparture.date).getTime() <= Date.now()
+      ) {
         setErrors({ general: 'Ngày khởi hành này hiện không còn nhận đặt chỗ.' });
         return;
       }
@@ -396,12 +444,27 @@ export function BookingEntryPage() {
       setErrors({ general: 'Không thể xác định giá tour hiện tại. Vui lòng thử lại.' });
       return;
     }
-    if (pricingError) { setErrors({ general: pricingError }); return; }
+    if (pricingError) {
+      setErrors({ general: pricingError });
+      return;
+    }
     let latestSubtotal = 0;
-    try { latestSubtotal = calculateGuestPrice(latestUnitPrice, participants, guestCounts, latestAgePricing).subtotal; }
-    catch { setErrors({ general: 'Chính sách giá đã thay đổi. Vui lòng chọn lại hành khách.' }); return; }
+    try {
+      latestSubtotal = calculateGuestPrice(latestUnitPrice, participants, guests, latestAgePricing).subtotal;
+    } catch {
+      setErrors({ general: 'Chính sách giá đã thay đổi. Vui lòng chọn lại hành khách.' });
+      return;
+    }
 
-    if (premiumVoucherId && (!chosenPremium || agencyPromotionCode.trim() || platformPromotionCode.trim())) { setErrors({ general:'Voucher Premium không cộng với mã khác. Hãy xóa mã hoặc bỏ chọn voucher.' }); return; }
+    if (
+      premiumVoucherId &&
+      (!chosenPremium || agencyPromotionCode.trim() || platformPromotionCode.trim())
+    ) {
+      setErrors({
+        general: 'Voucher Premium không cộng với mã khác. Hãy xóa mã hoặc bỏ chọn voucher.',
+      });
+      return;
+    }
     let checkedAgency: PromotionPreview | undefined;
     let checkedPlatform: PromotionPreview | undefined;
     if (!premiumVoucherId && agencyPromotionCode.trim()) {
@@ -410,7 +473,11 @@ export function BookingEntryPage() {
       checkedAgency = result;
     }
     if (!premiumVoucherId && platformPromotionCode.trim()) {
-      const result = await checkPlatformPromotion(platformPromotionCode.trim(), latestSubtotal, checkedAgency?.discountAmount ?? 0);
+      const result = await checkPlatformPromotion(
+        platformPromotionCode.trim(),
+        latestSubtotal,
+        checkedAgency?.discountAmount ?? 0,
+      );
       if (!result || typeof result !== 'object') return;
       checkedPlatform = result;
     }
@@ -420,7 +487,7 @@ export function BookingEntryPage() {
         tourId,
         departureId,
         participants,
-        ...(tour.agePricing ? { guestCounts } : {}),
+        ...(tour.agePricing ? { guestCounts: guests } : {}),
         contact: { fullName: fullName.trim(), phone: phone.trim() },
         ...(notes.trim() ? { notes: notes.trim() } : {}),
         ...(premiumVoucherId ? { premiumVoucherId } : {}),
@@ -443,17 +510,17 @@ export function BookingEntryPage() {
     if (submissionInFlight.current) return;
     submissionInFlight.current = true;
     setIsCheckingBooking(true);
-    try { await submitBooking(); }
-    finally {
+    try {
+      await submitBooking();
+    } finally {
       submissionInFlight.current = false;
       setIsCheckingBooking(false);
     }
   };
 
   return (
-    <div className="grid gap-6 pb-12 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid gap-6 pb-12 lg:grid-cols-[minmax(0,1fr)_360px]">
       <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6" noValidate>
-        <div className="space-y-2 border-b border-amber-200 pb-4"><label htmlFor="premium-booking-voucher" className="text-sm font-semibold text-amber-900">Voucher Premium</label>{premiumVouchers.isError ? <p role="alert" className="text-sm text-red-800">Không tải được voucher. <button type="button" className="underline" onClick={() => void premiumVouchers.refetch()}>Thử lại</button></p> : <FormSelect id="premium-booking-voucher" className="w-full rounded-lg border border-amber-300 bg-white p-3 text-sm" value={premiumVoucherId} onChange={e => { setPremiumVoucherId(e.target.value); if(e.target.value) { clearAgencyPromotion();clearPlatformPromotion(); } }}><option value="">Không dùng voucher Premium</option>{premiumVouchers.currentData?.filter(v => !v.heldAt && v.terms.tourIds.includes(tourId) && new Date(v.endsAt) > new Date() && subtotal >= v.terms.minOrderAmount).map(v => <option key={v.id} value={v.id}>{v.terms.title} · Hạn {new Date(v.endsAt).toLocaleDateString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}</option>)}</FormSelect>}<p className="text-xs text-slate-600">Mỗi đơn dùng một voucher Premium, không cộng với mã khác.{premiumVoucherId && ` Giảm dự kiến ${formatVnd(premiumDiscount)}.`}</p></div>
         <div>
           <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Hoàn tất thông tin đặt chỗ</h1>
           <p className="mt-1 text-sm text-slate-500">Thông tin liên hệ dùng để xác nhận chuyến đi của bạn.</p>
@@ -467,34 +534,28 @@ export function BookingEntryPage() {
           <Input id="booking-phone" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="0901234567" inputMode="tel" invalid={Boolean(errors.phone)} autoComplete="tel" />
         </FormField>
 
-        {tour.agePricing ? (
+        {/* Số lượng khách theo nhóm tuổi */}
+        <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4">
+          <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+            <div>
+              <h2 className="text-sm font-bold text-slate-900">Số lượng hành khách</h2>
+              <p className="text-xs text-slate-500">Mỗi hành khách, kể cả em bé, được tính một chỗ ngồi</p>
+            </div>
+            <span className="rounded-full bg-slate-200/80 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
+              Tổng {participants} / {maxParticipants} chỗ
+            </span>
+          </div>
           <TourGuestSelector
-            value={guestCounts}
+            value={guests}
             onChange={(next) => {
-              setParticipants(guestTotal(next));
-              setChildren(next.children);
-              setInfants(next.infants);
+              setGuests(next);
               clearAllPromotions();
             }}
             max={maxParticipants}
             unitPrice={unitPrice}
             pricing={tour.agePricing}
           />
-        ) : (
-          <FormField label="Số khách" htmlFor="booking-participants" hint={`Tối đa ${maxParticipants} khách cho ngày khởi hành này.`}>
-            <Input
-              id="booking-participants"
-              type="number"
-              min={1}
-              max={maxParticipants}
-              value={participants}
-              onChange={(event) => {
-                setParticipants(Number(event.target.value));
-                clearAllPromotions();
-              }}
-            />
-          </FormField>
-        )}
+        </div>
 
         {/* ================= TRIPIN VOUCHER BAR (SHOPEE STYLE) ================= */}
         <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-4.5 shadow-xs transition hover:border-slate-300">
@@ -517,9 +578,9 @@ export function BookingEntryPage() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-slate-900">Tripin Voucher</span>
-                  {(agencyPromotionPreview || platformPromotionPreview) && (
+                  {(agencyPromotionPreview || platformPromotionPreview || chosenPremium) && (
                     <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-teal-800">
-                      Đã áp dụng {(agencyPromotionPreview ? 1 : 0) + (platformPromotionPreview ? 1 : 0)} mã
+                      Đã áp dụng {(chosenPremium ? 1 : 0) + (agencyPromotionPreview ? 1 : 0) + (platformPromotionPreview ? 1 : 0)} voucher
                     </span>
                   )}
                 </div>
@@ -532,14 +593,33 @@ export function BookingEntryPage() {
             </div>
 
             <div className="flex shrink-0 items-center gap-1 text-xs font-bold text-brand-teal group-hover:text-teal-700 transition">
-              <span>{agencyPromotionPreview || platformPromotionPreview ? 'Thay đổi' : 'Chọn hoặc nhập mã'}</span>
+              <span>{agencyPromotionPreview || platformPromotionPreview || chosenPremium ? 'Thay đổi' : 'Chọn hoặc nhập mã'}</span>
               <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
             </div>
           </div>
 
           {/* Applied voucher chips with direct remove button */}
-          {(agencyPromotionPreview || platformPromotionPreview) && (
+          {(agencyPromotionPreview || platformPromotionPreview || chosenPremium) && (
             <div className="mt-3.5 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+              {chosenPremium && (
+                <div className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50/70 py-1 pl-2.5 pr-1.5 text-xs">
+                  <Sparkles className="size-3.5 text-amber-600" />
+                  <span className="font-bold text-amber-900">{chosenPremium.terms.title}</span>
+                  <span className="font-semibold text-amber-700">(-{formatVnd(premiumDiscount)})</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPremiumVoucherId('');
+                    }}
+                    className="ml-1 rounded p-0.5 text-slate-400 hover:bg-amber-100 hover:text-red-600 transition"
+                    title="Bỏ chọn voucher Premium"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              )}
+
               {agencyPromotionPreview && (
                 <div className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50/70 py-1 pl-2.5 pr-1.5 text-xs">
                   <Building2 className="size-3.5 text-indigo-600" />
@@ -586,6 +666,7 @@ export function BookingEntryPage() {
           open={voucherModalOpen}
           onClose={() => setVoucherModalOpen(false)}
           subtotal={subtotal}
+          tourId={tourId}
           agencyPromotionCode={agencyPromotionCode}
           agencyPromotionPreview={agencyPromotionPreview}
           agencyPromotionError={agencyPromotionError}
@@ -596,6 +677,10 @@ export function BookingEntryPage() {
           platformPromotionError={platformPromotionError}
           onApplyPlatformCode={async (code) => Boolean(await checkPlatformPromotion(code, subtotal))}
           onClearPlatformCode={clearPlatformPromotion}
+          premiumVouchers={premiumVouchers.currentData}
+          premiumVoucherId={premiumVoucherId}
+          onSelectPremiumVoucher={handleSelectPremiumVoucher}
+          onClearPremiumVoucher={handleClearPremiumVoucher}
           onApplyDirectCode={handleApplyDirectCode}
           availablePromos={availablePromos}
           myAgencyVouchers={myAgencyVouchers}
@@ -611,49 +696,132 @@ export function BookingEntryPage() {
         <Button type="submit" className="w-full" loading={isSubmitting || isCheckingBooking}>Xác nhận đặt chỗ</Button>
       </form>
 
+      {/* Right Sidebar: Preview Card */}
       <aside className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm lg:sticky lg:top-24">
-        <h2 className="text-base font-bold text-slate-900">Chuyến đi của bạn</h2>
-        <p className="mt-2 text-sm font-semibold text-slate-800">{title}</p>
-        <p className="mt-1 text-xs text-slate-500">Khởi hành: {formatDepartureDate(departureDate)}</p>
-        {unitPrice != null && <p className="mt-1 text-xs text-slate-500">{formatVnd(unitPrice)} / khách</p>}
-        <dl className="mt-4 space-y-2 border-t border-slate-100 pt-3 text-sm">
-          {tour.agePricing && (
-            <>
-              <div className="flex justify-between gap-3"><dt>Người lớn × {guestCounts.adults}</dt><dd>{formatVnd(unitPrice * guestCounts.adults)}</dd></div>
-              {children > 0 && <div className="flex justify-between gap-3"><dt>Trẻ em × {children}</dt><dd>{formatVnd((ageUnitPrice(unitPrice, tour.agePricing, 'child') ?? 0) * children)}</dd></div>}
-              {infants > 0 && <div className="flex justify-between gap-3"><dt>Em bé × {infants}</dt><dd>{formatVnd((ageUnitPrice(unitPrice, tour.agePricing, 'infant') ?? 0) * infants)}</dd></div>}
-            </>
+        <h2 className="text-base font-bold text-slate-900 mb-3.5">Chuyến đi của bạn</h2>
+
+        {/* Tour thumbnail & title preview */}
+        <div className="flex gap-3 pb-3 border-b border-slate-100">
+          <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-xl border border-slate-200/80 bg-slate-100">
+            <img
+              src={tour.coverImage || tour.images?.[0] || '/images/default-tour.png'}
+              alt={title}
+              className="h-full w-full object-cover"
+              loading="lazy"
+            />
+          </div>
+          <div className="min-w-0 flex-1 flex flex-col justify-center">
+            <span className="inline-block rounded bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold text-teal-800 w-fit mb-1">
+              {tour.durationDays > 1 ? `${tour.durationDays}N${tour.durationDays - 1}Đ` : 'Trong ngày'} · {tour.destination}
+            </span>
+            <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug line-clamp-2" title={title}>
+              {title}
+            </h3>
+          </div>
+        </div>
+
+        {/* Departure info */}
+        <div className="mt-3 space-y-1.5 rounded-xl bg-slate-50/80 p-3 text-xs">
+          <div className="flex items-center justify-between text-slate-600">
+            <span className="flex items-center gap-1.5">
+              <Calendar className="size-3.5 text-slate-400" />
+              <span>Khởi hành:</span>
+            </span>
+            <span className="font-semibold text-slate-900">{formatDepartureDate(departureDate)}</span>
+          </div>
+          {unitPrice != null && (
+            <div className="flex items-center justify-between text-slate-600">
+              <span className="flex items-center gap-1.5">
+                <Tag className="size-3.5 text-slate-400" />
+                <span>Giá tiêu chuẩn:</span>
+              </span>
+              <span className="font-semibold text-slate-900">{formatVnd(unitPrice)} / khách</span>
+            </div>
           )}
-          <div className="flex items-center justify-between gap-3 text-slate-600">
+        </div>
+
+        {/* Passenger and Pricing Breakdown */}
+        <dl className="mt-3 space-y-2 border-t border-slate-100 pt-3 text-xs sm:text-sm">
+          <div className="flex justify-between gap-2 text-slate-600">
+            <dt>Người lớn × {guests.adults}</dt>
+            <dd className="font-medium text-slate-800">{formatVnd(unitPrice * guests.adults)}</dd>
+          </div>
+          {guests.children > 0 && (
+            <div className="flex justify-between gap-2 text-slate-600">
+              <dt>Trẻ em × {guests.children}</dt>
+              <dd className="font-medium text-slate-800">
+                {formatVnd((ageUnitPrice(unitPrice, tour.agePricing, 'child') ?? unitPrice) * guests.children)}
+              </dd>
+            </div>
+          )}
+          {guests.infants > 0 && (
+            <div className="flex justify-between gap-2 text-slate-600">
+              <dt>Em bé × {guests.infants}</dt>
+              <dd className="font-medium text-slate-800">
+                {formatVnd((ageUnitPrice(unitPrice, tour.agePricing, 'infant') ?? 0) * guests.infants)}
+              </dd>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-2 border-t border-dashed border-slate-100 pt-2 text-slate-600">
             <dt>Tạm tính ({participants} khách)</dt>
             <dd className="font-semibold text-slate-800">{formatVnd(subtotal)}</dd>
           </div>
+
+          {/* Applied Vouchers */}
+          {chosenPremium && (
+            <div className="flex items-center justify-between gap-2 text-amber-700">
+              <dt className="flex items-center gap-1.5 min-w-0 max-w-[65%]">
+                <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-900">Premium</span>
+                <span className="truncate font-medium text-amber-950" title={chosenPremium.terms.title}>
+                  {chosenPremium.terms.title}
+                </span>
+              </dt>
+              <dd className="shrink-0 font-bold whitespace-nowrap text-amber-600">
+                -{formatVnd(premiumDiscount)}
+              </dd>
+            </div>
+          )}
+
           {agencyPromotionPreview && (
-            <div className="flex items-center justify-between gap-3 text-indigo-700">
-              <dt className="flex items-center gap-1">
-                <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">Đại lý</span>
-                <span>{agencyPromotionPreview.code}</span>
+            <div className="flex items-center justify-between gap-2 text-indigo-700">
+              <dt className="flex items-center gap-1.5 min-w-0 max-w-[65%]">
+                <span className="shrink-0 rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-800">Đại lý</span>
+                <span className="truncate font-medium text-indigo-950" title={agencyPromotionPreview.code}>
+                  {agencyPromotionPreview.code}
+                </span>
               </dt>
-              <dd className="font-semibold">-{formatVnd(agencyPromotionPreview.discountAmount)}</dd>
+              <dd className="shrink-0 font-bold whitespace-nowrap text-indigo-600">
+                -{formatVnd(agencyPromotionPreview.discountAmount)}
+              </dd>
             </div>
           )}
+
           {platformPromotionPreview && (
-            <div className="flex items-center justify-between gap-3 text-teal-700">
-              <dt className="flex items-center gap-1">
-                <span className="rounded bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold text-teal-800">Sàn Tripin</span>
-                <span>{platformPromotionPreview.code}</span>
+            <div className="flex items-center justify-between gap-2 text-teal-700">
+              <dt className="flex items-center gap-1.5 min-w-0 max-w-[65%]">
+                <span className="shrink-0 rounded bg-teal-100 px-1.5 py-0.5 text-[10px] font-bold text-teal-800">Sàn Tripin</span>
+                <span className="truncate font-medium text-teal-950" title={platformPromotionPreview.code}>
+                  {platformPromotionPreview.code}
+                </span>
               </dt>
-              <dd className="font-semibold">-{formatVnd(platformPromotionPreview.discountAmount)}</dd>
+              <dd className="shrink-0 font-bold whitespace-nowrap text-teal-600">
+                -{formatVnd(platformPromotionPreview.discountAmount)}
+              </dd>
             </div>
           )}
-          <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
-            <dt className="font-semibold text-slate-800">Tổng dự kiến</dt>
-            <dd className="text-lg font-extrabold text-primary-container" style={{ fontVariantNumeric: 'tabular-nums' }}>
+
+          <div className="flex items-center justify-between gap-2 border-t border-slate-200 pt-3">
+            <dt className="font-bold text-slate-900">Tổng dự kiến</dt>
+            <dd className="text-xl font-extrabold text-teal-700 shrink-0 whitespace-nowrap" style={{ fontVariantNumeric: 'tabular-nums' }}>
               {formatVnd(finalEstimate)}
             </dd>
           </div>
         </dl>
-        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">Giá, mã giảm giá và số chỗ được backend kiểm tra lại khi bạn xác nhận đặt chỗ.</p>
+
+        <p className="mt-3.5 text-[11px] leading-relaxed text-slate-400">
+          Giá, mã giảm giá và số chỗ được backend kiểm tra lại khi bạn xác nhận đặt chỗ.
+        </p>
       </aside>
     </div>
   );
