@@ -78,3 +78,4 @@ blender/
 # Local regression and query-plan artifacts
 /.test-artifacts/
 /.tmp-sdk/
+**/scripts/bin/
