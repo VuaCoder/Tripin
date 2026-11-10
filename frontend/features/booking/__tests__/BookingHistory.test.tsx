@@ -18,6 +18,11 @@ vi.mock('@/features/payment', () => ({
   useCheckoutBookingMutation: () => [mockCheckoutBooking, { isLoading: false }],
 }));
 
+vi.mock('@/store/hooks', () => ({
+  useAppSelector: () => ({ id: 'u1', fullName: 'Nguyen Van A', avatarUrl: undefined }),
+  useAppDispatch: () => vi.fn(),
+}));
+
 vi.mock('@/features/review/api/reviewApi', () => ({
   useGetMyReviewsQuery: () => ({ data: { items: [] }, refetch: vi.fn() }),
 }));
@@ -134,6 +139,11 @@ describe('BookingHistoryPage', () => {
     expect(within(cards[1]).queryByText('Đã xác nhận')).toBeNull();
     expect(within(cards[1]).getByText(/tháng 12/)).toBeTruthy();
     expect(within(cards[1]).getByRole('link').getAttribute('href')).toBe('/traveler/bookings/b-2');
+
+    // Airbnb-style avatar: +1 guest badge for 2-person booking, no "X khách" text
+    expect(within(cards[0]).getByText('+1')).toBeTruthy();
+    expect(within(cards[0]).queryByText(/2 khách/i)).toBeNull();
+    expect(within(cards[1]).queryByText(/1 khách/i)).toBeNull();
   });
 
   it('allows canceling a booking via CancelBookingModal', async () => {

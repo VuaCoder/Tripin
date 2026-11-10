@@ -139,11 +139,12 @@ describe('Header Traveler Dropdown & Premium', () => {
     expect(premiumNavigate).toHaveBeenCalledWith('/premium');
     expect(screen.queryByText('Tính năng đang được phát triển')).toBeNull();
 
-    // Left nav should only have Khám phá and Hỗ trợ (no Tin nhắn on left)
+    // Left nav should have Khám phá and Chúng tôi (no Tin nhắn on left)
     const nav = screen.getByRole('navigation', { name: /điều hướng chính/i });
     expect(nav).toBeTruthy();
     expect(screen.getByRole('link', { name: /khám phá/i })).toBeTruthy();
-    expect(screen.getByRole('link', { name: /hỗ trợ/i })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /chúng tôi/i })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /điều khoản/i })).toBeNull();
 
     // Right actions should have Notification Bell and Chat icon
     const notifBtn = screen.getByRole('button', { name: /thông báo/i });
