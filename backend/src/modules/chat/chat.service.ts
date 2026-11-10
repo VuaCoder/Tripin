@@ -4,7 +4,7 @@ import { AppError, ERROR_CODES } from '../../utils/app-error';
 import { logger } from '../../utils/logger';
 import { buildPage, type Page } from '../../utils/pagination';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
-import { usersService, type UsersService } from '../users';
+import { usersService, type UsersService, type UserSummary } from '../users';
 import { sideOf, toConversationDto, toMessageDto } from './chat.mapper';
 import type { ConversationRecord } from './chat.repository';
 import { assignSides, otherSide } from './chat.policy';
@@ -73,7 +73,12 @@ export class ChatService {
         if (!conversation) throw error;
       }
     }
-    return this.toDto(conversation, actor.userId);
+    return this.toDto(conversation, actor.userId, {
+      id: other.id,
+      fullName: other.fullName,
+      avatarUrl: other.avatarUrl ?? undefined,
+      role: other.role,
+    });
   }
 
   async listConversations(actor: Actor, page: { page: number; limit: number }): Promise<Page<ConversationDto>> {
@@ -162,11 +167,13 @@ export class ChatService {
     throw AppError.forbidden('Conversations are only possible between a traveler and a tour guide');
   }
 
-  private async toDto(conversation: ConversationRecord, userId: string): Promise<ConversationDto> {
+  private async toDto(conversation: ConversationRecord, userId: string, counterpartSummary?: Partial<UserSummary>): Promise<ConversationDto> {
     const side = sideOf(conversation, userId)!;
     const counterpartId = String(side === 'traveler' ? conversation.guideId : conversation.travelerId);
-    const people = await this.users.getSummaries([counterpartId]);
-    return toConversationDto(conversation, side, people.get(counterpartId));
+    const summary = counterpartSummary && counterpartSummary.id === counterpartId && counterpartSummary.fullName
+      ? (counterpartSummary as UserSummary)
+      : (await this.users.getSummaries([counterpartId])).get(counterpartId);
+    return toConversationDto(conversation, side, summary);
   }
 
   private publish(userId: string, conversationId: string, message: MessageDto): void {

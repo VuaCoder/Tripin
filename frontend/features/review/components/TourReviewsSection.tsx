@@ -200,7 +200,7 @@ export function TourReviewsSection({ tourId, tourTitle, ratingAvg, ratingCount }
               onChange={(val) => handleSortChange(val as ReviewSort)}
               options={SORT_OPTIONS}
               size="middle"
-              className="w-36 sm:w-40"
+              className="w-44 sm:w-48"
             />
             <select
               aria-hidden="true"

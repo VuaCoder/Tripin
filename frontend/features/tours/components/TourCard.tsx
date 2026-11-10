@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/features/auth';
 import { GuestLoginPromptModal } from '@/components/shared';
-import { useTourWishlist } from '@/features/wishlist/hooks/useTourWishlist';
+import { WishlistButton } from '@/features/wishlist/components/WishlistButton';
 import type { TourListItem } from '../types';
 import { formatCategoryName, formatDepartureDate, formatDuration, formatVnd } from '../utils';
 
@@ -22,19 +22,6 @@ export function TourCard({ tour, categoryName, href = `/tours/${tour.id}`, view 
   const [showLoginModal, setShowLoginModal] = useState(false);
   const providerName = tour.agency?.name ?? 'Nhà cung cấp Tripri';
   const [coverFailed, setCoverFailed] = useState(false);
-  const wishlist = useTourWishlist(tour.id);
-
-  const handleWishlistClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isAuthenticated || wishlist.status === 'guest') {
-      setShowLoginModal(true);
-      return;
-    }
-    if (wishlist.status === 'ready' && !wishlist.pending) {
-      void wishlist.toggle();
-    }
-  };
 
   const cardClassName =
     'group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-900/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2 cursor-pointer';
@@ -57,21 +44,21 @@ export function TourCard({ tour, categoryName, href = `/tours/${tour.id}`, view 
           </span>
         )}
 
-        {/* Heart / Wishlist Button */}
-        <button
-          type="button"
-          onClick={handleWishlistClick}
-          aria-label={wishlist.isSaved ? 'Bỏ lưu tour' : 'Lưu tour yêu thích'}
-          className={`absolute right-3 top-3 flex size-8 items-center justify-center rounded-full transition-all duration-200 ${
-            wishlist.isSaved
-              ? 'bg-rose-500 text-white shadow-md hover:bg-rose-600'
-              : 'bg-black/25 text-white backdrop-blur-sm hover:bg-black/40'
-          } ${wishlist.pending ? 'animate-pulse' : ''}`}
+        {/* Heart / Wishlist Button - synced with /home AirbnbTourCarousel */}
+        <div
+          className="absolute right-2.5 top-2.5 z-10"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
         >
-          <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: wishlist.isSaved ? "'FILL' 1" : "'FILL' 0" }}>
-            favorite
-          </span>
-        </button>
+          <WishlistButton
+            tourId={tour.id}
+            tourTitle={tour.title}
+            tourCoverImage={tour.coverImage}
+            onGuestClick={() => setShowLoginModal(true)}
+          />
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col p-4">

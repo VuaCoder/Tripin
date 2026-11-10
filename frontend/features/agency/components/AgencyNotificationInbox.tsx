@@ -133,7 +133,7 @@ export function AgencyNotificationInbox({ compact = false, onClose, closeRef }: 
   const [page, setPage] = useState(1);
   const [failure, setFailure] = useState('');
   const [localItems, setLocalItems] = useState<AgencyNotification[]>([]);
-  const { currentData: result, isLoading, isFetching, error, refetch } = useAgencyNotificationsQuery(page, { pollingInterval: 30000, skipPollingIfUnfocused: true, refetchOnFocus: true, refetchOnReconnect: true });
+  const { data: cachedResult, currentData: result = cachedResult, isLoading, isFetching, error, refetch } = useAgencyNotificationsQuery(page, { pollingInterval: 30000, skipPollingIfUnfocused: true, refetchOnFocus: true, refetchOnReconnect: true });
   const [read, readState] = useReadAgencyNotificationMutation();
   const [readAll, allState] = useReadAllAgencyNotificationsMutation();
   const [remove, deleteState] = useDeleteAgencyNotificationMutation();
@@ -190,13 +190,20 @@ export function AgencyNotificationInbox({ compact = false, onClose, closeRef }: 
 
   // Merge backend notifications with local notifications (avoid duplicates)
   const combinedData = useMemo(() => {
-    const backendItems = result?.data ?? [];
+    const raw = result?.data;
+    const backendItems: AgencyNotification[] = Array.isArray(raw)
+      ? raw
+      : Array.isArray((result as any)?.items)
+      ? (result as any).items
+      : Array.isArray((result as any)?.data?.items)
+      ? (result as any).data.items
+      : [];
     const seen = new Set(backendItems.map((b) => b.id));
     const uniqueLocal = localItems.filter((l) => !seen.has(l.id));
     return [...uniqueLocal, ...backendItems].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
-  }, [result?.data, localItems]);
+  }, [result, localItems]);
 
   const unreadCount = combinedData.filter((item) => !item.isRead).length;
 
@@ -269,7 +276,7 @@ export function AgencyNotificationInbox({ compact = false, onClose, closeRef }: 
             {combinedData.length === 0 ? (
               <div className="rounded-2xl bg-teal-50/60 border border-teal-100 px-4 py-10 text-center">
                 <Bell size={28} className="mx-auto mb-2.5 text-teal-600" />
-                <h3 className="font-bold text-teal-950 text-sm">Bạn đã cập nhật hết rồi</h3>
+                <h3 className="font-bold text-teal-950 text-sm">Chưa có thông báo mới</h3>
                 <p className="mt-1 text-xs text-teal-800">Thông báo mới sẽ tự xuất hiện tại đây khi có hoạt động.</p>
               </div>
             ) : (

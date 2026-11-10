@@ -42,7 +42,7 @@ export function TourBookingCard({ tour }: { tour: TourReviewContext }) {
   return <aside className={styles.booking} aria-label="Đặt tour"><div className={styles.priceHeader}><p>Giá từ</p><strong>{formatVnd(price)}</strong><small>/ khách</small></div>
     <div className={styles.bookingBody}><h2 className={styles.bookingLabel}>NGÀY KHỞI HÀNH</h2>{departures.length ? <div className={styles.departureGrid}>{departures.map(item => <button type="button" key={item.id} aria-pressed={departure?.id === item.id} aria-label={`Khởi hành ${new Date(item.date).toLocaleDateString('vi-VN')}`} onClick={() => setSelected(item.id)}>{new Date(item.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}<small>{formatVnd(item.price)}</small></button>)}</div> : <p className={styles.muted}>Tour hiện chưa có ngày khởi hành còn chỗ.</p>}
       {departure && <>
-        <h2 className={styles.bookingLabel}>SỐ NGƯỜI · CÒN {departure.remaining} CHỖ</h2>
+        <h2 className={styles.bookingLabel}>SỐ NGƯỜI</h2>
         <TourGuestSelector value={guests} onChange={setGuests} max={max} unitPrice={price} pricing={tour.agePricing} />
         {!pricingError && <div className={styles.totals}>
           <div><span>Người lớn × {guests.adults}</span><span>{formatVnd(price * guests.adults)}</span></div>

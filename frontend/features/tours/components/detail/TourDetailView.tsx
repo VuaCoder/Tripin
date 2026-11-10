@@ -79,17 +79,13 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
     </div>
     <TourGallery images={images} title={tour.title} />
     <div className={styles.bodyGrid}><div className={styles.mainContent}>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <span className="inline-flex items-center gap-2 rounded-full bg-[#eef8f5] px-3.5 py-1.5 text-xs sm:text-sm text-slate-800">
-          <span className="flex size-6 items-center justify-center rounded-full bg-white text-teal-600 shadow-2xs">
-            <MapPin size={14} />
-          </span>
-          <span><strong>Điểm đến:</strong> {tour.destination}</span>
+      <div className="mb-4 flex items-center justify-between text-sm text-slate-700">
+        <span className="inline-flex items-center gap-1.5">
+          <MapPin size={16} className="text-teal-700 shrink-0" />
+          <span><strong className="font-semibold text-slate-900">Điểm đến:</strong> {tour.destination}</span>
         </span>
-        <span className="inline-flex items-center gap-2 rounded-full bg-[#eef8f5] px-3.5 py-1.5 text-xs sm:text-sm text-slate-800">
-          <span className="flex size-6 items-center justify-center rounded-full bg-white text-teal-600 shadow-2xs">
-            <Clock3 size={14} />
-          </span>
+        <span className="inline-flex items-center gap-1.5 font-medium text-slate-700">
+          <Clock3 size={16} className="text-teal-700 shrink-0" />
           <span>{tour.durationDays} ngày</span>
         </span>
       </div>
@@ -140,8 +136,9 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
             participantId={tour.guide?.id || tour.agency?.id || ''}
             tourId={tour.id}
             label="Trò chuyện"
+            iconOnly
             onGuestClick={() => setShowLoginModal(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50/50 hover:bg-teal-100/60 px-4 py-2 text-xs font-semibold text-teal-800 shadow-xs transition-colors shrink-0"
+            className="grid size-10 place-items-center rounded-xl border border-teal-200 bg-teal-50/60 hover:bg-teal-100/70 text-teal-800 shadow-2xs transition-colors shrink-0 cursor-pointer"
           />
         </div>
       )}
