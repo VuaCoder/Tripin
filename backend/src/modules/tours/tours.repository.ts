@@ -297,6 +297,7 @@ export class ToursRepository {
   async reserveSeats(tourId: string, departureId: string, seats: number): Promise<boolean> {
     return prisma.$transaction(async (tx) => {
     await lockGuideSchedules(tx);
+    await assertGuideAvailability(tx, tourId, undefined, departureId);
     const result = await tx.tourDeparture.updateMany({
       where: {
         id: departureId,
