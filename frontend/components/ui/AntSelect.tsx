@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { ConfigProvider, Select } from 'antd';
+import { ChevronDown } from 'lucide-react';
 
 export interface AntSelectOption<T = string | number> {
   value: T;
@@ -55,6 +56,8 @@ export function AntSelect<T extends string | number = string>({
           colorBorder: '#e2e8f0',
           hoverBorderColor: '#087e8b',
           activeBorderColor: '#087e8b',
+          colorText: '#0f172a',
+          colorTextPlaceholder: '#94a3b8',
         },
       },
     }}>
@@ -67,13 +70,20 @@ export function AntSelect<T extends string | number = string>({
         options={options}
         placeholder={placeholder}
         className={`tripri-select ${className} ${triggerClassName}`}
-        classNames={{ popup: { root: dropdownClassName } }}
+        classNames={{ popup: { root: `tripri-select-popup ${dropdownClassName}` } }}
         style={{ minWidth: 120, maxWidth: '100%' }}
         size={size}
         disabled={disabled}
         prefix={prefix}
         allowClear={allowClear}
         placement={placement === 'right' ? 'bottomRight' : 'bottomLeft'}
+        popupMatchSelectWidth={false}
+        suffixIcon={
+          <ChevronDown
+            className="size-4 text-slate-500 transition-transform duration-200 ant-select-suffix-chevron"
+            aria-hidden="true"
+          />
+        }
       />
     </ConfigProvider>
   );

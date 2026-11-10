@@ -24,7 +24,6 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
       href: '/tours',
     },
     { label: 'Bảng giá', href: '/premium' },
-    { label: 'Chúng tôi', href: '/about' },
   ],
   TRAVELER: [
     {
@@ -32,7 +31,6 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
       href: '/tours',
     },
     { label: 'Bảng giá', href: '/premium' },
-    { label: 'Chúng tôi', href: '/about' },
   ],
   AGENCY: [
     { label: 'Voucher Premium', href: '/agency/premium', icon: 'workspace_premium' },

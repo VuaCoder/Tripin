@@ -458,13 +458,93 @@ html {
 .tripri-select.ant-select .ant-select-selector {
   border-radius: 0.75rem !important;
   border-color: #e2e8f0 !important;
-  box-shadow: none !important;
-  transition: all 0.2s ease !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+  cursor: pointer !important;
 }
+
 .tripri-select.ant-select:hover .ant-select-selector {
   border-color: #cbd5e1 !important;
 }
-.tripri-select.ant-select.ant-select-focused .ant-select-selector {
+
+.tripri-select.ant-select.ant-select-focused .ant-select-selector,
+.tripri-select.ant-select.ant-select-open .ant-select-selector {
   border-color: #087e8b !important;
   box-shadow: 0 0 0 2px rgba(8, 126, 139, 0.15) !important;
+}
+
+/* Ensure the selected text is ALWAYS crisp, sharp and NEVER dimmed or blurred on click, hover or open */
+.tripri-select.ant-select .ant-select-content,
+.tripri-select.ant-select .ant-select-content-has-value,
+.tripri-select.ant-select.ant-select-open .ant-select-content,
+.tripri-select.ant-select.ant-select-open .ant-select-content-has-value,
+.tripri-select.ant-select:hover .ant-select-content,
+.tripri-select.ant-select:hover .ant-select-content-has-value,
+.tripri-select.ant-select.ant-select-focused .ant-select-content,
+.tripri-select.ant-select.ant-select-focused .ant-select-content-has-value,
+.tripri-select.ant-select .ant-select-selection-item,
+.tripri-select.ant-select.ant-select-open .ant-select-selection-item,
+.tripri-select.ant-select.ant-select-focused .ant-select-selection-item,
+.tripri-select.ant-select:hover .ant-select-selection-item,
+.tripri-select.ant-select:not(.ant-select-customize-input) .ant-select-selector .ant-select-selection-item,
+.tripri-select.ant-select:not(.ant-select-customize-input) .ant-select-selector .ant-select-content-has-value {
+  color: #0f172a !important;
+  opacity: 1 !important;
+  font-weight: 600 !important;
+  filter: none !important;
+  transition: none !important;
+}
+
+.tripri-select.ant-select .ant-select-selection-placeholder {
+  color: #94a3b8 !important;
+  font-weight: 500 !important;
+  opacity: 1 !important;
+}
+
+/* Dropdown arrow rotates smoothly 180deg when clicked open */
+.tripri-select.ant-select .ant-select-arrow {
+  color: #64748b !important;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s ease !important;
+  pointer-events: none;
+}
+
+.tripri-select.ant-select.ant-select-open .ant-select-arrow,
+.tripri-select.ant-select.ant-select-open .ant-select-suffix-chevron {
+  transform: rotate(180deg) !important;
+  color: #087e8b !important;
+}
+
+/* Dropdown popup panel styling */
+.tripri-select-popup,
+.ant-select-dropdown {
+  border-radius: 0.75rem !important;
+  padding: 6px !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid #f1f5f9 !important;
+  overflow: hidden !important;
+}
+
+.ant-select-dropdown .ant-select-item {
+  border-radius: 0.5rem !important;
+  font-weight: 500 !important;
+  color: #1e293b !important;
+  padding: 8px 12px !important;
+  margin: 1px 0 !important;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
+  cursor: pointer !important;
+}
+
+.ant-select-dropdown .ant-select-item-option-selected {
+  background-color: #f0fdfa !important;
+  color: #087e8b !important;
+  font-weight: 700 !important;
+}
+
+.ant-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-selected) {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
 }

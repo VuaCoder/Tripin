@@ -1,13 +1,12 @@
 'use client';
 import { ageUnitPrice, calculateGuestPrice, guestTotal, type GuestCounts } from '@travel-platform/constants';
 import { usePremiumVouchersQuery } from '@/features/premium/api';
-import { TourGuestSelector } from '@/features/tours/components/detail/TourGuestSelector';
 import { readSearchGuests } from '@/features/tours/utils/searchContext';
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button, FormField, Input } from '@/components/ui';
+import { Button, AntSelect, Checkbox } from '@/components/ui';
 import { ErrorState, LoadingState } from '@/components/shared';
 import { getApiErrorCode, getApiErrorMessage, selectUser } from '@/features/auth';
 import { formatDepartureDate, formatVnd } from '@/lib/travel-format';
@@ -19,20 +18,13 @@ import type { PromotionPreview } from '../types';
 import {
   AlertCircle,
   Building2,
-  Calendar,
   Check,
-  CheckCircle2,
   ChevronRight,
-  ExternalLink,
-  FileText,
   Minus,
   Plus,
-  QrCode,
   ShieldCheck,
   Sparkles,
-  Tag,
   TicketPercent,
-  Users,
   X,
 } from 'lucide-react';
 import { ShopeePromotionModal } from './ShopeePromotionModal';
@@ -173,11 +165,11 @@ export function BookingEntryPage() {
   const participants = guestTotal(guests);
   const maxParticipants = departure ? Math.min(MAX_PARTICIPANTS, departure.remaining) : MAX_PARTICIPANTS;
 
-  // Step 2: Contact information
-  const [fullName, setFullName] = useState(user?.fullName ?? '');
+  // Step 2: Contact information - User MUST manually fill, NOT auto-filled
+  const [fullName, setFullName] = useState(() => (initialStepParam === 3 ? (user?.fullName ?? '') : ''));
   const [contactGender, setContactGender] = useState<'Nam' | 'Nữ'>('Nam');
-  const [phone, setPhone] = useState(user?.phone ?? '');
-  const [email, setEmail] = useState(user?.email ?? '');
+  const [phone, setPhone] = useState(() => (initialStepParam === 3 ? (user?.phone ?? '') : ''));
+  const [email, setEmail] = useState(() => (initialStepParam === 3 ? (user?.email ?? '') : ''));
   const [country, setCountry] = useState('Việt Nam');
 
   // Step 2: Passengers roster (optional per user request)
@@ -214,6 +206,7 @@ export function BookingEntryPage() {
   const [vatCompany, setVatCompany] = useState('');
   const [vatTaxId, setVatTaxId] = useState('');
   const [vatAddress, setVatAddress] = useState('');
+  const [vatEmail, setVatEmail] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(() => initialStepParam === 3);
 
   const [notes, setNotes] = useState('');
@@ -229,6 +222,7 @@ export function BookingEntryPage() {
 
   const [voucherModalOpen, setVoucherModalOpen] = useState(false);
   const [errors, setErrors] = useState<{ fullName?: string; phone?: string; email?: string; general?: string }>({});
+  const [alertModal, setAlertModal] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
   const [pendingBookingId, setPendingBookingId] = useState<string | null>(null);
   const clientRequestId = useRef(retryKey());
 
@@ -269,12 +263,6 @@ export function BookingEntryPage() {
       return true;
     });
   }, [voucherList, tourId]);
-
-  useEffect(() => {
-    if (user?.fullName && !fullName) setFullName(user.fullName);
-    if (user?.phone && !phone) setPhone(user.phone);
-    if (user?.email && !email) setEmail(user.email);
-  }, [user, fullName, phone, email]);
 
   useEffect(() => {
     if (tour && !tour.agePricing && (guests.children > 0 || guests.infants > 0)) {
@@ -513,7 +501,7 @@ export function BookingEntryPage() {
   const childPrice = ageUnitPrice(unitPrice, tour.agePricing, 'child') ?? unitPrice;
   const infantPrice = ageUnitPrice(unitPrice, tour.agePricing, 'infant') ?? 0;
 
-  // Validation handlers for Step navigation
+  // Step 1 -> Step 2 validation
   const handleNextToStep2 = () => {
     setErrors({});
     if (participants < 1) {
@@ -528,13 +516,32 @@ export function BookingEntryPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Step 2 -> Step 3 validation: Priority Họ tên -> SĐT -> Email with Alert Modal & Red Highlight
   const handleNextToStep3 = () => {
     const next: typeof errors = {};
-    if (fullName.trim().length < 2) next.fullName = 'Vui lòng nhập họ và tên (ít nhất 2 ký tự).';
-    if (!PHONE_PATTERN.test(phone.trim())) next.phone = 'Số điện thoại không hợp lệ.';
-    if (email.trim() && !EMAIL_PATTERN.test(email.trim())) next.email = 'Email không đúng định dạng.';
-    setErrors(next);
-    if (Object.keys(next).length > 0) return;
+
+    if (!fullName.trim() || fullName.trim().length < 2) {
+      next.fullName = 'Vui lòng nhập họ và tên';
+      setErrors(next);
+      setAlertModal({ open: true, message: 'Vui lòng nhập họ tên liên hệ.' });
+      return;
+    }
+
+    if (!phone.trim() || !PHONE_PATTERN.test(phone.trim())) {
+      next.phone = 'Vui lòng nhập số điện thoại';
+      setErrors(next);
+      setAlertModal({ open: true, message: 'Vui lòng nhập số điện thoại liên hệ.' });
+      return;
+    }
+
+    if (!email.trim() || !EMAIL_PATTERN.test(email.trim())) {
+      next.email = 'Vui lòng nhập email';
+      setErrors(next);
+      setAlertModal({ open: true, message: 'Vui lòng nhập email liên hệ.' });
+      return;
+    }
+
+    setErrors({});
     setStep(3);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -550,6 +557,17 @@ export function BookingEntryPage() {
     }
     if (!agreedToTerms) {
       next.general = 'Vui lòng đọc và đồng ý với điều khoản dịch vụ để tiếp tục.';
+    }
+    if (needVatInvoice) {
+      if (!vatCompany.trim()) {
+        next.general = 'Vui lòng nhập tên công ty / tổ chức nhận hóa đơn GTGT.';
+      } else if (!vatTaxId.trim()) {
+        next.general = 'Vui lòng nhập mã số thuế nhận hóa đơn GTGT.';
+      } else if (!vatEmail.trim() || !EMAIL_PATTERN.test(vatEmail.trim())) {
+        next.general = 'Vui lòng nhập email nhận hóa đơn GTGT hợp lệ.';
+      } else if (!vatAddress.trim()) {
+        next.general = 'Vui lòng nhập địa chỉ công ty nhận hóa đơn GTGT.';
+      }
     }
     setErrors(next);
     if (Object.keys(next).length > 0) return;
@@ -629,7 +647,7 @@ export function BookingEntryPage() {
       ? `Hành khách: ${filledPassengers.map((p, i) => `${i + 1}.${p.fullName.trim()}(${p.gender})`).join(', ')}`
       : '';
     const vatSummary = needVatInvoice && vatCompany.trim()
-      ? `VAT: ${vatCompany.trim()} - MST:${vatTaxId.trim()}`
+      ? `VAT: ${vatCompany.trim()} - MST:${vatTaxId.trim()}${vatEmail.trim() ? ` - Email:${vatEmail.trim()}` : ''}`
       : '';
     const combinedNotes = [notes.trim(), passengerSummary, vatSummary].filter(Boolean).join(' | ').slice(0, 500);
 
@@ -695,9 +713,9 @@ export function BookingEntryPage() {
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Đặt tour</h1>
       </div>
 
-      {/* 3-Step Wizard Stepper */}
-      <div className="mb-8">
-        <div className="relative mx-auto flex max-w-xl items-center justify-between">
+      {/* 3-Step Wizard Stepper - FULL WIDTH spanning equal to columns below, no click to go back */}
+      <div className="mb-8 w-full">
+        <div className="relative flex w-full items-center justify-between">
           {/* Background Connecting Bar */}
           <div className="absolute left-6 right-6 top-5 -z-0 h-0.5 bg-slate-200" />
           <div
@@ -705,12 +723,8 @@ export function BookingEntryPage() {
             style={{ width: step === 1 ? '0%' : step === 2 ? '50%' : 'calc(100% - 3rem)' }}
           />
 
-          {/* Step 1 Pill */}
-          <button
-            type="button"
-            onClick={() => setStep(1)}
-            className="relative z-10 flex flex-col items-center group cursor-pointer focus:outline-none"
-          >
+          {/* Step 1 Indicator */}
+          <div className="relative z-10 flex flex-col items-center">
             <div
               className={`flex size-10 items-center justify-center rounded-full text-sm font-bold transition-all shadow-xs ${
                 step === 1
@@ -729,18 +743,10 @@ export function BookingEntryPage() {
             >
               Chọn dịch vụ
             </span>
-          </button>
+          </div>
 
-          {/* Step 2 Pill */}
-          <button
-            type="button"
-            onClick={() => {
-              if (step > 2) setStep(2);
-            }}
-            className={`relative z-10 flex flex-col items-center group focus:outline-none ${
-              step >= 2 ? 'cursor-pointer' : 'cursor-default'
-            }`}
-          >
+          {/* Step 2 Indicator */}
+          <div className="relative z-10 flex flex-col items-center">
             <div
               className={`flex size-10 items-center justify-center rounded-full text-sm font-bold transition-all shadow-xs ${
                 step === 2
@@ -759,13 +765,10 @@ export function BookingEntryPage() {
             >
               Thông tin khách
             </span>
-          </button>
+          </div>
 
-          {/* Step 3 Pill */}
-          <button
-            type="button"
-            className="relative z-10 flex flex-col items-center group cursor-default focus:outline-none"
-          >
+          {/* Step 3 Indicator */}
+          <div className="relative z-10 flex flex-col items-center">
             <div
               className={`flex size-10 items-center justify-center rounded-full text-sm font-bold transition-all shadow-xs ${
                 step === 3
@@ -782,7 +785,7 @@ export function BookingEntryPage() {
             >
               Thanh toán
             </span>
-          </button>
+          </div>
         </div>
       </div>
 
@@ -816,7 +819,7 @@ export function BookingEntryPage() {
                             setSelectedDepartureId(d.id);
                             clearAllPromotions();
                           }}
-                          className={`flex flex-col items-center justify-center rounded-xl px-4 py-3 min-w-[100px] border transition-all text-center ${
+                          className={`flex flex-col items-center justify-center rounded-xl px-4 py-3 min-w-[100px] border transition-all text-center cursor-pointer ${
                             isSelected
                               ? 'border-brand-teal bg-brand-teal text-white shadow-md ring-2 ring-brand-teal/30 font-bold'
                               : 'border-slate-200 bg-white text-slate-800 hover:border-brand-teal/60 hover:bg-slate-50/80'
@@ -862,7 +865,7 @@ export function BookingEntryPage() {
                           setGuests((prev) => ({ ...prev, adults: Math.max(1, prev.adults - 1) }));
                           clearAllPromotions();
                         }}
-                        className="flex size-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="flex size-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                       >
                         <Minus className="size-4" />
                       </button>
@@ -874,7 +877,7 @@ export function BookingEntryPage() {
                           setGuests((prev) => ({ ...prev, adults: prev.adults + 1 }));
                           clearAllPromotions();
                         }}
-                        className="flex size-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="flex size-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                       >
                         <Plus className="size-4" />
                       </button>
@@ -899,7 +902,7 @@ export function BookingEntryPage() {
                             setGuests((prev) => ({ ...prev, children: Math.max(0, prev.children - 1) }));
                             clearAllPromotions();
                           }}
-                          className="flex size-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="flex size-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                         >
                           <Minus className="size-4" />
                         </button>
@@ -911,7 +914,7 @@ export function BookingEntryPage() {
                             setGuests((prev) => ({ ...prev, children: prev.children + 1 }));
                             clearAllPromotions();
                           }}
-                          className="flex size-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="flex size-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                         >
                           <Plus className="size-4" />
                         </button>
@@ -937,7 +940,7 @@ export function BookingEntryPage() {
                             setGuests((prev) => ({ ...prev, infants: Math.max(0, prev.infants - 1) }));
                             clearAllPromotions();
                           }}
-                          className="flex size-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="flex size-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                         >
                           <Minus className="size-4" />
                         </button>
@@ -949,7 +952,7 @@ export function BookingEntryPage() {
                             setGuests((prev) => ({ ...prev, infants: prev.infants + 1 }));
                             clearAllPromotions();
                           }}
-                          className="flex size-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="flex size-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                         >
                           <Plus className="size-4" />
                         </button>
@@ -964,40 +967,62 @@ export function BookingEntryPage() {
           {/* ======================= STEP 2: THÔNG TIN KHÁCH ======================= */}
           {step === 2 && (
             <div className="space-y-6">
-              {/* Card 1: Thông tin liên hệ */}
+              {/* Card 1: Thông tin liên hệ - 2-cột layout theo thiết kế ảnh 2 */}
               <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-2.5">
                     <div className="flex size-7 items-center justify-center rounded-full bg-brand-teal text-xs font-bold text-white">
                       1
                     </div>
                     <h2 className="text-base sm:text-lg font-bold text-slate-900">Thông tin liên hệ</h2>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep(1);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="text-xs sm:text-sm font-bold text-brand-teal hover:underline cursor-pointer"
+                  >
+                    Chỉnh sửa
+                  </button>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField label="Họ và tên" htmlFor="booking-fullName" required error={errors.fullName}>
-                    <Input
-                      id="booking-fullName"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="VD: Nguyễn Văn A"
-                      invalid={Boolean(errors.fullName)}
-                      autoComplete="name"
-                    />
-                  </FormField>
-
+                  {/* Row 1, Col 1: Họ và tên */}
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                      Giới tính
+                      HỌ VÀ TÊN <span className="text-red-500">*</span>
                     </label>
-                    <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => {
+                        setFullName(e.target.value);
+                        if (errors.fullName) setErrors((prev) => ({ ...prev, fullName: undefined }));
+                      }}
+                      placeholder="VD: Nguyễn Văn A"
+                      className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition ${
+                        errors.fullName
+                          ? 'border-red-500 bg-red-50/20 text-slate-900 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+                          : 'border-slate-200 bg-white text-slate-900 focus:border-brand-teal focus:ring-1 focus:ring-brand-teal'
+                      }`}
+                    />
+                    {errors.fullName && <p className="mt-1 text-xs text-red-500 font-medium">{errors.fullName}</p>}
+                  </div>
+
+                  {/* Row 1, Col 2: Giới tính */}
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                      GIỚI TÍNH
+                    </label>
+                    <div className="flex gap-3">
                       <button
                         type="button"
                         onClick={() => setContactGender('Nam')}
-                        className={`flex-1 rounded-xl py-2.5 text-sm font-semibold border transition ${
+                        className={`flex-1 rounded-xl py-2.5 px-3 text-sm font-semibold border transition text-center cursor-pointer ${
                           contactGender === 'Nam'
-                            ? 'border-brand-teal bg-teal-50/80 text-brand-teal ring-1 ring-brand-teal font-bold'
+                            ? 'border-brand-teal bg-teal-50/60 text-brand-teal ring-1 ring-brand-teal font-bold'
                             : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                         }`}
                       >
@@ -1006,9 +1031,9 @@ export function BookingEntryPage() {
                       <button
                         type="button"
                         onClick={() => setContactGender('Nữ')}
-                        className={`flex-1 rounded-xl py-2.5 text-sm font-semibold border transition ${
+                        className={`flex-1 rounded-xl py-2.5 px-3 text-sm font-semibold border transition text-center cursor-pointer ${
                           contactGender === 'Nữ'
-                            ? 'border-brand-teal bg-teal-50/80 text-brand-teal ring-1 ring-brand-teal font-bold'
+                            ? 'border-brand-teal bg-teal-50/60 text-brand-teal ring-1 ring-brand-teal font-bold'
                             : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                         }`}
                       >
@@ -1017,44 +1042,68 @@ export function BookingEntryPage() {
                     </div>
                   </div>
 
-                  <FormField label="Số điện thoại" htmlFor="booking-phone" required error={errors.phone}>
-                    <Input
-                      id="booking-phone"
+                  {/* Row 2, Col 1: Số điện thoại */}
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                      SỐ ĐIỆN THOẠI <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="VD: 0901234567"
-                      inputMode="tel"
-                      invalid={Boolean(errors.phone)}
-                      autoComplete="tel"
+                      onChange={(e) => {
+                        setPhone(e.target.value);
+                        if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
+                      }}
+                      placeholder="VD: 0901234567 hoặc +84901234567"
+                      className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition ${
+                        errors.phone
+                          ? 'border-red-500 bg-red-50/20 text-slate-900 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+                          : 'border-slate-200 bg-white text-slate-900 focus:border-brand-teal focus:ring-1 focus:ring-brand-teal'
+                      }`}
                     />
-                  </FormField>
+                    <p className="mt-1 text-xs text-slate-400">Nhập số VN (Viettel, Mobifone, Vinaphone...)</p>
+                    {errors.phone && <p className="mt-0.5 text-xs text-red-500 font-medium">{errors.phone}</p>}
+                  </div>
 
-                  <FormField label="Email" htmlFor="booking-email" error={errors.email}>
-                    <Input
-                      id="booking-email"
+                  {/* Row 2, Col 2: Email */}
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                      EMAIL <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+                      }}
                       placeholder="example@email.com"
-                      inputMode="email"
-                      invalid={Boolean(errors.email)}
-                      autoComplete="email"
+                      className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition ${
+                        errors.email
+                          ? 'border-red-500 bg-red-50/20 text-slate-900 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+                          : 'border-slate-200 bg-white text-slate-900 focus:border-brand-teal focus:ring-1 focus:ring-brand-teal'
+                      }`}
                     />
-                  </FormField>
+                    {errors.email && <p className="mt-1 text-xs text-red-500 font-medium">{errors.email}</p>}
+                  </div>
 
+                  {/* Row 3: Quốc gia */}
                   <div className="sm:col-span-2">
-                    <FormField label="Quốc gia" htmlFor="booking-country">
-                      <Input
-                        id="booking-country"
-                        value={country}
-                        onChange={(e) => setCountry(e.target.value)}
-                        placeholder="Việt Nam"
-                      />
-                    </FormField>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                      QUỐC GIA
+                    </label>
+                    <input
+                      type="text"
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      placeholder="Việt Nam"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-teal focus:ring-1 focus:ring-brand-teal"
+                    />
                   </div>
                 </div>
               </div>
 
-              {/* Card 2: Danh sách Hành khách */}
+              {/* Card 2: Danh sách Hành khách - Dùng AntSelect chung */}
               <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-sm">
                 <div className="flex items-center gap-2.5 mb-4">
                   <div className="flex size-7 items-center justify-center rounded-full bg-brand-teal text-xs font-bold text-white">
@@ -1106,22 +1155,23 @@ export function BookingEntryPage() {
 
                           <div className="sm:col-span-1">
                             <label className="block text-xs font-semibold text-slate-600 mb-1">Giới tính</label>
-                            <select
+                            <AntSelect
                               value={p.gender}
-                              onChange={(e) => {
-                                const val = e.target.value;
+                              onChange={(val) => {
                                 setPassengers((prev) => {
                                   const next = [...prev];
-                                  next[idx] = { ...next[idx], gender: val };
+                                  next[idx] = { ...next[idx], gender: String(val) };
                                   return next;
                                 });
                               }}
-                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-teal focus:ring-1 focus:ring-brand-teal"
-                            >
-                              <option value="Nam">Nam</option>
-                              <option value="Nữ">Nữ</option>
-                              <option value="Khác">Khác</option>
-                            </select>
+                              options={[
+                                { value: 'Nam', label: 'Nam' },
+                                { value: 'Nữ', label: 'Nữ' },
+                                { value: 'Khác', label: 'Khác' },
+                              ]}
+                              className="w-full"
+                              size="middle"
+                            />
                           </div>
 
                           <div className="sm:col-span-1">
@@ -1189,76 +1239,74 @@ export function BookingEntryPage() {
           {/* ======================= STEP 3: THANH TOÁN ======================= */}
           {step === 3 && (
             <div className="space-y-6">
-              {/* Card 1: Tóm tắt thông tin liên hệ */}
+              {/* Card 1: Tóm tắt thông tin liên hệ - Cho phép Chỉnh sửa quay lại step 1 giữ nguyên data */}
               <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-3">
+                <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
                   <h2 className="text-base font-bold text-slate-900">Thông tin liên hệ</h2>
                   <button
                     type="button"
-                    onClick={() => setStep(2)}
-                    className="text-xs font-bold text-brand-teal hover:underline"
+                    onClick={() => {
+                      setStep(1);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="text-xs font-bold text-brand-teal hover:underline cursor-pointer"
                   >
                     Chỉnh sửa
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs sm:text-sm">
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">Họ và tên</span>
+                <div className="flex flex-col space-y-2.5 text-xs sm:text-sm">
+                  <div className="flex justify-between border-b border-slate-50 pb-1.5">
+                    <span className="text-slate-400">Họ và tên:</span>
                     <span className="font-semibold text-slate-800">{fullName || 'Chưa nhập'}</span>
                   </div>
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">Giới tính</span>
+                  <div className="flex justify-between border-b border-slate-50 pb-1.5">
+                    <span className="text-slate-400">Giới tính:</span>
                     <span className="font-semibold text-slate-800">{contactGender}</span>
                   </div>
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">Số điện thoại</span>
+                  <div className="flex justify-between border-b border-slate-50 pb-1.5">
+                    <span className="text-slate-400">Số điện thoại:</span>
                     <span className="font-semibold text-slate-800">{phone || 'Chưa nhập'}</span>
                   </div>
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">Email</span>
-                    <span className="font-semibold text-slate-800 truncate block">{email || 'Chưa nhập'}</span>
+                  <div className="flex justify-between border-b border-slate-50 pb-1.5">
+                    <span className="text-slate-400">Email:</span>
+                    <span className="font-semibold text-slate-800 truncate">{email || 'Chưa nhập'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Quốc gia:</span>
+                    <span className="font-semibold text-slate-800">{country}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Card 2: Phương thức thanh toán (PayOS ONLY, 100% full payment) */}
+              {/* Card 2: Phương thức thanh toán (PayOS ONLY, gọn theo ảnh 3) */}
               <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-sm">
                 <div className="flex items-center gap-2.5 mb-4">
                   <h2 className="text-base sm:text-lg font-bold text-slate-900">Phương thức thanh toán</h2>
                 </div>
 
-                <div className="rounded-xl border-2 border-brand-teal bg-teal-50/40 p-4 relative">
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="radio"
-                      id="payos-radio"
-                      name="paymentMethod"
-                      checked
-                      readOnly
-                      className="mt-1 size-4 text-brand-teal focus:ring-brand-teal cursor-pointer"
-                    />
-                    <label htmlFor="payos-radio" className="min-w-0 flex-1 cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 text-sm sm:text-base">
-                          Thanh toán 100% qua PayOS (VietQR / Chuyển khoản ngân hàng tức thì)
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs text-slate-600 leading-relaxed">
-                        Hệ thống sinh mã QR thanh toán chuẩn VietQR (NAPAS 24/7). Quét mã bằng bất kỳ ứng dụng ngân hàng hoặc ví điện tử để hoàn tất thanh toán tức thì, bảo mật và hoàn toàn miễn phí giao dịch.
-                      </p>
-                      <div className="mt-2.5 flex items-center gap-2">
-                        <span className="rounded bg-teal-100 px-2 py-0.5 text-[10px] font-extrabold text-teal-800 tracking-wider">
-                          VIETQR
-                        </span>
-                        <span className="rounded bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700">
-                          NAPAS 24/7
-                        </span>
-                        <span className="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                          Xác nhận tự động
-                        </span>
-                      </div>
-                    </label>
+                <div className="flex items-center gap-3.5 rounded-2xl border-2 border-brand-teal bg-teal-50/20 p-4 transition">
+                  <div className="flex items-center justify-center">
+                    <span className="flex size-5 items-center justify-center rounded-full border-2 border-brand-teal bg-white">
+                      <span className="size-2.5 rounded-full bg-brand-teal" />
+                    </span>
+                  </div>
+
+                  {/* PayOS Brand Icon Badge */}
+                  <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#001D4A] shadow-xs">
+                    <div className="flex flex-col items-center justify-center leading-none">
+                      <span className="text-[13px] font-black tracking-tight text-white">pay<span className="text-[#00D2D3]">OS</span></span>
+                    </div>
+                  </div>
+
+                  {/* Details */}
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-slate-900 text-sm sm:text-base">
+                      Cổng thanh toán PayOS
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5 truncate">
+                      Quét mã VietQR chuyển khoản ngân hàng 24/7
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1318,7 +1366,7 @@ export function BookingEntryPage() {
                             e.stopPropagation();
                             setPremiumVoucherId('');
                           }}
-                          className="ml-1 rounded p-0.5 text-slate-400 hover:bg-amber-100 hover:text-red-600 transition"
+                          className="ml-1 rounded p-0.5 text-slate-400 hover:bg-amber-100 hover:text-red-600 transition cursor-pointer"
                           title="Bỏ chọn voucher Premium"
                         >
                           <X className="size-3.5" />
@@ -1337,7 +1385,7 @@ export function BookingEntryPage() {
                             e.stopPropagation();
                             clearAgencyPromotion();
                           }}
-                          className="ml-1 rounded p-0.5 text-slate-400 hover:bg-indigo-100 hover:text-red-600 transition"
+                          className="ml-1 rounded p-0.5 text-slate-400 hover:bg-indigo-100 hover:text-red-600 transition cursor-pointer"
                           title="Bỏ chọn mã"
                         >
                           <X className="size-3.5" />
@@ -1356,7 +1404,7 @@ export function BookingEntryPage() {
                             e.stopPropagation();
                             clearPlatformPromotion();
                           }}
-                          className="ml-1 rounded p-0.5 text-slate-400 hover:bg-teal-100 hover:text-red-600 transition"
+                          className="ml-1 rounded p-0.5 text-slate-400 hover:bg-teal-100 hover:text-red-600 transition cursor-pointer"
                           title="Bỏ chọn mã"
                         >
                           <X className="size-3.5" />
@@ -1367,125 +1415,139 @@ export function BookingEntryPage() {
                 )}
               </div>
 
-              {/* Card 4: Hóa đơn GTGT (VAT) */}
+              {/* Card 4: Hóa đơn GTGT (VAT) - Dùng Checkbox component chung */}
               <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-sm">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={needVatInvoice}
-                    onChange={(e) => setNeedVatInvoice(e.target.checked)}
-                    className="size-4 rounded text-brand-teal focus:ring-brand-teal cursor-pointer"
-                  />
-                  <span className="text-sm font-semibold text-slate-800">
-                    Xuất hóa đơn GTGT cho công ty / tổ chức
-                  </span>
-                </label>
+                <Checkbox
+                  checked={needVatInvoice}
+                  onChange={(checked) => setNeedVatInvoice(checked)}
+                  label={<span className="text-sm font-bold text-slate-800">Xuất hóa đơn GTGT cho công ty / tổ chức</span>}
+                />
 
                 {needVatInvoice && (
                   <div className="mt-4 grid gap-3 sm:grid-cols-2 pt-3 border-t border-slate-100">
                     <div className="sm:col-span-2">
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">Tên công ty / tổ chức</label>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Tên công ty / tổ chức <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="text"
                         value={vatCompany}
                         onChange={(e) => setVatCompany(e.target.value)}
                         placeholder="Công ty Cổ phần..."
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-teal focus:ring-1 focus:ring-brand-teal"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-teal focus:ring-1 focus:ring-brand-teal"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">Mã số thuế</label>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Mã số thuế <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="text"
                         value={vatTaxId}
                         onChange={(e) => setVatTaxId(e.target.value)}
                         placeholder="0101234567"
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-teal focus:ring-1 focus:ring-brand-teal"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-teal focus:ring-1 focus:ring-brand-teal"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">Địa chỉ đăng ký kinh doanh</label>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Email nhận hóa đơn <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={vatEmail}
+                        onChange={(e) => setVatEmail(e.target.value)}
+                        placeholder="ketoan@congty.com"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-teal focus:ring-1 focus:ring-brand-teal"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Địa chỉ công ty <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="text"
                         value={vatAddress}
                         onChange={(e) => setVatAddress(e.target.value)}
-                        placeholder="Địa chỉ xuất hóa đơn..."
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-teal focus:ring-1 focus:ring-brand-teal"
+                        placeholder="Địa chỉ xuất hóa đơn theo đăng ký kinh doanh..."
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-teal focus:ring-1 focus:ring-brand-teal"
                       />
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Card 5: Điều khoản & Chính sách dịch vụ (Real tour policies) */}
+              {/* Card 5: Điều khoản & Chính sách dịch vụ (Mẫu chuẩn Saigontourist) */}
               <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-sm space-y-4">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="size-5 text-brand-teal" />
                   <h2 className="text-base font-bold text-slate-900">Điều khoản &amp; Chính sách dịch vụ</h2>
                 </div>
 
-                <div className="rounded-xl bg-slate-50 p-4 text-xs text-slate-600 space-y-2.5 max-h-48 overflow-y-auto border border-slate-200/60 leading-relaxed">
-                  {tour.cancellationPolicy && (
-                    <div>
-                      <span className="font-bold text-slate-800">Chính sách hoàn hủy: </span>
-                      <span>{tour.cancellationPolicy}</span>
-                    </div>
-                  )}
-                  {tour.requiredDocuments && (
-                    <div>
-                      <span className="font-bold text-slate-800">Giấy tờ tùy thân: </span>
-                      <span>{tour.requiredDocuments}</span>
-                    </div>
-                  )}
-                  {tour.travelNotes && (
-                    <div>
-                      <span className="font-bold text-slate-800">Lưu ý chuyến đi: </span>
-                      <span>{tour.travelNotes}</span>
-                    </div>
-                  )}
-                  {!tour.cancellationPolicy && !tour.requiredDocuments && !tour.travelNotes && (
-                    <p>
-                      Khách hàng được quyền hủy tour hoặc thay đổi thông tin theo chính sách tiêu chuẩn của nhà cung cấp tour và Tripin. Vui lòng chuẩn bị đầy đủ CCCD/Hộ chiếu hợp lệ khi tham gia chuyến đi.
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-xs text-slate-700 space-y-3 max-h-56 sm:max-h-64 overflow-y-auto leading-relaxed divide-y divide-slate-200/60">
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-slate-900">1. Giá tour &amp; Quy định thanh toán</h4>
+                    <p className="text-slate-600">
+                      - Giá tour áp dụng theo chương trình đã chọn, tính bằng Việt Nam Đồng (VNĐ) trên mỗi hành khách.
                     </p>
-                  )}
+                    <p className="text-slate-600">
+                      - Quý khách thanh toán 100% giá trị đơn đặt chỗ trực tuyến qua cổng PayOS (VietQR / Ngân hàng điện tử) ngay khi xác nhận đơn.
+                    </p>
+                    <p className="text-slate-600">
+                      - Đơn đặt chỗ chỉ chính thức có hiệu lực sau khi hệ thống ghi nhận giao dịch thanh toán thành công và cấp mã vé điện tử.
+                    </p>
+                  </div>
+
+                  <div className="pt-2.5 space-y-1">
+                    <h4 className="font-bold text-slate-900">2. Quy định hoàn hủy &amp; Thay đổi lịch trình</h4>
+                    {tour.cancellationPolicy ? (
+                      <p className="text-slate-600">{tour.cancellationPolicy}</p>
+                    ) : (
+                      <>
+                        <p className="text-slate-600">
+                          - Hủy sau khi thanh toán đến trước 15 ngày khởi hành: Phí hủy 10% tổng giá trị tour.
+                        </p>
+                        <p className="text-slate-600">
+                          - Hủy từ 07 đến 14 ngày trước ngày khởi hành: Phí hủy 30% tổng giá trị tour.
+                        </p>
+                        <p className="text-slate-600">
+                          - Hủy từ 03 đến 06 ngày trước ngày khởi hành: Phí hủy 50% tổng giá trị tour.
+                        </p>
+                        <p className="text-slate-600">
+                          - Hủy dưới 03 ngày hoặc vắng mặt vào ngày khởi hành (No-show): Phí hủy 100% giá trị tour.
+                        </p>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="pt-2.5 space-y-1">
+                    <h4 className="font-bold text-slate-900">3. Giấy tờ tùy thân &amp; Hành lý</h4>
+                    <p className="text-slate-600">
+                      {tour.requiredDocuments ||
+                        'Quý khách vui lòng mang theo CCCD gắn chip hoặc Hộ chiếu gốc còn hạn trên 6 tháng. Đối với trẻ em chưa có CCCD, cần mang theo giấy khai sinh bản chính hoặc trích lục sao y hợp lệ.'}
+                    </p>
+                  </div>
+
+                  <div className="pt-2.5 space-y-1">
+                    <h4 className="font-bold text-slate-900">4. Lưu ý chuyến đi &amp; Trường hợp bất khả kháng</h4>
+                    <p className="text-slate-600">
+                      {tour.travelNotes ||
+                        'Lịch trình có thể linh hoạt điều chỉnh theo thời tiết và giờ mở cửa thực tế của điểm tham quan nhưng vẫn đảm bảo đủ các điểm đến trong hợp đồng. Đơn vị tổ chức được miễn trừ trách nhiệm trong trường hợp thiên tai, bão lũ hoặc chỉ đạo hành chính từ cơ quan nhà nước.'}
+                    </p>
+                  </div>
                 </div>
 
-                {/* Terms agreement checkbox */}
-                <label className="flex items-start gap-3 cursor-pointer pt-1">
-                  <input
-                    type="checkbox"
-                    checked={agreedToTerms}
-                    onChange={(e) => setAgreedToTerms(e.target.checked)}
-                    className="mt-0.5 size-4 rounded text-brand-teal focus:ring-brand-teal cursor-pointer"
-                  />
-                  <span className="text-xs sm:text-sm text-slate-700 leading-normal">
-                    Tôi đã đọc và đồng ý với{' '}
-                    <a
-                      href={`/tours/${tourId}#policies`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-semibold text-brand-teal hover:underline inline-flex items-center gap-0.5"
-                    >
-                      nội dung điều khoản <ExternalLink className="size-3 inline" />
-                    </a>{' '}
-                    và chính sách dịch vụ của {tour.agency?.name || 'nhà cung cấp & Tripin'}.
-                  </span>
-                </label>
-              </div>
-
-              {/* Special notes */}
-              <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-sm">
-                <label htmlFor="booking-notes" className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                  Ghi chú cho chuyến đi
-                </label>
-                <textarea
-                  id="booking-notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={2}
-                  maxLength={500}
-                  placeholder="Yêu cầu đặc biệt (ăn chay, dị ứng, chỗ ngồi gần nhau, v.v.)..."
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/20"
+                {/* Checkbox: nội dung điều khoản hiển thị màu xanh, không có link */}
+                <Checkbox
+                  checked={agreedToTerms}
+                  onChange={(checked) => setAgreedToTerms(checked)}
+                  label={
+                    <span className="text-xs sm:text-sm text-slate-700 leading-normal">
+                      Tôi đã đọc và đồng ý với{' '}
+                      <span className="font-semibold text-brand-teal">nội dung điều khoản</span>{' '}
+                      và chính sách dịch vụ của {tour.agency?.name || 'nhà cung cấp & Tripin'}.
+                    </span>
+                  }
                 />
               </div>
             </div>
@@ -1536,41 +1598,34 @@ export function BookingEntryPage() {
           )}
         </form>
 
-        {/* Right Column: Tour Summary Preview Card with Action Button at Bottom */}
+        {/* Right Column: Tour Summary Preview Card */}
         <aside className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm lg:sticky lg:top-24 flex flex-col justify-between h-fit">
           <div>
-            <h2 className="text-base font-bold text-slate-900 mb-3.5">Chuyến đi của bạn</h2>
-
-            {/* Tour thumbnail & title preview */}
-            <div className="flex gap-3 pb-3 border-b border-slate-100">
-              <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-xl border border-slate-200/80 bg-slate-100">
-                <img
-                  src={tour.coverImage || tour.images?.[0] || '/images/default-tour.png'}
-                  alt={title}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
-              </div>
-              <div className="min-w-0 flex-1 flex flex-col justify-center">
-                <span className="inline-block rounded bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold text-teal-800 w-fit mb-1">
-                  {tour.durationDays > 1 ? `${tour.durationDays}N${tour.durationDays - 1}Đ` : 'Trong ngày'} · {tour.destination}
-                </span>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug line-clamp-2" title={title}>
+            {/* Tour Hero Card with Image Background & Title Overlay (No "Chuyến đi của bạn") */}
+            <div className="relative h-44 sm:h-48 w-full overflow-hidden rounded-2xl bg-slate-900 shadow-sm">
+              <img
+                src={tour.coverImage || tour.images?.[0] || '/images/default-tour.png'}
+                alt={title}
+                className="h-full w-full object-cover opacity-90"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex flex-col justify-end p-4">
+                <h3 className="text-sm sm:text-base font-extrabold text-white leading-snug drop-shadow-md line-clamp-2">
                   {title}
                 </h3>
               </div>
             </div>
 
-            {/* Tour Specs Breakdown */}
-            <div className="mt-3 space-y-1.5 rounded-xl bg-slate-50/80 p-3 text-xs">
+            {/* Tour Specs Breakdown - Clean, NO gray background */}
+            <div className="mt-4 space-y-2 border-b border-slate-100 pb-3 text-xs">
               <div className="flex items-center justify-between text-slate-600">
                 <span className="text-slate-400">Mã tour:</span>
                 <span className="font-semibold text-slate-900">{tour.id.slice(0, 8).toUpperCase()}</span>
               </div>
               <div className="flex items-center justify-between text-slate-600">
                 <span className="text-slate-400">Hành trình:</span>
-                <span className="font-semibold text-slate-900 text-right truncate max-w-[60%]">
-                  {tour.destination}
+                <span className="font-semibold text-slate-900 text-right truncate max-w-[65%]">
+                  {tour.durationDays > 1 ? `${tour.durationDays}N${tour.durationDays - 1}Đ` : '1 ngày'} · {tour.destination}
                 </span>
               </div>
               <div className="flex items-center justify-between text-slate-600">
@@ -1589,12 +1644,12 @@ export function BookingEntryPage() {
               </div>
               <div className="flex items-center justify-between text-slate-600">
                 <span className="text-slate-400">Phương tiện:</span>
-                <span className="font-semibold text-slate-900">Xe du lịch</span>
+                <span className="font-semibold text-slate-900">{(tour as any).transportation || 'Xe du lịch'}</span>
               </div>
             </div>
 
-            {/* Price Breakdown */}
-            <div className="mt-4 border-t border-slate-100 pt-3">
+            {/* Price Breakdown - No "Tạm tính (3 khách)" row */}
+            <div className="mt-3.5">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Chi tiết giá</div>
               <dl className="space-y-1.5 text-xs sm:text-sm">
                 <div className="flex justify-between gap-2 text-slate-600">
@@ -1613,11 +1668,6 @@ export function BookingEntryPage() {
                     <dd className="font-medium text-slate-800">{formatVnd(infantPrice * guests.infants)}</dd>
                   </div>
                 )}
-
-                <div className="flex items-center justify-between gap-2 border-t border-dashed border-slate-100 pt-2 text-slate-600">
-                  <dt>Tạm tính ({participants} khách)</dt>
-                  <dd className="font-semibold text-slate-800">{formatVnd(subtotal)}</dd>
-                </div>
 
                 {/* Applied Vouchers */}
                 {chosenPremium && (
@@ -1661,18 +1711,42 @@ export function BookingEntryPage() {
                     </dd>
                   </div>
                 )}
-
-                <div className="flex items-center justify-between gap-2 border-t border-slate-200 pt-3">
-                  <dt className="font-bold text-slate-900">Tổng cộng</dt>
-                  <dd className="text-xl font-extrabold text-brand-teal shrink-0 whitespace-nowrap" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                    {formatVnd(finalEstimate)}
-                  </dd>
-                </div>
               </dl>
+
+              {/* Step 3: Thanh toán summary block */}
+              {step === 3 ? (
+                <div className="mt-3.5 space-y-2 border-t border-slate-100 pt-3 text-xs sm:text-sm">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                    Thanh toán
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Hình thức:</span>
+                    <span className="font-semibold text-slate-800">100%</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Phương thức:</span>
+                    <span className="font-semibold text-slate-800">PayOS (VietQR)</span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-slate-200 pt-3 mt-2">
+                    <span className="font-bold text-slate-900 text-sm">Cần thanh toán (100%):</span>
+                    <span className="text-xl font-extrabold text-brand-teal shrink-0 whitespace-nowrap" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {formatVnd(finalEstimate)}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                /* Step 1 & 2: Tổng cộng */
+                <div className="flex items-center justify-between gap-2 border-t border-slate-200 pt-3 mt-3">
+                  <span className="font-bold text-slate-900">Tổng cộng</span>
+                  <span className="text-xl font-extrabold text-brand-teal shrink-0 whitespace-nowrap" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {formatVnd(finalEstimate)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Action Button at bottom of sidebar (eliminates white space gap!) */}
+          {/* Action Button at bottom of sidebar (One-way progression, NO back buttons) */}
           <div className="mt-6 pt-4 border-t border-slate-100">
             {step === 1 && (
               <Button
@@ -1685,46 +1759,66 @@ export function BookingEntryPage() {
             )}
 
             {step === 2 && (
-              <div className="space-y-2">
-                <Button
-                  type="button"
-                  onClick={handleNextToStep3}
-                  className="w-full bg-brand-teal hover:bg-teal-700 text-white font-bold py-3 text-sm shadow-sm"
-                >
-                  Tiếp tục: Thanh toán &gt;
-                </Button>
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="w-full text-center text-xs font-semibold text-slate-500 hover:text-slate-800 transition py-1"
-                >
-                  &lt; Quay lại: Chọn dịch vụ
-                </button>
-              </div>
+              <Button
+                type="button"
+                onClick={handleNextToStep3}
+                className="w-full bg-brand-teal hover:bg-teal-700 text-white font-bold py-3 text-sm shadow-sm"
+              >
+                Tiếp tục: Thanh toán &gt;
+              </Button>
             )}
 
             {step === 3 && (
-              <div className="space-y-2">
-                <Button
-                  type="button"
-                  onClick={submitBooking}
-                  loading={isSubmitting || isCheckingBooking || isPaying}
-                  className="w-full bg-brand-teal hover:bg-teal-700 text-white font-bold py-3 text-sm shadow-md"
-                >
-                  Xác nhận &amp; Thanh toán PayOS &gt;
-                </Button>
-                <button
-                  type="button"
-                  onClick={() => setStep(2)}
-                  className="w-full text-center text-xs font-semibold text-slate-500 hover:text-slate-800 transition py-1"
-                >
-                  &lt; Quay lại: Thông tin khách
-                </button>
-              </div>
+              <Button
+                type="button"
+                onClick={submitBooking}
+                loading={isSubmitting || isCheckingBooking || isPaying}
+                className="w-full bg-brand-teal hover:bg-teal-700 text-white font-bold py-3 text-sm shadow-md"
+              >
+                Xác nhận &amp; Thanh toán PayOS &gt;
+              </Button>
             )}
           </div>
         </aside>
       </div>
+
+      {/* Validation Alert Modal - Background blur, green button, click outside to close */}
+      {alertModal.open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-black/40 transition-all"
+          onClick={() => setAlertModal({ open: false, message: '' })}
+        >
+          <div
+            className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl transition-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3">
+              <h3 className="text-lg font-bold text-slate-900">Thông báo</h3>
+              <button
+                type="button"
+                onClick={() => setAlertModal({ open: false, message: '' })}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition cursor-pointer"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+              {alertModal.message}
+            </p>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setAlertModal({ open: false, message: '' })}
+                className="rounded-xl bg-brand-teal px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-teal-700 transition cursor-pointer"
+              >
+                Đã hiểu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
