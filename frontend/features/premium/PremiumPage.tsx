@@ -80,6 +80,7 @@ function PremiumContent() {
   const role = eligible ? user!.role : audience;
   const plans = usePremiumPlansQuery(role);
   const status = useOwnPremium(user?.id);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('');
   const [historyPage, setHistoryPage] = useState(1);
   const history = usePremiumHistoryQuery(
     { userId: user?.id ?? '', page: historyPage },
@@ -94,6 +95,12 @@ function PremiumContent() {
   const [message, setMessage] = useState('');
   const [refundId, setRefundId] = useState('');
   const [reason, setReason] = useState('');
+
+  const effectiveSelectedPlanId =
+    selectedPlanId || plans.currentData?.[0]?.id || '';
+  const selectedPlan =
+    plans.currentData?.find((p) => p.id === effectiveSelectedPlanId) ??
+    plans.currentData?.[0];
 
   const showStatus =
     eligible &&
@@ -132,17 +139,10 @@ function PremiumContent() {
       {/* 1. Header & Identity Section */}
       <section className="relative overflow-hidden rounded-3xl border border-amber-200/70 bg-gradient-to-br from-amber-50/60 via-white to-emerald-50/40 p-6 shadow-xs sm:p-8 md:p-10">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="max-w-2xl space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/80 bg-amber-100/70 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-amber-900 shadow-2xs">
-              <Crown className="size-3.5 fill-amber-700 text-amber-800" />
-              <span>Gói Hội Viên Tripri</span>
-            </div>
+          <div className="max-w-2xl">
             <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
               Premium
             </h1>
-            <p className="text-sm leading-relaxed text-slate-600 sm:text-base">
-              Nâng tầm hành trình với kho voucher giảm giá độc quyền, nhận diện huy hiệu vương miện vàng sang trọng và ưu tiên hỗ trợ đặc quyền 24/7.
-            </p>
           </div>
 
           {/* User's Current Membership Card (shows real avatar + crown frame) */}
@@ -171,49 +171,6 @@ function PremiumContent() {
               </div>
             </div>
           )}
-        </div>
-
-        {/* 4 Core Value Props */}
-        <div className="mt-8 grid grid-cols-2 gap-3 border-t border-slate-200/70 pt-6 sm:grid-cols-4 sm:gap-4">
-          <div className="flex items-start gap-2.5">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-teal-100/70 text-teal-800">
-              <Ticket className="size-4" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-slate-900">Voucher theo kỳ</div>
-              <div className="text-[11px] text-slate-500">Giảm giá tour tuyển chọn</div>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2.5">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-100/80 text-amber-800">
-              <Crown className="size-4" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-slate-900">Viền vương miện</div>
-              <div className="text-[11px] text-slate-500">Đặc quyền diện mạo VIP</div>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2.5">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-blue-100/70 text-blue-800">
-              <Headphones className="size-4" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-slate-900">Hỗ trợ ưu tiên</div>
-              <div className="text-[11px] text-slate-500">Tổng đài viên túc trực 24/7</div>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2.5">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100/70 text-emerald-800">
-              <RotateCcw className="size-4" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-slate-900">Hoàn tiền 100%</div>
-              <div className="text-[11px] text-slate-500">Trước khi kỳ bắt đầu</div>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -255,13 +212,10 @@ function PremiumContent() {
 
       {/* 2. Choose Plan Section */}
       <section aria-labelledby="premium-plans" className="space-y-6">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+        <div>
           <h2 id="premium-plans" className="text-2xl font-bold tracking-tight text-slate-900">
             Chọn gói Premium
           </h2>
-          <span className="text-xs text-slate-500">
-            Thanh toán một lần qua PayOS / VietQR · Không tự động trừ tiền
-          </span>
         </div>
 
         {plans.isError ? (
@@ -275,128 +229,164 @@ function PremiumContent() {
             Chưa có gói Premium dành cho nhóm này.
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2">
-            {plans.currentData.map((plan, index) => {
-              const isBestValue = plan.durationDays >= 90 || index === 0;
-              return (
-                <article
-                  key={plan.id}
-                  className={`relative flex flex-col justify-between rounded-3xl border p-7 transition-all duration-200 ${
-                    isBestValue
-                      ? 'border-amber-400/90 bg-gradient-to-b from-amber-50/40 via-white to-white shadow-md ring-1 ring-amber-400/30'
-                      : 'border-slate-200 bg-white shadow-xs hover:border-slate-300 hover:shadow-sm'
-                  }`}
-                >
-                  {isBestValue && (
-                    <div className="absolute -top-3.5 right-6 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-xs">
-                      <Sparkles className="size-3" />
-                      <span>Được chọn nhiều nhất</span>
-                    </div>
-                  )}
+          <div className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              {plans.currentData.map((plan, index) => {
+                const isSelected = effectiveSelectedPlanId === plan.id;
+                const isBestValue = plan.durationDays >= 90 || index === 0;
+                return (
+                  <article
+                    key={plan.id}
+                    onClick={() => setSelectedPlanId(plan.id)}
+                    className={`relative flex cursor-pointer flex-col justify-between rounded-3xl border p-7 transition-all duration-200 select-none ${
+                      isSelected
+                        ? 'border-primary-container bg-gradient-to-b from-teal-50/40 via-white to-white shadow-md ring-2 ring-primary-container'
+                        : isBestValue
+                          ? 'border-amber-300 bg-gradient-to-b from-amber-50/20 via-white to-white shadow-xs hover:border-amber-400 hover:shadow-sm'
+                          : 'border-slate-200 bg-white shadow-xs hover:border-slate-300 hover:shadow-sm'
+                    }`}
+                  >
+                    {isBestValue && (
+                      <div className="absolute -top-3.5 right-6 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-xs">
+                        <Sparkles className="size-3" />
+                        <span>Được chọn nhiều nhất</span>
+                      </div>
+                    )}
 
-                  <div>
-                    {/* Plan Title & Duration */}
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-xl font-bold text-slate-900">
-                        {plan.name}
-                      </h3>
-                      <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                        <Clock className="size-3" />
-                        <span>{plan.durationDays} ngày</span>
-                      </span>
-                    </div>
-
-                    {/* Price Display */}
-                    <div className="mt-4 flex items-baseline gap-1.5">
-                      <span className="text-3xl font-black tracking-tight text-slate-900">
-                        {premiumMoney(plan.price)}
-                      </span>
-                      <span className="text-sm font-medium text-slate-500">
-                        / {plan.durationDays} ngày
-                      </span>
-                    </div>
-
-                    {/* Benefits Checklist */}
-                    <ul className="mt-6 space-y-3 text-sm text-slate-700">
-                      {Array.from(new Set(plan.benefits)).map((benefit) => (
-                        <li key={benefit} className="flex items-start gap-2.5">
-                          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                            <Check className="size-3 stroke-[2.5]" />
+                    <div>
+                      {/* Selection radio indicator & Plan Title & Duration */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={`flex size-5 shrink-0 items-center justify-center rounded-full border transition-all ${
+                              isSelected
+                                ? 'border-primary-container bg-primary-container text-white'
+                                : 'border-slate-300 bg-white'
+                            }`}
+                          >
+                            {isSelected && <Check className="size-3 stroke-[3]" />}
                           </span>
-                          <span className="leading-relaxed">{benefit}</span>
-                        </li>
-                      ))}
+                          <h3 className="text-xl font-bold text-slate-900">
+                            {plan.name}
+                          </h3>
+                        </div>
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                          <Clock className="size-3" />
+                          <span>{plan.durationDays} ngày</span>
+                        </span>
+                      </div>
 
-                      {!plan.benefits.length &&
-                        plan.vouchers?.map((v, i) => (
-                          <li key={i} className="flex items-start gap-2.5">
+                      {/* Price Display */}
+                      <div className="mt-4 flex items-baseline gap-1.5 pl-8">
+                        <span className="text-3xl font-black tracking-tight text-slate-900">
+                          {premiumMoney(plan.price)}
+                        </span>
+                        <span className="text-sm font-medium text-slate-500">
+                          / {plan.durationDays} ngày
+                        </span>
+                      </div>
+
+                      {/* Benefits Checklist */}
+                      <ul className="mt-6 space-y-3 pl-8 text-sm text-slate-700">
+                        {Array.from(new Set(plan.benefits)).map((benefit) => (
+                          <li key={benefit} className="flex items-start gap-2.5">
                             <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
                               <Check className="size-3 stroke-[2.5]" />
                             </span>
-                            <span className="leading-relaxed">
-                              {v.quantity} voucher · Giảm{' '}
-                              {v.discountType === 'PERCENT'
-                                ? `${v.discountValue}%${
-                                    v.maxDiscountAmount
-                                      ? `, tối đa ${premiumMoney(v.maxDiscountAmount)}`
-                                      : ''
-                                  }`
-                                : premiumMoney(v.discountValue)}{' '}
-                              · Đơn từ {premiumMoney(v.minOrderAmount)}
-                            </span>
+                            <span className="leading-relaxed">{benefit}</span>
                           </li>
                         ))}
 
-                      <li className="flex items-start gap-2.5">
-                        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800">
-                          <Crown className="size-3 stroke-[2.5]" />
-                        </span>
-                        <span className="leading-relaxed">
-                          Viền avatar hoàng gia kèm biểu tượng vương miện vàng
-                        </span>
-                      </li>
-                      <li className="flex items-start gap-2.5">
-                        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-800">
-                          <ShieldCheck className="size-3 stroke-[2.5]" />
-                        </span>
-                        <span className="leading-relaxed">
-                          Ưu tiên hàng chờ và xử lý sự cố bởi đội ngũ kiểm duyệt sàn
-                        </span>
-                      </li>
-                    </ul>
-                  </div>
+                        {!plan.benefits.length &&
+                          plan.vouchers?.map((v, i) => (
+                            <li key={i} className="flex items-start gap-2.5">
+                              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                                <Check className="size-3 stroke-[2.5]" />
+                              </span>
+                              <span className="leading-relaxed">
+                                {v.quantity} voucher · Giảm{' '}
+                                {v.discountType === 'PERCENT'
+                                  ? `${v.discountValue}%${
+                                      v.maxDiscountAmount
+                                        ? `, tối đa ${premiumMoney(v.maxDiscountAmount)}`
+                                        : ''
+                                    }`
+                                  : premiumMoney(v.discountValue)}{' '}
+                                · Đơn từ {premiumMoney(v.minOrderAmount)}
+                              </span>
+                            </li>
+                          ))}
 
-                  {/* Plan CTA */}
-                  <div className="mt-8 pt-5 border-t border-slate-100">
-                    {eligible ? (
-                      <button
-                        className={`w-full cursor-pointer rounded-xl py-3 text-center text-sm font-bold shadow-xs transition-all active:scale-[0.99] disabled:opacity-50 ${
-                          isBestValue
-                            ? 'bg-primary-container text-white hover:bg-opacity-95 hover:shadow-md'
-                            : 'bg-slate-900 text-white hover:bg-slate-800'
-                        }`}
-                        disabled={subscriptionState.isLoading}
-                        onClick={() => void buy(plan.id)}
-                      >
-                        {subscriptionState.isLoading ? 'Đang mở thanh toán…' : 'Đăng ký gói'}
-                      </button>
-                    ) : user ? (
-                      <p className="text-center text-xs text-slate-500">
-                        Gói dành cho tài khoản Traveler hoặc Guide.
-                      </p>
-                    ) : (
-                      <Link
-                        className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-slate-900 py-3 text-center text-sm font-bold text-white shadow-xs transition-all hover:bg-slate-800 active:scale-[0.99]"
-                        href="/login?next=/premium"
-                      >
-                        <span>Đăng nhập để đăng ký</span>
-                        <ArrowRight className="size-4" />
-                      </Link>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
+                        <li className="flex items-start gap-2.5">
+                          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800">
+                            <Crown className="size-3 stroke-[2.5]" />
+                          </span>
+                          <span className="leading-relaxed">
+                            Viền avatar hoàng gia kèm biểu tượng vương miện vàng
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2.5">
+                          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-800">
+                            <ShieldCheck className="size-3 stroke-[2.5]" />
+                          </span>
+                          <span className="leading-relaxed">
+                            Ưu tiên hàng chờ và xử lý sự cố bởi đội ngũ kiểm duyệt sàn
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            {/* Shared Registration Action Bar */}
+            <div className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-xs sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Gói đang chọn
+                </div>
+                <div className="text-lg font-bold text-slate-900">
+                  {selectedPlan ? (
+                    <>
+                      {selectedPlan.name} ·{' '}
+                      <span className="text-primary-container">
+                        {premiumMoney(selectedPlan.price)}
+                      </span>
+                      <span className="text-xs font-normal text-slate-500">
+                        {' '}
+                        / {selectedPlan.durationDays} ngày
+                      </span>
+                    </>
+                  ) : (
+                    'Vui lòng chọn một gói Premium ở trên'
+                  )}
+                </div>
+              </div>
+
+              {eligible ? (
+                <button
+                  type="button"
+                  className="w-full cursor-pointer rounded-xl bg-primary-container px-8 py-3.5 text-center text-sm font-bold text-white shadow-xs transition-all hover:bg-opacity-95 active:scale-[0.99] disabled:opacity-50 sm:w-auto"
+                  disabled={!effectiveSelectedPlanId || subscriptionState.isLoading}
+                  onClick={() => effectiveSelectedPlanId && void buy(effectiveSelectedPlanId)}
+                >
+                  {subscriptionState.isLoading ? 'Đang mở thanh toán…' : 'Đăng ký gói'}
+                </button>
+              ) : user ? (
+                <p className="text-xs text-slate-500">
+                  Gói dành cho tài khoản Traveler hoặc Guide.
+                </p>
+              ) : (
+                <Link
+                  className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-6 py-3.5 text-center text-sm font-bold text-white shadow-xs transition-all hover:bg-slate-800 active:scale-[0.99] sm:w-auto"
+                  href="/login?next=/premium"
+                >
+                  <span>Đăng nhập để đăng ký</span>
+                  <ArrowRight className="size-4" />
+                </Link>
+              )}
+            </div>
           </div>
         )}
 
@@ -428,7 +418,6 @@ function PremiumContent() {
             <h2 className="text-xl font-bold text-slate-900">
               Các kỳ Premium của bạn
             </h2>
-            <span className="text-xs text-slate-500">Lịch sử đăng ký &amp; trạng thái</span>
           </div>
 
           {history.isError ? (
@@ -578,7 +567,6 @@ function PremiumContent() {
         <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-slate-900">Ví voucher Premium</h2>
-            <span className="text-xs text-slate-500">Ưu đãi độc quyền của kỳ này</span>
           </div>
           {vouchers.isError ? (
             <Retry onRetry={() => void vouchers.refetch()} />

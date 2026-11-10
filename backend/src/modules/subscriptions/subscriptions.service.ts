@@ -28,7 +28,7 @@ export class SubscriptionsService {
   constructor(
     private readonly subscriptions: Pick<
       SubscriptionsRepository,
-      'listActivePlans' | 'findPlanById' | 'create' | 'findById' | 'findPending' | 'findCurrentActive' | 'findLatestPaid' | 'transition' | 'listByUser' | 'findEnded' | 'findAbandoned' | 'countActive'
+      'listActivePlans' | 'findPlanById' | 'create' | 'findById' | 'findPending' | 'findCurrentActive' | 'findLatestPaid' | 'transition' | 'listByUser' | 'findEnded' | 'findAbandoned' | 'countActive' | 'findExpiringSoon' | 'hasRecentExpiringAlert'
     > = subscriptionsRepository,
     private readonly payments: Pick<PaymentsService, 'createCheckout'> = paymentsService,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
@@ -172,6 +172,53 @@ export class SubscriptionsService {
       }
     }
     return cancelled;
+  }
+
+  /**
+   * Sweeps active subscriptions expiring within ~3 days (72 hours) and sends expiration email and in-app alert.
+   * Avoids duplicate notifications if already alerted within the expiration window or if a renewal period is already active.
+   */
+  async notifyExpiringSubscriptions(now = new Date()): Promise<number> {
+    const THREE_DAYS_MS = 3 * DAY_MS;
+    const expiring = await this.subscriptions.findExpiringSoon(THREE_DAYS_MS, now, 100);
+    let notified = 0;
+
+    for (const sub of expiring) {
+      if (!sub.endsAt) continue;
+
+      // Skip if user already has a stacked subsequent active subscription lined up
+      const latest = await this.subscriptions.findLatestPaid(sub.userId, now);
+      if (latest && latest.endsAt && latest.endsAt > sub.endsAt) {
+        continue;
+      }
+
+      // Check if notification already dispatched recently (within 4 days)
+      const alreadyNotified = await this.subscriptions.hasRecentExpiringAlert(sub.userId, 4 * DAY_MS, now);
+      if (alreadyNotified) continue;
+
+      const formattedDate = new Intl.DateTimeFormat('vi-VN', {
+        dateStyle: 'full',
+        timeZone: 'Asia/Ho_Chi_Minh',
+      }).format(sub.endsAt);
+
+      await this.notifications.notify(
+        sub.userId,
+        {
+          type: NOTIFICATION_TYPE.SUBSCRIPTION_EXPIRING_SOON,
+          title: 'Gói Premium sắp hết hạn',
+          body: `Gói hội viên "${sub.planName}" của bạn sẽ hết hạn vào ngày ${formattedDate}. Gia hạn ngay để tiếp tục nhận ưu đãi voucher và đặc quyền vương miện VIP!`,
+          data: {
+            subscriptionId: sub.id,
+            planName: sub.planName,
+            endsAt: sub.endsAt.toISOString(),
+          },
+        },
+        { email: true },
+      );
+      notified += 1;
+    }
+
+    return notified;
   }
 }
 

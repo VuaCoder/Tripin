@@ -308,7 +308,7 @@ describe('Premium customer experience', () => {
     expect(screen.getByText('Ưu đãi hội viên')).toBeTruthy();
     expect(screen.queryByText(/Hiển thị tối đa 500/)).toBeNull();
   });
-  it('keeps each registration button bound to its own plan ID', async () => {
+  it('allows selecting a plan card and registers the selected plan ID via the shared action button', async () => {
     mocks.plans.push({
       ...mocks.plans[0],
       id: 'plan-b',
@@ -318,11 +318,16 @@ describe('Premium customer experience', () => {
       price: 129000,
     });
     render(<PremiumPage />);
-    const buttons = screen.getAllByRole('button', { name: 'Đăng ký gói' });
-    fireEvent.click(buttons[1]);
-    await waitFor(() => expect(mocks.buy).toHaveBeenCalledWith('plan-b'));
-    fireEvent.click(buttons[0]);
+    const submitBtn = screen.getByRole('button', { name: 'Đăng ký gói' });
+
+    // By default first plan 'plan-a' is selected
+    fireEvent.click(submitBtn);
     await waitFor(() => expect(mocks.buy).toHaveBeenCalledWith('plan-a'));
+
+    // Click plan-b card to select it
+    fireEvent.click(screen.getByText('Premium 90 ngày'));
+    fireEvent.click(submitBtn);
+    await waitFor(() => expect(mocks.buy).toHaveBeenCalledWith('plan-b'));
     expect(mocks.buy).toHaveBeenCalledTimes(2);
   });
 });
