@@ -119,6 +119,29 @@
   }
 }
 
+@keyframes floatTicket {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1.15);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(-22px) scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-36px) scale(0.9);
+  }
+}
+
+.animate-float-ticket {
+  animation: floatTicket 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 .animate-sun-glow {
   animation: sunGlow 8s ease-in-out infinite;
 }

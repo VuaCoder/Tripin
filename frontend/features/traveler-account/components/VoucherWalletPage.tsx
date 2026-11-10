@@ -48,12 +48,7 @@ export function VoucherWalletPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 pb-4 border-b border-slate-100">
-        <div className="flex items-center gap-2.5">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-teal-50 text-brand-teal border border-teal-100/80">
-            <TicketPercent className="size-5" />
-          </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Ví voucher</h1>
-        </div>
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Ví voucher</h1>
         <RefreshButton onClick={() => void refetch()} isFetching={isFetching} />
       </div>
 
