@@ -32,6 +32,7 @@ const PUBLIC_ROUTES = [
   'GET /auth/agency/application-status',
   'POST /auth/agency/dev-accept',
   'POST /auth/agency/dev-reject',
+  'POST /auth/agency/google',
   'POST /auth/agency/login',
   'POST /auth/agency/register',
   'POST /auth/agency/resend-otp',
