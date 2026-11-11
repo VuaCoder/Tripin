@@ -11,7 +11,10 @@ vi.mock('../api/agencyReviewsApi', () => ({
   useGetMyReviewDisputesQuery: (...a: unknown[]) => mockDisputes(...a),
   useDisputeReviewMutation: () => [mockDispute, { isLoading: false }],
 }));
-vi.mock('@/store/hooks', () => ({ useAppSelector: () => ({ id: 'a1' }) }));
+vi.mock('@/store/hooks', () => ({
+  useAppSelector: () => ({ id: 'a1' }),
+  useAppDispatch: () => vi.fn(),
+}));
 vi.mock('@/features/auth', () => ({ selectUser: () => null }));
 vi.mock('@/features/review/components', () => ({ RatingStars: () => <span data-testid="stars" /> }));
 

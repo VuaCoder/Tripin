@@ -21,6 +21,7 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/store/hooks', () => ({
   useAppSelector: () => ({ id: 'u1', fullName: 'Nguyen Van A', phone: '0912345678' }),
+  useAppDispatch: () => vi.fn(),
 }));
 
 const mockTour = {

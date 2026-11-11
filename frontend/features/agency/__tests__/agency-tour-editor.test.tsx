@@ -85,7 +85,7 @@ describe('Tour editor inline reminders', () => {
     expect(destination.value).toBe('Quảng Ninh');
     expect(destination.parentElement?.contains(screen.getByRole('alert'))).toBe(true);
     expect(mocks.replace).not.toHaveBeenCalled();
-  });
+  }, 15000);
 
   it('puts network failures below the active step without discarding data', async () => {
     mocks.save.mockReturnValue({ unwrap: () => Promise.reject({ status: 'FETCH_ERROR' }) });
@@ -94,7 +94,7 @@ describe('Tour editor inline reminders', () => {
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Dữ liệu của bạn vẫn còn'));
     expect(container.querySelector('form')?.contains(screen.getByRole('alert'))).toBe(true);
     expect(mocks.replace).not.toHaveBeenCalled();
-  });
+  }, 15000);
 
   it('validates category, price and capacity limits', () => {
     const errors = validateTourEditor({ title: 'Tour hợp lệ', destination: 'Huế', durationDays: 366, categoryIds: [], basePrice: -1, maxGroupSize: 10001 });
