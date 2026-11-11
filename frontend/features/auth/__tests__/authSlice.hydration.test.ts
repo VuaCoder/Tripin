@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 describe('auth hydration', () => {
   afterEach(() => {
     localStorage.removeItem('tripri_auth_session');
+    sessionStorage.removeItem('tripri_auth_session');
     vi.resetModules();
   });
 
@@ -22,5 +23,25 @@ describe('auth hydration', () => {
     // The bootstrap can still restore credentials once hydration has finished.
     expect(reducer(initial, setCredentials(session as Parameters<typeof setCredentials>[0])))
       .toEqual({ ...session, status: 'authenticated' });
+  });
+
+  it('persists to localStorage when rememberMe is true and sessionStorage when rememberMe is false', async () => {
+    const session = {
+      user: { id: 'traveler-1', role: 'TRAVELER', fullName: 'Traveler' } as any,
+      accessToken: 'saved-token',
+    };
+    const { default: reducer, setCredentials, clearCredentials } = await import('../store/authSlice');
+
+    let state = reducer(undefined, setCredentials({ ...session, rememberMe: false }));
+    expect(sessionStorage.getItem('tripri_auth_session')).toBeTruthy();
+    expect(localStorage.getItem('tripri_auth_session')).toBeNull();
+
+    state = reducer(state, setCredentials({ ...session, rememberMe: true }));
+    expect(localStorage.getItem('tripri_auth_session')).toBeTruthy();
+    expect(sessionStorage.getItem('tripri_auth_session')).toBeNull();
+
+    reducer(state, clearCredentials());
+    expect(localStorage.getItem('tripri_auth_session')).toBeNull();
+    expect(sessionStorage.getItem('tripri_auth_session')).toBeNull();
   });
 });

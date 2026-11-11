@@ -1,4 +1,5 @@
 'use client';
+import { agencyNotice } from '../agencyNotice';
 import { useEffect, useMemo, useState } from 'react';
 import { Bell, CheckCheck, Trash2, RefreshCw, X } from 'lucide-react';
 import {
@@ -14,7 +15,7 @@ import {
   markAllLocalNotificationsRead,
   deleteLocalNotification,
 } from '../localNotifications';
-import { AgencyError, AgencyLoading, agencyButton, dateTime } from '../AgencyUi';
+import { AgencyError, AgencyLoading, agencyButton, dateTime } from '@/features/agency/AgencyCommon';
 import { getTourApiMessage } from '@/features/tours/api/toursApi';
 
 export function localizeNotificationContent(title: string, body: string): { title: string; body: string } {
@@ -161,7 +162,7 @@ export function AgencyNotificationInbox({ compact = false, onClose, closeRef }: 
     try {
       await action();
     } catch (e) {
-      setFailure(getTourApiMessage(e, 'Không thể cập nhật thông báo. Vui lòng thử lại.'));
+      agencyNotice.error(getTourApiMessage(e, 'Không thể cập nhật thông báo. Vui lòng thử lại.'));
     }
   };
 
@@ -259,12 +260,6 @@ export function AgencyNotificationInbox({ compact = false, onClose, closeRef }: 
           )}
         </div>
       </header>
-
-      {failure && (
-        <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs font-semibold text-red-800 border border-red-200">
-          {failure}
-        </p>
-      )}
 
       {isLoading || (!result && combinedData.length === 0 && isFetching) ? (
         <AgencyLoading />

@@ -7,12 +7,17 @@ import { AUTH_POLICY } from './auth.policy';
 import type { AccessTokenPayload } from './auth.types';
 
 /** JWT access token helpers. Roles inside the token are server-signed; they are re-checked against the DB on each request. */
-export function signAccessToken(userId: string, role: PersistedRole, tokenVersion: number): string {
+export function signAccessToken(
+  userId: string,
+  role: PersistedRole,
+  tokenVersion: number,
+  expiresIn: SignOptions['expiresIn'] = env.JWT_ACCESS_EXPIRES_IN as SignOptions['expiresIn'],
+): string {
   const payload: AccessTokenPayload = { sub: userId, role, tokenVersion };
   const options: SignOptions = {
     algorithm: 'HS256',
     issuer: AUTH_POLICY.ACCESS_TOKEN_ISSUER,
-    expiresIn: env.JWT_ACCESS_EXPIRES_IN as SignOptions['expiresIn'],
+    expiresIn,
   };
   return jwt.sign(payload, env.JWT_ACCESS_SECRET, options);
 }
@@ -31,9 +36,9 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
 }
 
 /** Opaque refresh token: random value, only its hash is stored. */
-export function generateRefreshToken(): { raw: string; hash: string; expiresAt: Date } {
+export function generateRefreshToken(ttlDays = env.JWT_REFRESH_EXPIRES_IN_DAYS): { raw: string; hash: string; expiresAt: Date } {
   const raw = randomToken(48);
-  const expiresAt = new Date(Date.now() + env.JWT_REFRESH_EXPIRES_IN_DAYS * 24 * 60 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000);
   return { raw, hash: sha256(raw), expiresAt };
 }
 

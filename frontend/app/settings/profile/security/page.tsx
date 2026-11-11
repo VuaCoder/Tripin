@@ -2,8 +2,11 @@
 
 import { useState, type ReactNode } from 'react';
 import { useGetSecuritySettingsQuery, useSetTwoFactorMutation } from '@/features/traveler-account/api/securityApi';
-import { TwoFactorCard, ConfirmPasswordModal, ProfileSkeleton, TravelerAccountShell } from '@/features/traveler-account/components';
-import { ErrorState } from '@/components/shared';
+import { TwoFactorCard } from '@/features/traveler-account/components/TwoFactorCard';
+import { ConfirmPasswordModal } from '@/features/traveler-account/components/ConfirmPasswordModal';
+import { ProfileSkeleton } from '@/features/traveler-account/components/ProfileSkeleton';
+import { TravelerAccountShell } from '@/features/traveler-account/components/TravelerAccountShell';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { useAppDispatch } from '@/store/hooks';
 import { setUser } from '@/features/auth/store/authSlice';
 import { getApiErrorCode } from '@/features/auth/utils/apiError';

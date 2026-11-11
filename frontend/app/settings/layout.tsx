@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { RoleGuard } from '@/features/auth';
+import { RoleGuard } from '@/features/auth/components/RoleGuard';
 
 export default function SettingsLayout({ children }: { children: ReactNode }) {
   return (

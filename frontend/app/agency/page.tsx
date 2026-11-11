@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ConfigProvider, Select } from 'antd';
 import { Users, Wallet, ReceiptText, CalendarCheck, ArrowRight, RotateCw, Map, CalendarDays } from 'lucide-react';
 import { toursApi, useGetAgencyDashboardQuery, getTourApiMessage } from '@/features/tours/api/toursApi';
-import { AgencyDenied, AgencyError, AgencyLoading, bookingStatusNames, dateTime, money, useAgencyPermission } from '@/features/agency/AgencyUi';
+import { AgencyDenied, AgencyError, AgencyLoading, bookingStatusNames, dateTime, money, useAgencyPermission } from '@/features/agency/AgencyCommon';
 import { shouldRefetchAgencyDashboard } from '@/features/agency/dashboardCache';
 import { AgencyRevenueChart, rollingRevenueSeries } from '@/features/agency/components/AgencyRevenueChart';
 import { useAppSelector } from '@/store/hooks';

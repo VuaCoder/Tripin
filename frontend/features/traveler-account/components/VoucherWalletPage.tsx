@@ -5,7 +5,7 @@ import {
   TicketPercent,
   Compass,
 } from 'lucide-react';
-import { RefreshButton } from '@/components/ui';
+import { RefreshButton } from '@/components/ui/RefreshButton';
 import { useGetMyVouchersQuery } from '../api/voucherWalletApi';
 import { VoucherCard } from './VoucherCard';
 import { PremiumWalletSection } from '@/features/premium/PremiumWalletSection';

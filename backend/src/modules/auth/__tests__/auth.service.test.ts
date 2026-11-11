@@ -143,6 +143,24 @@ describe('AuthService.login', () => {
     expect(ctx.tokens).toHaveLength(0);
     expect(ctx.mocks.mail.send).toHaveBeenCalledOnce();
   });
+
+  it('issues longer access and refresh token lifetimes when rememberMe is true', async () => {
+    const rawPassword = ['Pass', 'w0rd', 'X'].join('');
+    const standard = await new AuthService(ctx.deps).login({ email: 'a@b.com', password: rawPassword, rememberMe: false });
+    const remembered = await new AuthService(ctx.deps).login({ email: 'a@b.com', password: rawPassword, rememberMe: true });
+    if (standard.twoFactorRequired || remembered.twoFactorRequired) throw new Error('unexpected 2FA');
+
+    const decodeExpDelta = (token: string) => {
+      const payload = JSON.parse(Buffer.from(token.split('.')[1]!, 'base64url').toString('utf8')) as { iat: number; exp: number };
+      return payload.exp - payload.iat;
+    };
+
+    expect(decodeExpDelta(remembered.session.accessToken)).toBe(30 * 24 * 60 * 60);
+    expect(decodeExpDelta(remembered.session.accessToken)).toBeGreaterThan(decodeExpDelta(standard.session.accessToken));
+    expect(remembered.session.refreshTokenExpiresAt.getTime()).toBeGreaterThan(
+      standard.session.refreshTokenExpiresAt.getTime() + 20 * 24 * 60 * 60 * 1000,
+    );
+  });
 });
 
 describe('AuthService.register', () => {
@@ -248,5 +266,68 @@ describe('AuthService account activation is a guarded transition', () => {
     await new AuthService(ctx.deps).resetPassword({ email: 'a@b.com', code: '123456', newPassword: 'N3wPassword!' });
     expect(ctx.store.user!.status).toBe(USER_STATUS.PENDING_VERIFICATION);
     expect(ctx.mocks.users.updateStatusIf).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthService.loginAgencyWithGoogle', () => {
+  it('links Google and signs in an existing Agency account with rememberMe duration', async () => {
+    const googleSub = randomUUID();
+    const idToken = randomUUID();
+    const ctx = makeDeps(
+      makeUser({
+        role: ROLES.AGENCY,
+        email: 'partner@example.com',
+      }),
+    );
+    ctx.mocks.google.verifyIdToken.mockResolvedValue({
+      googleId: googleSub,
+      email: 'partner@example.com',
+      emailVerified: true,
+      fullName: 'Partner Owner',
+      avatarUrl: 'https://example.com/avatar.png',
+    });
+
+    const session = await new AuthService(ctx.deps).loginAgencyWithGoogle({
+      idToken,
+      rememberMe: true,
+    });
+
+    const payload = JSON.parse(Buffer.from(session.accessToken.split('.')[1]!, 'base64url').toString('utf8')) as {
+      iat: number;
+      exp: number;
+    };
+
+    expect(session.user.role).toBe(ROLES.AGENCY);
+    expect(payload.exp - payload.iat).toBe(30 * 24 * 60 * 60);
+    expect(ctx.mocks.users.updateById).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ googleId: googleSub, avatarUrl: 'https://example.com/avatar.png' }),
+    );
+  });
+
+  it('rejects non-agency or unregistered Google accounts', async () => {
+    const travelerCtx = makeDeps(makeUser({ role: ROLES.TRAVELER, email: 'traveler@example.com' }));
+    travelerCtx.mocks.google.verifyIdToken.mockResolvedValue({
+      googleId: randomUUID(),
+      email: 'traveler@example.com',
+      emailVerified: true,
+      fullName: 'Traveler',
+    });
+
+    await expect(new AuthService(travelerCtx.deps).loginAgencyWithGoogle({ idToken: randomUUID() })).rejects.toMatchObject({
+      code: 'AGENCY_PORTAL_REQUIRED',
+    });
+
+    const emptyCtx = makeDeps(null);
+    emptyCtx.mocks.google.verifyIdToken.mockResolvedValue({
+      googleId: randomUUID(),
+      email: 'unknown@example.com',
+      emailVerified: true,
+      fullName: 'Unknown',
+    });
+
+    await expect(new AuthService(emptyCtx.deps).loginAgencyWithGoogle({ idToken: randomUUID() })).rejects.toMatchObject({
+      code: 'AGENCY_ONBOARDING_REQUIRED',
+    });
   });
 });

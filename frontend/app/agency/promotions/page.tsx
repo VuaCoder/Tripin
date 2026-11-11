@@ -1,7 +1,7 @@
 'use client';
 
 import { AgencyPromotionsPage } from '@/features/agency-promotions';
-import { AgencyDenied, useAgencyPermission } from '@/features/agency/AgencyUi';
+import { AgencyDenied, useAgencyPermission } from '@/features/agency/AgencyCommon';
 
 export default function AgencyPromotionsRoute() {
   const allowed = useAgencyPermission('promotion:agency-manage');

@@ -279,4 +279,47 @@ describe('Tour editor edit mode & unsaved changes handling', () => {
     expect(mocks.push).not.toHaveBeenCalled();
     expect(mocks.save).not.toHaveBeenCalled();
   });
+
+  it('edits adult, child, and infant max counts in step 3 dropdown and sends updated maxGroupSize + agePricing', async () => {
+    mocks.tourData.current = {
+      ...existingTour,
+      maxGroupSize: 15,
+      agePricing: {
+        childMinAge: 2,
+        adultMinAge: 13,
+        childPercent: 100,
+        infantPercent: 100,
+        childPrice: 1200000,
+        infantPrice: 0,
+        adultMaxCount: 10,
+        childMaxCount: 4,
+        infantMaxCount: 1,
+      },
+    };
+    mocks.save.mockReturnValue({ unwrap: () => Promise.resolve({ id: 'tour-123' }) });
+    render(<AgencyTourEditorPage mode="edit" />);
+
+    const capacityTrigger = screen.getByRole('button', { name: 'Số khách tối đa / đoàn' });
+    expect(capacityTrigger.textContent).toContain('15 khách (10 người lớn, 4 trẻ em, 1 em bé)');
+    fireEvent.click(capacityTrigger);
+
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Số người lớn' })).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Tăng số người lớn' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tăng số em bé' }));
+
+    const saveButtons = screen.getAllByRole('button', { name: 'Lưu thay đổi' });
+    fireEvent.click(saveButtons[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận lưu' }));
+
+    await waitFor(() => expect(mocks.save).toHaveBeenCalled());
+    const savedPayload = mocks.save.mock.calls[0][0];
+    expect(savedPayload.body.maxGroupSize).toBe(17);
+    expect(savedPayload.body.agePricing).toEqual(expect.objectContaining({
+      adultMaxCount: 11,
+      childMaxCount: 4,
+      infantMaxCount: 2,
+      childPrice: 1200000,
+      infantPrice: 0,
+    }));
+  });
 });

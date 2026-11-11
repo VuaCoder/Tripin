@@ -83,9 +83,10 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
     setErrors({});
 
     try {
-      const data = await login({ email: formData.credential, password: formData.password }).unwrap();
+      const rememberMe = Boolean(formData.rememberMe);
+      const data = await login({ email: formData.credential, password: formData.password, rememberMe }).unwrap();
       if (!data.twoFactorRequired) {
-        dispatch(setCredentials({ user: data.user, accessToken: data.accessToken }));
+        dispatch(setCredentials({ user: data.user, accessToken: data.accessToken, rememberMe }));
       }
       onSuccess?.(data);
     } catch (err) {

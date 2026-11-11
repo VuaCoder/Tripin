@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/store/Providers";
-import { GlobalSiteShell } from "@/components/layout";
-import { RoutePreloader } from "@/components/preloader";
+import { GlobalSiteShell } from '@/components/layout/GlobalSiteShell';
+import { RoutePreloader } from '@/components/preloader/RoutePreloader';
 
 export const metadata: Metadata = {
   title: "Tripri - Du lịch theo cách của bạn",

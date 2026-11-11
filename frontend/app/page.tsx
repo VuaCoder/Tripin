@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useRef, useLayoutEffect, useState } from 'react';
 import { useAppSelector } from '@/store/hooks';
-import { selectRole } from '@/features/auth';
+import { selectRole } from '@/features/auth/store/authSlice';
 import { ArrowDown, ArrowUpRight } from 'lucide-react';
 import { JourneyHero, canRunJourney } from '@/features/landing-hero';
 import { STORY_CHAPTERS as chapters } from '@/features/landing-hero/story-content';

@@ -19,6 +19,7 @@ async function applicationFetch(url: string, init: RequestInit, token?: string):
   return response;
 }
 
+import type { SessionData } from '@/features/auth/types';
 import type {
   AgencyApplicationDetailsDto,
   AgencyApplicationStatusDto,
@@ -79,8 +80,12 @@ export const agencyAuthApi = {
     return request<{ email: string; otpExpiresInSeconds: number; message: string }>('/auth/agency/register', payload);
   },
 
-  login(payload: { email: string; password: string }) {
+  login(payload: { email: string; password: string; rememberMe?: boolean }) {
     return request<AgencyLoginResult>('/auth/agency/login', payload);
+  },
+
+  loginWithGoogle(payload: { idToken: string; rememberMe?: boolean }) {
+    return request<SessionData>('/auth/agency/google', payload);
   },
 
   verifyOtp(payload: { email: string; code: string; purpose: AgencyOtpPurpose }) {

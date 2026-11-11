@@ -9,7 +9,6 @@ import {
   MapPin,
   ShieldCheck,
   Lock,
-  Compass,
   Building2,
   Globe,
 } from 'lucide-react';
@@ -35,7 +34,7 @@ export function Footer() {
               />
             </Link>
             <p className="text-sm text-slate-400 max-w-sm leading-relaxed">
-              Nền tảng công nghệ kết nối du lịch trải nghiệm bản địa toàn diện tại Việt Nam. Đồng hành cùng các đơn vị lữ hành uy tín và hướng dẫn viên địa phương am hiểu sâu sắc.
+              Nền tảng công nghệ kết nối du lịch trải nghiệm bản địa toàn diện tại Việt Nam. Đồng hành cùng các đơn vị lữ hành uy tín trên khắp cả nước.
             </p>
 
             {/* Trust badge */}
@@ -146,19 +145,8 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/guide" className="hover:text-teal-400 transition-colors py-0.5 inline-flex items-center gap-1.5">
-                  <Compass className="size-4" />
-                  <span>Cổng hướng dẫn viên</span>
-                </Link>
-              </li>
-              <li>
                 <Link href="/agency/register" className="hover:text-teal-400 transition-colors py-0.5 inline-block">
                   Đăng ký đại lý lữ hành
-                </Link>
-              </li>
-              <li>
-                <Link href="/register/guide" className="hover:text-teal-400 transition-colors py-0.5 inline-block">
-                  Đăng ký làm Tour Guide
                 </Link>
               </li>
               <li>

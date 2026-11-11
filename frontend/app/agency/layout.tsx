@@ -4,7 +4,7 @@ import { useEffect, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { RoleGuard, selectUser } from '@/features/auth';
 import { useAppSelector } from '@/store/hooks';
-import { AgencyNav } from '@/features/agency/AgencyUi';
+import { AgencyNav } from '@/features/agency/components/AgencyNav';
 import sidebarStyles from '@/features/agency/components/AgencySidebar.module.css';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 

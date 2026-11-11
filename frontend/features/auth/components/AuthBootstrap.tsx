@@ -14,10 +14,10 @@ export const AuthBootstrap = () => {
   useEffect(() => {
     let active = true;
 
-    // Immediately restore from localStorage if memory store is empty
+    // Immediately restore from persistent or session storage if memory store is empty
     if (!store.getState().auth.accessToken && typeof window !== 'undefined') {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const raw = localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && typeof parsed === 'object' && parsed.accessToken && parsed.user) {
@@ -36,7 +36,10 @@ export const AuthBootstrap = () => {
       if (session) {
         dispatch(setCredentials(session));
       } else {
-        const localRaw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+        const localRaw =
+          typeof window !== 'undefined'
+            ? localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY)
+            : null;
         if (!localRaw && !identityAtStart) {
           dispatch(clearCredentials());
         }

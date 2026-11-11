@@ -9,6 +9,7 @@ import {
   type PersistedRole,
 } from '@travel-platform/constants';
 import { isUniqueViolation } from '../../config/database';
+import { env } from '../../config/env';
 import { googleIdentityVerifier, type GoogleIdentityVerifier } from '../../integrations/google';
 import { mailProvider, type MailProvider } from '../../integrations/mail';
 import { AppError, ERROR_CODES } from '../../utils/app-error';
@@ -170,7 +171,7 @@ export class AuthService {
       throw AppError.forbidden('Please use the Agency login portal', 'AGENCY_PORTAL_REQUIRED');
     }
 
-    return this.loginUser(user, context);
+    return this.loginUser(user, context, Boolean(input.rememberMe));
   }
 
   /** Agency-only credential login. Other roles receive the same generic credentials error. */
@@ -183,10 +184,10 @@ export class AuthService {
       throw AppError.forbidden('Please complete Agency registration first', 'AGENCY_ONBOARDING_REQUIRED');
     }
 
-    return this.loginUser(user, context);
+    return this.loginUser(user, context, Boolean(input.rememberMe));
   }
 
-  private async loginUser(user: UserRecord, context: RequestContext): Promise<LoginResult> {
+  private async loginUser(user: UserRecord, context: RequestContext, rememberMe = false): Promise<LoginResult> {
     if (user.staffStatus !== 'ACTIVE') throw AppError.forbidden('Staff account is not active');
 
     if (user.status === USER_STATUS.BANNED) {
@@ -201,7 +202,7 @@ export class AuthService {
       await this.sendOtp(user, OTP_PURPOSE.LOGIN_2FA);
       return { twoFactorRequired: true, email: user.email };
     }
-    return { twoFactorRequired: false, session: await this.createSession(user, context) };
+    return { twoFactorRequired: false, session: await this.createSession(user, context, undefined, rememberMe) };
   }
 
   /** Use case "Verify OTP": completes REGISTER (activates the account) or LOGIN_2FA and opens a session. */
@@ -384,6 +385,50 @@ export class AuthService {
     return this.createSession(user, context);
   }
 
+  /** Agency portal login via Google OAuth for registered Agency accounts. */
+  async loginAgencyWithGoogle(
+    input: { idToken: string; rememberMe?: boolean },
+    context: RequestContext = {},
+  ): Promise<Session> {
+    const identity = await this.deps.google.verifyIdToken(input.idToken);
+    if (!identity.emailVerified) throw AppError.unauthenticated('Google email is not verified');
+
+    let user =
+      (await this.deps.users.findByGoogleId(identity.googleId)) ??
+      (await this.deps.users.findByEmail(identity.email));
+
+    if (!user) {
+      throw AppError.forbidden(
+        'Tài khoản Google này chưa đăng ký làm Đối tác Agency. Vui lòng đăng ký hồ sơ doanh nghiệp trước.',
+        'AGENCY_ONBOARDING_REQUIRED',
+      );
+    }
+    if (user.role !== ROLES.AGENCY) {
+      throw AppError.forbidden('Email Google này không thuộc tài khoản Đối tác Agency.', 'AGENCY_PORTAL_REQUIRED');
+    }
+    if (user.status === USER_STATUS.BANNED) {
+      throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
+    }
+    if (user.status === USER_STATUS.PENDING_VERIFICATION && !this.hasCompleteAgencyProfile(user)) {
+      throw AppError.forbidden('Please complete Agency registration first', 'AGENCY_ONBOARDING_REQUIRED');
+    }
+
+    const patch: Parameters<UsersRepository['updateById']>[1] = {};
+    if (!user.googleId) patch.googleId = identity.googleId;
+    if (!user.emailVerifiedAt) patch.emailVerifiedAt = new Date();
+    if (!user.avatarUrl && identity.avatarUrl) patch.avatarUrl = identity.avatarUrl;
+
+    if (Object.keys(patch).length > 0) {
+      user = (await this.deps.users.updateById(user.id, patch)) ?? user;
+    }
+
+    if (user.status === USER_STATUS.PENDING_VERIFICATION) {
+      user = await this.activatePending(user, true);
+    }
+
+    return this.createSession(user, context, undefined, Boolean(input.rememberMe));
+  }
+
   // --------------------------------------------------------- Forgot password
 
   /** Use case "Forgot password" step 1. Always answers the same message to avoid revealing which emails exist. */
@@ -439,7 +484,13 @@ export class AuthService {
       await this.deps.refreshTokens.revokeFamily(stored.family);
       throw AppError.unauthenticated('Account is not active', ERROR_CODES.TOKEN_INVALID);
     }
-    return this.createSession(user, context, stored.family);
+    const storedWithCreatedAt = stored as { createdAt?: Date; expiresAt: Date };
+    const rememberMe = Boolean(
+      storedWithCreatedAt.createdAt &&
+        storedWithCreatedAt.expiresAt.getTime() - storedWithCreatedAt.createdAt.getTime() >
+          (env.JWT_REFRESH_EXPIRES_IN_DAYS + 1) * 24 * 60 * 60 * 1000,
+    );
+    return this.createSession(user, context, stored.family, rememberMe);
   }
 
   /** Use case "Log out". Idempotent: an unknown/absent token is not an error. */
@@ -562,9 +613,11 @@ export class AuthService {
     return user;
   }
 
-  private async createSession(user: UserRecord, context: RequestContext, family?: string): Promise<Session> {
+  private async createSession(user: UserRecord, context: RequestContext, family?: string, rememberMe = false): Promise<Session> {
     if (user.staffStatus && user.staffStatus !== 'ACTIVE') throw AppError.forbidden('Staff account is not active');
-    const refresh = generateRefreshToken();
+    const refreshTtlDays = rememberMe ? AUTH_POLICY.REMEMBER_ME_REFRESH_EXPIRES_IN_DAYS : env.JWT_REFRESH_EXPIRES_IN_DAYS;
+    const accessExpiresIn = (rememberMe ? AUTH_POLICY.REMEMBER_ME_ACCESS_EXPIRES_IN : env.JWT_ACCESS_EXPIRES_IN) as Parameters<typeof signAccessToken>[3];
+    const refresh = generateRefreshToken(refreshTtlDays);
     await this.deps.refreshTokens.create({
       userId: user.id,
       tokenHash: refresh.hash,
@@ -582,7 +635,7 @@ export class AuthService {
     await this.deps.users.updateById(user.id, { lastLoginAt: new Date() });
 
     return {
-      accessToken: signAccessToken(user.id, user.role as PersistedRole, user.tokenVersion),
+      accessToken: signAccessToken(user.id, user.role as PersistedRole, user.tokenVersion, accessExpiresIn),
       refreshToken: refresh.raw,
       refreshTokenExpiresAt: refresh.expiresAt,
       user: toPrivateUserDto(user),
