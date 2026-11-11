@@ -8,6 +8,7 @@ import {
   X,
   Building2,
   Sparkles,
+  Crown,
   Tag,
   AlertCircle,
   CheckCircle2,
@@ -22,6 +23,7 @@ import {
 } from '@/features/promotions/codeHelper';
 import type { AppliedPromotionPreview, AvailablePromotionsDto, UserVoucherItem } from '../types';
 import type { AgencyPromotion } from '@/features/agency-promotions/types';
+import type { PremiumVoucher } from '@/features/premium/api';
 
 const formatVnd = (val: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
 
@@ -29,6 +31,7 @@ export interface BookingVoucherModalProps {
   open: boolean;
   onClose: () => void;
   subtotal: number;
+  tourId?: string;
   // Agency promotion
   agencyPromotionCode: string;
   agencyPromotionPreview: AppliedPromotionPreview | null;
@@ -41,6 +44,11 @@ export interface BookingVoucherModalProps {
   platformPromotionError: string | null;
   onApplyPlatformCode: (code: string) => Promise<boolean>;
   onClearPlatformCode: () => void;
+  // Premium vouchers
+  premiumVouchers?: PremiumVoucher[];
+  premiumVoucherId?: string;
+  onSelectPremiumVoucher?: (id: string) => void;
+  onClearPremiumVoucher?: () => void;
   // Direct apply helper (checks and applies to whichever slot is valid)
   onApplyDirectCode: (code: string) => Promise<{ success: boolean; message?: string }>;
   // Available promos & wallet vouchers
@@ -50,12 +58,13 @@ export interface BookingVoucherModalProps {
   isPreviewing: boolean;
 }
 
-type TabType = 'all' | 'agency' | 'platform';
+type TabType = 'all' | 'agency' | 'platform' | 'premium';
 
 export function BookingVoucherModal({
   open,
   onClose,
   subtotal,
+  tourId,
   agencyPromotionCode,
   agencyPromotionPreview,
   agencyPromotionError,
@@ -66,6 +75,10 @@ export function BookingVoucherModal({
   platformPromotionError,
   onApplyPlatformCode,
   onClearPlatformCode,
+  premiumVouchers,
+  premiumVoucherId,
+  onSelectPremiumVoucher,
+  onClearPremiumVoucher,
   onApplyDirectCode,
   availablePromos,
   myAgencyVouchers,
@@ -92,6 +105,7 @@ export function BookingVoucherModal({
     try {
       const res = await onApplyDirectCode(code);
       if (res.success) {
+        onClearPremiumVoucher?.();
         setInputSuccess(res.message || `Đã áp dụng mã ${code} thành công!`);
         setSearchInput('');
       } else {
@@ -108,6 +122,20 @@ export function BookingVoucherModal({
   const normalizedSearch = searchInput.trim().toUpperCase();
 
   // Filter vouchers based on search term
+  const filteredPremiumVouchers = useMemo(() => {
+    if (!premiumVouchers || !Array.isArray(premiumVouchers)) return [];
+    const now = Date.now();
+    return premiumVouchers.filter((v) => {
+      if (v.heldAt) return false;
+      if (tourId && v.terms.tourIds?.length && !v.terms.tourIds.includes(tourId)) return false;
+      if (new Date(v.endsAt).getTime() <= now) return false;
+      if (normalizedSearch) {
+        return (v.terms.title || '').toUpperCase().includes(normalizedSearch);
+      }
+      return true;
+    });
+  }, [premiumVouchers, tourId, normalizedSearch]);
+
   const filteredMyAgencyVouchers = useMemo(() => {
     if (!normalizedSearch) return myAgencyVouchers;
     return myAgencyVouchers.filter((v) => {
@@ -146,16 +174,51 @@ export function BookingVoucherModal({
     });
   }, [availablePromos?.platform, normalizedSearch]);
 
+  const chosenPremium = useMemo(() => {
+    if (!premiumVoucherId || !premiumVouchers) return null;
+    return premiumVouchers.find((v) => v.id === premiumVoucherId);
+  }, [premiumVoucherId, premiumVouchers]);
+
+  const premiumDiscount = useMemo(() => {
+    if (!chosenPremium) return 0;
+    const { discountType, discountValue, maxDiscountAmount, minOrderAmount } = chosenPremium.terms;
+    if (subtotal < minOrderAmount) return 0;
+    if (discountType === 'PERCENT') {
+      const calculated = Math.floor((subtotal * discountValue) / 100);
+      return Math.min(subtotal, maxDiscountAmount ? Math.min(calculated, maxDiscountAmount) : calculated);
+    }
+    return Math.min(subtotal, discountValue);
+  }, [chosenPremium, subtotal]);
+
   const totalAgencyCount = myAgencyVouchers.length + (availablePromos?.agency?.length || 0);
   const totalPlatformCount = myPlatformVouchers.length + (availablePromos?.platform?.length || 0);
-  const totalDiscount = (agencyPromotionPreview?.discountAmount || 0) + (platformPromotionPreview?.discountAmount || 0);
-  const selectedCount = (agencyPromotionPreview ? 1 : 0) + (platformPromotionPreview ? 1 : 0);
+  const totalPremiumCount = filteredPremiumVouchers.length;
+
+  const totalDiscount = premiumVoucherId
+    ? premiumDiscount
+    : (agencyPromotionPreview?.discountAmount || 0) + (platformPromotionPreview?.discountAmount || 0);
+
+  const selectedCount = premiumVoucherId
+    ? 1
+    : (agencyPromotionPreview ? 1 : 0) + (platformPromotionPreview ? 1 : 0);
+
+  // Helper to toggle premium voucher
+  const handleTogglePremiumVoucher = (id: string) => {
+    if (premiumVoucherId === id) {
+      onClearPremiumVoucher?.();
+    } else {
+      onClearAgencyCode();
+      onClearPlatformCode();
+      onSelectPremiumVoucher?.(id);
+    }
+  };
 
   // Helper to toggle agency code
   const handleToggleAgencyCode = async (code: string) => {
     if (agencyPromotionPreview?.code === code || agencyPromotionCode === code) {
       onClearAgencyCode();
     } else {
+      onClearPremiumVoucher?.();
       await onApplyAgencyCode(code);
     }
   };
@@ -165,6 +228,7 @@ export function BookingVoucherModal({
     if (platformPromotionPreview?.code === code || platformPromotionCode === code) {
       onClearPlatformCode();
     } else {
+      onClearPremiumVoucher?.();
       await onApplyPlatformCode(code);
     }
   };
@@ -262,9 +326,27 @@ export function BookingVoucherModal({
         >
           <span>Tất cả</span>
           <span className="rounded-full bg-slate-100 px-1.5 py-0.2 text-[10px] text-slate-600 font-semibold">
-            {totalAgencyCount + totalPlatformCount}
+            {totalAgencyCount + totalPlatformCount + totalPremiumCount}
           </span>
         </button>
+
+        {totalPremiumCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('premium')}
+            className={`flex items-center gap-1.5 border-b-2 py-3 px-3 transition-colors cursor-pointer ${
+              activeTab === 'premium'
+                ? 'border-amber-600 text-amber-700'
+                : 'border-transparent text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <Crown className="size-3.5 text-amber-600" />
+            <span>Voucher Premium</span>
+            <span className="rounded-full bg-amber-50 px-1.5 py-0.2 text-[10px] text-amber-800 font-semibold">
+              {totalPremiumCount}
+            </span>
+          </button>
+        )}
 
         <button
           type="button"
@@ -301,6 +383,48 @@ export function BookingVoucherModal({
 
       {/* ================= VOUCHER LIST (SCROLLABLE SHOPEE TICKET STREAM) ================= */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        {/* 0. VOUCHER ĐẶC QUYỀN PREMIUM */}
+        {(activeTab === 'all' || activeTab === 'premium') && filteredPremiumVouchers.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Crown className="size-4 text-amber-600" />
+                <h3 className="text-xs font-bold text-amber-950 uppercase tracking-wide">
+                  Voucher Đặc Quyền Premium
+                </h3>
+              </div>
+              <span className="text-[11px] font-medium text-amber-700/80">Ưu tiên áp dụng</span>
+            </div>
+
+            <div className="space-y-2.5">
+              {filteredPremiumVouchers.map((v) => {
+                const isSelected = premiumVoucherId === v.id;
+                const isEligible = subtotal >= (v.terms.minOrderAmount || 0) && new Date(v.endsAt).getTime() > Date.now();
+
+                return (
+                  <ShopeeTicketCard
+                    key={v.id}
+                    scope="PREMIUM"
+                    title={v.terms.title}
+                    code="PREMIUM"
+                    discountType={v.terms.discountType as any}
+                    discountValue={v.terms.discountValue}
+                    maxDiscountAmount={v.terms.maxDiscountAmount}
+                    minOrderAmount={v.terms.minOrderAmount || 0}
+                    endsAt={v.endsAt}
+                    badgeLabel="Hội viên"
+                    subtotal={subtotal}
+                    isSelected={isSelected}
+                    isEligible={isEligible}
+                    onToggle={() => {
+                      if (isEligible) handleTogglePremiumVoucher(v.id);
+                    }}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        )}
         {/* 1. KHUYẾN MÃI NHÀ CUNG CẤP */}
         {(activeTab === 'all' || activeTab === 'agency') && (
           <div className="space-y-3">
@@ -498,6 +622,7 @@ function ShopeeTicketCard({
   code,
   discountType,
   discountValue,
+  maxDiscountAmount,
   minOrderAmount,
   endsAt,
   badgeLabel,
@@ -506,11 +631,12 @@ function ShopeeTicketCard({
   isEligible,
   onToggle,
 }: {
-  scope: 'AGENCY' | 'PLATFORM';
+  scope: 'AGENCY' | 'PLATFORM' | 'PREMIUM';
   title: string;
   code: string;
   discountType: 'PERCENT' | 'FIXED';
   discountValue: number;
+  maxDiscountAmount?: number;
   minOrderAmount: number;
   endsAt: string;
   badgeLabel?: string;
@@ -522,6 +648,7 @@ function ShopeeTicketCard({
   const isPercent = discountType === 'PERCENT';
   const discountDisplay = isPercent ? `${discountValue}%` : formatVnd(discountValue);
   const isAgency = scope === 'AGENCY';
+  const isPremium = scope === 'PREMIUM';
 
   return (
     <div
@@ -532,6 +659,8 @@ function ShopeeTicketCard({
           : isSelected
           ? isAgency
             ? 'border-indigo-500 bg-indigo-50/20 ring-1 ring-indigo-500/80 shadow-xs cursor-pointer'
+            : isPremium
+            ? 'border-amber-500 bg-amber-50/20 ring-1 ring-amber-500/80 shadow-xs cursor-pointer'
             : 'border-brand-teal bg-teal-50/20 ring-1 ring-brand-teal/80 shadow-xs cursor-pointer'
           : 'border-slate-200/90 bg-white hover:border-slate-300 hover:shadow-xs cursor-pointer'
       }`}
@@ -541,6 +670,8 @@ function ShopeeTicketCard({
         className={`relative flex w-28 shrink-0 flex-col items-center justify-center p-3 text-center text-white ${
           isAgency
             ? 'bg-gradient-to-br from-indigo-600 to-indigo-800'
+            : isPremium
+            ? 'bg-gradient-to-br from-amber-500 to-amber-700'
             : 'bg-gradient-to-br from-teal-600 to-teal-800'
         }`}
       >
@@ -564,7 +695,9 @@ function ShopeeTicketCard({
       {/* MIDDLE DETAILS */}
       <div className="flex flex-1 min-w-0 flex-col justify-center p-3 sm:px-4">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 rounded px-1.5 py-0.5">
+          <span className={`font-mono text-xs font-bold rounded px-1.5 py-0.5 ${
+            isPremium ? 'text-amber-900 bg-amber-100' : 'text-slate-900 bg-slate-100'
+          }`}>
             {code}
           </span>
           <span className="text-xs font-bold text-slate-800 truncate">{title}</span>
@@ -572,6 +705,7 @@ function ShopeeTicketCard({
 
         <p className="mt-1 text-[11px] text-slate-500">
           Đơn tối thiểu: <span className="font-semibold text-slate-700">{formatVnd(minOrderAmount)}</span>
+          {maxDiscountAmount && isPercent ? ` · Tối đa ${formatVnd(maxDiscountAmount)}` : ''}
         </p>
 
         {!isEligible ? (
@@ -595,6 +729,8 @@ function ShopeeTicketCard({
               : isSelected
               ? isAgency
                 ? 'bg-indigo-600 text-white shadow-xs'
+                : isPremium
+                ? 'bg-amber-600 text-white shadow-xs'
                 : 'bg-brand-teal text-white shadow-xs'
               : 'border-2 border-slate-300 group-hover:border-slate-400'
           }`}

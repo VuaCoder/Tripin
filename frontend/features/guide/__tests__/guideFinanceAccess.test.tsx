@@ -12,6 +12,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mocks.replace }),
 }));
+vi.mock('@/components/shared/ForbiddenPage', () => ({
+  ForbiddenPage: () => <div data-testid="forbidden">Bạn không có quyền truy cập khu vực này</div>,
+}));
 vi.mock('@/store/hooks', () => ({
   useAppSelector: (selector: (state: unknown) => unknown) =>
     selector({
@@ -21,6 +24,7 @@ vi.mock('@/store/hooks', () => ({
         user: mocks.authenticated ? { role: mocks.role } : null,
       },
     }),
+  useAppDispatch: () => vi.fn(),
 }));
 import GuideLayout from '@/app/guide/layout';
 afterEach(() => {
@@ -48,7 +52,7 @@ describe('Guide finance entry points', () => {
     expect(screen.queryByText('Private finance')).toBeNull();
     expect(mocks.replace).toHaveBeenCalledWith('/login');
   });
-  it('redirects a Traveler before mounting private content', () => {
+  it('blocks a Traveler before mounting private content', () => {
     mocks.role = 'TRAVELER';
     render(
       <GuideLayout>
@@ -56,7 +60,7 @@ describe('Guide finance entry points', () => {
       </GuideLayout>,
     );
     expect(screen.queryByText('Private finance')).toBeNull();
-    expect(mocks.replace).toHaveBeenCalledWith('/home');
+    expect(screen.getByTestId('forbidden')).toBeTruthy();
   });
   it('provides both links and marks only the most specific route active for desktop/mobile', () => {
     const items = navigationByRole.TOUR_GUIDE;

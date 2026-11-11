@@ -37,12 +37,12 @@ describe('chat REST (integration)', () => {
     expect((await detail(traveler.token, '11111111-1111-4111-8111-111111111111')).status).toBe(404);
     expect((await detail()).status).toBe(401);
   });
-  it('only a traveler and a tour guide can talk; both starting at once share ONE conversation', async () => {
+  it('only a traveler and an operator can talk; both starting at once share ONE conversation', async () => {
     const { traveler, guide, outsider } = await setup();
     const agency = await createUser('AGENCY', 'agency@example.com');
 
     expect((await start(traveler.token, outsider.id)).status).toBeGreaterThanOrEqual(400); // traveler -> traveler
-    expect((await start(agency.token, guide.id)).status).toBe(403); // agencies are not part of the chat use case
+    expect((await start(agency.token, guide.id)).status).toBe(403); // operator cannot talk to operator
     expect((await start(guide.token, agency.id)).status).toBeGreaterThanOrEqual(400);
 
     const results = await Promise.all([

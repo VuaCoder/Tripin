@@ -144,22 +144,22 @@ describe('HotVouchersSection on Home page', () => {
     expect(screen.getByText('GIAM50K')).toBeDefined();
     expect(screen.getByText('HE2026')).toBeDefined();
     expect(screen.getByText('VIP100')).toBeDefined();
-    expect(screen.getByText('3 mã mới')).toBeDefined();
   });
 
-  it('adapts layout for exactly 1 voucher (hero centered format)', () => {
+  it('adapts layout for exactly 1 voucher (left-aligned grid card)', () => {
     mocks.hotVouchers = [sampleVouchers[0]];
     const { container } = render(<HotVouchersSection />);
 
-    expect(screen.getByText('1 mã mới')).toBeDefined();
-    expect(container.querySelector('.max-w-xl.mx-auto')).not.toBeNull();
+    expect(screen.getByText('GIAM10')).toBeDefined();
+    expect(container.querySelector('.grid')).not.toBeNull();
   });
 
   it('adapts layout for exactly 2 vouchers (2-column grid)', () => {
     mocks.hotVouchers = [sampleVouchers[0], sampleVouchers[1]];
     const { container } = render(<HotVouchersSection />);
 
-    expect(screen.getByText('2 mã mới')).toBeDefined();
+    expect(screen.getByText('GIAM10')).toBeDefined();
+    expect(screen.getByText('GIAM50K')).toBeDefined();
     expect(container.querySelector('.grid.grid-cols-1.md\\:grid-cols-2')).not.toBeNull();
   });
 
@@ -167,7 +167,9 @@ describe('HotVouchersSection on Home page', () => {
     mocks.hotVouchers = [sampleVouchers[0], sampleVouchers[1], sampleVouchers[2]];
     const { container } = render(<HotVouchersSection />);
 
-    expect(screen.getByText('3 mã mới')).toBeDefined();
+    expect(screen.getByText('GIAM10')).toBeDefined();
+    expect(screen.getByText('GIAM50K')).toBeDefined();
+    expect(screen.getByText('HE2026')).toBeDefined();
     expect(container.querySelector('.lg\\:grid-cols-3')).not.toBeNull();
   });
 
@@ -175,11 +177,11 @@ describe('HotVouchersSection on Home page', () => {
     mocks.hotVouchers = [...sampleVouchers];
     const { container } = render(<HotVouchersSection />);
 
-    expect(screen.getByText('4 mã mới')).toBeDefined();
+    expect(screen.getByText('VIP100')).toBeDefined();
     expect(container.querySelector('.xl\\:grid-cols-4')).not.toBeNull();
   });
 
-  it('displays celebration banner when user has collected all available vouchers', () => {
+  it('hides the voucher section when user has collected all available vouchers', () => {
     // User already collected all 4 vouchers
     mocks.myVouchers = sampleVouchers.map((p, i) => ({
       id: `v-${i}`,
@@ -189,10 +191,10 @@ describe('HotVouchersSection on Home page', () => {
       isUsed: false,
     }));
 
-    render(<HotVouchersSection />);
+    const { container } = render(<HotVouchersSection />);
 
-    expect(screen.getByText(/Bạn đã thu thập toàn bộ voucher ưu đãi/i)).toBeDefined();
-    expect(screen.getByRole('link', { name: /Xem Ví voucher/i }).getAttribute('href')).toBe('/settings/vouchers');
+    expect(container.firstChild).toBeNull();
+    expect(screen.queryByText(/Bạn đã thu thập toàn bộ voucher ưu đãi/i)).toBeNull();
   });
 
   it('triggers floating + ticket animation and marks collected on click', async () => {

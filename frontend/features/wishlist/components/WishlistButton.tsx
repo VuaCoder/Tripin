@@ -15,7 +15,7 @@ export interface WishlistButtonProps {
   tourTitle?: string;
   tourCoverImage?: string;
   className?: string;
-  variant?: 'icon' | 'circle' | 'pill';
+  variant?: 'icon' | 'circle' | 'pill' | 'ghost';
   onGuestClick?: () => void;
 }
 
@@ -48,6 +48,7 @@ export function WishlistButton({
 
   const isPill = variant === 'pill';
   const isCircle = variant === 'circle';
+  const isGhost = variant === 'ghost';
 
   if (status === 'guest') {
     if (onGuestClick) {
@@ -56,6 +57,7 @@ export function WishlistButton({
           <button
             type="button"
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               onGuestClick();
             }}
@@ -71,11 +73,13 @@ export function WishlistButton({
           >
             <Heart
               size={isPill ? 16 : isCircle ? 20 : 22}
-              fill={isPill || isCircle ? 'none' : 'rgba(0, 0, 0, 0.3)'}
+              fill={isPill || isCircle || isGhost ? 'none' : 'rgba(0, 0, 0, 0.3)'}
               className={
-                isPill || isCircle
-                  ? 'size-5 shrink-0 text-slate-600 stroke-[2]'
-                  : 'text-white stroke-white fill-black/30 stroke-[2] drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]'
+                isGhost
+                  ? 'size-5.5 shrink-0 text-slate-400 hover:text-rose-500 stroke-[2] transition-colors'
+                  : isPill || isCircle
+                    ? 'size-5 shrink-0 text-slate-600 stroke-[2]'
+                    : 'text-white stroke-white fill-black/30 stroke-[2] drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]'
               }
               aria-hidden="true"
             />
@@ -88,6 +92,9 @@ export function WishlistButton({
       <div className={className}>
         <Link
           href="/login"
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
           aria-label="Đăng nhập để lưu tour"
           title="Đăng nhập để lưu tour"
           className={
@@ -100,11 +107,13 @@ export function WishlistButton({
         >
           <Heart
             size={isPill ? 16 : isCircle ? 20 : 22}
-            fill={isPill || isCircle ? 'none' : 'rgba(0, 0, 0, 0.3)'}
+            fill={isPill || isCircle || isGhost ? 'none' : 'rgba(0, 0, 0, 0.3)'}
             className={
-              isPill || isCircle
-                ? 'size-5 shrink-0 text-slate-600 stroke-[2]'
-                : 'text-white stroke-white fill-black/30 stroke-[2] drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]'
+              isGhost
+                ? 'size-5.5 shrink-0 text-slate-400 hover:text-rose-500 stroke-[2] transition-colors'
+                : isPill || isCircle
+                  ? 'size-5 shrink-0 text-slate-600 stroke-[2]'
+                  : 'text-white stroke-white fill-black/30 stroke-[2] drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]'
             }
             aria-hidden="true"
           />
@@ -119,7 +128,11 @@ export function WishlistButton({
       <div className={className}>
         <button
           type="button"
-          onClick={retry}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            retry();
+          }}
           aria-label="Không tải được trạng thái yêu thích. Thử lại"
           title="Không tải được trạng thái yêu thích. Thử lại"
           className={
@@ -147,6 +160,7 @@ export function WishlistButton({
   }
 
   const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
 
     if (!isSaved) {
@@ -214,22 +228,28 @@ export function WishlistButton({
           fill={
             isSaved
               ? '#ef4444'
-              : isPill || isCircle
+              : isPill || isCircle || isGhost
                 ? 'none'
                 : 'rgba(0, 0, 0, 0.3)'
           }
           className={
-            isPill || isCircle
-              ? `size-5 shrink-0 transition-transform duration-150 ${
+            isGhost
+              ? `size-5.5 shrink-0 transition-transform duration-150 ${
                   isSaved
-                    ? 'text-rose-500 fill-rose-500 stroke-rose-500'
-                    : 'text-slate-600 stroke-slate-600 stroke-[2]'
+                    ? 'text-red-500 fill-red-500 stroke-red-500'
+                    : 'text-slate-400 hover:text-rose-500 stroke-slate-400 stroke-[2]'
                 }`
-              : `transition-all duration-200 ${
-                  isSaved
-                    ? '!text-red-500 !stroke-red-500 !fill-red-500 drop-shadow-[0_1px_3px_rgba(0,0,0,0.3)]'
-                    : 'text-white stroke-white fill-black/30 stroke-[2] drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]'
-                }`
+              : isPill || isCircle
+                ? `size-5 shrink-0 transition-transform duration-150 ${
+                    isSaved
+                      ? 'text-rose-500 fill-rose-500 stroke-rose-500'
+                      : 'text-slate-600 stroke-slate-600 stroke-[2]'
+                  }`
+                : `transition-all duration-200 ${
+                    isSaved
+                      ? '!text-red-500 !stroke-red-500 !fill-red-500 drop-shadow-[0_1px_3px_rgba(0,0,0,0.3)]'
+                      : 'text-white stroke-white fill-black/30 stroke-[2] drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]'
+                  }`
           }
           aria-hidden="true"
         />

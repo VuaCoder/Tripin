@@ -6,6 +6,7 @@ import { useStartConversationMutation } from './api';
 import { getApiErrorMessage } from '@/features/auth/utils/apiError';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth/store/authSlice';
+import { usePreloader } from '@/components/preloader';
 
 export interface StartConversationButtonProps {
   participantId: string;
@@ -25,6 +26,9 @@ export function StartConversationButton({
   onGuestClick,
 }: StartConversationButtonProps) {
   const [start, { isLoading }] = useStartConversationMutation();
+  const { start: startPreloader, stop: stopPreloader } = usePreloader();
+  const [isNavigating, setIsNavigating] = useState(false);
+  const busy = isLoading || isNavigating;
   const [error, setError] = useState('');
   const router = useRouter();
   const user = useAppSelector(selectUser);
@@ -55,7 +59,10 @@ export function StartConversationButton({
       else router.push(`/login?from=/tours/${tourId}`);
       return;
     }
+    if (busy) return;
     setError('');
+    setIsNavigating(true);
+    startPreloader();
     const requestOwner = owner.current;
     try {
       const conversation = await start({ participantId, tourId }).unwrap();
@@ -63,7 +70,9 @@ export function StartConversationButton({
         router.push(`/conversations/${conversation.id}`);
       }
     } catch (err) {
+      stopPreloader();
       if (mounted.current && owner.current === requestOwner) {
+        setIsNavigating(false);
         setError(getApiErrorMessage(err, 'Không thể tạo cuộc trò chuyện. Vui lòng thử lại.'));
       }
     }
@@ -77,19 +86,19 @@ export function StartConversationButton({
     <div>
       <button
         type="button"
-        disabled={isLoading}
+        disabled={busy}
         aria-label={label}
         title={label}
         className={className ?? defaultBtnClass}
         onClick={handleClick}
         onMouseEnter={handlePrefetch}
       >
-        {isLoading ? (
+        {busy ? (
           <Loader2 size={18} className="animate-spin text-teal-700" />
         ) : (
           <MessageCircleMore size={18} className="text-teal-700 shrink-0" />
         )}
-        {!iconOnly && <span>{isLoading ? 'Đang mở cuộc trò chuyện…' : label}</span>}
+        {!iconOnly && <span>{busy ? 'Đang mở cuộc trò chuyện…' : label}</span>}
       </button>
       {error && <p role="alert" className="mt-2 text-xs text-red-700">{error}</p>}
     </div>

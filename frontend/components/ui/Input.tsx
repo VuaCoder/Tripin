@@ -6,10 +6,11 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { className, invalid = false, type, inputMode, onKeyDown, onPaste, ...props },
+  { className, invalid = false, type, inputMode, onKeyDown, onPaste, onCopy, onCut, ...props },
   ref,
 ) {
   const isNumeric = type === 'number' || inputMode === 'numeric';
+  const isPassword = type === 'password';
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (isNumeric && (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-')) {
@@ -28,6 +29,20 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     onPaste?.(e);
   };
 
+  const handleCopy = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    if (isPassword) {
+      e.preventDefault();
+    }
+    onCopy?.(e);
+  };
+
+  const handleCut = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    if (isPassword) {
+      e.preventDefault();
+    }
+    onCut?.(e);
+  };
+
   return (
     <input
       ref={ref}
@@ -35,6 +50,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       inputMode={inputMode}
       onKeyDown={handleKeyDown}
       onPaste={handlePaste}
+      onCopy={handleCopy}
+      onCut={handleCut}
       className={cn(
         'w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition',
         'placeholder:text-slate-400 focus:ring-2 focus:ring-brand-teal/20',

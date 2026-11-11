@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { LayoutGrid, List } from 'lucide-react';
-import { Button, Input, Pagination, AntSelect, AntDateRangePicker } from '@/components/ui';
+import { Button, Input, Pagination, AntSelect, AntDateRangePicker, ViewModeToggle } from '@/components/ui';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
 import { useGetTourCategoriesQuery, useGetToursQuery } from '../api/toursApi';
 import type { ListToursArgs, TourSort } from '../types';
@@ -211,28 +210,10 @@ export function TourListPage() {
       {/* Tiêu đề trang + Điều khiển Grid / List */}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Khám phá tour</h1>
-        <div className="inline-flex items-center rounded-xl border border-slate-200 bg-slate-50/80 p-1 shadow-2xs" role="group" aria-label="Kiểu hiển thị tour">
-          {([
-            { value: 'grid', label: 'Dạng lưới', icon: LayoutGrid },
-            { value: 'list', label: 'Dạng danh sách', icon: List },
-          ] as const).map(({ value: val, label, icon: Icon }) => (
-            <button
-              key={val}
-              type="button"
-              aria-label={label}
-              aria-pressed={view === val}
-              onClick={() => updateQuery({ view: val }, false)}
-              className={cn(
-                'flex size-9 items-center justify-center rounded-lg transition-all duration-150 cursor-pointer',
-                view === val
-                  ? 'bg-white text-primary-container shadow-xs font-semibold'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-white/60'
-              )}
-            >
-              <Icon className="size-4" />
-            </button>
-          ))}
-        </div>
+        <ViewModeToggle
+          value={view}
+          onChange={(nextView) => updateQuery({ view: nextView }, false)}
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">

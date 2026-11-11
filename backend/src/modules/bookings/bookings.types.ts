@@ -62,6 +62,7 @@ export interface BookingDto {
   cancelledAt?: string;
   cancelReason?: BookingCancelReason;
   createdAt: string;
+  review?: import('./bookings.repository').BookingReviewSnapshot;
 }
 
 /** "View bookings status" for agencies: money split included, traveler contact only once the booking is confirmed. */

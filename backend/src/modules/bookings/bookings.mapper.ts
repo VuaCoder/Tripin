@@ -43,6 +43,7 @@ export function toBookingDto(booking: BookingRecord): BookingDto {
     cancelledAt: iso(booking.cancelledAt),
     cancelReason: (booking.cancelReason as BookingCancelReason | undefined) ?? undefined,
     createdAt: createdAtOf(booking),
+    review: booking.review,
   };
 }
 
