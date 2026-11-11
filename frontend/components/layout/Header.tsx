@@ -12,10 +12,10 @@ import { Container } from './Container';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, selectIsAuthenticated, useLogout } from '@/features/auth';
 import { homeForRole } from '@/features/auth/utils/roles';
-import { Dropdown } from '@/components/shared';
+import { Dropdown } from '@/components/shared/Dropdown';
 import { OwnPremiumIdentity, PremiumStatusText, useOwnPremium } from '@/features/premium/PremiumIdentity';
-import { AgencyRightSidebar } from '@/features/agency/AgencyUi';
-import { ModeratorSidebar } from '@/features/moderation';
+import { AgencyRightSidebar } from '@/features/agency/components/AgencyRightSidebar';
+import { ModeratorSidebar } from '@/features/moderation/components/ModeratorSidebar';
 import { cn } from '../ui/cn';
 
 import { useConversationsQuery } from '@/features/chat/api';

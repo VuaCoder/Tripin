@@ -12,7 +12,8 @@ import {
   getTourApiMessage 
 } from '../api/toursApi';
 import type { TourDetail, TourStatus } from '../types';
-import { Pagination, AntSelect } from '@/components/ui';
+import { Pagination } from '@/components/ui/Pagination';
+import { AntSelect } from '@/components/ui/AntSelect';
 
 function TourGridImageCarousel({ tour, onManageImages }: { tour: TourDetail; onManageImages: () => void }) {
   const images = (tour.images && tour.images.length > 0) ? tour.images : (tour.coverImage ? [tour.coverImage] : []);

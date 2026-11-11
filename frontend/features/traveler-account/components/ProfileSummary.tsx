@@ -1,5 +1,6 @@
 import type { UserProfile } from '@/features/auth/types';
-import { Badge, Button } from '@/components/ui';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { OwnPremiumIdentity, OwnPremiumStatus } from '@/features/premium/PremiumIdentity';
 
 interface ProfileSummaryProps {

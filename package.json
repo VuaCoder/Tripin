@@ -7,7 +7,10 @@
     "dev:backend": "pnpm --filter backend dev",
     "build:backend": "pnpm --filter backend build",
     "typecheck:backend": "pnpm --filter backend typecheck",
-    "test:backend": "pnpm --filter backend test"
+    "test:backend": "pnpm --filter backend test",
+    "build:frontend:preview": "node frontend/scripts/preview.mjs build",
+    "start:frontend:preview": "node frontend/scripts/preview.mjs start",
+    "preview:frontend": "node frontend/scripts/preview.mjs"
   },
   "dependencies": {
     "@neon/config": "^1.8.3",

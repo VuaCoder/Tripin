@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useId, useMemo, useRef, type FormEvent } from 'react';
 import Link from 'next/link';
-import { MONEY_LIMITS } from '@travel-platform/constants';
+import { ageUnitPrice, guestTotal, MONEY_LIMITS, resolveGuestGroupCounts, type GuestCounts } from '@travel-platform/constants';
+import { GuestGroupDropdown } from '@/components/ui/GuestGroupDropdown';
 import { ArrowLeft, ArrowRight, Eye, CheckCircle2, X, AlertTriangle, UserX } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { 
@@ -1010,19 +1011,69 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   <label htmlFor={fieldId('maxGroupSize')} className="text-sm font-bold text-slate-800">
                     Số khách tối đa / đoàn
                   </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min={1}
-                      max={10000}
-                      {...fieldProps('maxGroupSize')}
-                      value={value.maxGroupSize ?? ''}
-                      onChange={(e) => updateField('maxGroupSize', e.target.value ? Number(e.target.value) : undefined)}
-                      placeholder="Ví dụ: 25"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 pr-16 text-sm font-medium text-slate-900 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20 placeholder:font-normal placeholder:text-slate-400"
-                    />
-                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 select-none">khách</span>
-                  </div>
+                  <GuestGroupDropdown
+                    id={fieldId('maxGroupSize')}
+                    allowEmpty
+                    emptyLabel="Chưa giới hạn · Chọn người lớn, trẻ em, em bé"
+                    minTotal={1}
+                    maxTotal={10_000}
+                    invalid={Boolean(fieldErrors.maxGroupSize)}
+                    describedBy={fieldErrors.maxGroupSize ? `${fieldId('maxGroupSize')}-error` : undefined}
+                    value={
+                      value.maxGroupSize !== undefined && value.maxGroupSize !== null
+                        ? resolveGuestGroupCounts(value.maxGroupSize, value.agePricing)
+                        : null
+                    }
+                    onChange={(next: GuestCounts | null) => {
+                      setValue((prev) => {
+                        const nextMaxGroupSize = next ? guestTotal(next) : undefined;
+                        const hasPriceConfig = Boolean(
+                          prev.agePricing &&
+                          (
+                            prev.agePricing.childPrice !== null && prev.agePricing.childPrice !== undefined ||
+                            prev.agePricing.infantPrice !== null && prev.agePricing.infantPrice !== undefined ||
+                            prev.agePricing.childPercent !== 100 ||
+                            prev.agePricing.infantPercent !== 100
+                          ),
+                        );
+                        const nextAgePricing = next
+                          ? {
+                              childMinAge: prev.agePricing?.childMinAge ?? 2,
+                              adultMinAge: prev.agePricing?.adultMinAge ?? 13,
+                              childPercent: prev.agePricing?.childPercent ?? 100,
+                              infantPercent: prev.agePricing?.infantPercent ?? 100,
+                              childPrice: ageUnitPrice(prev.basePrice, prev.agePricing, 'child'),
+                              infantPrice: ageUnitPrice(prev.basePrice, prev.agePricing, 'infant'),
+                              adultMaxCount: next.adults,
+                              childMaxCount: next.children,
+                              infantMaxCount: next.infants,
+                            }
+                          : hasPriceConfig && prev.agePricing
+                            ? {
+                                ...prev.agePricing,
+                                adultMaxCount: null,
+                                childMaxCount: null,
+                                infantMaxCount: null,
+                              }
+                            : prev.agePricing;
+                        const updated: TourContentInput = {
+                          ...prev,
+                          maxGroupSize: nextMaxGroupSize,
+                          agePricing: nextAgePricing,
+                        };
+                        setFieldErrors((current) =>
+                          current.maxGroupSize || current.agePricing
+                            ? {
+                                ...current,
+                                ...(current.maxGroupSize ? { maxGroupSize: validateTourEditor(updated).maxGroupSize } : {}),
+                                ...(current.agePricing ? { agePricing: validateTourEditor(updated).agePricing } : {}),
+                              }
+                            : current,
+                        );
+                        return updated;
+                      });
+                    }}
+                  />
                   {fieldHint('maxGroupSize')}
                 </div>
               </div>

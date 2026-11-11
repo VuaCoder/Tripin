@@ -19,8 +19,10 @@ import { useGetAgencyBookingQuery, useGetAgencyBookingsQuery } from '@/features/
 import { useGetAgencyToursQuery, getTourApiMessage } from '@/features/tours/api/toursApi';
 import type { BookingStatus } from '@/features/booking/types';
 import type { AgencyBookingFilters } from './types';
-import { AgencyDenied, AgencyError, AgencyLoading, agencyButton, agencyPanel, bookingStatusNames, dateTime, money, useAgencyPermission } from './AgencyUi';
-import { Pagination, AntSelect, AntDatePicker } from '@/components/ui';
+import { AgencyDenied, AgencyError, AgencyLoading, agencyButton, agencyPanel, bookingStatusNames, dateTime, money, useAgencyPermission } from '@/features/agency/AgencyCommon';
+import { Pagination } from '@/components/ui/Pagination';
+import { AntSelect } from '@/components/ui/AntSelect';
+import { AntDatePicker } from '@/components/ui/AntDatePicker';
 
 export function AgencyBookingsPage() {
   const params = useSearchParams();

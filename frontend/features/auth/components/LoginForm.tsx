@@ -177,6 +177,30 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         )}
       </div>
 
+      {/* Remember Me & Forgot Password */}
+      <div className="flex items-center justify-between pt-0.5">
+        <label
+          htmlFor="rememberMe"
+          className="inline-flex items-center gap-2 cursor-pointer select-none text-xs font-medium text-slate-600 hover:text-slate-800"
+        >
+          <input
+            id="rememberMe"
+            name="rememberMe"
+            type="checkbox"
+            checked={Boolean(formData.rememberMe)}
+            onChange={handleInputChange}
+            className="h-4 w-4 rounded border-slate-300 accent-brand-teal cursor-pointer"
+          />
+          <span>Remember me</span>
+        </label>
+        <Link
+          href="/forgot-password"
+          className="text-xs text-slate-500 hover:text-brand-teal transition-colors font-medium"
+        >
+          Quên mật khẩu?
+        </Link>
+      </div>
+
       {/* Primary Action Button: 'Đăng nhập' */}
       <button
         type="submit"
@@ -218,14 +242,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         disabled={isLoading}
       />
 
-      {/* Links: 'Quên mật khẩu?' & Sign up */}
+      {/* Sign up link */}
       <div className="mt-3 flex flex-col items-center text-xs space-y-2">
-        <Link
-          href="/forgot-password"
-          className="text-slate-500 hover:text-brand-teal transition-colors font-medium"
-        >
-          Quên mật khẩu?
-        </Link>
         <div className="text-slate-400 pt-1">
           Chưa có tài khoản?{" "}
           <Link

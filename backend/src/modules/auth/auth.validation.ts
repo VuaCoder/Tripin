@@ -43,6 +43,7 @@ export const loginBody = z.object({
   email,
   // Do not apply the password policy on login: it must not leak the rules and must accept legacy passwords.
   password: z.string().min(1).max(AUTH_POLICY.PASSWORD_MAX_LENGTH),
+  rememberMe: z.boolean().optional(),
 });
 
 export const verifyOtpBody = z.object({
@@ -68,6 +69,11 @@ export const googleLoginBody = z.object({
   idToken: z.string().min(10).max(4096),
   /** Only used when the Google account creates a brand-new Tripri account. */
   role: z.enum([ROLES.TRAVELER, ROLES.TOUR_GUIDE] as const).optional(),
+});
+
+export const agencyGoogleLoginBody = z.object({
+  idToken: z.string().min(10).max(4096),
+  rememberMe: z.boolean().optional(),
 });
 
 export const forgotPasswordBody = z.object({ email });
@@ -104,6 +110,7 @@ export type VerifyOtpBody = z.infer<typeof verifyOtpBody>;
 export type AgencyVerifyOtpBody = z.infer<typeof agencyVerifyOtpBody>;
 export type AgencyResendOtpBody = z.infer<typeof agencyResendOtpBody>;
 export type GoogleLoginBody = z.infer<typeof googleLoginBody>;
+export type AgencyGoogleLoginBody = z.infer<typeof agencyGoogleLoginBody>;
 export type ForgotPasswordBody = z.infer<typeof forgotPasswordBody>;
 export type ResetPasswordBody = z.infer<typeof resetPasswordBody>;
 export type ChangePasswordBody = z.infer<typeof changePasswordBody>;

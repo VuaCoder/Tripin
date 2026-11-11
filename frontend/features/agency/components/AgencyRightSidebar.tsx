@@ -1,10 +1,12 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
-  CalendarCheck, 
+  CalendarCheck,
+  CalendarDays, 
   Compass, 
   Sparkles, 
   BadgePercent, 
@@ -23,7 +25,7 @@ import { useAppSelector } from '@/store/hooks';
 import { selectUser, useLogout } from '@/features/auth';
 import { useAgencyNotifications } from '../notifications';
 import styles from './AgencySidebar.module.css';
-import { AgencyNotificationPopover } from './AgencyNotificationPopover';
+const AgencyNotificationPopover = dynamic(() => import('./AgencyNotificationPopover').then((module) => module.AgencyNotificationPopover), { ssr: false });
 
 /** Compatibility export; the rail now sits on the left. */
 export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded?: boolean }) {
@@ -85,6 +87,7 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
     ] },
     { label: 'Sản phẩm', items: [
       { href: '/agency/tours', label: 'Quản lý tour', icon: Compass, permission: 'tour:update-own' },
+      { href: '/agency/calendar', label: 'Lịch khởi hành', icon: CalendarDays, permission: 'tour:update-own' },
     ] },
     { label: 'Chăm sóc & Ưu đãi', items: [
       { href: '/agency/promotions', label: 'Khuyến mãi & Voucher', icon: Ticket, permission: 'promotion:agency-manage' },

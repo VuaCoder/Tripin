@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ArrowRight, Building2, Compass, Lock, LogOut, ShieldAlert, UserCheck } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Building2, Compass, Lock, LogOut, ShieldAlert } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth/store/authSlice';
 import { useLogout } from '@/features/auth/hooks/useLogout';
@@ -31,7 +31,7 @@ export function ForbiddenPage({
   const roleName = isTraveler ? 'Du khách (Traveler)' : (role || user?.role || 'Khách');
 
   const defaultDescription = isTraveler
-    ? `Tài khoản hiện tại của bạn được xác thực với vai trò ${roleName}. Khu vực này được thiết lập dành riêng cho các Đối tác đại lý du lịch (Agency) hoặc Hướng dẫn viên (Tour Guide) chính thức của Tripri.`
+    ? `Tài khoản hiện tại của bạn được xác thực với vai trò ${roleName}. Khu vực này được thiết lập dành riêng cho các Đối tác đại lý du lịch (Agency) chính thức của Tripri.`
     : 'Yêu cầu của bạn bị từ chối do không đủ quyền hạn bảo mật cần thiết để thao tác tại cổng quản trị này.';
 
   const handleLogoutAndSwitch = async () => {
@@ -113,21 +113,13 @@ export function ForbiddenPage({
             <Building2 size={18} className="text-teal-700" />
             <span>Đăng ký Đại lý lữ hành</span>
           </Link>
-
-          <Link
-            href="/register/guide"
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer"
-          >
-            <UserCheck size={18} className="text-teal-700" />
-            <span>Đăng ký làm Tour Guide</span>
-          </Link>
         </div>
 
         {/* Secondary helper info box */}
         <div className="mt-10 w-full max-w-xl rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 text-left text-xs text-slate-600">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="font-bold text-slate-800">Bạn đã có tài khoản Đối tác hoặc Hướng dẫn viên?</p>
+              <p className="font-bold text-slate-800">Bạn đã có tài khoản Đối tác lữ hành?</p>
               <p className="mt-1 text-slate-500">
                 Hãy đăng xuất khỏi tài khoản Du khách hiện tại để đăng nhập vào đúng cổng quản trị của bạn.
               </p>

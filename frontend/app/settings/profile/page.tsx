@@ -9,13 +9,11 @@ import {
   useUpdateMeMutation,
 } from '@/features/traveler-account/api/profileApi';
 import { uploadImageToCloudinary } from '@/features/traveler-account/api/avatarUpload';
-import {
-  ProfileSkeleton,
-  ProfileSummary,
-  ProfileEditForm,
-  TravelerAccountShell,
-} from '@/features/traveler-account/components';
-import { ErrorState } from '@/components/shared';
+import { ProfileSkeleton } from '@/features/traveler-account/components/ProfileSkeleton';
+import { ProfileSummary } from '@/features/traveler-account/components/ProfileSummary';
+import { ProfileEditForm } from '@/features/traveler-account/components/ProfileEditForm';
+import { TravelerAccountShell } from '@/features/traveler-account/components/TravelerAccountShell';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { useAppDispatch } from '@/store/hooks';
 import { setUser } from '@/features/auth/store/authSlice';
 import { getApiErrorCode, getApiErrorMessage } from '@/features/auth/utils/apiError';

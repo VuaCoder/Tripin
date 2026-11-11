@@ -14,7 +14,6 @@ import {
   Scale,
   Award,
   Building2,
-  UserCheck,
   QrCode,
   Headphones,
   FileCheck,
@@ -33,13 +32,13 @@ export default function AboutPage() {
       icon: ShieldCheck,
       title: 'Kiểm định 100% Đối tác',
       description:
-        'Tất cả công ty lữ hành và hướng dẫn viên đều phải trải qua quy trình xác minh giấy phép kinh doanh lữ hành, thẻ hướng dẫn viên quốc tế/nội địa và lý lịch hành nghề rõ ràng.',
+        'Tất cả công ty lữ hành đều phải trải qua quy trình xác minh giấy phép kinh doanh lữ hành và hồ sơ pháp lý rõ ràng.',
     },
     {
       icon: Compass,
       title: 'Trải nghiệm bản địa độc bản',
       description:
-        'Chúng tôi tin rằng linh hồn của một chuyến đi nằm ở con người địa phương. Từng hành trình trên Tripri được thiết kế để du khách chạm vào văn hóa, phong tục và ẩm thực chân thực nhất.',
+        'Chúng tôi tin rằng linh hồn của một chuyến đi nằm ở trải nghiệm địa phương. Từng hành trình trên Tripri được thiết kế để du khách chạm vào văn hóa, phong tục và ẩm thực chân thực nhất.',
     },
     {
       icon: Scale,
@@ -51,7 +50,7 @@ export default function AboutPage() {
       icon: Sparkles,
       title: 'Công nghệ thông minh đồng hành',
       description:
-        'Vé điện tử QR code thông minh chống thất lạc, nhắn tin trao đổi trực tiếp tức thì giữa du khách, agency và guide, cùng hệ thống voucher ưu đãi linh hoạt.',
+        'Vé điện tử QR code thông minh chống thất lạc, nhắn tin trao đổi trực tiếp tức thì giữa du khách và agency, cùng hệ thống voucher ưu đãi linh hoạt.',
     },
   ];
 
@@ -76,24 +75,11 @@ export default function AboutPage() {
       color: 'bg-blue-50 text-blue-700 border-blue-200',
       features: [
         'Quản trị danh mục tour, lịch khởi hành và chính sách giá thông minh',
-        'Phân bổ và kết nối trực tiếp với mạng lưới hướng dẫn viên chuyên nghiệp',
+        'Quản lý đội ngũ vận hành và phân bổ lịch trình chuyên nghiệp',
         'Theo dõi doanh thu, lịch sử đơn đặt chỗ và xuất báo cáo vận hành',
         'Phát hành chiến dịch khuyến mãi, voucher để tiếp cận hàng ngàn khách hàng',
       ],
       action: { label: 'Đăng ký đại lý', href: '/agency/register' },
-    },
-    {
-      role: 'Hướng dẫn viên (Tour Guide)',
-      badge: 'Nâng tầm sự nghiệp',
-      icon: UserCheck,
-      color: 'bg-amber-50 text-amber-700 border-amber-200',
-      features: [
-        'Hồ sơ năng lực công khai, hiển thị chứng chỉ và đánh giá uy tín',
-        'Nhận lịch phân công dẫn tour từ các đại lý lữ hành đối tác',
-        'Tương tác, hỗ trợ du khách chu đáo qua kênh trò chuyện nội bộ',
-        'Nhận thù lao minh bạch, nâng cao thu nhập và mở rộng cơ hội nghề nghiệp',
-      ],
-      action: { label: 'Đăng ký làm Guide', href: '/register/guide' },
     },
   ];
 
@@ -133,9 +119,8 @@ export default function AboutPage() {
           </h1>
 
           <p className="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-slate-600 sm:text-lg md:text-xl">
-            Tripri là nền tảng công nghệ du lịch kết nối trực tiếp du khách với các đơn vị lữ hành uy tín và
-            hướng dẫn viên bản địa am hiểu sâu sắc từng vùng đất, mang đến những hành trình du lịch an toàn,
-            chân thực và giàu bản sắc.
+            Tripri là nền tảng công nghệ du lịch kết nối trực tiếp du khách với các đơn vị lữ hành uy tín
+            am hiểu sâu sắc từng vùng đất, mang đến những hành trình du lịch an toàn, chân thực và giàu bản sắc.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
@@ -231,19 +216,19 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* 4. Mô hình 3 phân hệ */}
+      {/* 4. Mô hình 2 phân hệ */}
       <section className="px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <div className="text-center">
             <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              Hệ sinh thái kết nối 3 phân hệ
+              Hệ sinh thái kết nối Du khách &amp; Đơn vị Lữ hành
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-600 sm:text-base">
-              Tripri tạo ra mối liên kết cộng hưởng bền vững giữa Du khách, Đơn vị lữ hành và Hướng dẫn viên địa phương.
+              Tripri tạo ra mối liên kết cộng hưởng bền vững giữa Du khách và các Đơn vị lữ hành địa phương uy tín.
             </p>
           </div>
 
-          <div className="mt-12 grid gap-8 md:grid-cols-3">
+          <div className="mt-12 grid gap-8 md:grid-cols-2">
             {pillars.map((p) => {
               const Icon = p.icon;
               return (

@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { UserProfile } from '@/features/auth/types';
-import { Button, FormField, Input } from '@/components/ui';
+import { Button } from '@/components/ui/Button';
+import { FormField } from '@/components/ui/FormField';
+import { Input } from '@/components/ui/Input';
 import type { AvatarChange, UpdateProfileRequest } from '../types';
 import { validateImageFile } from '../api/avatarUpload';
 import { AvatarPreview } from './AvatarPreview';

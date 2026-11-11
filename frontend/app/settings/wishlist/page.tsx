@@ -1,8 +1,9 @@
 'use client';
 
 import { Suspense } from 'react';
-import { WishlistPage, WishlistSkeleton } from '@/features/wishlist';
-import { TravelerAccountShell } from '@/features/traveler-account/components';
+import { WishlistPage } from '@/features/wishlist/components/WishlistPage';
+import { WishlistSkeleton } from '@/features/wishlist/components/WishlistSkeleton';
+import { TravelerAccountShell } from '@/features/traveler-account/components/TravelerAccountShell';
 
 export default function SettingsWishlistPage() {
   return (

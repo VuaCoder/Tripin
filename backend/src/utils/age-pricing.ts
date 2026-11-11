@@ -6,6 +6,9 @@ export const agePricingSchema = z.object({
   childPercent: z.number().int().min(0).max(100), infantPercent: z.number().int().min(0).max(100),
   childPrice: z.number().int().min(0).max(1000000000).nullable().optional(),
   infantPrice: z.number().int().min(0).max(1000000000).nullable().optional(),
+  adultMaxCount: z.number().int().min(0).max(10000).nullable().optional(),
+  childMaxCount: z.number().int().min(0).max(10000).nullable().optional(),
+  infantMaxCount: z.number().int().min(0).max(10000).nullable().optional(),
 }).strict().refine(value => value.childMinAge < value.adultMinAge, 'Child minimum age must be lower than adult minimum age');
 export const guestCountsSchema = z.object({ adults: z.number().int().min(1).max(50), children: z.number().int().min(0).max(49), infants: z.number().int().min(0).max(49) }).strict();
 export function priceGuests(unitPrice: number, participants: number, guests?: GuestCounts, pricing?: AgePricing | null) {
