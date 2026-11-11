@@ -45,7 +45,13 @@ function make(seed: C[] = []) {
     }),
   };
   const users = {
-    assertActiveWithRole: vi.fn(async (id: string) => ({ id })),
+    assertActiveWithRole: vi.fn(async (id: string, role?: string) => {
+      if (role && id.startsWith('g') && role !== 'TOUR_GUIDE') {
+        throw Object.assign(new Error('User not found'), { statusCode: 404 });
+      }
+      return { id, role: role || (id.startsWith('g') ? 'TOUR_GUIDE' : id.startsWith('a') ? 'AGENCY' : 'TRAVELER') };
+    }),
+    assertActiveWithRoles: vi.fn(async (id: string) => ({ id, role: id.startsWith('g') ? 'TOUR_GUIDE' : id.startsWith('a') ? 'AGENCY' : 'TRAVELER' })),
     getSummaries: vi.fn(async (ids: string[]) => new Map(ids.map((id) => [id, { id, fullName: `User ${id}`, role: id.startsWith('g') ? 'TOUR_GUIDE' : 'TRAVELER' }]))),
   };
   const notifications = { notify: vi.fn(async () => undefined) };
@@ -53,10 +59,12 @@ function make(seed: C[] = []) {
 }
 
 describe('policy', () => {
-  it('allows only traveler <-> tour guide', () => {
+  it('allows traveler <-> tour guide and traveler <-> agency', () => {
     expect(canConverse('TRAVELER', 'TOUR_GUIDE')).toBe(true);
     expect(canConverse('TOUR_GUIDE', 'TRAVELER')).toBe(true);
-    for (const [a, b] of [['TRAVELER', 'TRAVELER'], ['TRAVELER', 'AGENCY'], ['AGENCY', 'TOUR_GUIDE'], ['MODERATOR', 'TRAVELER'], ['TOUR_GUIDE', 'TOUR_GUIDE']] as const) {
+    expect(canConverse('TRAVELER', 'AGENCY')).toBe(true);
+    expect(canConverse('AGENCY', 'TRAVELER')).toBe(true);
+    for (const [a, b] of [['TRAVELER', 'TRAVELER'], ['AGENCY', 'TOUR_GUIDE'], ['MODERATOR', 'TRAVELER'], ['TOUR_GUIDE', 'TOUR_GUIDE']] as const) {
       expect(canConverse(a, b)).toBe(false);
     }
   });
@@ -73,7 +81,7 @@ describe('startConversation', () => {
   it('a traveler opens a conversation with an active guide; the pair is stored in the right slots', async () => {
     const { service, repo, users } = make();
     const dto = await service.startConversation(traveler, { participantId: 'g1', tourId: 'tour1' });
-    expect(users.assertActiveWithRole).toHaveBeenCalledWith('g1', 'TOUR_GUIDE');
+    expect(users.assertActiveWithRoles).toHaveBeenCalledWith('g1', ['AGENCY', 'TOUR_GUIDE']);
     expect(repo.createConversation).toHaveBeenCalledWith(expect.objectContaining({ travelerId: 't1', guideId: 'g1', tourId: 'tour1' }));
     expect(dto.counterpart).toMatchObject({ id: 'g1', fullName: 'User g1' });
   });
@@ -99,9 +107,9 @@ describe('startConversation', () => {
   it('refuses agencies/staff, a missing counterpart and talking to yourself', async () => {
     const { service, users } = make();
     await expect(service.startConversation({ userId: 'a1', role: ROLES.AGENCY }, { participantId: 'g1' })).rejects.toMatchObject({ statusCode: 403 });
-    users.assertActiveWithRole.mockRejectedValueOnce(Object.assign(new Error('x'), { statusCode: 404 }));
+    users.assertActiveWithRoles.mockRejectedValueOnce(Object.assign(new Error('x'), { statusCode: 404 }));
     await expect(service.startConversation(traveler, { participantId: 'ghost' })).rejects.toMatchObject({ statusCode: 404 });
-    users.assertActiveWithRole.mockResolvedValueOnce({ id: 't1' } as never);
+    users.assertActiveWithRoles.mockResolvedValueOnce({ id: 't1', role: ROLES.TRAVELER } as never);
     await expect(service.startConversation(traveler, { participantId: 't1' })).rejects.toMatchObject({ statusCode: 400 });
   });
 });

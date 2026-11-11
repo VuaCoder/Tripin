@@ -31,6 +31,10 @@ export class TtlCache<T> {
     this.entries.clear();
   }
 
+  delete(key: string): void {
+    this.entries.delete(key);
+  }
+
   private evictExpired(): void {
     const now = this.now();
     for (const [key, entry] of this.entries) if (entry.expiresAt <= now) this.entries.delete(key);

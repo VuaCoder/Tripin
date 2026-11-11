@@ -85,11 +85,9 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
     ] },
     { label: 'Sản phẩm', items: [
       { href: '/agency/tours', label: 'Quản lý tour', icon: Compass, permission: 'tour:update-own' },
-      { href: '/agency/tours/import', label: 'Nhập tour / AI', icon: Sparkles, permission: 'tour:import' },
     ] },
     { label: 'Chăm sóc & Ưu đãi', items: [
-      { href: '/agency/premium', label: 'Voucher Premium', icon: Ticket, permission: 'promotion:agency-manage' },
-      { href: '/agency/promotions', label: 'Khuyến mãi', icon: Ticket, permission: 'promotion:agency-manage' },
+      { href: '/agency/promotions', label: 'Khuyến mãi & Voucher', icon: Ticket, permission: 'promotion:agency-manage' },
       { href: '/agency/complaints', label: 'Khiếu nại', icon: MessageSquareWarning, permission: 'complaint:respond' },
     ] },
     { label: 'Đối tác', items: [
@@ -141,7 +139,8 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
           {group.items.map(({ href, label, icon: Icon }) => {
             const active = pathname === href ||
               (href === '/agency/settings/commission' && pathname.startsWith('/agency/settings/commission/')) ||
-              (href === '/agency/tours' && pathname.startsWith('/agency/tours/') && pathname !== '/agency/tours/import') ||
+              (href === '/agency/tours' && pathname.startsWith('/agency/tours/')) ||
+              (href === '/agency/promotions' && (pathname.startsWith('/agency/promotions') || pathname.startsWith('/agency/premium'))) ||
               (href === '/agency/bookings' && pathname.startsWith('/agency/bookings/'));
             return (
               <Link 

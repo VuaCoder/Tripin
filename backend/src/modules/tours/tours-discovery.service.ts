@@ -12,6 +12,7 @@ import { enrichDestination, type DestinationDto } from './tours.destinations';
 export class ToursDiscoveryService {
   private readonly searchCache = new TtlCache<Page<TourListItemDto>>(30_000, 300);
   private readonly destinationsCache = new TtlCache<DestinationDto[]>(60_000, 10);
+  private readonly detailCache = new TtlCache<TourDetailDto>(30_000, 500);
 
   constructor(
     private readonly tours: Pick<ToursRepository, 'searchPublic' | 'findById' | 'findManyByIds' | 'getPublicDestinations'> = toursRepository,
@@ -45,15 +46,24 @@ export class ToursDiscoveryService {
    * staff allowed to list all tours; everybody else gets 404 so unpublished tours are not discoverable by id.
    */
   async getDetail(id: string, actor: Actor): Promise<TourDetailDto | TourManageDto> {
+    const isPublicUser = actor.kind === 'guest' || actor.role === 'TRAVELER';
+    if (isPublicUser) {
+      return this.detailCache.getOrCompute(id, async () => {
+        const tour = await this.tours.findById(id);
+        if (!tour || tour.status !== TOUR_STATUS.APPROVED) throw AppError.notFound('Tour not found');
+        return this.views.publicDetail(tour);
+      });
+    }
+
     const tour = await this.tours.findById(id);
     if (!tour) throw AppError.notFound('Tour not found');
-
-    if (tour.status === TOUR_STATUS.APPROVED && actor.kind === 'guest') return this.views.publicDetail(tour);
 
     const isOwner = actor.kind === 'user' && tour.agencyId === actor.userId;
     const isStaff = actor.kind === 'user' && actor.permissions.includes(PERMISSIONS.TOUR_LIST_ALL);
     if (isStaff || isOwner) return this.views.manage(tour);
-    if (tour.status === TOUR_STATUS.APPROVED) return this.views.publicDetail(tour);
+    if (tour.status === TOUR_STATUS.APPROVED) {
+      return this.detailCache.getOrCompute(id, async () => this.views.publicDetail(tour));
+    }
     throw AppError.notFound('Tour not found');
   }
 
@@ -66,7 +76,12 @@ export class ToursDiscoveryService {
   }
 
   /** Clears search and destination caches on mutations. */
-  invalidateCache(): void {
+  invalidateCache(id?: string): void {
+    if (id) {
+      this.detailCache.delete(id);
+    } else {
+      this.detailCache.clear();
+    }
     this.searchCache.clear();
     this.destinationsCache.clear();
   }

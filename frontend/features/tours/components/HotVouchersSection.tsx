@@ -4,11 +4,8 @@ import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Ticket,
-  TicketCheck,
   Check,
   Copy,
-  ArrowRight,
-  Sparkles,
 } from 'lucide-react';
 import {
   useGetHotPromotionsQuery,
@@ -103,34 +100,8 @@ export function HotVouchersSection() {
     );
   }
 
-  // If all vouchers are already collected by the authenticated user
+  // Hide the section completely when no uncollected vouchers remain
   if (uncollectedVouchers.length === 0) {
-    if (isAuthenticated && allVouchers.length > 0) {
-      return (
-        <section className="mb-14 rounded-3xl border border-teal-200/80 bg-gradient-to-r from-teal-50/70 via-white to-emerald-50/40 p-5 sm:p-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-2xs">
-          <div className="flex items-center gap-3.5">
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-teal-100 text-teal-800">
-              <TicketCheck className="size-6" />
-            </div>
-            <div>
-              <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                Bạn đã thu thập toàn bộ voucher ưu đãi hiện có!
-              </h3>
-              <p className="text-xs text-slate-600 mt-0.5">
-                Các mã giảm giá đã nằm sẵn trong Ví voucher, tự động gợi ý áp dụng khi bạn đặt tour.
-              </p>
-            </div>
-          </div>
-          <Link
-            href="/settings/vouchers"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary-container px-4.5 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-opacity-95 active:scale-[0.99] transition-all shrink-0 shadow-xs"
-          >
-            <span>Xem Ví voucher</span>
-            <ArrowRight className="size-4" />
-          </Link>
-        </section>
-      );
-    }
     return null;
   }
 
@@ -197,6 +168,11 @@ function TicketCard({
   onCollect,
   isAuthenticated,
 }: TicketCardProps) {
+  const isPremium =
+    (voucher as any).scope === 'PREMIUM' ||
+    Boolean(voucher.description?.includes('[PREMIUM]')) ||
+    voucher.title?.toLowerCase().includes('premium');
+
   const discountLabel =
     voucher.discountType === 'PERCENT'
       ? `GIẢM ${voucher.discountValue}%`
@@ -219,44 +195,87 @@ function TicketCard({
 
   return (
     <div className="relative group select-none">
-      {/* Semicircular ticket punch-hole cutouts at the perforation divider */}
-      <span
-        aria-hidden="true"
-        className="absolute -top-2.5 left-[110px] sm:left-[120px] -translate-x-1/2 size-5 rounded-full bg-white border border-slate-200/80 z-20 pointer-events-none shadow-2xs"
-      />
-      <span
-        aria-hidden="true"
-        className="absolute -bottom-2.5 left-[110px] sm:left-[120px] -translate-x-1/2 size-5 rounded-full bg-white border border-slate-200/80 z-20 pointer-events-none shadow-2xs"
-      />
-
       {/* ================= TICKET MAIN BODY ================= */}
-      <div className="relative flex rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:shadow-md transition-all duration-200 overflow-hidden">
+      <div
+        className={`relative flex rounded-2xl transition-all duration-200 overflow-hidden shadow-2xs hover:shadow-md ${
+          isPremium
+            ? 'bg-gradient-to-r from-amber-50/60 to-yellow-50/40 border border-amber-300 hover:border-amber-400'
+            : 'bg-white border border-slate-200/90'
+        }`}
+      >
         {/* Left Column: Discount Highlight Ticket Stub */}
-        <div className="w-[110px] sm:w-[120px] shrink-0 bg-slate-900 text-white flex flex-col justify-between p-3.5 relative select-none">
-          <span className="text-[10px] font-bold tracking-wider uppercase text-teal-300">
-            {voucher.scope === 'PLATFORM' ? 'Toàn sàn' : 'Đối tác'}
+        <div
+          className={`w-[110px] sm:w-[125px] shrink-0 flex flex-col justify-between p-3.5 relative select-none ${
+            isPremium
+              ? 'bg-gradient-to-br from-amber-500 via-amber-600 to-yellow-600 text-slate-950 font-sans shadow-inner'
+              : 'bg-slate-900 text-white'
+          }`}
+        >
+          <span
+            className={`text-[10px] font-black tracking-wider uppercase ${
+              isPremium
+                ? 'text-amber-950 bg-amber-300/80 px-1.5 py-0.5 rounded-md inline-block w-fit'
+                : 'text-teal-300'
+            }`}
+          >
+            {isPremium ? '★ PREMIUM' : voucher.scope === 'PLATFORM' ? 'Toàn sàn' : 'Đối tác'}
           </span>
 
           <div className="my-auto py-2">
-            <div className="text-lg sm:text-xl font-black tracking-tight text-white leading-tight">
+            <div
+              className={`text-lg sm:text-xl font-black tracking-tight leading-tight ${
+                isPremium ? 'text-slate-950 drop-shadow-2xs' : 'text-white'
+              }`}
+            >
               {discountLabel}
             </div>
             {voucher.maxDiscountAmount && (
-              <div className="text-[10px] text-slate-300 mt-1 line-clamp-1">
+              <div
+                className={`text-[10px] mt-1 line-clamp-1 font-medium ${
+                  isPremium ? 'text-amber-950/90' : 'text-slate-300'
+                }`}
+              >
                 Tối đa {Math.round(voucher.maxDiscountAmount / 1000)}k
               </div>
             )}
           </div>
 
-          <span className="text-[10px] text-slate-400 font-medium">Tripri Voucher</span>
+          <span
+            className={`text-[10px] font-semibold tracking-wide ${
+              isPremium ? 'text-amber-950/80' : 'text-slate-400'
+            }`}
+          >
+            {isPremium ? 'Đặc quyền VIP' : 'Tripri Voucher'}
+          </span>
         </div>
 
         {/* Dashed Perforation Line */}
-        <div className="w-px border-r border-dashed border-slate-200 my-2 shrink-0" />
+        <div
+          className={`w-px border-r border-dashed my-2 shrink-0 ${
+            isPremium ? 'border-amber-300' : 'border-slate-200'
+          }`}
+        />
 
         {/* Right Column: Voucher Information & Action Button */}
-        <div className="flex-1 min-w-0 p-3.5 sm:p-4 flex flex-col justify-between bg-white">
+        <div
+          className={`flex-1 min-w-0 p-3.5 sm:p-4 flex flex-col justify-between ${
+            isPremium ? 'bg-amber-50/20' : 'bg-white'
+          }`}
+        >
           <div>
+            <div className="flex items-center gap-1.5 mb-1">
+              {isPremium ? (
+                <span className="inline-flex items-center gap-1 rounded-md bg-amber-100/90 px-1.5 py-0.5 text-[10px] font-extrabold text-amber-900 border border-amber-300/80">
+                  <span>👑</span>
+                  <span>Khách hàng Premium</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold text-teal-800 border border-teal-200/60">
+                  <span>Toàn sàn</span>
+                </span>
+              )}
+            </div>
+
             <h3 className="text-sm font-bold text-slate-900 line-clamp-1">
               {voucher.title}
             </h3>
@@ -267,10 +286,20 @@ function TicketCard({
           </div>
 
           {/* Footer with Code & Action */}
-          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 relative">
+          <div
+            className={`mt-3 pt-2.5 border-t flex items-center justify-between gap-2 relative ${
+              isPremium ? 'border-amber-200/60' : 'border-slate-100'
+            }`}
+          >
             {/* Promo Code with Copy */}
             <div className="min-w-0 flex items-center gap-1.5">
-              <span className="inline-block font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200 truncate max-w-[110px] sm:max-w-[130px]">
+              <span
+                className={`inline-block font-mono text-xs font-bold px-2 py-0.5 rounded-lg border truncate max-w-[110px] sm:max-w-[130px] ${
+                  isPremium
+                    ? 'bg-amber-100/80 text-amber-950 border-amber-300'
+                    : 'text-slate-800 bg-slate-100 border-slate-200'
+                }`}
+              >
                 {voucher.code || 'TRIPRI'}
               </span>
               <button
@@ -278,10 +307,14 @@ function TicketCard({
                 onClick={onCopyCode}
                 title="Sao chép mã"
                 aria-label={`Sao chép mã ${voucher.code}`}
-                className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                className={`p-1 rounded-md transition-colors cursor-pointer ${
+                  isPremium
+                    ? 'text-amber-700 hover:text-amber-950 hover:bg-amber-100'
+                    : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                }`}
               >
                 {isCopied ? (
-                  <Check className="size-3.5 text-teal-600" />
+                  <Check className={`size-3.5 ${isPremium ? 'text-amber-600' : 'text-teal-600'}`} />
                 ) : (
                   <Copy className="size-3.5" />
                 )}
@@ -292,10 +325,12 @@ function TicketCard({
             {isCollecting && (
               <div
                 aria-hidden="true"
-                className="absolute -top-7 right-2 pointer-events-none z-30 flex items-center gap-1 rounded-full bg-primary-container text-white px-2.5 py-1 text-xs font-black shadow-lg animate-float-ticket"
+                className={`absolute -top-7 right-2 pointer-events-none z-30 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-black shadow-lg animate-float-ticket ${
+                  isPremium ? 'bg-amber-500 text-slate-950' : 'bg-primary-container text-white'
+                }`}
               >
                 <span>+</span>
-                <Ticket className="size-3.5 fill-white stroke-teal-700" />
+                <Ticket className={`size-3.5 ${isPremium ? 'fill-slate-950 stroke-amber-700' : 'fill-white stroke-teal-700'}`} />
               </div>
             )}
 
@@ -306,8 +341,12 @@ function TicketCard({
               onClick={onCollect}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 shrink-0 cursor-pointer shadow-2xs ${
                 isCollecting
-                  ? 'bg-teal-50 text-teal-800 border border-teal-200 scale-95'
-                  : 'bg-primary-container text-white hover:bg-opacity-95 active:scale-95'
+                  ? isPremium
+                    ? 'bg-amber-100 text-amber-900 border border-amber-300 scale-95'
+                    : 'bg-teal-50 text-teal-800 border border-teal-200 scale-95'
+                  : isPremium
+                    ? 'bg-gradient-to-r from-amber-500 via-amber-500 to-yellow-500 text-slate-950 font-black hover:brightness-105 active:scale-95 shadow-amber-500/20'
+                    : 'bg-primary-container text-white hover:bg-opacity-95 active:scale-95'
               }`}
             >
               {isCollecting ? (

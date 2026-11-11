@@ -11,10 +11,13 @@ export function sideOf(conversation: Pick<ConversationRecord, 'travelerId' | 'gu
 
 export function toConversationDto(conversation: ConversationRecord, side: ChatSide, counterpart?: UserSummary): ConversationDto {
   const last = conversation.lastMessage;
+  const displayName = (counterpart?.role === 'AGENCY' && counterpart.companyName?.trim())
+    ? counterpart.companyName.trim()
+    : counterpart?.fullName;
   return {
     id: conversation.id,
     counterpart: counterpart
-      ? { id: counterpart.id, fullName: counterpart.fullName, avatarUrl: counterpart.avatarUrl, role: counterpart.role as PersistedRole }
+      ? { id: counterpart.id, fullName: displayName || counterpart.fullName, avatarUrl: counterpart.avatarUrl, role: counterpart.role as PersistedRole }
       : null,
     tourId: conversation.tourId ? conversation.tourId : undefined,
     lastMessage: last ? { text: last.text, senderId: last.senderId, sentAt: last.sentAt.toISOString() } : undefined,

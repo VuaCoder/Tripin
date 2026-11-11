@@ -18,6 +18,7 @@ export interface PromotionFormValues {
   startsAt: string;
   endsAt: string;
   usageLimit: string;
+  isPremium?: boolean;
 }
 
 export type PromotionFormErrors = Partial<Record<keyof PromotionFormValues, string>>;

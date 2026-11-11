@@ -161,8 +161,7 @@ export function attachChatGateway(
     });
 
     // In local development, if counterpart is offline/testing:
-    // 1. Confirm delivery after 400ms so sender sees 'Đã nhận'
-    // 2. Provide typing indicator and guide response so the traveler gets a proper answer
+    // Confirm delivery after 400ms so sender sees 'Đã nhận'
     if (env.NODE_ENV === 'development' && event.message.senderId !== userId && !isRecipientConnected) {
       setTimeout(() => {
         io.to(userRoom(event.message.senderId)).emit('chat:delivered', {
@@ -170,28 +169,6 @@ export function attachChatGateway(
           messageId: event.message.id,
         });
       }, 400);
-
-      setTimeout(async () => {
-        try {
-          io.to(userRoom(event.message.senderId)).emit('chat:typing', {
-            conversationId: event.conversationId,
-            userId,
-          });
-
-          setTimeout(async () => {
-            try {
-              const replyText =
-                'Chào bạn! Cảm ơn bạn đã nhắn tin. Mình là hướng dẫn viên phụ trách tour, mình đã nhận được thông tin câu hỏi và sẽ hỗ trợ giải đáp chi tiết cho bạn ngay nhé!';
-              await chat.sendMessage(userId, event.conversationId, replyText);
-              await chat.markRead(userId, event.conversationId);
-            } catch (err) {
-              logger.warn('Auto guide response simulation failed', { message: (err as Error).message });
-            }
-          }, 1800);
-        } catch (err) {
-          logger.warn('Auto guide typing simulation failed', { message: (err as Error).message });
-        }
-      }, 1000);
     }
   });
   chat.setReadPublisher((userId, conversationId) => {

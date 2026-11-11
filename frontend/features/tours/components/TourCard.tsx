@@ -26,6 +26,24 @@ export function TourCard({ tour, categoryName, href = `/tours/${tour.id}`, view 
   const cardClassName =
     'group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-900/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2 cursor-pointer';
 
+  const renderWishlistButton = (placement: 'image' | 'content') => (
+    <div
+      className={placement === 'image' ? 'absolute right-2.5 top-2.5 z-10' : 'shrink-0'}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+    >
+      <WishlistButton
+        tourId={tour.id}
+        tourTitle={tour.title}
+        tourCoverImage={tour.coverImage}
+        variant={placement === 'content' ? 'ghost' : 'icon'}
+        onGuestClick={() => setShowLoginModal(true)}
+      />
+    </div>
+  );
+
   const cardInner = (
     <>
       <div className={`relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-teal-900 via-primary-container to-teal-500 ${view === 'list' ? 'sm:aspect-auto sm:w-64 sm:shrink-0' : ''}`}>
@@ -44,31 +62,23 @@ export function TourCard({ tour, categoryName, href = `/tours/${tour.id}`, view 
           </span>
         )}
 
-        {/* Heart / Wishlist Button - synced with /home AirbnbTourCarousel */}
-        <div
-          className="absolute right-2.5 top-2.5 z-10"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-        >
-          <WishlistButton
-            tourId={tour.id}
-            tourTitle={tour.title}
-            tourCoverImage={tour.coverImage}
-            onGuestClick={() => setShowLoginModal(true)}
-          />
-        </div>
+        {/* Heart / Wishlist Button overlaid on image in grid view */}
+        {view !== 'list' && renderWishlistButton('image')}
       </div>
 
       <div className="flex flex-1 flex-col p-4">
-        <p className="flex items-center gap-1 text-xs font-semibold text-slate-500">
-          <span className="material-symbols-outlined text-[16px] text-primary-container" aria-hidden="true">location_on</span>
-          {tour.destination}
-        </p>
-        <h2 className="mt-2 line-clamp-2 text-base font-extrabold leading-snug text-slate-900 transition-colors group-hover:text-primary-container">
-          {tour.title}
-        </h2>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-1 text-xs font-semibold text-slate-500">
+              <span className="material-symbols-outlined text-[16px] text-primary-container" aria-hidden="true">location_on</span>
+              {tour.destination}
+            </p>
+            <h2 className="mt-2 line-clamp-2 text-base font-extrabold leading-snug text-slate-900 transition-colors group-hover:text-primary-container">
+              {tour.title}
+            </h2>
+          </div>
+          {view === 'list' && renderWishlistButton('content')}
+        </div>
         {tour.summary && <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-slate-500">{tour.summary}</p>}
 
         <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">

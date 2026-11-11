@@ -139,9 +139,6 @@ export class PromotionsService {
   async collectVoucher(userId: string, promotionId: string): Promise<UserVoucherDto> {
     const promotion = await this.promotions.findById(promotionId);
     if (!promotion || !promotion.isActive) throw AppError.notFound('Promotion not available');
-    if (promotion.applyType !== PROMOTION_APPLY_TYPE.COLLECTABLE) {
-      throw AppError.badRequest('This promotion is not a collectable voucher');
-    }
     const record = await this.promotions.collectUserVoucher(userId, promotionId);
     await this.notifications.notify(userId, {
       type: NOTIFICATION_TYPE.VOUCHER_COLLECTED,
@@ -420,7 +417,7 @@ export class PromotionsService {
         (p) =>
           p.isActive &&
           !p.isArchived &&
-          p.startsAt <= now &&
+          p.startsAt <= new Date(now.getTime() + 15 * 60 * 1000) &&
           now <= p.endsAt &&
           (p.usageLimit == null || p.usedCount < p.usageLimit) &&
           p.codeType !== PROMOTION_CODE_TYPE.UNIQUE_BATCH,
@@ -449,7 +446,7 @@ export class PromotionsService {
         (p) =>
           p.isActive &&
           !p.isArchived &&
-          p.startsAt <= now &&
+          p.startsAt <= new Date(now.getTime() + 15 * 60 * 1000) &&
           now <= p.endsAt &&
           (p.usageLimit == null || p.usedCount < p.usageLimit) &&
           p.codeType !== PROMOTION_CODE_TYPE.UNIQUE_BATCH,
@@ -479,7 +476,7 @@ export class PromotionsService {
         (p) =>
           p.isActive &&
           !p.isArchived &&
-          p.startsAt <= now &&
+          p.startsAt <= new Date(now.getTime() + 15 * 60 * 1000) &&
           now <= p.endsAt &&
           (p.usageLimit == null || p.usedCount < p.usageLimit) &&
           p.codeType !== PROMOTION_CODE_TYPE.UNIQUE_BATCH,
@@ -574,6 +571,7 @@ export class PromotionsService {
       createdById: actor.userId,
     });
     await this.auditPlatform(scope, actor, created.id, { change: 'created', code: created.code });
+    this.hotCache.clear();
     return toPromotionDto(created);
   }
 
@@ -619,6 +617,7 @@ export class PromotionsService {
 
     const updated = await this.promotions.updateById(id, patchData);
     await this.auditPlatform(scope, actor, id, { change: 'updated', fields: Object.keys(input) });
+    this.hotCache.clear();
     return toPromotionDto(updated ?? current);
   }
 

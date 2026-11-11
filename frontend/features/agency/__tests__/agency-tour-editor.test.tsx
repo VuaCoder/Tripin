@@ -100,6 +100,29 @@ describe('Tour editor inline reminders', () => {
     const errors = validateTourEditor({ title: 'Tour hợp lệ', destination: 'Huế', durationDays: 366, categoryIds: [], basePrice: -1, maxGroupSize: 10001 });
     expect(Object.keys(errors).sort()).toEqual(['basePrice', 'categoryIds', 'durationDays', 'maxGroupSize']);
   });
+
+  it('renders multi-step navigation stepper and allows navigating across steps', () => {
+    render(<AgencyTourEditorPage mode="create" />);
+    
+    // Stepper should render all 4 steps
+    const nav = screen.getByRole('navigation', { name: 'Các bước tạo tour' });
+    expect(within(nav).getByRole('button', { name: /Thông tin chung/i })).toBeDefined();
+    expect(within(nav).getByRole('button', { name: /Hình ảnh tour/i })).toBeDefined();
+    expect(within(nav).getByRole('button', { name: /Giá & Dịch vụ/i })).toBeDefined();
+    expect(within(nav).getByRole('button', { name: /Chính sách/i })).toBeDefined();
+
+    // Clicking step 2 tab directly switches to step 2
+    fireEvent.click(within(nav).getByRole('button', { name: /Hình ảnh tour/i }));
+    const step2Sec = document.getElementById('tour-section-2');
+    expect(step2Sec?.className).toContain('block');
+    const step1Sec = document.getElementById('tour-section-1');
+    expect(step1Sec?.className).toContain('hidden');
+
+    // Clicking "Quay lại: Thông tin chung" moves back to step 1
+    fireEvent.click(screen.getByRole('button', { name: /Quay lại: Thông tin chung/i }));
+    expect(step1Sec?.className).toContain('block');
+    expect(step2Sec?.className).toContain('hidden');
+  });
 });
 
 describe('Tour editor edit mode & unsaved changes handling', () => {

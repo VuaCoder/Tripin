@@ -28,9 +28,12 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
   const backHref = pathname?.startsWith('/settings') ? '/settings/history' : '/traveler/bookings';
 
   const { data: booking, isLoading, isError, error, refetch } = useGetBookingByIdQuery(bookingId);
-  const { data: tour } = useGetTourQuery(booking?.tour.id ?? '', { skip: !booking });
+  // Skip secondary tour query whenever booking already contains coverImage
+  const { data: tour } = useGetTourQuery(booking?.tour.id ?? '', {
+    skip: !booking || Boolean(booking?.tour?.coverImage),
+  });
   const [failedCover, setFailedCover] = useState<string | null>(null);
-  const coverImage = tour?.coverImage || tour?.images?.[0];
+  const coverImage = failedCover ? undefined : (booking?.tour?.coverImage || tour?.coverImage || tour?.images?.[0]);
   const [checkoutBooking, { isLoading: isPaying }] = useCheckoutBookingMutation();
   const [cancelBooking, { isLoading: isCancelling }] = useCancelBookingMutation();
   const [completeBooking, { isLoading: isCompleting }] = useCompleteBookingMutation();
@@ -41,12 +44,14 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
   const [openReviewDialog, setOpenReviewDialog] = useState(false);
   const [notice, setNotice] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  // Skip review list query when booking is not completed or review is already embedded in booking
+  const isCompletedBooking = booking?.status === 'COMPLETED';
   const { data: myReviewsData, refetch: refetchReviews } = useGetMyReviewsQuery(
     { page: 1, limit: 100 },
-    { skip: !booking },
+    { skip: !booking || !isCompletedBooking || Boolean(booking?.review) },
   );
 
-  const bookingReview = myReviewsData?.items?.find((review) => review.bookingId === bookingId);
+  const bookingReview = booking?.review ?? myReviewsData?.items?.find((review) => review.bookingId === bookingId);
   const hasReviewedThisBooking = Boolean(bookingReview);
 
   const isEligibleForTicket = Boolean(booking?.isPaid && (booking?.status === 'CONFIRMED' || booking?.status === 'COMPLETED'));
@@ -98,12 +103,13 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
     }
   };
 
-  const handleReviewCreated = (review: MyReview) => {
+  const handleReviewCreated = (_review: MyReview) => {
     setOpenReviewDialog(false);
     setNotice({
       message: 'Cảm ơn bạn đã đánh giá chuyến đi! Đánh giá của bạn đã được ghi nhận.',
       type: 'success',
     });
+    void refetch();
     void refetchReviews();
   };
 
@@ -657,6 +663,7 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
           ]}
           onCreated={handleReviewCreated}
           onDuplicate={() => {
+            void refetch();
             void refetchReviews();
             setOpenReviewDialog(false);
           }}

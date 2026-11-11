@@ -122,7 +122,7 @@ export function BookingEntryPage() {
 
   const { data: tour, isLoading: isTourLoading, isError: isTourError, refetch: refetchTour } = useGetTourQuery(tourId, {
     skip: !tourId,
-    refetchOnMountOrArgChange: true,
+    refetchOnMountOrArgChange: 30,
     refetchOnFocus: true,
     refetchOnReconnect: true,
   });

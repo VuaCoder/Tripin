@@ -181,7 +181,7 @@ describe('HotVouchersSection on Home page', () => {
     expect(container.querySelector('.xl\\:grid-cols-4')).not.toBeNull();
   });
 
-  it('displays celebration banner when user has collected all available vouchers', () => {
+  it('hides the voucher section when user has collected all available vouchers', () => {
     // User already collected all 4 vouchers
     mocks.myVouchers = sampleVouchers.map((p, i) => ({
       id: `v-${i}`,
@@ -191,10 +191,10 @@ describe('HotVouchersSection on Home page', () => {
       isUsed: false,
     }));
 
-    render(<HotVouchersSection />);
+    const { container } = render(<HotVouchersSection />);
 
-    expect(screen.getByText(/Bạn đã thu thập toàn bộ voucher ưu đãi/i)).toBeDefined();
-    expect(screen.getByRole('link', { name: /Xem Ví voucher/i }).getAttribute('href')).toBe('/settings/vouchers');
+    expect(container.firstChild).toBeNull();
+    expect(screen.queryByText(/Bạn đã thu thập toàn bộ voucher ưu đãi/i)).toBeNull();
   });
 
   it('triggers floating + ticket animation and marks collected on click', async () => {

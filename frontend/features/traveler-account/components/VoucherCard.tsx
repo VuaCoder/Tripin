@@ -96,7 +96,10 @@ function VoucherTicketCard({
   const remainingHours = (endsAt.getTime() - now.getTime()) / (1000 * 60 * 60);
 
   const isExpired = remainingHours <= 0 || !promo.isActive;
-  const isPremium = promo.scope === 'PREMIUM';
+  const isPremium =
+    promo.scope === 'PREMIUM' ||
+    Boolean(promo.description?.includes('[PREMIUM]')) ||
+    promo.title?.toLowerCase().includes('premium');
   const isUpcoming = startsAt > now;
   const canUse = !isExpired && !isUsed && !isHeld && !isUpcoming;
   const isUrgent = canUse && remainingHours <= 3;
@@ -145,15 +148,6 @@ function VoucherTicketCard({
                 : 'border-slate-200/90 bg-white shadow-xs hover:border-brand-teal/80 hover:shadow-md'
       }`}
     >
-      {/* Semicircular ticket punch-hole notches at the perforation line */}
-      <span
-        aria-hidden="true"
-        className="hidden sm:block absolute -top-3 left-36 -translate-x-1/2 size-5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none"
-      />
-      <span
-        aria-hidden="true"
-        className="hidden sm:block absolute -bottom-3 left-36 -translate-x-1/2 size-5 rounded-full bg-white border border-slate-200/90 shadow-2xs z-20 pointer-events-none"
-      />
       {/* Cạnh trái: Badge giảm giá & Cuống vé */}
       <div
         className={`flex sm:flex-col items-center justify-between sm:justify-center p-4 sm:p-5 sm:w-36 shrink-0 border-b sm:border-b-0 sm:border-r border-dashed ${

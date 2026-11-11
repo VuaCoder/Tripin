@@ -794,6 +794,16 @@ export function AgencyPromotionsPage() {
                             Unique Code Batch
                           </span>
                         )}
+
+                        {Boolean(p.description?.includes('[PREMIUM]') || p.title?.toLowerCase().includes('premium') || (p as any).scope === 'PREMIUM') ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-xs font-black text-amber-900 shadow-2xs">
+                            ★ Voucher Premium (Thẻ vàng)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 border border-teal-200 px-2.5 py-0.5 text-xs font-semibold text-teal-800">
+                            Toàn sàn / Thường
+                          </span>
+                        )}
                       </div>
 
                       {/* Title & Description */}
