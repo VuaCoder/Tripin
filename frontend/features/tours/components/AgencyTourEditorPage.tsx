@@ -123,6 +123,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
   const [showMobilePreview, setShowMobilePreview] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showExitConfirmModal, setShowExitConfirmModal] = useState(false);
+  const [agePricingAlert, setAgePricingAlert] = useState<string | null>(null);
   const [pendingExitUrl, setPendingExitUrl] = useState<string>('');
   const [initialSnapshot, setInitialSnapshot] = useState<string>('');
   const uploadInputId = useId();
@@ -375,6 +376,13 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
     if (isSubmittingRef.current || busy) return;
     if (mode === 'edit' && !isDirty) {
       setPageError('Nội dung và thông tin tour chưa có thay đổi nào để lưu.');
+      return;
+    }
+    const errors = validateTourEditor(value);
+    if (errors.agePricing) {
+      setAgePricingAlert(errors.agePricing);
+      setCurrentStep(3);
+      setFieldErrors(errors);
       return;
     }
     if (validateFields(editorFields, true)) {
@@ -1184,6 +1192,50 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
           </div>
 
         </div>
+
+        {/* ========================================================================= */}
+        {/* AGE PRICING WARNING MODAL                                                 */}
+        {/* ========================================================================= */}
+        {agePricingAlert && (
+          <div 
+            onClick={() => setAgePricingAlert(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200 cursor-pointer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="age-pricing-modal-title"
+          >
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 cursor-default"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 border border-amber-200/60">
+                  <AlertTriangle className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 id="age-pricing-modal-title" className="text-base font-bold text-slate-900">
+                    Thiếu thông tin giá vé theo nhóm
+                  </h3>
+                  <p className="text-xs text-slate-500">Chính sách giá vé trẻ em &amp; em bé</p>
+                </div>
+              </div>
+
+              <p className="text-sm text-slate-600 leading-relaxed">
+                {agePricingAlert}
+              </p>
+
+              <div className="flex items-center justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setAgePricingAlert(null)}
+                  className="rounded-xl bg-[#087e8b] px-6 py-2.5 text-sm font-bold text-white hover:bg-[#00636e] transition-colors shadow-sm cursor-pointer"
+                >
+                  Đã hiểu, tôi sẽ bổ sung
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ========================================================================= */}
         {/* COMPLETE CONFIRMATION MODAL                                              */}

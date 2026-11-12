@@ -14,6 +14,8 @@ interface Props {
   inclusions?: string[];
   categoryNames?: string[];
   guide?: { id: string; fullName: string; avatarUrl?: string };
+  itineraryDays?: { day: number; toDay?: number; title: string }[];
+  openDeparturesCount?: number;
 }
 
 export function AgencyTourLivePreview({
@@ -26,6 +28,8 @@ export function AgencyTourLivePreview({
   inclusions = [],
   categoryNames = [],
   guide,
+  itineraryDays = [],
+  openDeparturesCount,
 }: Props) {
   const [activeImageIdx, setActiveImageIdx] = useState(0);
 
@@ -158,6 +162,31 @@ export function AgencyTourLivePreview({
           </div>
         </div>
       </div>
+
+      {/* Lịch trình tóm tắt xem trước */}
+      {itineraryDays.length > 0 && (
+        <div className="mt-4 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 text-xs">
+          <div className="flex items-center justify-between font-bold text-slate-800 pb-2 border-b border-slate-200/60">
+            <span>Tóm tắt lịch trình</span>
+            {openDeparturesCount !== undefined && (
+              <span className="font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200/60">
+                {openDeparturesCount} ngày mở bán
+              </span>
+            )}
+          </div>
+          <ol className="mt-2.5 space-y-1.5 text-slate-600">
+            {itineraryDays.map((d, idx) => (
+              <li key={idx} className="flex items-start gap-1.5">
+                <span className="font-bold text-slate-700 shrink-0">
+                  {d.toDay && d.toDay > d.day ? `Ngày ${d.day}–${d.toDay}:` : `Ngày ${d.day}:`}
+                </span>
+                <span className="truncate text-slate-800">{d.title || 'Chưa nhập tiêu đề'}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
     </div>
   );
 }
+

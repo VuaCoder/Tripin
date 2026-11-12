@@ -341,22 +341,8 @@ export function AgencyTourWorkspacePage() {
       steps={[
         { id: 1, title: 'Lịch trình', complete: days.length > 0 },
         { id: 2, title: 'Khởi hành & Giá vé', complete: departures.some((d) => d.isOpen && Boolean(d.date)) },
-        { id: 3, title: 'Khách hàng' },
       ]}
     />
-    <div hidden={step !== 3}>
-      <AgencyCustomersPanel key={`customers-${id}`} tour={tour} />
-      <div className="mt-5 flex justify-start border-t border-slate-200 pt-4">
-        <button
-          type="button"
-          onClick={() => setStep(2)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-        >
-          <ArrowLeft size={16} />
-          <span>Quay lại: Khởi hành & Giá vé</span>
-        </button>
-      </div>
-    </div>
     <div className="space-y-6">
       <div hidden={step !== 1} className="space-y-6">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
@@ -381,32 +367,9 @@ export function AgencyTourWorkspacePage() {
             {days.map((day, index) => (
               <fieldset key={index} disabled={locked} className="space-y-3.5 rounded-xl border border-slate-200 bg-slate-50/80 p-4 transition-all hover:border-slate-300">
                 <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex shrink-0 items-center rounded-lg bg-teal-700 px-3 py-1 text-xs font-bold text-white shadow-2xs">
-                      Ngày {day.day}
-                    </span>
-                    {tour.durationDays > 1 && (
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500 bg-white border border-slate-200 rounded-lg px-2.5 py-1">
-                        <span>Chặng ngày thứ:</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={tour.durationDays}
-                          value={day.day}
-                          onKeyDown={(e) => {
-                            if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
-                          }}
-                          onChange={(e) => {
-                            const val = Math.max(1, Math.min(tour.durationDays, Number(e.target.value) || 1));
-                            setDays((prev) => prev.map((item, i) => i === index ? { ...item, day: val } : item));
-                          }}
-                          className="w-12 rounded border border-slate-200 px-1 py-0.5 text-center text-xs font-bold text-slate-900 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
-                          title="Số thứ tự ngày trong tour"
-                        />
-                        <span>/ {tour.durationDays} ngày</span>
-                      </div>
-                    )}
-                  </div>
+                  <span className="inline-flex shrink-0 items-center rounded-lg bg-teal-700 px-3 py-1 text-xs font-bold text-white shadow-2xs">
+                    Ngày {day.day}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setDays((prev) => prev.filter((_, i) => i !== index))}
@@ -461,28 +424,6 @@ export function AgencyTourWorkspacePage() {
             </div>
           </form>
         </section>
-
-        {/* Lịch trình đang thiết lập placed right under Itinerary */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm text-sm">
-          <h2 className="text-base font-bold text-slate-900">Lịch trình đang thiết lập</h2>
-          <ol className="mt-3 space-y-2 text-slate-600">
-            {days.map((day, index) => {
-              const label = day.toDay && day.toDay > day.day ? `Ngày ${day.day} – ${day.toDay}` : `Ngày ${day.day}`;
-              return (
-                <li key={index} className="flex items-start gap-2">
-                  <span className="font-semibold text-slate-800 whitespace-nowrap">{label}:</span>
-                  <span className="text-slate-700">{day.title || 'Chưa nhập tiêu đề'}</span>
-                </li>
-              );
-            })}
-          </ol>
-          <p className="mt-4 text-slate-600 border-t border-slate-100 pt-3">
-            {departures.filter((departure) => departure.isOpen).length} ngày khởi hành đang mở.
-          </p>
-          <p className="mt-2 text-xs text-amber-800">
-            Bản xem trước. Chỉ cập nhật hệ thống sau khi bạn lưu từng mục.
-          </p>
-        </div>
       </div>
 
       <section hidden={step !== 2} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
@@ -610,29 +551,30 @@ export function AgencyTourWorkspacePage() {
               <ArrowLeft size={16} />
               <span>Quay lại: Lịch trình</span>
             </button>
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="submit"
-                disabled={availabilityState.isLoading}
-                className="rounded-lg bg-primary-container px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-800 disabled:opacity-50 shadow-sm"
-              >
-                {availabilityState.isLoading ? 'Đang lưu…' : 'Lưu ngày khởi hành'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setStep(3)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-primary bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary hover:text-white transition-colors"
-              >
-                <span>Sang bước 3: Khách hàng</span>
-                <ArrowRight size={16} />
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={availabilityState.isLoading}
+              className="rounded-lg bg-primary-container px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-800 disabled:opacity-50 shadow-sm"
+            >
+              {availabilityState.isLoading ? 'Đang lưu…' : 'Lưu ngày khởi hành'}
+            </button>
           </div>
         </form>
       </section>
     </div></div>
     <aside aria-label="Xem trước tour" className="min-w-0 lg:sticky lg:top-6">
-      <AgencyTourLivePreview title={tour.title} destination={tour.destination} durationDays={tour.durationDays} basePrice={tour.basePrice} images={tour.images ?? []} summary={tour.summary} inclusions={tour.inclusions ?? []} guide={tour.guide} />
+      <AgencyTourLivePreview
+        title={tour.title}
+        destination={tour.destination}
+        durationDays={tour.durationDays}
+        basePrice={tour.basePrice}
+        images={tour.images ?? []}
+        summary={tour.summary}
+        inclusions={tour.inclusions ?? []}
+        guide={tour.guide}
+        itineraryDays={days.map((d) => ({ day: d.day, toDay: d.toDay, title: d.title }))}
+        openDeparturesCount={departures.filter((d) => d.isOpen).length}
+      />
     </aside></div>
   </main>;
 }
