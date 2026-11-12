@@ -1051,11 +1051,6 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                     <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 select-none">₫</span>
                   </div>
                   {fieldHint('basePrice')}
-                  {value.basePrice > 0 && (
-                    <span className="block text-xs font-medium text-slate-500">
-                      Hiển thị: {new Intl.NumberFormat('vi-VN').format(value.basePrice)} ₫ / khách
-                    </span>
-                  )}
                 </div>
               </div>
 
