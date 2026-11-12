@@ -433,34 +433,24 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Page Title & Quick Action Header */}
       <div className="mb-7 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/80 pb-5">
-        <div>
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => handleRequestExit(defaultExitUrl)}
-            className="mb-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
+            className="flex size-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer shrink-0"
+            aria-label="Quay lại trang trước"
+            title="Quay lại"
           >
-            <ArrowLeft size={14} />
-            <span>{fromUrl?.startsWith(`/agency/tours/${id}`) ? 'Quản lý tour' : 'Danh sách tour'}</span>
+            <span className="material-symbols-outlined text-[20px]">chevron_left</span>
           </button>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-            {mode === 'create' ? 'Tạo tour mới' : 'Chỉnh sửa tour'}
-          </h1>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+              {mode === 'create' ? 'Tạo tour mới' : 'Chỉnh sửa tour'}
+            </h1>
+          </div>
         </div>
 
         <div className="flex items-center gap-2.5">
-          {/* Quick jump to Itinerary & Departures in edit mode */}
-          {mode === 'edit' && id && (
-            <button
-              type="button"
-              onClick={() => handleRequestExit(`/agency/tours/${id}`)}
-              title="Mở màn hình Quản lý Lịch trình & Khởi hành"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-teal-600/30 bg-teal-50/70 px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-teal-800 hover:bg-teal-100/80 transition-colors shadow-2xs cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[17px] text-teal-700">calendar_month</span>
-              <span>Lịch trình & Khởi hành</span>
-            </button>
-          )}
-
           {/* Mobile preview toggle */}
           <button
             type="button"
@@ -1310,7 +1300,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   Bạn có thay đổi chưa lưu!
                 </h3>
                 <p className="mt-1 text-xs text-slate-500">
-                  Tour: <span className="font-semibold text-slate-700">{value.title || 'Tour đang chỉnh sửa'}</span>
+                  Tour: <span className="font-semibold text-slate-700">{tour?.title || value.title || 'Tour đang chỉnh sửa'}</span>
                 </p>
               </div>
 

@@ -506,14 +506,6 @@ export function AgencyTourListPage() {
                     {/* Right: Actions */}
                     <div className="flex shrink-0 items-center gap-2 border-t border-slate-100 pt-3 sm:border-t-0 sm:pt-0" onClick={(e) => e.stopPropagation()}>
                       <Link 
-                        href={`/agency/tours/${tour.id}`} 
-                        title="Quản lý lịch trình, ngày khởi hành và chỗ ngồi"
-                        aria-label="Quản lý lịch trình & chỗ ngồi"
-                        className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-colors shadow-2xs"
-                      >
-                        <span className="material-symbols-outlined text-[18px] text-teal-700">calendar_month</span>
-                      </Link>
-                      <Link 
                         href={`/agency/tours/${tour.id}/edit?from=/agency/tours`} 
                         aria-disabled={tour.status === 'PENDING_REVIEW' || tour.status === 'ARCHIVED'} 
                         title={
@@ -634,15 +626,6 @@ export function AgencyTourListPage() {
                       {/* Card Footer Actions */}
                       <div className="mt-5 flex items-center justify-between gap-2 border-t border-slate-100 pt-3" onClick={(e) => e.stopPropagation()}>
                         <Link 
-                          href={`/agency/tours/${tour.id}`} 
-                          title="Quản lý lịch trình, ngày khởi hành và chỗ ngồi"
-                          aria-label="Quản lý lịch trình & chỗ ngồi"
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2 px-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs"
-                        >
-                          <span className="material-symbols-outlined text-[16px] text-teal-700">calendar_month</span>
-                          <span>Lịch trình</span>
-                        </Link>
-                        <Link 
                           href={`/agency/tours/${tour.id}/edit?from=/agency/tours`} 
                           aria-disabled={tour.status === 'PENDING_REVIEW' || tour.status === 'ARCHIVED'} 
                           title={
@@ -660,7 +643,7 @@ export function AgencyTourListPage() {
                           }`}
                         >
                           <span className="material-symbols-outlined text-[16px]">edit</span>
-                          <span>Sửa thông tin</span>
+                          <span>Chỉnh sửa tour</span>
                         </Link>
                         {tour.status === 'ARCHIVED' ? (
                           <button

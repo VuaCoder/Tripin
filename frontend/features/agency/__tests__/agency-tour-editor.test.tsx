@@ -234,8 +234,8 @@ describe('Tour editor edit mode & unsaved changes handling', () => {
     mocks.save.mockReturnValue({ unwrap: () => Promise.resolve({ id: 'tour-123' }) });
     render(<AgencyTourEditorPage mode="edit" />);
 
-    // Breadcrumb / back link shows "Quản lý tour"
-    expect(screen.getByRole('button', { name: /Quản lý tour/i })).toBeDefined();
+    // Circular back button with aria-label "Quay lại trang trước"
+    expect(screen.getByRole('button', { name: 'Quay lại trang trước' })).toBeDefined();
 
     const titleInput = screen.getByRole('textbox', { name: 'Tên tour' });
     fireEvent.change(titleInput, { target: { value: 'Tour Đã Chỉnh Sửa Hợp Lệ' } });
@@ -248,15 +248,14 @@ describe('Tour editor edit mode & unsaved changes handling', () => {
     expect(mocks.push).toHaveBeenCalledWith('/agency/tours/tour-123');
   });
 
-  it('allows jumping directly to itinerary & departures via header shortcut button', () => {
+  it('exits to default route when circular back button is clicked without changes', () => {
     mocks.tourData.current = existingTour;
     render(<AgencyTourEditorPage mode="edit" />);
 
-    const itineraryBtn = screen.getByRole('button', { name: /Lịch trình & Khởi hành/i });
-    fireEvent.click(itineraryBtn);
+    const backBtn = screen.getByRole('button', { name: 'Quay lại trang trước' });
+    fireEvent.click(backBtn);
 
-    // No unsaved changes -> jumps directly to workspace
-    expect(mocks.push).toHaveBeenCalledWith('/agency/tours/tour-123');
+    expect(mocks.push).toHaveBeenCalledWith('/agency/tours');
   });
 
   it('closes modal and stays on page when "Hủy" inside modal is clicked', () => {
