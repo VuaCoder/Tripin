@@ -8,6 +8,7 @@ import { agencyService } from './agency.service';
 import { AGENCY_PERMISSIONS as P } from './agency.policy';
 import { validate } from '../../middlewares/validate';
 import { AppError } from '../../utils/app-error';
+import { notificationsRouter } from '../notifications/notifications.routes';
 
 const id = z.string().uuid();
 export const agencyIdentityRouter = Router();
@@ -18,6 +19,8 @@ agencyInvitationAcceptanceRouter.post('/accept', requireAuth, validate({ body: z
   sendOk(res, await agencyService.accept(userActor(req).userId, body.token));
 });
 export const agencyFoundationRouter = Router();
+// The personal inbox remains unchanged; this inbox is restricted to the selected organization.
+agencyFoundationRouter.use('/notifications', resolveAgencyContext, requireAgencyPermission(P.CONTEXT_VIEW), notificationsRouter);
 agencyFoundationRouter.get('/context', resolveAgencyContext, requireAgencyPermission(P.CONTEXT_VIEW), (req,res) => sendOk(res, agencyContext(req)));
 agencyFoundationRouter.get('/members', resolveAgencyContext, requireAgencyPermission(P.TEAM_VIEW), async (req,res) => {
   const ctx = agencyContext(req);

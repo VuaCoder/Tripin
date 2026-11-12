@@ -107,11 +107,11 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | Method | Path | Access |
 |---|---|---|
 | GET | `/api/v1/agency/context` | `agency:context-view` |
-| GET | `/api/v1/agency/finance/summary` | `agency:finance-view` |
-| POST | `/api/v1/agency/invitations` | `agency:team-invite` |
-| POST | `/api/v1/agency/invitations/:id/revoke` | `agency:team-manage` |
-| GET | `/api/v1/agency/members` | `agency:team-view` |
-| PATCH | `/api/v1/agency/members/:id` | `agency:team-manage` |
+| GET | `/api/v1/agency/finance/summary` | `agency:context-view`, `agency:finance-view` |
+| POST | `/api/v1/agency/invitations` | `agency:context-view`, `agency:team-invite` |
+| POST | `/api/v1/agency/invitations/:id/revoke` | `agency:context-view`, `agency:team-manage` |
+| GET | `/api/v1/agency/members` | `agency:context-view`, `agency:team-view` |
+| PATCH | `/api/v1/agency/members/:id` | `agency:context-view`, `agency:team-manage` |
 
 ## `/agency-invitations`
 

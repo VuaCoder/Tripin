@@ -106,9 +106,9 @@ export function AgencyOtpPage({ email, purpose, expiresInSeconds = 600 }: Agency
       });
 
       if (!result.registrationComplete) {
-        dispatch(setCredentials({ accessToken: result.accessToken, user: result.user }));
+        dispatch(setCredentials({ accessToken: result.accessToken, user: result.user, agencies: result.agencies }));
         setIsSuccess(true);
-        router.replace(result.user.agencyProfile?.verificationStatus === 'VERIFIED' ? '/agency' : '/application-status');
+        router.replace(result.agencies?.length || result.user.agencyProfile?.verificationStatus === 'VERIFIED' ? '/agency' : '/application-status');
         return;
       }
       setIsSuccess(true);

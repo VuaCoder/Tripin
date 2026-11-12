@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppSelector } from '@/store/hooks';
-import { selectUser } from '@/features/auth/store/authSlice';
+import { selectActiveAgency } from '@/features/auth/store/authSlice';
 
 export const agencyInput = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
 export const agencyButton = 'inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50';
@@ -11,7 +11,7 @@ export const dateTime = (value: string) => new Date(value).toLocaleString('vi-VN
 export const bookingStatusNames = { PENDING: 'Chờ thanh toán', CONFIRMED: 'Đã xác nhận', COMPLETED: 'Hoàn thành', CANCELLED: 'Đã hủy' };
 
 export function useAgencyPermission(permission: string) {
-  return useAppSelector(selectUser)?.permissions.includes(permission) ?? false;
+  return useAppSelector(selectActiveAgency)?.permissions.includes(permission) ?? false;
 }
 
 export function AgencyDenied() {

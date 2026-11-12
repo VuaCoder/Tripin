@@ -16,7 +16,7 @@ function toRecord(row: Notification): NotificationRecord {
 const toRow = (data: NewNotification): Prisma.NotificationUncheckedCreateInput => ({ ...data, data: data.data });
 
 /** Personal history stays personal; agency rows require current membership. */
-const visibleTo = (userId: string): Prisma.NotificationWhereInput => ({ userId, OR: [
+const visibleTo = (userId: string, agencyId?: string): Prisma.NotificationWhereInput => ({ userId, ...(agencyId ? { agencyId } : {}), OR: [
   { agencyId: null },
   ...(['OWNER','MANAGER','STAFF','ACCOUNTANT'] as const).map(role => ({
     type: { in: Object.values(NOTIFICATION_TYPE).filter(type => canReceiveAgencyNotification(role, type)) },
@@ -34,13 +34,13 @@ export class NotificationsRepository {
   }
 
   /** Scoped to the owner: another user's notification id is simply "not found". */
-  async findOwned(id: string, userId: string): Promise<NotificationRecord | null> {
-    const row = await prisma.notification.findFirst({ where: { id, ...visibleTo(userId) } });
+  async findOwned(id: string, userId: string, agencyId?: string): Promise<NotificationRecord | null> {
+    const row = await prisma.notification.findFirst({ where: { id, ...visibleTo(userId, agencyId) } });
     return row ? toRecord(row) : null;
   }
 
-  async list(userId: string, unreadOnly: boolean, page: PageRequest) {
-    const where: Prisma.NotificationWhereInput = { ...visibleTo(userId), ...(unreadOnly ? { readAt: null } : {}) };
+  async list(userId: string, unreadOnly: boolean, page: PageRequest, agencyId?: string) {
+    const where: Prisma.NotificationWhereInput = { ...visibleTo(userId, agencyId), ...(unreadOnly ? { readAt: null } : {}) };
     const [rows, total] = await Promise.all([
       prisma.notification.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit }),
       prisma.notification.count({ where }),
@@ -48,12 +48,12 @@ export class NotificationsRepository {
     return { items: rows.map(toRecord), total };
   }
 
-  countUnread(userId: string): Promise<number> {
-    return prisma.notification.count({ where: { ...visibleTo(userId), readAt: null } });
+  countUnread(userId: string, agencyId?: string): Promise<number> {
+    return prisma.notification.count({ where: { ...visibleTo(userId, agencyId), readAt: null } });
   }
 
-  async markRead(id: string, userId: string): Promise<NotificationRecord | null> {
-    const row = await prisma.notification.update({ where: { ...visibleTo(userId), id, readAt: null }, data: { readAt: new Date() } }).catch(nullIfNotFound);
+  async markRead(id: string, userId: string, agencyId?: string): Promise<NotificationRecord | null> {
+    const row = await prisma.notification.update({ where: { ...visibleTo(userId, agencyId), id, readAt: null }, data: { readAt: new Date() } }).catch(nullIfNotFound);
     return row ? toRecord(row) : null;
   }
 
@@ -62,13 +62,13 @@ export class NotificationsRepository {
     return (await prisma.notification.deleteMany({ where: { createdAt: { lt: before } } })).count;
   }
 
-  async markAllRead(userId: string): Promise<number> {
-    const result = await prisma.notification.updateMany({ where: { ...visibleTo(userId), readAt: null }, data: { readAt: new Date() } });
+  async markAllRead(userId: string, agencyId?: string): Promise<number> {
+    const result = await prisma.notification.updateMany({ where: { ...visibleTo(userId, agencyId), readAt: null }, data: { readAt: new Date() } });
     return result.count;
   }
 
-  async deleteOwned(id: string, userId: string): Promise<boolean> {
-    return (await prisma.notification.deleteMany({ where: { id, ...visibleTo(userId) } })).count > 0;
+  async deleteOwned(id: string, userId: string, agencyId?: string): Promise<boolean> {
+    return (await prisma.notification.deleteMany({ where: { id, ...visibleTo(userId, agencyId) } })).count > 0;
   }
 
   async hasRecentVoucherAlert(userId: string, voucherId: string, since: Date): Promise<boolean> {

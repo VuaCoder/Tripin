@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import authReducer, { setCredentials } from '@/features/auth/store/authSlice';
 import type { SessionData } from '@/features/auth/types';
+import { withAgencyMembership } from '@/test/agencySession';
 import { baseApi } from '@/store/api/baseApi';
 import { identityIsolation } from '@/store/api/identityIsolation';
 import { toursApi } from '@/features/tours/api/toursApi';
@@ -33,7 +34,7 @@ describe('Agency dashboard snapshot freshness', () => {
       reducer: { auth: authReducer, [baseApi.reducerPath]: baseApi.reducer },
       middleware: (defaults) => defaults().concat(identityIsolation, baseApi.middleware),
     });
-    const session = { accessToken: 'token-a', user: { id: 'agency-a', role: 'AGENCY', permissions: ['agency:dashboard'] } } as SessionData;
+    const session = withAgencyMembership({ accessToken: 'token-a', user: { id: 'agency-a', role: 'AGENCY', permissions: ['agency:dashboard'] } } as SessionData);
     store.dispatch(setCredentials(session));
     const selectDashboard = toursApi.endpoints.getAgencyDashboard.select();
 

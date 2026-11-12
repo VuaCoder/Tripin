@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { AgencyProfileSettings } from '@/features/agency/components/AgencyProfileSettings';
 import { Building2, Percent, ShieldCheck } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
-import { selectUser } from '@/features/auth';
+import { selectActiveAgency } from '@/features/auth/store/authSlice';
 
 export default function AgencyProfileSettingsPage() {
-  const user = useAppSelector(selectUser);
-  const isVerified = user?.agencyProfile?.verificationStatus === 'VERIFIED';
+  const agency = useAppSelector(selectActiveAgency);
+  const isVerified = agency?.verificationStatus === 'VERIFIED';
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">

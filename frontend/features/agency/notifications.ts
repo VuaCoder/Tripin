@@ -3,31 +3,31 @@ import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { baseApi, refreshSession } from '@/store/api/baseApi';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { selectAccessToken, selectUser, setCredentials } from '@/features/auth/store/authSlice';
+import { selectAccessToken, selectActiveAgency, selectUser, setCredentials } from '@/features/auth/store/authSlice';
 
-export interface AgencyNotification { id: string; type: string; title: string; body: string; isRead: boolean; createdAt: string; data?: Record<string, string> }
+export interface AgencyNotification { id: string; agencyId?: string; type: string; title: string; body: string; isRead: boolean; createdAt: string; data?: Record<string, string> }
 interface Envelope<T> { data: T; meta: { page: number; totalPages: number; total: number } }
 export const notificationsApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     agencyNotifications: build.query<Envelope<AgencyNotification[]>, number>({
-      query: (page) => ({ url: '/notifications', params: { page, limit: 20 } }),
+      query: (page) => ({ url: '/agency/notifications', params: { page, limit: 20 } }),
       providesTags: ['Notification'],
     }),
     agencyUnread: build.query<number, void>({
-      query: () => '/notifications/unread-count',
+      query: () => '/agency/notifications/unread-count',
       transformResponse: (response: { data: { unread: number } }) => response.data.unread,
       providesTags: ['Notification'],
     }),
     readAgencyNotification: build.mutation<unknown, string>({
-      query: (id) => ({ url: `/notifications/${encodeURIComponent(id)}/read`, method: 'PATCH' }),
+      query: (id) => ({ url: `/agency/notifications/${encodeURIComponent(id)}/read`, method: 'PATCH' }),
       invalidatesTags: ['Notification'],
     }),
     readAllAgencyNotifications: build.mutation<unknown, void>({
-      query: () => ({ url: '/notifications/read-all', method: 'POST' }),
+      query: () => ({ url: '/agency/notifications/read-all', method: 'POST' }),
       invalidatesTags: ['Notification'],
     }),
     deleteAgencyNotification: build.mutation<{ data: { deleted: true } }, string>({
-      query: (id) => ({ url: `/notifications/${encodeURIComponent(id)}`, method: 'DELETE' }),
+      query: (id) => ({ url: `/agency/notifications/${encodeURIComponent(id)}`, method: 'DELETE' }),
       invalidatesTags: ['Notification'],
     }),
   }),
@@ -97,12 +97,13 @@ export function pushNotification(
 export function useAgencyNotifications() {
   const user = useAppSelector(selectUser);
   const token = useAppSelector(selectAccessToken);
+  const agency = useAppSelector(selectActiveAgency);
   const dispatch = useAppDispatch();
   const [connected, setConnected] = useState(false);
   const [latest, setLatest] = useState('');
   const [localUnread, setLocalUnread] = useState(0);
 
-  const { data: count } = useAgencyUnreadQuery(undefined, { skip: !user?.id || !token, pollingInterval: 30000, skipPollingIfUnfocused: true, refetchOnFocus: true, refetchOnReconnect: true });
+  const { data: count } = useAgencyUnreadQuery(undefined, { skip: !user?.id || !token || !agency, pollingInterval: 30000, skipPollingIfUnfocused: true, refetchOnFocus: true, refetchOnReconnect: true });
 
   useEffect(() => {
     const updateLocalCount = () => {
@@ -125,12 +126,12 @@ export function useAgencyNotifications() {
       window.removeEventListener('tripri:notification', onLocalNotif);
       window.removeEventListener('tripri:notification-read', updateLocalCount);
     };
-  }, []);
+  }, [user?.id, agency?.agencyId]);
 
   useEffect(() => {
     setConnected(false);
     setLatest('');
-    if (!user?.id || !token) return;
+    if (!user?.id || !token || !agency) return;
     let disposed = false;
     let refreshing = false;
     const socket = io(new URL(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1').origin, { auth: { token }, withCredentials: true });
@@ -138,7 +139,7 @@ export function useAgencyNotifications() {
     socket.on('connect', () => { setConnected(true); invalidate(); });
     socket.on('disconnect', () => setConnected(false));
     socket.on('notification:new', (notification: AgencyNotification) => {
-      if (!notification || typeof notification.id !== 'string' || typeof notification.title !== 'string') return;
+      if (disposed || !notification || notification.agencyId !== agency.agencyId || typeof notification.id !== 'string' || typeof notification.title !== 'string') return;
       setLatest(notification.title);
       invalidate();
     });
@@ -159,7 +160,7 @@ export function useAgencyNotifications() {
       socket.removeAllListeners();
       socket.disconnect();
     };
-  }, [dispatch, token, user?.id]);
+  }, [dispatch, token, user?.id, agency?.agencyId]);
 
   const totalCount = (count ?? 0) + localUnread;
   return { count: totalCount, connected, latest };

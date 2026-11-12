@@ -17,12 +17,12 @@ describe('auth hydration', () => {
     const { default: reducer, setCredentials } = await import('../store/authSlice');
 
     const initial = reducer(undefined, { type: '@@INIT' });
-    expect(initial).toEqual({ user: null, accessToken: null, status: 'idle' });
+    expect(initial).toMatchObject({ user: null, accessToken: null, status: 'idle', agencies: [], activeAgencyId: null, membershipsReady: false });
     expect(JSON.parse(localStorage.getItem('tripri_auth_session')!)).toEqual(session);
 
     // The bootstrap can still restore credentials once hydration has finished.
     expect(reducer(initial, setCredentials(session as Parameters<typeof setCredentials>[0])))
-      .toEqual({ ...session, status: 'authenticated' });
+      .toMatchObject({ ...session, status: 'authenticated', agencies: [], membershipsReady: false });
   });
 
   it('persists to localStorage when rememberMe is true and sessionStorage when rememberMe is false', async () => {

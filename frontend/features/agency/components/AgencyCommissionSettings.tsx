@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth';
+import { selectActiveAgency } from '@/features/auth/store/authSlice';
 import { CounterUp } from '@/components/ui/CounterUp';
 import { 
   Percent, 
@@ -21,14 +22,15 @@ const formatMoney = (val: number) => `${new Intl.NumberFormat('vi-VN').format(Ma
 
 export function AgencyCommissionSettings() {
   const user = useAppSelector(selectUser);
-  const storageKey = user?.id ? `tripri_agency_discount_rate_${user.id}` : 'tripri_agency_discount_rate';
+  const agency = useAppSelector(selectActiveAgency);
+  const storageKey = user?.id && agency?.agencyId ? `tripri_agency_discount_rate_${user.id}_${agency.agencyId}` : null;
 
   const [commissionRate, setCommissionRate] = useState<number>(10.0);
   const [samplePrice, setSamplePrice] = useState<number>(3500000);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && storageKey) {
       const stored = localStorage.getItem(storageKey);
       if (stored) {
         const parsed = parseFloat(stored);
@@ -40,7 +42,7 @@ export function AgencyCommissionSettings() {
   }, [storageKey]);
 
   const handleSave = () => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && storageKey) {
       localStorage.setItem(storageKey, commissionRate.toString());
     }
     setSaved(true);

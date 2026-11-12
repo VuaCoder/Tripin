@@ -38,7 +38,7 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock('@/store/hooks', () => ({
-  useAppSelector: () => ({ id: 'user-1', role: 'AGENCY', permissions: ['tour:update-own', 'tour:set-availability'] }),
+  useAppSelector: () => ({ agencyId: 'agency-1', memberId: 'member-1', memberRole: 'OWNER', permissions: ['tour:update-own', 'tour:set-availability'] }),
 }));
 vi.mock('@/features/agency/agencyNotice', () => ({ agencyNotice: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/features/tours/api/toursApi', () => ({

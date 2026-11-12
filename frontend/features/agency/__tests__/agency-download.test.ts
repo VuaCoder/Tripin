@@ -5,13 +5,14 @@ import { baseApi } from '@/store/api/baseApi';
 import authReducer, { setCredentials } from '@/features/auth/store/authSlice';
 import { bookingApi } from '@/features/booking/api/bookingApi';
 import type { SessionData } from '@/features/auth/types';
+import { withAgencyMembership } from '@/test/agencySession';
 import { identityIsolation } from '@/store/api/identityIsolation';
 
 const stores: ReturnType<typeof makeStore>[] = [];
 function makeStore() {
   return configureStore({ reducer: { auth: authReducer, [baseApi.reducerPath]: baseApi.reducer }, middleware: (defaults) => defaults().concat(identityIsolation, baseApi.middleware) });
 }
-const session = { accessToken: 'fresh-token', user: { id: 'a1', role: 'AGENCY', permissions: ['agency:export-customers'] } } as SessionData;
+const session = withAgencyMembership({ accessToken: 'fresh-token', user: { id: 'a1', role: 'AGENCY', permissions: ['agency:export-customers'] } } as SessionData);
 const pdfResponse = () => new Response('%PDF-1.7\ncustomer rows\n%%EOF', { headers: { 'content-type': 'application/pdf' } });
 function setup(...responses: Response[]) {
   // Node's fetch/Response must use Node's Blob, rather than jsdom's incomplete browser shim.
