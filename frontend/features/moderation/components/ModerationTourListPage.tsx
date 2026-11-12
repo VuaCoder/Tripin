@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Search, RefreshCw, X, LayoutGrid, List, Compass, MapPin, Clock } from 'lucide-react';
+import { Search, RefreshCw, X, LayoutGrid, List, Compass, MapPin, Clock, Eye, AlertOctagon } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
 import { Pagination, AntSelect, Modal, type AntSelectOption } from '@/components/ui';
 import { useGetModerationToursQuery, useSuspendTourMutation, useValidateTourMutation } from '../api/moderationApi';
@@ -411,27 +411,16 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
                         {formatTourDate(t.updatedAt)}
                       </span>
                       <div className="flex items-center gap-1.5">
-                        {t.status === 'APPROVED' && canSuspend && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setServerError(null);
-                              setQuickActionTour({ id: t.id, action: 'suspend', title: t.title });
-                            }}
-                            className="rounded-xl border border-rose-300 bg-rose-100 px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-200 cursor-pointer"
-                          >
-                            Tạm ngưng
-                          </button>
-                        )}
                         <button
                           type="button"
                           onClick={() => {
                             setServerError(null);
                             setSelectedId(t.id);
                           }}
-                          className="rounded-xl border border-teal-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-teal-900 shadow-2xs transition hover:bg-teal-50 cursor-pointer"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-teal-900 shadow-2xs transition hover:bg-teal-50 cursor-pointer"
                         >
-                          {t.status === 'PENDING_REVIEW' || t.status === 'APPROVED' ? 'Xem & xử lý' : 'Xem chi tiết'}
+                          <Eye className="size-3.5 text-teal-700" />
+                          <span>{t.status === 'PENDING_REVIEW' || t.status === 'APPROVED' ? 'Xem & xử lý' : 'Xem chi tiết'}</span>
                         </button>
                       </div>
                     </div>
@@ -504,29 +493,20 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
 
                       {/* Action */}
                       <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                        {t.status === 'APPROVED' && canSuspend && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setServerError(null);
-                              setQuickActionTour({ id: t.id, action: 'suspend', title: t.title });
-                            }}
-                            className="rounded-xl border border-rose-300 bg-rose-100 px-3.5 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-200 cursor-pointer"
-                          >
-                            Tạm ngưng
-                          </button>
-                        )}
                         <button
                           type="button"
                           onClick={() => {
                             setServerError(null);
                             setSelectedId(t.id);
                           }}
-                          className="rounded-xl border border-teal-200 bg-teal-50/50 px-4 py-2 text-sm font-semibold text-teal-900 transition hover:bg-teal-100/80 cursor-pointer"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50/50 px-4 py-2 text-sm font-semibold text-teal-900 transition hover:bg-teal-100/80 cursor-pointer"
                         >
-                          {t.status === 'PENDING_REVIEW' || t.status === 'APPROVED' ? 'Xem & xử lý' : 'Xem chi tiết'}
+                          <Eye className="size-4 text-teal-700" />
+                          <span>{t.status === 'PENDING_REVIEW' || t.status === 'APPROVED' ? 'Xem & xử lý' : 'Xem chi tiết'}</span>
                         </button>
                       </div>
+
+
                     </div>
                   </li>
                 );

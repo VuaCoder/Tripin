@@ -14,6 +14,8 @@ interface Props {
   inclusions?: string[];
   categoryNames?: string[];
   guide?: { id: string; fullName: string; avatarUrl?: string };
+  itineraryDays?: { day: number; toDay?: number; title: string }[];
+  openDeparturesCount?: number;
 }
 
 export function AgencyTourLivePreview({
@@ -26,42 +28,33 @@ export function AgencyTourLivePreview({
   inclusions = [],
   categoryNames = [],
   guide,
+  itineraryDays = [],
+  openDeparturesCount,
 }: Props) {
   const [activeImageIdx, setActiveImageIdx] = useState(0);
 
-  const displayImages = images.length > 0 
-    ? images 
-    : ['https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=800&q=80'];
-
+  const displayImages = images.length > 0 ? images : [];
+  const hasImages = displayImages.length > 0;
   const currentImage = displayImages[activeImageIdx] || displayImages[0];
 
   return (
     <div className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6">
-      {/* Header bar */}
-      <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2">
-          <span className="relative flex size-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
-          </span>
-          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
-            Xem trước
-          </span>
-        </div>
-        <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600">
-          Giao diện khách hàng
-        </span>
-      </div>
-
       {/* Simulated Tour Card */}
       <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm hover:shadow-md transition-shadow">
-        {/* Cover Image Carousel */}
-        <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100">
-          <img
-            src={currentImage}
-            alt={title || 'Ảnh xem trước tour'}
-            className="size-full object-cover transition-all duration-300"
-          />
+        {/* Cover Image Carousel or Empty Placeholder */}
+        <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100 flex items-center justify-center">
+          {hasImages ? (
+            <img
+              src={currentImage}
+              alt={title || 'Ảnh xem trước tour'}
+              className="size-full object-cover transition-all duration-300"
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center text-slate-400 p-4 text-center">
+              <span className="material-symbols-outlined text-4xl mb-1 text-slate-300">image_not_supported</span>
+              <span className="text-xs font-semibold text-slate-400">Chưa có ảnh thương hiệu</span>
+            </div>
+          )}
 
           {/* Badges on image */}
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
@@ -79,7 +72,7 @@ export function AgencyTourLivePreview({
           </div>
 
           {/* Image carousel controls if multiple images */}
-          {displayImages.length > 1 && (
+          {hasImages && displayImages.length > 1 && (
             <div className="absolute inset-x-0 bottom-2.5 flex justify-center gap-1.5 z-10">
               {displayImages.slice(0, 5).map((_, i) => (
                 <button
@@ -169,6 +162,31 @@ export function AgencyTourLivePreview({
           </div>
         </div>
       </div>
+
+      {/* Lịch trình tóm tắt xem trước */}
+      {itineraryDays.length > 0 && (
+        <div className="mt-4 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 text-xs">
+          <div className="flex items-center justify-between font-bold text-slate-800 pb-2 border-b border-slate-200/60">
+            <span>Tóm tắt lịch trình</span>
+            {openDeparturesCount !== undefined && (
+              <span className="font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200/60">
+                {openDeparturesCount} ngày mở bán
+              </span>
+            )}
+          </div>
+          <ol className="mt-2.5 space-y-1.5 text-slate-600">
+            {itineraryDays.map((d, idx) => (
+              <li key={idx} className="flex items-start gap-1.5">
+                <span className="font-bold text-slate-700 shrink-0">
+                  {d.toDay && d.toDay > d.day ? `Ngày ${d.day}–${d.toDay}:` : `Ngày ${d.day}:`}
+                </span>
+                <span className="truncate text-slate-800">{d.title || 'Chưa nhập tiêu đề'}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
     </div>
   );
 }
+

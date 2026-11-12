@@ -58,8 +58,8 @@ describe('ModeratorSidebar', () => {
     expect(screen.getByText('Xác minh agency')).toBeTruthy();
     expect(screen.getByText('Kiểm duyệt đánh giá')).toBeTruthy();
     expect(screen.getByText('Báo cáo vi phạm')).toBeTruthy();
-    expect(screen.getByText('Tranh chấp & CSAT')).toBeTruthy();
-    expect(screen.getByText('Khiếu nại hỗ trợ')).toBeTruthy();
+    expect(screen.getByText('Khiếu nại dịch vụ tour')).toBeTruthy();
+    expect(screen.getByText('Yêu cầu hỗ trợ sàn')).toBeTruthy();
   });
 
   it('toggles collapse and expand on button click', () => {
