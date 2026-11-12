@@ -64,7 +64,13 @@ const authSlice = createSlice({
       state.accessToken = action.payload.accessToken;
       state.status = 'authenticated';
       if (Array.isArray(action.payload.agencies)) replaceMemberships(state, action.payload.agencies);
-      else { state.agencies = []; state.membershipsReady = false; state.agencyEpoch++; }
+      else {
+        // Legacy personal sessions omit memberships. Rotating their token must
+        // not reset an in-flight personal query; only discard real agency authority.
+        if (state.agencies.length > 0) state.agencyEpoch++;
+        state.agencies = [];
+        state.membershipsReady = false;
+      }
       persistState(state, action.payload.rememberMe);
     },
     restoreCredentials(state, action: PayloadAction<SessionData & { activeAgencyId?: string | null }>) {

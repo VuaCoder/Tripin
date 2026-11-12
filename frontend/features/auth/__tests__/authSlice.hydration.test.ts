@@ -44,4 +44,23 @@ describe('auth hydration', () => {
     expect(localStorage.getItem('tripri_auth_session')).toBeNull();
     expect(sessionStorage.getItem('tripri_auth_session')).toBeNull();
   });
+
+  it('does not invalidate personal queries when a legacy same-user token is refreshed', async () => {
+    const { default: reducer, setCredentials } = await import('../store/authSlice');
+    const session = { user: { id: 'guide-1', role: 'TOUR_GUIDE' } as any, accessToken: 'old-token' };
+    const signedIn = reducer(undefined, setCredentials(session));
+    const refreshed = reducer(signedIn, setCredentials({ ...session, accessToken: 'new-token' }));
+    expect(refreshed.agencyEpoch).toBe(signedIn.agencyEpoch);
+    expect(refreshed.accessToken).toBe('new-token');
+    expect(refreshed.membershipsReady).toBe(false);
+  });
+
+  it('still invalidates agency authority if a refresh no longer supplies memberships', async () => {
+    const { default: reducer, selectActiveAgency, setCredentials } = await import('../store/authSlice');
+    const session = { user: { id: 'traveler-1', role: 'TRAVELER' } as any, accessToken: 'old-token', agencies: [{ agencyId: 'agency-1', memberId: 'member-1', memberRole: 'OWNER' as const, companyName: 'Agency', verificationStatus: 'VERIFIED' as const, permissions: ['agency:context-view'] }] };
+    const signedIn = reducer(undefined, setCredentials(session));
+    const refreshed = reducer(signedIn, setCredentials({ user: session.user, accessToken: 'new-token' }));
+    expect(refreshed.agencyEpoch).toBeGreaterThan(signedIn.agencyEpoch);
+    expect(selectActiveAgency({ auth: refreshed } as any)).toBeNull();
+  });
 });
