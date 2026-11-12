@@ -479,7 +479,7 @@
     margin: 12mm 15mm;
   }
 
-  body {
+  :global(body) {
     background-color: #ffffff !important;
     color: #000000 !important;
   }
