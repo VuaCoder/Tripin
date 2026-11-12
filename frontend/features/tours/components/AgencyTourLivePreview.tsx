@@ -37,22 +37,6 @@ export function AgencyTourLivePreview({
 
   return (
     <div className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6">
-      {/* Header bar */}
-      <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2">
-          <span className="relative flex size-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
-          </span>
-          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
-            Xem trước
-          </span>
-        </div>
-        <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600">
-          Giao diện khách hàng
-        </span>
-      </div>
-
       {/* Simulated Tour Card */}
       <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm hover:shadow-md transition-shadow">
         {/* Cover Image Carousel */}

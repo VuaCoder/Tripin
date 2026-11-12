@@ -105,10 +105,10 @@ export function ModeratorSidebar({ initialExpanded = true }: ModeratorSidebarPro
       ],
     },
     {
-      label: 'Tranh chấp & Hỗ trợ',
+      label: 'Khiếu nại & Hỗ trợ',
       items: [
-        { href: '/moderator/complaints', label: 'Tranh chấp & CSAT', icon: ShieldAlert, permission: 'dispute:resolve' },
-        { href: '/moderator/support-tickets', label: 'Khiếu nại hỗ trợ', icon: LifeBuoy, permission: 'complaint:handle' },
+        { href: '/moderator/complaints', label: 'Khiếu nại dịch vụ tour', icon: ShieldAlert, permission: 'dispute:resolve' },
+        { href: '/moderator/support-tickets', label: 'Yêu cầu hỗ trợ sàn', icon: LifeBuoy, permission: 'complaint:handle' },
       ],
     },
   ];

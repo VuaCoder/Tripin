@@ -426,23 +426,14 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
       {/* Page Title & Quick Action Header */}
       <div className="mb-7 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/80 pb-5">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1.5">
-            <button
-              type="button"
-              onClick={() => handleRequestExit(defaultExitUrl)}
-              className="hover:text-primary transition-colors flex items-center gap-1 cursor-pointer"
-            >
-              <ArrowLeft size={14} /> {fromUrl?.startsWith(`/agency/tours/${id}`) ? 'Quản lý tour' : 'Danh sách tour'}
-            </button>
-            {tour && (
-              <>
-                <span className="text-slate-300">/</span>
-                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-700 border border-slate-200">
-                  {tour.status === 'APPROVED' ? 'Đã duyệt' : tour.status === 'PENDING_REVIEW' ? 'Chờ duyệt' : tour.status === 'DRAFT' ? 'Bản nháp' : tour.status}
-                </span>
-              </>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={() => handleRequestExit(defaultExitUrl)}
+            className="mb-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
+          >
+            <ArrowLeft size={14} />
+            <span>{fromUrl?.startsWith(`/agency/tours/${id}`) ? 'Quản lý tour' : 'Danh sách tour'}</span>
+          </button>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
             {mode === 'create' ? 'Tạo tour mới' : 'Chỉnh sửa tour'}
           </h1>
@@ -660,7 +651,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
               <div className="space-y-1.5">
                 <div className="flex justify-between items-baseline">
                   <label htmlFor={fieldId('summary')} className="text-sm font-bold text-slate-800">
-                    Tóm tắt ngắn <span className="text-xs font-normal text-slate-500">(Optional)</span>
+                    Tóm tắt ngắn
                   </label>
                   <span className="text-xs text-slate-400">{(value.summary ?? '').length}/500</span>
                 </div>
@@ -679,7 +670,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
               {/* Categories */}
               <div className="space-y-2">
                 <span id={fieldId('categoryIds')} className="text-sm font-bold text-slate-800 block">
-                  Danh mục tour <span className="text-xs font-normal text-slate-500">(chọn từ 1 đến 10)</span>
+                  Danh mục tour
                 </span>
                 <TourCategoryCombobox
                   id={`${formId}-categoryIds`}
@@ -696,16 +687,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
               </div>
 
               {/* Step 1 Footer */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-6 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => handleRequestExit()}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
-                >
-                  <X size={16} />
-                  <span>Hủy</span>
-                </button>
-
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-6 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => {
@@ -714,7 +696,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   }}
                   className="inline-flex items-center gap-2 rounded-xl bg-[#087e8b] px-6 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-[#00636e] transition-colors shadow-sm cursor-pointer"
                 >
-                  <span>Tiếp tục: Hình ảnh tour</span>
+                  <span>Tiếp tục</span>
                   <ArrowRight size={16} />
                 </button>
               </div>
@@ -935,7 +917,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
                 >
                   <ArrowLeft size={16} />
-                  <span>Quay lại: Thông tin chung</span>
+                  <span>Quay lại</span>
                 </button>
 
                 <button
@@ -943,7 +925,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   onClick={() => setCurrentStep(3)}
                   className="inline-flex items-center gap-2 rounded-xl bg-[#087e8b] px-6 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-[#00636e] transition-colors shadow-sm cursor-pointer"
                 >
-                  <span>Tiếp tục: Giá &amp; Dịch vụ</span>
+                  <span>Tiếp tục</span>
                   <ArrowRight size={16} />
                 </button>
               </div>
@@ -1116,7 +1098,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
                 >
                   <ArrowLeft size={16} />
-                  <span>Quay lại: Hình ảnh tour</span>
+                  <span>Quay lại</span>
                 </button>
 
                 <button
@@ -1127,7 +1109,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   }}
                   className="inline-flex items-center gap-2 rounded-xl bg-[#087e8b] px-6 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-[#00636e] transition-colors shadow-sm cursor-pointer"
                 >
-                  <span>Tiếp tục: Chính sách &amp; Hoàn tất</span>
+                  <span>Tiếp tục</span>
                   <ArrowRight size={16} />
                 </button>
               </div>
@@ -1160,85 +1142,16 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
 
               <TourPolicyFields value={value} onChange={setValue} includeAgePricing={false} />
 
-              {/* Guide Assignment Status */}
-              <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/70">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
-                  Hướng dẫn viên phụ trách
-                </span>
-                {tour?.guide ? (
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-10 items-center justify-center rounded-full bg-teal-600 text-white font-bold">
-                      {tour.guide.fullName.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">{tour.guide.fullName}</p>
-                      <p className="text-xs text-slate-500">Đã được phân công phụ trách tour này</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <UserX size={18} className="text-slate-400" />
-                      <p className="text-sm font-semibold text-slate-700">Chưa phân công hướng dẫn viên</p>
-                    </div>
-                    {id && (
-                      <Link 
-                        href={`/agency/tours/${id}`}
-                        className="rounded-xl border border-primary px-3 py-1.5 text-xs font-bold text-primary hover:bg-teal-50"
-                      >
-                        Phân công trong trang Quản lý
-                      </Link>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Checklist Summary */}
-              <div className="rounded-2xl border border-teal-100 bg-teal-50/60 p-4 space-y-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-teal-800 block mb-2">
-                  Checklist sẵn sàng xuất bản:
-                </span>
-                <div className="space-y-1.5 text-xs font-semibold text-slate-700">
-                  <p className="flex items-center gap-2">
-                    <CheckCircle2 size={16} className={value.title ? 'text-emerald-600 shrink-0' : 'text-slate-300 shrink-0'} />
-                    <span>Tên tour & điểm đến: <strong>{value.destination || 'Chưa có'}</strong></span>
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <CheckCircle2 size={16} className={(value.images ?? []).length > 0 ? 'text-emerald-600 shrink-0' : 'text-slate-300 shrink-0'} />
-                    <span>Hình ảnh thương hiệu: <strong>{(value.images ?? []).length} ảnh</strong></span>
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <CheckCircle2 size={16} className={value.basePrice > 0 ? 'text-emerald-600 shrink-0' : 'text-slate-300 shrink-0'} />
-                    <span>Giá cơ bản niêm yết: <strong>{new Intl.NumberFormat('vi-VN').format(value.basePrice)} ₫</strong></span>
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <CheckCircle2 size={16} className={value.categoryIds.length > 0 ? 'text-emerald-600 shrink-0' : 'text-slate-300 shrink-0'} />
-                    <span>Danh mục: <strong>{value.categoryIds.length} danh mục</strong></span>
-                  </p>
-                </div>
-              </div>
-
               {/* Bottom Action Card */}
               <div className="pt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100">
-                <div className="flex items-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(3)}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
-                  >
-                    <ArrowLeft size={16} />
-                    <span>Quay lại: Giá &amp; Dịch vụ</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleRequestExit()}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
-                  >
-                    <X size={16} />
-                    <span>Hủy</span>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(3)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
+                >
+                  <ArrowLeft size={16} />
+                  <span>Quay lại</span>
+                </button>
 
                 <button
                   type="button"

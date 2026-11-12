@@ -223,9 +223,8 @@ export function TourItemCombobox({
                       <span className="truncate">{item}</span>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {isSelected ? (
-                          <span className={`inline-flex items-center gap-1 text-xs font-bold ${isPositive ? 'text-[#087e8b]' : 'text-slate-700'}`}>
-                            <Check size={14} />
-                            Đã chọn
+                          <span className={`inline-flex items-center justify-center size-5 rounded-md ${isPositive ? 'bg-[#087e8b] text-white' : 'bg-slate-700 text-white'}`}>
+                            <Check size={13} strokeWidth={3} />
                           </span>
                         ) : (
                           <Plus size={14} className="text-slate-400" />

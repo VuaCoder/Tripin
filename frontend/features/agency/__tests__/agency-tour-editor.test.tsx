@@ -58,7 +58,7 @@ describe('Tour editor inline reminders', () => {
     expect(hint?.textContent).toContain('5 đến 200');
     expect(title.parentElement?.contains(hint)).toBe(true);
     expect(container.querySelectorAll('label .text-red-600')).toHaveLength(0);
-    expect(screen.getByText(/Tóm tắt ngắn/i).textContent).toContain('(Optional)');
+    expect(screen.getByText(/Tóm tắt ngắn/i)).toBeDefined();
     expect(screen.getByRole('group', { name: /Danh mục/i }).getAttribute('aria-invalid')).toBe('true');
     expect(mocks.save).not.toHaveBeenCalled();
     fireEvent.change(title, { target: { value: 'Khám phá Hạ Long' } });
@@ -118,8 +118,8 @@ describe('Tour editor inline reminders', () => {
     const step1Sec = document.getElementById('tour-section-1');
     expect(step1Sec?.className).toContain('hidden');
 
-    // Clicking "Quay lại: Thông tin chung" moves back to step 1
-    fireEvent.click(screen.getByRole('button', { name: /Quay lại: Thông tin chung/i }));
+    // Clicking "Quay lại" moves back to step 1
+    fireEvent.click(within(step2Sec!).getByRole('button', { name: /^Quay lại$/i }));
     expect(step1Sec?.className).toContain('block');
     expect(step2Sec?.className).toContain('hidden');
   });
