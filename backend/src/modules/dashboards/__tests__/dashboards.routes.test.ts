@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { resolvePermissions, type Role } from '@travel-platform/constants';
 import { errorHandler } from '../../../middlewares/error-handler';
 import { GUEST_ACTOR } from '../../../types/actor';
+import { AGENCY_ROLE_PERMISSIONS } from '../../agencies/agency.policy';
 
 const agencyDashboard = vi.fn(async (agencyId: string) => ({ agencyId }));
 vi.mock('../dashboards.service', () => ({
@@ -24,6 +25,7 @@ function app() {
     req.actor = role
       ? { kind: 'user', userId: req.header('x-user') ?? 'u1', email: 'x@y.z', role: role as never, permissions: resolvePermissions(role), emailVerified: true }
       : GUEST_ACTOR;
+    if (role === 'AGENCY') req.agencyContext = { agencyId: req.header('x-user') ?? 'u1', actorUserId: req.header('x-user') ?? 'u1', memberId: 'fixture-member', memberRole: 'OWNER', permissions: AGENCY_ROLE_PERMISSIONS.OWNER };
     next();
   });
   server.use('/agency/dashboard', agencyDashboardRouter);

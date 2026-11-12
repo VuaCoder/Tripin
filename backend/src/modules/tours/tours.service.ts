@@ -45,7 +45,7 @@ export class ToursService {
     private readonly categories: Pick<CategoriesService, 'assertActiveIds' | 'upsertActive'> = categoriesService,
     _audit: Pick<AuditService, 'record'> = auditService,
     private readonly views: Pick<TourViewBuilder, 'manage' | 'manageMany' | 'guideItems'> = tourViewBuilder,
-    private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
+    private readonly notifications: Pick<NotificationsService, 'notify' | 'notifyAgency'> = notificationsService,
   ) {}
 
   // ================================================================ Agency
@@ -274,7 +274,7 @@ export class ToursService {
       ...(answer.note ? { note: answer.note } : {}),
     });
     if (!updated) throw AppError.conflict('The assignment changed, please retry', 'CONCURRENT_UPDATE');
-    await this.notifications.notify(tour.agencyId, {
+    await this.notifications.notifyAgency(tour.agencyId, {
       type: NOTIFICATION_TYPE.GUIDE_ASSIGNMENT_ANSWERED,
       title: answer.accept ? 'Guide accepted the assignment' : 'Guide declined the assignment',
       body: `The guide ${answer.accept ? 'accepted' : 'declined'} "${tour.title}".${answer.note ? ` Note: ${answer.note}` : ''}`,
@@ -321,7 +321,7 @@ export class ToursService {
     if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
 
 
-    await this.notifications.notify(
+    await this.notifications.notifyAgency(
       tour.agencyId,
       {
         type: decision.approve ? NOTIFICATION_TYPE.TOUR_APPROVED : NOTIFICATION_TYPE.TOUR_REJECTED,
@@ -356,7 +356,7 @@ export class ToursService {
     if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
 
 
-    await this.notifications.notify(
+    await this.notifications.notifyAgency(
       tour.agencyId,
       {
         type: NOTIFICATION_TYPE.TOUR_SUSPENDED,

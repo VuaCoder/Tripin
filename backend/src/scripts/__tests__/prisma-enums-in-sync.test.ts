@@ -19,6 +19,9 @@ for (const match of schema.matchAll(/^enum (\w+) \{([^}]*)\}/gm)) {
 }
 
 const code: Record<string, readonly string[]> = {
+  AgencyMemberRole: ['OWNER', 'MANAGER', 'STAFF', 'ACCOUNTANT'],
+  AgencyMemberStatus: ['ACTIVE', 'SUSPENDED', 'REMOVED'],
+  AgencyInvitationStatus: ['PENDING', 'ACCEPTED', 'REVOKED', 'EXPIRED'],
   Role: constants.PERSISTED_ROLES,
   UserStatus: Object.values(constants.USER_STATUS),
   OtpPurpose: Object.values(constants.OTP_PURPOSE),

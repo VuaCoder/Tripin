@@ -56,7 +56,7 @@ function make(opts: { booking?: R | null; seed?: R[]; stats?: { avg: number; cou
         ]),
     ),
   };
-  const notifications = { notify: vi.fn(async () => undefined) };
+  const notifications = { notify: vi.fn(async () => undefined), notifyAgency: vi.fn(async () => undefined) };
   const audit = { record: vi.fn(async () => undefined) };
   return { service: new ReviewsService(repo as never, bookings as never, tours as never, users as never, notifications, audit), repo, bookings, tours, notifications, audit, db };
 }
@@ -93,7 +93,7 @@ describe('createReview', () => {
     expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ bookingId: 'b1', tourId: 't1', agencyId: 'a1', travelerId: 'u1', rating: 5 }));
     expect(dto).toMatchObject({ rating: 5, status: 'VISIBLE', tourTitle: 'Ha Long' });
     expect(tours.updateRatingStats).not.toHaveBeenCalled(); // Repository owns the atomic aggregate.
-    expect(notifications.notify).toHaveBeenCalledWith('a1', expect.objectContaining({ type: 'REVIEW_RECEIVED' }));
+    expect(notifications.notifyAgency).toHaveBeenCalledWith('a1', expect.objectContaining({ type: 'REVIEW_RECEIVED' }));
   });
 
   it('refuses someone else\'s booking with 404 and an unknown booking too', async () => {

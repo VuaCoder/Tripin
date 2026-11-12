@@ -43,6 +43,7 @@ function makeDeps(user: FakeUser | null) {
   const tokens: { tokenVersion?: number; hash: string; family: string; revokedAt?: Date; expiresAt: Date; userId: string; id: string }[] = [];
 
   const deps = {
+    agencies: { listForUser: vi.fn(async () => store.user?.role === ROLES.AGENCY ? [{ agencyId: store.user.id, memberId: 'owner-member', memberRole: 'OWNER', companyName: 'Fixture', verificationStatus: 'VERIFIED', permissions: [] }] : []) },
     users: {
       findByEmail: vi.fn(async () => store.user),
       findByEmailWithPassword: vi.fn(async () => store.user),

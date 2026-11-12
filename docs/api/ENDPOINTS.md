@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 241 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 249 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -101,6 +101,23 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/agencies/:id` | public |
 | GET | `/api/v1/agencies/:id/promotions` | public |
+
+## `/agency`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/agency/context` | `agency:context-view` |
+| GET | `/api/v1/agency/finance/summary` | `agency:finance-view` |
+| POST | `/api/v1/agency/invitations` | `agency:team-invite` |
+| POST | `/api/v1/agency/invitations/:id/revoke` | `agency:team-manage` |
+| GET | `/api/v1/agency/members` | `agency:team-view` |
+| PATCH | `/api/v1/agency/members/:id` | `agency:team-manage` |
+
+## `/agency-invitations`
+
+| Method | Path | Access |
+|---|---|---|
+| POST | `/api/v1/agency-invitations/accept` | login |
 
 ## `/agency/bookings`
 
@@ -306,7 +323,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | GET | `/api/v1/earnings/me` | `earnings:view` |
 | GET | `/api/v1/earnings/me/ledger` | `earnings:view` |
 | GET | `/api/v1/earnings/me/summary` | `earnings:view` |
-| POST | `/api/v1/earnings/payouts/:id/transfer` | `tour:update-own` |
+| POST | `/api/v1/earnings/payouts/:id/transfer` | `agency:finance-manage` |
 
 ## `/guide/e-tickets`
 
@@ -491,6 +508,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/users/me` | `profile:view-own` |
 | PATCH | `/api/v1/users/me` | `profile:update-own` |
+| GET | `/api/v1/users/me/agencies` | login |
 | POST | `/api/v1/users/me/agency-verification` | `profile:update-own` |
 | DELETE | `/api/v1/users/me/avatar` | `profile:update-own` |
 | POST | `/api/v1/users/me/avatar/complete` | `profile:update-own` |

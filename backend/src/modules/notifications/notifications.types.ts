@@ -53,6 +53,8 @@ export interface NotifyOptions {
 
 export interface NotificationDto {
   id: string;
+  /** Present only for organization-scoped notifications. */
+  agencyId?: string;
   type: NotificationType;
   title: string;
   body: string;

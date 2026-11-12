@@ -7,6 +7,9 @@ import { usersService, type UsersService } from '../users';
 import { toNotificationDto } from './notifications.mapper';
 import { vietnameseNotification } from './notifications.locale';
 import { notificationsRepository, type NotificationsRepository } from './notifications.repository';
+import { prisma } from '../../config/database';
+import { writeAgencyNotification } from './notifications.writer';
+import { canReceiveAgencyNotification } from './notifications.policy';
 import type {
   ListNotificationsQuery,
   NotificationDto,
@@ -34,6 +37,23 @@ export class NotificationsService {
   }
 
   // ----------------------------------------------- Used by other modules
+
+  /** Explicit organization recipient, never a legacy User.id fallback. */
+  async notifyAgency(agencyId: string, input: NotifyInput, options: NotifyOptions = {}): Promise<void> {
+    try {
+      const localized = { ...input, ...vietnameseNotification(input.title, input.body) };
+      const rows = await prisma.$transaction(tx => writeAgencyNotification(tx, agencyId, localized, options.email ?? false));
+      for (const row of rows) await prisma.$transaction(async tx => {
+        await tx.$queryRaw`SELECT id FROM "AgencyProfile" WHERE id = ${agencyId}::uuid FOR UPDATE`;
+        const member = await tx.agencyMember.findFirst({ where: { agencyId, userId: row.userId, status: 'ACTIVE', user: { status: 'ACTIVE' } } });
+        if (member && canReceiveAgencyNotification(member.role, row.type)) {
+          this.publish(row.userId, toNotificationDto({ ...row, data: row.data as Record<string, string> | null }));
+        }
+      });
+    } catch (error) {
+      logger.error(`Agency notification failed (${input.type})`, { message: (error as Error).message });
+    }
+  }
 
   /**
    * Stores an in-app notification (and optionally emails it). NEVER throws: a failed notification must not break the

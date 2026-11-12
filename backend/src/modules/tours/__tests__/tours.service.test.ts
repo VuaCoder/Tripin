@@ -74,7 +74,7 @@ function setup(tour: AnyTour | null) {
     manageMany: vi.fn(async (ts: AnyTour[]) => ts),
     guideItems: vi.fn(async (ts: AnyTour[]) => ts),
   };
-  const notifications = { notify: vi.fn(async () => undefined) };
+  const notifications = { notify: vi.fn(async () => undefined), notifyAgency: vi.fn(async () => undefined) };
   const service = new ToursService(repo as never, users as never, categories as never, audit, views as never, notifications);
   return { service, repo, users, categories, audit, notifications, db };
 }
@@ -304,7 +304,7 @@ describe('moderation', () => {
     const { service, db, repo, notifications } = setup(makeTour({ status: TOUR_STATUS.PENDING_REVIEW }));
     await service.decideReview(moderator, 't1', { approve: true });
     expect(db!.status).toBe(TOUR_STATUS.APPROVED);
-    expect(notifications.notify).toHaveBeenCalledWith('a1', expect.objectContaining({ type: 'TOUR_APPROVED' }), { email: true });
+    expect(notifications.notifyAgency).toHaveBeenCalledWith('a1', expect.objectContaining({ type: 'TOUR_APPROVED' }), { email: true });
     expect(repo.updateIfStatus).toHaveBeenCalledWith('t1', ['PENDING_REVIEW'], expect.any(Object), expect.objectContaining({ action: 'tour.validated' }));
     await expect(service.decideReview(moderator, 't1', { approve: true })).rejects.toMatchObject({ code: ERROR_CODES.INVALID_STATE_TRANSITION });
   });

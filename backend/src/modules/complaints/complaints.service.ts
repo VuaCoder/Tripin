@@ -37,7 +37,7 @@ export class ComplaintsService {
     private readonly tours: Pick<ToursService, 'getTourFacts' | 'getTitles'> = toursService,
     private readonly bookings: Pick<BookingsService, 'getFacts'> = bookingsService,
     private readonly users: Pick<UsersService, 'getSummaries'> = usersService,
-    private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
+    private readonly notifications: Pick<NotificationsService, 'notify' | 'notifyAgency'> = notificationsService,
     private readonly refunds: Pick<RefundLedgerRepository, 'create'> = refundLedgerRepository,
     private readonly bookingWrites: Pick<BookingsRepository, 'updateById'> = bookingsRepository,
   ) {}
@@ -114,7 +114,7 @@ export class ComplaintsService {
     });
 
     // Notify agency
-    await this.notifications.notify(
+    await this.notifications.notifyAgency(
       agencyId,
       {
         type: NOTIFICATION_TYPE.COMPLAINT_RECEIVED,
@@ -175,14 +175,14 @@ export class ComplaintsService {
   // ----------------------------------------------------------------- Shared
   async getTicketDetail(
     ticketId: string,
-    actor: { userId: string; role: string },
+    actor: { userId: string; role: string; agencyId?: string },
   ): Promise<ComplaintTicketDetailDto> {
     const ticket = await this.repo.findById(ticketId);
     if (!ticket) throw AppError.notFound('Phiếu khiếu nại không tồn tại');
 
     // Access check
     const isOwner = ticket.travelerId === actor.userId;
-    const isAgency = ticket.agencyId === actor.userId;
+    const isAgency = actor.agencyId !== undefined && ticket.agencyId === actor.agencyId;
     const isStaff = actor.role === 'MODERATOR' || actor.role === 'SUPER_ADMIN';
     if (!isOwner && !isAgency && !isStaff) {
       throw AppError.notFound('Phiếu khiếu nại không tồn tại');
@@ -238,14 +238,14 @@ export class ComplaintsService {
 
   async sendMessage(
     ticketId: string,
-    actor: { userId: string; role: string },
+    actor: { userId: string; role: string; agencyId?: string },
     input: SendComplaintMessageInput,
   ): Promise<ComplaintTicketMessageDto> {
     const ticket = await this.repo.findById(ticketId);
     if (!ticket) throw AppError.notFound('Phiếu khiếu nại không tồn tại');
 
     const isTraveler = ticket.travelerId === actor.userId;
-    const isAgency = ticket.agencyId === actor.userId;
+    const isAgency = actor.agencyId !== undefined && ticket.agencyId === actor.agencyId;
     const isStaff = actor.role === 'MODERATOR' || actor.role === 'SUPER_ADMIN';
 
     if (!isTraveler && !isAgency && !isStaff) {
@@ -289,8 +289,10 @@ export class ComplaintsService {
     });
 
     // Notify counterpart
-    const targetUserId = isTraveler ? ticket.agencyId : ticket.travelerId;
-    await this.notifications.notify(targetUserId, {
+    const notifyCounterpart = isTraveler
+      ? this.notifications.notifyAgency.bind(this.notifications)
+      : this.notifications.notify.bind(this.notifications);
+    await notifyCounterpart(isTraveler ? ticket.agencyId : ticket.travelerId, {
       type: NOTIFICATION_TYPE.COMPLAINT_MESSAGE,
       title: 'Tin nhắn mới trong phiếu khiếu nại',
       body: `Có phản hồi mới trong phiếu ${ticket.ticketCode}: "${input.text.slice(0, 80)}${input.text.length > 80 ? '...' : ''}"`,
@@ -361,7 +363,7 @@ export class ComplaintsService {
       { email: true },
     );
 
-    return this.getTicketDetail(ticketId, { userId: agencyId, role: 'AGENCY' });
+    return this.getTicketDetail(ticketId, { userId: agencyId, role: 'AGENCY', agencyId });
   }
 
   async acceptResolution(
@@ -396,7 +398,7 @@ export class ComplaintsService {
     });
 
     // Inform agency
-    await this.notifications.notify(ticket.agencyId, {
+    await this.notifications.notifyAgency(ticket.agencyId, {
       type: NOTIFICATION_TYPE.COMPLAINT_RESOLVED,
       title: 'Phiếu khiếu nại đã đóng thành công',
       body: `Khách hàng đã chấp nhận giải pháp và đóng phiếu ${ticket.ticketCode}.`,
@@ -408,14 +410,14 @@ export class ComplaintsService {
 
   async escalateTicket(
     ticketId: string,
-    actor: { userId: string; role: string },
+    actor: { userId: string; role: string; agencyId?: string },
     input: EscalateComplaintTicketInput,
   ): Promise<ComplaintTicketDetailDto> {
     const ticket = await this.repo.findById(ticketId);
     if (!ticket) throw AppError.notFound('Phiếu khiếu nại không tồn tại');
 
     const isTraveler = ticket.travelerId === actor.userId;
-    const isAgency = ticket.agencyId === actor.userId;
+    const isAgency = actor.agencyId !== undefined && ticket.agencyId === actor.agencyId;
     if (!isTraveler && !isAgency) throw AppError.notFound('Phiếu khiếu nại không tồn tại');
 
     assertTransition(COMPLAINT_TRANSITIONS, ticket.status as ComplaintTicketStatus, 'ESCALATED', 'ComplaintTicket');
@@ -443,7 +445,7 @@ export class ComplaintsService {
     };
     await Promise.all([
       this.notifications.notify(ticket.travelerId, notice),
-      this.notifications.notify(ticket.agencyId, notice),
+      this.notifications.notifyAgency(ticket.agencyId, notice),
     ]);
 
     return this.getTicketDetail(ticketId, actor);
@@ -498,7 +500,7 @@ export class ComplaintsService {
     };
     await Promise.all([
       this.notifications.notify(ticket.travelerId, decisionNotice, { email: true }),
-      this.notifications.notify(ticket.agencyId, decisionNotice, { email: true }),
+      this.notifications.notifyAgency(ticket.agencyId, decisionNotice, { email: true }),
     ]);
 
     return this.getTicketDetail(ticketId, moderator);

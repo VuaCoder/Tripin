@@ -58,9 +58,10 @@ export class ToursDiscoveryService {
     const tour = await this.tours.findById(id);
     if (!tour) throw AppError.notFound('Tour not found');
 
-    const isOwner = actor.kind === 'user' && tour.agencyId === actor.userId;
     const isStaff = actor.kind === 'user' && actor.permissions.includes(PERMISSIONS.TOUR_LIST_ALL);
-    if (isStaff || isOwner) return this.views.manage(tour);
+    // Agency management is exclusively /agency/tours/:id behind live membership.
+    // A historical User.id == agencyId must not bypass suspended membership here.
+    if (isStaff) return this.views.manage(tour);
     if (tour.status === TOUR_STATUS.APPROVED) {
       return this.detailCache.getOrCompute(id, async () => this.views.publicDetail(tour));
     }

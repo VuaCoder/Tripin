@@ -37,6 +37,11 @@ import { adminUsersRouter, publicAgenciesRouter, publicGuidesRouter, usersRouter
  */
 export { apiRouter } from './registry';
 import { apiRouter } from './registry';
+import { agencyFoundationRouter, agencyIdentityRouter, agencyInvitationAcceptanceRouter } from '../modules/agencies/agency.routes';
+
+mount('/users', agencyIdentityRouter);
+mount('/agency-invitations', agencyInvitationAcceptanceRouter);
+mount('/agency', agencyFoundationRouter);
 
 apiRouter.get('/health', (_req, res) => {
   res.json({ success: true, data: { status: 'ok', uptimeSeconds: Math.round(process.uptime()) } });

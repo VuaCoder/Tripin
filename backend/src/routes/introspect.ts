@@ -1,5 +1,6 @@
 import type { Router } from 'express';
-import type { PersistedRole, Permission } from '@travel-platform/constants';
+import type { PersistedRole } from '@travel-platform/constants';
+import type { AgencyPermission } from '../modules/agencies/agency.policy';
 import { GUARD_META, type GuardMeta } from '../middlewares/authorize';
 import { VALIDATE_META, type ValidateMeta } from '../middlewares/validate';
 import { apiRouter, mounts } from './registry';
@@ -7,7 +8,7 @@ import './index'; // make sure every module router is mounted before the table i
 
 export const API_PREFIX = '/api/v1';
 
-export type Access = 'public' | 'login' | Permission[];
+export type Access = 'public' | 'login' | AgencyPermission[];
 
 export interface RouteInfo {
   method: string;

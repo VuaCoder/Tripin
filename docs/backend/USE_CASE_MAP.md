@@ -7,6 +7,21 @@ Endpoint names below are the plan; if the implementation deviates, fix this tabl
 Permission column: `GUEST` = no login needed, `auth` = any logged-in user, otherwise the `PERMISSIONS.*` key.
 
 ## Authentication (module `auth`)
+
+## Agency membership foundation H2 (module `agencies`)
+
+| Use case | Actor | Endpoint | Status |
+|---|---|---|---|
+| Discover active agencies | Authenticated User | `GET /users/me/agencies` | done |
+| Resolve live tenant context | ACTIVE member | `GET /agency/context` | done |
+| View team | OWNER / MANAGER | `GET /agency/members` | done |
+| Change member role or status | OWNER | `PATCH /agency/members/:id` | done |
+| Invite member | OWNER / MANAGER (STAFF only) | `POST /agency/invitations` | done |
+| Revoke invitation | OWNER | `POST /agency/invitations/:id/revoke` | done |
+| Accept invitation | Verified matching User | `POST /agency-invitations/accept` | done |
+| Read unreconciled booking finance summary | OWNER / MANAGER / ACCOUNTANT | `GET /agency/finance/summary` | done |
+
+## Authentication endpoints
 | Use case | Actor | Endpoint | Status |
 |---|---|---|---|
 | Register Traveler / Tour guide | Guest | `POST /auth/register` | done |
