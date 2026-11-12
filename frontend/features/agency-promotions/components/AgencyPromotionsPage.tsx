@@ -288,16 +288,7 @@ export function AgencyPromotionsPage() {
       label: (
         <span className="flex items-center gap-2">
           <Ticket className="size-4 text-slate-500 shrink-0" />
-          <span>Public Promo Code</span>
-        </span>
-      ),
-    },
-    {
-      value: 'UNIQUE_BATCH',
-      label: (
-        <span className="flex items-center gap-2">
-          <Layers className="size-4 text-slate-500 shrink-0" />
-          <span>Unique Code Batch</span>
+          <span>Mã giảm giá chung (Nhập code)</span>
         </span>
       ),
     },
@@ -306,7 +297,7 @@ export function AgencyPromotionsPage() {
       label: (
         <span className="flex items-center gap-2">
           <Zap className="size-4 text-slate-500 shrink-0" />
-          <span>Auto-Apply Discount</span>
+          <span>Tự động áp dụng (Không cần mã)</span>
         </span>
       ),
     },
@@ -315,7 +306,16 @@ export function AgencyPromotionsPage() {
       label: (
         <span className="flex items-center gap-2">
           <Wallet className="size-4 text-slate-500 shrink-0" />
-          <span>Collectable Voucher</span>
+          <span>Voucher lưu vào ví</span>
+        </span>
+      ),
+    },
+    {
+      value: 'UNIQUE_BATCH',
+      label: (
+        <span className="flex items-center gap-2">
+          <Layers className="size-4 text-slate-500 shrink-0" />
+          <span>Mã dùng 1 lần (Theo danh sách)</span>
         </span>
       ),
     },
@@ -476,7 +476,7 @@ export function AgencyPromotionsPage() {
             }`}
           >
             <Ticket className="size-3.5" />
-            Public Promo Code
+            Nhập mã code
           </button>
 
           <button
@@ -492,7 +492,7 @@ export function AgencyPromotionsPage() {
             }`}
           >
             <Zap className="size-3.5" />
-            Auto-Apply
+            Tự động áp dụng
           </button>
 
           <button
@@ -508,7 +508,7 @@ export function AgencyPromotionsPage() {
             }`}
           >
             <Wallet className="size-3.5" />
-            Collectable Voucher
+            Lưu vào ví
           </button>
 
           <button
@@ -524,7 +524,7 @@ export function AgencyPromotionsPage() {
             }`}
           >
             <Layers className="size-3.5" />
-            Unique Code Batch
+            Mã dùng 1 lần
           </button>
         </div>
 
@@ -760,12 +760,12 @@ export function AgencyPromotionsPage() {
                             {p.applyType === 'AUTO_APPLY' ? (
                               <>
                                 <Zap className={`size-3 ${isInactive || isArchived ? 'text-slate-500' : 'text-brand-teal'}`} />
-                                Auto-Apply
+                                Tự động áp dụng
                               </>
                             ) : (
                               <>
                                 <Wallet className={`size-3 ${isInactive || isArchived ? 'text-slate-500' : 'text-brand-teal'}`} />
-                                Collectable Voucher
+                                Voucher lưu ví
                               </>
                             )}
                           </span>
@@ -779,19 +779,19 @@ export function AgencyPromotionsPage() {
                         {p.applyType === 'AUTO_APPLY' && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
                             <Zap className="size-3 text-brand-teal" />
-                            Auto-Apply
+                            Tự động áp dụng
                           </span>
                         )}
                         {p.applyType === 'COLLECTABLE' && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
                             <Wallet className="size-3 text-brand-teal" />
-                            Collectable Voucher
+                            Lưu vào ví
                           </span>
                         )}
                         {p.codeType === 'UNIQUE_BATCH' && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
                             <Layers className="size-3 text-slate-500" />
-                            Unique Code Batch
+                            Mã dùng 1 lần
                           </span>
                         )}
 

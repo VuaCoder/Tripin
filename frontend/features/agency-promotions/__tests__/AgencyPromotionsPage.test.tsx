@@ -158,7 +158,7 @@ describe('AgencyPromotionsPage', () => {
 
     // AntSelect filter dropdown for apply type
     const typeDropdown = screen.getByLabelText('Lọc theo hình thức');
-    await selectOption(typeDropdown, /Public Promo Code/);
+    await selectOption(typeDropdown, /Mã giảm giá chung/);
     expect(mockQuery).toHaveBeenCalledWith(expect.objectContaining({ applyType: 'CODE', codeType: 'SHARED' }));
 
     // AntSelect filter dropdown for status
@@ -167,7 +167,7 @@ describe('AgencyPromotionsPage', () => {
     expect(mockQuery).toHaveBeenCalledWith(expect.objectContaining({ isActive: true }));
 
     // Quick filter pill
-    const autoApplyPill = screen.getByRole('button', { name: /Auto-Apply/ });
+    const autoApplyPill = screen.getByRole('button', { name: /Tự động áp dụng/ });
     fireEvent.click(autoApplyPill);
     expect(mockQuery).toHaveBeenCalledWith(expect.objectContaining({ applyType: 'AUTO_APPLY' }));
   });
