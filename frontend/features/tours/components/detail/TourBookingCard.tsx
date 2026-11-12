@@ -78,7 +78,6 @@ export function TourBookingCard({ tour }: { tour: TourReviewContext }) {
           )}
         </button>
       )}
-      <p className={styles.footnote}>Giá và ưu đãi sẽ được kiểm tra lại trước khi xác nhận đặt chỗ. Mỗi hành khách, kể cả em bé, được tính một chỗ.</p>
     </div>
   </aside>;
 }

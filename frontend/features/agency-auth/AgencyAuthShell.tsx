@@ -14,7 +14,7 @@ interface AgencyAuthShellProps {
   wide?: boolean;
 }
 
-export function AgencyAuthShell({ eyebrow, title, description, children, backHref = '/', onBack, wide = false }: AgencyAuthShellProps) {
+export function AgencyAuthShell({ eyebrow, title, description, children, backHref = '/home', onBack, wide = false }: AgencyAuthShellProps) {
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-desk-travel px-4 py-8 text-slate-800 selection:bg-brand-teal selection:text-white sm:px-6 lg:py-12">
       <AuthBackground />

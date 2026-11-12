@@ -17,6 +17,7 @@ import { TourChildPricing } from './TourChildPricing';
 import { TourCancellationPolicy } from './TourCancellationPolicy';
 import { TourRequiredDocuments } from './TourRequiredDocuments';
 import { TourTravelNotes } from './TourTravelNotes';
+import { SimilarToursSection } from './SimilarToursSection';
 import { saveRecentlyViewedTour } from '../../utils';
 import styles from './tour-detail.module.css';
 export function TourDetailView({ tour }: { tour: TourReviewContext }) {
@@ -52,7 +53,7 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
         <div className={styles.ratings}>
           <RatingStars value={tour.ratingAvg} count={tour.ratingCount} size="sm" />
           <a href="#danh-gia" onClick={event => navigateSection(event, 'danh-gia')}>
-            {tour.ratingCount ? `${tour.ratingAvg.toFixed(1)}/5 · ${tour.ratingCount} đánh giá` : 'Chưa có đánh giá'}
+            {tour.ratingCount ? `${tour.ratingAvg.toFixed(1)}/5` : 'Chưa có đánh giá'}
           </a>
         </div>
       </div>
@@ -160,6 +161,11 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
       </div>
     </div><TourBookingCard key={tour.id} tour={tour} /></div>
     <div id="danh-gia" className={styles.section}><TourReviewsSection tourId={tour.id} tourTitle={tour.title} ratingAvg={tour.ratingAvg} ratingCount={tour.ratingCount} /></div>
+    <SimilarToursSection
+      currentTourId={tour.id}
+      destination={tour.destination}
+      categoryId={tour.categories?.[0]?.id || tour.categoryIds?.[0]}
+    />
     <GuestLoginPromptModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} redirectUrl={`/tours/${tour.id}`} tourTitle={tour.title} />
   </div>;
 }

@@ -4,6 +4,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const wishlist = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 vi.mock('../hooks', () => ({ useTourWishlist: () => wishlist.current }));
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+  usePathname: () => '/tours',
+}));
+
 vi.mock('next/link', async () => {
   const { createElement } = await import('react');
   return {
@@ -39,11 +44,13 @@ describe('WishlistButton', () => {
     expect(screen.queryByText('Xem danh sách yêu thích')).toBeNull();
   });
 
-  it('sends guests to the login page', () => {
+  it('opens login prompt modal for guests', () => {
     setState({ status: 'guest' });
     render(<WishlistButton tourId="t1" />);
 
-    expect(screen.getByRole('link').getAttribute('href')).toBe('/login');
+    expect(screen.getByRole('button', { name: /Lưu tour/ })).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: /Lưu tour/ }));
+    expect(screen.getByText('Yêu cầu đăng nhập')).toBeDefined();
   });
 
   it('triggers onGuestClick callback when provided for guest', () => {
