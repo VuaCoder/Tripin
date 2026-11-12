@@ -1299,13 +1299,10 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                 <h3 id="exit-modal-title" className="text-lg font-bold text-slate-900">
                   Bạn có thay đổi chưa lưu!
                 </h3>
-                <p className="mt-1 text-xs text-slate-500">
-                  Tour: <span className="font-semibold text-slate-700">{tour?.title || value.title || 'Tour đang chỉnh sửa'}</span>
-                </p>
               </div>
 
               <p className="text-sm text-slate-600 leading-relaxed">
-                Nội dung và thông tin bạn vừa chỉnh sửa chưa được lưu vào hệ thống. Bạn muốn xử lý thế nào trước khi rời khỏi trang này?
+                Tour <span className="font-semibold text-slate-800">“{value.title?.trim() || tour?.title || 'Tour đang chỉnh sửa'}”</span> chưa được lưu. Bạn có muốn lưu trước khi rời khỏi trang không?
               </p>
 
               <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5 pt-3 border-t border-slate-100">
