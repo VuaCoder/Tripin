@@ -15,11 +15,15 @@ export function TourAgePricingFields({ value, onChange }: { value: TourContentIn
   // Groups are enabled if maxGroupSize has children/infants > 0, OR if already have explicit pricing
   const hasChildCount = (value.agePricing?.childMaxCount !== undefined && value.agePricing.childMaxCount !== null)
     ? value.agePricing.childMaxCount > 0
-    : childVal !== null && childVal !== undefined;
+    : value.agePricing?.childPrice !== undefined
+      ? value.agePricing.childPrice !== null
+      : childVal !== null && childVal !== undefined;
 
   const hasInfantCount = (value.agePricing?.infantMaxCount !== undefined && value.agePricing.infantMaxCount !== null)
     ? value.agePricing.infantMaxCount > 0
-    : infantVal !== null && infantVal !== undefined;
+    : value.agePricing?.infantPrice !== undefined
+      ? value.agePricing.infantPrice !== null
+      : infantVal !== null && infantVal !== undefined;
 
   const isChildFree = childVal === 0;
   const isInfantFree = infantVal === 0;
@@ -142,7 +146,7 @@ export function TourAgePricingFields({ value, onChange }: { value: TourContentIn
                         childPercent: 100,
                         infantPercent: 100,
                         childPrice: e.target.value === '' ? null : Number(e.target.value),
-                        infantPrice: ageUnitPrice(value.basePrice, value.agePricing, 'infant'),
+                        infantPrice: value.agePricing?.infantPrice !== undefined ? value.agePricing.infantPrice : ageUnitPrice(value.basePrice, value.agePricing, 'infant'),
                       },
                     })
                   }
@@ -200,7 +204,7 @@ export function TourAgePricingFields({ value, onChange }: { value: TourContentIn
                         adultMinAge: 13,
                         childPercent: 100,
                         infantPercent: 100,
-                        childPrice: ageUnitPrice(value.basePrice, value.agePricing, 'child'),
+                        childPrice: value.agePricing?.childPrice !== undefined ? value.agePricing.childPrice : ageUnitPrice(value.basePrice, value.agePricing, 'child'),
                         infantPrice: e.target.value === '' ? null : Number(e.target.value),
                       },
                     })
@@ -220,7 +224,20 @@ export function TourAgePricingFields({ value, onChange }: { value: TourContentIn
             type="number"
             aria-label="Giá Trẻ em (2 - 12 tuổi)"
             value=""
-            readOnly
+            onChange={(e) =>
+              onChange({
+                ...value,
+                agePricing: {
+                  ...existingCounts,
+                  childMinAge: 2,
+                  adultMinAge: 13,
+                  childPercent: 100,
+                  infantPercent: 100,
+                  childPrice: e.target.value === '' ? null : Number(e.target.value),
+                  infantPrice: value.agePricing?.infantPrice !== undefined ? value.agePricing.infantPrice : ageUnitPrice(value.basePrice, value.agePricing, 'infant'),
+                },
+              })
+            }
           />
         )}
         {!hasInfantCount && (
@@ -228,7 +245,20 @@ export function TourAgePricingFields({ value, onChange }: { value: TourContentIn
             type="number"
             aria-label="Giá Em bé (dưới 2 tuổi)"
             value=""
-            readOnly
+            onChange={(e) =>
+              onChange({
+                ...value,
+                agePricing: {
+                  ...existingCounts,
+                  childMinAge: 2,
+                  adultMinAge: 13,
+                  childPercent: 100,
+                  infantPercent: 100,
+                  childPrice: value.agePricing?.childPrice !== undefined ? value.agePricing.childPrice : ageUnitPrice(value.basePrice, value.agePricing, 'child'),
+                  infantPrice: e.target.value === '' ? null : Number(e.target.value),
+                },
+              })
+            }
           />
         )}
       </div>
