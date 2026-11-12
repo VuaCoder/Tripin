@@ -22,7 +22,7 @@ fs.mkdirSync(output, { recursive: true });
       return form && Object.keys(form).some(key => key.startsWith('__reactProps$') && typeof form[key]?.onSubmit === 'function');
     });
     await page.locator('#user-credential').fill('traveler@chat.test');
-    await page.locator('#user-password').fill('ChatSmoke2026!');
+    await page.locator('#user-password').fill(process.env.CHAT_SMOKE_PASSWORD);
     const loginResponse = page.waitForResponse(r => r.url() === `${api}/auth/login` && r.request().method() === 'POST');
     await page.locator('form[data-purpose="login-form"] button[type="submit"]').click();
     const login = await (await loginResponse).json();

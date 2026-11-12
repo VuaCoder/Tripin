@@ -15,7 +15,7 @@ async function main() {
   let adminUrl = '';
   const cleanup = await setup({ provide: (_key: string, value: string) => { adminUrl = value; } } as Parameters<typeof setup>[0]);
   await connectDatabase(adminUrl.replace(/\/postgres$/, `/${TEMPLATE_DB}`));
-  const passwordHash = await bcrypt.hash('ChatSmoke2026!', 10);
+  const passwordHash = await bcrypt.hash(process.env.CHAT_SMOKE_PASSWORD, 10);
   const users = await Promise.all((['TRAVELER', 'TOUR_GUIDE', 'TRAVELER', 'AGENCY'] as const).map((role, index) => prisma.user.create({ data: {
     email: ['traveler@chat.test', 'guide@chat.test', 'outsider@chat.test', 'agency@chat.test'][index]!,
     fullName: ['Traveler Kiểm Thử', 'Hướng Dẫn Viên Kiểm Thử', 'Traveler Ngoài Hội Thoại', 'Đại Lý Kiểm Thử'][index]!,
