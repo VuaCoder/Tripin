@@ -188,10 +188,23 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
             title={companyName}
             onClick={(event) => { event.preventDefault(); setShowProfileMenu((prev) => !prev); }}
           >
-            <span className={styles.avatar}>{user?.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.avatarUrl} alt="" className="h-full w-full rounded-lg object-cover" />
-            ) : companyName.slice(0, 1).toLocaleUpperCase('vi')}</span>
+            <span className={styles.avatar}>
+              {user?.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={user.avatarUrl}
+                  alt={companyName}
+                  className="h-full w-full rounded-lg object-cover"
+                  onError={(e) => {
+                    // Fallback to text initials if avatar url fails to load
+                    (e.currentTarget as HTMLElement).style.display = 'none';
+                    if (e.currentTarget.parentElement) {
+                      e.currentTarget.parentElement.textContent = companyName.slice(0, 1).toLocaleUpperCase('vi');
+                    }
+                  }}
+                />
+              ) : companyName.slice(0, 1).toLocaleUpperCase('vi')}
+            </span>
             <span className={styles.company}>{companyName}</span>
           </Link>
           <Link 

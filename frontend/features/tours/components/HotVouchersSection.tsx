@@ -15,10 +15,12 @@ import {
 } from '@/features/traveler-account/api/voucherWalletApi';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/features/auth';
+import { GuestLoginPromptModal } from '@/components/shared';
 import { formatVnd } from '../utils/format';
 
 export function HotVouchersSection() {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const { data: response, isLoading: isLoadingHot } = useGetHotPromotionsQuery();
   const { data: myVouchersData, isLoading: isLoadingMine } = useGetMyVouchersQuery(undefined, {
     skip: !isAuthenticated,
@@ -62,9 +64,9 @@ export function HotVouchersSection() {
     }
   };
 
-  const handleCollect = async (voucherId: string, code?: string) => {
+  const handleCollect = async (voucherId: string, _code?: string) => {
     if (!isAuthenticated) {
-      if (code) handleCopyCode(code);
+      setShowLoginModal(true);
       return;
     }
 
@@ -147,6 +149,12 @@ export function HotVouchersSection() {
           />
         ))}
       </div>
+
+      <GuestLoginPromptModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        redirectUrl="/home"
+      />
     </section>
   );
 }

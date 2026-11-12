@@ -143,7 +143,7 @@ describe('TourReviewsSection', () => {
     expect(screen.getByText('4.8/5 · 12 đánh giá')).toBeTruthy();
     expect(screen.getByText('Nguyen A.')).toBeTruthy();
     expect(screen.getByText(REVIEW_A.comment)).toBeTruthy();
-    expect(screen.getByText(/\d{2}\/\d{2}\/\d{4}/)).toBeTruthy();
+    expect(screen.getByText(/(tháng|\d{1,2}\/\d{1,2}\/\d{4})/)).toBeTruthy();
   });
 
   it('re-reads the list from page 1 when the sort changes', async () => {

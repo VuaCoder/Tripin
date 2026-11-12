@@ -2,7 +2,8 @@ import { guestTotal, type GuestCounts } from '@travel-platform/constants';
 
 type SearchParams = Pick<URLSearchParams, 'get'>;
 
-export function readSearchGuests(params: SearchParams): GuestCounts {
+export function readSearchGuests(params?: SearchParams | null): GuestCounts {
+  if (!params) return { adults: 1, children: 0, infants: 0 };
   const count = (key: string, fallback = 0) => {
     const raw = params.get(key);
     if (raw === null || raw.trim() === '') return fallback;

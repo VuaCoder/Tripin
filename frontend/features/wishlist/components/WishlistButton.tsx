@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { Heart } from 'lucide-react';
+import { GuestLoginPromptModal } from '@/components/shared';
 import { useTourWishlist } from '../hooks';
 import {
   addTourToLatestCollection,
@@ -43,6 +45,7 @@ export function WishlistButton({
   onGuestClick,
 }: WishlistButtonProps) {
   const { status, isSaved, error, toggle, retry } = useTourWishlist(tourId);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   if (status === 'not-traveler') return null;
 
@@ -51,51 +54,24 @@ export function WishlistButton({
   const isGhost = variant === 'ghost';
 
   if (status === 'guest') {
-    if (onGuestClick) {
-      return (
-        <div className={className}>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onGuestClick();
-            }}
-            aria-label="Lưu tour yêu thích"
-            title="Đăng nhập để lưu tour"
-            className={
-              isPill
-                ? `${PILL_BASE} border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-rose-600`
-                : isCircle
-                  ? `${CIRCLE_BASE} border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-rose-500`
-                  : ICON_BASE
-            }
-          >
-            <Heart
-              size={isPill ? 16 : isCircle ? 20 : 22}
-              fill={isPill || isCircle || isGhost ? 'none' : 'rgba(0, 0, 0, 0.3)'}
-              className={
-                isGhost
-                  ? 'size-5.5 shrink-0 text-slate-400 hover:text-rose-500 stroke-[2] transition-colors'
-                  : isPill || isCircle
-                    ? 'size-5 shrink-0 text-slate-600 stroke-[2]'
-                    : 'text-white stroke-white fill-black/30 stroke-[2] drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]'
-              }
-              aria-hidden="true"
-            />
-            {isPill && <span>Lưu</span>}
-          </button>
-        </div>
-      );
-    }
+    const handleGuestPrompt = () => {
+      if (onGuestClick) {
+        onGuestClick();
+      } else {
+        setShowLoginModal(true);
+      }
+    };
+
     return (
       <div className={className}>
-        <Link
-          href="/login"
+        <button
+          type="button"
           onClick={(e) => {
+            e.preventDefault();
             e.stopPropagation();
+            handleGuestPrompt();
           }}
-          aria-label="Đăng nhập để lưu tour"
+          aria-label="Lưu tour yêu thích"
           title="Đăng nhập để lưu tour"
           className={
             isPill
@@ -118,7 +94,16 @@ export function WishlistButton({
             aria-hidden="true"
           />
           {isPill && <span>Lưu</span>}
-        </Link>
+        </button>
+
+        {!onGuestClick && (
+          <GuestLoginPromptModal
+            isOpen={showLoginModal}
+            onClose={() => setShowLoginModal(false)}
+            redirectUrl={typeof window !== 'undefined' ? window.location.pathname : '/home'}
+            tourTitle={tourTitle}
+          />
+        )}
       </div>
     );
   }

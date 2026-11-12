@@ -140,9 +140,19 @@ export function AgencyProfileSettings() {
             <div className="relative group size-20 sm:size-24 shrink-0 rounded-2xl overflow-hidden bg-gradient-to-br from-teal-500 to-teal-700 text-white font-black text-2xl sm:text-3xl flex items-center justify-center shadow-md shadow-teal-500/20">
               {user?.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={user.avatarUrl} alt="" className="size-full object-cover" />
+                <img
+                  src={user.avatarUrl}
+                  alt={user?.agencyProfile?.companyName || user?.fullName || 'Avatar'}
+                  className="size-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = 'none';
+                    if (e.currentTarget.parentElement) {
+                      e.currentTarget.parentElement.innerHTML = `<span>${(user?.agencyProfile?.companyName || user?.fullName || 'A').charAt(0).toUpperCase()}</span>`;
+                    }
+                  }}
+                />
               ) : (
-                <span>{user?.fullName?.charAt(0).toUpperCase() || 'A'}</span>
+                <span>{user?.agencyProfile?.companyName?.charAt(0).toUpperCase() || user?.fullName?.charAt(0).toUpperCase() || 'A'}</span>
               )}
             </div>
 
