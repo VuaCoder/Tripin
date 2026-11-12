@@ -27,6 +27,14 @@ export interface PromotionRedemptionInput {
 
 type FlattenedColumns = 'contactName' | 'contactPhone' | 'promotionId' | 'promotionCode' | 'promotionScope';
 
+export interface BookingReviewSnapshot {
+  id: string;
+  rating: number;
+  comment: string;
+  images: string[];
+  createdAt: string;
+}
+
 /** A stored booking; the contact and the applied-promotion snapshot are exposed as nested objects. */
 export type BookingRecord = Omit<Booking, FlattenedColumns> & {
   contact: { fullName: string; phone: string };
@@ -34,6 +42,7 @@ export type BookingRecord = Omit<Booking, FlattenedColumns> & {
   redemptions?: PromotionRedemption[];
   /** The tour's gallery, filled only by the traveler list query (no Tour relation on Booking). */
   tourImages?: string[];
+  review?: BookingReviewSnapshot;
 };
 
 type BookingScalars = Omit<Booking, 'id' | 'createdAt' | 'updatedAt' | 'guestPricing' | 'cancellationPolicySnapshot' | FlattenedColumns> & { guestPricing: Prisma.InputJsonValue; cancellationPolicySnapshot: Prisma.InputJsonValue };
@@ -110,7 +119,30 @@ export class BookingsRepository {
 
   async findById(id: string): Promise<BookingRecord | null> {
     const row = await prisma.booking.findUnique({ where: { id }, include: { redemptions: true } });
-    return row ? toRecord(row) : null;
+    if (!row) return null;
+    const [tour, review] = await Promise.all([
+      prisma.tour.findUnique({
+        where: { id: row.tourId },
+        select: { images: true },
+      }),
+      prisma.review.findUnique({
+        where: { bookingId: id },
+        select: { id: true, rating: true, comment: true, images: true, createdAt: true },
+      }),
+    ]);
+    return {
+      ...toRecord(row),
+      tourImages: tour?.images ?? [],
+      review: review
+        ? {
+            id: review.id,
+            rating: review.rating,
+            comment: review.comment,
+            images: review.images,
+            createdAt: review.createdAt.toISOString(),
+          }
+        : undefined,
+    };
   }
 
   async findRedemptions(bookingId: string, db: DbExecutor = prisma): Promise<PromotionRedemption[]> {

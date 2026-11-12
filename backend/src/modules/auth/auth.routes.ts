@@ -6,6 +6,7 @@ import { validate } from '../../middlewares/validate';
 import { authController } from './auth.controller';
 import { agencyApprovalController } from './agency-approval.controller';
 import {
+  agencyGoogleLoginBody,
   agencyRegisterBody,
   agencyResendOtpBody,
   agencyVerifyOtpBody,
@@ -35,6 +36,7 @@ authRouter.post('/register', authRateLimiter, validate({ body: registerBody }), 
 authRouter.post('/login', authRateLimiter, validate({ body: loginBody }), authController.login);
 authRouter.post('/agency/register', authRateLimiter, validate({ body: agencyRegisterBody }), authController.registerAgency);
 authRouter.post('/agency/login', authRateLimiter, validate({ body: loginBody }), authController.loginAgency);
+authRouter.post('/agency/google', authRateLimiter, validate({ body: agencyGoogleLoginBody }), authController.loginAgencyWithGoogle);
 authRouter.post('/agency/verify-otp', authRateLimiter, validate({ body: agencyVerifyOtpBody }), authController.verifyAgencyOtp);
 authRouter.post('/agency/resend-otp', authRateLimiter, validate({ body: agencyResendOtpBody }), authController.resendAgencyOtp);
 authRouter.get('/agency/application-status', agencyApprovalController.getStatus);

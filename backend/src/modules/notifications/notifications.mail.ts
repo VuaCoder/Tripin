@@ -13,6 +13,10 @@ export function buildNotificationMail(
     return buildETicketMail(contact, input);
   }
 
+  if (input.type === NOTIFICATION_TYPE.SUBSCRIPTION_EXPIRING_SOON) {
+    return buildSubscriptionExpiringMail(contact, input);
+  }
+
   // Generic notification email with HTML styling
   const subject = input.title;
   const text = `Xin chào ${contact.fullName},\n\n${input.body}\n\n— Tripri Travel Platform`;
@@ -192,6 +196,119 @@ function buildETicketMail(
         <div class="footer">
           &copy; ${new Date().getFullYear()} Tripri Travel Platform. Hỗ trợ 24/7 qua hotline & ứng dụng.<br/>
           Chúc bạn có một hành trình du lịch trọn vẹn và an toàn!
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return { to: contact.email, subject, text, html };
+}
+
+function buildSubscriptionExpiringMail(
+  contact: { email: string; fullName: string },
+  input: NotifyInput,
+): MailMessage {
+  const data = (input.data || {}) as Record<string, any>;
+  const planName = String(data.planName || 'Tripri Premium');
+  const endsAtRaw = data.endsAt ? new Date(data.endsAt) : null;
+  const formattedEndsAt = endsAtRaw && !isNaN(endsAtRaw.getTime())
+    ? endsAtRaw.toLocaleDateString('vi-VN', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : 'trong 3 ngày tới';
+
+  const appUrl = process.env.APP_URL || 'https://tripri.vn';
+  const renewUrl = `${appUrl.replace(/\/+$/, '')}/premium`;
+
+  const subject = `[Tripri Premium] Gói hội viên của bạn sắp hết hạn sau 3 ngày`;
+
+  const text =
+    `[Tripri Premium] THÔNG BÁO HẾT HẠN GÓI HỘI VIÊN\n\n` +
+    `Xin chào ${contact.fullName},\n\n` +
+    `Gói hội viên Tripri Premium (${planName}) của bạn sẽ hết hạn vào ngày ${formattedEndsAt}.\n\n` +
+    `Khi gói hết hạn, các đặc quyền VIP sau sẽ tạm ngưng:\n` +
+    `- Huy hiệu & viền vương miện vàng hoàng gia nhận diện uy tín\n` +
+    `- Các voucher giảm giá độc quyền dành riêng cho thành viên Premium\n` +
+    `- Kênh tổng đài hỗ trợ ưu tiên 24/7\n\n` +
+    `Để duy trì liên tục quyền lợi và không bỏ lỡ những voucher hấp dẫn cho chuyến đi sắp tới, bạn vui lòng truy cập đường dẫn sau để gia hạn:\n` +
+    `${renewUrl}\n\n` +
+    `Cảm ơn bạn đã tin tưởng và đồng hành cùng Tripri!`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${escapeHtml(subject)}</title>
+      <style>
+        body { margin: 0; padding: 20px 10px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; }
+        .wrapper { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
+        .header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #334155 100%); padding: 36px 24px; text-align: center; color: #ffffff; position: relative; }
+        .crown-badge { display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); color: #92400e; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; padding: 6px 14px; border-radius: 999px; margin-bottom: 12px; border: 1px solid #fcd34d; }
+        .header h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: #ffffff; }
+        .content { padding: 32px 26px; }
+        .alert-card { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 1px solid #fde68a; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 24px; }
+        .alert-days { font-size: 13px; font-weight: 700; color: #b45309; text-transform: uppercase; letter-spacing: 0.5px; }
+        .alert-title { font-size: 19px; font-weight: 800; color: #78350f; margin: 4px 0 6px; }
+        .alert-date { font-size: 14px; color: #92400e; font-weight: 600; }
+        .benefits-list { background: #fafafa; border-radius: 14px; padding: 18px 20px; border: 1px solid #f1f5f9; margin-bottom: 28px; }
+        .benefits-title { font-size: 13px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+        .benefit-item { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; font-size: 13px; color: #334155; line-height: 1.5; }
+        .benefit-item:last-child { margin-bottom: 0; }
+        .benefit-icon { color: #d97706; font-size: 15px; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+        .cta-wrapper { text-align: center; margin: 32px 0 16px; }
+        .cta-button { display: inline-block; background: linear-gradient(135deg, #005a64 0%, #087e8b 100%); color: #ffffff !important; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 34px; border-radius: 12px; box-shadow: 0 4px 14px rgba(8, 126, 139, 0.35); }
+        .footer { background: #f8fafc; padding: 22px 24px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #f1f5f9; line-height: 1.6; }
+      </style>
+    </head>
+    <body>
+      <div class="wrapper">
+        <div class="header">
+          <div class="crown-badge">👑 TRIPRI PREMIUM</div>
+          <h1>Gói Hội Viên Sắp Hết Hạn</h1>
+        </div>
+        <div class="content">
+          <p style="font-size: 15px; margin-top: 0; line-height: 1.6; color: #1e293b;">
+            Xin chào <strong>${escapeHtml(contact.fullName)}</strong>,
+          </p>
+          <div class="alert-card">
+            <div class="alert-days">Cảnh báo sắp hết hạn</div>
+            <div class="alert-title">Còn 3 ngày trải nghiệm Premium</div>
+            <div class="alert-date">Gói ${escapeHtml(planName)} · Hết hạn vào ${escapeHtml(formattedEndsAt)}</div>
+          </div>
+          <p style="font-size: 14px; line-height: 1.6; color: #475569;">
+            Sau ngày <strong>${escapeHtml(formattedEndsAt)}</strong>, quyền lợi thành viên VIP của bạn sẽ tạm ngưng hoạt động. Đừng để gián đoạn trải nghiệm du lịch tuyệt vời cùng Tripri!
+          </p>
+          <div class="benefits-list">
+            <div class="benefits-title">Đặc quyền Premium sẽ tạm ngưng:</div>
+            <div class="benefit-item">
+              <span class="benefit-icon">👑</span>
+              <span><strong>Viền vương miện hoàng gia:</strong> Biểu tượng nhận diện đẳng cấp và uy tín VIP trên hồ sơ cá nhân.</span>
+            </div>
+            <div class="benefit-item">
+              <span class="benefit-icon">🎫</span>
+              <span><strong>Kho voucher giảm giá:</strong> Các voucher ưu đãi định kỳ dành riêng cho tour tuyển chọn.</span>
+            </div>
+            <div class="benefit-item">
+              <span class="benefit-icon">🎧</span>
+              <span><strong>Hỗ trợ ưu tiên 24/7:</strong> Kênh giải quyết yêu cầu đặc biệt trực tiếp từ nhân viên sàn.</span>
+            </div>
+          </div>
+          <div class="cta-wrapper">
+            <a href="${escapeHtml(renewUrl)}" class="cta-button">Gia hạn gói Premium ngay</a>
+          </div>
+          <p style="font-size: 12px; text-align: center; color: #94a3b8; margin: 12px 0 0;">
+            Thanh toán một lần qua PayOS / VietQR · An toàn &amp; Nhanh chóng
+          </p>
+        </div>
+        <div class="footer">
+          &copy; ${new Date().getFullYear()} Tripri Travel Platform · Hotline 1900 6868 (24/7)<br/>
+          Nếu bạn đã gia hạn gói Premium, vui lòng bỏ qua email thông báo này.
         </div>
       </div>
     </body>

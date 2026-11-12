@@ -13,4 +13,7 @@ export const AUTH_POLICY = {
   REFRESH_COOKIE_NAME: 'refresh_token',
   REFRESH_COOKIE_PATH: '/api/v1/auth',
   ACCESS_TOKEN_ISSUER: 'tripri-api',
+  /** Extended session lifetimes when the user selects "Remember me" on login. */
+  REMEMBER_ME_ACCESS_EXPIRES_IN: '30d',
+  REMEMBER_ME_REFRESH_EXPIRES_IN_DAYS: 30,
 } as const;

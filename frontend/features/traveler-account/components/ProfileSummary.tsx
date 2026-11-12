@@ -1,5 +1,6 @@
 import type { UserProfile } from '@/features/auth/types';
-import { Badge, Button } from '@/components/ui';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { OwnPremiumIdentity, OwnPremiumStatus } from '@/features/premium/PremiumIdentity';
 
 interface ProfileSummaryProps {
@@ -16,12 +17,8 @@ export function ProfileSummary({ user, onEdit }: ProfileSummaryProps) {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">Hồ sơ Traveler</p>
-          <h2 className="mt-1 text-headline-md font-bold text-on-surface">Thông tin cá nhân</h2>
-          <p className="mt-1 text-sm text-on-surface-variant">Thông tin được dùng cho tài khoản và các giao dịch của bạn.</p>
-        </div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-headline-md font-bold text-on-surface">Thông tin cá nhân</h2>
         <Button onClick={onEdit} variant="outline" className="self-start" aria-label="Chỉnh sửa thông tin cá nhân" title="Chỉnh sửa">
           <span className="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
         </Button>

@@ -7,6 +7,7 @@ import { clearRefreshCookie, setRefreshCookie, toSessionResponse } from './auth.
 import { AUTH_POLICY } from './auth.policy';
 import { authService, type AuthService } from './auth.service';
 import type {
+  AgencyGoogleLoginBody,
   AgencyRegisterBody,
   AgencyResendOtpBody,
   AgencyVerifyOtpBody,
@@ -91,6 +92,13 @@ export class AuthController {
   loginWithGoogle: RequestHandler = async (req, res) => {
     const { body } = validated<GoogleLoginBody>(req);
     const session = await this.service.loginWithGoogle(body, contextOf(req));
+    setRefreshCookie(res, session);
+    sendOk(res, toSessionResponse(session));
+  };
+
+  loginAgencyWithGoogle: RequestHandler = async (req, res) => {
+    const { body } = validated<AgencyGoogleLoginBody>(req);
+    const session = await this.service.loginAgencyWithGoogle(body, contextOf(req));
     setRefreshCookie(res, session);
     sendOk(res, toSessionResponse(session));
   };

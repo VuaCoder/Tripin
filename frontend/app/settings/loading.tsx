@@ -1,6 +1,6 @@
 'use client';
 
-import { TravelerAccountShell } from '@/features/traveler-account/components';
+import { TravelerAccountShell } from '@/features/traveler-account/components/TravelerAccountShell';
 
 export default function SettingsLoading() {
   return (

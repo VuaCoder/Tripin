@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, type ReactNode } from 'react';
+import { Crown } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth';
 import { useMyPremiumQuery, type PremiumStatus } from './api';
@@ -64,7 +65,7 @@ export function PremiumFrame({
 }) {
   return (
     <span
-      className={`relative inline-flex shrink-0 ${rounded ? 'rounded-2xl' : 'rounded-full'} ${active ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white' : ''} ${className}`}
+      className={`relative inline-flex shrink-0 ${rounded ? 'rounded-2xl' : 'rounded-full'} ${active ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-white shadow-xs' : ''} ${className}`}
     >
       {children}
       {active && (
@@ -72,15 +73,9 @@ export function PremiumFrame({
           role="img"
           aria-label="Thành viên Premium"
           title="Thành viên Premium"
-          className="absolute -bottom-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full border-2 border-white bg-amber-500 text-amber-950"
+          className="absolute -bottom-1 -right-1 flex h-[19px] w-[19px] items-center justify-center rounded-full border-2 border-white bg-gradient-to-tr from-amber-500 via-amber-400 to-yellow-300 text-amber-950 shadow-xs"
         >
-          <span
-            className="material-symbols-outlined text-[12px] leading-none"
-            style={{ fontVariationSettings: "'FILL' 1" }}
-            aria-hidden="true"
-          >
-            workspace_premium
-          </span>
+          <Crown size={11} className="fill-amber-950 text-amber-950 stroke-[1.5]" />
         </span>
       )}
     </span>

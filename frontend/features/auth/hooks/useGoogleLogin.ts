@@ -5,18 +5,21 @@ import { useLoginWithGoogleMutation } from '../api/authApi';
 import { useAppDispatch } from '@/store/hooks';
 import { setCredentials } from '../store/authSlice';
 import { getApiErrorMessage } from '../utils/apiError';
-import { LoginResultData } from '../types';
+import { LoginResultData, SessionData } from '../types';
 import { GOOGLE_CLIENT_ID, GoogleCredentialResponse, loadGoogleIdentity } from '../utils/googleIdentity';
 
 interface UseGoogleLoginProps {
   onSuccess?: (data: LoginResultData) => void;
   onError?: (errorMessage: string) => void;
+  /** Optional custom API call (e.g. Agency portal Google sign-in). */
+  authenticate?: (idToken: string) => Promise<SessionData>;
+  rememberMe?: boolean;
 }
 
 /** Time to wait after the popup closes before deciding the user cancelled. */
 const CANCEL_GRACE_MS = 1500;
 
-export function useGoogleLogin({ onSuccess, onError }: UseGoogleLoginProps = {}) {
+export function useGoogleLogin({ onSuccess, onError, authenticate, rememberMe }: UseGoogleLoginProps = {}) {
   const dispatch = useAppDispatch();
   const [loginWithGoogle] = useLoginWithGoogleMutation();
   const [isReady, setIsReady] = useState(false);
@@ -27,8 +30,8 @@ export function useGoogleLogin({ onSuccess, onError }: UseGoogleLoginProps = {})
   const buttonHost = useRef<HTMLDivElement | null>(null);
   const awaitingPopup = useRef(false);
   const cancelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handlers = useRef({ onSuccess, onError });
-  handlers.current = { onSuccess, onError };
+  const handlers = useRef({ onSuccess, onError, authenticate, rememberMe });
+  handlers.current = { onSuccess, onError, authenticate, rememberMe };
 
   const clearCancelTimer = () => {
     if (cancelTimer.current) {
@@ -57,8 +60,18 @@ export function useGoogleLogin({ onSuccess, onError }: UseGoogleLoginProps = {})
       setError(null);
       setNotice(null);
       try {
-        const session = await loginWithGoogle({ idToken: response.credential }).unwrap();
-        dispatch(setCredentials({ user: session.user, accessToken: session.accessToken }));
+        const customAuthenticate = handlers.current.authenticate;
+        const persistSession = handlers.current.rememberMe;
+        const session = customAuthenticate
+          ? await customAuthenticate(response.credential)
+          : await loginWithGoogle({ idToken: response.credential }).unwrap();
+        dispatch(
+          setCredentials({
+            user: session.user,
+            accessToken: session.accessToken,
+            ...(persistSession !== undefined ? { rememberMe: persistSession } : {}),
+          }),
+        );
         handlers.current.onSuccess?.({ twoFactorRequired: false, ...session });
       } catch (err) {
         fail(getApiErrorMessage(err, 'Đăng nhập Google thất bại'));

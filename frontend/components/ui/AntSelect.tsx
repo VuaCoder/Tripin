@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { ConfigProvider, Select } from 'antd';
+import { ChevronDown } from 'lucide-react';
 
 export interface AntSelectOption<T = string | number> {
   value: T;
@@ -34,10 +35,32 @@ export function AntSelect<T extends string | number = string>({
   id, 'aria-label': ariaLabel, placement = 'left',
 }: AntSelectProps<T>) {
   return (
-    <ConfigProvider theme={{ token: {
-      colorPrimary: '#087e8b', fontFamily: 'inherit', borderRadius: 6,
-      colorText: '#1e293b', controlHeight: 36, controlHeightLG: 44,
-    }, components: { Select: { optionSelectedBg: '#e6f4f1', optionActiveBg: '#f1f5f9' } } }}>
+    <ConfigProvider theme={{
+      token: {
+        colorPrimary: '#087e8b',
+        fontFamily: 'inherit',
+        borderRadius: 12,
+        borderRadiusLG: 12,
+        borderRadiusSM: 8,
+        colorText: '#0f172a',
+        colorBorder: '#e2e8f0',
+        controlHeight: 40,
+        controlHeightLG: 44,
+      },
+      components: {
+        Select: {
+          optionSelectedBg: '#f0fdfa',
+          optionSelectedColor: '#087e8b',
+          optionActiveBg: '#f8fafc',
+          borderRadius: 12,
+          colorBorder: '#e2e8f0',
+          hoverBorderColor: '#087e8b',
+          activeBorderColor: '#087e8b',
+          colorText: '#0f172a',
+          colorTextPlaceholder: '#94a3b8',
+        },
+      },
+    }}>
       <Select<T>
         id={id}
         aria-label={ariaLabel}
@@ -47,13 +70,20 @@ export function AntSelect<T extends string | number = string>({
         options={options}
         placeholder={placeholder}
         className={`tripri-select ${className} ${triggerClassName}`}
-        classNames={{ popup: { root: dropdownClassName } }}
+        classNames={{ popup: { root: `tripri-select-popup ${dropdownClassName}` } }}
         style={{ minWidth: 120, maxWidth: '100%' }}
         size={size}
         disabled={disabled}
         prefix={prefix}
         allowClear={allowClear}
         placement={placement === 'right' ? 'bottomRight' : 'bottomLeft'}
+        popupMatchSelectWidth={false}
+        suffixIcon={
+          <ChevronDown
+            className="size-4 text-slate-500 transition-transform duration-200 ant-select-suffix-chevron"
+            aria-hidden="true"
+          />
+        }
       />
     </ConfigProvider>
   );

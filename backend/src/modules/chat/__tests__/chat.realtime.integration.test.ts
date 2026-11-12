@@ -189,11 +189,11 @@ describe('chat over sockets (real stack)', () => {
     expect(travelerSocket.connected).toBe(false); // the dead session is closed, not just refused
   });
 
-  it('a role change takes effect on an open socket: an agency promoted away from chat cannot keep using it', async () => {
+  it('a role change takes effect on an open socket: a role promoted away from chat cannot keep using it', async () => {
     const { traveler, conversationId } = await conversation();
     const travelerSocket = open(traveler.token);
     await ready(travelerSocket);
-    await prisma.user.updateMany({ where: { id: traveler.id }, data: { role: 'AGENCY' } });
+    await prisma.user.updateMany({ where: { id: traveler.id }, data: { role: 'MODERATOR' } });
     const res = await ack(travelerSocket, 'chat:send', { conversationId, text: 'still a traveler?' });
     expect(res.ok).toBe(false);
   });

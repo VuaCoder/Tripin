@@ -1,6 +1,6 @@
 'use client';
 import type { AgencyDashboard } from '../types';
-import { money } from '../AgencyUi';
+import { money } from '@/features/agency/AgencyCommon';
 import styles from './AgencyDashboard.module.css';
 
 type Point = AgencyDashboard['last30Days'][number];

@@ -1,6 +1,6 @@
 'use client';
 
-import { AgencyDenied, useAgencyPermission } from '@/features/agency/AgencyUi';
+import { AgencyDenied, useAgencyPermission } from '@/features/agency/AgencyCommon';
 import { AgencyReviewsPage } from '@/features/agency-reviews';
 
 export default function AgencyReviewsRoute() {

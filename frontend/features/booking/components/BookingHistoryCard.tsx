@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { formatDepartureDate, formatParticipants, formatVnd } from '@/lib/travel-format';
+import { formatDepartureDate, formatVnd } from '@/lib/travel-format';
 import { useCheckoutBookingMutation } from '@/features/payment';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/features/auth/store/authSlice';
 import { BookingStatusBadge } from './BookingStatusBadge';
 import type { BookingDto } from '../types';
 
@@ -55,8 +57,11 @@ export function BookingHistoryCard({
   const isPending = booking.status === 'PENDING';
   const isConfirmed = booking.status === 'CONFIRMED';
 
-  const initial = (booking.contact.fullName || 'K').trim().charAt(0).toUpperCase();
-  const extraGuests = booking.participants - 1;
+  const user = useAppSelector(selectUser);
+  const [avatarError, setAvatarError] = useState(false);
+  const userAvatar = user?.avatarUrl;
+  const initial = (user?.fullName || booking.contact.fullName || 'K').trim().charAt(0).toUpperCase();
+  const extraGuests = Math.max(0, booking.participants - 1);
 
   const price = (
     <>
@@ -104,18 +109,30 @@ export function BookingHistoryCard({
               {tripDateRange(booking.departureDate, booking.endDate)}
             </span>
 
-            <span className="flex items-center gap-1.5">
-              <span className="flex items-center">
-                <span className="flex size-6 items-center justify-center rounded-full bg-primary-container/10 text-[10px] font-bold text-primary ring-2 ring-white">
+            <span
+              className="flex items-center"
+              title={`${user?.fullName || booking.contact.fullName || 'Người đặt tour'}${extraGuests > 0 ? ` (+${extraGuests} khách đi cùng)` : ''}`}
+              aria-label={`${user?.fullName || booking.contact.fullName || 'Người đặt tour'}${extraGuests > 0 ? ` (+${extraGuests} khách đi cùng)` : ''}`}
+            >
+              {userAvatar && !avatarError ? (
+                // User-uploaded avatar with optimistic / updated profile sync
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={userAvatar}
+                  alt={user?.fullName || booking.contact.fullName || 'Avatar người đặt'}
+                  onError={() => setAvatarError(true)}
+                  className="size-6 rounded-full object-cover ring-2 ring-white shadow-2xs"
+                />
+              ) : (
+                <span className="flex size-6 items-center justify-center rounded-full bg-teal-100 text-[10px] font-bold text-teal-800 ring-2 ring-white shadow-2xs">
                   {initial}
                 </span>
-                {extraGuests > 0 && (
-                  <span className="-ml-1.5 flex size-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 ring-2 ring-white">
-                    +{extraGuests}
-                  </span>
-                )}
-              </span>
-              {formatParticipants(booking.participants)}
+              )}
+              {extraGuests > 0 && (
+                <span className="-ml-1.5 flex size-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-700 ring-2 ring-white shadow-2xs">
+                  +{extraGuests}
+                </span>
+              )}
             </span>
 
             {booking.status === 'CANCELLED' && booking.cancelReason && (

@@ -132,7 +132,7 @@ describe('AgencyRightSidebar & Partner Settings', () => {
     expect(sidebar.getAttribute('data-expanded')).toBe('true');
   });
 
-  it('clears search with its icon and opens the real notifications inbox without navigation', () => {
+  it('clears search with its icon and opens the real notifications inbox without navigation', async () => {
     render(<AgencyRightSidebar initialExpanded />);
     const input = screen.getByRole('searchbox');
     fireEvent.change(input, { target: { value: 'tour' } });
@@ -141,7 +141,7 @@ describe('AgencyRightSidebar & Partner Settings', () => {
     expect(document.activeElement).toBe(input);
     expect(screen.getByLabelText('Command K')).toBeDefined();
     fireEvent.click(screen.getByRole('link', { name: 'Thông báo, 3 chưa đọc' }));
-    expect(screen.getByRole('dialog', { name: 'Thông báo Agency' })).toBeDefined();
+    expect(await screen.findByRole('dialog', { name: 'Thông báo Agency' })).toBeDefined();
     expect(screen.getByText('Tour đã được duyệt')).toBeDefined();
     expect(screen.getByRole('button', { name: 'Đánh dấu đã đọc' })).toBeDefined();
     expect(screen.getByRole('button', { name: 'Xoá thông báo' })).toBeDefined();

@@ -1,4 +1,5 @@
 'use client';
+import { agencyNotice } from '../agencyNotice';
 
 import React, { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -85,11 +86,11 @@ export function AgencyPartnerSettings({ onClose }: { onClose?: () => void }) {
         dispatch(setUser(res.data));
       }
       setIsEditingProfile(false);
-      setSaveSuccessMsg('Đã cập nhật thông tin thành công!');
+      setSaveSuccessMsg('Đã cập nhật thông tin thành công!'); agencyNotice.success('Đã cập nhật thông tin thành công!');
       setTimeout(() => setSaveSuccessMsg(null), 3500);
     } catch (err: unknown) {
       const apiErr = err as { data?: { message?: string } };
-      setErrorMessage(apiErr?.data?.message || 'Không thể lưu thay đổi. Vui lòng kiểm tra lại!');
+      setErrorMessage(apiErr?.data?.message || 'Không thể lưu thay đổi. Vui lòng kiểm tra lại!'); agencyNotice.error(apiErr?.data?.message || 'Không thể lưu thay đổi. Vui lòng kiểm tra lại!');
     }
   };
 
@@ -101,12 +102,12 @@ export function AgencyPartnerSettings({ onClose }: { onClose?: () => void }) {
       if (field === 'avatar') {
         const res = await removeAvatar().unwrap();
         if (res?.data) dispatch(setUser(res.data));
-        setSaveSuccessMsg('Đã xoá ảnh đại diện thành công!');
+        setSaveSuccessMsg('Đã xoá ảnh đại diện thành công!'); agencyNotice.success('Đã xoá ảnh đại diện thành công!');
       } else if (field === 'phone') {
         const res = await updateMe({ phone: null }).unwrap();
         if (res?.data) dispatch(setUser(res.data));
         setPhone('');
-        setSaveSuccessMsg('Đã xoá số điện thoại thành công!');
+        setSaveSuccessMsg('Đã xoá số điện thoại thành công!'); agencyNotice.success('Đã xoá số điện thoại thành công!');
       } else {
         const patch: Record<string, string> = {};
         if (field === 'address') {
@@ -126,13 +127,13 @@ export function AgencyPartnerSettings({ onClose }: { onClose?: () => void }) {
           agencyProfile: patch,
         }).unwrap();
         if (res?.data) dispatch(setUser(res.data));
-        setSaveSuccessMsg(`Đã xoá thông tin ${field} thành công!`);
+        setSaveSuccessMsg(`Đã xoá thông tin ${field} thành công!`); agencyNotice.success(`Đã xoá thông tin ${field} thành công!`);
       }
       setShowDeleteModal(false);
       setTimeout(() => setSaveSuccessMsg(null), 3500);
     } catch (err: unknown) {
       const apiErr = err as { data?: { message?: string } };
-      setErrorMessage(apiErr?.data?.message || 'Có lỗi xảy ra khi xoá dữ liệu!');
+      setErrorMessage(apiErr?.data?.message || 'Có lỗi xảy ra khi xoá dữ liệu!'); agencyNotice.error(apiErr?.data?.message || 'Có lỗi xảy ra khi xoá dữ liệu!');
     }
   };
 
@@ -205,18 +206,6 @@ export function AgencyPartnerSettings({ onClose }: { onClose?: () => void }) {
       </div>
 
       {/* Toast Notification Alert */}
-      {saveSuccessMsg && (
-        <div className="mx-4 mb-2 flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-3.5 py-2.5 text-xs font-medium text-emerald-800 animate-fadeIn">
-          <span className="material-symbols-outlined text-[18px] text-emerald-600 shrink-0">check_circle</span>
-          <span>{saveSuccessMsg}</span>
-        </div>
-      )}
-      {errorMessage && (
-        <div className="mx-4 mb-2 flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 px-3.5 py-2.5 text-xs font-medium text-red-800 animate-fadeIn">
-          <span className="material-symbols-outlined text-[18px] text-red-600 shrink-0">error</span>
-          <span>{errorMessage}</span>
-        </div>
-      )}
 
       {/* TAB 1: COMMISSION & DISCOUNT RATE */}
       {activeSection === 'commission' && (

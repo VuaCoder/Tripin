@@ -21,7 +21,9 @@ const iso = (local: string) => new Date(local).toISOString();
 
 export function buildCreatePayload(values: PromotionFormValues): CreatePromotionInput {
   const isPercent = values.discountType === 'PERCENT';
-  const description = values.description?.trim();
+  const rawDesc = values.description?.trim() || '';
+  const cleanDesc = rawDesc.replace(/^\[PREMIUM\]\s*/i, '').trim();
+  const description = values.isPremium ? (cleanDesc ? `[PREMIUM] ${cleanDesc}` : '[PREMIUM]') : cleanDesc;
   const now = new Date();
   const startsAt = values.startsAt ? iso(values.startsAt) : now.toISOString();
   const defaultEnd = new Date(now.getFullYear() + 10, now.getMonth(), now.getDate());
@@ -52,8 +54,11 @@ export function buildCreatePayload(values: PromotionFormValues): CreatePromotion
 export function buildUpdatePatch(values: PromotionFormValues, original: AgencyPromotion): UpdatePromotionInput['patch'] {
   const patch: UpdatePromotionInput['patch'] = {};
   if (values.title.trim() !== original.title) patch.title = values.title.trim();
-  if (values.description.trim() !== (original.description ?? '')) {
-    patch.description = values.description.trim();
+  const rawDesc = values.description?.trim() || '';
+  const cleanDesc = rawDesc.replace(/^\[PREMIUM\]\s*/i, '').trim();
+  const newDesc = values.isPremium ? (cleanDesc ? `[PREMIUM] ${cleanDesc}` : '[PREMIUM]') : cleanDesc;
+  if (newDesc !== (original.description ?? '')) {
+    patch.description = newDesc;
   }
   if (original.usedCount === 0 && parseFormInt(values.discountValue) !== original.discountValue) {
     patch.discountValue = parseFormInt(values.discountValue);

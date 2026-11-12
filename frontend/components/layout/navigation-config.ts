@@ -24,8 +24,6 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
       href: '/tours',
     },
     { label: 'Bảng giá', href: '/premium' },
-    { label: 'Hỗ trợ', href: '/support' },
-    { label: 'Điều khoản', href: '/policies' },
   ],
   TRAVELER: [
     {
@@ -33,15 +31,12 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
       href: '/tours',
     },
     { label: 'Bảng giá', href: '/premium' },
-    { label: 'Hỗ trợ', href: '/support' },
-    { label: 'Điều khoản', href: '/policies' },
   ],
   AGENCY: [
-    { label: 'Voucher Premium', href: '/agency/premium', icon: 'workspace_premium' },
     { label: 'Tổng quan', href: '/agency', icon: 'dashboard' },
     { label: 'Quản lý tour', href: '/agency/tours', icon: 'tour' },
     { label: 'Đơn đặt chỗ', href: '/agency/bookings', icon: 'receipt_long' },
-    { label: 'Khuyến mãi', href: '/agency/promotions', icon: 'sell' },
+    { label: 'Khuyến mãi & Voucher', href: '/agency/promotions', icon: 'sell' },
     { label: 'Khiếu nại', href: '/agency/complaints', icon: 'report' },
     { label: 'Đánh giá', href: '/agency/reviews', icon: 'reviews' },
   ],

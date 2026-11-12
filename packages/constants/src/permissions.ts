@@ -108,6 +108,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     P.AGENCY_EXPORT_CUSTOMERS,
     P.COMPLAINT_RESPOND,
     P.REVIEW_DISPUTE,
+    P.CHAT_USE,
   ],
   [ROLES.TOUR_GUIDE]: [
     P.PREMIUM_SUBSCRIBE,

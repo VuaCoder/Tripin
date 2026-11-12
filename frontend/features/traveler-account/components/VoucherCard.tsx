@@ -96,7 +96,10 @@ function VoucherTicketCard({
   const remainingHours = (endsAt.getTime() - now.getTime()) / (1000 * 60 * 60);
 
   const isExpired = remainingHours <= 0 || !promo.isActive;
-  const isPremium = promo.scope === 'PREMIUM';
+  const isPremium =
+    promo.scope === 'PREMIUM' ||
+    Boolean(promo.description?.includes('[PREMIUM]')) ||
+    promo.title?.toLowerCase().includes('premium');
   const isUpcoming = startsAt > now;
   const canUse = !isExpired && !isUsed && !isHeld && !isUpcoming;
   const isUrgent = canUse && remainingHours <= 3;

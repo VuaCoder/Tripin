@@ -1,4 +1,5 @@
 'use client';
+import { agencyNotice } from '../agencyNotice';
 
 import React, { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -75,11 +76,11 @@ export function AgencyProfileSettings() {
         dispatch(setUser(res.data));
       }
       setIsEditing(false);
-      setSaveSuccessMsg('Đã cập nhật thông tin hồ sơ thành công!');
+      setSaveSuccessMsg('Đã cập nhật thông tin hồ sơ thành công!'); agencyNotice.success('Đã cập nhật thông tin hồ sơ thành công!');
       setTimeout(() => setSaveSuccessMsg(null), 3500);
     } catch (err: unknown) {
       const apiErr = err as { data?: { message?: string } };
-      setErrorMessage(apiErr?.data?.message || 'Không thể lưu thay đổi. Vui lòng thử lại!');
+      setErrorMessage(apiErr?.data?.message || 'Không thể lưu thay đổi. Vui lòng thử lại!'); agencyNotice.error(apiErr?.data?.message || 'Không thể lưu thay đổi. Vui lòng thử lại!');
     }
   };
 
@@ -91,12 +92,12 @@ export function AgencyProfileSettings() {
       if (field === 'avatar') {
         const res = await removeAvatar().unwrap();
         if (res?.data) dispatch(setUser(res.data));
-        setSaveSuccessMsg('Đã xoá ảnh đại diện!');
+        setSaveSuccessMsg('Đã xoá ảnh đại diện!'); agencyNotice.success('Đã xoá ảnh đại diện!');
       } else if (field === 'phone') {
         const res = await updateMe({ phone: null }).unwrap();
         if (res?.data) dispatch(setUser(res.data));
         setPhone('');
-        setSaveSuccessMsg('Đã xoá số điện thoại!');
+        setSaveSuccessMsg('Đã xoá số điện thoại!'); agencyNotice.success('Đã xoá số điện thoại!');
       } else {
         const patch: Record<string, string> = {};
         if (field === 'address') { patch.address = ''; setAddress(''); }
@@ -105,13 +106,13 @@ export function AgencyProfileSettings() {
 
         const res = await updateMe({ agencyProfile: patch }).unwrap();
         if (res?.data) dispatch(setUser(res.data));
-        setSaveSuccessMsg(`Đã xoá dữ liệu ${field}!`);
+        setSaveSuccessMsg(`Đã xoá dữ liệu ${field}!`); agencyNotice.success(`Đã xoá dữ liệu ${field}!`);
       }
       setShowDeleteModal(false);
       setTimeout(() => setSaveSuccessMsg(null), 3500);
     } catch (err: unknown) {
       const apiErr = err as { data?: { message?: string } };
-      setErrorMessage(apiErr?.data?.message || 'Có lỗi xảy ra khi xoá dữ liệu!');
+      setErrorMessage(apiErr?.data?.message || 'Có lỗi xảy ra khi xoá dữ liệu!'); agencyNotice.error(apiErr?.data?.message || 'Có lỗi xảy ra khi xoá dữ liệu!');
     }
   };
 
@@ -120,18 +121,6 @@ export function AgencyProfileSettings() {
   return (
     <div className="space-y-6">
       {/* Toast Feedback */}
-      {saveSuccessMsg && (
-        <div className="flex items-center gap-2 rounded-2xl bg-emerald-50 border border-emerald-200/80 px-4 py-3 text-sm font-semibold text-emerald-800 shadow-sm animate-fadeIn">
-          <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
-          <span>{saveSuccessMsg}</span>
-        </div>
-      )}
-      {errorMessage && (
-        <div className="flex items-center gap-2 rounded-2xl bg-rose-50 border border-rose-200/80 px-4 py-3 text-sm font-semibold text-rose-800 shadow-sm animate-fadeIn">
-          <AlertCircle size={18} className="text-rose-600 shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
 
       {/* Main Profile Header Card */}
       <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-sm">
