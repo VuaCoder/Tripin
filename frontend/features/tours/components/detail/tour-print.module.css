@@ -1,126 +1,141 @@
-/* Reset and page container */
+/* ============================================================================
+   TRIPRI TOUR PRINT BROCHURE (Inspired by Saigontourist layout, Tripri Palette)
+   Palette:
+   - Deep Brand Petrol/Forest: #123e4a
+   - Primary Lagoon Teal:      #087e8b
+   - Warm Bronze/Amber Price:  #b45309
+   - Soft Teal Surface:        #f2f9f9
+   ============================================================================ */
+
 .page {
   min-height: 100vh;
-  background-color: #f1f5f9;
+  background-color: #ffffff;
   color: #1e293b;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  padding: 0;
+  font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
   margin: 0;
+  padding: 0;
 }
 
-/* Top toolbar for screen navigation */
+/* Sticky Top Action Bar */
 .topBar {
-  background-color: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
-  padding: 12px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   position: sticky;
   top: 0;
   z-index: 50;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 12px 32px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .backBtn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 14px;
+  gap: 6px;
+  font-size: 13.5px;
   font-weight: 600;
-  color: #0f172a;
+  color: #123e4a;
   text-decoration: none;
   padding: 6px 12px;
   border-radius: 8px;
-  transition: background-color 0.15s;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .backBtn:hover {
-  background-color: #f1f5f9;
+  background-color: #f0f9fa;
+  color: #087e8b;
 }
 
 .pageTitle {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  color: #0f172a;
+  color: #123e4a;
+  letter-spacing: -0.01em;
 }
 
 .printBtn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background-color: #0d6efd;
+  background-color: #087e8b;
   color: #ffffff;
   border: none;
-  border-radius: 8px;
-  padding: 8px 18px;
-  font-size: 14px;
+  border-radius: 9999px;
+  padding: 8px 20px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.15s, transform 0.1s;
+  box-shadow: 0 2px 6px rgba(8, 126, 139, 0.22);
+  transition: background-color 0.15s ease, transform 0.1s ease;
 }
 
 .printBtn:hover {
-  background-color: #0b5ed7;
+  background-color: #06636e;
 }
 
 .printBtn:active {
   transform: scale(0.98);
 }
 
-/* Document content sheet */
+/* Central Editorial Brochure Column (Matches Saigontourist subtle side borders) */
 .document {
-  max-width: 960px;
-  margin: 28px auto;
+  max-width: 860px;
+  margin: 0 auto;
   background-color: #ffffff;
-  padding: 40px 48px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-  border-radius: 8px;
+  border-left: 1px solid #f1f5f9;
+  border-right: 1px solid #f1f5f9;
+  padding: 24px 36px 56px;
   line-height: 1.6;
 }
 
-/* 1. Header & Photo Grid */
+/* ============================================================================
+   1. HEADER: 3-PHOTO COLLAGE + TITLE/PRICE + META GRID
+   ============================================================================ */
 .headerSection {
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
 
 .photoGrid {
   display: grid;
-  grid-template-columns: 2fr 1.15fr;
-  gap: 10px;
-  height: 340px;
-  border-radius: 12px;
+  grid-template-columns: 1.85fr 1fr;
+  gap: 8px;
+  height: 350px;
+  margin-bottom: 22px;
   overflow: hidden;
-  margin-bottom: 24px;
+  border-radius: 4px;
   background-color: #f8fafc;
 }
 
 .photoMain {
   height: 100%;
+  overflow: hidden;
 }
 
 .photoMain img {
   width: 100%;
   height: 100%;
-  object-cover: cover;
+  object-fit: cover;
   display: block;
 }
 
 .photoSubCol {
   display: grid;
   grid-template-rows: 1fr 1fr;
-  gap: 10px;
+  gap: 8px;
   height: 100%;
 }
 
 .photoSub {
   height: 100%;
+  overflow: hidden;
 }
 
 .photoSub img {
   width: 100%;
   height: 100%;
-  object-cover: cover;
+  object-fit: cover;
   display: block;
 }
 
@@ -129,27 +144,33 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 24px;
-  padding-bottom: 20px;
+  padding-bottom: 16px;
   border-bottom: 1px solid #e2e8f0;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+}
+
+.titleCol {
+  min-width: 0;
+  flex: 1;
 }
 
 .eyebrow {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: #64748b;
+  color: #94a3b8;
   margin: 0 0 4px 0;
   text-transform: uppercase;
 }
 
 .tourTitle {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 800;
-  color: #003366;
+  color: #123e4a;
   margin: 0;
   line-height: 1.3;
   text-transform: uppercase;
+  letter-spacing: -0.01em;
 }
 
 .priceBox {
@@ -161,31 +182,38 @@
   display: block;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   color: #64748b;
   margin-bottom: 2px;
   text-transform: uppercase;
 }
 
 .priceAmount {
-  font-size: 28px;
-  font-weight: 850;
-  color: #0d6efd;
-  font-family: inherit;
+  font-size: 27px;
+  font-weight: 800;
+  color: #087e8b;
   white-space: nowrap;
+  letter-spacing: -0.02em;
 }
 
 .metaGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px 24px;
-  font-size: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 32px;
+  font-size: 13.5px;
+}
+
+.metaItem {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .metaLabel {
-  color: #475569;
+  color: #64748b;
   font-weight: 600;
-  margin-right: 6px;
+  min-width: 115px;
+  flex-shrink: 0;
 }
 
 .metaValue {
@@ -193,66 +221,78 @@
   font-weight: 500;
 }
 
-/* Section Blocks */
+/* ============================================================================
+   2. SECTIONS & HEADINGS (With Saigontourist full-width bottom rule)
+   ============================================================================ */
 .sectionBlock {
-  margin-top: 36px;
-  padding-top: 24px;
-  border-top: 1px solid #f1f5f9;
+  margin-top: 32px;
 }
 
-.sectionHeaderRow {
+.sectionHeadingBar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 18px;
 }
 
 .sectionTitle {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  color: #003366;
+  color: #123e4a;
   margin: 0;
 }
 
-/* Interactive Guest Selector Toolbar */
+.sectionTitleWithBorder {
+  font-size: 18px;
+  font-weight: 700;
+  color: #123e4a;
+  margin: 0 0 18px 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* Interactive Guest Controls (Screen only) */
 .guestSelectorToolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
-  background-color: #f8fafc;
-  padding: 6px 14px;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
+  gap: 14px;
+  background-color: #f2f9f9;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid #d2e8eb;
 }
 
 .guestControlItem {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: 6px;
+  font-size: 12.5px;
   font-weight: 600;
 }
 
 .guestItemLabel {
-  color: #334155;
+  color: #123e4a;
 }
 
 .counterGroup {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background-color: #ffffff;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #bce3e7;
   border-radius: 6px;
-  padding: 2px 6px;
+  padding: 1px 5px;
 }
 
 .counterGroup button {
   border: none;
   background: transparent;
-  color: #475569;
+  color: #087e8b;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -266,63 +306,32 @@
 }
 
 .counterVal {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
   min-width: 16px;
   text-align: center;
-  color: #0f172a;
+  color: #123e4a;
 }
 
-/* Pricing Table */
-.tableWrapper {
-  overflow-x: auto;
-  margin-bottom: 24px;
-}
-
-.priceTable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13.5px;
-  text-align: left;
-}
-
-.priceTable th,
-.priceTable td {
-  padding: 12px 14px;
-  border: 1px solid #e2e8f0;
-}
-
-.priceTable th {
-  background-color: #f8fafc;
-  color: #334155;
-  font-weight: 700;
-  font-size: 13px;
-}
-
-.priceTable td {
-  color: #1e293b;
-}
-
-.monoCell {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: #475569;
-}
-
-.amountCol {
-  font-weight: 600;
-  color: #0d6efd;
-}
-
-.totalCol {
-  font-weight: 800;
-  color: #0d6efd;
-  font-size: 14.5px;
-}
-
+/* Departure switcher pills */
 .departurePills {
-  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.departurePillsLabel {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.departurePillsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .departurePill {
@@ -334,122 +343,221 @@
   background-color: #ffffff;
   color: #334155;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .departurePillActive {
-  background-color: #003366;
+  background-color: #123e4a;
   color: #ffffff;
-  border-color: #003366;
+  border-color: #123e4a;
 }
 
-/* Overview Box */
-.overviewBox {
-  margin-top: 24px;
+/* Pricing Table (Matches Ảnh 2) */
+.tableWrapper {
+  overflow-x: auto;
+  margin-bottom: 28px;
 }
 
-.overviewTitle {
-  font-size: 17px;
+.priceTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.priceTable th,
+.priceTable td {
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+
+.priceTable th {
+  background-color: #f4f9fa;
+  color: #123e4a;
   font-weight: 700;
-  color: #003366;
-  margin: 0 0 12px 0;
+  font-size: 12.5px;
 }
 
-.bulletList {
+.rightAlign {
+  text-align: right !important;
+}
+
+.codeCell {
+  font-weight: 700;
+  color: #1e293b;
+  white-space: nowrap;
+}
+
+.dateCell {
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.priceHighlightCell {
+  text-align: right;
+  font-weight: 700;
+  color: #087e8b;
+  white-space: nowrap;
+}
+
+.priceNormalCell {
+  text-align: right;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+}
+
+.totalAmountCell {
+  text-align: right;
+  font-weight: 800;
+  color: #b45309;
+  font-size: 14px;
+  background-color: #fffbeb;
+  white-space: nowrap;
+}
+
+.unitSubtext {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* Overview Section (Matches Ảnh 2 bottom) */
+.overviewSection {
+  margin-top: 26px;
+}
+
+.overviewList {
   list-style-type: disc;
   padding-left: 20px;
   margin: 0;
 }
 
-.bulletList li {
-  margin-bottom: 8px;
+.overviewList li {
+  margin-bottom: 10px;
   color: #334155;
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+
+.overviewList li::marker {
+  color: #94a3b8;
 }
 
 .simpleText {
-  font-size: 14px;
+  font-size: 13.5px;
   color: #334155;
   margin: 6px 0;
   line-height: 1.65;
 }
 
-/* 3. Itinerary Days (Ảnh 3) */
-.itineraryList {
+/* ============================================================================
+   3. ITINERARY TIMELINE (Matches Ảnh 3 connected vertical timeline)
+   ============================================================================ */
+.timelineContainer {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  margin-top: 16px;
+  margin-top: 8px;
 }
 
-.dayItem {
+.timelineDay {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+}
+
+.timelineMarkerCol {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-
-.dayHeader {
-  display: flex;
   align-items: center;
-  gap: 10px;
+  width: 14px;
+  flex-shrink: 0;
+  padding-top: 5px;
 }
 
-.dayDot {
-  width: 10px;
-  height: 10px;
+.timelineDot {
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
-  background-color: #0d6efd;
+  background-color: #087e8b;
   flex-shrink: 0;
 }
 
-.dayTitle {
-  font-size: 15.5px;
-  font-weight: 700;
-  color: #003366;
-  margin: 0;
+.timelineLine {
+  width: 1.5px;
+  flex: 1;
+  background-color: #dce8ea;
+  margin-top: 4px;
+  margin-bottom: -4px;
 }
 
-.dayBody {
-  padding-left: 20px;
+.timelineContent {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 22px;
+}
+
+.timelineDayLast .timelineContent {
+  padding-bottom: 4px;
+}
+
+.dayTitle {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #123e4a;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
 }
 
 .dayDescription {
-  font-size: 14px;
+  font-size: 13.5px;
   color: #334155;
-  margin: 4px 0 8px 0;
-  line-height: 1.65;
+  margin: 0 0 8px 0;
+  line-height: 1.7;
+  white-space: pre-line;
 }
 
 .dayActivities {
-  list-style-type: circle;
+  list-style-type: disc;
   padding-left: 18px;
-  margin: 0;
+  margin: 6px 0 0 0;
 }
 
 .dayActivities li {
   font-size: 13.5px;
-  color: #475569;
+  color: #334155;
   margin-bottom: 4px;
+  line-height: 1.65;
 }
 
-/* 4. Services Box (Ảnh 4) */
-.servicesBox {
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
+.dayActivities li::marker {
+  color: #087e8b;
+}
+
+/* ============================================================================
+   4. SERVICES CARD (Matches Ảnh 4 rounded card with square accent bullets)
+   ============================================================================ */
+.servicesCard {
+  background-color: #fcfefe;
+  border: 1px solid #e6f0f2;
   border-radius: 12px;
-  padding: 24px;
-  margin-top: 16px;
+  padding: 24px 28px;
+  box-shadow: 0 2px 12px rgba(18, 62, 74, 0.03);
 }
 
-.servicesSubhead {
-  font-size: 16px;
+.servicesCardHeader {
+  font-size: 14.5px;
   font-weight: 700;
-  color: #003366;
-  margin: 0 0 16px 0;
+  color: #0f172a;
+  margin: 0 0 14px 0;
 }
 
 .serviceGroup {
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .serviceGroup:last-child {
@@ -457,37 +565,69 @@
 }
 
 .groupHeading {
-  font-size: 14.5px;
+  font-size: 13.5px;
   font-weight: 700;
-  color: #0f172a;
+  color: #123e4a;
   margin: 0 0 8px 0;
 }
 
+.squareBulletList {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.squareBulletList li {
+  position: relative;
+  padding-left: 18px;
+  margin-bottom: 8px;
+  font-size: 13.5px;
+  color: #334155;
+  line-height: 1.65;
+}
+
+.squareBulletList li:last-child {
+  margin-bottom: 0;
+}
+
+.squareBulletList li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 9px;
+  width: 4.5px;
+  height: 4.5px;
+  border-radius: 1px;
+  background-color: #087e8b;
+}
+
 .documentFooter {
-  margin-top: 40px;
-  padding-top: 20px;
+  margin-top: 36px;
+  padding-top: 16px;
   border-top: 1px solid #e2e8f0;
   text-align: center;
   font-size: 12px;
   color: #94a3b8;
 }
 
-/* Print CSS */
+/* ============================================================================
+   PRINT MEDIA RULES (Pure local class selectors for CSS Modules compliance)
+   ============================================================================ */
 @media print {
   @page {
     size: A4 portrait;
-    margin: 12mm 15mm;
+    margin: 12mm 14mm;
   }
 
   .page {
     background-color: #ffffff !important;
     color: #000000 !important;
-    padding: 0 !important;
     min-height: auto !important;
   }
 
   .topBar,
-  .no-print {
+  .guestSelectorToolbar,
+  .departurePills {
     display: none !important;
   }
 
@@ -495,9 +635,8 @@
     max-width: none !important;
     margin: 0 !important;
     padding: 0 !important;
+    border: none !important;
     box-shadow: none !important;
-    border-radius: 0 !important;
-    font-size: 10pt;
   }
 
   .photoGrid {
@@ -505,43 +644,47 @@
     break-inside: avoid;
   }
 
-  .tourTitle {
-    font-size: 18pt !important;
-    color: #003366 !important;
-  }
-
-  .priceAmount {
-    font-size: 20pt !important;
-    color: #0d6efd !important;
-  }
-
-  .sectionTitle {
-    font-size: 14pt !important;
+  .sectionTitle,
+  .sectionTitleWithBorder {
     break-after: avoid;
   }
 
-  .sectionBlock {
-    break-inside: auto;
-  }
-
-  .dayItem {
+  .timelineDay {
     break-inside: avoid;
-    margin-bottom: 12px;
   }
 
-  .priceTable {
-    font-size: 9pt !important;
-  }
-
-  .priceTable th,
-  .priceTable td {
-    padding: 6px 8px !important;
-  }
-
-  .servicesBox {
+  .servicesCard {
     background-color: #ffffff !important;
     border: 1px solid #cbd5e1 !important;
-    padding: 14px !important;
-    break-inside: avoid;
+    box-shadow: none !important;
+    padding: 16px 20px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .topBar {
+    padding: 10px 16px;
+  }
+  .document {
+    padding: 16px;
+  }
+  .photoGrid {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .photoSubCol {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 120px;
+  }
+  .titlePriceRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .priceBox {
+    text-align: left;
+  }
+  .metaGrid {
+    grid-template-columns: 1fr;
   }
 }

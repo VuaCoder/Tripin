@@ -12,7 +12,7 @@ import styles from './tour-print.module.css';
 
 export function TourPrintView({ tour }: { tour: TourReviewContext }) {
   const searchParams = useSearchParams();
-  
+
   // Initialize guests from query params or default
   const [guests, setGuests] = useState<GuestCounts>(() => readSearchGuests(searchParams));
 
@@ -35,18 +35,20 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
   const childUnitPrice = ageUnitPrice(unitPrice, tour.agePricing, 'child');
   const infantUnitPrice = ageUnitPrice(unitPrice, tour.agePricing, 'infant');
 
+  const adultLineTotal = unitPrice * guests.adults;
+  const childLineTotal = (childUnitPrice ?? unitPrice) * guests.children;
+  const infantLineTotal = (infantUnitPrice ?? 0) * guests.infants;
+
   // Total calculation
   const totalCount = guestTotal(guests);
   let totalPrice = 0;
   try {
     totalPrice = calculateGuestPrice(unitPrice, totalCount, guests, tour.agePricing).subtotal;
   } catch {
-    totalPrice = (unitPrice * guests.adults) + 
-      ((childUnitPrice ?? unitPrice) * guests.children) + 
-      ((infantUnitPrice ?? 0) * guests.infants);
+    totalPrice = adultLineTotal + childLineTotal + infantLineTotal;
   }
 
-  // Images for gallery
+  // Images for 3-frame collage (Saigontourist style)
   const allImages = (tour.images && tour.images.length > 0)
     ? tour.images
     : tour.coverImage
@@ -58,17 +60,30 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
 
   // Overview content points
   const overviewPoints = tour.summary
-    ? tour.summary.split('\n').filter(s => s.trim().length > 0)
+    ? tour.summary.split('\n').map(s => s.trim()).filter(Boolean)
     : tour.description
-      ? tour.description.split('\n').filter(s => s.trim().length > 0)
+      ? tour.description.split('\n').map(s => s.trim()).filter(Boolean)
       : [];
+
+  // Format readable tour code
+  const displayTourCode = tour.id.length > 16
+    ? `TRP-${tour.id.slice(0, 8).toUpperCase()}`
+    : tour.id.toUpperCase();
+
+  // Back link preserves current guest selection
+  const backParams = new URLSearchParams();
+  if (selectedDepartureId) backParams.set('departureId', selectedDepartureId);
+  backParams.set('adults', String(guests.adults));
+  backParams.set('children', String(guests.children));
+  backParams.set('infants', String(guests.infants));
+  const backHref = `/tours/${tour.id}?${backParams.toString()}`;
 
   return (
     <main className={styles.page}>
-      {/* Top action toolbar (hidden on print) */}
+      {/* Top sticky action bar (Matches Ảnh 1 header, hidden when printing) */}
       <nav className={styles.topBar} aria-label="Thao tác bản in">
-        <Link href={`/tours/${tour.id}`} className={styles.backBtn}>
-          <ChevronLeft size={18} />
+        <Link href={backHref} className={styles.backBtn}>
+          <ChevronLeft size={16} strokeWidth={2.5} />
           <span>Quay lại</span>
         </Link>
         <span className={styles.pageTitle}>Trang In Chương Trình</span>
@@ -78,17 +93,16 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
           className={styles.printBtn}
           aria-label="In chương trình"
         >
-          <Printer size={16} />
+          <Printer size={15} />
           <span>In chương trình</span>
         </button>
       </nav>
 
       <article className={styles.document}>
         {/* =========================================================================
-            ẢNH 1: HÌNH ẢNH TOURS + TIÊU ĐỀ TOUR + GIÁ THAM KHẢO + CÁC THÔNG TIN CHUYẾN ĐI
+            ẢNH 1: GALLERY 3 ẢNH + TIÊU ĐỀ TOUR & GIÁ THAM KHẢO + THÔNG TIN CHUYẾN ĐI
             ========================================================================= */}
         <section className={styles.headerSection}>
-          {/* Photos Grid */}
           <div className={styles.photoGrid}>
             <div className={styles.photoMain}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -97,18 +111,17 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
             <div className={styles.photoSubCol}>
               <div className={styles.photoSub}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={subImage1} alt={`${tour.title} 2`} crossOrigin="anonymous" />
+                <img src={subImage1} alt={`${tour.title} - ảnh 2`} crossOrigin="anonymous" />
               </div>
               <div className={styles.photoSub}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={subImage2} alt={`${tour.title} 3`} crossOrigin="anonymous" />
+                <img src={subImage2} alt={`${tour.title} - ảnh 3`} crossOrigin="anonymous" />
               </div>
             </div>
           </div>
 
-          {/* Tour Title & Ref Price */}
           <div className={styles.titlePriceRow}>
-            <div>
+            <div className={styles.titleCol}>
               <p className={styles.eyebrow}>CHƯƠNG TRÌNH TOUR</p>
               <h1 className={styles.tourTitle}>{tour.title}</h1>
             </div>
@@ -118,22 +131,23 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
             </div>
           </div>
 
-          {/* Trip Meta Facts */}
           <div className={styles.metaGrid}>
-            <div>
+            <div className={styles.metaItem}>
               <span className={styles.metaLabel}>Nơi khởi hành:</span>
               <span className={styles.metaValue}>{tour.destination || 'Việt Nam'}</span>
             </div>
-            <div>
+            <div className={styles.metaItem}>
               <span className={styles.metaLabel}>Thời gian:</span>
-              <span className={styles.metaValue}>{tour.durationDays} ngày {Math.max(0, tour.durationDays - 1)} đêm</span>
+              <span className={styles.metaValue}>
+                {tour.durationDays} ngày {Math.max(0, tour.durationDays - 1)} đêm
+              </span>
             </div>
-            <div>
+            <div className={styles.metaItem}>
               <span className={styles.metaLabel}>Phương tiện:</span>
-              <span className={styles.metaValue}>Ô tô máy lạnh / Máy bay</span>
+              <span className={styles.metaValue}>Ô tô du lịch / Máy bay</span>
             </div>
             {tour.agency && (
-              <div>
+              <div className={styles.metaItem}>
                 <span className={styles.metaLabel}>Đơn vị tổ chức:</span>
                 <span className={styles.metaValue}>{tour.agency.name}</span>
               </div>
@@ -142,14 +156,14 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
         </section>
 
         {/* =========================================================================
-            ẢNH 2: LỊCH KHỞI HÀNH & BẢNG GIÁ (CHỌN KHÁCH, BẢNG CHI TIẾT NGƯỜI LỚN, TRẺ EM, EM BÉ)
+            ẢNH 2: LỊCH KHỞI HÀNH & BẢNG GIÁ + TỔNG QUAN
             ========================================================================= */}
         <section className={styles.sectionBlock}>
-          <div className={styles.sectionHeaderRow}>
+          <div className={styles.sectionHeadingBar}>
             <h2 className={styles.sectionTitle}>Lịch khởi hành & Bảng giá</h2>
-            
-            {/* Interactive Guest Controls (Hidden on print) */}
-            <div className={`${styles.guestSelectorToolbar} no-print`}>
+
+            {/* Bộ chỉnh số lượng hành khách trực tiếp trên bản xem trước (ẩn khi in giấy) */}
+            <div className={styles.guestSelectorToolbar}>
               <div className={styles.guestControlItem}>
                 <span className={styles.guestItemLabel}>Người lớn:</span>
                 <div className={styles.counterGroup}>
@@ -159,7 +173,7 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
                     disabled={guests.adults <= 1}
                     aria-label="Giảm người lớn"
                   >
-                    <Minus size={13} />
+                    <Minus size={12} />
                   </button>
                   <span className={styles.counterVal}>{guests.adults}</span>
                   <button
@@ -167,7 +181,7 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
                     onClick={() => setGuests(prev => ({ ...prev, adults: prev.adults + 1 }))}
                     aria-label="Tăng người lớn"
                   >
-                    <Plus size={13} />
+                    <Plus size={12} />
                   </button>
                 </div>
               </div>
@@ -181,7 +195,7 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
                     disabled={guests.children <= 0}
                     aria-label="Giảm trẻ em"
                   >
-                    <Minus size={13} />
+                    <Minus size={12} />
                   </button>
                   <span className={styles.counterVal}>{guests.children}</span>
                   <button
@@ -189,7 +203,7 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
                     onClick={() => setGuests(prev => ({ ...prev, children: prev.children + 1 }))}
                     aria-label="Tăng trẻ em"
                   >
-                    <Plus size={13} />
+                    <Plus size={12} />
                   </button>
                 </div>
               </div>
@@ -203,7 +217,7 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
                     disabled={guests.infants <= 0}
                     aria-label="Giảm em bé"
                   >
-                    <Minus size={13} />
+                    <Minus size={12} />
                   </button>
                   <span className={styles.counterVal}>{guests.infants}</span>
                   <button
@@ -211,56 +225,18 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
                     onClick={() => setGuests(prev => ({ ...prev, infants: prev.infants + 1 }))}
                     aria-label="Tăng em bé"
                   >
-                    <Plus size={13} />
+                    <Plus size={12} />
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Pricing Table (Matches Ảnh 2) */}
-          <div className={styles.tableWrapper}>
-            <table className={styles.priceTable}>
-              <thead>
-                <tr>
-                  <th>Mã Tour</th>
-                  <th>Ngày xuất phát</th>
-                  <th>Người lớn (x{guests.adults})</th>
-                  <th>Trẻ em (x{guests.children})</th>
-                  <th>Em bé (x{guests.infants})</th>
-                  <th>Tổng dự tính</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className={styles.monoCell}>{tour.id.slice(0, 16).toUpperCase()}</td>
-                  <td>{activeDeparture ? formatDepartureDate(activeDeparture.date) : 'Theo yêu cầu'}</td>
-                  <td className={styles.amountCol}>{formatVnd(unitPrice * guests.adults)}</td>
-                  <td className={styles.amountCol}>
-                    {guests.children > 0
-                      ? formatVnd((childUnitPrice ?? unitPrice) * guests.children)
-                      : childUnitPrice !== null
-                        ? formatVnd(childUnitPrice)
-                        : '0 ₫'}
-                  </td>
-                  <td className={styles.amountCol}>
-                    {guests.infants > 0
-                      ? formatVnd((infantUnitPrice ?? 0) * guests.infants)
-                      : infantUnitPrice !== null
-                        ? formatVnd(infantUnitPrice)
-                        : '0 ₫'}
-                  </td>
-                  <td className={styles.totalCol}>{formatVnd(totalPrice)}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          {/* Departure Selector if multiple dates (Screen only) */}
+          {/* Chọn ngày khởi hành khác nếu tour có nhiều lịch */}
           {departures.length > 1 && (
-            <div className={`${styles.departurePills} no-print`}>
-              <span className="text-xs font-semibold text-slate-500">Chọn ngày khởi hành khác:</span>
-              <div className="flex flex-wrap gap-2 mt-1">
+            <div className={styles.departurePills}>
+              <span className={styles.departurePillsLabel}>Chọn ngày khởi hành:</span>
+              <div className={styles.departurePillsRow}>
                 {departures.map(d => (
                   <button
                     key={d.id}
@@ -268,58 +244,124 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
                     onClick={() => setSelectedDepartureId(d.id)}
                     className={`${styles.departurePill} ${selectedDepartureId === d.id ? styles.departurePillActive : ''}`}
                   >
-                    {formatDepartureDate(d.date)} ({formatVnd(d.price)})
+                    {formatDepartureDate(d.date)}
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Tổng quan (Matches Ảnh 2 dưới bảng giá) */}
-          <div className={styles.overviewBox}>
-            <h3 className={styles.overviewTitle}>Tổng quan</h3>
+          <div className={styles.tableWrapper}>
+            <table className={styles.priceTable}>
+              <thead>
+                <tr>
+                  <th>Mã Tour</th>
+                  <th>Ngày xuất phát</th>
+                  <th className={styles.rightAlign}>Người lớn ({guests.adults})</th>
+                  <th className={styles.rightAlign}>Trẻ em ({guests.children})</th>
+                  <th className={styles.rightAlign}>Em bé ({guests.infants})</th>
+                  <th className={styles.rightAlign}>Tổng thành tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className={styles.codeCell}>{displayTourCode}</td>
+                  <td className={styles.dateCell}>
+                    {activeDeparture ? formatDepartureDate(activeDeparture.date) : 'Theo yêu cầu'}
+                  </td>
+                  <td className={styles.priceHighlightCell}>
+                    <div>{formatVnd(adultLineTotal)}</div>
+                    <span className={styles.unitSubtext}>
+                      {guests.adults} khách × {formatVnd(unitPrice)}
+                    </span>
+                  </td>
+                  <td className={styles.priceNormalCell}>
+                    <div>
+                      {guests.children > 0
+                        ? formatVnd(childLineTotal)
+                        : childUnitPrice !== null
+                          ? formatVnd(childUnitPrice)
+                          : '0 ₫'}
+                    </div>
+                    <span className={styles.unitSubtext}>
+                      {guests.children > 0
+                        ? `${guests.children} khách × ${formatVnd(childUnitPrice ?? unitPrice)}`
+                        : 'Đơn giá / trẻ em'}
+                    </span>
+                  </td>
+                  <td className={styles.priceNormalCell}>
+                    <div>
+                      {guests.infants > 0
+                        ? formatVnd(infantLineTotal)
+                        : infantUnitPrice !== null
+                          ? formatVnd(infantUnitPrice)
+                          : '0 ₫'}
+                    </div>
+                    <span className={styles.unitSubtext}>
+                      {guests.infants > 0
+                        ? `${guests.infants} khách × ${formatVnd(infantUnitPrice ?? 0)}`
+                        : 'Đơn giá / em bé'}
+                    </span>
+                  </td>
+                  <td className={styles.totalAmountCell}>
+                    <div>{formatVnd(totalPrice)}</div>
+                    <span className={styles.unitSubtext}>Tổng {totalCount} hành khách</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className={styles.overviewSection}>
+            <h2 className={styles.sectionTitleWithBorder}>Tổng quan</h2>
             {overviewPoints.length > 0 ? (
-              <ul className={styles.bulletList}>
+              <ul className={styles.overviewList}>
                 {overviewPoints.map((pt, idx) => (
                   <li key={idx}>{pt}</li>
                 ))}
               </ul>
             ) : (
               <p className={styles.simpleText}>
-                Hành trình khám phá {tour.destination} với nhiều trải nghiệm hấp dẫn và phong cảnh độc đáo.
+                Hành trình khám phá {tour.destination} với lịch trình chọn lọc, dịch vụ chu đáo và trải nghiệm văn hóa bản địa đặc sắc.
               </p>
             )}
           </div>
         </section>
 
         {/* =========================================================================
-            ẢNH 3: CHƯƠNG TRÌNH TOUR (LỊCH TRÌNH TỪNG NGÀY)
+            ẢNH 3: CHƯƠNG TRÌNH TOUR (TIMELINE NGÀY 01, 02, 03...)
             ========================================================================= */}
         <section className={styles.sectionBlock}>
-          <h2 className={styles.sectionTitle}>Chương trình tour</h2>
-          
-          <div className={styles.itineraryList}>
+          <h2 className={styles.sectionTitleWithBorder}>Chương trình tour</h2>
+
+          <div className={styles.timelineContainer}>
             {tour.itinerary?.length ? (
-              [...tour.itinerary].sort((a, b) => a.day - b.day).map((day) => (
-                <div key={day.day} className={styles.dayItem}>
-                  <div className={styles.dayHeader}>
-                    <span className={styles.dayDot} />
-                    <h3 className={styles.dayTitle}>
-                      Ngày {String(day.day).padStart(2, '0')}: {day.title}
-                    </h3>
+              [...tour.itinerary]
+                .sort((a, b) => a.day - b.day)
+                .map((day, idx, arr) => (
+                  <div
+                    key={day.day}
+                    className={`${styles.timelineDay} ${idx === arr.length - 1 ? styles.timelineDayLast : ''}`}
+                  >
+                    <div className={styles.timelineMarkerCol}>
+                      <span className={styles.timelineDot} />
+                      {idx < arr.length - 1 && <span className={styles.timelineLine} />}
+                    </div>
+                    <div className={styles.timelineContent}>
+                      <h3 className={styles.dayTitle}>
+                        Ngày {String(day.day).padStart(2, '0')}: {day.title}
+                      </h3>
+                      {day.description && <p className={styles.dayDescription}>{day.description}</p>}
+                      {day.activities && day.activities.length > 0 && (
+                        <ul className={styles.dayActivities}>
+                          {day.activities.map((act, actIdx) => (
+                            <li key={actIdx}>{act}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   </div>
-                  <div className={styles.dayBody}>
-                    {day.description && <p className={styles.dayDescription}>{day.description}</p>}
-                    {day.activities && day.activities.length > 0 && (
-                      <ul className={styles.dayActivities}>
-                        {day.activities.map((act, idx) => (
-                          <li key={idx}>{act}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-              ))
+                ))
             ) : (
               <p className={styles.simpleText}>Đơn vị tổ chức đang cập nhật lịch trình chi tiết.</p>
             )}
@@ -327,19 +369,19 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
         </section>
 
         {/* =========================================================================
-            ẢNH 4: DỊCH VỤ BAO GỒM & KHÔNG BAO GỒM, VÉ TRẺ EM, HƯỚNG DẪN ĐỔI HỦY
+            ẢNH 4: DỊCH VỤ BAO GỒM & KHÔNG BAO GỒM, VÉ TRẺ EM, LƯU Ý & ĐỔI HỦY
             ========================================================================= */}
         <section className={styles.sectionBlock}>
-          <h2 className={styles.sectionTitle}>Dịch vụ bao gồm & không bao gồm</h2>
+          <h2 className={styles.sectionTitleWithBorder}>Dịch vụ bao gồm & không bao gồm</h2>
 
-          <div className={styles.servicesBox}>
-            <h3 className={styles.servicesSubhead}>Bao gồm / Không bao gồm</h3>
+          <div className={styles.servicesCard}>
+            <h3 className={styles.servicesCardHeader}>Bao gồm / Không bao gồm</h3>
 
             {/* Giá tour bao gồm */}
             <div className={styles.serviceGroup}>
               <h4 className={styles.groupHeading}>Giá tour bao gồm</h4>
               {tour.inclusions && tour.inclusions.length > 0 ? (
-                <ul className={styles.bulletList}>
+                <ul className={styles.squareBulletList}>
                   {tour.inclusions.map((item, idx) => (
                     <li key={idx}>{item}</li>
                   ))}
@@ -353,13 +395,13 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
             <div className={styles.serviceGroup}>
               <h4 className={styles.groupHeading}>Giá tour không bao gồm</h4>
               {tour.exclusions && tour.exclusions.length > 0 ? (
-                <ul className={styles.bulletList}>
+                <ul className={styles.squareBulletList}>
                   {tour.exclusions.map((item, idx) => (
                     <li key={idx}>{item}</li>
                   ))}
                 </ul>
               ) : (
-                <p className={styles.simpleText}>Chi phí cá nhân ngoài chương trình.</p>
+                <p className={styles.simpleText}>Chi phí cá nhân và các dịch vụ ngoài chương trình.</p>
               )}
             </div>
 
@@ -367,44 +409,47 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
             <div className={styles.serviceGroup}>
               <h4 className={styles.groupHeading}>Vé trẻ em</h4>
               {tour.childPricingPolicy ? (
-                <p className={styles.simpleText}>{tour.childPricingPolicy}</p>
+                <ul className={styles.squareBulletList}>
+                  <li>{tour.childPricingPolicy}</li>
+                </ul>
               ) : (
-                <ul className={styles.bulletList}>
+                <ul className={styles.squareBulletList}>
                   <li>
                     Trẻ em từ 2 đến dưới 12 tuổi:{' '}
                     {tour.agePricing?.childPrice
                       ? formatVnd(tour.agePricing.childPrice)
                       : tour.agePricing?.childPercent
-                        ? `${tour.agePricing.childPercent}% giá người lớn`
-                        : '80% giá người lớn (bé ngủ chung giường với Bố Mẹ).'}
+                        ? `${tour.agePricing.childPercent}% giá của người lớn (bé ngủ chung giường với Bố Mẹ).`
+                        : '80% giá của người lớn (bé ngủ chung giường với Bố Mẹ).'}
                   </li>
                   <li>
                     Em bé dưới 2 tuổi:{' '}
                     {tour.agePricing?.infantPrice
                       ? formatVnd(tour.agePricing.infantPrice)
                       : tour.agePricing?.infantPercent
-                        ? `${tour.agePricing.infantPercent}% giá người lớn`
-                        : 'Miễn phí hoặc theo phụ thu dịch vụ của hãng vận chuyển.'}
+                        ? `${tour.agePricing.infantPercent}% giá của người lớn.`
+                        : 'Miễn phí hoặc thu phí theo quy định hãng vận chuyển.'}
                   </li>
                 </ul>
               )}
             </div>
 
-            {/* Hướng dẫn & Lưu ý */}
+            {/* Điều kiện đổi hủy & Lưu ý */}
             {(tour.travelNotes || tour.cancellationPolicy || tour.requiredDocuments) && (
               <div className={styles.serviceGroup}>
-                <h4 className={styles.groupHeading}>Lưu ý & Điều kiện đổi hủy</h4>
-                {tour.travelNotes && <p className={styles.simpleText}><strong>Lưu ý:</strong> {tour.travelNotes}</p>}
-                {tour.cancellationPolicy && <p className={styles.simpleText}><strong>Điều kiện hủy tour:</strong> {tour.cancellationPolicy}</p>}
-                {tour.requiredDocuments && <p className={styles.simpleText}><strong>Giấy tờ tùy thân:</strong> {tour.requiredDocuments}</p>}
+                <h4 className={styles.groupHeading}>Lưu ý & Hướng dẫn chuyến đi</h4>
+                <ul className={styles.squareBulletList}>
+                  {tour.travelNotes && <li>{tour.travelNotes}</li>}
+                  {tour.cancellationPolicy && <li>{tour.cancellationPolicy}</li>}
+                  {tour.requiredDocuments && <li>{tour.requiredDocuments}</li>}
+                </ul>
               </div>
             )}
           </div>
         </section>
 
-        {/* Footer */}
         <footer className={styles.documentFooter}>
-          <p>© {new Date().getFullYear()} Tripri Travel Platform. Chương trình du lịch chính thức được phát hành bởi đơn vị tổ chức.</p>
+          <p>© {new Date().getFullYear()} Tripri Travel Platform — Tài liệu chương trình tour du lịch.</p>
         </footer>
       </article>
     </main>
