@@ -2,9 +2,9 @@
 
 import { Suspense } from 'react';
 import { useParams } from 'next/navigation';
-import { LoadingState } from '@/components/shared';
-import { BookingDetailPage } from '@/features/booking';
-import { TravelerAccountShell } from '@/features/traveler-account/components';
+import { LoadingState } from '@/components/shared/LoadingState';
+import { BookingDetailPage } from '@/features/booking/components/BookingDetailPage';
+import { TravelerAccountShell } from '@/features/traveler-account/components/TravelerAccountShell';
 
 export default function SettingsBookingDetailPage() {
   const params = useParams<{ id: string }>();

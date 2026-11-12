@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { AgencyTourEditorPage } from '@/features/tours';
+import { AgencyTourEditorPage } from '@/features/tours/components/AgencyTourEditorPage';
 
 export default function EditAgencyTourRoute() {
   return (

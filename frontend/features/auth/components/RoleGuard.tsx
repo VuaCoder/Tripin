@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppSelector } from '@/store/hooks';
+import { ForbiddenPage } from '@/components/shared/ForbiddenPage';
 import { selectAuthStatus, selectIsAuthenticated, selectRole } from '../store/authSlice';
 import type { UserRole } from '../types';
 import { homeForRole } from '../utils/roles';
@@ -12,9 +13,15 @@ interface RoleGuardProps {
   allowedRoles: UserRole[];
   children: ReactNode;
   loginPath?: string;
+  showForbidden?: boolean;
 }
 
-export const RoleGuard = ({ allowedRoles, children, loginPath = '/login' }: RoleGuardProps) => {
+export const RoleGuard = ({
+  allowedRoles,
+  children,
+  loginPath = '/login',
+  showForbidden = false,
+}: RoleGuardProps) => {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const status = useAppSelector(selectAuthStatus);
@@ -31,10 +38,10 @@ export const RoleGuard = ({ allowedRoles, children, loginPath = '/login' }: Role
       router.replace(loginPath);
       return;
     }
-    if (role && !allowedRoles.includes(role)) {
+    if (!showForbidden && role && !allowedRoles.includes(role)) {
       router.replace(homeForRole(role));
     }
-  }, [mounted, status, isAuthenticated, role, allowedRoles, loginPath, router]);
+  }, [mounted, status, isAuthenticated, role, allowedRoles, loginPath, showForbidden, router]);
 
   if (!mounted || status === 'idle') {
     return (
@@ -51,7 +58,14 @@ export const RoleGuard = ({ allowedRoles, children, loginPath = '/login' }: Role
     );
   }
 
-  if (!isAuthenticated || (role && !allowedRoles.includes(role))) {
+  if (isAuthenticated && role && !allowedRoles.includes(role)) {
+    if (showForbidden) {
+      return <ForbiddenPage role={role} allowedRoles={allowedRoles} />;
+    }
+    return null;
+  }
+
+  if (!isAuthenticated) {
     return null;
   }
 

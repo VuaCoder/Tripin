@@ -1,11 +1,9 @@
 'use client';
 
 import { Suspense } from 'react';
-import {
-  TravelerAccountShell,
-  VoucherWalletPage,
-  VoucherSkeleton,
-} from '@/features/traveler-account/components';
+import { TravelerAccountShell } from '@/features/traveler-account/components/TravelerAccountShell';
+import { VoucherWalletPage } from '@/features/traveler-account/components/VoucherWalletPage';
+import { VoucherSkeleton } from '@/features/traveler-account/components/VoucherSkeleton';
 
 export default function SettingsVouchersPage() {
   return (

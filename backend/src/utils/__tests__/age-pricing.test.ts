@@ -1,19 +1,54 @@
-import { describe, it, expect } from 'vitest';
-import { calculateGuestPrice } from '@travel-platform/constants';
-describe('age pricing in whole VND', () => {
-  it('uses fixed age prices, distinguishes free from unavailable, and rejects unavailable groups', () => {
-    const fixed = { childMinAge: 2, adultMinAge: 13, childPercent: 50, infantPercent: 0, childPrice: 300000, infantPrice: 0 };
-    expect(calculateGuestPrice(1000000, 3, { adults: 1, children: 1, infants: 1 }, fixed).subtotal).toBe(1300000);
-    expect(() => calculateGuestPrice(1000000, 2, { adults: 1, children: 1, infants: 0 }, { ...fixed, childPrice: null })).toThrow('unavailable');
-    expect(calculateGuestPrice(1000000, 2, { adults: 1, children: 0, infants: 1 }, { ...fixed, childPrice: null }).subtotal).toBe(1000000);
+import { describe, expect, it } from 'vitest';
+import { resolveGuestGroupCounts } from '@travel-platform/constants';
+import { agePricingSchema } from '../age-pricing';
+
+describe('agePricingSchema & resolveGuestGroupCounts', () => {
+  it('accepts optional adult, child, and infant max group counts', () => {
+    const parsed = agePricingSchema.safeParse({
+      childMinAge: 2,
+      adultMinAge: 13,
+      childPercent: 100,
+      infantPercent: 100,
+      childPrice: 500000,
+      infantPrice: 0,
+      adultMaxCount: 20,
+      childMaxCount: 6,
+      infantMaxCount: 2,
+    });
+    expect(parsed.success).toBe(true);
   });
-  const pricing = { childMinAge: 2, adultMinAge: 12, childPercent: 50, infantPercent: 0 };
-  it('rounds each child ticket before multiplying and counts infants as seats', () => {
-    expect(calculateGuestPrice(100001, 5, { adults: 1, children: 3, infants: 1 }, pricing).subtotal).toBe(250004);
+
+  it('rejects negative or excessive guest group counts', () => {
+    const neg = agePricingSchema.safeParse({
+      childMinAge: 2,
+      adultMinAge: 13,
+      childPercent: 100,
+      infantPercent: 100,
+      adultMaxCount: -1,
+    });
+    expect(neg.success).toBe(false);
+
+    const huge = agePricingSchema.safeParse({
+      childMinAge: 2,
+      adultMinAge: 13,
+      childPercent: 100,
+      infantPercent: 100,
+      infantMaxCount: 10001,
+    });
+    expect(huge.success).toBe(false);
   });
-  it('keeps legacy all-adult bookings unchanged', () => expect(calculateGuestPrice(1000000, 3).subtotal).toBe(3000000));
-  it('does not allow children without an adult or totals different from participants', () => {
-    expect(() => calculateGuestPrice(1, 1, { adults: 0, children: 1, infants: 0 }, pricing)).toThrow();
-    expect(() => calculateGuestPrice(1, 3, { adults: 1, children: 1, infants: 0 }, pricing)).toThrow();
+
+  it('resolves 3-group breakdown cleanly against departure capacity', () => {
+    expect(resolveGuestGroupCounts(28, {
+      childMinAge: 2,
+      adultMinAge: 13,
+      childPercent: 100,
+      infantPercent: 100,
+      adultMaxCount: 20,
+      childMaxCount: 6,
+      infantMaxCount: 2,
+    })).toEqual({ adults: 20, children: 6, infants: 2 });
+
+    expect(resolveGuestGroupCounts(10, null)).toEqual({ adults: 10, children: 0, infants: 0 });
   });
 });

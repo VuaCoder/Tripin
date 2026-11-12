@@ -1,4 +1,5 @@
 'use client';
+import { agencyNotice } from './agencyNotice';
 
 import { FormSelect } from '@/components/ui/FormSelect';
 import { useEffect, useState } from 'react';
@@ -7,7 +8,7 @@ import { useAppDispatch } from '@/store/hooks';
 import { toursApi, useAssignAgencyTourGuideMutation, useGetAgencyGuidesQuery, getTourApiMessage } from '@/features/tours/api/toursApi';
 import { useDownloadAgencyCustomersMutation } from '@/features/booking/api/bookingApi';
 import type { TourDetail } from '@/features/tours/types';
-import { AgencyError, AgencyLoading, agencyButton, agencyInput, agencyPanel, dateTime, money, useAgencyPermission } from './AgencyUi';
+import { AgencyError, AgencyLoading, agencyButton, agencyInput, agencyPanel, dateTime, money, useAgencyPermission } from '@/features/agency/AgencyCommon';
 import { formatCurrencyVndInput, parseCurrencyVndInput } from '@/lib/travel-format';
 import { PremiumAvatar } from '@/features/premium/PremiumIdentity';
 
@@ -44,8 +45,8 @@ export function AgencyGuidePanel({ tour }: { tour: TourDetail }) {
       const saved = await assign({ id: tour.id, guideId: remove ? null : guideId, ...(!remove ? { feePerBooking: amount } : {}) }).unwrap();
       await dispatch(toursApi.util.upsertQueryData('getAgencyTour', tour.id, saved));
       setDirty(false);
-      setFeedback({ error: false, message: remove ? 'Đã gỡ phân công.' : 'Đã gửi phân công. Đang chờ hướng dẫn viên xác nhận.' });
-    } catch (error) { setFeedback({ error: true, message: getTourApiMessage(error, 'Không thể phân công. Hãy làm mới thông tin tour và thử lại; lựa chọn của bạn được giữ nguyên.') }); }
+      agencyNotice.success(remove ? 'Đã gỡ phân công.' : 'Đã gửi phân công. Đang chờ hướng dẫn viên xác nhận.');
+    } catch (error) { agencyNotice.error(getTourApiMessage(error, 'Không thể phân công. Hãy làm mới thông tin tour và thử lại; lựa chọn của bạn được giữ nguyên.')); }
   };
   const unchanged = guideId === tour.guideAssignment?.guideId && Number(fee || 0) === (tour.guideAssignment?.feePerBooking ?? 0);
   return <section className={agencyPanel}><h2 className="text-lg font-semibold text-slate-900">Hướng dẫn viên</h2><p className="mt-1 text-sm text-slate-600">Một hướng dẫn viên cho toàn bộ tour. Phí tính trên mỗi đơn đặt chỗ, không theo số khách.</p>
@@ -113,9 +114,9 @@ export function AgencyCustomersPanel({ tour }: { tour: TourDetail }) {
   if (!allowed) return null;
   const exportPdf = async () => {
     setError(''); setDone(false);
-    try { await download({ tourId: tour.id, departureId: departureId || undefined }).unwrap(); setDone(true); }
-    catch (error) { setError(getTourApiMessage(error, 'Không tải được PDF. Hãy kiểm tra quyền truy cập và thử lại.')); }
+    try { await download({ tourId: tour.id, departureId: departureId || undefined }).unwrap(); setDone(true); agencyNotice.success('Đã chuẩn bị tệp PDF để tải xuống.'); }
+    catch (error) { agencyNotice.error(getTourApiMessage(error, 'Không tải được PDF. Hãy kiểm tra quyền truy cập và thử lại.')); }
   };
   const invalidDeparture = !!departureId && !tour.departures.some((departure) => departure.id === departureId);
-  return <section className={agencyPanel}><h2 className="text-lg font-semibold text-slate-900">Danh sách khách PDF</h2><p className="mt-1 text-sm text-slate-600">Chỉ gồm đơn đặt chỗ đã xác nhận hoặc hoàn thành. Tối đa 5.000 đơn đặt chỗ; danh sách rỗng vẫn có thể xuất.</p><label className="mt-5 block space-y-2 text-sm font-medium">Phạm vi xuất<FormSelect className={agencyInput} value={departureId} disabled={state.isLoading} onChange={(event) => { setDepartureId(event.target.value); setDone(false); setError(''); }}><option value="">Toàn bộ tour</option>{invalidDeparture && <option value={departureId}>Ngày khởi hành đã bị gỡ — hãy chọn lại</option>}{tour.departures.map((departure) => <option key={departure.id} value={departure.id}>{dateTime(departure.date)}</option>)}</FormSelect></label>{error && <p role="alert" className="mt-4 text-sm text-red-700">{error}</p>}{done && <p role="status" className="mt-4 text-sm text-teal-800">Đã chuẩn bị tệp PDF để tải xuống.</p>}<button type="button" className={`${agencyButton} mt-5`} disabled={state.isLoading || invalidDeparture} onClick={() => void exportPdf()}>{state.isLoading ? 'Đang xuất PDF…' : 'Tải danh sách khách PDF'}</button></section>;
+  return <section className={agencyPanel}><h2 className="text-lg font-semibold text-slate-900">Danh sách khách PDF</h2><p className="mt-1 text-sm text-slate-600">Chỉ gồm đơn đặt chỗ đã xác nhận hoặc hoàn thành. Tối đa 5.000 đơn đặt chỗ; danh sách rỗng vẫn có thể xuất.</p><label className="mt-5 block space-y-2 text-sm font-medium">Phạm vi xuất<FormSelect className={agencyInput} value={departureId} disabled={state.isLoading} onChange={(event) => { setDepartureId(event.target.value); setDone(false); setError(''); }}><option value="">Toàn bộ tour</option>{invalidDeparture && <option value={departureId}>Ngày khởi hành đã bị gỡ — hãy chọn lại</option>}{tour.departures.map((departure) => <option key={departure.id} value={departure.id}>{dateTime(departure.date)}</option>)}</FormSelect></label><button type="button" className={`${agencyButton} mt-5`} disabled={state.isLoading || invalidDeparture} onClick={() => void exportPdf()}>{state.isLoading ? 'Đang xuất PDF…' : 'Tải danh sách khách PDF'}</button></section>;
 }

@@ -13,6 +13,10 @@ import {
   Bot,
   Search,
   Image as ImageIcon,
+  Smile,
+  Ban,
+  ShieldAlert,
+  MoreVertical,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth/store/authSlice';
@@ -93,7 +97,31 @@ function ChatWorkspace({ id }: { id?: string }) {
   }, [isTraveler, aiOverview.refetch]);
   useOfflineRefresh(chat.connected, refreshAi);
   const latestAi = aiOverview.data?.latest;
-  const aiUnread = aiOverview.data?.unreadCount ?? 0;
+  const latestMessageId = latestAi?.lastMessage?.id;
+  const lastSeenAiIdRef = useRef<string | null>(null);
+  const [aiReadLocally, setAiReadLocally] = useState(false);
+
+  useEffect(() => {
+    if (id === 'ai') {
+      if (latestMessageId) {
+        lastSeenAiIdRef.current = latestMessageId;
+      }
+      setAiReadLocally(true);
+    }
+  }, [id, latestMessageId]);
+
+  useEffect(() => {
+    if (id !== 'ai' && latestMessageId && lastSeenAiIdRef.current && latestMessageId !== lastSeenAiIdRef.current) {
+      setAiReadLocally(false);
+    }
+  }, [id, latestMessageId]);
+
+  const isAiUnread = Boolean(
+    id !== 'ai' &&
+      !aiReadLocally &&
+      (latestAi?.unreadCount ?? 0) > 0
+  );
+  const aiUnread = isAiUnread ? (latestAi?.unreadCount ?? 0) : 0;
   const matchesAi = Boolean(
     isTraveler &&
       (!searchQuery.trim() ||
@@ -191,13 +219,13 @@ function ChatWorkspace({ id }: { id?: string }) {
                             AI
                           </span>
                         </span>
-                        <UnreadBadge count={aiUnread} />
+                        {aiUnread > 0 && <UnreadBadge count={aiUnread} />}
                       </div>
                       <p className={`mt-0.5 truncate text-xs ${aiUnread ? 'font-bold text-slate-900' : 'text-slate-500'}`}>
-                        {aiUnread > 5
-                          ? '5+ tin nhắn mới'
-                          : latestAi?.lastMessage
-                            ? `${latestAi.lastMessage.role === 'user' ? 'Bạn' : 'AI'}: ${preview(latestAi.lastMessage.content)}`
+                        {latestAi?.lastMessage
+                          ? `${latestAi.lastMessage.role === 'user' ? 'Bạn' : 'AI'}: ${preview(latestAi.lastMessage.content)}`
+                          : aiUnread
+                            ? `${aiUnread > 5 ? '5+' : aiUnread} tin nhắn mới`
                             : 'Chưa có tin nhắn'}
                       </p>
                       {latestAi?.lastMessage && (
@@ -245,16 +273,16 @@ function ChatWorkspace({ id }: { id?: string }) {
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1">
-                          <span className={`truncate text-slate-900 text-sm ${item.unreadCount ? 'font-bold' : 'font-medium'}`}>
+                          <span className={`truncate text-slate-900 text-sm ${item.unreadCount && id !== item.id ? 'font-bold' : 'font-medium'}`}>
                             {counterpartName}
                           </span>
-                          <UnreadBadge count={item.unreadCount} />
+                          {id !== item.id && <UnreadBadge count={item.unreadCount} />}
                         </div>
-                        <p className={`mt-0.5 truncate text-xs ${item.unreadCount ? 'font-bold text-slate-900' : 'text-slate-500'}`}>
-                          {item.unreadCount > 5
-                            ? '5+ tin nhắn mới'
-                            : item.lastMessage
-                              ? `${item.lastMessage.senderId === user?.id ? 'Bạn' : counterpartName}: ${preview(item.lastMessage.text)}`
+                        <p className={`mt-0.5 truncate text-xs ${item.unreadCount && id !== item.id ? 'font-bold text-slate-900' : 'text-slate-500'}`}>
+                          {item.lastMessage
+                            ? `${item.lastMessage.senderId === user?.id ? 'Bạn' : counterpartName}: ${preview(item.lastMessage.text)}`
+                            : item.unreadCount && id !== item.id
+                              ? `${item.unreadCount > 5 ? '5+' : item.unreadCount} tin nhắn mới`
                               : 'Chưa có tin nhắn'}
                         </p>
                         <time
@@ -409,15 +437,59 @@ function Thread({ id }: { id: string }) {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
 
+  // Block conversation state (per conversation ID in localStorage)
+  const [isLocallyBlocked, setIsLocallyBlocked] = useState(false);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showBlockConfirmModal, setShowBlockConfirmModal] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`chat_blocked_${id}`);
+      setIsLocallyBlocked(stored === 'true');
+    } catch {
+      setIsLocallyBlocked(false);
+    }
+  }, [id]);
+
+  const confirmBlock = useCallback(() => {
+    setIsLocallyBlocked(true);
+    try {
+      localStorage.setItem(`chat_blocked_${id}`, 'true');
+    } catch {
+      /* ignore storage errors */
+    }
+    setShowBlockConfirmModal(false);
+  }, [id]);
+
+  const unblockConversation = useCallback(() => {
+    setIsLocallyBlocked(false);
+    try {
+      localStorage.removeItem(`chat_blocked_${id}`);
+    } catch {
+      /* ignore storage errors */
+    }
+    setShowOptionsMenu(false);
+  }, [id]);
+
+  const handleBlockMenuClick = useCallback(() => {
+    setShowOptionsMenu(false);
+    if (isLocallyBlocked) {
+      unblockConversation();
+    } else {
+      setShowBlockConfirmModal(true);
+    }
+  }, [isLocallyBlocked, unblockConversation]);
+
   // Image attachment state
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processImageFile = useCallback((file: File) => {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
       setSendError('Chỉ hỗ trợ file ảnh JPG, PNG hoặc WebP');
       return;
@@ -428,8 +500,56 @@ function Thread({ id }: { id: string }) {
     }
     setSelectedImage(file);
     setImagePreview(URL.createObjectURL(file));
-    if (sendError) setSendError('');
+    setSendError('');
+  }, []);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processImageFile(file);
   };
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (isLocallyBlocked || sending || loading) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      processImageFile(file);
+    }
+  }, [isLocallyBlocked, sending, loading, processImageFile]);
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    if (isLocallyBlocked || sending || loading) return;
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (file) {
+          processImageFile(file);
+          e.preventDefault();
+          break;
+        }
+      }
+    }
+  }, [isLocallyBlocked, sending, loading, processImageFile]);
+
+  const insertEmoji = useCallback((emoji: string) => {
+    setDraft((prev) => {
+      const textarea = textareaRef.current;
+      if (!textarea) return prev + emoji;
+      const start = textarea.selectionStart ?? prev.length;
+      const end = textarea.selectionEnd ?? prev.length;
+      const next = prev.slice(0, start) + emoji + prev.slice(end);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + emoji.length, start + emoji.length);
+      }, 0);
+      return next;
+    });
+    setShowEmojiPicker(false);
+  }, []);
 
   const handleRemoveImage = () => {
     setSelectedImage(null);
@@ -718,7 +838,7 @@ function Thread({ id }: { id: string }) {
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col">
-      <header className="flex items-center gap-3 border-b p-3.5 sm:p-4 bg-white">
+      <header className="relative flex items-center gap-3 border-b p-3.5 sm:p-4 bg-white">
         <Link href="/conversations" aria-label="Về danh sách" className="md:hidden flex size-8 items-center justify-center rounded-full hover:bg-slate-100 text-slate-700">
           <ArrowLeft size={18} />
         </Link>
@@ -737,6 +857,45 @@ function Thread({ id }: { id: string }) {
           <h2 className="truncate font-bold text-slate-900 text-sm sm:text-base leading-tight">
             {detail.data?.counterpart?.fullName || 'Cuộc trò chuyện'}
           </h2>
+          {isLocallyBlocked && (
+            <p className="flex items-center gap-1 text-[11px] font-semibold text-rose-600">
+              <ShieldAlert size={12} /> Đã chặn tin nhắn
+            </p>
+          )}
+        </div>
+
+        {/* Options Menu: Chặn / Bỏ chặn tin nhắn */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowOptionsMenu((prev) => !prev)}
+            aria-label="Tùy chọn cuộc trò chuyện"
+            className="flex size-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer"
+          >
+            <MoreVertical size={18} />
+          </button>
+          {showOptionsMenu && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowOptionsMenu(false)}
+              />
+              <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+                <button
+                  type="button"
+                  onClick={handleBlockMenuClick}
+                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold transition-colors cursor-pointer ${
+                    isLocallyBlocked
+                      ? 'text-teal-700 hover:bg-teal-50'
+                      : 'text-rose-600 hover:bg-rose-50'
+                  }`}
+                >
+                  <Ban size={15} />
+                  {isLocallyBlocked ? 'Bỏ chặn tin nhắn' : 'Chặn tin nhắn'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </header>
       {historyError && (
@@ -761,6 +920,16 @@ function Thread({ id }: { id: string }) {
         aria-label="Lịch sử tin nhắn"
         aria-busy={loading}
         className="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-4"
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!isDragOver) setIsDragOver(true);
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setIsDragOver(false);
+          }
+        }}
+        onDrop={handleDrop}
         onScroll={() => {
           const element = scroll.current!;
           const bottom = element.scrollHeight - element.scrollTop - element.clientHeight < 80;
@@ -782,7 +951,7 @@ function Thread({ id }: { id: string }) {
             )}
             {!messages.length && !historyError && detail.data?.counterpart && (
               <p className="py-12 text-center text-sm text-slate-600">
-                Cuộc trò chuyện mới cùng {detail.data.counterpart.fullName}
+                Bắt đầu tin nhắn cùng {detail.data.counterpart.fullName}
               </p>
             )}
             {messages.map((message, index) => (
@@ -841,84 +1010,194 @@ function Thread({ id }: { id: string }) {
           Tin nhắn mới
         </button>
       )}
-      <form
-        className="border-t p-3 sm:p-4 bg-white"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void send();
-        }}
-      >
-        {sendError && <p role="alert" className="mb-2 text-sm text-red-700">{sendError}</p>}
-        {imagePreview && (
-          <div className="relative mb-2.5 inline-block">
-            <img
-              src={imagePreview}
-              alt="Ảnh đính kèm"
-              className="h-20 w-20 rounded-xl object-cover border border-slate-200 shadow-sm"
-            />
-            <button
-              type="button"
-              onClick={handleRemoveImage}
-              className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-slate-900 text-white text-xs hover:bg-slate-700 shadow-md cursor-pointer"
-              title="Xóa ảnh"
-            >
-              <X size={12} />
-            </button>
-            {uploadingImage && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/40 text-[11px] font-semibold text-white">
-                Đang tải...
-              </div>
-            )}
-          </div>
-        )}
-        <div className="flex items-end gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={handleImageSelect}
-          />
+      {isLocallyBlocked ? (
+        <div className="border-t border-slate-200/90 bg-slate-50 p-4 text-center">
+          <p className="text-sm font-medium text-slate-600">
+            Bạn đã chặn cuộc trò chuyện này. Bạn không thể gửi hoặc nhận tin nhắn mới.
+          </p>
           <button
             type="button"
-            disabled={sending || loading || !detail.data}
-            onClick={() => fileInputRef.current?.click()}
-            className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 sm:p-3 text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 transition-colors cursor-pointer"
-            title="Đính kèm hình ảnh"
-            aria-label="Đính kèm hình ảnh"
+            onClick={unblockConversation}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
           >
-            <ImageIcon size={20} />
-          </button>
-          <textarea
-            aria-label="Nội dung tin nhắn"
-            placeholder="Nhập tin nhắn…"
-            maxLength={2000}
-            rows={2}
-            value={draft}
-            disabled={sending || loading || !detail.data}
-            onChange={(event) => {
-              setDraft(event.target.value);
-              if (sendError) setSendError('');
-              if (event.target.value.trim()) chat.typing(id);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) {
-                event.preventDefault();
-                void send();
-              }
-            }}
-            className="min-w-0 flex-1 resize-none rounded-lg border border-slate-300 p-2.5 sm:p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-700"
-          />
-          <button
-            aria-label="Gửi tin nhắn"
-            disabled={sending || loading || !detail.data || (!draft.trim() && !selectedImage) || !!historyError}
-            className="rounded-lg bg-primary-container p-2.5 sm:p-3 text-white disabled:opacity-40 transition-colors cursor-pointer"
-          >
-            <Send size={20} />
+            <Ban size={14} className="text-rose-500" /> Bỏ chặn cuộc trò chuyện
           </button>
         </div>
-        <p className="mt-1 text-right text-xs text-slate-500">{draft.length}/2000 · Shift+Enter để xuống dòng</p>
-      </form>
+      ) : (
+        <form
+          className={`relative border-t p-3 sm:p-4 bg-white transition-colors ${
+            isDragOver ? 'bg-teal-50/60 ring-2 ring-inset ring-teal-500' : ''
+          }`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (!isDragOver) setIsDragOver(true);
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+              setIsDragOver(false);
+            }
+          }}
+          onDrop={handleDrop}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void send();
+          }}
+        >
+          {isDragOver && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-teal-50/90 backdrop-blur-[1px] text-teal-800 font-semibold text-sm">
+              Thả hình ảnh vào đây để tải lên
+            </div>
+          )}
+          {sendError && <p role="alert" className="mb-2 text-sm text-red-700">{sendError}</p>}
+          {imagePreview && (
+            <div className="relative mb-2.5 inline-block">
+              <img
+                src={imagePreview}
+                alt="Ảnh đính kèm"
+                className="h-20 w-20 rounded-xl object-cover border border-slate-200 shadow-sm"
+              />
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-slate-900 text-white text-xs hover:bg-slate-700 shadow-md cursor-pointer"
+                title="Xóa ảnh"
+              >
+                <X size={12} />
+              </button>
+              {uploadingImage && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/40 text-[11px] font-semibold text-white">
+                  Đang tải...
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handleImageSelect}
+            />
+            {/* Nút 1: Đính kèm hình ảnh - Chiều cao size-11 (44px) bằng nhau */}
+            <button
+              type="button"
+              disabled={sending || loading || !detail.data}
+              onClick={() => fileInputRef.current?.click()}
+              className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 transition-colors cursor-pointer"
+              title="Đính kèm hình ảnh"
+              aria-label="Đính kèm hình ảnh"
+            >
+              <ImageIcon size={20} />
+            </button>
+
+            {/* Nút Emoji */}
+            <div className="relative">
+              <button
+                type="button"
+                disabled={sending || loading || !detail.data}
+                onClick={() => setShowEmojiPicker((prev) => !prev)}
+                className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 transition-colors cursor-pointer"
+                title="Chọn biểu tượng cảm xúc"
+                aria-label="Chọn biểu tượng cảm xúc"
+              >
+                <Smile size={20} />
+              </button>
+              {showEmojiPicker && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setShowEmojiPicker(false)} />
+                  <div className="absolute bottom-full left-0 mb-2 z-40 w-64 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+                    <p className="mb-2 text-xs font-semibold text-slate-500">Biểu tượng cảm xúc</p>
+                    <div className="grid grid-cols-6 gap-2 text-xl">
+                      {['😀', '😂', '😊', '😍', '👍', '🎉', '❤️', '🙏', '🔥', '✈️', '🏖️', '📍', '🏨', '🧳', '☀️', '🌴', '💬', '📞'].map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => insertEmoji(emoji)}
+                          className="flex size-8 items-center justify-center rounded-lg hover:bg-slate-100 transition-transform active:scale-90 cursor-pointer"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Ô nhập tin nhắn - Chiều cao h-11 căn bằng tuyệt đối với các nút */}
+            <textarea
+              ref={textareaRef}
+              aria-label="Nội dung tin nhắn"
+              placeholder="Nhập tin nhắn…"
+              maxLength={2000}
+              rows={1}
+              value={draft}
+              disabled={sending || loading || !detail.data}
+              onPaste={handlePaste}
+              onChange={(event) => {
+                setDraft(event.target.value);
+                if (sendError) setSendError('');
+                if (event.target.value.trim()) chat.typing(id);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) {
+                  event.preventDefault();
+                  void send();
+                }
+              }}
+              className="min-h-[44px] h-[44px] max-h-32 min-w-0 flex-1 resize-none rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-700/20 disabled:bg-slate-50"
+            />
+
+            {/* Nút 3: Gửi tin nhắn - Chiều cao size-11 (44px) bằng nhau */}
+            <button
+              aria-label="Gửi tin nhắn"
+              disabled={sending || loading || !detail.data || (!draft.trim() && !selectedImage) || !!historyError}
+              className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-container text-white disabled:opacity-40 hover:bg-teal-700 transition-colors cursor-pointer shadow-sm"
+            >
+              <Send size={18} />
+            </button>
+          </div>
+          <p className="mt-1.5 text-right text-xs text-slate-500">{draft.length}/2000 · Shift+Enter để xuống dòng</p>
+        </form>
+      )}
+
+      {/* Modal xác nhận chặn cuộc trò chuyện */}
+      {showBlockConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
+            onClick={() => setShowBlockConfirmModal(false)}
+          />
+          <div className="relative z-10 w-full max-w-sm overflow-hidden rounded-2xl bg-white p-5 shadow-2xl border border-slate-100">
+            <div className="flex size-11 items-center justify-center rounded-xl bg-rose-50 text-rose-600 mb-3.5">
+              <ShieldAlert size={22} />
+            </div>
+            <h3 className="text-base font-bold text-slate-900">
+              Xác nhận chặn cuộc trò chuyện?
+            </h3>
+            <p className="mt-2 text-xs leading-5 text-slate-600">
+              Khi bạn chặn, bạn sẽ không nhận được tin nhắn mới từ {detail.data?.counterpart?.fullName || 'người này'}. Bạn có thể bỏ chặn bất kỳ lúc nào.
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowBlockConfirmModal(false)}
+                className="rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={confirmBlock}
+                className="rounded-xl bg-rose-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-rose-700 transition-colors cursor-pointer"
+              >
+                Chặn tin nhắn
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

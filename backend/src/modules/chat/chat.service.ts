@@ -4,7 +4,7 @@ import { AppError, ERROR_CODES } from '../../utils/app-error';
 import { logger } from '../../utils/logger';
 import { buildPage, type Page } from '../../utils/pagination';
 import { NOTIFICATION_TYPE, notificationsService, type NotificationsService } from '../notifications';
-import { usersService, type UsersService } from '../users';
+import { usersService, type UsersService, type UserSummary } from '../users';
 import { sideOf, toConversationDto, toMessageDto } from './chat.mapper';
 import type { ConversationRecord } from './chat.repository';
 import { assignSides, otherSide } from './chat.policy';
@@ -38,7 +38,10 @@ export class ChatService {
       | 'listMessages'
       | 'markReadWithWatermark'
     > = chatRepository,
-    private readonly users: Pick<UsersService, 'assertActiveWithRole' | 'getSummaries'> = usersService,
+    private readonly users: Pick<
+      UsersService,
+      'assertActiveWithRole' | 'assertActiveWithRoles' | 'getSummaries'
+    > = usersService,
     private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
   ) {}
 
@@ -54,11 +57,24 @@ export class ChatService {
    * The counterpart must be an ACTIVE user of the opposite role (policy in `chat.policy.ts`).
    */
   async startConversation(actor: Actor, input: StartConversationInput): Promise<ConversationDto> {
-    const wanted = actor.role === 'TRAVELER' ? 'TOUR_GUIDE' : actor.role === 'TOUR_GUIDE' ? 'TRAVELER' : undefined;
-    if (!wanted) throw AppError.forbidden('Conversations are only possible between a traveler and a tour guide');
-    const other = await this.users.assertActiveWithRole(input.participantId, wanted);
+    if (actor.role !== 'TRAVELER' && actor.role !== 'TOUR_GUIDE' && actor.role !== 'AGENCY') {
+      throw AppError.forbidden('Conversations are only possible between a traveler and an agency or tour guide');
+    }
 
-    const { travelerId, guideId } = assignSides({ id: actor.userId, role: actor.role }, { id: other.id, role: wanted });
+    let other: { id: string; role: PersistedRole; fullName: string; avatarUrl: string | null; agencyProfile?: { companyName: string | null } | null };
+    if (actor.role === 'TRAVELER') {
+      other = await this.users.assertActiveWithRoles(input.participantId, ['AGENCY', 'TOUR_GUIDE']);
+    } else {
+      // Counterpart of an operator must be checked before 404
+      const candidate = await this.users.getSummaries([input.participantId]);
+      const summary = candidate.get(input.participantId);
+      if (summary && summary.role !== 'TRAVELER') {
+        throw AppError.forbidden('Conversations are only possible between a traveler and an agency or tour guide');
+      }
+      other = await this.users.assertActiveWithRole(input.participantId, 'TRAVELER');
+    }
+
+    const { travelerId, guideId } = assignSides({ id: actor.userId, role: actor.role }, { id: other.id, role: other.role });
     let conversation = await this.chat.findByPair(travelerId, guideId);
     if (!conversation) {
       try {
@@ -73,7 +89,16 @@ export class ChatService {
         if (!conversation) throw error;
       }
     }
-    return this.toDto(conversation, actor.userId);
+    const displayName = (other.role === 'AGENCY' && other.agencyProfile?.companyName?.trim())
+      ? other.agencyProfile.companyName.trim()
+      : other.fullName;
+    return this.toDto(conversation, actor.userId, {
+      id: other.id,
+      fullName: displayName,
+      avatarUrl: other.avatarUrl ?? undefined,
+      role: other.role,
+      companyName: other.agencyProfile?.companyName ?? undefined,
+    });
   }
 
   async listConversations(actor: Actor, page: { page: number; limit: number }): Promise<Page<ConversationDto>> {
@@ -158,15 +183,17 @@ export class ChatService {
 
   private sideForRole(role: PersistedRole): ChatSide {
     if (role === 'TRAVELER') return 'traveler';
-    if (role === 'TOUR_GUIDE') return 'guide';
-    throw AppError.forbidden('Conversations are only possible between a traveler and a tour guide');
+    if (role === 'TOUR_GUIDE' || role === 'AGENCY') return 'guide';
+    throw AppError.forbidden('Conversations are only possible between a traveler and an agency or tour guide');
   }
 
-  private async toDto(conversation: ConversationRecord, userId: string): Promise<ConversationDto> {
+  private async toDto(conversation: ConversationRecord, userId: string, counterpartSummary?: Partial<UserSummary>): Promise<ConversationDto> {
     const side = sideOf(conversation, userId)!;
     const counterpartId = String(side === 'traveler' ? conversation.guideId : conversation.travelerId);
-    const people = await this.users.getSummaries([counterpartId]);
-    return toConversationDto(conversation, side, people.get(counterpartId));
+    const summary = counterpartSummary && counterpartSummary.id === counterpartId && counterpartSummary.fullName
+      ? (counterpartSummary as UserSummary)
+      : (await this.users.getSummaries([counterpartId])).get(counterpartId);
+    return toConversationDto(conversation, side, summary);
   }
 
   private publish(userId: string, conversationId: string, message: MessageDto): void {

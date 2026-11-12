@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch } from '@/store/hooks';
+import { GoogleLoginButton } from '@/features/auth';
 import { setCredentials } from '@/features/auth/store/authSlice';
 import { AgencyApiError, agencyAuthApi } from './api';
 import { AgencyAuthShell } from './AgencyAuthShell';
@@ -19,6 +20,7 @@ export function AgencyLoginPage({ registered = false, initialEmail = '' }: Agenc
   const dispatch = useAppDispatch();
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -30,11 +32,11 @@ export function AgencyLoginPage({ registered = false, initialEmail = '' }: Agenc
 
     setSubmitting(true);
     try {
-      const result = await agencyAuthApi.login({ email: email.trim().toLowerCase(), password });
+      const result = await agencyAuthApi.login({ email: email.trim().toLowerCase(), password, rememberMe });
       if (result.twoFactorRequired) {
         router.push(`/agency/verify-otp?email=${encodeURIComponent(result.email)}&purpose=LOGIN_2FA`);
       } else {
-        dispatch(setCredentials({ accessToken: result.accessToken, user: result.user as any }));
+        dispatch(setCredentials({ accessToken: result.accessToken, user: result.user as any, rememberMe }));
         const verification = result.user.agencyProfile?.verificationStatus;
         if (verification === 'VERIFIED') {
           router.push('/agency');
@@ -95,6 +97,28 @@ export function AgencyLoginPage({ registered = false, initialEmail = '' }: Agenc
           placeholder="Nhập mật khẩu"
           required
         />
+        <div className="flex items-center justify-between pt-0.5">
+          <label
+            htmlFor="agencyRememberMe"
+            className="inline-flex items-center gap-2 cursor-pointer select-none text-xs font-medium text-slate-600 hover:text-slate-800"
+          >
+            <input
+              id="agencyRememberMe"
+              name="rememberMe"
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(event) => setRememberMe(event.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 accent-brand-teal cursor-pointer"
+            />
+            <span>Remember me</span>
+          </label>
+          <Link
+            href="/forgot-password"
+            className="text-xs font-medium text-slate-500 hover:text-brand-teal transition-colors"
+          >
+            Quên mật khẩu?
+          </Link>
+        </div>
         {error && (
           <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
@@ -117,6 +141,32 @@ export function AgencyLoginPage({ registered = false, initialEmail = '' }: Agenc
             <span>Đăng nhập Agency</span>
           )}
         </button>
+
+        <div className="relative py-2">
+          <div className="absolute inset-0 flex items-center" aria-hidden="true">
+            <div className="w-full border-t border-slate-200" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase tracking-wider">
+            <span className="bg-white px-3 font-medium text-slate-400">Hoặc</span>
+          </div>
+        </div>
+
+        <GoogleLoginButton
+          disabled={submitting}
+          label="Đăng nhập bằng Gmail / Google"
+          rememberMe={rememberMe}
+          authenticate={(idToken) => agencyAuthApi.loginWithGoogle({ idToken, rememberMe })}
+          onSuccess={(result) => {
+            if (result.twoFactorRequired) return;
+            const verification = result.user.agencyProfile?.verificationStatus;
+            if (verification === 'VERIFIED') {
+              router.push('/agency');
+            } else {
+              router.push(`/application-status?email=${encodeURIComponent(result.user.email)}`);
+            }
+          }}
+          onError={(message) => setError(message)}
+        />
       </form>
       <div className="mt-7 border-t border-slate-100 pt-6 text-center text-sm text-slate-500">
         Chưa có tài khoản đối tác?{' '}

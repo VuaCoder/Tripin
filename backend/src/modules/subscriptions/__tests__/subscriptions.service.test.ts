@@ -45,6 +45,10 @@ function make(opts: { plan?: S | null; seed?: S[] } = {}) {
     listByUser: vi.fn(async () => ({ items: db, total: db.length })),
     findEnded: vi.fn(async (now: Date) => db.filter((s) => s.status === 'ACTIVE' && s.endsAt <= now)),
     findAbandoned: vi.fn(async (before: Date) => db.filter((s) => s.status === 'PENDING_PAYMENT' && s.createdAt < before)),
+    findExpiringSoon: vi.fn(async (windowMs: number, now: Date) =>
+      db.filter((s) => s.status === 'ACTIVE' && s.endsAt > now && s.endsAt <= new Date(now.getTime() + windowMs)),
+    ),
+    hasRecentExpiringAlert: vi.fn(async () => false),
   };
   const payments = { createCheckout: vi.fn(async (input: S) => ({ paymentId: 'pay1', checkoutUrl: 'https://pay/x', amount: input.amount, expiresAt: input.expiresAt.toISOString() })) };
   const notifications = { notify: vi.fn(async () => undefined) };
@@ -149,5 +153,78 @@ describe('current subscription and jobs', () => {
     expect(await service.cancelAbandonedSubscriptions()).toBe(1);
     expect(db[0]!.status).toBe('CANCELLED');
     expect(db[1]!.status).toBe('PENDING_PAYMENT');
+  });
+
+  it('notifies users whose subscriptions expire within ~3 days via email and in-app', async () => {
+    const now = Date.now();
+    const { service, notifications } = make({
+      seed: [
+        sub({
+          id: 'expiring-soon',
+          userId: 'u1',
+          planName: 'Hội Viên Du Khách 30 Ngày',
+          status: 'ACTIVE',
+          startsAt: new Date(now - 27 * DAY),
+          endsAt: new Date(now + 2 * DAY),
+        }),
+      ],
+    });
+
+    const count = await service.notifyExpiringSubscriptions(new Date(now));
+    expect(count).toBe(1);
+    expect(notifications.notify).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({
+        type: 'SUBSCRIPTION_EXPIRING_SOON',
+        title: 'Gói Premium sắp hết hạn',
+      }),
+      { email: true },
+    );
+  });
+
+  it('skips expiring notification if user already has a subsequent stacked active period', async () => {
+    const now = Date.now();
+    const { service, notifications } = make({
+      seed: [
+        sub({
+          id: 'expiring-soon',
+          userId: 'u1',
+          status: 'ACTIVE',
+          startsAt: new Date(now - 28 * DAY),
+          endsAt: new Date(now + 2 * DAY),
+        }),
+        sub({
+          id: 'stacked-future',
+          userId: 'u1',
+          status: 'ACTIVE',
+          startsAt: new Date(now + 2 * DAY),
+          endsAt: new Date(now + 32 * DAY),
+        }),
+      ],
+    });
+
+    const count = await service.notifyExpiringSubscriptions(new Date(now));
+    expect(count).toBe(0);
+    expect(notifications.notify).not.toHaveBeenCalled();
+  });
+
+  it('skips expiring notification if user was already alerted recently', async () => {
+    const now = Date.now();
+    const { service, repo, notifications } = make({
+      seed: [
+        sub({
+          id: 'expiring-soon',
+          userId: 'u1',
+          status: 'ACTIVE',
+          startsAt: new Date(now - 28 * DAY),
+          endsAt: new Date(now + 2 * DAY),
+        }),
+      ],
+    });
+    repo.hasRecentExpiringAlert.mockResolvedValue(true);
+
+    const count = await service.notifyExpiringSubscriptions(new Date(now));
+    expect(count).toBe(0);
+    expect(notifications.notify).not.toHaveBeenCalled();
   });
 });

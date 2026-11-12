@@ -516,6 +516,15 @@ export class UsersService {
     return user;
   }
 
+  /** Throws 404 unless the id is an ACTIVE user with one of the allowed roles. */
+  async assertActiveWithRoles(id: string, roles: readonly PersistedRole[]): Promise<UserRecord> {
+    const user = await this.users.findById(id);
+    if (!user || !roles.includes(user.role as PersistedRole) || user.status !== USER_STATUS.ACTIVE) {
+      throw AppError.notFound(`${roles.join(' or ')} not found`);
+    }
+    return user;
+  }
+
   private preferencesOf(user: UserRecord): UserPreferencesDto {
     const prefs = this.storedPreferences(user);
     return {

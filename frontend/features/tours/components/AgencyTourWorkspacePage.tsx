@@ -9,11 +9,11 @@ import type { TourDeparture, TourItineraryDay } from '../types';
 import { toursApi } from '../api/toursApi';
 import { useAppDispatch } from '@/store/hooks';
 import { AgencyCustomersPanel, AgencyGuidePanel } from '@/features/agency/AgencyTourOperations';
-import { AgencyDenied, useAgencyPermission } from '@/features/agency/AgencyUi';
+import { AgencyDenied, useAgencyPermission } from '@/features/agency/AgencyCommon';
 import { ArrowLeft, ArrowRight, RotateCw } from 'lucide-react';
 import { AgencyTourStepper } from './AgencyTourStepper';
 import { AgencyTourLivePreview } from './AgencyTourLivePreview';
-import { AntDatePicker } from '@/components/ui';
+import { AntDatePicker } from '@/components/ui/AntDatePicker';
 import { formatCurrencyVndInput, parseCurrencyVndInput } from '@/lib/travel-format';
 
 const inputClass = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20';

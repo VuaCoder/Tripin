@@ -112,6 +112,13 @@ export interface BookingDto {
   cancelledAt?: string;
   cancelReason?: BookingCancelReason;
   createdAt: string;
+  review?: {
+    id: string;
+    rating: number;
+    comment: string;
+    images: string[];
+    createdAt: string;
+  };
 }
 
 /** Backward compatibility alias */

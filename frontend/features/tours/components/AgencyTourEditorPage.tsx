@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useId, useMemo, useRef, type FormEvent } from 'react';
 import Link from 'next/link';
-import { MONEY_LIMITS } from '@travel-platform/constants';
-import { ArrowLeft, Eye, CheckCircle2, X, AlertTriangle, UserX } from 'lucide-react';
+import { ageUnitPrice, guestTotal, MONEY_LIMITS, resolveGuestGroupCounts, type GuestCounts } from '@travel-platform/constants';
+import { GuestGroupDropdown } from '@/components/ui/GuestGroupDropdown';
+import { ArrowLeft, ArrowRight, Eye, CheckCircle2, X, AlertTriangle, UserX } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { 
   useCreateAgencyTourMutation, 
@@ -200,11 +201,13 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
     if (first && jump) {
       const stepNum = fieldStep(first) as StepId;
       setCurrentStep(stepNum);
-      const targetEl = document.getElementById(fieldId(first)) || document.getElementById(`tour-section-${stepNum}`);
-      if (targetEl) {
-        targetEl.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-        targetEl.focus?.();
-      }
+      setTimeout(() => {
+        const targetEl = document.getElementById(fieldId(first)) || document.getElementById(`tour-section-${stepNum}`);
+        if (targetEl) {
+          targetEl.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+          targetEl.focus?.();
+        }
+      }, 50);
     }
     return !first;
   };
@@ -314,12 +317,15 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
       const first = editorFields.find((field) => fields[field]);
       if (first) { 
         setFieldErrors((current) => ({ ...current, ...fields })); 
-        setCurrentStep(fieldStep(first) as StepId);
-        const targetEl = document.getElementById(fieldId(first));
-        if (targetEl) {
-          targetEl.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-          targetEl.focus?.();
-        }
+        const stepNum = fieldStep(first) as StepId;
+        setCurrentStep(stepNum);
+        setTimeout(() => {
+          const targetEl = document.getElementById(fieldId(first));
+          if (targetEl) {
+            targetEl.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+            targetEl.focus?.();
+          }
+        }, 50);
       }
       if (!first || hasOtherIssues) setPageError(getTourApiMessage(error, 'Không thể lưu tour. Dữ liệu của bạn vẫn còn trên biểu mẫu.'));
       return false;
@@ -441,9 +447,6 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
             {mode === 'create' ? 'Tạo tour mới' : 'Chỉnh sửa tour'}
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-slate-500">
-            Điền toàn bộ thông tin hành trình, hình ảnh và giá niêm yết trong một màn hình duy nhất.
-          </p>
         </div>
 
         <div className="flex items-center gap-2.5">
@@ -522,14 +525,65 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* ========================================================================= */}
-          {/* LEFT COLUMN: QUICK ANCHOR STEPPER + ALL 4 FORM SECTIONS                   */}
+          {/* LEFT COLUMN: MULTI-STEP STEPPER + FORM SECTIONS                           */}
           {/* ========================================================================= */}
           <div className="lg:col-span-7 xl:col-span-7 space-y-6">
+
+            {/* Multi-step Stepper Indicator */}
+            <div className="rounded-2xl border border-slate-200/90 bg-white p-3 sm:p-3.5 shadow-xs">
+              <nav aria-label="Các bước tạo tour" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { step: 1, title: 'Thông tin chung', done: isStep1Done },
+                  { step: 2, title: 'Hình ảnh tour', done: isStep2Done },
+                  { step: 3, title: 'Giá & Dịch vụ', done: isStep3Done },
+                  { step: 4, title: 'Chính sách', done: isStep4Done },
+                ].map((s) => {
+                  const isActive = currentStep === s.step;
+                  const isDone = s.done;
+                  return (
+                    <button
+                      key={s.step}
+                      type="button"
+                      onClick={() => setCurrentStep(s.step as StepId)}
+                      className={`group flex items-center justify-center sm:justify-start gap-2 rounded-xl p-2.5 text-left transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-teal-50/90 border border-teal-500/50 shadow-xs'
+                          : 'hover:bg-slate-50 border border-transparent'
+                      }`}
+                    >
+                      <span
+                        className={`flex size-6 shrink-0 items-center justify-center rounded-lg text-xs font-black transition-colors ${
+                          isActive
+                            ? 'bg-[#087e8b] text-white shadow-xs'
+                            : isDone
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'
+                        }`}
+                      >
+                        {isDone && !isActive ? '✓' : s.step}
+                      </span>
+                      <span
+                        className={`truncate text-xs font-bold ${
+                          isActive ? 'text-teal-900' : isDone ? 'text-slate-800' : 'text-slate-600'
+                        }`}
+                      >
+                        {s.title}
+                      </span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
 
             {/* ===================================================================== */}
             {/* SECTION 1: THÔNG TIN CHUNG HÀNH TRÌNH                                 */}
             {/* ===================================================================== */}
-            <section id="tour-section-1" className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-xs space-y-5 scroll-mt-6">
+            <section
+              id="tour-section-1"
+              className={`rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-xs space-y-5 scroll-mt-6 ${
+                currentStep === 1 ? 'block' : 'hidden'
+              }`}
+            >
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
                   <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -538,7 +592,6 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                     </span>
                     Thông tin chung hành trình
                   </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Đặt tên thu hút và chọn đúng địa điểm để du khách dễ dàng tìm thấy.</p>
                 </div>
                 {isStep1Done && (
                   <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 border border-emerald-200/60">
@@ -642,12 +695,41 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                 {fieldHint('categoryIds')}
                 {categoriesError && <TourFieldHint id={`${formId}-categories-load-error`} message="Chưa tải được danh mục. Hãy tải lại trang để chọn nhé." />}
               </div>
+
+              {/* Step 1 Footer */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-6 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => handleRequestExit()}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
+                >
+                  <X size={16} />
+                  <span>Hủy</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ok = validateFields(['title', 'destination', 'durationDays', 'summary', 'categoryIds'], true);
+                    if (ok) setCurrentStep(2);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#087e8b] px-6 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-[#00636e] transition-colors shadow-sm cursor-pointer"
+                >
+                  <span>Tiếp tục: Hình ảnh tour</span>
+                  <ArrowRight size={16} />
+                </button>
+              </div>
             </section>
 
             {/* ===================================================================== */}
             {/* SECTION 2: HÌNH ẢNH & THƯ VIỆN ẢNH TOUR                                */}
             {/* ===================================================================== */}
-            <section id="tour-section-2" className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-xs space-y-6 scroll-mt-6">
+            <section
+              id="tour-section-2"
+              className={`rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-xs space-y-6 scroll-mt-6 ${
+                currentStep === 2 ? 'block' : 'hidden'
+              }`}
+            >
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
                   <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -845,21 +927,46 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   ))}
                 </div>
               </div>
+
+              {/* Step 2 Footer */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-6 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(1)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
+                >
+                  <ArrowLeft size={16} />
+                  <span>Quay lại: Thông tin chung</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(3)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#087e8b] px-6 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-[#00636e] transition-colors shadow-sm cursor-pointer"
+                >
+                  <span>Tiếp tục: Giá &amp; Dịch vụ</span>
+                  <ArrowRight size={16} />
+                </button>
+              </div>
             </section>
 
             {/* ===================================================================== */}
             {/* SECTION 3: GIÁ TIỀN & DỊCH VỤ TRỌN GÓI                                */}
             {/* ===================================================================== */}
-            <section id="tour-section-3" className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-xs space-y-6 scroll-mt-6">
+            <section
+              id="tour-section-3"
+              className={`rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-xs space-y-6 scroll-mt-6 ${
+                currentStep === 3 ? 'block' : 'hidden'
+              }`}
+            >
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
                   <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                     <span className="flex size-7 items-center justify-center rounded-lg bg-teal-50 text-teal-700 text-xs font-black">
                       3
                     </span>
-                    Giá tiền & Dịch vụ trọn gói
+                    Giá tiền &amp; Dịch vụ trọn gói
                   </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Quy định giá cơ bản và các quyền lợi đi kèm minh bạch cho du khách.</p>
                 </div>
                 {isStep3Done && (
                   <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 border border-emerald-200/60">
@@ -904,19 +1011,69 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   <label htmlFor={fieldId('maxGroupSize')} className="text-sm font-bold text-slate-800">
                     Số khách tối đa / đoàn
                   </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min={1}
-                      max={10000}
-                      {...fieldProps('maxGroupSize')}
-                      value={value.maxGroupSize ?? ''}
-                      onChange={(e) => updateField('maxGroupSize', e.target.value ? Number(e.target.value) : undefined)}
-                      placeholder="Ví dụ: 25"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 pr-16 text-sm font-medium text-slate-900 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20 placeholder:font-normal placeholder:text-slate-400"
-                    />
-                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 select-none">khách</span>
-                  </div>
+                  <GuestGroupDropdown
+                    id={fieldId('maxGroupSize')}
+                    allowEmpty
+                    emptyLabel="Chưa giới hạn · Chọn người lớn, trẻ em, em bé"
+                    minTotal={1}
+                    maxTotal={10_000}
+                    invalid={Boolean(fieldErrors.maxGroupSize)}
+                    describedBy={fieldErrors.maxGroupSize ? `${fieldId('maxGroupSize')}-error` : undefined}
+                    value={
+                      value.maxGroupSize !== undefined && value.maxGroupSize !== null
+                        ? resolveGuestGroupCounts(value.maxGroupSize, value.agePricing)
+                        : null
+                    }
+                    onChange={(next: GuestCounts | null) => {
+                      setValue((prev) => {
+                        const nextMaxGroupSize = next ? guestTotal(next) : undefined;
+                        const hasPriceConfig = Boolean(
+                          prev.agePricing &&
+                          (
+                            prev.agePricing.childPrice !== null && prev.agePricing.childPrice !== undefined ||
+                            prev.agePricing.infantPrice !== null && prev.agePricing.infantPrice !== undefined ||
+                            prev.agePricing.childPercent !== 100 ||
+                            prev.agePricing.infantPercent !== 100
+                          ),
+                        );
+                        const nextAgePricing = next
+                          ? {
+                              childMinAge: prev.agePricing?.childMinAge ?? 2,
+                              adultMinAge: prev.agePricing?.adultMinAge ?? 13,
+                              childPercent: prev.agePricing?.childPercent ?? 100,
+                              infantPercent: prev.agePricing?.infantPercent ?? 100,
+                              childPrice: ageUnitPrice(prev.basePrice, prev.agePricing, 'child'),
+                              infantPrice: ageUnitPrice(prev.basePrice, prev.agePricing, 'infant'),
+                              adultMaxCount: next.adults,
+                              childMaxCount: next.children,
+                              infantMaxCount: next.infants,
+                            }
+                          : hasPriceConfig && prev.agePricing
+                            ? {
+                                ...prev.agePricing,
+                                adultMaxCount: null,
+                                childMaxCount: null,
+                                infantMaxCount: null,
+                              }
+                            : prev.agePricing;
+                        const updated: TourContentInput = {
+                          ...prev,
+                          maxGroupSize: nextMaxGroupSize,
+                          agePricing: nextAgePricing,
+                        };
+                        setFieldErrors((current) =>
+                          current.maxGroupSize || current.agePricing
+                            ? {
+                                ...current,
+                                ...(current.maxGroupSize ? { maxGroupSize: validateTourEditor(updated).maxGroupSize } : {}),
+                                ...(current.agePricing ? { agePricing: validateTourEditor(updated).agePricing } : {}),
+                              }
+                            : current,
+                        );
+                        return updated;
+                      });
+                    }}
+                  />
                   {fieldHint('maxGroupSize')}
                 </div>
               </div>
@@ -951,21 +1108,49 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   />
                 </div>
               </div>
+
+              {/* Step 3 Footer */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-6 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(2)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
+                >
+                  <ArrowLeft size={16} />
+                  <span>Quay lại: Hình ảnh tour</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ok = validateFields(['basePrice', 'maxGroupSize', 'agePricing'], true);
+                    if (ok) setCurrentStep(4);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#087e8b] px-6 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-[#00636e] transition-colors shadow-sm cursor-pointer"
+                >
+                  <span>Tiếp tục: Chính sách &amp; Hoàn tất</span>
+                  <ArrowRight size={16} />
+                </button>
+              </div>
             </section>
 
             {/* ===================================================================== */}
             {/* SECTION 4: CHÍNH SÁCH CHUYẾN ĐI & HOÀN TẤT                             */}
             {/* ===================================================================== */}
-            <section id="tour-section-4" className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-xs space-y-6 scroll-mt-6">
+            <section
+              id="tour-section-4"
+              className={`rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-xs space-y-6 scroll-mt-6 ${
+                currentStep === 4 ? 'block' : 'hidden'
+              }`}
+            >
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
                   <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                     <span className="flex size-7 items-center justify-center rounded-lg bg-teal-50 text-teal-700 text-xs font-black">
                       4
                     </span>
-                    Chính sách chuyến đi & Quy định
+                    Chính sách chuyến đi &amp; Quy định
                   </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Quy định đổi hủy tour, giấy tờ tùy thân và các lưu ý an toàn cho du khách.</p>
                 </div>
                 {isStep4Done ? (
                   <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 border border-emerald-200/60">
@@ -1035,15 +1220,26 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
               </div>
 
               {/* Bottom Action Card */}
-              <div className="pt-4 flex items-center justify-between border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => handleRequestExit()}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
-                >
-                  <X size={16} />
-                  <span>Hủy</span>
-                </button>
+              <div className="pt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(3)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
+                  >
+                    <ArrowLeft size={16} />
+                    <span>Quay lại: Giá &amp; Dịch vụ</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleRequestExit()}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
+                  >
+                    <X size={16} />
+                    <span>Hủy</span>
+                  </button>
+                </div>
 
                 <button
                   type="button"

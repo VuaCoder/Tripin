@@ -63,10 +63,10 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 ## Agency
 | Use case | Module | Endpoint | Permission | Status |
 |---|---|---|---|---|
-| Register, onboard and sign in through dedicated portal | auth | `POST /auth/agency/register`, `/login`, `/verify-otp`, `/resend-otp` | GUEST | done |
+| Register, onboard and sign in through dedicated portal | auth | `POST /auth/agency/register`, `POST /auth/agency/login`, `POST /auth/agency/google`, `POST /auth/agency/verify-otp`, `POST /auth/agency/resend-otp` | GUEST | done |
 | Create / Edit / Delete tour | tours | `POST /agency/tours`, `POST /agency/tours/upload-image`, `POST /agency/tours/categories`, `PATCH /agency/tours/:id`, `DELETE /agency/tours/:id`, `POST /agency/tours/:id/restore`, `GET /agency/tours`, `GET /agency/tours/:id` | tour:create/update-own/delete-own | done |
 | Upload tours | tours | `POST /agency/tours/import` (bulk JSON, see DECISIONS); `POST /agency/tours/extract-document` (DOCX/PDF to unpersisted AI drafts) | tour:import | done |
-| Set tour availability | tours | `PUT /agency/tours/:id/availability` | tour:set-availability | done |
+| Set tour availability | tours | `PUT /agency/tours/:id/availability`, `GET /agency/calendar`, `POST /agency/tours/:tourId/departures`, `PATCH /agency/tours/:tourId/departures/:departureId`, `DELETE /agency/tours/:tourId/departures/:departureId` | tour:set-availability, tour:update-own | done |
 | Config itinerary | tours | `PUT /agency/tours/:id/itinerary` | tour:configure-itinerary | done |
 | Assign guide to tour | tours | `GET /agency/guides`, `PUT /agency/tours/:id/guide` | tour:assign-guide | done |
 | (supporting) submit tour for review | tours | `POST /agency/tours/:id/submit` | tour:update-own | done |

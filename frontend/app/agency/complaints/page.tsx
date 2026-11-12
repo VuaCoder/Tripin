@@ -1,7 +1,7 @@
 'use client';
 
 import { AgencyComplaintsTicketPage } from '@/features/complaints';
-import { AgencyDenied, useAgencyPermission } from '@/features/agency/AgencyUi';
+import { AgencyDenied, useAgencyPermission } from '@/features/agency/AgencyCommon';
 
 export default function AgencyComplaintsRoute() {
   const allowed = useAgencyPermission('complaint:respond');

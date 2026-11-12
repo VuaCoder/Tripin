@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/features/auth';
 import { GuestLoginPromptModal } from '@/components/shared';
-import { useTourWishlist } from '@/features/wishlist/hooks/useTourWishlist';
+import { WishlistButton } from '@/features/wishlist/components/WishlistButton';
 import type { TourListItem } from '../types';
 import { formatCategoryName, formatDepartureDate, formatDuration, formatVnd } from '../utils';
 
@@ -22,22 +22,27 @@ export function TourCard({ tour, categoryName, href = `/tours/${tour.id}`, view 
   const [showLoginModal, setShowLoginModal] = useState(false);
   const providerName = tour.agency?.name ?? 'Nhà cung cấp Tripri';
   const [coverFailed, setCoverFailed] = useState(false);
-  const wishlist = useTourWishlist(tour.id);
-
-  const handleWishlistClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isAuthenticated || wishlist.status === 'guest') {
-      setShowLoginModal(true);
-      return;
-    }
-    if (wishlist.status === 'ready' && !wishlist.pending) {
-      void wishlist.toggle();
-    }
-  };
 
   const cardClassName =
     'group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-900/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2 cursor-pointer';
+
+  const renderWishlistButton = (placement: 'image' | 'content') => (
+    <div
+      className={placement === 'image' ? 'absolute right-2.5 top-2.5 z-10' : 'shrink-0'}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+    >
+      <WishlistButton
+        tourId={tour.id}
+        tourTitle={tour.title}
+        tourCoverImage={tour.coverImage}
+        variant={placement === 'content' ? 'ghost' : 'icon'}
+        onGuestClick={() => setShowLoginModal(true)}
+      />
+    </div>
+  );
 
   const cardInner = (
     <>
@@ -57,31 +62,23 @@ export function TourCard({ tour, categoryName, href = `/tours/${tour.id}`, view 
           </span>
         )}
 
-        {/* Heart / Wishlist Button */}
-        <button
-          type="button"
-          onClick={handleWishlistClick}
-          aria-label={wishlist.isSaved ? 'Bỏ lưu tour' : 'Lưu tour yêu thích'}
-          className={`absolute right-3 top-3 flex size-8 items-center justify-center rounded-full transition-all duration-200 ${
-            wishlist.isSaved
-              ? 'bg-rose-500 text-white shadow-md hover:bg-rose-600'
-              : 'bg-black/25 text-white backdrop-blur-sm hover:bg-black/40'
-          } ${wishlist.pending ? 'animate-pulse' : ''}`}
-        >
-          <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: wishlist.isSaved ? "'FILL' 1" : "'FILL' 0" }}>
-            favorite
-          </span>
-        </button>
+        {/* Heart / Wishlist Button overlaid on image in grid view */}
+        {view !== 'list' && renderWishlistButton('image')}
       </div>
 
       <div className="flex flex-1 flex-col p-4">
-        <p className="flex items-center gap-1 text-xs font-semibold text-slate-500">
-          <span className="material-symbols-outlined text-[16px] text-primary-container" aria-hidden="true">location_on</span>
-          {tour.destination}
-        </p>
-        <h2 className="mt-2 line-clamp-2 text-base font-extrabold leading-snug text-slate-900 transition-colors group-hover:text-primary-container">
-          {tour.title}
-        </h2>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-1 text-xs font-semibold text-slate-500">
+              <span className="material-symbols-outlined text-[16px] text-primary-container" aria-hidden="true">location_on</span>
+              {tour.destination}
+            </p>
+            <h2 className="mt-2 line-clamp-2 text-base font-extrabold leading-snug text-slate-900 transition-colors group-hover:text-primary-container">
+              {tour.title}
+            </h2>
+          </div>
+          {view === 'list' && renderWishlistButton('content')}
+        </div>
         {tour.summary && <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-slate-500">{tour.summary}</p>}
 
         <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">

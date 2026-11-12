@@ -261,20 +261,22 @@ export function AntDateRangePicker({
           className="absolute left-0 top-full z-50 mt-1.5 w-76 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xl shadow-slate-900/10 animate-in fade-in-50 zoom-in-95 duration-150"
         >
           {/* Header indicator */}
-          <div className="mb-2.5 flex items-center justify-between text-xs font-medium text-slate-500 border-b border-slate-100 pb-2">
-            <span>
-              {!startDate ? (
-                'Chọn ngày bắt đầu'
-              ) : !endDate ? (
-                'Chọn ngày kết thúc'
-              ) : (
-                <span className="text-brand-teal font-semibold">Đã chọn dải ngày</span>
-              )}
-            </span>
-            {(startDate || endDate) && (
-              <span className="text-[11px] text-slate-400">
-                {formatDateDisplay(startDate)} {endDate ? `→ ${formatDateDisplay(endDate)}` : ''}
+          <div className="mb-2.5 flex items-center justify-between gap-2 text-xs font-medium text-slate-500 border-b border-slate-100 pb-2">
+            {startDate && endDate ? (
+              <span className="w-full text-center font-semibold text-brand-teal whitespace-nowrap tabular-nums">
+                Ngày {formatDateDisplay(startDate)} → Ngày {formatDateDisplay(endDate)}
               </span>
+            ) : (
+              <>
+                <span>
+                  {!startDate ? 'Chọn ngày bắt đầu' : 'Chọn ngày kết thúc'}
+                </span>
+                {(startDate || endDate) && (
+                  <span className="text-[11px] text-slate-400 tabular-nums whitespace-nowrap">
+                    {formatDateDisplay(startDate || endDate)}
+                  </span>
+                )}
+              </>
             )}
           </div>
 

@@ -23,13 +23,13 @@ export const agencyPromotionsApi = baseApi.injectEndpoints({
     createAgencyPromotion: build.mutation<AgencyPromotion, CreatePromotionInput>({
       query: (body) => ({ url: '/agency/promotions', method: 'POST', body }),
       transformResponse: (response: PromotionApiResponse<AgencyPromotion>) => response.data,
-      invalidatesTags: [{ type: 'Promotion', id: 'AGENCY_LIST' }],
+      invalidatesTags: [{ type: 'Promotion', id: 'AGENCY_LIST' }, 'Promotion'],
     }),
 
     updateAgencyPromotion: build.mutation<AgencyPromotion, UpdatePromotionInput>({
       query: ({ id, patch }) => ({ url: `/agency/promotions/${id}`, method: 'PATCH', body: patch }),
       transformResponse: (response: PromotionApiResponse<AgencyPromotion>) => response.data,
-      invalidatesTags: [{ type: 'Promotion', id: 'AGENCY_LIST' }],
+      invalidatesTags: [{ type: 'Promotion', id: 'AGENCY_LIST' }, 'Promotion'],
     }),
 
     generateAgencyBatch: build.mutation<{ count: number; codes: string[] }, { id: string; count: number; prefix?: string }>({

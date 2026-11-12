@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Bot, Send, Sparkles, RotateCcw, AlertCircle, Plus } from 'lucide-react';
+import { ArrowLeft, Bot, Send, Sparkles, RotateCcw, AlertCircle, Plus, Image as ImageIcon, Smile, X } from 'lucide-react';
 import { useAppDispatch } from '@/store/hooks';
 import { getApiErrorMessage } from '@/features/auth/utils/apiError';
 import { containsProfanity, PROFANITY_ERROR_MESSAGE } from '@travel-platform/constants';
@@ -50,6 +50,60 @@ export function AiThread() {
   const [draft, setDraft] = useState('');
   const [globalError, setGlobalError] = useState<string>('');
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+
+  // Image attachment state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const processImageFile = useCallback((file: File) => {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setGlobalError('Chỉ hỗ trợ file ảnh JPG, PNG hoặc WebP');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setGlobalError('Ảnh không được vượt quá 5MB');
+      return;
+    }
+    setSelectedImage(file);
+    setImagePreview(URL.createObjectURL(file));
+    setGlobalError('');
+  }, []);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processImageFile(file);
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+      setImagePreview(null);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const insertEmoji = useCallback((emoji: string) => {
+    setDraft((prev) => {
+      const textarea = textareaRef.current;
+      if (!textarea) return prev + emoji;
+      const start = textarea.selectionStart ?? prev.length;
+      const end = textarea.selectionEnd ?? prev.length;
+      const next = prev.slice(0, start) + emoji + prev.slice(end);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + emoji.length, start + emoji.length);
+      }, 0);
+      return next;
+    });
+    setShowEmojiPicker(false);
+  }, []);
 
   const restored = useRef(false);
   const generation = useRef(0);
@@ -162,8 +216,8 @@ export function AiThread() {
   };
 
   const handleSend = async (textToSend?: string, retryIndex?: number) => {
-    const text = (textToSend ?? draft).trim();
-    if (!text || text.length > 2000 || sending.current || loading) return;
+    let text = (textToSend ?? draft).trim();
+    if ((!text && !selectedImage) || text.length > 2000 || sending.current || loading) return;
     if (containsProfanity(text)) {
       setGlobalError(PROFANITY_ERROR_MESSAGE);
       return;
@@ -176,6 +230,32 @@ export function AiThread() {
 
     setGlobalError('');
     if (!textToSend) setDraft('');
+
+    if (selectedImage) {
+      setUploadingImage(true);
+      try {
+        const formData = new FormData();
+        formData.append('file', selectedImage);
+        const res = await fetch('/api/v1/chat/upload-image', {
+          method: 'POST',
+          body: formData,
+        });
+        const json = await res.json();
+        if (!res.ok || !json.data?.url) {
+          throw new Error(json.error?.message || 'Không thể tải ảnh lên');
+        }
+        const imgUrl = json.data.url;
+        text = text ? `![ảnh](${imgUrl})\n${text}` : `![ảnh](${imgUrl})`;
+        handleRemoveImage();
+      } catch (uploadErr) {
+        setUploadingImage(false);
+        sending.current = false;
+        setPendingSend(false);
+        setGlobalError((uploadErr as Error).message || 'Không thể tải ảnh lên');
+        return;
+      }
+      setUploadingImage(false);
+    }
 
     const nowIso = new Date().toISOString();
     const userMsgIndex = retryIndex ?? messages.length;
@@ -355,6 +435,24 @@ export function AiThread() {
         aria-label="Lịch sử tin nhắn AI"
         aria-busy={loading}
         className="flex-1 space-y-4 overflow-y-auto ant-scrollbar bg-slate-50/60 p-4 sm:p-6"
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!isDragOver) setIsDragOver(true);
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setIsDragOver(false);
+          }
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragOver(false);
+          if (busy || loading) return;
+          const file = e.dataTransfer.files?.[0];
+          if (file && file.type.startsWith('image/')) {
+            processImageFile(file);
+          }
+        }}
         onScroll={() => {
           if (!scrollRef.current) return;
           const element = scrollRef.current;
@@ -476,20 +574,139 @@ export function AiThread() {
 
       {/* Input Footer */}
       <form
-        className="border-t border-slate-200/90 bg-white p-3 sm:p-4"
+        className={`relative border-t border-slate-200/90 bg-white p-3 sm:p-4 transition-colors ${
+          isDragOver ? 'bg-teal-50/60 ring-2 ring-inset ring-teal-500' : ''
+        }`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!isDragOver) setIsDragOver(true);
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setIsDragOver(false);
+          }
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragOver(false);
+          if (busy || loading) return;
+          const file = e.dataTransfer.files?.[0];
+          if (file && file.type.startsWith('image/')) {
+            processImageFile(file);
+          }
+        }}
         onSubmit={(event) => {
           event.preventDefault();
           void handleSend();
         }}
       >
-        <div className="flex items-end gap-2">
+        {isDragOver && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-teal-50/90 backdrop-blur-[1px] text-teal-800 font-semibold text-sm">
+            Thả hình ảnh vào đây để gửi cho Trợ lý AI
+          </div>
+        )}
+
+        {imagePreview && (
+          <div className="relative mb-2.5 inline-block">
+            <img
+              src={imagePreview}
+              alt="Ảnh đính kèm"
+              className="h-20 w-20 rounded-xl object-cover border border-slate-200 shadow-sm"
+            />
+            <button
+              type="button"
+              onClick={handleRemoveImage}
+              className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-slate-900 text-white text-xs hover:bg-slate-700 shadow-md cursor-pointer"
+              title="Xóa ảnh"
+            >
+              <X size={12} />
+            </button>
+            {uploadingImage && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/40 text-[11px] font-semibold text-white">
+                Đang tải...
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={handleImageSelect}
+          />
+          {/* Nút 1: Đính kèm hình ảnh - Chiều cao size-11 (44px) */}
+          <button
+            type="button"
+            disabled={busy || loading}
+            onClick={() => fileInputRef.current?.click()}
+            className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 transition-colors cursor-pointer"
+            title="Đính kèm hình ảnh"
+            aria-label="Đính kèm hình ảnh"
+          >
+            <ImageIcon size={20} />
+          </button>
+
+          {/* Nút 2: Chọn Emoji */}
+          <div className="relative">
+            <button
+              type="button"
+              disabled={busy || loading}
+              onClick={() => setShowEmojiPicker((prev) => !prev)}
+              className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 transition-colors cursor-pointer"
+              title="Chọn biểu tượng cảm xúc"
+              aria-label="Chọn biểu tượng cảm xúc"
+            >
+              <Smile size={20} />
+            </button>
+            {showEmojiPicker && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setShowEmojiPicker(false)} />
+                <div className="absolute bottom-full left-0 mb-2 z-40 w-64 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+                  <p className="mb-2 text-xs font-semibold text-slate-500">Biểu tượng cảm xúc</p>
+                  <div className="grid grid-cols-6 gap-2 text-xl">
+                    {['😀', '😂', '😊', '😍', '👍', '🎉', '❤️', '🙏', '🔥', '✈️', '🏖️', '📍', '🏨', '🧳', '☀️', '🌴', '💬', '📞'].map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => insertEmoji(emoji)}
+                        className="flex size-8 items-center justify-center rounded-lg hover:bg-slate-100 transition-transform active:scale-90 cursor-pointer"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Ô nhập tin nhắn - Chiều cao h-11 căn bằng tuyệt đối với các nút */}
           <textarea
+            ref={textareaRef}
             aria-label="Nhập câu hỏi cho Trợ lý AI"
             placeholder="Hỏi Trợ lý AI về địa điểm, kinh nghiệm du lịch..."
             maxLength={2000}
-            rows={2}
+            rows={1}
             value={draft}
             disabled={busy || loading}
+            onPaste={(e) => {
+              if (busy || loading) return;
+              const items = e.clipboardData?.items;
+              if (!items) return;
+              for (let i = 0; i < items.length; i++) {
+                if (items[i].type.startsWith('image/')) {
+                  const file = items[i].getAsFile();
+                  if (file) {
+                    processImageFile(file);
+                    e.preventDefault();
+                    break;
+                  }
+                }
+              }
+            }}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               if (
@@ -502,12 +719,14 @@ export function AiThread() {
                 void handleSend();
               }
             }}
-            className="min-w-0 flex-1 resize-none rounded-xl border border-slate-300 p-3 text-sm text-slate-800 placeholder-slate-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-500/20 disabled:bg-slate-50"
+            className="min-h-[44px] h-[44px] max-h-32 min-w-0 flex-1 resize-none rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-500/20 disabled:bg-slate-50"
           />
+
+          {/* Nút 3: Gửi tin nhắn - Chiều cao size-11 (44px) */}
           <button
             type="submit"
             aria-label="Gửi câu hỏi"
-            disabled={busy || loading || !draft.trim()}
+            disabled={busy || loading || (!draft.trim() && !selectedImage)}
             className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-container text-white shadow-sm transition-all hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
             <Send size={18} />

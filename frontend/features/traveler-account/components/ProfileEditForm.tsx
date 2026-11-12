@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { UserProfile } from '@/features/auth/types';
-import { Button, FormField, Input } from '@/components/ui';
+import { Button } from '@/components/ui/Button';
+import { FormField } from '@/components/ui/FormField';
+import { Input } from '@/components/ui/Input';
 import type { AvatarChange, UpdateProfileRequest } from '../types';
 import { validateImageFile } from '../api/avatarUpload';
 import { AvatarPreview } from './AvatarPreview';
@@ -93,9 +95,7 @@ export function ProfileEditForm({ user, onSave, onCancel, isSaving, error }: Pro
   return (
     <form onSubmit={handleSubmit} className="space-y-8" noValidate>
       <div>
-        <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">Hồ sơ Traveler</p>
-        <h2 className="mt-1 text-headline-md font-bold text-on-surface">Chỉnh sửa thông tin</h2>
-        <p className="mt-1 text-sm text-on-surface-variant">Chỉ các trường bên dưới có thể được thay đổi.</p>
+        <h2 className="text-headline-md font-bold text-on-surface">Chỉnh sửa thông tin</h2>
       </div>
 
       {error && (

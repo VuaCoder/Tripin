@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Clock, MessageSquare, Star, User } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
-import { Pagination, AntSelect, type AntSelectOption } from '@/components/ui';
+import { Pagination, AntSelect, RefreshButton, type AntSelectOption } from '@/components/ui';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth';
 import { useGetMyComplaintsQuery } from '../api/complaintsApi';
@@ -67,18 +67,7 @@ export function MyComplaintsPage() {
             options={STATUS_OPTIONS}
             className="min-w-[180px]"
           />
-          <button
-            type="button"
-            disabled={isFetching}
-            onClick={() => void refetch()}
-            aria-label="Làm mới"
-            title="Làm mới"
-            className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-          >
-            <span className={`material-symbols-outlined text-[20px] ${isFetching ? 'animate-spin' : ''}`} aria-hidden="true">
-              refresh
-            </span>
-          </button>
+          <RefreshButton onClick={() => void refetch()} isFetching={isFetching} />
         </div>
       </header>
 

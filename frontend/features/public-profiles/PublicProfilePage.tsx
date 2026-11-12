@@ -1,6 +1,6 @@
 'use client';
 
-import { FormSelect } from '@/components/ui/FormSelect';
+import { AntSelect } from '@/components/ui/AntSelect';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -39,11 +39,34 @@ function PublicReviews({ kind, id }: { kind: ProfileKind; id: string }) {
   return <section aria-labelledby="public-reviews-heading" className="mt-10 border-t border-slate-200 pt-8">
     <div className="flex flex-wrap items-center justify-between gap-4">
       <h2 id="public-reviews-heading" className="text-2xl font-bold text-slate-900">Đánh giá từ du khách</h2>
-      <label className="flex items-center gap-2 text-sm text-slate-600">Sắp xếp
-        <FormSelect className="rounded-lg border border-slate-300 bg-white p-2 focus-visible:outline-teal-700" value={sort} onChange={event => { setSort(event.target.value as ReviewSort); setPage(1); }}>
-          <option value="newest">Mới nhất</option><option value="rating_desc">Điểm cao nhất</option><option value="rating_asc">Điểm thấp nhất</option>
-        </FormSelect>
-      </label>
+      <div className="flex items-center gap-2 text-sm text-slate-600">
+        <span>Sắp xếp</span>
+        <div className="tripri-form-select">
+          <AntSelect<ReviewSort>
+            aria-label="Sắp xếp"
+            value={sort}
+            onChange={(val) => { setSort(val as ReviewSort); setPage(1); }}
+            options={[
+              { value: 'newest', label: 'Mới nhất' },
+              { value: 'rating_desc', label: 'Điểm cao nhất' },
+              { value: 'rating_asc', label: 'Điểm thấp nhất' },
+            ]}
+            size="middle"
+            className="w-36 sm:w-40"
+          />
+          <select
+            aria-hidden="true"
+            tabIndex={-1}
+            className="sr-only"
+            value={sort}
+            onChange={(event) => { setSort(event.target.value as ReviewSort); setPage(1); }}
+          >
+            <option value="newest">Mới nhất</option>
+            <option value="rating_desc">Điểm cao nhất</option>
+            <option value="rating_asc">Điểm thấp nhất</option>
+          </select>
+        </div>
+      </div>
     </div>
     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{kind === 'guide' ? 'Cảm nhận về các chuyến đi mà hướng dẫn viên đã dẫn. Điểm đánh giá dành cho toàn bộ trải nghiệm tour.' : 'Cảm nhận từ du khách đã hoàn thành chuyến đi do đơn vị tổ chức.'}</p>
     <div className="mt-6 space-y-4" aria-busy={isFetching} aria-live="polite">

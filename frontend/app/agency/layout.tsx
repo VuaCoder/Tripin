@@ -4,7 +4,7 @@ import { useEffect, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { RoleGuard, selectUser } from '@/features/auth';
 import { useAppSelector } from '@/store/hooks';
-import { AgencyNav } from '@/features/agency/AgencyUi';
+import { AgencyNav } from '@/features/agency/components/AgencyNav';
 import sidebarStyles from '@/features/agency/components/AgencySidebar.module.css';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 
@@ -31,7 +31,7 @@ export default function AgencyLayout({ children }: { children: ReactNode }) {
   if (user?.role === 'AGENCY' && user.agencyProfile?.verificationStatus && user.agencyProfile.verificationStatus !== 'VERIFIED') return <p role="status">Đang mở trạng thái hồ sơ…</p>;
 
   return (
-    <RoleGuard allowedRoles={['AGENCY']} loginPath="/agency/login">
+    <RoleGuard allowedRoles={['AGENCY']} loginPath="/agency/login" showForbidden>
       <div className={`${sidebarStyles.shell} bg-[#f7f8f5]`}>
         <AgencyNav />
         <div className={sidebarStyles.body}><AntdRegistry>{children}</AntdRegistry></div>

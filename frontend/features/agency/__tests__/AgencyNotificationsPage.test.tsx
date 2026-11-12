@@ -23,14 +23,14 @@ describe('Agency inbox', () => {
   afterEach(cleanup);
   it('shows a designed empty state, not invented activity', () => {
     render(<AgencyNotificationsPage />);
-    expect(screen.getByText('Bạn đã cập nhật hết rồi')).toBeDefined();
+    expect(screen.getByText('Chưa có thông báo mới')).toBeDefined();
     expect((screen.getByRole('button', { name: 'Đánh dấu tất cả đã đọc' }) as HTMLButtonElement).disabled).toBe(true);
   });
   it('shows errors with retry instead of an empty inbox', () => {
     fixture.query = { error: { status: 403 } };
     render(<AgencyNotificationsPage />);
     expect(screen.getByRole('alert')).toBeDefined();
-    expect(screen.queryByText('Bạn đã cập nhật hết rồi')).toBeNull();
+    expect(screen.queryByText('Chưa có thông báo mới')).toBeNull();
     fireEvent.click(screen.getByText('Thử lại'));
     expect(fixture.refetch).toHaveBeenCalledOnce();
   });

@@ -1,7 +1,32 @@
 import { assertVnd, MONEY_LIMITS, ratioVnd, safeVndNumber } from './money';
 
-export interface AgePricing { childMinAge: number; adultMinAge: number; childPercent: number; infantPercent: number; childPrice?: number | null; infantPrice?: number | null }
+export interface AgePricing {
+  childMinAge: number;
+  adultMinAge: number;
+  childPercent: number;
+  infantPercent: number;
+  childPrice?: number | null;
+  infantPrice?: number | null;
+  adultMaxCount?: number | null;
+  childMaxCount?: number | null;
+  infantMaxCount?: number | null;
+}
 export interface GuestCounts { adults: number; children: number; infants: number }
+export function resolveGuestGroupCounts(totalCapacity: number, pricing?: AgePricing | null): GuestCounts {
+  const safeTotal = Math.max(0, Math.round(totalCapacity));
+  const hasGroupLimits = pricing && (typeof pricing.adultMaxCount === 'number' || typeof pricing.childMaxCount === 'number' || typeof pricing.infantMaxCount === 'number');
+  if (!hasGroupLimits) return { adults: safeTotal, children: 0, infants: 0 };
+  const rawAdults = Math.max(0, Math.round(pricing.adultMaxCount ?? 0));
+  const rawChildren = Math.max(0, Math.round(pricing.childMaxCount ?? 0));
+  const rawInfants = Math.max(0, Math.round(pricing.infantMaxCount ?? 0));
+  if (rawAdults + rawChildren + rawInfants === safeTotal) {
+    return { adults: rawAdults, children: rawChildren, infants: rawInfants };
+  }
+  const children = Math.min(rawChildren, safeTotal);
+  const infants = Math.min(rawInfants, Math.max(0, safeTotal - children));
+  const adults = Math.max(0, safeTotal - children - infants);
+  return { adults, children, infants };
+}
 export interface GuestPriceBreakdown { guests: GuestCounts; adultUnitPrice: number; childUnitPrice: number; infantUnitPrice: number; subtotal: number }
 export function ageUnitPrice(unitPrice: number, pricing: AgePricing | null | undefined, group: 'child' | 'infant'): number | null {
   if (!pricing) return null;

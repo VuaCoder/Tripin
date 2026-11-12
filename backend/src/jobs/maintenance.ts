@@ -39,6 +39,7 @@ export function defaultTasks(): MaintenanceTask[] {
     { name: 'payments.pollPending', intervalMs: 2 * MINUTE, run: () => paymentsService.pollPendingPayments() },
     { name: 'subscriptions.expireEnded', intervalMs: 5 * MINUTE, run: () => subscriptionsService.expireEndedSubscriptions() },
     { name: 'subscriptions.cancelAbandoned', intervalMs: 5 * MINUTE, run: () => subscriptionsService.cancelAbandonedSubscriptions() },
+    { name: 'subscriptions.notifyExpiring', intervalMs: 30 * MINUTE, run: () => subscriptionsService.notifyExpiringSubscriptions() },
     // PostgreSQL has no TTL indexes: expired one-time codes / refresh tokens and old notifications are deleted here.
     { name: 'auth.purgeExpired', intervalMs: HOUR, run: () => authService.purgeExpiredCredentials() },
     { name: 'notifications.purgeOld', intervalMs: 6 * HOUR, run: () => notificationsService.purgeOlderThan(NOTIFICATION_RETENTION_DAYS) },

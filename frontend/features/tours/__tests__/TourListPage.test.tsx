@@ -20,6 +20,12 @@ vi.mock('@/components/ui', () => ({
   Input: (props: any) => <input {...props} />,
   AntSelect: ({ id, value, onChange, options }: any) => <select id={id} value={value} onChange={event => onChange(event.target.value)}>{options.map((option: any) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>,
   AntDateRangePicker: () => null,
+  ViewModeToggle: ({ onChange }: any) => (
+    <div>
+      <button type="button" aria-label="Dạng lưới" onClick={() => onChange('grid')}>Lưới</button>
+      <button type="button" aria-label="Dạng danh sách" onClick={() => onChange('list')}>Danh sách</button>
+    </div>
+  ),
 }));
 import { TourListPage } from '../components/TourListPage';
 

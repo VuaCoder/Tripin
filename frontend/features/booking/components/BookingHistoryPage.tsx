@@ -14,7 +14,7 @@ import { WriteReviewDialog } from '@/features/review/components';
 import { useGetMyReviewsQuery } from '@/features/review/api/reviewApi';
 import type { BookingDto, BookingStatus } from '../types';
 import type { MyReview } from '@/features/review/types';
-import { Pagination } from '@/components/ui';
+import { Pagination, RefreshButton } from '@/components/ui';
 
 const STATUS_TABS: { label: string; value: BookingStatus | 'ALL' }[] = [
   { label: 'Tất cả', value: 'ALL' },
@@ -98,18 +98,7 @@ export function BookingHistoryPage() {
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
           Chuyến đi
         </h1>
-        <button
-          type="button"
-          disabled={isFetching}
-          onClick={() => void refetch()}
-          aria-label="Làm mới"
-          title="Làm mới"
-          className="flex size-9 items-center justify-center rounded-xl border border-surface-container bg-white text-slate-600 transition-colors hover:bg-surface-container-low hover:text-primary-container disabled:opacity-50"
-        >
-          <span className={`material-symbols-outlined text-[20px] ${isFetching ? 'animate-spin' : ''}`} aria-hidden="true">
-            refresh
-          </span>
-        </button>
+        <RefreshButton onClick={() => void refetch()} isFetching={isFetching} />
       </header>
 
       {/* Feedback Banner */}

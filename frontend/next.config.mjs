@@ -27,7 +27,15 @@ if (fs.existsSync(frontendEnvPath) && typeof process.loadEnvFile === 'function')
 
 /** A separate output directory lets verification builds run alongside `next dev`. */
 const nextConfig = {
-  distDir: process.env.TRIPRI_VERIFY_BUILD === '1' ? '.next-verify' : '.next',
+  distDir: process.env.TRIPRI_PREVIEW === '1' ? '.next-preview' : (process.env.TRIPRI_VERIFY_BUILD === '1' ? '.next-verify' : '.next'),
+  ...(process.env.TRIPRI_PREVIEW === '1' ? { typescript: { tsconfigPath: 'tsconfig.preview.json' } } : {}),
+  // Prune local barrel exports in dev as well as production; keep public APIs intact.
+  experimental: {
+    optimizePackageImports: [
+      '@/features/auth', '@/features/tours', '@/features/booking',
+      '@/components/ui', '@/components/shared', '@/components/layout',
+    ],
+  },
   images: {
     remotePatterns: [
       {

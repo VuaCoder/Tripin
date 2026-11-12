@@ -2,9 +2,10 @@
 import { useState, useEffect, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { GuestLoginPromptModal } from '@/components/shared';
-import { ChevronRight, Printer, MapPin, Clock3, Building2 } from 'lucide-react';
+import { ChevronRight, Printer, MapPin, Clock3, Building2, Check, User } from 'lucide-react';
 import { WishlistButton } from '@/features/wishlist';
 import { ReportButton } from '@/features/report';
+import { StartConversationButton } from '@/features/chat/StartConversationButton';
 import { RatingStars, TourReviewsSection } from '@/features/review';
 import type { TourReviewContext } from '@/features/review/types';
 import { TourGallery } from './TourGallery';
@@ -78,37 +79,67 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
     </div>
     <TourGallery images={images} title={tour.title} />
     <div className={styles.bodyGrid}><div className={styles.mainContent}>
-      <div className={styles.facts}><span><MapPin size={19} /><strong>Điểm đến:</strong> {tour.destination}</span><span><Clock3 size={19} />{tour.durationDays} ngày</span>{tour.agency && <span><Building2 size={19} /><Link href={`/agencies/${tour.agency.id}`} className="underline underline-offset-4">{tour.agency.name}</Link></span>}{tour.guide && <span><Link href={`/tour-guides/${tour.guide.id}`} className="underline underline-offset-4">Hướng dẫn viên: {tour.guide.fullName}</Link></span>}</div>
-      {tour.agency && (
-        <div className="my-4 flex flex-col gap-3 bg-white py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex items-center justify-between text-sm text-slate-700">
+        <span className="inline-flex items-center gap-1.5">
+          <MapPin size={16} className="text-teal-700 shrink-0" />
+          <span><strong className="font-semibold text-slate-900">Điểm đến:</strong> {tour.destination}</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5 font-medium text-slate-700">
+          <Clock3 size={16} className="text-teal-700 shrink-0" />
+          <span>{tour.durationDays} ngày</span>
+        </span>
+      </div>
+      {(tour.agency || tour.guide) && (
+        <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-teal-100 bg-white p-4 shadow-xs sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="relative size-12 shrink-0">
               <div className="flex size-full items-center justify-center overflow-hidden rounded-full border-2 border-teal-100 bg-slate-50 p-0.5 text-teal-600">
-              {tour.agency.avatarUrl && tour.agency.avatarUrl !== failedAgencyAvatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={tour.agency.avatarUrl}
-                  alt={tour.agency.name}
-                  className="size-full rounded-full object-cover"
-                  onError={() => setFailedAgencyAvatar(tour.agency!.avatarUrl!)}
-                />
-              ) : <Building2 className="size-5" aria-hidden="true" />}
+                {tour.agency?.avatarUrl && tour.agency.avatarUrl !== failedAgencyAvatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={tour.agency.avatarUrl}
+                    alt={tour.agency?.name ?? 'Agency'}
+                    className="size-full rounded-full object-cover"
+                    onError={() => setFailedAgencyAvatar(tour.agency!.avatarUrl!)}
+                  />
+                ) : (
+                  <Building2 className="size-5" aria-hidden="true" />
+                )}
               </div>
+              <span className="absolute -bottom-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-teal-600 text-white ring-2 ring-white">
+                <Check size={10} strokeWidth={3.5} />
+              </span>
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-bold leading-snug text-slate-900 sm:text-base">{tour.agency.name}</p>
-              <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
-                <span><span className="font-medium text-teal-700">Nhà cung cấp</span> · Đối tác tổ chức</span>
-              </div>
+              {tour.agency && (
+                <p className="text-base font-bold leading-snug text-slate-900">
+                  <Link href={`/agencies/${tour.agency.id}`} className="hover:text-teal-700 transition-colors">
+                    {tour.agency.name}
+                  </Link>
+                </p>
+              )}
+              {tour.guide ? (
+                <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-600">
+                  <User size={14} className="text-teal-600 shrink-0" />
+                  <Link href={`/tour-guides/${tour.guide.id}`} className="hover:underline">
+                    Hướng dẫn viên: <span className="font-medium text-slate-800">{tour.guide.fullName}</span>
+                  </Link>
+                </div>
+              ) : (
+                <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                  <span className="font-medium text-teal-700">Nhà cung cấp</span> · Đối tác tổ chức
+                </div>
+              )}
             </div>
           </div>
-          <Link
-            href={`/agencies/${tour.agency.id}`}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition-colors shrink-0"
-          >
-            <span>Trang nhà cung cấp & Voucher</span>
-            <ChevronRight size={14} />
-          </Link>
+          <StartConversationButton
+            participantId={tour.guide?.id || tour.agency?.id || ''}
+            tourId={tour.id}
+            label="Trò chuyện"
+            iconOnly
+            onGuestClick={() => setShowLoginModal(true)}
+            className="grid size-10 place-items-center rounded-xl border border-teal-200 bg-teal-50/60 hover:bg-teal-100/70 text-teal-800 shadow-2xs transition-colors shrink-0 cursor-pointer"
+          />
         </div>
       )}
       <div className={styles.tabs} role="tablist" aria-label="Nội dung tour">{[['lich-trinh', 'Lịch trình'], ['chinh-sach-gia', 'Chính sách giá'], ['huong-dan', 'Hướng dẫn']].map(([id, label], index, tabs) => <button type="button" role="tab" key={id} id={`tab-${id}`} aria-controls={`panel-${id}`} aria-selected={tab === id} tabIndex={tab === id ? 0 : -1} onClick={() => setTab(id)} onKeyDown={event => {

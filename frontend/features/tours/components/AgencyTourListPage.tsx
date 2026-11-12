@@ -12,7 +12,8 @@ import {
   getTourApiMessage 
 } from '../api/toursApi';
 import type { TourDetail, TourStatus } from '../types';
-import { Pagination, AntSelect } from '@/components/ui';
+import { Pagination } from '@/components/ui/Pagination';
+import { AntSelect } from '@/components/ui/AntSelect';
 
 function TourGridImageCarousel({ tour, onManageImages }: { tour: TourDetail; onManageImages: () => void }) {
   const images = (tour.images && tour.images.length > 0) ? tour.images : (tour.coverImage ? [tour.coverImage] : []);
@@ -284,13 +285,6 @@ export function AgencyTourListPage() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Link 
-            href="/agency/tours/import" 
-            className="inline-flex items-center gap-1.5 rounded-xl border border-primary px-4 py-2.5 text-sm font-semibold text-primary hover:bg-teal-50 transition-colors shadow-xs"
-          >
-            <span className="material-symbols-outlined text-[18px]">upload_file</span>
-            <span>Nhập nhiều tour</span>
-          </Link>
-          <Link 
             href="/agency/tours/new" 
             className="inline-flex items-center gap-1.5 rounded-xl bg-primary-container px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary transition-colors shadow-md shadow-primary-container/20"
           >
@@ -405,12 +399,6 @@ export function AgencyTourListPage() {
               className="rounded-xl bg-primary-container px-5 py-2.5 text-sm font-bold text-white hover:bg-primary transition-colors shadow-sm"
             >
               + Tạo tour mới
-            </Link>
-            <Link 
-              href="/agency/tours/import" 
-              className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-            >
-              Nhập nhiều tour
             </Link>
           </div>
         </section>

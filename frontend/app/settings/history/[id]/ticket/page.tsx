@@ -2,9 +2,9 @@
 
 import { Suspense } from 'react';
 import { useParams } from 'next/navigation';
-import { LoadingState } from '@/components/shared';
-import { ETicketView } from '@/features/e-ticket';
-import { TravelerAccountShell } from '@/features/traveler-account/components';
+import { LoadingState } from '@/components/shared/LoadingState';
+import { ETicketView } from '@/features/e-ticket/components/ETicketView';
+import { TravelerAccountShell } from '@/features/traveler-account/components/TravelerAccountShell';
 
 export default function BookingETicketPage() {
   const params = useParams<{ id: string }>();

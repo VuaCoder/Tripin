@@ -4,6 +4,7 @@ import { numericRecord, type NumericRecord } from '../../utils/money';
 type Subscription = NumericRecord<StoredSubscription>;
 type SubscriptionPlan = NumericRecord<StoredPlan>;
 import { toSkip, type PageRequest } from '../../utils/pagination';
+import { NOTIFICATION_TYPE } from '../notifications/notifications.types';
 import { SUBSCRIPTION_STATUS, type SubscriptionStatus } from './subscriptions.types';
 
 export type PlanRecord = SubscriptionPlan;
@@ -89,6 +90,36 @@ export class SubscriptionsRepository {
 
   async findAbandoned(createdBefore: Date, limit: number): Promise<SubscriptionRecord[]> {
     return (await prisma.subscription.findMany({ where: { status: SUBSCRIPTION_STATUS.PENDING_PAYMENT, createdAt: { lt: createdBefore } }, take: limit })).map(numericRecord);
+  }
+
+  async findExpiringSoon(windowMs: number, now: Date, limit: number): Promise<SubscriptionRecord[]> {
+    const threshold = new Date(now.getTime() + windowMs);
+    return (
+      await prisma.subscription.findMany({
+        where: {
+          status: SUBSCRIPTION_STATUS.ACTIVE,
+          revokedAt: null,
+          endsAt: {
+            gt: now,
+            lte: threshold,
+          },
+        },
+        orderBy: { endsAt: 'asc' },
+        take: limit,
+      })
+    ).map(numericRecord);
+  }
+
+  async hasRecentExpiringAlert(userId: string, withinMs: number, now: Date): Promise<boolean> {
+    const cutoff = new Date(now.getTime() - withinMs);
+    const existing = await prisma.notification.findFirst({
+      where: {
+        userId,
+        type: NOTIFICATION_TYPE.SUBSCRIPTION_EXPIRING_SOON,
+        createdAt: { gte: cutoff },
+      },
+    });
+    return Boolean(existing);
   }
 }
 

@@ -14,6 +14,7 @@ import {
   Tag,
   SlidersHorizontal,
   Clock,
+  Check,
   type LucideIcon,
 } from 'lucide-react';
 import { Button, FormField, Input, Modal, cn } from '@/components/ui';
@@ -101,6 +102,7 @@ const emptyValues = (): PromotionFormValues => ({
   startsAt: '',
   endsAt: '',
   usageLimit: '',
+  isPremium: false,
 });
 
 export const valuesFromPromotion = (p: AgencyPromotion): PromotionFormValues => ({
@@ -108,7 +110,7 @@ export const valuesFromPromotion = (p: AgencyPromotion): PromotionFormValues => 
   codeType: p.codeType ?? 'SHARED',
   code: p.code ?? '',
   title: p.title,
-  description: p.description ?? '',
+  description: (p.description ?? '').replace(/^\[PREMIUM\]\s*/i, ''),
   discountType: p.discountType,
   discountValue: String(p.discountValue),
   maxDiscountAmount: p.maxDiscountAmount != null ? String(p.maxDiscountAmount) : '',
@@ -120,6 +122,7 @@ export const valuesFromPromotion = (p: AgencyPromotion): PromotionFormValues => 
   startsAt: toLocalInput(p.startsAt),
   endsAt: toLocalInput(p.endsAt),
   usageLimit: p.usageLimit != null ? String(p.usageLimit) : '',
+  isPremium: Boolean(p.description?.includes('[PREMIUM]') || p.title?.toLowerCase().includes('premium') || (p as any).scope === 'PREMIUM'),
 });
 
 export interface PromotionFormDialogProps {
@@ -335,6 +338,64 @@ export function PromotionFormDialog({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Phân loại Voucher: Toàn sàn / Thường vs Voucher Premium */}
+            <div className="space-y-1.5 md:col-span-2">
+              <label className="text-sm font-bold text-slate-800 flex items-center justify-between">
+                <span>Phân loại Voucher</span>
+                <span className="text-xs font-normal text-slate-500">Tick chọn để quy định quyền lợi và màu thẻ</span>
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => set('isPremium', false)}
+                  className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all text-left cursor-pointer ${
+                    !values.isPremium
+                      ? 'border-teal-600 bg-teal-50/70 ring-2 ring-teal-500/20 shadow-xs'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <div className={`flex size-5 shrink-0 items-center justify-center rounded-full border mt-0.5 ${
+                    !values.isPremium ? 'border-teal-600 bg-teal-600 text-white' : 'border-slate-300 bg-white'
+                  }`}>
+                    {!values.isPremium && <Check size={12} strokeWidth={3} />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-bold text-slate-900">Voucher Toàn sàn / Thường</p>
+                      <span className="rounded-full bg-teal-100 px-1.5 py-0.2 text-[10px] font-bold text-teal-800">Thẻ xanh</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Áp dụng cho mọi du khách khi đặt tour. Hiển thị dạng thẻ xanh tiêu chuẩn trên trang chủ.
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => set('isPremium', true)}
+                  className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all text-left cursor-pointer ${
+                    values.isPremium
+                      ? 'border-amber-400 bg-amber-50/80 ring-2 ring-amber-400/20 shadow-xs'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <div className={`flex size-5 shrink-0 items-center justify-center rounded-full border mt-0.5 ${
+                    values.isPremium ? 'border-amber-600 bg-amber-500 text-slate-950' : 'border-slate-300 bg-white'
+                  }`}>
+                    {values.isPremium && <Check size={12} strokeWidth={3} />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-bold text-amber-950">Voucher Premium</p>
+                      <span className="rounded-full bg-amber-200 px-1.5 py-0.2 text-[10px] font-black text-amber-900">★ Thẻ vàng</span>
+                    </div>
+                    <p className="text-xs text-amber-900/80 mt-1">
+                      Đặc quyền cho khách hàng Premium. Tự động hiển thị nổi bật dưới dạng thẻ vàng sang trọng trên trang chủ.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
             {selectedType === 'SHARED' ? (
               <FormField
                 label="Mã khuyến mãi"

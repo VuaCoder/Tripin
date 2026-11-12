@@ -2,10 +2,10 @@
 
 import { Suspense, useState } from 'react';
 import { AlertCircle, Flag } from 'lucide-react';
-import { LoadingState } from '@/components/shared';
-import { MyComplaintsPage } from '@/features/complaints';
-import { MyReportsPage } from '@/features/report';
-import { TravelerAccountShell } from '@/features/traveler-account/components';
+import { LoadingState } from '@/components/shared/LoadingState';
+import { MyComplaintsPage } from '@/features/complaints/components/MyComplaintsPage';
+import { MyReportsPage } from '@/features/report/components/MyReportsPage';
+import { TravelerAccountShell } from '@/features/traveler-account/components/TravelerAccountShell';
 
 export default function SettingsReportsPage() {
   const [tab, setTab] = useState<'COMPLAINTS' | 'REPORTS'>('COMPLAINTS');

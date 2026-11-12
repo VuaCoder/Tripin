@@ -51,6 +51,9 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 |---|---|---|
 | `TOUR_LOCKED` | 409 | The tour is in PENDING_REVIEW and cannot be edited |
 | `TOUR_HAS_BOOKINGS` | 409 | The tour has sold seats on a future departure and cannot be deleted |
+| `DEPARTURE_EXISTS` | 409 | A departure already exists at this date and time |
+| `DEPARTURE_LIMIT` | 409 | A tour cannot exceed the maximum departure count limit |
+| `REQUEST_ALREADY_USED` | 409 | The request id has already been processed with different parameters |
 | `NO_OPEN_DEPARTURE` | 400 | A tour needs at least one open future departure to be submitted |
 | `AI_EXTRACTION_FAILED` | 503 | The configured AI provider returned tour data that could not be parsed or validated |
 | `ITINERARY_EXCEEDS_DURATION` | 400 | An itinerary day is beyond `durationDays` |

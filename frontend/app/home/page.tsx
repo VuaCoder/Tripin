@@ -3,12 +3,16 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useGetTourDestinationsQuery, useGetToursQuery, AirbnbTourCarousel, HotVouchersSection, getRecentlyViewedTours, type TourListItem } from '@/features/tours';
+import { useGetTourDestinationsQuery, useGetToursQuery } from '@/features/tours/api/toursApi';
+import { AirbnbTourCarousel } from '@/features/tours/components/AirbnbTourCarousel';
+import { HotVouchersSection } from '@/features/tours/components/HotVouchersSection';
+import { getRecentlyViewedTours } from '@/features/tours/utils/recentTours';
+import { type TourListItem } from '@/features/tours/types/tour.types';
 import { guestSearchParams } from '@/features/tours/utils/searchContext';
 import { useAppSelector } from '@/store/hooks';
-import { selectIsAuthenticated, selectRole } from '@/features/auth';
-import { GuestLoginPromptModal } from '@/components/shared';
-import { Container } from '@/components/layout';
+import { selectIsAuthenticated, selectRole } from '@/features/auth/store/authSlice';
+import { GuestLoginPromptModal } from '@/components/shared/GuestLoginPromptModal';
+import { Container } from '@/components/layout/Container';
 
 interface Slide {
   badge: string;
@@ -150,7 +154,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchSticky, setIsSearchSticky] = useState(false);
 
-  // Real tours from database for favorites and recent
+  // Real tours from database for favorites, recent, and key destinations
   const { data: favoritesRes, isLoading: isLoadingFavorites } = useGetToursQuery({
     sort: 'rating',
     minRating: 4.5,
@@ -160,8 +164,26 @@ export default function Home() {
     sort: 'newest',
     limit: 12,
   });
+  const { data: daNangRes, isLoading: isLoadingDaNang } = useGetToursQuery({
+    destination: 'Đà Nẵng',
+    sort: 'rating',
+    limit: 12,
+  });
+  const { data: haNoiRes, isLoading: isLoadingHaNoi } = useGetToursQuery({
+    destination: 'Hà Nội',
+    sort: 'rating',
+    limit: 12,
+  });
+  const { data: hcmRes, isLoading: isLoadingHcm } = useGetToursQuery({
+    destination: 'Hồ Chí Minh',
+    sort: 'rating',
+    limit: 12,
+  });
   const favoriteTours = favoritesRes?.items || [];
   const recentTours = recentRes?.items || [];
+  const daNangTours = daNangRes?.items || [];
+  const haNoiTours = haNoiRes?.items || [];
+  const hcmTours = hcmRes?.items || [];
 
   // Recently viewed tours from localStorage
   const [viewedTours, setViewedTours] = useState<TourListItem[]>([]);
@@ -983,10 +1005,22 @@ export default function Home() {
                                <div className="text-sm font-bold text-slate-800">Người lớn</div>
                                <div className="text-xs text-slate-500">Từ 13 tuổi trở lên</div>
                              </div>
-                             <div className="flex items-center gap-3">
-                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setAdults(Math.max(0, adults - 1)); }}>-</button>
-                               <span className="w-4 text-center font-semibold text-sm text-slate-800">{adults}</span>
-                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setAdults(adults + 1); }}>+</button>
+                             <div className="flex items-center gap-2">
+                               <button type="button" aria-label="Giảm người lớn" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" disabled={adults <= 0} onClick={(e) => { e.stopPropagation(); setAdults(Math.max(0, adults - 1)); }}>-</button>
+                               <input
+                                 type="number"
+                                 min={0}
+                                 max={50}
+                                 aria-label="Số người lớn"
+                                 value={adults}
+                                 onClick={(e) => e.stopPropagation()}
+                                 onChange={(e) => {
+                                   const val = parseInt(e.target.value, 10);
+                                   setAdults(isNaN(val) ? 0 : Math.max(0, Math.min(50, val)));
+                                 }}
+                                 className="w-12 rounded-lg border border-slate-200 bg-white py-1 text-center font-bold text-sm text-slate-800 outline-none transition focus:border-primary-container focus:ring-1 focus:ring-primary-container [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                               />
+                               <button type="button" aria-label="Tăng người lớn" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" disabled={adults + children + infants >= 50} onClick={(e) => { e.stopPropagation(); setAdults(adults + 1); }}>+</button>
                              </div>
                           </div>
                           <div className="flex items-center justify-between pt-6">
@@ -994,10 +1028,22 @@ export default function Home() {
                                <div className="text-sm font-bold text-slate-800">Trẻ em</div>
                                <div className="text-xs text-slate-500">Độ tuổi 2 – 12</div>
                              </div>
-                             <div className="flex items-center gap-3">
-                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setChildren(Math.max(0, children - 1)); }}>-</button>
-                               <span className="w-4 text-center font-semibold text-sm text-slate-800">{children}</span>
-                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setChildren(children + 1); }}>+</button>
+                             <div className="flex items-center gap-2">
+                               <button type="button" aria-label="Giảm trẻ em" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" disabled={children <= 0} onClick={(e) => { e.stopPropagation(); setChildren(Math.max(0, children - 1)); }}>-</button>
+                               <input
+                                 type="number"
+                                 min={0}
+                                 max={50}
+                                 aria-label="Số trẻ em"
+                                 value={children}
+                                 onClick={(e) => e.stopPropagation()}
+                                 onChange={(e) => {
+                                   const val = parseInt(e.target.value, 10);
+                                   setChildren(isNaN(val) ? 0 : Math.max(0, Math.min(50, val)));
+                                 }}
+                                 className="w-12 rounded-lg border border-slate-200 bg-white py-1 text-center font-bold text-sm text-slate-800 outline-none transition focus:border-primary-container focus:ring-1 focus:ring-primary-container [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                               />
+                               <button type="button" aria-label="Tăng trẻ em" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" disabled={adults + children + infants >= 50} onClick={(e) => { e.stopPropagation(); setChildren(children + 1); }}>+</button>
                              </div>
                           </div>
                           <div className="flex items-center justify-between pt-6">
@@ -1005,10 +1051,22 @@ export default function Home() {
                                <div className="text-sm font-bold text-slate-800">Em bé</div>
                                <div className="text-xs text-slate-500">Dưới 2 tuổi</div>
                              </div>
-                             <div className="flex items-center gap-3">
-                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setInfants(Math.max(0, infants - 1)); }}>-</button>
-                               <span className="w-4 text-center font-semibold text-sm text-slate-800">{infants}</span>
-                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setInfants(infants + 1); }}>+</button>
+                             <div className="flex items-center gap-2">
+                               <button type="button" aria-label="Giảm em bé" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" disabled={infants <= 0} onClick={(e) => { e.stopPropagation(); setInfants(Math.max(0, infants - 1)); }}>-</button>
+                               <input
+                                 type="number"
+                                 min={0}
+                                 max={50}
+                                 aria-label="Số em bé"
+                                 value={infants}
+                                 onClick={(e) => e.stopPropagation()}
+                                 onChange={(e) => {
+                                   const val = parseInt(e.target.value, 10);
+                                   setInfants(isNaN(val) ? 0 : Math.max(0, Math.min(50, val)));
+                                 }}
+                                 className="w-12 rounded-lg border border-slate-200 bg-white py-1 text-center font-bold text-sm text-slate-800 outline-none transition focus:border-primary-container focus:ring-1 focus:ring-primary-container [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                               />
+                               <button type="button" aria-label="Tăng em bé" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" disabled={adults + children + infants >= 50} onClick={(e) => { e.stopPropagation(); setInfants(infants + 1); }}>+</button>
                              </div>
                           </div>
                           <div className="flex items-center justify-between pt-6">
@@ -1016,10 +1074,22 @@ export default function Home() {
                                <div className="text-sm font-bold text-slate-800">Thú cưng</div>
                                <div className="text-xs text-slate-500 underline cursor-pointer hover:text-slate-800">Bạn sẽ mang theo động vật phục vụ?</div>
                              </div>
-                             <div className="flex items-center gap-3">
-                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setPets(Math.max(0, pets - 1)); }}>-</button>
-                               <span className="w-4 text-center font-semibold text-sm text-slate-800">{pets}</span>
-                               <button type="button" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors" onClick={(e) => { e.stopPropagation(); setPets(pets + 1); }}>+</button>
+                             <div className="flex items-center gap-2">
+                               <button type="button" aria-label="Giảm thú cưng" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" disabled={pets <= 0} onClick={(e) => { e.stopPropagation(); setPets(Math.max(0, pets - 1)); }}>-</button>
+                               <input
+                                 type="number"
+                                 min={0}
+                                 max={50}
+                                 aria-label="Số thú cưng"
+                                 value={pets}
+                                 onClick={(e) => e.stopPropagation()}
+                                 onChange={(e) => {
+                                   const val = parseInt(e.target.value, 10);
+                                   setPets(isNaN(val) ? 0 : Math.max(0, Math.min(50, val)));
+                                 }}
+                                 className="w-12 rounded-lg border border-slate-200 bg-white py-1 text-center font-bold text-sm text-slate-800 outline-none transition focus:border-primary-container focus:ring-1 focus:ring-primary-container [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                               />
+                               <button type="button" aria-label="Tăng thú cưng" className="w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-800 hover:text-slate-800 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" disabled={pets >= 50} onClick={(e) => { e.stopPropagation(); setPets(pets + 1); }}>+</button>
                              </div>
                           </div>
                        </div>
@@ -1129,74 +1199,47 @@ export default function Home() {
           </Container>
 
           {/* ========================================================================= */}
-          {/* 5. TRUST & CORE VALUES                                                    */}
+          {/* 6. CÁC TOUR THEO ĐIỂM ĐẾN NỔI BẬT (ĐÀ NẴNG, HÀ NỘI, TP. HỒ CHÍ MINH)       */}
           {/* ========================================================================= */}
-          <Container as="section">
-            <div className="text-center max-w-2xl mx-auto mb-12">
-              <span className="text-xs font-bold uppercase tracking-wider text-primary-container block mb-2">
-                Giá trị cốt lõi
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-3">
-                An Tâm Trọn Vẹn Khi Đặt Chỗ Tại Tripri
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[
-                {
-                  icon: 'verified_user',
-                  title: 'Đối tác kiểm định',
-                },
-                {
-                  icon: 'payments',
-                  title: 'Minh bạch chi phí',
-                },
-                {
-                  icon: 'published_with_changes',
-                  title: 'Chính sách hủy linh hoạt',
-                },
-                {
-                  icon: 'support_agent',
-                  title: 'Đồng hành 24/7',
-                },
-              ].map((val) => (
-                <div
-                  key={val.title}
-                  className="rounded-2xl bg-white shadow-[0_8px_25px_-5px_rgba(0,0,0,0.06)] border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all p-6"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-4 shadow-sm">
-                    <span className="material-symbols-outlined text-[28px]">{val.icon}</span>
-                  </div>
-                  <h3 className="font-bold text-base text-slate-900">{val.title}</h3>
-                </div>
-              ))}
-            </div>
-          </Container>
-
-          {/* ========================================================================= */}
-          {/* 6. PARTNER CALLOUT BANNER                                                 */}
-          {/* ========================================================================= */}
-          <Container as="section">
-            <div className="rounded-3xl shadow-xl border border-surface-container bg-gradient-to-r from-surface-container-high to-surface-container p-6 lg:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-primary-container text-white flex items-center justify-center shrink-0 shadow-lg shadow-primary-container/25">
-                  <span className="material-symbols-outlined text-[28px]">handshake</span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg text-on-surface">Bạn là hướng dẫn viên hay công ty lữ hành?</h3>
-                </div>
-              </div>
-              <div className="shrink-0">
-                <Link
-                  href="/agency"
-                  className="inline-flex items-center gap-2 bg-on-surface text-white hover:bg-primary font-bold text-sm px-6 py-3 rounded-2xl transition-all shadow-md transform hover:-translate-y-0.5"
-                >
-                  <span>Truy cập Cổng đối tác</span>
-                  <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-                </Link>
-              </div>
-            </div>
-          </Container>
+          {[
+            {
+              key: 'danang',
+              title: 'Các tour ở Đà Nẵng',
+              badgeText: 'Đà Nẵng',
+              destination: 'Đà Nẵng',
+              tours: daNangTours,
+              isLoading: isLoadingDaNang,
+            },
+            {
+              key: 'hanoi',
+              title: 'Các tour ở Hà Nội',
+              badgeText: 'Hà Nội',
+              destination: 'Hà Nội',
+              tours: haNoiTours,
+              isLoading: isLoadingHaNoi,
+            },
+            {
+              key: 'hcm',
+              title: 'Các tour ở TP. Hồ Chí Minh',
+              badgeText: 'TP. Hồ Chí Minh',
+              destination: 'Hồ Chí Minh',
+              tours: hcmTours,
+              isLoading: isLoadingHcm,
+            },
+          ].map(
+            (citySection) =>
+              (citySection.isLoading || citySection.tours.length > 0) && (
+                <Container as="section" key={citySection.key}>
+                  <AirbnbTourCarousel
+                    title={citySection.title}
+                    badgeText={citySection.badgeText}
+                    viewAllHref={`/tours?destination=${encodeURIComponent(citySection.destination)}`}
+                    tours={citySection.tours}
+                    isLoading={citySection.isLoading}
+                  />
+                </Container>
+              ),
+          )}
         </div>
       </div>
 

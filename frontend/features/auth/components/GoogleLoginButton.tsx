@@ -2,11 +2,13 @@
 
 import React from 'react';
 import { useGoogleLogin } from '../hooks/useGoogleLogin';
-import { LoginResultData } from '../types';
+import { LoginResultData, SessionData } from '../types';
 
 interface GoogleLoginButtonProps {
   onSuccess?: (data: LoginResultData) => void;
   onError?: (errorMessage: string) => void;
+  authenticate?: (idToken: string) => Promise<SessionData>;
+  rememberMe?: boolean;
   disabled?: boolean;
   label?: string;
 }
@@ -15,10 +17,19 @@ interface GoogleLoginButtonProps {
  * Keeps the Tripri-styled button; Google's own (invisible) button is laid over it
  * so the click opens the real GIS popup and yields an ID token for the backend.
  */
-export const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({ onSuccess, onError, disabled, label = 'Đăng nhập bằng Google' }) => {
+export const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({
+  onSuccess,
+  onError,
+  authenticate,
+  rememberMe,
+  disabled,
+  label = 'Đăng nhập bằng Google',
+}) => {
   const { buttonHost, isReady, isLoading, error, notice, markPopupOpening, reportUnavailable } = useGoogleLogin({
     onSuccess,
     onError,
+    authenticate,
+    rememberMe,
   });
 
   const busy = isLoading || disabled;
