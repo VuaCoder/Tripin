@@ -479,20 +479,15 @@
     margin: 12mm 15mm;
   }
 
-  :global(body) {
-    background-color: #ffffff !important;
-    color: #000000 !important;
-  }
-
   .page {
     background-color: #ffffff !important;
+    color: #000000 !important;
     padding: 0 !important;
     min-height: auto !important;
   }
 
   .topBar,
-  .no-print,
-  :global(.no-print) {
+  .no-print {
     display: none !important;
   }
 
