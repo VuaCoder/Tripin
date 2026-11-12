@@ -13,8 +13,8 @@ export function AgencyTourStepper({
   allowSkip?: boolean;
 }) {
   return (
-    <nav aria-label="Lộ trình thiết lập tour" className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 shadow-2xs">
-      <ol className="relative grid grid-cols-4">
+    <nav aria-label="Lộ trình thiết lập tour" className="w-full">
+      <ol className={`relative grid w-full ${steps.length === 2 ? 'grid-cols-2' : steps.length === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
         {steps.map((step, index) => {
           const isClickable = allowSkip ? true : step.id <= active;
           const isActive = active === step.id;

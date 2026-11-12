@@ -15,6 +15,7 @@ import {
   ExternalLink,
   MessageSquare,
   RefreshCw,
+  Search,
   Shield,
   ShieldAlert,
   User,
@@ -198,136 +199,151 @@ export function ModerationReportListPage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-          Báo cáo vi phạm
-        </h1>
+    <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-6 sm:px-6">
+      {/* Top Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+            Báo cáo vi phạm
+          </h1>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Theo dõi, phân loại và xử lý các tố cáo hành vi vi phạm từ người dùng và đối tác
+          </p>
+        </div>
 
-        <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             disabled={isFetching}
             onClick={() => void refetch()}
             aria-label="Làm mới"
-            title="Làm mới"
-            className="flex size-10 items-center justify-center rounded-2xl border border-slate-200/90 bg-white text-slate-600 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+            title="Làm mới dữ liệu"
+            className="flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
           >
-            <RefreshCw className={`size-4 ${isFetching ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`size-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+            <span>Làm mới</span>
           </button>
         </div>
       </div>
 
-      {/* 4 Metric Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-            {/* Card 1: Tổng số báo cáo */}
-            <div
-              onClick={() => {
-                setStatus('ALL');
-                setPage(1);
-              }}
-              className="cursor-pointer rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs transition-all hover:border-slate-300 hover:shadow-xs"
-            >
-              <div className="flex items-center justify-between text-slate-500">
-                <span className="text-xs font-semibold">Tổng báo cáo</span>
-                <div className="size-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
-                  <Shield className="size-3.5" />
-                </div>
-              </div>
-              <div className="mt-1.5 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-slate-900">{stats.total}</span>
-                <span className="text-xs text-slate-400 font-medium">vụ việc</span>
-              </div>
-            </div>
-
-            {/* Card 2: Chờ xử lý (OPEN) */}
-            <div
-              onClick={() => {
-                setStatus('OPEN');
-                setPage(1);
-              }}
-              className={`cursor-pointer rounded-2xl border p-4 transition-all shadow-2xs hover:shadow-xs ${
-                stats.openCount > 0
-                  ? 'border-amber-300 bg-amber-50/50 hover:border-amber-400'
-                  : 'border-slate-200/90 bg-white hover:border-slate-300'
-              }`}
-            >
-              <div className="flex items-center justify-between text-slate-500">
-                <span className={`text-xs font-semibold ${stats.openCount > 0 ? 'text-amber-800' : 'text-slate-500'}`}>
-                  Chờ xử lý
-                </span>
-                <div
-                  className={`size-7 rounded-lg flex items-center justify-center ${
-                    stats.openCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  <AlertCircle className="size-3.5" />
-                </div>
-              </div>
-              <div className="mt-1.5 flex items-baseline gap-1.5">
-                <span className={`text-2xl font-black ${stats.openCount > 0 ? 'text-amber-700' : 'text-slate-900'}`}>
-                  {stats.openCount}
-                </span>
-                <span className={`text-xs font-medium ${stats.openCount > 0 ? 'text-amber-700 font-semibold' : 'text-slate-400'}`}>
-                  {stats.openCount > 0 ? 'cần duyệt' : 'ổn định'}
-                </span>
-              </div>
-            </div>
-
-            {/* Card 3: Đối tác phản hồi (AGENCY_RESPONDED) */}
-            <div
-              onClick={() => {
-                setStatus('AGENCY_RESPONDED');
-                setPage(1);
-              }}
-              className={`cursor-pointer rounded-2xl border p-4 transition-all shadow-2xs hover:shadow-xs ${
-                stats.respondedCount > 0
-                  ? 'border-teal-300 bg-teal-50/50 hover:border-teal-400'
-                  : 'border-slate-200/90 bg-white hover:border-slate-300'
-              }`}
-            >
-              <div className="flex items-center justify-between text-slate-500">
-                <span className={`text-xs font-semibold ${stats.respondedCount > 0 ? 'text-teal-800' : 'text-slate-500'}`}>
-                  Đối tác phản hồi
-                </span>
-                <div
-                  className={`size-7 rounded-lg flex items-center justify-center ${
-                    stats.respondedCount > 0 ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  <Clock className="size-3.5" />
-                </div>
-              </div>
-              <div className="mt-1.5 flex items-baseline gap-1.5">
-                <span className={`text-2xl font-black ${stats.respondedCount > 0 ? 'text-brand-teal' : 'text-slate-900'}`}>
-                  {stats.respondedCount}
-                </span>
-                <span className={`text-xs font-medium ${stats.respondedCount > 0 ? 'text-brand-teal font-semibold' : 'text-slate-400'}`}>
-                  {stats.respondedCount > 0 ? 'chờ ra quyết định' : 'chưa có'}
-                </span>
-              </div>
-            </div>
-
-            {/* Card 4: Đã giải quyết */}
-            <div
-              onClick={() => {
-                setStatus('RESOLVED');
-                setPage(1);
-              }}
-              className="cursor-pointer rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs transition-all hover:border-slate-300 hover:shadow-xs"
-            >
-              <div className="flex items-center justify-between text-slate-500">
-                <span className="text-xs font-semibold">Đã hoàn tất</span>
-                <div className="size-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                  <CheckCircle2 className="size-3.5" />
-                </div>
-              </div>
-              <div className="mt-1.5 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-slate-900">{stats.resolvedCount}</span>
-                <span className="text-xs text-slate-400 font-medium">đã xử lý</span>
-              </div>
+      {/* KPI Stat Cards: Clean & Compact */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Card 1: Tổng số báo cáo */}
+        <div
+          onClick={() => {
+            setStatus('ALL');
+            setPage(1);
+          }}
+          className={`cursor-pointer rounded-xl border p-3.5 transition-all shadow-2xs hover:shadow-xs ${
+            status === 'ALL' ? 'border-brand-teal/80 bg-teal-50/20 ring-1 ring-brand-teal/30' : 'border-slate-200/90 bg-white hover:border-slate-300'
+          }`}
+        >
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-semibold">Tổng báo cáo</span>
+            <div className="size-6 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center">
+              <Shield className="size-3" />
             </div>
           </div>
+          <div className="mt-2 flex items-baseline gap-1.5">
+            <span className="text-xl font-bold text-slate-900">{stats.total}</span>
+            <span className="text-[11px] text-slate-400 font-medium">vụ việc</span>
+          </div>
+        </div>
+
+        {/* Card 2: Chờ xử lý (OPEN) */}
+        <div
+          onClick={() => {
+            setStatus('OPEN');
+            setPage(1);
+          }}
+          className={`cursor-pointer rounded-xl border p-3.5 transition-all shadow-2xs hover:shadow-xs ${
+            status === 'OPEN'
+              ? 'border-amber-400 bg-amber-50/40 ring-1 ring-amber-400/40'
+              : stats.openCount > 0
+                ? 'border-amber-200 bg-amber-50/20 hover:border-amber-300'
+                : 'border-slate-200/90 bg-white hover:border-slate-300'
+          }`}
+        >
+          <div className="flex items-center justify-between text-slate-500">
+            <span className={`text-xs font-semibold ${stats.openCount > 0 ? 'text-amber-800' : 'text-slate-600'}`}>
+              Chờ xử lý
+            </span>
+            <div
+              className={`size-6 rounded-md flex items-center justify-center ${
+                stats.openCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              <AlertCircle className="size-3" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-1.5">
+            <span className={`text-xl font-bold ${stats.openCount > 0 ? 'text-amber-700' : 'text-slate-900'}`}>
+              {stats.openCount}
+            </span>
+            <span className={`text-[11px] font-medium ${stats.openCount > 0 ? 'text-amber-700 font-semibold' : 'text-slate-400'}`}>
+              {stats.openCount > 0 ? 'cần duyệt' : 'ổn định'}
+            </span>
+          </div>
+        </div>
+
+        {/* Card 3: Đối tác phản hồi (AGENCY_RESPONDED) */}
+        <div
+          onClick={() => {
+            setStatus('AGENCY_RESPONDED');
+            setPage(1);
+          }}
+          className={`cursor-pointer rounded-xl border p-3.5 transition-all shadow-2xs hover:shadow-xs ${
+            status === 'AGENCY_RESPONDED'
+              ? 'border-brand-teal/80 bg-teal-50/30 ring-1 ring-brand-teal/30'
+              : stats.respondedCount > 0
+                ? 'border-teal-200 bg-teal-50/20 hover:border-teal-300'
+                : 'border-slate-200/90 bg-white hover:border-slate-300'
+          }`}
+        >
+          <div className="flex items-center justify-between text-slate-500">
+            <span className={`text-xs font-semibold ${stats.respondedCount > 0 ? 'text-teal-900' : 'text-slate-600'}`}>
+              Đối tác phản hồi
+            </span>
+            <div
+              className={`size-6 rounded-md flex items-center justify-center ${
+                stats.respondedCount > 0 ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              <Clock className="size-3" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-1.5">
+            <span className={`text-xl font-bold ${stats.respondedCount > 0 ? 'text-brand-teal' : 'text-slate-900'}`}>
+              {stats.respondedCount}
+            </span>
+            <span className={`text-[11px] font-medium ${stats.respondedCount > 0 ? 'text-brand-teal font-semibold' : 'text-slate-400'}`}>
+              {stats.respondedCount > 0 ? 'chờ ra quyết định' : 'chưa có'}
+            </span>
+          </div>
+        </div>
+
+        {/* Card 4: Đã hoàn tất */}
+        <div
+          onClick={() => {
+            setStatus('RESOLVED');
+            setPage(1);
+          }}
+          className={`cursor-pointer rounded-xl border p-3.5 transition-all shadow-2xs hover:shadow-xs ${
+            status === 'RESOLVED' ? 'border-brand-teal/80 bg-teal-50/20 ring-1 ring-brand-teal/30' : 'border-slate-200/90 bg-white hover:border-slate-300'
+          }`}
+        >
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-semibold">Đã hoàn tất</span>
+            <div className="size-6 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center">
+              <CheckCircle2 className="size-3" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-1.5">
+            <span className="text-xl font-bold text-slate-900">{stats.resolvedCount}</span>
+            <span className="text-[11px] text-slate-400 font-medium">đã xử lý</span>
+          </div>
+        </div>
+      </div>
 
       {/* Navigation Status Tabs */}
       <div className="border-b border-slate-200">
@@ -427,11 +443,12 @@ export function ModerationReportListPage() {
       </div>
 
       {/* Unified Filter Toolbar */}
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-slate-200/90 bg-white p-3 shadow-2xs">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
           <input
-            placeholder="Tìm nội dung báo cáo..."
-            className="h-10 w-full rounded-xl border border-slate-200/90 bg-white pl-3.5 pr-8 text-xs font-medium text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-brand-teal focus:ring-1 focus:ring-brand-teal/20"
+            placeholder="Tìm theo nội dung vi phạm..."
+            className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50/50 pl-9 pr-8 text-xs font-medium text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-brand-teal focus:bg-white focus:ring-1 focus:ring-brand-teal/20"
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -453,33 +470,30 @@ export function ModerationReportListPage() {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-400">Từ</span>
-            <input
-              type="date"
-              aria-label="Từ ngày"
-              className="h-10 rounded-xl border border-slate-200/90 bg-white px-2.5 text-xs text-slate-800 outline-none transition focus:border-brand-teal"
-              value={from}
-              onChange={(e) => {
-                setFrom(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-400">Đến</span>
-            <input
-              type="date"
-              aria-label="Đến ngày"
-              className="h-10 rounded-xl border border-slate-200/90 bg-white px-2.5 text-xs text-slate-800 outline-none transition focus:border-brand-teal"
-              value={to}
-              onChange={(e) => {
-                setTo(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
+        <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1 text-xs text-slate-600">
+          <span className="text-[11px] font-medium text-slate-400">Từ</span>
+          <input
+            type="date"
+            aria-label="Từ ngày"
+            className="bg-transparent text-xs text-slate-800 outline-none font-medium"
+            value={from}
+            onChange={(e) => {
+              setFrom(e.target.value);
+              setPage(1);
+            }}
+          />
+          <span className="text-slate-300">|</span>
+          <span className="text-[11px] font-medium text-slate-400">Đến</span>
+          <input
+            type="date"
+            aria-label="Đến ngày"
+            className="bg-transparent text-xs text-slate-800 outline-none font-medium"
+            value={to}
+            onChange={(e) => {
+              setTo(e.target.value);
+              setPage(1);
+            }}
+          />
         </div>
 
         <FormSelect
@@ -507,7 +521,7 @@ export function ModerationReportListPage() {
           }}
           options={targetOptions}
           size="middle"
-          className="min-w-[140px]"
+          className="min-w-[130px]"
           triggerClassName={targetType !== 'ALL' ? 'border-brand-teal/60 bg-teal-50/20 text-teal-900 font-semibold' : ''}
         />
 
@@ -520,7 +534,7 @@ export function ModerationReportListPage() {
           }}
           options={categoryOptions}
           size="middle"
-          className="min-w-[150px]"
+          className="min-w-[140px]"
           triggerClassName={category !== 'ALL' ? 'border-brand-teal/60 bg-teal-50/20 text-teal-900 font-semibold' : ''}
         />
 
@@ -533,7 +547,7 @@ export function ModerationReportListPage() {
           }}
           options={sortOptions}
           size="middle"
-          className="min-w-[140px]"
+          className="min-w-[130px]"
         />
 
         {(search || from || to || targetType !== 'ALL' || category !== 'ALL') && (
@@ -547,7 +561,7 @@ export function ModerationReportListPage() {
               setCategory('ALL');
               setPage(1);
             }}
-            className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
+            className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
           >
             <X className="size-3 text-slate-400" />
             <span>Xóa lọc</span>
@@ -566,7 +580,7 @@ export function ModerationReportListPage() {
           onAction={() => void refetch()}
         />
       ) : !data || data.items.length === 0 ? (
-        <div className="rounded-3xl border border-slate-200/90 bg-white p-12 text-center shadow-2xs">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-12 text-center shadow-2xs">
           <EmptyState
             title="Không có báo cáo nào"
             description="Không có báo cáo vi phạm nào khớp với bộ lọc hiện tại."
@@ -574,7 +588,7 @@ export function ModerationReportListPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          <ul className="space-y-3">
+          <ul className="space-y-2.5">
             {data.items.map((r) => {
               const isPending = r.status === 'OPEN';
               const isResponded = r.status === 'AGENCY_RESPONDED';
@@ -587,75 +601,72 @@ export function ModerationReportListPage() {
                     setServerError(null);
                     setSelectedId(r.id);
                   }}
-                  className="group rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs transition-all hover:border-slate-300 hover:shadow-xs cursor-pointer"
+                  className="group rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs transition-all hover:border-slate-300 hover:shadow-xs cursor-pointer"
                 >
-                  {/* Top Header Row */}
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      {/* Status Badge */}
-                      {isPending && (
-                        <span className="rounded bg-amber-50 border border-amber-200/70 text-amber-800 px-2 py-0.5 text-xs font-medium">
-                          Đang mở
-                        </span>
-                      )}
-                      {isResponded && (
-                        <span className="rounded bg-teal-50 border border-teal-200/70 text-teal-800 px-2 py-0.5 text-xs font-medium">
-                          Đối tác đã phản hồi
-                        </span>
-                      )}
-                      {isResolved && (
-                        <span className="rounded bg-emerald-50 border border-emerald-200/70 text-emerald-800 px-2 py-0.5 text-xs font-medium">
-                          Đã giải quyết
-                        </span>
-                      )}
-                      {!isPending && !isResponded && !isResolved && (
-                        <span className="rounded bg-slate-100 text-slate-600 px-2 py-0.5 text-xs font-medium">
-                          Đã bác bỏ
-                        </span>
-                      )}
+                  <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex-1 min-w-0">
+                      {/* Meta badges row */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {isPending && (
+                          <span className="rounded-md bg-amber-50 border border-amber-200/80 text-amber-800 px-2 py-0.5 text-[11px] font-semibold">
+                            Chờ xử lý
+                          </span>
+                        )}
+                        {isResponded && (
+                          <span className="rounded-md bg-teal-50 border border-teal-200/80 text-teal-800 px-2 py-0.5 text-[11px] font-semibold">
+                            Đối tác phản hồi
+                          </span>
+                        )}
+                        {isResolved && (
+                          <span className="rounded-md bg-emerald-50 border border-emerald-200/80 text-emerald-800 px-2 py-0.5 text-[11px] font-semibold">
+                            Đã giải quyết
+                          </span>
+                        )}
+                        {!isPending && !isResponded && !isResolved && (
+                          <span className="rounded-md bg-slate-100 border border-slate-200 text-slate-600 px-2 py-0.5 text-[11px] font-semibold">
+                            Đã bác bỏ
+                          </span>
+                        )}
 
-                      {/* Target Type Badge */}
-                      <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                        {REPORT_TARGET_LABELS[r.targetType]}
-                      </span>
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                          {REPORT_TARGET_LABELS[r.targetType]}
+                        </span>
+
+                        <span className="rounded-md bg-teal-50/70 border border-teal-100 px-2 py-0.5 text-[11px] font-medium text-teal-800">
+                          {REPORT_CATEGORY_LABELS[r.category]}
+                        </span>
+
+                        <span className="font-mono text-[11px] text-slate-400">
+                          #{r.id.slice(0, 8)}
+                        </span>
+                      </div>
+
+                      {/* Description Body */}
+                      <p className="mt-2 text-sm font-semibold text-slate-900 group-hover:text-brand-teal transition-colors line-clamp-2">
+                        {r.description}
+                      </p>
                     </div>
 
-                    <span className="text-xs text-slate-400 font-medium">
-                      Gửi {dateTime.format(new Date(r.createdAt))}
-                    </span>
-                  </div>
-
-                  {/* Description Body */}
-                  <div className="mt-2.5">
-                    <p className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-brand-teal transition-colors line-clamp-2">
-                      {r.description}
-                    </p>
-                  </div>
-
-                  {/* Footer: Category & Action */}
-                  <div className="mt-4 flex items-center justify-between pt-3 border-t border-slate-100 pl-2 text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-md bg-teal-50/70 border border-teal-100 px-2 py-0.5 text-[11px] font-medium text-teal-800">
-                        {REPORT_CATEGORY_LABELS[r.category]}
+                    {/* Right side: Date and Action */}
+                    <div className="flex items-center justify-between sm:flex-col sm:items-end sm:justify-center shrink-0 gap-1.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                      <span className="text-[11px] text-slate-400 font-medium">
+                        {dateTime.format(new Date(r.createdAt))}
                       </span>
-                      <span className="font-mono text-[11px] text-slate-400">
-                        #{r.id.slice(0, 8)}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setServerError(null);
+                          setSelectedId(r.id);
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-brand-teal group-hover:translate-x-0.5 transition-transform"
+                      >
+                        <span>
+                          {r.status === 'OPEN' || r.status === 'AGENCY_RESPONDED' ? 'Xem & xử lý' : 'Xem chi tiết'}
+                        </span>
+                        <ArrowRight className="size-3.5" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setServerError(null);
-                        setSelectedId(r.id);
-                      }}
-                      className="inline-flex items-center gap-1 font-bold text-brand-teal group-hover:translate-x-0.5 transition-transform"
-                    >
-                      <span>
-                        {r.status === 'OPEN' || r.status === 'AGENCY_RESPONDED' ? 'Xem & xử lý' : 'Xem chi tiết'}
-                      </span>
-                      <ArrowRight className="size-3.5" />
-                    </button>
                   </div>
                 </li>
               );

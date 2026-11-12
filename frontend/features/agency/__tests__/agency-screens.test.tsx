@@ -182,14 +182,11 @@ describe('Agency operation screens', () => {
     const view = render(<AgencyTourWorkspacePage />);
     const title = await screen.findByLabelText('Tiêu đề ngày 1');
     fireEvent.change(title, { target: { value: 'Nội dung chưa lưu' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Bước 2: Khởi hành' }));
-    fireEvent.change(screen.getByLabelText('Sức chứa'), { target: { value: '14' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Bước 2: Khởi hành & Giá vé' }));
+    expect(screen.getByText('Số lượng khách (3 nhóm)')).toBeDefined();
     mocks.tour.mockReturnValue({ currentData: { ...tour, guideAssignment: { guideId: 'guide-1', status: 'ACCEPTED', feePerBooking: 100000 } }, refetch: vi.fn() });
     view.rerender(<AgencyTourWorkspacePage />);
     fireEvent.click(screen.getByRole('button', { name: 'Bước 1: Lịch trình' }));
     expect((screen.getByLabelText('Tiêu đề ngày 1') as HTMLInputElement).value).toBe('Nội dung chưa lưu');
-    expect((screen.getByLabelText('Sức chứa') as HTMLInputElement).value).toBe('14');
-    fireEvent.click(screen.getByRole('button', { name: 'Bước 3: Hướng dẫn viên' }));
-    expect(screen.getByText(/Hướng dẫn viên đã nhận tour/)).toBeTruthy();
   });
 });

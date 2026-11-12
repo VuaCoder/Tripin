@@ -96,14 +96,14 @@ export function ModerationDashboardPage() {
           icon: Compass,
           badge: 'Cần duyệt',
           theme: {
-            bgGradient: 'from-emerald-50/70 via-teal-50/40 to-white',
-            border: 'border-emerald-200/90 hover:border-emerald-400',
-            iconBg: 'bg-emerald-100 text-emerald-700',
-            iconText: 'text-emerald-700',
-            badgeBg: 'bg-emerald-100/80 text-emerald-800',
-            badgeText: 'text-emerald-800',
-            valueText: 'text-emerald-950',
-            glow: 'group-hover:shadow-emerald-500/10',
+            bgGradient: 'bg-white hover:bg-slate-50/60',
+            border: 'border-slate-200/90 hover:border-slate-300',
+            iconBg: 'bg-slate-100 text-slate-700',
+            iconText: 'text-slate-700',
+            badgeBg: 'bg-slate-100 text-slate-700 border border-slate-200/60',
+            badgeText: 'text-slate-700',
+            valueText: 'text-slate-900',
+            glow: '',
           },
         },
         {
@@ -115,14 +115,14 @@ export function ModerationDashboardPage() {
           icon: Building2,
           badge: 'Hồ sơ mới',
           theme: {
-            bgGradient: 'from-sky-50/70 via-blue-50/40 to-white',
-            border: 'border-sky-200/90 hover:border-sky-400',
-            iconBg: 'bg-sky-100 text-sky-700',
-            iconText: 'text-sky-700',
-            badgeBg: 'bg-sky-100/80 text-sky-800',
-            badgeText: 'text-sky-800',
-            valueText: 'text-sky-950',
-            glow: 'group-hover:shadow-sky-500/10',
+            bgGradient: 'bg-white hover:bg-slate-50/60',
+            border: 'border-slate-200/90 hover:border-slate-300',
+            iconBg: 'bg-slate-100 text-slate-700',
+            iconText: 'text-slate-700',
+            badgeBg: 'bg-slate-100 text-slate-700 border border-slate-200/60',
+            badgeText: 'text-slate-700',
+            valueText: 'text-slate-900',
+            glow: '',
           },
         },
         {
@@ -134,14 +134,14 @@ export function ModerationDashboardPage() {
           icon: Scale,
           badge: 'Khẩn cấp',
           theme: {
-            bgGradient: 'from-rose-50/70 via-red-50/40 to-white',
-            border: 'border-rose-200/90 hover:border-rose-400',
-            iconBg: 'bg-rose-100 text-rose-700',
-            iconText: 'text-rose-700',
-            badgeBg: 'bg-rose-100/80 text-rose-800',
-            badgeText: 'text-rose-800',
-            valueText: 'text-rose-950',
-            glow: 'group-hover:shadow-rose-500/10',
+            bgGradient: 'bg-white hover:bg-rose-50/30',
+            border: 'border-rose-200/80 hover:border-rose-300',
+            iconBg: 'bg-rose-50 text-rose-600',
+            iconText: 'text-rose-600',
+            badgeBg: 'bg-rose-50 text-rose-700 border border-rose-200/60',
+            badgeText: 'text-rose-700',
+            valueText: 'text-rose-600',
+            glow: '',
           },
         },
         {
@@ -153,14 +153,14 @@ export function ModerationDashboardPage() {
           icon: ShieldAlert,
           badge: 'Cần phân xử',
           theme: {
-            bgGradient: 'from-amber-50/70 via-orange-50/40 to-white',
-            border: 'border-amber-200/90 hover:border-amber-400',
-            iconBg: 'bg-amber-100 text-amber-700',
+            bgGradient: 'bg-white hover:bg-amber-50/30',
+            border: 'border-amber-200/80 hover:border-amber-300',
+            iconBg: 'bg-amber-50 text-amber-700',
             iconText: 'text-amber-700',
-            badgeBg: 'bg-amber-100/80 text-amber-800',
+            badgeBg: 'bg-amber-50 text-amber-800 border border-amber-200/60',
             badgeText: 'text-amber-800',
-            valueText: 'text-amber-950',
-            glow: 'group-hover:shadow-amber-500/10',
+            valueText: 'text-slate-900',
+            glow: '',
           },
         },
         {
@@ -172,14 +172,14 @@ export function ModerationDashboardPage() {
           icon: Headphones,
           badge: 'Hỗ trợ sàn',
           theme: {
-            bgGradient: 'from-purple-50/70 via-indigo-50/40 to-white',
-            border: 'border-purple-200/90 hover:border-purple-400',
-            iconBg: 'bg-purple-100 text-purple-700',
-            iconText: 'text-purple-700',
-            badgeBg: 'bg-purple-100/80 text-purple-800',
-            badgeText: 'text-purple-800',
-            valueText: 'text-purple-950',
-            glow: 'group-hover:shadow-purple-500/10',
+            bgGradient: 'bg-white hover:bg-slate-50/60',
+            border: 'border-slate-200/90 hover:border-slate-300',
+            iconBg: 'bg-slate-100 text-slate-700',
+            iconText: 'text-slate-700',
+            badgeBg: 'bg-slate-100 text-slate-700 border border-slate-200/60',
+            badgeText: 'text-slate-700',
+            valueText: 'text-slate-900',
+            glow: '',
           },
         },
       ]
@@ -304,24 +304,24 @@ export function ModerationDashboardPage() {
                   <div className="flex h-full flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className={`inline-flex items-center justify-center size-9 rounded-2xl ${t.theme.iconBg} shadow-2xs`}>
-                          <IconComponent className="size-4.5" />
+                        <span className={`inline-flex items-center justify-center size-8 rounded-xl ${t.theme.iconBg}`}>
+                          <IconComponent className="size-4" />
                         </span>
-                        <span className={`rounded-xl px-2.5 py-0.5 text-[11px] font-bold tracking-wide ${t.theme.badgeBg}`}>
+                        <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold tracking-tight ${t.theme.badgeBg}`}>
                           {t.badge}
                         </span>
                       </div>
-                      <div className="mt-4">
-                        <div className="text-xs font-bold uppercase tracking-wider text-slate-500">{t.label}</div>
+                      <div className="mt-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t.label}</div>
                         <div
-                          className={`mt-1.5 text-3xl font-black tracking-tight ${t.theme.valueText}`}
+                          className={`mt-1 text-2xl font-bold tracking-tight ${t.theme.valueText}`}
                           data-testid={`tile-${t.label}`}
                         >
                           {t.value}
                         </div>
                       </div>
                     </div>
-                    <div className="mt-4 flex items-center justify-between border-t border-slate-200/50 pt-2.5 text-[11px] font-medium text-slate-500">
+                    <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-500">
                       <span className="truncate">{t.hint}</span>
                       <ArrowRight className="size-3 text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0 ml-1" />
                     </div>
@@ -332,14 +332,14 @@ export function ModerationDashboardPage() {
                   <Link
                     key={t.label}
                     href={t.href}
-                    className={`group rounded-3xl border bg-gradient-to-b ${t.theme.bgGradient} ${t.theme.border} p-5 shadow-2xs hover:shadow-md transition-all duration-200 hover:-translate-y-1 cursor-pointer`}
+                    className={`group rounded-2xl border ${t.theme.bgGradient} ${t.theme.border} p-4 shadow-2xs hover:shadow-xs transition-all duration-150 cursor-pointer`}
                   >
                     {cardContent}
                   </Link>
                 ) : (
                   <div
                     key={t.label}
-                    className={`rounded-3xl border bg-gradient-to-b ${t.theme.bgGradient} ${t.theme.border} p-5 shadow-2xs`}
+                    className={`rounded-2xl border ${t.theme.bgGradient} ${t.theme.border} p-4 shadow-2xs`}
                   >
                     {cardContent}
                   </div>

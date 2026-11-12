@@ -19,6 +19,7 @@ it('shows age prices in the import form and preserves edits and cleared prices',
   fireEvent.change(child, { target: { value: '500000' } });
   fireEvent.change(infant, { target: { value: '0' } });
   expect(JSON.parse(screen.getByTestId('draft').textContent!).agePricing).toMatchObject({ childPrice: 500000, infantPrice: 0, adultMinAge: 13 });
-  fireEvent.change(child, { target: { value: '' } });
+  const childInput = screen.getByLabelText('Giá Trẻ em (2 - 12 tuổi)');
+  fireEvent.change(childInput, { target: { value: '' } });
   expect(JSON.parse(screen.getByTestId('draft').textContent!).agePricing).toMatchObject({ childPrice: null, infantPrice: 0 });
 });

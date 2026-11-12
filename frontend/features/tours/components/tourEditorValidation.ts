@@ -9,9 +9,15 @@ export const fieldStep = (field: EditorField) => field === 'agePricing' || field
 export function validateTourEditor(value: TourContentInput): EditorErrors {
   const errors: EditorErrors = {};
   const pricing = value.agePricing;
-  if (
-    pricing &&
-    (
+  if (pricing) {
+    const hasChildGroup = (pricing.childMaxCount !== undefined && pricing.childMaxCount !== null && pricing.childMaxCount > 0);
+    const hasInfantGroup = (pricing.infantMaxCount !== undefined && pricing.infantMaxCount !== null && pricing.infantMaxCount > 0);
+    
+    if (hasChildGroup && pricing.childPrice === null && pricing.childPercent === 100) {
+      errors.agePricing = 'Bạn đã thiết lập nhóm Trẻ em trong đoàn. Vui lòng nhập số tiền vé hoặc bấm tick chọn "Miễn phí".';
+    } else if (hasInfantGroup && pricing.infantPrice === null && pricing.infantPercent === 100) {
+      errors.agePricing = 'Bạn đã thiết lập nhóm Em bé trong đoàn. Vui lòng nhập số tiền vé hoặc bấm tick chọn "Miễn phí".';
+    } else if (
       !Object.entries(pricing).every(([key, n]) => {
         if (key === 'childPrice' || key === 'infantPrice') {
           return n === undefined || n === null || (Number.isInteger(n) && n >= 0 && n <= 1000000000);
@@ -28,9 +34,9 @@ export function validateTourEditor(value: TourContentInput): EditorErrors {
       pricing.childPercent > 100 ||
       pricing.infantPercent < 0 ||
       pricing.infantPercent > 100
-    )
-  ) {
-    errors.agePricing = 'Kiểm tra khoảng tuổi và tỷ lệ giá từ 0 đến 100%.';
+    ) {
+      errors.agePricing = 'Kiểm tra khoảng tuổi và tỷ lệ giá từ 0 đến 100%.';
+    }
   }
   if (value.title.trim().length < 5 || value.title.trim().length > 200) errors.title = 'Nhập tên tour từ 5 đến 200 ký tự nhé.';
   if (value.destination.trim().length < 2 || value.destination.trim().length > 120) errors.destination = 'Nhập điểm đến từ 2 đến 120 ký tự nhé.';
