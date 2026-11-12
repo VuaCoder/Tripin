@@ -36,6 +36,7 @@ export interface LoginInput {
 }
 
 export interface Session {
+  agencies?: import('../agencies/agency.service').AgencyMembershipDto[];
   accessToken: string;
   /** Raw refresh token. The controller moves it into an HttpOnly cookie and NEVER returns it in the body. */
   refreshToken: string;

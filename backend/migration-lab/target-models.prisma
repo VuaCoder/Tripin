@@ -1,0 +1,51 @@
+// Appended to an artifact copy of the current schema. Not the application's schema.
+enum AgencyMemberRole {
+  OWNER
+  MANAGER
+  STAFF
+  ACCOUNTANT
+}
+enum AgencyMemberStatus {
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+enum AgencyInvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+model AgencyMember {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agencyId String @db.Uuid
+  userId String @db.Uuid
+  role AgencyMemberRole
+  status AgencyMemberStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  agency AgencyProfile @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@unique([agencyId, userId])
+  @@index([userId, status, agencyId])
+  @@index([agencyId, status, role])
+}
+model AgencyInvitation {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agencyId String @db.Uuid
+  email String
+  role AgencyMemberRole
+  status AgencyInvitationStatus @default(PENDING)
+  tokenHash String @unique
+  invitedByUserId String @db.Uuid
+  acceptedByUserId String? @db.Uuid
+  expiresAt DateTime
+  acceptedAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  agency AgencyProfile @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  invitedBy User @relation("AgencyInviteSender", fields: [invitedByUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  acceptedBy User? @relation("AgencyInviteAcceptor", fields: [acceptedByUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@index([email, status])
+}

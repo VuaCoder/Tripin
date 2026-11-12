@@ -77,15 +77,27 @@ export interface RegisterResultData {
   message?: string;
 }
 
+export interface AgencyMembership {
+  agencyId: string;
+  memberId: string;
+  memberRole: 'OWNER' | 'MANAGER' | 'STAFF' | 'ACCOUNTANT';
+  companyName: string;
+  verificationStatus: AgencyVerificationStatus;
+  permissions: string[];
+}
+
 export interface SessionData {
   accessToken: string;
   user: UserProfile;
+  /** Optional only for legacy responses; absence must not grant agency access. */
+  agencies?: AgencyMembership[];
 }
 
 export interface LoginSuccessData {
   twoFactorRequired: false;
   accessToken: string;
   user: UserProfile;
+  agencies?: AgencyMembership[];
 }
 
 export interface Login2FARequiredData {
@@ -141,4 +153,8 @@ export interface AuthState {
   user: UserProfile | null;
   accessToken: string | null;
   status: AuthStatus;
+  agencies: AgencyMembership[];
+  activeAgencyId: string | null;
+  membershipsReady: boolean;
+  agencyEpoch: number;
 }

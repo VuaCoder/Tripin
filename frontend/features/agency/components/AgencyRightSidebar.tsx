@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, useLogout } from '@/features/auth';
+import { selectActiveAgency } from '@/features/auth/store/authSlice';
 import { useAgencyNotifications } from '../notifications';
 import styles from './AgencySidebar.module.css';
 const AgencyNotificationPopover = dynamic(() => import('./AgencyNotificationPopover').then((module) => module.AgencyNotificationPopover), { ssr: false });
@@ -40,12 +41,13 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
   const focusSearch = useRef(false);
   const shortcut = '⌘K';
   const user = useAppSelector(selectUser);
+  const agency = useAppSelector(selectActiveAgency);
   const logout = useLogout();
   const pathname = usePathname();
   const router = useRouter();
   const { count, connected, latest } = useAgencyNotifications();
 
-  const companyName = user?.agencyProfile?.companyName?.trim() || 'Đối tác du lịch';
+  const companyName = agency?.companyName?.trim() || 'Đối tác du lịch';
   const ToggleIcon = expanded ? PanelLeftClose : PanelLeftOpen;
   const closeMenu = () => { setExpanded(false); setQuery(''); setShowProfileMenu(false); };
   const toggleLabel = expanded ? 'Thu gọn thanh bên' : 'Mở rộng thanh bên';
@@ -102,7 +104,7 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
   const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLocaleLowerCase('vi').trim();
   const searchTerm = normalize(query);
   const visibleGroups = groups.map((group) => ({ ...group, items: group.items.filter((item) =>
-    (!item.permission || user?.permissions?.includes(item.permission)) &&
+    (!item.permission || agency?.permissions?.includes(item.permission)) &&
     (item.href !== '/agency/notifications' || searchTerm) &&
     (!searchTerm || normalize(`${item.label} ${group.label}`).includes(searchTerm)),
   ) })).filter((group) => group.items.length > 0);

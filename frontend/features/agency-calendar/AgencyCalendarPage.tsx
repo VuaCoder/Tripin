@@ -13,7 +13,7 @@ import '@fullcalendar/react/themes/classic/palette.css';
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Repeat2, PanelLeftOpen, LockKeyhole, LoaderCircle, X, Check, RotateCw } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useAppSelector } from '@/store/hooks';
-import { selectUser } from '@/features/auth/store/authSlice';
+import { selectActiveAgency } from '@/features/auth/store/authSlice';
 import { AgencyDenied } from '@/features/agency/AgencyCommon';
 import { agencyNotice } from '@/features/agency/agencyNotice';
 import { getTourApiMessage } from '@/features/tours/api/toursApi';
@@ -28,9 +28,9 @@ const PLUGINS = [dayGridPlugin, timeGridPlugin, interactionPlugin, classicTheme]
 type Chooser = { mode: 'slot' | 'single' | 'weekly'; date: string };
 
 export default function AgencyCalendarPage() {
-  const user = useAppSelector(selectUser);
-  const canView = !!user?.permissions.includes('tour:update-own');
-  const canEdit = !!user?.permissions.includes('tour:set-availability');
+  const agency = useAppSelector(selectActiveAgency);
+  const canView = !!agency?.permissions.includes('tour:update-own');
+  const canEdit = !!agency?.permissions.includes('tour:set-availability');
   const apiRef = useRef<CalendarRef>(null);
   const [view, setView] = useState(() => (typeof window !== 'undefined' && window.matchMedia?.('(max-width: 767px)').matches ? 'timeGridDay' : 'dayGridMonth'));
   const [title, setTitle] = useState('');
@@ -49,7 +49,7 @@ export default function AgencyCalendarPage() {
   const [draft, setDraft] = useState<EditorDraft | null>(null);
   const [chooser, setChooser] = useState<Chooser | null>(null);
   const retry = useRef<{ signature: string; departures: NewDeparture[] }>();
-  const savedTime = () => readRememberedTime(user!.id);
+  const savedTime = () => readRememberedTime(agency!.agencyId);
   const defaultDate = () => atVietnam(tomorrowVietnam(), savedTime());
   const datesSet = useCallback((info: DatesSetInfo) => {
     setTitle(info.view.title);
@@ -86,7 +86,7 @@ export default function AgencyCalendarPage() {
     try {
       const result = await createDepartures({ tourId: tour.id, departures }).unwrap();
       setOptimistic(Object.fromEntries(result.events.map((item) => [item.id, item])));
-      rememberTime(user!.id, localParts(form.dates[0]).time);
+      rememberTime(agency!.agencyId, localParts(form.dates[0]).time);
       retry.current = undefined;
       await refresh();
       setNotice({ error: false, message: result.skipped ? `Đã thêm ${result.created} đợt · Bỏ qua ${result.skipped} thời điểm đã có.` : result.replayed ? 'Lịch đã được lưu trước đó.' : `Đã thêm ${result.created} đợt khởi hành.` });
@@ -109,7 +109,7 @@ export default function AgencyCalendarPage() {
     try {
       const result = await updateDeparture({ tourId: current.tourId, id: current.id, body: { expectedDate: current.date, date } }).unwrap();
       setOptimistic({ [result.id]: result });
-      rememberTime(user!.id, localParts(date).time);
+      rememberTime(agency!.agencyId, localParts(date).time);
       await refresh();
       setNotice({ error: false, message: 'Đã cập nhật ngày và giờ khởi hành.' });
     } catch (caught) { info.revert(); setOptimistic({}); fail(caught); }
@@ -132,7 +132,7 @@ export default function AgencyCalendarPage() {
       try {
         const row = await updateDeparture({ tourId: draft.event.tourId, id: draft.event.id, body: { expectedDate: draft.event.date, date, capacity: form.capacity, priceOverride: form.priceOverride, isOpen: form.isOpen } }).unwrap();
         setOptimistic({ [row.id]: row });
-        rememberTime(user!.id, localParts(row.date).time);
+        rememberTime(agency!.agencyId, localParts(row.date).time);
         await refresh();
         setNotice({ error: false, message: 'Đã lưu đợt khởi hành.' });
       } catch (caught) { throw fail(caught); }
@@ -153,7 +153,7 @@ export default function AgencyCalendarPage() {
   return <main className={styles.page}>
     <header className={styles.pageHeader}><h1><CalendarDays size={27} />Lịch khởi hành</h1><div className={styles.headerActions}>{saving && <span role="status" className={styles.saving}><LoaderCircle size={15} className={styles.spin} />Đang lưu</span>}{canEdit && <><button type="button" className={styles.secondaryButton} disabled={saving} onClick={() => setChooser({ mode: 'weekly', date: defaultDate() })}><Repeat2 size={17} /><span>Lặp hàng tuần</span></button><button type="button" className={styles.primaryButton} disabled={saving} onClick={() => setChooser({ mode: 'single', date: defaultDate() })}><Plus size={18} />Thêm lịch</button></>}</div></header>
     <div className={styles.workspace}>
-      <aside className={styles.catalogDesktop} aria-label="Danh sách tour kéo thả"><TourCatalog onPick={pick} canDrag={canEdit && !saving} agencyId={user!.id} /></aside>
+      <aside className={styles.catalogDesktop} aria-label="Danh sách tour kéo thả"><TourCatalog onPick={pick} canDrag={canEdit && !saving} agencyId={agency!.agencyId} /></aside>
       <section className={styles.board} aria-label="Lịch khởi hành agency" aria-busy={calendar.isFetching}>
         <div className={styles.calendarToolbar}>
           <div className={styles.navigation}><button type="button" aria-label="Khoảng lịch trước" onClick={() => apiRef.current?.getApi().prev()}><ChevronLeft size={18} /></button><button type="button" aria-label="Khoảng lịch sau" onClick={() => apiRef.current?.getApi().next()}><ChevronRight size={18} /></button><button type="button" className={styles.todayButton} onClick={() => apiRef.current?.getApi().today()}>Hôm nay</button></div>
@@ -245,7 +245,7 @@ export default function AgencyCalendarPage() {
         </div>
       </section>
     </div>
-    {chooser && <Modal open title={chooser.mode === 'weekly' ? 'Chọn tour tạo lịch lặp' : 'Chọn tour khởi hành'} onClose={() => setChooser(null)} className={styles.pickerModal}><TourCatalog onPick={pick} canDrag={false} agencyId={user!.id} /></Modal>}
+    {chooser && <Modal open title={chooser.mode === 'weekly' ? 'Chọn tour tạo lịch lặp' : 'Chọn tour khởi hành'} onClose={() => setChooser(null)} className={styles.pickerModal}><TourCatalog onPick={pick} canDrag={false} agencyId={agency!.agencyId} /></Modal>}
     {draft && <ScheduleEditor key={`${draft.tour.id}-${draft.event?.id ?? draft.date}-${draft.weekly}`} draft={draft} busy={saving} canEdit={canEdit} onClose={() => setDraft(null)} onSave={saveDraft} onDelete={removeDraft} />}
   </main>;
 }

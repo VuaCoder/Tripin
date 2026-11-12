@@ -3,6 +3,7 @@ import { mailProvider } from '../../integrations/mail';
 import { logger } from '../../utils/logger';
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { env } from '../../config/env';
+import { canReceiveAgencyNotification } from './notifications.policy';
 
 const encryptionKey = () => createHash('sha256').update(`tripri:mail-outbox:v1:${env.JWT_ACCESS_SECRET}`).digest();
 function encodeMailBody(text: string): string {
@@ -35,6 +36,20 @@ export async function flushMailOutbox(): Promise<void> {
     const claimed = await prisma.mailOutbox.updateMany({ where: { id: row.id, sentAt: null, OR: [{ leaseUntil: null }, { leaseUntil: { lt: new Date() } }] }, data: { leaseUntil: new Date(Date.now() + 300_000), attempts: { increment: 1 } } });
     if (!claimed.count) continue;
     try {
+      if (row.dedupKey.startsWith('agency-notification:')) {
+        const [, agencyId, userId, notificationId] = row.dedupKey.split(':');
+        // Serialize delivery with team mutations. An email already in flight may
+        // complete before revocation commits, never start after that commit.
+        await prisma.$transaction(async tx => {
+          await tx.$queryRaw`SELECT id FROM "AgencyProfile" WHERE id = ${agencyId}::uuid FOR UPDATE`;
+          const member = await tx.agencyMember.findFirst({ where: { agencyId, userId, status: 'ACTIVE', user: { status: 'ACTIVE' } } });
+          const notification = await tx.notification.findFirst({ where: { id: notificationId, agencyId, userId } });
+          if (!member || !notification || !canReceiveAgencyNotification(member.role, notification.type)) return;
+          await mailProvider.send({ to: row.recipient, subject: row.subject, text: decodeMailBody(row.text) });
+          await tx.mailOutbox.update({ where: { id: row.id }, data: { sentAt: new Date(), leaseUntil: null } });
+        }, { timeout: 30_000 });
+        continue;
+      }
       await mailProvider.send({ to: row.recipient, subject: row.subject, text: decodeMailBody(row.text) });
       await prisma.mailOutbox.update({ where: { id: row.id }, data: { sentAt: new Date(), leaseUntil: null } });
     } catch (error) {

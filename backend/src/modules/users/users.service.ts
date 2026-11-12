@@ -1,3 +1,4 @@
+import { prisma } from '../../config/database';
 import {
   AGENCY_VERIFICATION_STATUS,
   ROLES,
@@ -45,11 +46,15 @@ export interface UserSummary {
 type UsersRepo = Pick<
   UsersRepository,
   'changeAccess' | 'changeBan' | 'findById' | 'findManyByIds' | 'updateById' | 'updateStatusIf' | 'updateAgencyVerificationIf' | 'count' | 'list' | 'countGroupedBy' | 'countCreatedSince' | 'countAgenciesByVerification' | 'listActiveGuides'
->;
+> & Partial<Pick<UsersRepository, 'findAgencySummaries'>>;
 
 const STAFF = new Set<PersistedRole>([ROLES.MODERATOR, ROLES.SUPER_ADMIN]);
 
 export class UsersService {
+  private async assertLegacyAgencyOwner(userId: string) {
+    const membership = await prisma.agencyMember.findFirst({ where: { userId, agency: { userId }, role: 'OWNER', status: 'ACTIVE' } });
+    if (!membership) throw AppError.forbidden('Active agency OWNER membership required');
+  }
   constructor(
     private readonly users: UsersRepo = usersRepository,
     _audit: Pick<AuditService, 'record'> = auditService,
@@ -90,6 +95,7 @@ export class UsersService {
     if (input.agencyProfile && user.role !== ROLES.AGENCY) {
       throw AppError.forbidden('Only agencies can edit an agency profile');
     }
+    if (input.agencyProfile) await this.assertLegacyAgencyOwner(userId);
     if (input.guideProfile && user.role !== ROLES.TOUR_GUIDE) {
       throw AppError.forbidden('Only tour guides can edit a guide profile');
     }
@@ -178,6 +184,7 @@ export class UsersService {
   async requestAgencyVerification(userId: string): Promise<PrivateUserDto> {
     const user = await this.requireUser(userId);
     if (user.role !== ROLES.AGENCY) throw AppError.forbidden('Only agencies can request verification');
+    await this.assertLegacyAgencyOwner(userId);
 
     const profile = user.agencyProfile;
     if (!profile?.companyName || !profile.licenseNumber) {
@@ -479,7 +486,7 @@ export class UsersService {
     const unique = Array.from(new Set(ids));
     if (unique.length === 0) return new Map();
     const users = await this.users.findManyByIds(unique);
-    return new Map(
+    const summaries = new Map<string, UserSummary>(
       users.map((user) => [
         user.id,
         {
@@ -491,6 +498,12 @@ export class UsersService {
         },
       ]),
     );
+    // Independent organizations have no User row at their tenant ID. Preserve
+    // person summaries while filling organization-only display identities.
+    const missing = unique.filter(id => !summaries.has(id));
+    const agencies = missing.length ? await this.users.findAgencySummaries?.(missing) ?? [] : [];
+    for (const agency of agencies) summaries.set(agency.id, { id: agency.id, fullName: agency.companyName ?? 'Agency', companyName: agency.companyName ?? undefined, role: ROLES.AGENCY });
+    return summaries;
   }
 
   /** Email + name of an ACTIVE account, for notification emails. Null when the user is gone or not active. */
@@ -501,8 +514,8 @@ export class UsersService {
 
   /** Throws 403 unless the agency profile is VERIFIED (required before tours can be submitted for review, DECISIONS D-27). */
   async assertAgencyVerified(agencyId: string): Promise<void> {
-    const agency = await this.assertActiveWithRole(agencyId, ROLES.AGENCY);
-    if (agency.agencyProfile?.verificationStatus !== AGENCY_VERIFICATION_STATUS.VERIFIED) {
+    const agency = await prisma.agencyProfile.findUnique({ where: { id: agencyId } });
+    if (agency?.verificationStatus !== AGENCY_VERIFICATION_STATUS.VERIFIED) {
       throw AppError.forbidden('Your agency profile must be verified before tours can be submitted', 'AGENCY_NOT_VERIFIED');
     }
   }

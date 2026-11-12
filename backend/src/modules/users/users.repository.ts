@@ -19,7 +19,7 @@ export interface UserListFilter {
   agencyVerification?: AgencyVerificationStatus;
 }
 
-export type AgencyProfileFields = Partial<Omit<AgencyProfile, 'userId'>>;
+export type AgencyProfileFields = Partial<Omit<AgencyProfile, 'id' | 'userId'>>;
 export type GuideProfileFields = Partial<Omit<GuideProfile, 'userId'>>;
 
 /** A stored user with its role profiles. `passwordHash` is only present on the `...WithPassword` lookups. */
@@ -155,6 +155,10 @@ export class UsersRepository {
 
   findManyByIds(ids: string[]): Promise<UserRecord[]> {
     return prisma.user.findMany({ where: { id: { in: ids } }, include, omit: omitPassword });
+  }
+
+  findAgencySummaries(ids: string[]) {
+    return prisma.agencyProfile.findMany({ where: { id: { in: ids } }, select: { id: true, companyName: true } });
   }
 
   create(data: NewUser): Promise<UserRecord> {

@@ -36,9 +36,9 @@ export function AgencyLoginPage({ registered = false, initialEmail = '' }: Agenc
       if (result.twoFactorRequired) {
         router.push(`/agency/verify-otp?email=${encodeURIComponent(result.email)}&purpose=LOGIN_2FA`);
       } else {
-        dispatch(setCredentials({ accessToken: result.accessToken, user: result.user as any, rememberMe }));
+        dispatch(setCredentials({ accessToken: result.accessToken, user: result.user, agencies: result.agencies, rememberMe }));
         const verification = result.user.agencyProfile?.verificationStatus;
-        if (verification === 'VERIFIED') {
+        if (result.agencies?.length || verification === 'VERIFIED') {
           router.push('/agency');
         } else {
           router.push(`/application-status?email=${encodeURIComponent(result.user.email)}`);
@@ -159,7 +159,7 @@ export function AgencyLoginPage({ registered = false, initialEmail = '' }: Agenc
           onSuccess={(result) => {
             if (result.twoFactorRequired) return;
             const verification = result.user.agencyProfile?.verificationStatus;
-            if (verification === 'VERIFIED') {
+            if (result.agencies?.length || verification === 'VERIFIED') {
               router.push('/agency');
             } else {
               router.push(`/application-status?email=${encodeURIComponent(result.user.email)}`);

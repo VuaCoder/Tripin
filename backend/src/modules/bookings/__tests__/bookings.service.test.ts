@@ -115,7 +115,7 @@ function make(seed: B[] = [], opts: { commissionBps?: number; windowHours?: numb
       },
     })),
   };
-  const notifications = { notify: vi.fn(async () => undefined) };
+  const notifications = { notify: vi.fn(async () => undefined), notifyAgency: vi.fn(async () => undefined) };
   const tx = {} as DbExecutor;
   const transact: TransactionRunner = async (work) => {
     const before = structuredClone(db);
@@ -291,7 +291,7 @@ describe('cancelMine', () => {
     expect(db[0]!.cancelReason).toBe(BOOKING_CANCEL_REASON.TRAVELER_REQUEST);
     expect(tours.releaseSeats).toHaveBeenCalledWith('t1', 'd1', 2);
     expect(promotions.releaseForBooking).toHaveBeenCalledWith('b1', 'p1', tx);
-    expect(notifications.notify).toHaveBeenCalledWith('a1', expect.objectContaining({ type: 'BOOKING_CANCELLED' }));
+    expect(notifications.notifyAgency).toHaveBeenCalledWith('a1', expect.objectContaining({ type: 'BOOKING_CANCELLED' }));
   });
 
   it('releases all stacked promotions when cancelling a booking with multiple redemptions (PAY-001, PAY-014)', async () => {
@@ -394,7 +394,8 @@ describe('payment hooks', () => {
     expect((await service.confirmPayment('b1')).outcome).toBe('CONFIRMED');
     expect(db[0]).toMatchObject({ status: 'CONFIRMED', isPaid: true });
     expect(db[0]!.paymentExpiresAt).toBeNull();
-    expect(notifications.notify).toHaveBeenCalledTimes(2);
+    expect(notifications.notify).toHaveBeenCalledTimes(1);
+    expect(notifications.notifyAgency).toHaveBeenCalledTimes(1);
     expect(handler).toHaveBeenCalledTimes(1);
 
     expect((await service.confirmPayment('b1')).outcome).toBe('ALREADY_CONFIRMED');

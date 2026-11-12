@@ -9,6 +9,8 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 
 ## General
 
+| `LEGACY_TRANSFER_QUARANTINED` | 410 | Legacy agency transfer is disabled pending the AgencyContext finance workflow. |
+
 | Code | HTTP | Meaning |
 |---|---|---|
 | `VALIDATION_ERROR` | 400 | Body, query or path failed validation; `details[]` lists `location`, `path`, `message`. Also used for malformed JSON and `413` payload too large |

@@ -97,6 +97,7 @@ export class ComplaintsController {
     const result = await this.service.getTicketDetail(ticketId, {
       userId: actor.userId,
       role: actor.role,
+      agencyId: req.agencyContext?.agencyId,
     });
     res.json({ success: true, data: result });
   };
@@ -107,7 +108,7 @@ export class ComplaintsController {
     const input = sendComplaintMessageSchema.parse(req.body);
     const result = await this.service.sendMessage(
       ticketId,
-      { userId: actor.userId, role: actor.role },
+      { userId: actor.userId, role: actor.role, agencyId: req.agencyContext?.agencyId },
       input,
     );
     res.status(201).json({ success: true, data: result });
@@ -119,7 +120,7 @@ export class ComplaintsController {
     const input = escalateComplaintTicketSchema.parse(req.body);
     const result = await this.service.escalateTicket(
       ticketId,
-      { userId: actor.userId, role: actor.role },
+      { userId: actor.userId, role: actor.role, agencyId: req.agencyContext?.agencyId },
       input,
     );
     res.json({ success: true, data: result });

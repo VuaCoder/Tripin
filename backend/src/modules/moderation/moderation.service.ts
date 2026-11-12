@@ -23,7 +23,7 @@ export class ModerationService {
     private readonly reviews: Pick<ReviewsService, 'listForModeration' | 'moderate'> = reviewsService,
     private readonly reports: Pick<ReportsService, 'listForModeration' | 'getForModeration' | 'resolve'> = reportsService,
     private readonly support: Pick<SupportService, 'listForModeration' | 'getForModeration' | 'replyAsStaff' | 'setStatus'> = supportService,
-    private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
+    private readonly notifications: Pick<NotificationsService, 'notify' | 'notifyAgency'> = notificationsService,
   ) {}
 
   // -------------------------------------------------------------- Tours
@@ -57,7 +57,7 @@ export class ModerationService {
   /** Use case "Verify Agency Profile". The agency is told by app and email. */
   async verifyAgency(actor: Actor, agencyId: string, decision: { approve: boolean; note?: string; requestInformation?: boolean }): Promise<PrivateUserDto> {
     const agency = await this.users.decideAgencyVerification(actor, agencyId, decision);
-    await this.notifications.notify(
+    await this.notifications.notifyAgency(
       agencyId,
       {
         type: NOTIFICATION_TYPE.AGENCY_VERIFICATION_DECIDED,

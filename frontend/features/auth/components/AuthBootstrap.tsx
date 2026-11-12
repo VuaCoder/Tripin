@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useAppDispatch } from '@/store/hooks';
 import { refreshSession } from '@/store/api/baseApi';
-import { clearCredentials, setCredentials } from '../store/authSlice';
+import { clearCredentials, restoreCredentials, setCredentials } from '../store/authSlice';
 import { store } from '@/store';
 
 const STORAGE_KEY = 'tripri_auth_session';
@@ -21,7 +21,7 @@ export const AuthBootstrap = () => {
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && typeof parsed === 'object' && parsed.accessToken && parsed.user) {
-            dispatch(setCredentials(parsed));
+            dispatch(restoreCredentials(parsed));
           }
         }
       } catch {}
@@ -29,10 +29,11 @@ export const AuthBootstrap = () => {
 
     const synchronize = async () => {
       const identityAtStart = store.getState().auth.user?.id;
+      const tokenAtStart = store.getState().auth.accessToken;
       const session = await refreshSession();
       if (!active) return;
       const currentId = store.getState().auth.user?.id;
-      if (currentId !== identityAtStart && currentId !== session?.user.id) return;
+      if (currentId !== identityAtStart || store.getState().auth.accessToken !== tokenAtStart) return;
       if (session) {
         dispatch(setCredentials(session));
       } else {

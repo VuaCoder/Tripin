@@ -58,7 +58,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/store/hooks', () => ({
-  useAppSelector: () => mockUser,
+  useAppSelector: (selector: any) => selector({ auth: { user: mockUser, membershipsReady: true, activeAgencyId: mockUser.id, agencies: [{ agencyId: mockUser.id, memberId: 'owner-1', memberRole: 'OWNER', companyName: mockUser.agencyProfile!.companyName, verificationStatus: 'VERIFIED', permissions: mockUser.permissions }] } }),
   useAppDispatch: () => vi.fn(),
 }));
 
