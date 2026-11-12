@@ -423,19 +423,10 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      {/* Top Status */}
-      {tour && (
-        <div className="mb-4 flex justify-end">
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 border border-slate-200">
-            Trạng thái: {tour.status}
-          </span>
-        </div>
-      )}
-
       {/* Page Title & Quick Action Header */}
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+      <div className="mb-7 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/80 pb-5">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1.5">
             <button
               type="button"
               onClick={() => handleRequestExit(defaultExitUrl)}
@@ -443,6 +434,14 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
             >
               <ArrowLeft size={14} /> {fromUrl?.startsWith(`/agency/tours/${id}`) ? 'Quản lý tour' : 'Danh sách tour'}
             </button>
+            {tour && (
+              <>
+                <span className="text-slate-300">/</span>
+                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-700 border border-slate-200">
+                  {tour.status === 'APPROVED' ? 'Đã duyệt' : tour.status === 'PENDING_REVIEW' ? 'Chờ duyệt' : tour.status === 'DRAFT' ? 'Bản nháp' : tour.status}
+                </span>
+              </>
+            )}
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
             {mode === 'create' ? 'Tạo tour mới' : 'Chỉnh sửa tour'}

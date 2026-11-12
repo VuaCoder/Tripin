@@ -10,7 +10,9 @@ import { toursApi } from '../api/toursApi';
 import { useAppDispatch } from '@/store/hooks';
 import { AgencyCustomersPanel, AgencyGuidePanel } from '@/features/agency/AgencyTourOperations';
 import { AgencyDenied, useAgencyPermission } from '@/features/agency/AgencyCommon';
-import { ArrowLeft, ArrowRight, RotateCw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, RotateCw, Edit3, Archive, Send, RefreshCw as RestoreIcon } from 'lucide-react';
+import { agencyNotice } from '@/features/agency/agencyNotice';
+import { Modal } from 'antd';
 import { AgencyTourStepper } from './AgencyTourStepper';
 import { AgencyTourLivePreview } from './AgencyTourLivePreview';
 import { AntDatePicker } from '@/components/ui/AntDatePicker';
@@ -64,10 +66,22 @@ export function AgencyTourWorkspacePage() {
 
   const run = async (operation: () => Promise<unknown>, success: string) => {
     setMessage(''); setErrorText('');
-    try { await operation(); setMessage(success); }
-    catch (e) {
+    try {
+      await operation();
+      setMessage(success);
+      agencyNotice.success(success, {
+        description: `Tour: ${tour?.title || ''}`,
+        inbox: true,
+        type: 'TOUR_UPDATE',
+      });
+    } catch (e) {
       const msg = getTourApiMessage(e, 'Không thể lưu thay đổi. Vui lòng thử lại.');
       setErrorText(msg);
+      agencyNotice.error(msg, {
+        description: `Tour: ${tour?.title || ''}`,
+        inbox: true,
+        type: 'TOUR_ERROR',
+      });
       const isMissingDeparture = (e as { data?: { error?: { code?: string } }; error?: { data?: { error?: { code?: string } } } })?.data?.error?.code === 'NO_OPEN_DEPARTURE' || (e as { error?: { data?: { error?: { code?: string } } } })?.error?.data?.error?.code === 'NO_OPEN_DEPARTURE' || msg.includes('Khởi hành');
       if (isMissingDeparture) {
         setStep(2);
@@ -148,22 +162,55 @@ export function AgencyTourWorkspacePage() {
     void run(() => submitTour(id).unwrap(), 'Tour đã được gửi để kiểm duyệt.');
   };
   const remove = async () => {
-    if (!tour || !window.confirm(`Lưu trữ tour “${tour.title}”?`)) return;
-    setErrorText('');
-    try { await deleteTour(id).unwrap(); window.location.assign('/agency/tours'); }
-    catch (e) { setErrorText(getTourApiMessage(e, 'Không thể lưu trữ tour.')); }
+    Modal.confirm({
+      title: 'Tạm dừng / Lưu trữ tour',
+      content: `Bạn có chắc chắn muốn lưu trữ tour “${tour?.title || ''}”? Tour sẽ tạm ngừng mở bán và chuyển vào danh sách lưu trữ.`,
+      okText: 'Xác nhận lưu trữ',
+      okType: 'danger',
+      cancelText: 'Hủy bỏ',
+      onOk: async () => {
+        try {
+          await deleteTour(id).unwrap();
+          agencyNotice.success('Đã chuyển tour vào danh sách lưu trữ.', {
+            description: `Tour: ${tour?.title || ''}`,
+            inbox: true,
+            type: 'TOUR_ARCHIVED',
+          });
+          window.location.assign('/agency/tours');
+        } catch (e) {
+          const err = getTourApiMessage(e, 'Không thể lưu trữ tour.');
+          setErrorText(err);
+          agencyNotice.error(err, { inbox: true, type: 'TOUR_ERROR' });
+        }
+      },
+    });
   };
   const handleRestore = async () => {
-    if (!tour || !window.confirm(`Khôi phục tour “${tour.title}” về bản nháp để tiếp tục sử dụng?`)) return;
-    setErrorText('');
-    setMessage('');
-    try {
-      const restored = await restoreTour(id).unwrap();
-      await dispatch(toursApi.util.upsertQueryData('getAgencyTour', id, restored));
-      setMessage('Đã khôi phục tour về bản nháp thành công!');
-    } catch (e) {
-      setErrorText(getTourApiMessage(e, 'Không thể khôi phục tour.'));
-    }
+    Modal.confirm({
+      title: 'Khôi phục tour hoạt động',
+      content: `Khôi phục tour “${tour?.title || ''}” về bản nháp để tiếp tục mở bán và chỉnh sửa?`,
+      okText: 'Khôi phục ngay',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        setErrorText('');
+        setMessage('');
+        try {
+          const restored = await restoreTour(id).unwrap();
+          await dispatch(toursApi.util.upsertQueryData('getAgencyTour', id, restored));
+          const msg = 'Đã khôi phục tour về bản nháp thành công!';
+          setMessage(msg);
+          agencyNotice.success(msg, {
+            description: `Tour: ${tour?.title || ''}`,
+            inbox: true,
+            type: 'TOUR_RESTORED',
+          });
+        } catch (e) {
+          const err = getTourApiMessage(e, 'Không thể khôi phục tour.');
+          setErrorText(err);
+          agencyNotice.error(err, { inbox: true, type: 'TOUR_ERROR' });
+        }
+      },
+    });
   };
 
   if (!canView) return <AgencyDenied />;
@@ -201,23 +248,55 @@ export function AgencyTourWorkspacePage() {
         <p className="mt-1 text-sm text-slate-600">{tour.destination} · {tour.durationDays} ngày · {new Intl.NumberFormat('vi-VN').format(tour.basePrice)} ₫</p>
         {tour.statusReason && <p className="mt-2 text-sm text-amber-800">Ghi chú kiểm duyệt: {tour.statusReason}</p>}
       </div>
-      <div className="flex flex-wrap gap-2">
-        {isArchived && (
+      <div className="flex flex-wrap items-center gap-2.5">
+        {isArchived ? (
           <button
             type="button"
             onClick={() => void handleRestore()}
             disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs sm:text-sm font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
           >
+            <RestoreIcon size={16} />
             <span>{restoreState.isLoading ? 'Đang khôi phục…' : 'Khôi phục tour'}</span>
           </button>
-        )}
-        <Link href={`/agency/tours/${id}/edit?from=/agency/tours/${id}`} aria-disabled={locked} className={`rounded-lg border px-3 py-2 text-sm font-semibold ${locked ? 'pointer-events-none border-slate-200 text-slate-400' : 'border-slate-300 text-slate-700'}`}>Sửa thông tin</Link>
-        {tour.status !== 'APPROVED' && !isArchived && (
-          <button type="button" onClick={submit} disabled={busy || locked} className="rounded-lg bg-primary-container px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{submitState.isLoading ? 'Đang gửi…' : 'Gửi duyệt'}</button>
-        )}
-        {!isArchived && (
-          <button type="button" onClick={() => void remove()} disabled={busy || locked} className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">Lưu trữ</button>
+        ) : (
+          <>
+            <Link
+              href={`/agency/tours/${id}/edit?from=/agency/tours/${id}`}
+              aria-disabled={locked}
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs sm:text-sm font-semibold transition-colors shadow-2xs ${
+                locked
+                  ? 'pointer-events-none border-slate-200 bg-slate-50 text-slate-400'
+                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <Edit3 size={15} />
+              <span>Chỉnh sửa nội dung</span>
+            </Link>
+
+            {tour.status !== 'APPROVED' && (
+              <button
+                type="button"
+                onClick={submit}
+                disabled={busy || locked}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-teal-700 px-4 py-2 text-xs sm:text-sm font-bold text-white hover:bg-teal-800 transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+              >
+                <Send size={15} />
+                <span>{submitState.isLoading ? 'Đang gửi…' : 'Gửi duyệt tour'}</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => void remove()}
+              disabled={busy || locked}
+              title="Tạm dừng mở bán và lưu trữ tour"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-medium text-slate-500 hover:border-red-200 hover:bg-red-50 hover:text-red-700 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <Archive size={15} />
+              <span>Lưu trữ tour</span>
+            </button>
+          </>
         )}
       </div>
     </header>
@@ -297,12 +376,12 @@ export function AgencyTourWorkspacePage() {
               <fieldset key={index} disabled={locked} className="space-y-3.5 rounded-xl border border-slate-200 bg-slate-50/80 p-4 transition-all hover:border-slate-300">
                 <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 pb-3">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex shrink-0 items-center rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-bold text-white shadow-2xs">
-                      {day.toDay && day.toDay > day.day ? `Ngày ${day.day} – ${day.toDay}` : `Ngày ${day.day}`}
+                    <span className="inline-flex shrink-0 items-center rounded-lg bg-teal-700 px-3 py-1 text-xs font-bold text-white shadow-2xs">
+                      Ngày {day.day}
                     </span>
-                    <div className="flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg px-2.5 py-1">
-                      <label className="flex items-center gap-1">
-                        <span className="text-slate-500">Từ ngày</span>
+                    {tour.durationDays > 1 && (
+                      <div className="flex items-center gap-1.5 text-xs text-slate-500 bg-white border border-slate-200 rounded-lg px-2.5 py-1">
+                        <span>Chặng ngày thứ:</span>
                         <input
                           type="number"
                           min={1}
@@ -312,34 +391,15 @@ export function AgencyTourWorkspacePage() {
                             if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
                           }}
                           onChange={(e) => {
-                            const val = Number(e.target.value);
+                            const val = Math.max(1, Math.min(tour.durationDays, Number(e.target.value) || 1));
                             setDays((prev) => prev.map((item, i) => i === index ? { ...item, day: val } : item));
                           }}
-                          className="w-12 rounded border border-slate-200 px-1 py-0.5 text-center text-xs font-semibold text-slate-900 outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container"
-                          title="Ngày bắt đầu"
+                          className="w-12 rounded border border-slate-200 px-1 py-0.5 text-center text-xs font-bold text-slate-900 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+                          title="Số thứ tự ngày trong tour"
                         />
-                      </label>
-                      <span className="text-slate-400">–</span>
-                      <label className="flex items-center gap-1">
-                        <span className="text-slate-500">đến</span>
-                        <input
-                          type="number"
-                          min={day.day}
-                          max={tour.durationDays}
-                          placeholder="1 ngày"
-                          value={day.toDay ?? ''}
-                          onKeyDown={(e) => {
-                            if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
-                          }}
-                          onChange={(e) => {
-                            const val = e.target.value === '' ? undefined : Number(e.target.value);
-                            setDays((prev) => prev.map((item, i) => i === index ? { ...item, toDay: val } : item));
-                          }}
-                          className="w-14 rounded border border-slate-200 px-1 py-0.5 text-center text-xs font-semibold text-slate-900 outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container placeholder:font-normal placeholder:text-slate-400"
-                          title="Ngày kết thúc (để trống nếu lịch trình trong 1 ngày)"
-                        />
-                      </label>
-                    </div>
+                        <span>/ {tour.durationDays} ngày</span>
+                      </div>
+                    )}
                   </div>
                   <button
                     type="button"
