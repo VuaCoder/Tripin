@@ -13,6 +13,7 @@ const labels = (items: RouteInfo[]) => items.map(label).sort();
 
 /** Endpoints anybody (GUEST) may call. Mutations here are credential flows or the signed payment webhook. */
 const PUBLIC_ROUTES = [
+  'GET /agency-invitations/invitations/:token',
   'POST /auth/staff/activate',
   'GET /premium/plans',
   'GET /premium/guides/:id',
