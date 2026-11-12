@@ -5,7 +5,7 @@ export function agencyRoutePermission(pathname: string): string | null {
     ['/agency/tours', 'tour:update-own'], ['/agency/calendar', 'tour:update-own'],
     ['/agency/bookings', 'agency:bookings-view'], ['/agency/promotions', 'promotion:agency-manage'],
     ['/agency/complaints', 'complaint:respond'], ['/agency/premium', 'premium:contribute'],
-    ['/agency/finance', 'agency:finance-view'],
+    ['/agency/finance', 'agency:finance-view'], ['/agency/settings/team', 'agency:team-view'],
   ];
   return routes.find(([route]) => pathname === route || pathname.startsWith(route + '/'))?.[1] ?? null;
 }

@@ -6,7 +6,7 @@ import { agencyContext, requireAgencyPermission, resolveAgencyContext, requireVe
 import { sendOk } from '../../utils/api-response';
 import { agencyService } from './agency.service';
 import { AGENCY_PERMISSIONS as P } from './agency.policy';
-import { validate } from '../../middlewares/validate';
+import { validate, validated } from '../../middlewares/validate';
 import { AppError } from '../../utils/app-error';
 import { notificationsRouter } from '../notifications/notifications.routes';
 
@@ -14,6 +14,15 @@ const id = z.string().uuid();
 export const agencyIdentityRouter = Router();
 agencyIdentityRouter.get('/me/agencies', requireAuth, async (req,res) => sendOk(res, await agencyService.listForUser(userActor(req).userId)));
 export const agencyInvitationAcceptanceRouter = Router();
+const invitationToken = z.string().min(32).max(200);
+// Optional `email` lets the accept page pass the signed-in user's email; when it matches the
+// invitee the address is returned in full, otherwise it stays masked. Unknown query params are
+// ignored (non-strict) so analytics/cache-buster params never break the public landing page.
+const invitationQuery = z.object({ email: z.email().toLowerCase().optional() });
+agencyInvitationAcceptanceRouter.get('/invitations/:token', validate({ params: z.object({ token: invitationToken }).strict(), query: invitationQuery }), async (req,res) => {
+  const { params, query } = validated<unknown, { email?: string }, { token: string }>(req);
+  sendOk(res, await agencyService.validateInvitationToken(params.token, query.email));
+});
 agencyInvitationAcceptanceRouter.post('/accept', requireAuth, validate({ body: z.object({ token: z.string().min(32).max(200) }).strict() }), async (req,res) => {
   const body = z.object({ token: z.string().min(32).max(200) }).strict().parse(req.body);
   sendOk(res, await agencyService.accept(userActor(req).userId, body.token));
@@ -24,7 +33,14 @@ agencyFoundationRouter.use('/notifications', resolveAgencyContext, requireAgency
 agencyFoundationRouter.get('/context', resolveAgencyContext, requireAgencyPermission(P.CONTEXT_VIEW), (req,res) => sendOk(res, agencyContext(req)));
 agencyFoundationRouter.get('/members', resolveAgencyContext, requireAgencyPermission(P.TEAM_VIEW), async (req,res) => {
   const ctx = agencyContext(req);
-  sendOk(res, await prisma.agencyMember.findMany({ where: { agencyId: ctx.agencyId }, select: { id: true, userId: true, role: true, status: true, createdAt: true, updatedAt: true } }));
+  const members = await prisma.agencyMember.findMany({
+    where: { agencyId: ctx.agencyId },
+    select: {
+      id: true, userId: true, role: true, status: true, createdAt: true, updatedAt: true,
+      user: { select: { fullName: true, email: true, avatarUrl: true } },
+    },
+  });
+  sendOk(res, members.map(m => ({ id: m.id, userId: m.userId, role: m.role, status: m.status, joinedAt: m.createdAt, createdAt: m.createdAt, updatedAt: m.updatedAt, user: m.user })));
 });
 agencyFoundationRouter.patch('/members/:id', resolveAgencyContext, requireAgencyPermission(P.TEAM_MANAGE), validate({ params: z.object({ id }), body: z.object({ role: z.enum(['OWNER','MANAGER','STAFF','ACCOUNTANT']).optional(), status: z.enum(['ACTIVE','SUSPENDED','REMOVED']).optional() }).strict().refine(v=>v.role!==undefined||v.status!==undefined) }), async (req,res) => {
   const body = z.object({ role: z.enum(['OWNER','MANAGER','STAFF','ACCOUNTANT']).optional(), status: z.enum(['ACTIVE','SUSPENDED','REMOVED']).optional() }).strict().refine(v=>v.role!==undefined||v.status!==undefined).parse(req.body);

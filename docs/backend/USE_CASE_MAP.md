@@ -19,6 +19,7 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | Invite member | OWNER / MANAGER (STAFF only) | `POST /agency/invitations` | done |
 | Revoke invitation | OWNER | `POST /agency/invitations/:id/revoke` | done |
 | Accept invitation | Verified matching User | `POST /agency-invitations/accept` | done |
+| Validate invitation token before accept | Guest / invitee | `GET /agency-invitations/invitations/:token` | done |
 | Read unreconciled booking finance summary | OWNER / MANAGER / ACCOUNTANT | `GET /agency/finance/summary` | done |
 
 ## Authentication endpoints

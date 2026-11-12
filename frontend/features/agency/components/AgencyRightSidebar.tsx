@@ -19,7 +19,8 @@ import {
   X, 
   Command,
   Ticket,
-  MessageSquareWarning
+  MessageSquareWarning,
+  Users
 } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, useLogout } from '@/features/auth';
@@ -97,6 +98,7 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
     ] },
     { label: 'Đối tác', items: [
       { href: '/agency/settings/commission', label: 'Chiết khấu hoa hồng', icon: BadgePercent, permission: '' },
+      { href: '/agency/settings/team', label: 'Thành viên', icon: Users, permission: 'agency:team-view' },
       { href: '/agency/notifications', label: 'Thông báo', icon: Bell, permission: '' },
     ] },
   ];
