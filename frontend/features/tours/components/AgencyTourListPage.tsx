@@ -483,22 +483,10 @@ export function AgencyTourListPage() {
                         </div>
 
                         <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                          <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5">
-                            <span className="material-symbols-outlined text-[14px]">event</span>
-                            {tour.departures?.length ?? 0} ngày khởi hành
+                          <span>
+                            Cập nhật: {new Date(tour.updatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}{' '}
+                            {new Date(tour.updatedAt).toLocaleDateString('vi-VN')}
                           </span>
-                          <span>Cập nhật: {new Date(tour.updatedAt).toLocaleDateString('vi-VN')}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openImageManager(tour);
-                            }}
-                            className="inline-flex items-center gap-1 font-semibold text-teal-700 hover:text-teal-900 underline ml-1 cursor-pointer"
-                          >
-                            <span className="material-symbols-outlined text-[14px]">image</span>
-                            {tour.images?.length ? `${tour.images.length} ảnh` : '+ Thêm ảnh'}
-                          </button>
                         </div>
                       </div>
                     </div>
@@ -619,8 +607,10 @@ export function AgencyTourListPage() {
                       </div>
 
                       <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-                        <span>{tour.departures?.length ?? 0} ngày khởi hành</span>
-                        <span>Cập nhật {new Date(tour.updatedAt).toLocaleDateString('vi-VN')}</span>
+                        <span>
+                          Cập nhật: {new Date(tour.updatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}{' '}
+                          {new Date(tour.updatedAt).toLocaleDateString('vi-VN')}
+                        </span>
                       </div>
 
                       {/* Card Footer Actions */}
