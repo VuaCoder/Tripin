@@ -88,16 +88,18 @@ export function Pagination({
 
       {/* Navigation buttons */}
       <div className="inline-flex items-center gap-1.5 order-1 sm:order-2">
-        <button
-          type="button"
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage <= 1 || disabled}
-          aria-label="Trang trước"
-          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-        >
-          <ChevronLeft size={16} aria-hidden="true" />
-          <span>Trước</span>
-        </button>
+        {currentPage > 1 && (
+          <button
+            type="button"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={disabled}
+            aria-label="Trang trước"
+            title="Trang trước"
+            className="inline-flex items-center justify-center size-9 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+          >
+            <ChevronLeft size={16} aria-hidden="true" />
+          </button>
+        )}
 
         {/* Page pills */}
         <div className="flex items-center gap-1">
@@ -127,7 +129,7 @@ export function Pagination({
                   'size-9 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center transition-all',
                   isActive
                     ? 'bg-teal-600 text-white font-bold shadow-xs shadow-teal-600/30'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-60'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-60 cursor-pointer'
                 )}
               >
                 {pageItem}
@@ -136,16 +138,18 @@ export function Pagination({
           })}
         </div>
 
-        <button
-          type="button"
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage >= totalPages || disabled}
-          aria-label="Trang sau"
-          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-        >
-          <span>Sau</span>
-          <ChevronRight size={16} aria-hidden="true" />
-        </button>
+        {currentPage < totalPages && (
+          <button
+            type="button"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={disabled}
+            aria-label="Trang sau"
+            title="Trang sau"
+            className="inline-flex items-center justify-center size-9 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+          >
+            <ChevronRight size={16} aria-hidden="true" />
+          </button>
+        )}
       </div>
     </nav>
   );

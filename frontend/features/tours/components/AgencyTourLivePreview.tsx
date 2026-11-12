@@ -29,23 +29,28 @@ export function AgencyTourLivePreview({
 }: Props) {
   const [activeImageIdx, setActiveImageIdx] = useState(0);
 
-  const displayImages = images.length > 0 
-    ? images 
-    : ['https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=800&q=80'];
-
+  const displayImages = images.length > 0 ? images : [];
+  const hasImages = displayImages.length > 0;
   const currentImage = displayImages[activeImageIdx] || displayImages[0];
 
   return (
     <div className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6">
       {/* Simulated Tour Card */}
       <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm hover:shadow-md transition-shadow">
-        {/* Cover Image Carousel */}
-        <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100">
-          <img
-            src={currentImage}
-            alt={title || 'Ảnh xem trước tour'}
-            className="size-full object-cover transition-all duration-300"
-          />
+        {/* Cover Image Carousel or Empty Placeholder */}
+        <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100 flex items-center justify-center">
+          {hasImages ? (
+            <img
+              src={currentImage}
+              alt={title || 'Ảnh xem trước tour'}
+              className="size-full object-cover transition-all duration-300"
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center text-slate-400 p-4 text-center">
+              <span className="material-symbols-outlined text-4xl mb-1 text-slate-300">image_not_supported</span>
+              <span className="text-xs font-semibold text-slate-400">Chưa có ảnh thương hiệu</span>
+            </div>
+          )}
 
           {/* Badges on image */}
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
@@ -63,7 +68,7 @@ export function AgencyTourLivePreview({
           </div>
 
           {/* Image carousel controls if multiple images */}
-          {displayImages.length > 1 && (
+          {hasImages && displayImages.length > 1 && (
             <div className="absolute inset-x-0 bottom-2.5 flex justify-center gap-1.5 z-10">
               {displayImages.slice(0, 5).map((_, i) => (
                 <button

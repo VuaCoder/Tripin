@@ -956,38 +956,8 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                 )}
               </div>
 
-              {/* Base price & Max group */}
+              {/* Max group & Base price: Reordered so Max group is FIRST */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label htmlFor={fieldId('basePrice')} className="text-sm font-bold text-slate-800">
-                    Giá người lớn · từ 13 tuổi trở lên (VND)
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      required
-                      {...fieldProps('basePrice')}
-                      value={formatCurrencyVndInput(value.basePrice)}
-                      onChange={(e) => {
-                        const parsed = parseCurrencyVndInput(e.target.value);
-                        if (parsed <= MONEY_LIMITS.MAX_UNIT_PRICE) {
-                          updateField('basePrice', parsed);
-                        }
-                      }}
-                      placeholder="Ví dụ: 1.500.000"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 pr-10 text-sm font-medium text-slate-900 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20 placeholder:font-normal placeholder:text-slate-400"
-                    />
-                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 select-none">₫</span>
-                  </div>
-                  {fieldHint('basePrice')}
-                  {value.basePrice > 0 && (
-                    <span className="block text-xs font-medium text-slate-500">
-                      Hiển thị: {new Intl.NumberFormat('vi-VN').format(value.basePrice)} ₫ / khách
-                    </span>
-                  )}
-                </div>
-
                 <div className="space-y-1.5">
                   <label htmlFor={fieldId('maxGroupSize')} className="text-sm font-bold text-slate-800">
                     Số khách tối đa / đoàn
@@ -1056,6 +1026,36 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                     }}
                   />
                   {fieldHint('maxGroupSize')}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor={fieldId('basePrice')} className="text-sm font-bold text-slate-800">
+                    Giá người lớn · từ 13 tuổi trở lên (VND)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      required
+                      {...fieldProps('basePrice')}
+                      value={formatCurrencyVndInput(value.basePrice)}
+                      onChange={(e) => {
+                        const parsed = parseCurrencyVndInput(e.target.value);
+                        if (parsed <= MONEY_LIMITS.MAX_UNIT_PRICE) {
+                          updateField('basePrice', parsed);
+                        }
+                      }}
+                      placeholder="Ví dụ: 1.500.000"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 pr-10 text-sm font-medium text-slate-900 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20 placeholder:font-normal placeholder:text-slate-400"
+                    />
+                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 select-none">₫</span>
+                  </div>
+                  {fieldHint('basePrice')}
+                  {value.basePrice > 0 && (
+                    <span className="block text-xs font-medium text-slate-500">
+                      Hiển thị: {new Intl.NumberFormat('vi-VN').format(value.basePrice)} ₫ / khách
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -1195,24 +1195,23 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
         {/* ========================================================================= */}
         {showCompleteModal && (
           <div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+            onClick={() => setShowCompleteModal(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200 cursor-pointer"
             role="dialog"
             aria-modal="true"
             aria-labelledby="complete-modal-title"
           >
-            <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-teal-50 text-teal-600 border border-teal-200/60 shrink-0">
-                  <span className="material-symbols-outlined text-2xl">task_alt</span>
-                </div>
-                <div className="min-w-0">
-                  <h3 id="complete-modal-title" className="text-lg font-bold text-slate-900">
-                    {mode === 'create' ? 'Xác nhận tạo tour mới?' : 'Xác nhận lưu thay đổi?'}
-                  </h3>
-                  <p className="text-xs text-slate-500 truncate">
-                    Tour: <span className="font-semibold text-slate-700">{value.title || 'Tour mới'}</span>
-                  </p>
-                </div>
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 cursor-default"
+            >
+              <div>
+                <h3 id="complete-modal-title" className="text-lg font-bold text-slate-900">
+                  {mode === 'create' ? 'Xác nhận tạo tour mới?' : 'Xác nhận lưu thay đổi?'}
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  Tour: <span className="font-semibold text-slate-700">{value.title || 'Tour mới'}</span>
+                </p>
               </div>
 
               <p className="text-sm text-slate-600">
@@ -1249,24 +1248,23 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
         {/* ========================================================================= */}
         {showExitConfirmModal && (
           <div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+            onClick={handleCancelExit}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200 cursor-pointer"
             role="dialog"
             aria-modal="true"
             aria-labelledby="exit-modal-title"
           >
-            <div className="w-full max-w-lg rounded-3xl bg-white p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5">
-              <div className="flex items-start gap-4">
-                <div className="flex size-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 border border-amber-200/60 shrink-0">
-                  <AlertTriangle size={24} />
-                </div>
-                <div className="min-w-0">
-                  <h3 id="exit-modal-title" className="text-lg sm:text-xl font-bold text-slate-900">
-                    Bạn có thay đổi chưa lưu!
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Tour: <span className="font-semibold text-slate-700">{value.title || 'Tour đang chỉnh sửa'}</span>
-                  </p>
-                </div>
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-3xl bg-white p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-4 cursor-default"
+            >
+              <div>
+                <h3 id="exit-modal-title" className="text-lg font-bold text-slate-900">
+                  Bạn có thay đổi chưa lưu!
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  Tour: <span className="font-semibold text-slate-700">{value.title || 'Tour đang chỉnh sửa'}</span>
+                </p>
               </div>
 
               <p className="text-sm text-slate-600 leading-relaxed">
@@ -1286,7 +1284,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   type="button"
                   onClick={handleExitWithoutSave}
                   disabled={busy}
-                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs sm:text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors cursor-pointer"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs sm:text-sm font-semibold text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition-colors cursor-pointer"
                 >
                   Thoát không lưu
                 </button>
