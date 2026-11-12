@@ -197,6 +197,7 @@ export const baseApi = createApi({
     'Subscription',
     'Earning',
     'AiChat',
+    'AgencyMember',
   ],
   endpoints: () => ({}),
 });
