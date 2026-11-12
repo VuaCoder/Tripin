@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, type MouseEvent } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { GuestLoginPromptModal } from '@/components/shared';
 import { ChevronRight, Printer, MapPin, Clock3, Building2, Check, User } from 'lucide-react';
 import { WishlistButton } from '@/features/wishlist';
@@ -21,6 +22,7 @@ import { SimilarToursSection } from './SimilarToursSection';
 import { saveRecentlyViewedTour } from '../../utils';
 import styles from './tour-detail.module.css';
 export function TourDetailView({ tour }: { tour: TourReviewContext }) {
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState('lich-trinh');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [failedAgencyAvatar, setFailedAgencyAvatar] = useState<string | null>(null);
@@ -67,7 +69,7 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
         />
         <ReportButton targetType="TOUR" targetId={tour.id} targetLabel={tour.title} iconOnly />
         <Link
-          href={`/tours/${tour.id}/print`}
+          href={`/tours/${tour.id}/print${searchParams?.toString() ? `?${searchParams.toString()}` : ''}`}
           target="_blank"
           rel="noopener noreferrer"
           className={styles.iconActionButton}
