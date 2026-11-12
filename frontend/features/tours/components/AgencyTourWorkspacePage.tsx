@@ -8,7 +8,7 @@ import { getTourApiMessage, useDeleteAgencyTourMutation, useGetAgencyTourQuery, 
 import type { TourDeparture, TourItineraryDay } from '../types';
 import { toursApi } from '../api/toursApi';
 import { useAppDispatch } from '@/store/hooks';
-import { AgencyCustomersPanel, AgencyGuidePanel } from '@/features/agency/AgencyTourOperations';
+import { AgencyCustomersPanel } from '@/features/agency/AgencyTourOperations';
 import { AgencyDenied, useAgencyPermission } from '@/features/agency/AgencyCommon';
 import { ArrowLeft, ArrowRight, RotateCw, Edit3, Archive, Send, RefreshCw as RestoreIcon } from 'lucide-react';
 import { agencyNotice } from '@/features/agency/agencyNotice';
