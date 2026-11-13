@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { TOUR_STATUS } from '@travel-platform/constants';
+import { TOUR_STATUS, TOUR_VISIBILITY } from '@travel-platform/constants';
 import { WishlistsService } from '../wishlists.service';
 import { WISHLIST_LIMITS } from '../wishlists.types';
 
 function make(opts: {
   tourStatus?: string | null;
+  visibility?: string;
   created?: boolean;
   addWithCapResult?: { created: boolean };
   addWithCapError?: { code: string };
@@ -22,7 +23,9 @@ function make(opts: {
   };
   const tours = {
     getTourFacts: vi.fn(async () =>
-      opts.tourStatus === null ? null : { id: 't1', agencyId: 'a1', title: 'x', status: opts.tourStatus ?? TOUR_STATUS.APPROVED },
+      opts.tourStatus === null
+        ? null
+        : { id: 't1', agencyId: 'a1', title: 'x', status: opts.tourStatus ?? TOUR_STATUS.APPROVED, visibility: opts.visibility ?? TOUR_VISIBILITY.PUBLIC },
     ),
   };
   const discovery = { getPublicCards: vi.fn(async () => new Map()) };
@@ -50,6 +53,10 @@ describe('add', () => {
 
   it('404 for an unknown tour', async () => {
     await expect(make({ tourStatus: null }).service.add('u1', 'ghost')).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('refuses a PRIVATE tour even when it is APPROVED', async () => {
+    await expect(make({ visibility: TOUR_VISIBILITY.PRIVATE }).service.add('u1', 't1')).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it('propagates WISHLIST_FULL from the capped add', async () => {

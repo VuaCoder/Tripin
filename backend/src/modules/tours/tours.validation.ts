@@ -9,7 +9,7 @@ const text = (max: number) => z.string().trim().max(max);
 const stringList = (maxItems: number, maxLen: number) => z.array(z.string().trim().min(1).max(maxLen)).max(maxItems);
 const vnd = z.number().int().min(0).max(MONEY_LIMITS.MAX_UNIT_PRICE);
 
-const tourContentShape = {
+export const tourContentShape = {
   title: z.string().trim().min(5).max(200),
   summary: text(500).optional(),
   description: text(20_000).optional(),

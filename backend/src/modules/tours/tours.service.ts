@@ -1,4 +1,4 @@
-import { GUIDE_ASSIGNMENT_STATUS, ROLES, TOUR_STATUS, type PersistedRole, type TourStatus } from '@travel-platform/constants';
+import { GUIDE_ASSIGNMENT_STATUS, ROLES, TOUR_STATUS, TOUR_VISIBILITY, type PersistedRole, type TourStatus, type TourVisibility } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
 import type { DbExecutor } from '../../config/database';
 import { buildPage, type Page } from '../../utils/pagination';
@@ -21,6 +21,7 @@ import {
   type ListTourFilter,
   type TourContentInput,
   type TourManageDto,
+  type TourBrief,
   type UpdateTourInput,
 } from './tours.types';
 import { tourViewBuilder, type TourViewBuilder } from './tours.view';
@@ -91,6 +92,7 @@ export class ToursService {
    */
   async updateTour(agencyId: string, id: string, input: UpdateTourInput): Promise<TourManageDto> {
     const tour = await this.requireOwned(agencyId, id);
+    this.assertNotPrivateManaged(tour);
     this.assertAgencyEditable(tour);
     if (input.categoryIds) await this.categories.assertActiveIds(input.categoryIds);
     if (input.durationDays !== undefined && tour.itinerary.some((day) => (day.toDay && day.toDay > day.day ? day.toDay : day.day) > input.durationDays!)) {
@@ -102,6 +104,7 @@ export class ToursService {
   /** Use case "Delete tour": archives it (soft delete). Refused while future departures have booked seats. */
   async deleteTour(agencyId: string, id: string): Promise<void> {
     const tour = await this.requireOwned(agencyId, id);
+    this.assertNotPrivateManaged(tour);
     assertTransition(TOUR_TRANSITIONS, tour.status as TourStatus, TOUR_STATUS.ARCHIVED, ENTITY);
     const hasUpcomingBookings = tour.departures.some((d) => d.date.getTime() > Date.now() && d.remaining < d.capacity);
     if (hasUpcomingBookings) {
@@ -114,6 +117,7 @@ export class ToursService {
   /** Use case "Restore tour": restores an archived tour back to DRAFT. */
   async restoreTour(agencyId: string, id: string): Promise<TourManageDto> {
     const tour = await this.requireOwned(agencyId, id, true);
+    this.assertNotPrivateManaged(tour);
     assertTransition(TOUR_TRANSITIONS, tour.status as TourStatus, TOUR_STATUS.DRAFT, ENTITY);
     const updated = await this.tours.updateIfStatus(id, [TOUR_STATUS.ARCHIVED], { status: TOUR_STATUS.DRAFT });
     if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
@@ -126,6 +130,7 @@ export class ToursService {
    */
   async setAvailability(agencyId: string, id: string, inputs: DepartureInput[]): Promise<TourManageDto> {
     const tour = await this.requireOwned(agencyId, id);
+    this.assertNotPrivateManaged(tour);
     if (tour.status === TOUR_STATUS.ARCHIVED) throw AppError.notFound('Tour not found');
 
     const existing = new Map(tour.departures.map((d) => [d.id, d]));
@@ -183,6 +188,7 @@ export class ToursService {
   /** Use case "Config itinerary". Content change: an APPROVED tour goes back to review. */
   async setItinerary(agencyId: string, id: string, days: ItineraryDayInput[]): Promise<TourManageDto> {
     const tour = await this.requireOwned(agencyId, id);
+    this.assertNotPrivateManaged(tour);
     this.assertAgencyEditable(tour);
     if (days.some((day) => (day.toDay && day.toDay > day.day ? day.toDay : day.day) > tour.durationDays)) {
       throw AppError.badRequest(`Itinerary days cannot exceed durationDays (${tour.durationDays})`, undefined, 'ITINERARY_EXCEEDS_DURATION');
@@ -202,6 +208,7 @@ export class ToursService {
   /** Use case "Assign guide to tour". `guideId: null` removes the assignment. A new assignment starts PENDING. */
   async assignGuide(agencyId: string, id: string, input: { guideId: string | null; feePerBooking?: number }): Promise<TourManageDto> {
     const tour = await this.requireOwned(agencyId, id);
+    this.assertNotPrivateManaged(tour);
     if (tour.status === TOUR_STATUS.ARCHIVED) throw AppError.notFound('Tour not found');
 
     let patch: TourPatch;
@@ -235,6 +242,7 @@ export class ToursService {
   /** Submits for moderator review. Needs a VERIFIED agency, a category and at least one bookable future departure (D-27, D-28). */
   async submitForReview(agencyId: string, id: string): Promise<TourManageDto> {
     const tour = await this.requireOwned(agencyId, id);
+    this.assertNotPrivateManaged(tour);
     assertTransition(TOUR_TRANSITIONS, tour.status as TourStatus, TOUR_STATUS.PENDING_REVIEW, ENTITY);
     await this.users.assertAgencyVerified(agencyId);
 
@@ -371,10 +379,14 @@ export class ToursService {
 
   // ================================================ Inventory (bookings)
 
-  /** Everything a booking needs to price and reserve a departure. Throws 404/409 unless it can be booked now. */
-  async getBookableDeparture(tourId: string, departureId: string): Promise<BookableDeparture> {
+  /**
+   * Everything a booking needs to price and reserve a departure. Throws 404/409 unless it can be booked now.
+   * `allowPrivate` is internal only: the group-booking checkout passes it, every public/traveler path must not.
+   */
+  async getBookableDeparture(tourId: string, departureId: string, options: { allowPrivate?: boolean } = {}): Promise<BookableDeparture> {
     const tour = await this.tours.findById(tourId);
     if (!tour || tour.status !== TOUR_STATUS.APPROVED) throw AppError.notFound('Tour not found');
+    if (tour.visibility !== TOUR_VISIBILITY.PUBLIC && options.allowPrivate !== true) throw AppError.notFound('Tour not found');
     const departure = tour.departures.find((d) => d.id === departureId);
     if (!departure) throw AppError.notFound('Departure not found');
     if (!isBookable(departure)) throw AppError.conflict('This departure is closed or sold out', 'DEPARTURE_UNAVAILABLE');
@@ -416,7 +428,7 @@ export class ToursService {
           agePricing: tour.agePricing as unknown as import('@travel-platform/constants').AgePricing | null,
           remaining: departure.remaining,
           isOpen: departure.isOpen,
-          bookable: isBookable(departure),
+          bookable: tour.visibility === TOUR_VISIBILITY.PUBLIC && isBookable(departure),
         });
       }
     }
@@ -449,7 +461,7 @@ export class ToursService {
   async getTourFacts(
     tourId: string,
     tx?: DbExecutor,
-  ): Promise<{ id: string; agencyId: string; title: string; status: TourStatus; guideId?: string; guideFee?: number } | null> {
+  ): Promise<{ id: string; agencyId: string; title: string; status: TourStatus; visibility: TourVisibility; guideId?: string; guideFee?: number } | null> {
     const tour = await this.tours.findById(tourId, tx);
     if (!tour) return null;
     return {
@@ -457,6 +469,7 @@ export class ToursService {
       agencyId: tour.agencyId,
       title: tour.title,
       status: tour.status as TourStatus,
+      visibility: tour.visibility as TourVisibility,
       guideId: tour.guide?.status === GUIDE_ASSIGNMENT_STATUS.ACCEPTED ? tour.guide.guideId : undefined,
       guideFee: tour.guide?.status === GUIDE_ASSIGNMENT_STATUS.ACCEPTED ? tour.guide.feePerBooking : undefined,
     };
@@ -468,6 +481,26 @@ export class ToursService {
     if (unique.length === 0) return new Map();
     const tours = await this.tours.findManyByIds(unique);
     return new Map(tours.map((tour) => [tour.id, tour.title]));
+  }
+
+  /** Card facts (title, images, status, visibility) for several tours, whatever their status. */
+  async getBriefs(tourIds: string[]): Promise<Map<string, TourBrief>> {
+    const unique = Array.from(new Set(tourIds));
+    if (unique.length === 0) return new Map();
+    const tours = await this.tours.findManyByIds(unique);
+    return new Map(
+      tours.map((tour) => [
+        tour.id,
+        {
+          id: tour.id,
+          agencyId: tour.agencyId,
+          title: tour.title,
+          images: tour.images,
+          status: tour.status as TourStatus,
+          visibility: tour.visibility as TourBrief['visibility'],
+        },
+      ]),
+    );
   }
 
   // ================================================================ helpers
@@ -484,6 +517,13 @@ export class ToursService {
   private assertAgencyEditable(tour: TourRecord): void {
     if (!AGENCY_EDITABLE_STATUSES.includes(tour.status as TourStatus)) {
       throw AppError.conflict(`A tour in status ${tour.status} cannot be edited`, 'TOUR_LOCKED');
+    }
+  }
+
+  /** A cloned group tour is edited only through its custom-tour request, so the agreed terms cannot drift (D-85). */
+  private assertNotPrivateManaged(tour: TourRecord): void {
+    if (tour.visibility === TOUR_VISIBILITY.PRIVATE) {
+      throw AppError.conflict('This tour belongs to a group-booking request and is edited from there', 'TOUR_PRIVATE_MANAGED_BY_CUSTOM_TOUR');
     }
   }
 

@@ -140,13 +140,14 @@ describe('admin: commission and policies', () => {
     const admin = await createUser('SUPER_ADMIN', 'admin@example.com');
     const agency = await createUser('AGENCY', 'agency@example.com');
     const traveler = await createUser('TRAVELER', 'traveler@example.com');
+    const secondTraveler = await createUser('TRAVELER', 'traveler2@example.com');
     const { tourId, departureId } = await createApprovedTour(agency.id, { price: 1_000_000, capacity: 10 });
     let revision = 0;
     const setRate = async (ratePercent: unknown, token = admin.token) => { const result = await request(app).put('/api/v1/admin/settings/commission').set(bearer(token)).send({ ratePercent, expectedVersion: revision }); if (result.status === 200) revision = result.body.data.version; return result; };
-    const book = () =>
+    const book = (token = traveler.token) =>
       request(app)
         .post('/api/v1/bookings')
-        .set(bearer(traveler.token))
+        .set(bearer(token))
         .send({ tourId, departureId, participants: 1, contact: { fullName: 'Nguyen Van A', phone: '0901234567' } });
 
     const initial = await request(app).get('/api/v1/admin/settings/commission').set(bearer(admin.token));
@@ -161,7 +162,8 @@ describe('admin: commission and policies', () => {
     expect((await setRate(10)).status).toBe(200);
     const oldBooking = (await book()).body.data.id;
     expect((await setRate(12.5)).status).toBe(200);
-    const newBooking = (await book()).body.data.id;
+    // One pending booking per traveler and departure, so the second snapshot needs a second traveler.
+    const newBooking = (await book(secondTraveler.token)).body.data.id;
 
     expect((await prisma.booking.findUnique({ where: { id: oldBooking } }))!.commissionBps).toBe(1000);
     const fresh = (await prisma.booking.findUnique({ where: { id: newBooking } }))!;

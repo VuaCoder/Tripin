@@ -8,7 +8,7 @@ import { numericRecord, type NumericRecord } from '../../utils/money';
 import { safeVndNumber } from '@travel-platform/constants';
 type Booking = NumericRecord<StoredBooking>;
 import { toSkip, type PageRequest } from '../../utils/pagination';
-import type { ListAgencyBookingsQuery, RevenueTotals } from './bookings.types';
+import type { BookingPassengerDto, ListAgencyBookingsQuery, RevenueTotals } from './bookings.types';
 
 export interface PromotionSnapshot {
   promotionId: string;
@@ -40,6 +40,8 @@ export type BookingRecord = Omit<Booking, FlattenedColumns> & {
   contact: { fullName: string; phone: string };
   promotion?: PromotionSnapshot;
   redemptions?: PromotionRedemption[];
+  /** Named members of a group booking, filled only by `findById`. */
+  passengers?: BookingPassengerDto[];
   /** The tour's gallery, filled only by the traveler list query (no Tour relation on Booking). */
   tourImages?: string[];
   review?: BookingReviewSnapshot;
@@ -52,13 +54,20 @@ export type NewBooking = Pick<
   | 'bookingCode' | 'travelerId' | 'agencyId' | 'tourId' | 'departureId' | 'tourTitle' | 'departureDate' | 'endDate'
   | 'participants' | 'unitPrice' | 'subtotal' | 'totalAmount' | 'commissionBps' | 'commissionAmount' | 'agencyAmount'
 > &
-  Partial<BookingScalars> & { id?: string; contact: { fullName: string; phone: string }; promotion?: PromotionSnapshot; redemptions?: PromotionRedemptionInput[]; premiumVoucherToken?: string };
+  Partial<BookingScalars> & {
+    id?: string;
+    contact: { fullName: string; phone: string };
+    promotion?: PromotionSnapshot;
+    redemptions?: PromotionRedemptionInput[];
+    premiumVoucherToken?: string;
+    passengers?: BookingPassengerDto[];
+  };
 
 
 /** Plain-field changes (`null` clears a nullable column). */
 export type BookingPatch = Partial<BookingScalars>;
 
-function toRecord(stored: StoredBooking & { redemptions?: StoredRedemption[] }): BookingRecord {
+function toRecord(stored: StoredBooking & { redemptions?: StoredRedemption[]; passengers?: BookingPassengerDto[] }): BookingRecord {
   const row = numericRecord(stored);
   const { contactName, contactPhone, promotionId, promotionCode, promotionScope, redemptions, ...rest } = row;
   return {
@@ -81,7 +90,7 @@ export class BookingsRepository {
     if (data.premiumVoucherId && db === prisma) {
       return prisma.$transaction((tx) => this.create(data, tx));
     }
-    const { contact, promotion, redemptions, premiumVoucherToken, ...scalars } = data;
+    const { contact, promotion, redemptions, premiumVoucherToken, passengers, ...scalars } = data;
     const row = await db.booking.create({
 
       data: {
@@ -104,8 +113,9 @@ export class BookingsRepository {
               },
             }
           : {}),
+        ...(passengers && passengers.length > 0 ? { passengers: { create: passengers } } : {}),
       },
-      include: { redemptions: true },
+      include: { redemptions: true, passengers: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
     });
     if (data.premiumVoucherId) {
       const claimed = await db.premiumVoucher.updateMany({
@@ -118,7 +128,10 @@ export class BookingsRepository {
   }
 
   async findById(id: string): Promise<BookingRecord | null> {
-    const row = await prisma.booking.findUnique({ where: { id }, include: { redemptions: true } });
+    const row = await prisma.booking.findUnique({
+      where: { id },
+      include: { redemptions: true, passengers: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
+    });
     if (!row) return null;
     const [tour, review] = await Promise.all([
       prisma.tour.findUnique({
@@ -153,6 +166,35 @@ export class BookingsRepository {
     const row = await db.booking.findUnique({ where: { travelerId_clientRequestId: { travelerId, clientRequestId } }, include: { redemptions: true } });
 
     return row ? toRecord(row) : null;
+  }
+
+  /**
+   * The live booking of a group-booking request: PENDING, paid, or already completed. A cancelled/expired one is
+   * deliberately not returned, so the same request can be booked again.
+   */
+  async findActiveByCustomTourRequest(requestId: string): Promise<BookingRecord | null> {
+    const row = await prisma.booking.findFirst({
+      where: {
+        customTourRequestId: requestId,
+        status: { in: [BOOKING_STATUS.PENDING, BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.COMPLETED] },
+      },
+      orderBy: NEWEST_FIRST,
+      include: { redemptions: true },
+    });
+    return row ? toRecord(row) : null;
+  }
+
+  /** The same live-booking filter for a page of requests: one query, newest row per request kept by the caller. */
+  findActiveByCustomTourRequests(requestIds: string[]): Promise<{ id: string; customTourRequestId: string | null; status: string; bookingCode: string; isPaid: boolean }[]> {
+    if (requestIds.length === 0) return Promise.resolve([]);
+    return prisma.booking.findMany({
+      where: {
+        customTourRequestId: { in: requestIds },
+        status: { in: [BOOKING_STATUS.PENDING, BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.COMPLETED] },
+      },
+      orderBy: NEWEST_FIRST,
+      select: { id: true, customTourRequestId: true, status: true, bookingCode: true, isPaid: true },
+    });
   }
 
   /** Serialize the pending-booking check for this traveler/departure without a schema change. */

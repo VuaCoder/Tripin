@@ -25,6 +25,11 @@ export const PERMISSIONS = {
   CHAT_USE: 'chat:use',
   AI_CHAT_USE: 'ai:chat',
 
+  // Custom tour (group booking)
+  CUSTOM_TOUR_REQUEST: 'custom-tour:request',
+  CUSTOM_TOUR_VIEW: 'custom-tour:view',
+  CUSTOM_TOUR_RESPOND: 'custom-tour:respond',
+
   // Agency
   TOUR_CREATE: 'tour:create',
   TOUR_UPDATE_OWN: 'tour:update-own',
@@ -91,6 +96,9 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     P.SUPPORT_TICKET_CREATE,
     P.CHAT_USE,
     P.AI_CHAT_USE,
+    P.CUSTOM_TOUR_REQUEST,
+    P.CUSTOM_TOUR_VIEW,
+    P.CUSTOM_TOUR_RESPOND,
   ],
   [ROLES.AGENCY]: [
     P.PREMIUM_CONTRIBUTE,
@@ -109,6 +117,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     P.COMPLAINT_RESPOND,
     P.REVIEW_DISPUTE,
     P.CHAT_USE,
+    P.CUSTOM_TOUR_VIEW,
+    P.CUSTOM_TOUR_RESPOND,
   ],
   [ROLES.TOUR_GUIDE]: [
     P.PREMIUM_SUBSCRIBE,

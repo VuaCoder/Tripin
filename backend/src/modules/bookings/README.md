@@ -45,6 +45,14 @@ Stacked agency/platform vouchers each have a `PromotionRedemption` snapshot (who
 2. **No overselling**: seats are reserved with one atomic update before persistence. Voucher instances, quota and the booking then commit on the same transaction. A failed transaction rolls back vouchers/quota and compensates only its reserved seats. Inventory is still outside this transaction; process-crash reconciliation remains separate work.
 2b. **Nothing free**: the amount to pay must be at least `MIN_PAYABLE_AMOUNT` (1 VND). A free departure, or a promotion that would bring the total to 0, is refused with `409 BOOKING_AMOUNT_TOO_LOW` before anything is reserved (seats and redemption given back). There is no free-booking flow in the diagram, and a payment of 0 cannot exist.
 3. **Retry safety**: `clientRequestId` (unique per traveler) makes a repeated request return the first booking and reserve nothing.
+3a. **Group bookings**: `custom-tours` is the only caller that may book a `PRIVATE` tour, through the internal
+   `customTour` block (never accepted from HTTP). That path takes `unitPrice`/`agePricing`/`guestCounts` from the
+   accepted offer instead of the departure, refuses promotions, and writes `customTourRequestId` plus the
+   `BookingPassenger` rows in the same insert. The partial unique index
+   `(customTourRequestId) WHERE status IN ('PENDING','CONFIRMED')` makes one live booking per request: a duplicate
+   insert returns the winner, and a cancelled/expired booking no longer counts, so the request can book again. The
+   traveler DTO carries `customTourRequestId` (used by the expired-hold page to link back to the offer); `passengers`
+   are detail-only.
 3b. **One pending booking per traveler/departure**: a new request for the same tour and departure returns `409 PENDING_BOOKING_EXISTS` with the caller's existing `bookingId`/`bookingCode`. Another departure of the same tour is allowed. A transaction-scoped advisory lock serializes competing requests for the traveler/departure; the pending check is repeated under that lock before voucher redemption and insertion. A rejected competing request gives back only its own provisional seats. Same-key retries keep the existing idempotent behavior. No schema migration is needed; existing bookings are not changed.
 4. A PENDING booking holds its seats for `PENDING_PAYMENT_MINUTES` (15). `expirePendingBookings()` cancels it afterwards (compare-and-set on PENDING only: a booking paid a moment earlier stays CONFIRMED) (`PAYMENT_EXPIRED`) and frees seats/promotion.
 5. Cancel: PENDING any time; CONFIRMED only if the departure is further away than `cancellation.cancellationWindowHours` (policy, default 24h). A paid booking that is cancelled gets `refundRequired=true` (no money movement here, D-15).
@@ -67,7 +75,8 @@ The web client invalidates the affected tour's cached details after creation/can
 Every change is a compare-and-set on the previous status.
 
 ## Data model
-`Booking` with traveler/agency/tour/departure refs, tour & date snapshots, money fields (integer VND), `promotion` snapshot, status flags. Indexes: `bookingCode` unique, `(travelerId, createdAt, id)`, `(agencyId, status, createdAt, id)`, `(agencyId, createdAt, id)` (agency list without a status filter), `(tourId, departureId, status)`, `(status, confirmedAt)` (dashboard revenue by day/month), `(status, paymentExpiresAt)` and `(status, endDate)` for the jobs, unique `(travelerId, clientRequestId)` (rows without a request id do not clash: PostgreSQL treats NULLs as distinct), so the idempotency lookup is a plain unique-key read.
+`Booking` with traveler/agency/tour/departure refs, tour & date snapshots, money fields (integer VND), `promotion` snapshot, status flags. Indexes: `bookingCode` unique, `(travelerId, createdAt, id)`, `(agencyId, status, createdAt, id)`, `(agencyId, createdAt, id)` (agency list without a status filter), `(tourId, departureId, status)`, `(status, confirmedAt)` (dashboard revenue by day/month), `(status, paymentExpiresAt)` and `(status, endDate)` for the jobs, `(customTourRequestId, createdAt)` plus the partial unique index above, unique `(travelerId, clientRequestId)` (rows without a request id do not clash: PostgreSQL treats NULLs as distinct), so the idempotency lookup is a plain unique-key read. `BookingPassenger` (booking, guest type, name, phone, unique
+12-digit idCard per booking) exists only for group bookings and is deleted with its booking.
 
 ## Permissions
 `booking:create`, `booking:view-own`, `agency:bookings-view`. Ownership checks in the service.

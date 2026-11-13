@@ -141,7 +141,9 @@ describe('tours (integration)', () => {
     expect((await request(app).post(`/api/v1/moderation/tours/${tourId}/suspend`).set(bearer(a.moderator.token)).send({})).status).toBe(400);
     expect((await request(app).post(`/api/v1/moderation/tours/${tourId}/suspend`).set(bearer(a.moderator.token)).send({ reason: 'Fraud report' })).status).toBe(200);
     expect((await request(app).get(`/api/v1/tours/${tourId}`)).status).toBe(404);
-    expect((await book(a.traveler.token, tourId, departureId)).status).toBe(404);
+    // A second traveler: the first one still holds a PENDING booking on this departure (one pending per departure).
+    const another = await createUser('TRAVELER', 'another@example.com');
+    expect((await book(another.token, tourId, departureId)).status).toBe(404);
   });
 
   it("agencies only reach their own tours (404) and cannot touch each other's inventory", async () => {

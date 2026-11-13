@@ -1,4 +1,4 @@
-import { PERMISSIONS, TOUR_STATUS } from '@travel-platform/constants';
+import { PERMISSIONS, TOUR_STATUS, TOUR_VISIBILITY } from '@travel-platform/constants';
 import type { Actor } from '../../types/actor';
 import { AppError } from '../../utils/app-error';
 import { buildPage, type Page } from '../../utils/pagination';
@@ -33,24 +33,27 @@ export class ToursDiscoveryService {
     });
   }
 
-  /** Public cards for the given ids; ids that are not APPROVED (or do not exist) are simply absent from the map. */
+  /** Public cards for the given ids; ids that are not APPROVED + PUBLIC (or do not exist) are simply absent from the map. */
   async getPublicCards(ids: string[]): Promise<Map<string, TourListItemDto>> {
     if (ids.length === 0) return new Map();
-    const tours = (await this.tours.findManyByIds(Array.from(new Set(ids)))).filter((tour) => tour.status === TOUR_STATUS.APPROVED);
+    const tours = (await this.tours.findManyByIds(Array.from(new Set(ids)))).filter(
+      (tour) => tour.status === TOUR_STATUS.APPROVED && tour.visibility === TOUR_VISIBILITY.PUBLIC,
+    );
     const items = await this.views.listItems(tours);
     return new Map(items.map((item) => [item.id, item]));
   }
 
   /**
-   * Visibility: APPROVED tours are public. Other statuses are visible only to the owning agency (not ARCHIVED) and to
-   * staff allowed to list all tours; everybody else gets 404 so unpublished tours are not discoverable by id.
+   * Visibility: APPROVED + PUBLIC tours are public. PRIVATE tours are never public, even when APPROVED; other
+   * statuses are visible only to the owning agency (not ARCHIVED) and to staff allowed to list all tours.
+   * Everybody else gets 404 so unpublished or private tours are not discoverable by id.
    */
   async getDetail(id: string, actor: Actor): Promise<TourDetailDto | TourManageDto> {
     const isPublicUser = actor.kind === 'guest' || actor.role === 'TRAVELER';
     if (isPublicUser) {
       return this.detailCache.getOrCompute(id, async () => {
         const tour = await this.tours.findById(id);
-        if (!tour || tour.status !== TOUR_STATUS.APPROVED) throw AppError.notFound('Tour not found');
+        if (!tour || tour.status !== TOUR_STATUS.APPROVED || tour.visibility !== TOUR_VISIBILITY.PUBLIC) throw AppError.notFound('Tour not found');
         return this.views.publicDetail(tour);
       });
     }
@@ -61,7 +64,7 @@ export class ToursDiscoveryService {
     const isOwner = actor.kind === 'user' && tour.agencyId === actor.userId;
     const isStaff = actor.kind === 'user' && actor.permissions.includes(PERMISSIONS.TOUR_LIST_ALL);
     if (isStaff || isOwner) return this.views.manage(tour);
-    if (tour.status === TOUR_STATUS.APPROVED) {
+    if (tour.status === TOUR_STATUS.APPROVED && tour.visibility === TOUR_VISIBILITY.PUBLIC) {
       return this.detailCache.getOrCompute(id, async () => this.views.publicDetail(tour));
     }
     throw AppError.notFound('Tour not found');

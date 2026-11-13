@@ -18,6 +18,7 @@ import { priceGuests } from '../../utils/age-pricing';
 import { bookingsRepository, type BookingRecord, type BookingsRepository, type PromotionRedemptionInput } from './bookings.repository';
 import { CUSTOMER_EXPORT_LIMIT, type CustomerRow } from './bookings.types';
 import type {
+  ActiveCustomTourBooking,
   AgencyBookingDto,
   AgencyBookingStats,
   PlatformBookingStats,
@@ -36,7 +37,7 @@ const MINUTE_MS = 60 * 1000;
 
 type Repo = Pick<
   BookingsRepository,
-  | 'create' | 'findById' | 'findByRequestId' | 'findPendingForDeparture' | 'lockPendingDeparture' | 'transition' | 'updateById' | 'cancelWithInventoryRelease' | 'listByTraveler' | 'listByAgency'
+  | 'create' | 'findById' | 'findByRequestId' | 'findActiveByCustomTourRequest' | 'findActiveByCustomTourRequests' | 'findPendingForDeparture' | 'lockPendingDeparture' | 'transition' | 'updateById' | 'cancelWithInventoryRelease' | 'listByTraveler' | 'listByAgency'
   | 'findExpiredPending' | 'findDueForCompletion' | 'statusCounts' | 'revenueTotals' | 'dailyNet' | 'monthlyTotals' | 'topTours' | 'listPaidForTour' | 'customerCount'
 > & Partial<Pick<BookingsRepository, 'countByTraveler'>>;
 
@@ -89,13 +90,15 @@ export class BookingsService {
     try {
       return await this.createBookingOnce(travelerId, input);
     } catch (error) {
-      // A parallel retry of the same request (same clientRequestId) may have just taken the last seats. For THAT key
-      // this is not a failure: hand back the winner's booking. The winner may not have stored it yet, so look a few
-      // times (bounded) before reporting the original error.
+      // A parallel retry of the same request (same clientRequestId, or a group request's second tab) may have just
+      // taken the last seats. For THAT request this is not a failure: hand back the winner's booking. The winner may
+      // not have stored it yet, so look a few times (bounded) before reporting the original error.
       const seatsGone = error instanceof AppError && error.statusCode === 409 && ['NOT_ENOUGH_SEATS', 'DEPARTURE_UNAVAILABLE'].includes(error.code);
-      for (let attempt = 0; seatsGone && input.clientRequestId && attempt < BOOKING_POLICY.IDEMPOTENCY_WAIT_ATTEMPTS; attempt += 1) {
+      for (let attempt = 0; seatsGone && (input.clientRequestId || input.customTour) && attempt < BOOKING_POLICY.IDEMPOTENCY_WAIT_ATTEMPTS; attempt += 1) {
         await new Promise((resolve) => setTimeout(resolve, BOOKING_POLICY.IDEMPOTENCY_WAIT_MS));
-        const duplicate = await this.bookings.findByRequestId(travelerId, input.clientRequestId);
+        const winner = input.customTour ? await this.bookings.findActiveByCustomTourRequest(input.customTour.requestId) : null;
+        if (winner) return toBookingDto(winner);
+        const duplicate = input.clientRequestId ? await this.bookings.findByRequestId(travelerId, input.clientRequestId) : null;
         if (duplicate) return toBookingDto(duplicate);
       }
       throw error;
@@ -104,6 +107,10 @@ export class BookingsService {
 
   private async createBookingOnce(travelerId: string, input: CreateBookingInput): Promise<BookingDto> {
     if (input.premiumVoucherId && (input.promotionCode || input.agencyPromotionCode || input.platformPromotionCode)) throw AppError.badRequest('Voucher Premium không cộng với mã khác');
+    // The group-booking price is the accepted snapshot; a code here would silently discount it.
+    if (input.customTour && (input.premiumVoucherId || input.promotionCode || input.agencyPromotionCode || input.platformPromotionCode)) {
+      throw AppError.badRequest('A group booking uses the accepted offer, not promotions');
+    }
     if (input.clientRequestId) {
       const duplicate = await this.bookings.findByRequestId(travelerId, input.clientRequestId);
       if (duplicate) return toBookingDto(duplicate);
@@ -111,11 +118,15 @@ export class BookingsService {
 
     await this.assertNoPendingDeparture(travelerId, input);
 
-    const departure = await this.tours.getBookableDeparture(input.tourId, input.departureId);
+    // A PRIVATE tour is bookable only through the group-booking checkout (D-85); the flag never comes from HTTP.
+    const departure = await this.tours.getBookableDeparture(input.tourId, input.departureId, { allowPrivate: Boolean(input.customTour) });
     if (input.participants > departure.remaining) {
       throw AppError.conflict('Not enough seats left on this departure', 'NOT_ENOUGH_SEATS');
     }
-    const guestPricing = priceGuests(departure.unitPrice, input.participants, input.guestCounts, departure.agePricing);
+    // A group booking is priced strictly from the offer the traveler accepted, even if the tour changed since.
+    const unitPrice = input.customTour?.unitPrice ?? departure.unitPrice;
+    const guestCounts = input.customTour?.guestCounts ?? input.guestCounts;
+    const guestPricing = priceGuests(unitPrice, input.participants, guestCounts, input.customTour ? input.customTour.agePricing : departure.agePricing);
     const subtotal = guestPricing.subtotal;
     if (subtotal < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
 
@@ -195,10 +206,10 @@ export class BookingsService {
               departureDate: departure.departureDate,
               endDate: new Date(departure.departureDate.getTime() + departure.durationDays * DAY_MS),
               participants: input.participants,
-              ...(input.guestCounts ? { guestPricing: { ...guestPricing, guests: { ...guestPricing.guests } } } : {}),
+              ...(guestCounts ? { guestPricing: { ...guestPricing, guests: { ...guestPricing.guests } } } : {}),
               contact: input.contact,
               notes: input.notes,
-              unitPrice: departure.unitPrice,
+              unitPrice,
               subtotal,
               promotion: primaryApplied ? {
                 promotionId: primaryApplied.promotionId,
@@ -217,11 +228,17 @@ export class BookingsService {
               isPaid: false,
               paymentExpiresAt: new Date(Date.now() + BOOKING_POLICY.PENDING_PAYMENT_MINUTES * MINUTE_MS),
               clientRequestId: input.clientRequestId,
+              ...(input.customTour ? { customTourRequestId: input.customTour.requestId, passengers: input.customTour.passengers } : {}),
             }, tx);
             return { booking, created: true };
           });
           break;
         } catch (error) {
+          // Two tabs raced the partial unique index on `customTourRequestId`; the winner's booking is the answer.
+          if (input.customTour && isUniqueViolation(error)) {
+            const existing = await this.bookings.findActiveByCustomTourRequest(input.customTour.requestId);
+            if (existing) { result = { booking: existing, created: false }; break; }
+          }
           if (input.clientRequestId) {
             const existing = await this.bookings.findByRequestId(travelerId, input.clientRequestId);
             if (existing) { result = { booking: existing, created: false }; break; }
@@ -279,6 +296,24 @@ export class BookingsService {
 
   async getMine(travelerId: string, id: string): Promise<BookingDto> {
     return toBookingDto(await this.requireOwnedByTraveler(travelerId, id));
+  }
+
+  /** The live booking of an accepted group request (S10): what the request detail shows as `currentBooking`. */
+  async activeForCustomTour(requestId: string): Promise<BookingDto | null> {
+    const booking = await this.bookings.findActiveByCustomTourRequest(requestId);
+    return booking ? toBookingDto(booking) : null;
+  }
+
+  /** The same, for a page of requests (list responses). Newest row wins, as in the single lookup. */
+  async activeForCustomTours(requestIds: string[]): Promise<Map<string, ActiveCustomTourBooking>> {
+    const rows = await this.bookings.findActiveByCustomTourRequests(requestIds);
+    const byRequest = new Map<string, ActiveCustomTourBooking>();
+    for (const row of rows) {
+      if (row.customTourRequestId && !byRequest.has(row.customTourRequestId)) {
+        byRequest.set(row.customTourRequestId, { id: row.id, status: row.status as BookingStatus, bookingCode: row.bookingCode, isPaid: row.isPaid });
+      }
+    }
+    return byRequest;
   }
 
   /**

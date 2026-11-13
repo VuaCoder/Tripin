@@ -53,6 +53,9 @@ export default async function setup(project: TestProject): Promise<() => Promise
     port,
     persistent: false,
     initdbFlags: ['--encoding=UTF8', '--locale=C'],
+    // Every test file runs in its own process with a 20-connection pool; the default 100 slots run out when
+    // a dozen files run in parallel (500s from "too many clients"), so give the throw-away server headroom.
+    postgresFlags: ['-c', 'max_connections=500'],
     onLog: () => undefined,
     onError: () => undefined,
   });
