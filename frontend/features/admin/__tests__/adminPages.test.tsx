@@ -1,14 +1,15 @@
 import { selectFormValue } from '@/test/select';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-vi.mock('../components/StaffActions', () => ({ InviteStaff: () => null, UserLifecycleAction: () => null }));
+vi.mock('../components/StaffActions', () => ({ InviteStaff: () => null, UserLifecycleAction: () => null, DeleteUserAction: () => null }));
 
 import { dashboard, meta, policy, promotion, query, user } from './fixtures';
+import { dateSelectionQuery, recentDays } from '../utils/filters';
 
 const mocks = vi.hoisted(() => ({
   session: vi.fn(), dashboard: vi.fn(), promotions: vi.fn(), detail: vi.fn(), createPromotion: vi.fn(), updatePromotion: vi.fn(),
   users: vi.fn(), access: vi.fn(), categories: vi.fn(), createCategory: vi.fn(), updateCategory: vi.fn(), deactivate: vi.fn(),
-  commission: vi.fn(), saveCommission: vi.fn(), policies: vi.fn(), savePolicy: vi.fn(),
+  commission: vi.fn(), saveCommission: vi.fn(), agenciesCommission: vi.fn(), saveAgencyCommission: vi.fn(), policies: vi.fn(), savePolicy: vi.fn(),
 }));
 vi.mock('../components/AdminUi', async (original) => ({ ...await original<object>(), useAdminSession: () => mocks.session() }));
 vi.mock('../api/adminApi', () => ({
@@ -27,6 +28,8 @@ vi.mock('../api/adminApi', () => ({
   useDeactivateAdminCategoryMutation: () => [mocks.deactivate, { isLoading: false }],
   useGetAdminCommissionQuery: (...args: unknown[]) => mocks.commission(...args),
   useSetAdminCommissionMutation: () => [mocks.saveCommission, { isLoading: false }],
+  useGetAgencyCommissionsQuery: (...args: unknown[]) => mocks.agenciesCommission(...args),
+  useSetAgencyCommissionMutation: () => [mocks.saveAgencyCommission, { isLoading: false }],
   useGetAdminPoliciesQuery: (...args: unknown[]) => mocks.policies(...args),
   useSetAdminPolicyMutation: () => [mocks.savePolicy, { isLoading: false }],
 }));
@@ -40,32 +43,33 @@ beforeEach(() => {
   mocks.users.mockReturnValue(query({ items: [user], meta }));
   mocks.categories.mockReturnValue(query([{ id: 'cat', name: 'Beach', slug: 'beach', isActive: true, sortOrder: 0 }]));
   mocks.commission.mockReturnValue(query({ ratePercent: 10, rateBps: 1000 }));
+  mocks.agenciesCommission.mockReturnValue(query([]));
   mocks.policies.mockReturnValue(query([policy]));
   mocks.detail.mockReturnValue({ unwrap: () => Promise.resolve(promotion) });
-  for (const mutation of [mocks.createPromotion, mocks.updatePromotion, mocks.access, mocks.createCategory, mocks.updateCategory, mocks.deactivate, mocks.saveCommission, mocks.savePolicy]) mutation.mockImplementation(() => reject());
+  for (const mutation of [mocks.createPromotion, mocks.updatePromotion, mocks.access, mocks.createCategory, mocks.updateCategory, mocks.deactivate, mocks.saveCommission, mocks.saveAgencyCommission, mocks.savePolicy]) mutation.mockImplementation(() => reject());
 });
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 describe('ADMIN-01 screen behavior', () => {
-  it('applies Vietnam date bounds to dashboard, switches chart metric, and resets to all time', async () => {
+  it('changes dashboard reporting range from the trend chart and switches chart metric', async () => {
     render(<AdminDashboardPage />);
-    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2026-10-01' } });
-    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2026-10-05' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng' }));
-    expect(mocks.dashboard.mock.calls.at(-1)![0]).toEqual({ from: '2026-09-30T17:00:00.000Z', to: '2026-10-05T16:59:59.999Z' });
+    fireEvent.click(screen.getByRole('button', { name: '90 ngày' }));
+    expect(mocks.dashboard.mock.calls.at(-1)![0]).toEqual(dateSelectionQuery(recentDays(90)));
     expect(screen.getByRole('img', { name: 'Biểu đồ so sánh tổng tiền, doanh thu đại lý và hoa hồng' })).toBeTruthy();
     await selectFormValue('Chỉ số biểu đồ', 'bookings');
     expect(screen.getByRole('img', { name: 'Biểu đồ số booking theo tháng' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Toàn thời gian' }));
-    expect(mocks.dashboard.mock.calls.at(-1)![0]).toEqual({});
   });
-  it('refuses a partial date filter without replacing the current dashboard query', () => {
+  it('keeps the range selector beside trends and removes the large report date filter', () => {
     render(<AdminDashboardPage />);
-    const initial = mocks.dashboard.mock.calls.at(-1)![0];
-    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng' }));
-    expect(screen.getByText('Vui lòng chọn đủ ngày bắt đầu và kết thúc.')).toBeTruthy();
-    expect(mocks.dashboard.mock.calls.at(-1)![0]).toEqual(initial);
+    expect(screen.getByText('Xu hướng')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '7 ngày' })).toBeTruthy();
+    expect(screen.queryByText('Khoảng thời gian báo cáo')).toBeNull();
+    expect(screen.queryByLabelText('Từ ngày')).toBeNull();
+  });
+  it('shows the shared Ant Design success message after a successful refresh', async () => {
+    render(<AdminDashboardPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Làm mới' }));
+    expect(await screen.findByText('Đã cập nhật thành công!')).toBeTruthy();
   });
   it('searches categories without accents and filters inactive categories', async () => {
     mocks.categories.mockReturnValue(query([{ id: 'a', name: 'Đà Nẵng', slug: 'da-nang', isActive: true, sortOrder: 2 }, { id: 'b', name: 'Ẩm thực', slug: 'am-thuc', isActive: false, sortOrder: 1 }]));
@@ -73,34 +77,36 @@ describe('ADMIN-01 screen behavior', () => {
     fireEvent.change(screen.getByLabelText('Tìm danh mục'), { target: { value: 'da nang' } });
     expect(screen.getByRole('button', { name: 'Sửa Đà Nẵng' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Sửa Ẩm thực' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Đặt lại' }));
+    fireEvent.change(screen.getByLabelText('Tìm danh mục'), { target: { value: '' } });
     await selectFormValue('Trạng thái danh mục', 'inactive');
     expect(screen.getByRole('button', { name: 'Sửa Ẩm thực' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Sửa Đà Nẵng' })).toBeNull();
   });
-  it('sends promotion text, type and date overlap filters to the backend, resetting page', async () => {
+  it('sends promotion text and status filters to the backend, resetting page', async () => {
     render(<AdminPromotionsPage />);
-    fireEvent.change(screen.getByLabelText('Mã hoặc tên khuyến mãi'), { target: { value: 'SAVE' } });
-    await selectFormValue('Loại giảm giá', 'FIXED');
-    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2026-10-01' } });
-    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2026-10-05' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng bộ lọc' }));
-    expect(mocks.promotions.mock.calls.at(-1)![0]).toMatchObject({ q: 'SAVE', discountType: 'FIXED', page: 1, from: '2026-09-30T17:00:00.000Z', to: '2026-10-05T16:59:59.999Z' });
+    fireEvent.change(screen.getByLabelText(/Mã hoặc tên (voucher|khuyến mãi)/i), { target: { value: 'SAVE' } });
+    await waitFor(() => expect(mocks.promotions.mock.calls.at(-1)![0]).toMatchObject({ q: 'SAVE', page: 1 }));
+    await selectFormValue('Trạng thái', 'true');
+    await waitFor(() => expect(mocks.promotions.mock.calls.at(-1)![0]).toMatchObject({ isActive: true, page: 1 }));
   });
-  it('sends user created-date bounds and clears them when filters reset', () => {
+  it('searches users as the query changes and applies the role and status filters immediately', async () => {
     render(<AdminUsersPage />);
-    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2026-10-01' } });
-    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2026-10-05' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Tìm người dùng' }));
-    expect(mocks.users.mock.calls.at(-1)![0]).toMatchObject({ page: 1, from: '2026-09-30T17:00:00.000Z', to: '2026-10-05T16:59:59.999Z' });
-    fireEvent.click(screen.getByRole('button', { name: 'Đặt lại' }));
-    expect(mocks.users.mock.calls.at(-1)![0]).toEqual({ page: 1, limit: 10 });
+    fireEvent.change(screen.getByLabelText('Tìm người dùng'), { target: { value: 'target@example.com' } });
+    await waitFor(() => expect(mocks.users.mock.calls.at(-1)![0]).toMatchObject({ page: 1, q: 'target@example.com' }));
+    await selectFormValue('Lọc vai trò', 'MODERATOR');
+    await selectFormValue('Lọc trạng thái', 'ACTIVE');
+    expect(mocks.users.mock.calls.at(-1)![0]).toMatchObject({ page: 1, q: 'target@example.com', role: 'MODERATOR', status: 'ACTIVE' });
+    expect(screen.queryByRole('button', { name: 'Tìm người dùng' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Đặt lại' })).toBeNull();
+    expect(screen.queryByText(/tài khoản$/)).toBeNull();
   });
-  it('renders backend dashboard metrics and UTC monthly figures without fake health/audit claims', () => {
+  it('renders dashboard metrics without technical cache and period subtitles', () => {
     render(<AdminDashboardPage />);
     expect(screen.getByText('41')).toBeTruthy();
     expect(screen.getAllByText('2026-10').length).toBeGreaterThan(0);
-    expect(screen.getByText(/cache tối đa 30 giây/)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeTruthy();
+    expect(screen.queryByText(/cache tối đa 30 giây/)).toBeNull();
+    expect(screen.queryByText(/Kỳ trước:/)).toBeNull();
     expect(screen.queryByText(/Hệ thống trực tuyến/)).toBeNull();
   });
   it('does not turn dashboard failure into zero KPIs', () => {
@@ -112,7 +118,7 @@ describe('ADMIN-01 screen behavior', () => {
   it('never displays previous-filter user rows when the current query has no data yet', () => {
     mocks.users.mockReturnValue(query(undefined, { data: { items: [user], meta }, isFetching: true }));
     render(<AdminUsersPage />);
-    expect(screen.getByText('Đang tải dữ liệu quản trị...')).toBeTruthy();
+    expect(screen.getByRole('status', { name: 'Đang tải nội dung trang quản trị' })).toBeTruthy();
     expect(screen.queryByText('Target User')).toBeNull();
   });
   it('keeps confirmed data with a refresh-failure notice instead of showing a save rollback', () => {
@@ -164,7 +170,7 @@ describe('ADMIN-01 screen behavior', () => {
   });
   it('keeps category form open on duplicate/failure and only deactivates after explicit confirmation', async () => {
     render(<AdminCategoriesPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo danh mục' }));
+    fireEvent.click(screen.getByRole('button', { name: /Thêm mới|Tạo danh mục/i }));
     fireEvent.change(screen.getByLabelText(/Tên danh mục/), { target: { value: 'Cultural' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu danh mục' }));
     await screen.findByText('Server rejected');
@@ -192,24 +198,21 @@ describe('ADMIN-01 screen behavior', () => {
   it('refuses negative cancellation hours before calling API', () => {
     render(<AdminPoliciesPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Sửa chính sách hủy' }));
-    fireEvent.change(screen.getByLabelText('Thời hạn hủy (giờ)'), { target: { value: '-1' } });
+    fireEvent.change(screen.getByLabelText('Khách có thể hủy trước giờ khởi hành'), { target: { value: '-1' } });
     fireEvent.change(screen.getByLabelText(/Lý do thay đổi/), { target: { value: 'Policy reviewed and updated' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu chính sách' }));
     expect(screen.getByText('Thời hạn hủy phải là số giờ không âm.')).toBeTruthy();
     expect(mocks.savePolicy).not.toHaveBeenCalled();
   });
-  it('shows role defaults separately, preserves empty extra list and keeps access draft on backend failure', async () => {
+  it('allows changing user role and keeps modal open on backend failure', async () => {
     render(<AdminUsersPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Phân quyền Target User' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'audit:view (Super Admin)' }));
-    await selectFormValue('Vai trò', 'MODERATOR');
-    fireEvent.click(screen.getByRole('button', { name: 'Xem lại thay đổi' }));
-    expect(mocks.access).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận phân quyền' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đổi vai trò' }));
+    await selectFormValue('Chọn vai trò mới', 'MODERATOR');
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu vai trò' }));
     await waitFor(() => expect(mocks.access).toHaveBeenCalledWith({ id: 'target', role: 'MODERATOR', extraPermissions: [], revokedPermissions: [] }));
     await screen.findByText('Server rejected');
     expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.queryByText(/Đã lưu quyền cho/)).toBeNull();
+    expect(screen.queryByText(/Đã cập nhật vai trò cho/)).toBeNull();
   });
   it('disables changing the acting admin and resets users pagination when filters change', async () => {
     mocks.users.mockReturnValue(query({ items: [{ ...user, id: 'admin' }], meta: { ...meta, total: 20, totalPages: 2 } }));
@@ -225,8 +228,10 @@ describe('ADMIN-01 screen behavior', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sửa PLATFORM10' }));
     await screen.findByRole('dialog');
     expect(mocks.detail).toHaveBeenCalledWith('promo', false);
+    fireEvent.change(screen.getByLabelText(/Tên voucher/), { target: { value: 'Updated promo' } });
+    fireEvent.click(screen.getByRole('button', { name: /Tiếp theo/i }));
     expect((screen.getByLabelText(/Mức giảm \(%\)/) as HTMLInputElement).disabled).toBe(true);
-    fireEvent.change(screen.getByLabelText(/Tiêu đề/), { target: { value: 'Updated promo' } });
+    fireEvent.click(screen.getByRole('button', { name: /Tiếp theo/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     await screen.findByText('Server rejected');
     expect(mocks.updatePromotion).toHaveBeenCalledWith({ id: 'promo', patch: { title: 'Updated promo' } });

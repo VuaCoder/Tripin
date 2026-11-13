@@ -33,7 +33,7 @@ export class SupportService {
     > = supportRepository,
     private readonly bookings: Pick<BookingsService, 'getFacts'> = bookingsService,
     private readonly users: Pick<UsersService, 'getSummaries'> = usersService,
-    private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
+    private readonly notifications: Pick<NotificationsService, 'notify'> & Partial<Pick<NotificationsService, 'notifyAdmins'>> = notificationsService,
   ) {}
 
   // ================================================================ Traveler
@@ -51,6 +51,7 @@ export class SupportService {
       ...(input.bookingId ? { bookingId: input.bookingId } : {}),
       message: { authorId: userId, authorKind: 'USER', text: input.message },
     });
+    await this.notifications.notifyAdmins?.({ type: NOTIFICATION_TYPE.ADMIN_REQUEST_RECEIVED, title: 'Yêu cầu hỗ trợ mới', body: `${ticket.supportCode}: ${ticket.subject}`, data: { ticketId: ticket.id } });
     return toTicketDto(ticket);
   }
 

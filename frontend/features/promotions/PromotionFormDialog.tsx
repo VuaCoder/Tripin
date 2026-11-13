@@ -13,7 +13,6 @@ import {
   DollarSign,
   Tag,
   SlidersHorizontal,
-  Clock,
   Check,
   type LucideIcon,
 } from 'lucide-react';
@@ -33,6 +32,13 @@ export function toLocalInput(iso: string): string {
 }
 
 export type SelectedPromoType = 'SHARED' | 'UNIQUE_BATCH' | 'AUTO_APPLY' | 'COLLECTABLE';
+type FormStep = 1 | 2 | 3;
+
+const FORM_STEPS: { id: FormStep; label: string; fields: (keyof PromotionFormValues)[] }[] = [
+  { id: 1, label: 'Thông tin voucher', fields: ['code', 'title', 'description'] },
+  { id: 2, label: 'Mức giảm', fields: ['discountValue', 'maxDiscountAmount', 'minOrderAmount', 'usageLimit', 'usageLimitPerUser'] },
+  { id: 3, label: 'Thời hạn và điều kiện', fields: ['startsAt', 'endsAt', 'minParticipants', 'daysInAdvance'] },
+];
 
 export interface PromoTypeMeta {
   id: SelectedPromoType;
@@ -48,32 +54,32 @@ export const PROMO_TYPES_CONFIG: Record<SelectedPromoType, PromoTypeMeta> = {
     id: 'SHARED',
     applyType: 'CODE',
     codeType: 'SHARED',
-    title: 'Public Promo Code',
-    description: 'Khách hàng nhập mã khi thanh toán đặt tour',
+    title: 'Voucher mã dùng chung',
+    description: 'Khách nhập mã khi đặt tour',
     Icon: Ticket,
   },
   UNIQUE_BATCH: {
     id: 'UNIQUE_BATCH',
     applyType: 'CODE',
     codeType: 'UNIQUE_BATCH',
-    title: 'Unique Code Batch',
-    description: 'Sinh hàng loạt mã cá nhân độc nhất dùng 1 lần',
+    title: 'Voucher mã riêng',
+    description: 'Tạo nhiều mã riêng, mỗi mã dùng một lần',
     Icon: Layers,
   },
   AUTO_APPLY: {
     id: 'AUTO_APPLY',
     applyType: 'AUTO_APPLY',
     codeType: 'SHARED',
-    title: 'Auto-Apply Discount',
-    description: 'Tự động giảm trực tiếp khi đơn đạt đủ điều kiện',
+    title: 'Tự động giảm giá',
+    description: 'Tự áp dụng khi đơn hàng đủ điều kiện',
     Icon: Zap,
   },
   COLLECTABLE: {
     id: 'COLLECTABLE',
     applyType: 'COLLECTABLE',
     codeType: 'SHARED',
-    title: 'Collectable Voucher',
-    description: 'Khách hàng lưu vào ví trên trang nhà cung cấp',
+    title: 'Voucher lưu vào ví',
+    description: 'Khách lưu voucher vào ví trước khi đặt tour',
     Icon: Wallet,
   },
 };
@@ -157,6 +163,7 @@ export function PromotionFormDialog({
 }: PromotionFormDialogProps) {
   const isEdit = promotion !== null;
   const [step, setStep] = useState<1 | 2>(isEdit ? 2 : 1);
+  const [formStep, setFormStep] = useState<FormStep>(1);
   const [selectedType, setSelectedType] = useState<SelectedPromoType>('SHARED');
   const [values, setValues] = useState<PromotionFormValues>(emptyValues);
   const [errors, setErrors] = useState<PromotionFormErrors>({});
@@ -168,6 +175,7 @@ export function PromotionFormDialog({
         setSelectedType(derived);
         setValues(valuesFromPromotion(promotion));
         setStep(2);
+        setFormStep(1);
       } else if (initialType) {
         setSelectedType(initialType);
         const cfg = PROMO_TYPES_CONFIG[initialType];
@@ -177,8 +185,10 @@ export function PromotionFormDialog({
           codeType: cfg.codeType,
         });
         setStep(2);
+        setFormStep(1);
       } else {
         setStep(1);
+        setFormStep(1);
         setValues(emptyValues());
       }
       setErrors({});
@@ -191,6 +201,7 @@ export function PromotionFormDialog({
         ? (value.replace(/[eE+-]/g, '') as PromotionFormValues[K])
         : value;
     setValues((current) => ({ ...current, [key]: sanitized }));
+    setErrors((current) => ({ ...current, [key]: undefined }));
   };
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -212,6 +223,7 @@ export function PromotionFormDialog({
       applyType: cfg.applyType,
       codeType: cfg.codeType,
     }));
+    setFormStep(1);
     setStep(2);
   };
 
@@ -221,6 +233,17 @@ export function PromotionFormDialog({
     setErrors(found);
     if (Object.keys(found).length > 0) return;
     onSubmit(values);
+  };
+
+  const continueForm = () => {
+    const found = validatePromotionForm(values, { mode: isEdit ? 'edit' : 'create', original: promotion ?? undefined });
+    const currentFields = FORM_STEPS.find((item) => item.id === formStep)!.fields;
+    const currentErrors = Object.fromEntries(
+      Object.entries(found).filter(([field]) => currentFields.includes(field as keyof PromotionFormValues)),
+    ) as PromotionFormErrors;
+    setErrors(currentErrors);
+    if (Object.keys(currentErrors).length > 0) return;
+    setFormStep((current) => (current < 3 ? (current + 1) as FormStep : current));
   };
 
   const currentTypeConfig = PROMO_TYPES_CONFIG[selectedType] ?? PROMO_TYPES_CONFIG.SHARED;
@@ -234,7 +257,7 @@ export function PromotionFormDialog({
         open={open}
         onClose={onClose}
         closeOnBackdrop={!isSubmitting}
-        title="Chọn loại khuyến mãi"
+        title="Chọn cách dùng voucher"
         className="max-w-2xl"
       >
         <div className="space-y-4">
@@ -292,8 +315,8 @@ export function PromotionFormDialog({
       open={open}
       onClose={onClose}
       closeOnBackdrop={!isSubmitting}
-      title={isEdit ? 'Chỉnh sửa khuyến mãi' : 'Tạo khuyến mãi mới'}
-      className="max-w-5xl"
+      title={isEdit ? 'Chỉnh sửa voucher' : 'Tạo voucher'}
+      className="max-w-3xl"
     >
       <form onSubmit={handleSubmit} noValidate className="space-y-5">
         {serverError && (
@@ -303,14 +326,24 @@ export function PromotionFormDialog({
           </div>
         )}
 
-        {/* Thanh tiêu đề loại khuyến mãi đã chọn */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3.5">
+        <nav aria-label="Tiến độ biểu mẫu" className="grid grid-cols-3 border-b border-slate-200 pb-4">
+          {FORM_STEPS.map((item) => {
+            const completed = item.id < formStep;
+            const current = item.id === formStep;
+            return <button key={item.id} type="button" onClick={() => completed && setFormStep(item.id)} disabled={!completed || isSubmitting} aria-current={current ? 'step' : undefined} className={`flex min-w-0 items-center gap-2 border-b-2 px-1 pb-3 text-left text-xs font-semibold transition-colors sm:text-sm ${current ? 'border-teal-700 text-teal-800' : completed ? 'border-transparent text-slate-600 hover:text-teal-800' : 'border-transparent text-slate-400'}`}>
+              <span className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs ${current ? 'bg-teal-700 text-white' : completed ? 'bg-teal-50 text-teal-800' : 'bg-slate-100 text-slate-500'}`}>{completed ? <Check size={14} /> : item.id}</span>
+              <span className="truncate">{item.label}</span>
+            </button>;
+          })}
+        </nav>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-3.5 py-3">
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-xl bg-white text-brand-teal border border-slate-200 shadow-2xs">
               <currentTypeConfig.Icon className="size-5" />
             </div>
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Hình thức áp dụng</span>
+              <span className="text-xs font-semibold text-slate-500">Hình thức voucher</span>
               <p className="text-sm font-bold text-slate-900">
                 {currentTypeConfig.title}
               </p>
@@ -331,71 +364,19 @@ export function PromotionFormDialog({
         {/* ========================================================================= */}
         {/* 1. THÔNG TIN CƠ BẢN                                                       */}
         {/* ========================================================================= */}
-        <section className="space-y-4 rounded-2xl border border-slate-200/90 bg-slate-50/40 p-5">
+        {formStep === 1 && <section className="space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-200/80 pb-3">
             <Tag className="size-4.5 text-brand-teal" />
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">1. Thông tin cơ bản</h3>
+            <h3 className="text-sm font-bold text-slate-900">Thông tin cơ bản</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Phân loại Voucher: Toàn sàn / Thường vs Voucher Premium */}
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="text-sm font-bold text-slate-800 flex items-center justify-between">
-                <span>Phân loại Voucher</span>
-                <span className="text-xs font-normal text-slate-500">Tick chọn để quy định quyền lợi và màu thẻ</span>
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => set('isPremium', false)}
-                  className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all text-left cursor-pointer ${
-                    !values.isPremium
-                      ? 'border-teal-600 bg-teal-50/70 ring-2 ring-teal-500/20 shadow-xs'
-                      : 'border-slate-200 bg-white hover:bg-slate-50'
-                  }`}
-                >
-                  <div className={`flex size-5 shrink-0 items-center justify-center rounded-full border mt-0.5 ${
-                    !values.isPremium ? 'border-teal-600 bg-teal-600 text-white' : 'border-slate-300 bg-white'
-                  }`}>
-                    {!values.isPremium && <Check size={12} strokeWidth={3} />}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-bold text-slate-900">Voucher Toàn sàn / Thường</p>
-                      <span className="rounded-full bg-teal-100 px-1.5 py-0.2 text-[10px] font-bold text-teal-800">Thẻ xanh</span>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Áp dụng cho mọi du khách khi đặt tour. Hiển thị dạng thẻ xanh tiêu chuẩn trên trang chủ.
-                    </p>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => set('isPremium', true)}
-                  className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all text-left cursor-pointer ${
-                    values.isPremium
-                      ? 'border-amber-400 bg-amber-50/80 ring-2 ring-amber-400/20 shadow-xs'
-                      : 'border-slate-200 bg-white hover:bg-slate-50'
-                  }`}
-                >
-                  <div className={`flex size-5 shrink-0 items-center justify-center rounded-full border mt-0.5 ${
-                    values.isPremium ? 'border-amber-600 bg-amber-500 text-slate-950' : 'border-slate-300 bg-white'
-                  }`}>
-                    {values.isPremium && <Check size={12} strokeWidth={3} />}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-bold text-amber-950">Voucher Premium</p>
-                      <span className="rounded-full bg-amber-200 px-1.5 py-0.2 text-[10px] font-black text-amber-900">★ Thẻ vàng</span>
-                    </div>
-                    <p className="text-xs text-amber-900/80 mt-1">
-                      Đặc quyền cho khách hàng Premium. Tự động hiển thị nổi bật dưới dạng thẻ vàng sang trọng trên trang chủ.
-                    </p>
-                  </div>
-                </button>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FormField label="Đối tượng áp dụng" htmlFor="promo-audience" hint="Chọn nhóm khách có thể nhận ưu đãi.">
+              <FormSelect id="promo-audience" className={`${selectClass} h-11 sm:h-12`} value={values.isPremium ? 'premium' : 'all'} disabled={isSubmitting} onChange={(e) => set('isPremium', e.target.value === 'premium')}>
+                <option value="all">Tất cả khách hàng</option>
+                <option value="premium">Khách hàng Premium</option>
+              </FormSelect>
+            </FormField>
             {selectedType === 'SHARED' ? (
               <FormField
                 label="Mã khuyến mãi"
@@ -453,7 +434,7 @@ export function PromotionFormDialog({
               </FormField>
             )}
 
-            <FormField label="Tiêu đề khuyến mãi" htmlFor="promo-title" required error={errors.title}>
+            <FormField label="Tên voucher" htmlFor="promo-title" required error={errors.title}>
               <Input
                 id="promo-title"
                 value={values.title}
@@ -479,15 +460,15 @@ export function PromotionFormDialog({
               </FormField>
             </div>
           </div>
-        </section>
+        </section>}
 
         {/* ========================================================================= */}
         {/* 2. MỨC GIẢM GIÁ & NGÂN SÁCH                                               */}
         {/* ========================================================================= */}
-        <section className="space-y-4 rounded-2xl border border-slate-200/90 bg-slate-50/40 p-5">
+        {formStep === 2 && <section className="space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-200/80 pb-3">
             <DollarSign className="size-4.5 text-brand-teal" />
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">2. Mức giảm giá & Ngân sách</h3>
+            <h3 className="text-sm font-bold text-slate-900">Mức giảm và giới hạn lượt dùng</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -608,15 +589,15 @@ export function PromotionFormDialog({
               />
             </FormField>
           </div>
-        </section>
+        </section>}
 
         {/* ========================================================================= */}
         {/* 3. ĐIỀU KIỆN ÁP DỤNG & THỜI HẠN                                           */}
         {/* ========================================================================= */}
-        <section className="space-y-4 rounded-2xl border border-slate-200/90 bg-slate-50/40 p-5">
+        {formStep === 3 && <section className="space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-200/80 pb-3">
             <SlidersHorizontal className="size-4.5 text-brand-teal" />
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">3. Điều kiện áp dụng & Thời hạn</h3>
+            <h3 className="text-sm font-bold text-slate-900">Thời hạn và điều kiện áp dụng</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -698,16 +679,19 @@ export function PromotionFormDialog({
               </label>
             </div>
           </div>
-        </section>
+        </section>}
 
         {/* Nút hành động */}
-        <div className="sticky bottom-0 -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 flex flex-col-reverse gap-3 border-t border-slate-100 bg-white/95 backdrop-blur-xs px-5 py-4 sm:px-6 sm:flex-row sm:justify-end shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
+        <div className="sticky bottom-0 -mx-5 -mb-5 flex flex-col-reverse gap-3 border-t border-slate-100 bg-white px-5 py-4 sm:-mx-6 sm:px-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+          {formStep > 1 && <Button type="button" variant="outline" onClick={() => setFormStep((current) => (current - 1) as FormStep)} disabled={isSubmitting} className="h-11 px-5"><ArrowLeft size={16} /> Quay lại</Button>}
           <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting} className="h-11 px-5">
             Hủy
           </Button>
-          <Button type="submit" loading={isSubmitting} loadingLabel="Đang lưu..." className="h-11 px-7 font-bold shadow-md">
-            {isEdit ? 'Lưu thay đổi' : 'Tạo khuyến mãi'}
-          </Button>
+          </div>
+          {formStep < 3
+            ? <Button type="button" onClick={continueForm} disabled={isSubmitting} className="h-11 px-6">Tiếp theo <ArrowRight size={16} /></Button>
+            : <Button type="submit" loading={isSubmitting} loadingLabel="Đang lưu..." className="h-11 px-7 font-bold">{isEdit ? 'Lưu thay đổi' : 'Tạo voucher'}</Button>}
         </div>
       </form>
     </Modal>

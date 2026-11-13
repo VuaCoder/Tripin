@@ -42,7 +42,7 @@ export class ReportsService {
     private readonly users: Pick<UsersService, 'getSummaries'> = usersService,
     private readonly reviews: Pick<ReviewsService, 'getFacts'> = reviewsService,
     private readonly bookings: Pick<BookingsService, 'getFacts'> = bookingsService,
-    private readonly notifications: Pick<NotificationsService, 'notify' | 'notifyAgency'> = notificationsService,
+    private readonly notifications: Pick<NotificationsService, 'notify' | 'notifyAgency'> & Partial<Pick<NotificationsService, 'notifyAdmins'>> = notificationsService,
     _audit: Pick<AuditService, 'record'> = auditService,
   ) {}
 
@@ -88,6 +88,8 @@ export class ReportsService {
         body: `A report (${input.category}) was filed about your ${input.targetType === REPORT_TARGET.TOUR ? 'tour' : 'account'}. Please respond.`,
         data: { reportId: report.id },
       });
+    } else {
+      await this.notifications.notifyAdmins?.({ type: NOTIFICATION_TYPE.ADMIN_REQUEST_RECEIVED, title: 'Báo cáo mới từ người dùng', body: `Có báo cáo mới (${input.category}) về ${input.targetType.toLowerCase()}.`, data: { reportId: report.id } });
     }
     return toMyReportDto(report);
   }

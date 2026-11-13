@@ -20,14 +20,19 @@ const updatedAtOf = (doc: SystemSettingRecord | null | undefined) =>
 
 export class SystemSettingsService {
   constructor(
-    private readonly settings: Pick<SystemSettingsRepository, 'findByKey' | 'findByKeys' | 'upsert' | 'saveRevision' | 'effectivePolicy'> = systemSettingsRepository,
+    private readonly settings: Pick<SystemSettingsRepository, 'findByKey' | 'findByKeys' | 'upsert' | 'saveRevision' | 'effectivePolicy'> & Partial<Pick<SystemSettingsRepository, 'findAgencyCommission' | 'listAgencyCommissions' | 'setAgencyCommission'>> = systemSettingsRepository,
     _audit: Pick<AuditService, 'record'> = auditService,
   ) {}
 
   // -------------------------------------------------------- Commission
 
   /** Basis points; the value money calculations must use (read at booking time and snapshotted on the booking). */
-  async getCommissionBps(): Promise<number> {
+  async getCommissionBps(agencyId?: string): Promise<number> {
+    if (agencyId) {
+      const agency = await this.settings.findAgencyCommission?.(agencyId);
+      const override = agency?.commissionRateBps;
+      if (override !== null && override !== undefined) return override;
+    }
     const doc = await this.settings.findByKey(SETTING_KEYS.COMMISSION);
     return (doc?.value as { rateBps?: number } | undefined)?.rateBps ?? DEFAULT_COMMISSION_BPS;
   }
@@ -43,6 +48,36 @@ export class SystemSettingsService {
     const rateBps = Math.round(ratePercent * 100);
     const doc = await this.settings.saveRevision(SETTING_KEYS.COMMISSION, { rateBps }, actor, expectedVersion, 'Commission configuration updated');
     return { ratePercent: rateBps / 100, rateBps, version: doc.version, updatedAt: updatedAtOf(doc) };
+  }
+
+  async listAgencyCommissions() {
+    return (await this.settings.listAgencyCommissions?.() ?? []).map((agency) => {
+      const contact = agency.user ?? agency.members?.find((member) => member.role === 'OWNER')?.user ?? agency.members?.[0]?.user;
+      return {
+        id: agency.id,
+        companyName: agency.companyName?.trim() || contact?.fullName || 'Công ty lữ hành',
+        contactName: contact?.fullName || '',
+        email: contact?.email || '',
+        ratePercent: agency.commissionRateBps === null ? null : agency.commissionRateBps / 100,
+        rateBps: agency.commissionRateBps,
+        version: agency.commissionVersion,
+      };
+    });
+  }
+
+  async setAgencyCommission(actor: Actor, id: string, ratePercent: number | null, expectedVersion: number) {
+    const rateBps = ratePercent === null ? null : Math.round(ratePercent * 100);
+    if (!this.settings.setAgencyCommission) throw AppError.badRequest('Agency commission settings are unavailable');
+    const saved = await this.settings.setAgencyCommission({ id, rateBps, expectedVersion, actor });
+    return {
+      id: saved.id,
+      companyName: saved.companyName?.trim() || 'Công ty lữ hành',
+      contactName: '',
+      email: '',
+      ratePercent: saved.commissionRateBps === null ? null : saved.commissionRateBps / 100,
+      rateBps: saved.commissionRateBps,
+      version: saved.commissionVersion,
+    };
   }
 
   // ---------------------------------------------------------- Policies

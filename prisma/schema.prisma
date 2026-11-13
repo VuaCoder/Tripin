@@ -78,6 +78,8 @@ model AgencyProfile {
   submittedAt DateTime?
   submissionDateEstimated Boolean @default(false)
   verificationNote   String?
+  commissionRateBps Int?
+  commissionVersion  Int      @default(0)
 
   user User? @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
@@ -1117,6 +1119,7 @@ enum ETicketStatus {
 }
 
 enum NotificationType {
+  ADMIN_REQUEST_RECEIVED
   ACCOUNT_UNBANNED
   TOUR_APPROVED
   TOUR_REJECTED

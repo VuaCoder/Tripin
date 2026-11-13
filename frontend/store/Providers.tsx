@@ -7,6 +7,7 @@ import { store } from './index';
 import { useEffect } from 'react';
 import { setupListeners } from '@reduxjs/toolkit/query';
 import { ChatProvider } from '@/features/chat/ChatProvider';
+import { PromotionRealtimeProvider } from './PromotionRealtimeProvider';
 
 export function Providers({ children }: { children: ReactNode }) {
   useEffect(() => setupListeners(store.dispatch), []);
@@ -42,7 +43,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <Provider store={store}>
       <AuthBootstrap />
-      <ChatProvider>{children}</ChatProvider>
+      <ChatProvider><PromotionRealtimeProvider>{children}</PromotionRealtimeProvider></ChatProvider>
     </Provider>
   );
 }

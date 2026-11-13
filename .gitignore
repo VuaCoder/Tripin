@@ -82,3 +82,7 @@ blender/
 
 # Isolated local production preview
 .next-preview/
+
+# AI Agent local skills
+.agents/
+skills-lock.json

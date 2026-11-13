@@ -92,8 +92,8 @@ export function TourReviewsSection({ tourId, tourTitle, ratingAvg, ratingCount }
 
   const meta = data?.meta;
   const canLoadMore = Boolean(meta && meta.page < meta.totalPages);
-  const showLoading = isLoading && items.length === 0;
-  const showShimmer = isFetching && items.length > 0;
+  const showShimmer = isFetching && page === 1;
+  const showLoading = isLoading && !showShimmer && items.length === 0;
   const showError = isError && items.length === 0;
   const loginHref = `/login?next=${encodeURIComponent(`/tours/${tourId}`)}`;
 
@@ -185,9 +185,9 @@ export function TourReviewsSection({ tourId, tourTitle, ratingAvg, ratingCount }
             Đánh giá từ du khách
           </h2>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <RatingStars value={ratingAvg} count={ratingCount} size="sm" />
-            <span className="text-sm text-slate-500">
-              {ratingCount > 0 ? `${ratingAvg.toFixed(1)}/5 · ${ratingCount} đánh giá` : 'Chưa có đánh giá'}
+            <RatingStars value={ratingAvg} size="sm" />
+            <span className="text-sm font-semibold text-slate-700">
+              {ratingCount > 0 ? `${ratingAvg.toFixed(1)}/5` : 'Chưa có đánh giá'}
             </span>
           </div>
         </div>
@@ -241,8 +241,9 @@ export function TourReviewsSection({ tourId, tourTitle, ratingAvg, ratingCount }
 
           {showLoading && <LoadingState label="Đang tải đánh giá..." />}
 
-          {showShimmer && page === 1 && (
+          {showShimmer && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8 animate-pulse" aria-label="Đang tải đánh giá">
+              <span className="sr-only">Đang tải đánh giá...</span>
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div key={i} className="flex flex-col py-2 space-y-3">
                   <div className="flex items-center gap-3">
@@ -266,14 +267,14 @@ export function TourReviewsSection({ tourId, tourTitle, ratingAvg, ratingCount }
             </div>
           )}
 
-          {!showShimmer && !showError && items.length === 0 && (
+          {!showShimmer && !showLoading && !showError && items.length === 0 && (
             <EmptyState
               title="Chưa có đánh giá nào"
               description="Hãy là người đầu tiên chia sẻ cảm nhận về tour này."
             />
           )}
 
-          {(!showShimmer || page > 1) && items.length > 0 && (
+          {!showShimmer && !showLoading && items.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
               {items.map((review) => (
                 <ReviewCard key={review.id} review={review} />

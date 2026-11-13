@@ -35,6 +35,7 @@ export function GlobalSiteShell({ children }: { children: ReactNode }) {
     pathname === '/' ||
     pathname.startsWith('/agency') ||
     pathname.startsWith('/moderator') ||
+    pathname.startsWith('/super-admin') ||
     pathname.startsWith('/application-status') ||
     authRoutes.has(pathname) ||
     pathname.startsWith('/register/')
