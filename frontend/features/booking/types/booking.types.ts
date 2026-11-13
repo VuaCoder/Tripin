@@ -87,6 +87,13 @@ export interface PromotionPreview {
 export type AppliedPromotionPreview = PromotionPreview;
 export type AvailablePromotionsDto = AvailablePromotions;
 
+export interface BookingPassenger {
+  fullName: string;
+  phone: string;
+  idCard: string;
+  guestType: import('@travel-platform/constants').PassengerType;
+}
+
 export interface BookingDto {
   guestPricing?: import('@travel-platform/constants').GuestPriceBreakdown;
   id: string;
@@ -103,6 +110,8 @@ export interface BookingDto {
   promotion?: { code: string; scope: PromotionScope; discountAmount: number };
   totalAmount: number;
   contact: BookingContact;
+  /** Detail only: the named members of a group booking. */
+  passengers?: BookingPassenger[];
   notes?: string;
   isPaid: boolean;
   refundRequired: boolean;
@@ -111,6 +120,8 @@ export interface BookingDto {
   completedAt?: string;
   cancelledAt?: string;
   cancelReason?: BookingCancelReason;
+  /** Set when the booking came from an accepted group offer; the detail page can offer to book again from it. */
+  customTourRequestId?: string;
   createdAt: string;
   review?: {
     id: string;

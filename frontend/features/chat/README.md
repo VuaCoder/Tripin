@@ -1,10 +1,12 @@
-# Traveler / Guide conversations
+# Traveler / Guide / Agency conversations
 
-Shared routes: `/conversations` and `/conversations/:id`. Travelers start a conversation from a tour with a guide. Both roles use the same inbox and thread UI, guarded by role and `chat:use`; the backend remains responsible for membership checks.
+Shared routes: `/conversations` and `/conversations/:id`. Travelers start a conversation from a tour with a guide; agencies use the same inbox and thread for group-booking requests (D-85, group booking via chat). All three roles use the same UI, guarded by role and `chat:use`; the backend remains responsible for membership checks.
 
-`chatApi` uses the existing authenticated RTK Query base. `ChatProvider` owns one Socket.IO connection for the signed-in Traveler/Guide. Socket sends use a 10-second ack timeout; sends begun while disconnected use REST. An uncertain send is never retried automatically or switched to REST: the draft remains while history synchronizes.
+`chatApi` uses the existing authenticated RTK Query base. `ChatProvider` owns one Socket.IO connection for the signed-in Traveler/Guide/Agency. Socket sends use a 10-second ack timeout; sends begun while disconnected use REST. An uncertain send is never retried automatically or switched to REST: the draft remains while history synchronizes.
 
 Reconnection and visibility restoration synchronize REST history across pages until a REST-confirmed message is reached. Incoming events and REST/ack results merge by message ID. Old requests, subscriptions and drafts are disposed on route/account changes.
+
+Group-booking requests are pinned under the thread header (`CustomTourChatSection`, S8): the card shows status, composition and day, and opens a centred dialog over a dimmed page (native `dialog`: modal top layer, focus trapped, Esc closes it, focus returns to the card): up to 896px wide, at most 90dvh tall, 16px gutters on phones. The request state is kept, so reopening shows the saved terms. Agency edits use `PATCH /custom-tours/:id/draft` and the offer is sent with the revision; the traveler panel shows the frozen offer content (title, destination, duration, summary, description, inclusions/exclusions, policy texts) next to the per-group prices, then one confirmation that posts the same revision. `chat:updated` invalidates both `Conversation` and `CustomTour`, and REST stays the source of truth.
 
 Message status: **Đã gửi** means persistence confirmed; **Đã nhận** means a recipient socket acknowledged `chat:message`; **Đã xem** comes from persisted `readAt`. Delivery receipts use `chat:delivered {conversationId,messageId}`, are session-local, and do not survive reload. Seen is refreshed with history, not pushed live. No presence is inferred from socket connection status.
 
@@ -12,7 +14,7 @@ Deployment: apply migration `20261024000000_ai_message_read_state` with `pnpm --
 
 AI: the pinned inbox entry uses `/ai/overview`, independent of the paginated history panel inside the thread. New chat clears local state only; a new record is created after a successful exchange. Assistant unread state is persisted through a displayed message ID, only while the selected thread is visible and at the bottom. `ai:updated` and `chat:updated` invalidate server summaries across devices; they never increment client counters. Offline visible tabs refresh every 30 seconds. Time labels use the device timezone, refresh each minute/on visibility change, and group transcripts by calendar date.
 
-Verification: `pnpm --filter frontend test features/chat`; `pnpm --filter backend exec vitest run src/modules/chat/__tests__`. Manual acceptance should use separate authenticated Traveler/Guide browser sessions, including REST fallback, reconnection, mobile layout, and an unrelated third account.
+Verification: `pnpm --filter frontend test features/chat`; `pnpm --filter backend exec vitest run src/modules/chat/__tests__`. Manual acceptance should use separate authenticated Traveler/Guide/Agency browser sessions, including REST fallback, reconnection, mobile layout, and an unrelated third account.
 
 ## Reproducible browser acceptance
 
@@ -22,5 +24,7 @@ Verification: `pnpm --filter frontend test features/chat`; `pnpm --filter backen
 4. Stop both test servers after verification. The backend's normal shutdown stops its disposable PostgreSQL server and removes the runtime/data directory.
 
 The regression test covers reconnecting an initially empty conversation after only live messages: an empty REST checkpoint must not stop recovery at the first page.
+
+For the group-booking flows, run `node src/test/custom-tours.browser-smoke.cjs` (request → lists → agency decision) and `node src/test/custom-tours.chat-panel.cjs` (pinned card → panel → offer → acceptance); screenshots go to `plan/docs/screenshots/s7` and `s8`.
 
 For AI acceptance, also set `CHAT_SMOKE_AI=1` on the disposable backend and run `node src/test/ai-chat.browser-smoke.cjs`. The local-only model and 22 seeded conversations cover history pagination, previews, unread updates, continuing an old conversation, fresh-chat preservation, reload, and desktop/mobile screenshots in `test-results/ai-chat-browser`.

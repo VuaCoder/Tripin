@@ -23,7 +23,7 @@ import { TourDestinationCombobox } from './TourDestinationCombobox';
 import { TourCategoryCombobox } from './TourCategoryCombobox';
 import { TourItemCombobox } from './TourItemCombobox';
 import { editorFields, fieldStep, validateTourEditor, tourEditorServerErrors, type EditorField, type EditorErrors } from './tourEditorValidation';
-import { formatCurrencyVndInput, parseCurrencyVndInput } from '../utils';
+import { formatCurrencyVndInput, parseCurrencyVndInput, toTourContentInput } from '../utils';
 import editorStyles from './AgencyTourEditor.module.css';
 
 const emptyForm: TourContentInput = { 
@@ -133,24 +133,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
 
   useEffect(() => {
     if (tour && !initialSnapshot) {
-      const initial: TourContentInput = {
-        title: tour.title ?? '',
-        summary: tour.summary ?? '',
-        description: tour.description ?? '',
-        destination: tour.destination ?? '',
-        durationDays: tour.durationDays ?? 1,
-        basePrice: tour.basePrice ?? 0,
-        maxGroupSize: tour.maxGroupSize,
-        categoryIds: tour.categoryIds ? [...tour.categoryIds].sort() : [],
-        images: tour.images && tour.images.length > 0 ? [...tour.images] : (tour.coverImage ? [tour.coverImage] : []),
-        inclusions: tour.inclusions ? [...tour.inclusions] : [],
-        exclusions: tour.exclusions ? [...tour.exclusions] : [],
-        agePricing: tour.agePricing ?? null,
-        childPricingPolicy: tour.childPricingPolicy ?? '',
-        cancellationPolicy: tour.cancellationPolicy ?? '',
-        travelNotes: tour.travelNotes ?? '',
-        requiredDocuments: tour.requiredDocuments ?? '',
-      };
+      const initial = toTourContentInput(tour);
       setValue(initial);
       setInitialSnapshot(serializeForm(initial));
     }
@@ -1161,7 +1144,8 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
 
               <TourPolicyFields value={value} onChange={setValue} includeAgePricing={false} />
 
-              {/* Guide Assignment Status */}
+              {/* Guide assignment is only managed after the tour exists; creation never assigns one. */}
+              {mode === 'edit' && (
               <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/70">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
                   Hướng dẫn viên phụ trách
@@ -1193,6 +1177,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   </div>
                 )}
               </div>
+              )}
 
               {/* Checklist Summary */}
               <div className="rounded-2xl border border-teal-100 bg-teal-50/60 p-4 space-y-2">
