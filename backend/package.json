@@ -5,6 +5,7 @@
   "description": "Travel platform backend (Express + Prisma/PostgreSQL, layered MVC organised by domain module)",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "dev:local": "tsx src/scripts/dev-local-server.ts",
     "predev": "prisma generate",
     "pretypecheck": "prisma generate",
     "pretest": "prisma generate",
