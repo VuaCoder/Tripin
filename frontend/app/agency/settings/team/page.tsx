@@ -4,8 +4,11 @@ import React from 'react';
 import Link from 'next/link';
 import { AgencyTeamPage } from '@/features/agency/components/AgencyTeamPage';
 import { Building2, Percent, Users } from 'lucide-react';
+import { useAppSelector } from '@/store/hooks';
+import { selectActiveAgency } from '@/features/auth/store/authSlice';
 
 export default function AgencyTeamSettingsPage() {
+  const agency = useAppSelector(selectActiveAgency);
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
       {/* Three Independent Settings Tabs */}
@@ -19,13 +22,13 @@ export default function AgencyTeamSettingsPage() {
             <span>Hồ sơ Doanh nghiệp</span>
           </Link>
 
-          <Link
+          {agency?.memberRole !== 'STAFF' && <Link
             href="/agency/settings/commission"
             className="inline-flex items-center gap-2.5 rounded-xl px-5 py-2.5 text-xs sm:text-sm font-bold transition-all text-slate-600 hover:text-slate-900 cursor-pointer"
           >
             <Percent size={18} className="text-slate-400" />
             <span>Chiết khấu Hoa hồng</span>
-          </Link>
+          </Link>}
 
           <Link
             href="/agency/settings/team"

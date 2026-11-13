@@ -6,6 +6,7 @@ import { AgencyProfileSettings } from '@/features/agency/components/AgencyProfil
 import { Building2, Percent, Users, ShieldCheck } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectActiveAgency } from '@/features/auth/store/authSlice';
+import { AgencyPageTitle } from '@/features/agency/components/AgencyPageTitle';
 
 export default function AgencyProfileSettingsPage() {
   const agency = useAppSelector(selectActiveAgency);
@@ -16,9 +17,7 @@ export default function AgencyProfileSettingsPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Hồ sơ Doanh nghiệp
-          </h1>
+          <AgencyPageTitle icon={Building2}>Hồ sơ Doanh nghiệp</AgencyPageTitle>
         </div>
 
         <div className="flex items-center gap-2">
@@ -44,13 +43,13 @@ export default function AgencyProfileSettingsPage() {
             <span>Hồ sơ Doanh nghiệp</span>
           </Link>
 
-          <Link
+          {agency?.memberRole !== 'STAFF' && <Link
             href="/agency/settings/commission"
             className="inline-flex items-center gap-2.5 rounded-xl px-5 py-2.5 text-xs sm:text-sm font-bold transition-all text-slate-600 hover:text-slate-900 cursor-pointer"
           >
             <Percent size={18} className="text-slate-400" />
             <span>Chiết khấu Hoa hồng</span>
-          </Link>
+          </Link>}
 
           <Link
             href="/agency/settings/team"

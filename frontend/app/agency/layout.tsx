@@ -7,7 +7,7 @@ import { selectUser } from '@/features/auth';
 import { selectActiveAgency } from '@/features/auth/store/authSlice';
 import { useAgencyMembershipsQuery } from '@/features/agency/agencyContext';
 import { AgencySelector } from '@/features/agency/components/AgencySelector';
-import { agencyRoutePermission } from '@/features/agency/agencyRoutePermission';
+import { agencyLandingRoute, agencyRoutePermission } from '@/features/agency/agencyRoutePermission';
 import { useAppSelector } from '@/store/hooks';
 import { AgencyNav } from '@/features/agency/components/AgencyNav';
 import sidebarStyles from '@/features/agency/components/AgencySidebar.module.css';
@@ -21,6 +21,7 @@ export default function AgencyLayout({ children }: { children: ReactNode }) {
   const membershipsReady = useAppSelector(state => state.auth.membershipsReady);
   const activeAgency = useAppSelector(selectActiveAgency);
   const agencies = useAppSelector(state => state.auth.agencies);
+  const landingRoute = activeAgency ? agencyLandingRoute(activeAgency.permissions) : null;
 
   const isAuthRoute =
     ['/agency/login', '/agency/register', '/agency/verify-otp'].includes(pathname) ||
@@ -33,6 +34,11 @@ export default function AgencyLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isAuthRoute && status === 'unauthenticated') router.replace('/agency/login');
   }, [isAuthRoute, status, router]);
+  useEffect(() => {
+    if (pathname === '/agency' && membershipsReady && activeAgency?.verificationStatus === 'VERIFIED' && landingRoute && landingRoute !== '/agency') {
+      router.replace(landingRoute);
+    }
+  }, [pathname, membershipsReady, activeAgency, landingRoute, router]);
 
   if (isAuthRoute) return <>{children}</>;
   if (status !== 'authenticated') return <p role="status" className="p-6">Đang kiểm tra phiên đăng nhập…</p>;
@@ -42,8 +48,10 @@ export default function AgencyLayout({ children }: { children: ReactNode }) {
   if (!agencies.length) return <main className="space-y-4 p-6"><h1 className="text-2xl font-bold">Chưa có quyền truy cập doanh nghiệp</h1><p role="alert">Bạn không có membership đang hoạt động. Tài khoản cá nhân vẫn sử dụng bình thường.</p><Link href="/">Về trang cá nhân</Link><button type="button" className="block underline" onClick={() => void memberships.refetch()}>Kiểm tra lại quyền truy cập</button></main>;
   if (!activeAgency) return <main className="mx-auto max-w-2xl space-y-6 p-6"><h1 className="text-2xl font-bold">Chọn doanh nghiệp</h1><p>Chọn doanh nghiệp bạn muốn làm việc. Dữ liệu và quyền sẽ được tách riêng.</p><AgencySelector /></main>;
   if (activeAgency.verificationStatus !== 'VERIFIED') return <main className="space-y-4 p-6"><AgencySelector /><h1 className="text-2xl font-bold">Doanh nghiệp chưa được xác minh</h1><p role="status">Trạng thái: {activeAgency.verificationStatus}. Các chức năng vận hành chưa được mở.</p>{user?.role === 'AGENCY' && activeAgency.agencyId === user.id && <Link href={`/application-status?email=${encodeURIComponent(user.email)}`}>Xem trạng thái hồ sơ</Link>}</main>;
+  if (pathname === '/agency' && landingRoute && landingRoute !== '/agency') return <p role="status" className="p-6">Đang mở trang làm việc…</p>;
   const permission = agencyRoutePermission(pathname);
-  const allowed = !permission || activeAgency.permissions.includes(permission);
+  const allowed = (!permission || activeAgency.permissions.includes(permission)) &&
+    !(pathname.startsWith('/agency/settings/commission') && activeAgency.memberRole === 'STAFF');
 
   return (
       <div className={`${sidebarStyles.shell} bg-[#f7f8f5]`}>
