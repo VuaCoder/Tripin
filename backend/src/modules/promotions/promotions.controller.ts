@@ -1,5 +1,6 @@
 import type { Request, RequestHandler } from 'express';
 import { userActor } from '../../middlewares/authorize';
+import { agencyContext } from '../../middlewares/agency-context';
 import { validated } from '../../middlewares/validate';
 import { sendCreated, sendOk, sendPaginated } from '../../utils/api-response';
 import type { IdParams } from '../../utils/id';
@@ -14,7 +15,7 @@ import type {
 
 const actorOf = (req: Request) => {
   const actor = userActor(req);
-  return { userId: actor.userId, role: actor.role };
+  return { userId: actor.userId, role: actor.role, agencyId: req.agencyContext?.agencyId };
 };
 
 /** HTTP only. Agency and platform routers share the handlers; scope rules live in the service. */
@@ -28,12 +29,12 @@ export class PromotionsController {
   };
   listAgency: RequestHandler = async (req, res) => {
     const { query } = validated<unknown, ListPromotionsQueryInput>(req);
-    const page = await this.service.listForAgency(userActor(req).userId, query);
+    const page = await this.service.listForAgency(agencyContext(req).agencyId, query);
     sendPaginated(res, page.items, page.meta);
   };
   getAgency: RequestHandler = async (req, res) => {
     const { params } = validated<unknown, unknown, IdParams>(req);
-    sendOk(res, await this.service.getForAgency(userActor(req).userId, params.id));
+    sendOk(res, await this.service.getForAgency(agencyContext(req).agencyId, params.id));
   };
   updateAgency: RequestHandler = async (req, res) => {
     const { params, body } = validated<UpdatePromotionBody, unknown, IdParams>(req);

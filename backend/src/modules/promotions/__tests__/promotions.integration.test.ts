@@ -32,6 +32,23 @@ async function setup(capacity = 10) {
 }
 
 describe('promotions (integration)', () => {
+  it('allows a manager member to manage agency vouchers and denies STAFF', async () => {
+    const { agency } = await setup();
+    const manager = await createUser('TRAVELER', 'manager@example.com');
+    const staff = await createUser('TRAVELER', 'staff@example.com');
+    await prisma.agencyMember.createMany({ data: [
+      { agencyId: agency.id, userId: manager.id, role: 'MANAGER' },
+      { agencyId: agency.id, userId: staff.id, role: 'STAFF' },
+    ] });
+    const url = '/api/v1/agency/promotions';
+    const managerRequest = request(app).post(url).set(bearer(manager.token)).set('X-Agency-Id', agency.id).send(promoBody({ code: 'MANAGER10' }));
+    expect((await managerRequest).status).toBe(201);
+    const saved = await prisma.promotion.findUniqueOrThrow({ where: { code: 'MANAGER10' } });
+    expect(saved.ownerId).toBe(agency.id);
+    expect(saved.createdById).toBe(manager.id);
+    expect((await request(app).get(url).set(bearer(staff.token)).set('X-Agency-Id', agency.id)).status).toBe(403);
+  });
+
   it('an agency creates, lists and edits only its own promotions; duplicate codes conflict', async () => {
     const { agency } = await setup();
     const other = await createUser('AGENCY', 'other@example.com');

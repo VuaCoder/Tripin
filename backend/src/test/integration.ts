@@ -106,9 +106,14 @@ export async function createUser(
       status: USER_STATUS.ACTIVE,
       emailVerifiedAt: new Date(),
       ...(rest as object),
-      ...(agencyProfile ? { agencyProfile: { create: agencyProfile } } : {}),
     },
   });
+  if (role === 'AGENCY') {
+    await prisma.agencyProfile.create({ data: {
+      ...(agencyProfile ?? {}), id: agencyProfile?.id ?? user.id, userId: user.id,
+      verificationStatus: agencyProfile?.verificationStatus ?? 'VERIFIED',
+    } });
+  }
   return { id: user.id, token: signAccessToken(user.id, user.role as never, user.tokenVersion) };
 }
 

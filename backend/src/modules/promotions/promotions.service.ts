@@ -22,7 +22,8 @@ import type {
   UserVoucherDto,
 } from './promotions.types';
 
-type Actor = { userId: string; role: PersistedRole };
+type Actor = { userId: string; role: PersistedRole; agencyId?: string };
+const ownerIdOf = (actor: Actor) => actor.agencyId ?? actor.userId;
 type Repo = Pick<
   PromotionsRepository,
   | 'create'
@@ -97,7 +98,7 @@ export class PromotionsService {
   async generateCodeBatch(actor: Actor, promotionId: string, count: number, prefix = 'TRIP'): Promise<string[]> {
     const promotion = await this.promotions.findById(promotionId);
     if (!promotion) throw AppError.notFound('Promotion not found');
-    if (promotion.scope === PROMOTION_SCOPE.AGENCY && promotion.ownerId !== actor.userId) {
+    if (promotion.scope === PROMOTION_SCOPE.AGENCY && promotion.ownerId !== ownerIdOf(actor)) {
       throw AppError.forbidden('Cannot manage promotions of another agency');
     }
     const cleanPrefix = prefix.replace(/[^A-Z0-9]/gi, '').toUpperCase() || 'TRIP';
@@ -114,7 +115,7 @@ export class PromotionsService {
   async listCodeInstances(actor: Actor, promotionId: string, page: PageRequest): Promise<Page<PromotionCodeInstanceDto>> {
     const promotion = await this.promotions.findById(promotionId);
     if (!promotion) throw AppError.notFound('Promotion not found');
-    if (promotion.scope === PROMOTION_SCOPE.AGENCY && promotion.ownerId !== actor.userId && actor.role !== 'SUPER_ADMIN') {
+    if (promotion.scope === PROMOTION_SCOPE.AGENCY && promotion.ownerId !== ownerIdOf(actor) && actor.role !== 'SUPER_ADMIN') {
       throw AppError.forbidden('Cannot view promotions of another agency');
     }
     const { items, total } = await this.promotions.listCodeInstances(promotionId, page);
@@ -567,7 +568,7 @@ export class PromotionsService {
       applyType: input.applyType ?? PROMOTION_APPLY_TYPE.CODE,
       codeType: input.codeType ?? PROMOTION_CODE_TYPE.SHARED,
       scope,
-      ownerId: scope === PROMOTION_SCOPE.AGENCY ? actor.userId : undefined,
+      ownerId: scope === PROMOTION_SCOPE.AGENCY ? ownerIdOf(actor) : undefined,
       createdById: actor.userId,
     });
     await this.auditPlatform(scope, actor, created.id, { change: 'created', code: created.code });
@@ -576,7 +577,7 @@ export class PromotionsService {
   }
 
   private async update(scope: PromotionScope, actor: Actor, id: string, input: UpdatePromotionInput): Promise<PromotionDto> {
-    const current = await this.requireScoped(id, scope, scope === PROMOTION_SCOPE.AGENCY ? actor.userId : undefined);
+    const current = await this.requireScoped(id, scope, scope === PROMOTION_SCOPE.AGENCY ? ownerIdOf(actor) : undefined);
 
     if (current.usedCount > 0 && input.discountValue !== undefined && input.discountValue !== current.discountValue) {
       throw AppError.conflict('The discount of a promotion that has been used cannot change; create a new one', 'PROMOTION_IN_USE');

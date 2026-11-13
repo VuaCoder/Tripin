@@ -64,6 +64,12 @@ const input = {
   endsAt: ahead(10),
 };
 
+it('uses active agency as promotion owner while preserving the member as creator', async () => {
+  const { service, repo } = make();
+  await service.createForAgency({ userId: 'member-1', agencyId: 'a1', role: ROLES.AGENCY }, input);
+  expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ ownerId: 'a1', createdById: 'member-1' }));
+});
+
 describe('computeDiscount', () => {
   it('floors PERCENT discounts to whole VND and applies the cap', () => {
     expect(computeDiscount({ discountType: 'PERCENT', discountValue: 10, maxDiscountAmount: null }, 1_234_567)).toBe(123_456);
