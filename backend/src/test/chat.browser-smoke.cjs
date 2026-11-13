@@ -1,5 +1,6 @@
-/* Run against chat-browser-server.ts and a frontend on :3002. PLAYWRIGHT_MODULE
- * may point to the bundled Playwright installation when it is not in the repo. */
+/* Run against chat-browser-server.ts and a frontend on :3002 with
+ * CHAT_SMOKE_PASSWORD set. PLAYWRIGHT_MODULE may point to the bundled
+ * Playwright installation when it is not in the repo. */
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -8,6 +9,8 @@ const base = 'http://localhost:3002';
 const api = 'http://localhost:3003/api/v1';
 const output = path.resolve(process.cwd(), '../test-results/chat-browser');
 fs.mkdirSync(output, { recursive: true });
+const PASSWORD = process.env.CHAT_SMOKE_PASSWORD;
+if (!PASSWORD) throw new Error('CHAT_SMOKE_PASSWORD is required');
 
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
@@ -35,7 +38,7 @@ fs.mkdirSync(output, { recursive: true });
         return form && Object.keys(form).some(key => key.startsWith('__reactProps$') && typeof form[key]?.onSubmit === 'function');
       });
       await page.locator('#user-credential').fill(email);
-      await page.locator('#user-password').fill(process.env.CHAT_SMOKE_PASSWORD);
+      await page.locator('#user-password').fill(PASSWORD);
       const response = page.waitForResponse(response => response.url() === `${api}/auth/login` && response.request().method() === 'POST');
       await page.locator('form[data-purpose="login-form"] button[type="submit"]').click();
       const login = await (await response).json(); assert.equal(login.success, true, JSON.stringify(login));

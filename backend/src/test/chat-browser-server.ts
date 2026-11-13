@@ -1,5 +1,6 @@
 /** Disposable real backend + PostgreSQL for manual/Playwright chat acceptance.
- * Run with CLIENT_URL=http://localhost:3002; never uses the application's DB. */
+ * Run with CHAT_SMOKE_PASSWORD=<local test password> CLIENT_URL=http://localhost:3002;
+ * the smoke scripts read the same variable. Never uses the application's DB. */
 import http from 'node:http';
 import bcrypt from 'bcryptjs';
 import setup from './global-setup';
@@ -15,7 +16,9 @@ async function main() {
   let adminUrl = '';
   const cleanup = await setup({ provide: (_key: string, value: string) => { adminUrl = value; } } as Parameters<typeof setup>[0]);
   await connectDatabase(adminUrl.replace(/\/postgres$/, `/${TEMPLATE_DB}`));
-  const passwordHash = await bcrypt.hash(process.env.CHAT_SMOKE_PASSWORD, 10);
+  const password = process.env.CHAT_SMOKE_PASSWORD;
+  if (!password) throw new Error('CHAT_SMOKE_PASSWORD is required');
+  const passwordHash = await bcrypt.hash(password, 10);
   const users = await Promise.all((['TRAVELER', 'TOUR_GUIDE', 'TRAVELER', 'AGENCY'] as const).map((role, index) => prisma.user.create({ data: {
     email: ['traveler@chat.test', 'guide@chat.test', 'outsider@chat.test', 'agency@chat.test'][index]!,
     fullName: ['Traveler Kiểm Thử', 'Hướng Dẫn Viên Kiểm Thử', 'Traveler Ngoài Hội Thoại', 'Đại Lý Kiểm Thử'][index]!,

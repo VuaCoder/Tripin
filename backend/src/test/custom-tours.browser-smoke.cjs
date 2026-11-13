@@ -1,8 +1,8 @@
 /** S7 acceptance in a real browser: the request travels tour detail -> chat -> both lists -> agency decision.
- * Three processes, in this order:
- *   backend: CLIENT_URL=http://localhost:3002 node_modules/.bin/tsx src/test/chat-browser-server.ts
+ * Three processes, in this order (CHAT_SMOKE_PASSWORD is required by all three):
+ *   backend: CHAT_SMOKE_PASSWORD=<local test password> CLIENT_URL=http://localhost:3002 node_modules/.bin/tsx src/test/chat-browser-server.ts
  *   frontend: NEXT_PUBLIC_API_URL=http://localhost:3003/api/v1 node_modules/.bin/next dev -p 3002
- *   backend: PLAYWRIGHT_MODULE=<path to playwright> node src/test/custom-tours.browser-smoke.cjs
+ *   backend: CHAT_SMOKE_PASSWORD=<same> PLAYWRIGHT_MODULE=<path to playwright> node src/test/custom-tours.browser-smoke.cjs
  * Screenshots and result.json land in plan/docs/screenshots/s7/. */
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
@@ -15,6 +15,7 @@ const output = path.resolve(__dirname, '../../../plan/docs/screenshots/s7');
 fs.mkdirSync(output, { recursive: true });
 
 const PASSWORD = process.env.CHAT_SMOKE_PASSWORD;
+if (!PASSWORD) throw new Error('CHAT_SMOKE_PASSWORD is required');
 // Unique per run: the disposable database keeps earlier requests between runs.
 const NOTE = `Đoàn công ty 6 người, muốn khởi hành cuối tuần và cần xe đưa đón. Mã ${Date.now()}`;
 

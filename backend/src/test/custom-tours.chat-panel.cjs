@@ -6,10 +6,10 @@
  * opens its detail page, where PayOS is offered and the named members are listed. S11: leaving the flow and coming
  * back — the request list and the pinned card both resume the same booking instead of the passenger form. S12: the
  * same screens at 320/768/1024/1440px with the keyboard, and the dialog's focus trap.
- * Three processes, in this order:
- *   backend: CLIENT_URL=http://localhost:3002 node_modules/.bin/tsx src/test/chat-browser-server.ts
+ * Three processes, in this order (CHAT_SMOKE_PASSWORD is required by all three):
+ *   backend: CHAT_SMOKE_PASSWORD=<local test password> CLIENT_URL=http://localhost:3002 node_modules/.bin/tsx src/test/chat-browser-server.ts
  *   frontend: NEXT_PUBLIC_API_URL=http://localhost:3003/api/v1 node_modules/.bin/next dev -p 3002
- *   backend: PLAYWRIGHT_MODULE=<path to playwright> node src/test/custom-tours.chat-panel.cjs
+ *   backend: CHAT_SMOKE_PASSWORD=<same> PLAYWRIGHT_MODULE=<path to playwright> node src/test/custom-tours.chat-panel.cjs
  * Screenshots and result.json land in plan/docs/screenshots/{s8,s9,s10,s12}/ (all four folders are rebuilt on every run).
  */
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
@@ -29,6 +29,7 @@ for (const folder of [output, checkoutOutput, bookingOutput, reviewOutput]) {
 }
 
 const PASSWORD = process.env.CHAT_SMOKE_PASSWORD;
+if (!PASSWORD) throw new Error('CHAT_SMOKE_PASSWORD is required');
 const contextOptions = { viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce', locale: 'vi-VN', timezoneId: 'Asia/Ho_Chi_Minh' };
 
 (async () => {
