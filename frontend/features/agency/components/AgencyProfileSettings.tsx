@@ -4,6 +4,7 @@ import { agencyNotice } from '../agencyNotice';
 import React, { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectUser, setUser } from '@/features/auth';
+import { selectActiveAgency } from '@/features/auth/store/authSlice';
 import { useUpdateMeMutation, useRemoveAvatarMutation } from '@/features/traveler-account/api/profileApi';
 import { 
   Building2, 
@@ -24,6 +25,8 @@ import {
 export function AgencyProfileSettings() {
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectUser);
+  const agency = useAppSelector(selectActiveAgency);
+  const canEditLegacyProfile = agency?.memberRole === 'OWNER' && agency.agencyId === user?.id;
 
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -56,6 +59,7 @@ export function AgencyProfileSettings() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEditLegacyProfile) return;
     setErrorMessage(null);
     setSaveSuccessMsg(null);
 
@@ -118,6 +122,10 @@ export function AgencyProfileSettings() {
 
   const isVerified = user?.agencyProfile?.verificationStatus === 'VERIFIED';
 
+  // /users/me is still legacy-owner-only. Never edit/display a different agency's
+  // company profile through the current user's personal profile endpoint.
+  if (!canEditLegacyProfile) return <section className="space-y-3 py-4"><h2 className="text-xl font-bold">{agency?.companyName}</h2><p>Vai trò của bạn: {agency?.memberRole}</p><p>Thông tin chi tiết và chỉnh sửa hồ sơ doanh nghiệp này đang chờ tích hợp API theo AgencyContext.</p></section>;
+
   return (
     <div className="space-y-6">
       {/* Toast Feedback */}
@@ -132,9 +140,19 @@ export function AgencyProfileSettings() {
             <div className="relative group size-20 sm:size-24 shrink-0 rounded-2xl overflow-hidden bg-gradient-to-br from-teal-500 to-teal-700 text-white font-black text-2xl sm:text-3xl flex items-center justify-center shadow-md shadow-teal-500/20">
               {user?.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={user.avatarUrl} alt="" className="size-full object-cover" />
+                <img
+                  src={user.avatarUrl}
+                  alt={user?.agencyProfile?.companyName || user?.fullName || 'Avatar'}
+                  className="size-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = 'none';
+                    if (e.currentTarget.parentElement) {
+                      e.currentTarget.parentElement.innerHTML = `<span>${(user?.agencyProfile?.companyName || user?.fullName || 'A').charAt(0).toUpperCase()}</span>`;
+                    }
+                  }}
+                />
               ) : (
-                <span>{user?.fullName?.charAt(0).toUpperCase() || 'A'}</span>
+                <span>{user?.agencyProfile?.companyName?.charAt(0).toUpperCase() || user?.fullName?.charAt(0).toUpperCase() || 'A'}</span>
               )}
             </div>
 

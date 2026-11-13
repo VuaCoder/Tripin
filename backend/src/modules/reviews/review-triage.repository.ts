@@ -3,7 +3,7 @@ import { AppError } from '../../utils/app-error';
 import { toSkip, type PageRequest } from '../../utils/pagination';
 import { writeAudit } from '../audit/audit.writer';
 import { AUDIT_ACTIONS } from '../audit/audit.types';
-import { writeNotification } from '../notifications/notifications.writer';
+import { writeNotification, writeAgencyNotification } from '../notifications/notifications.writer';
 import { formatReviewModeratedTravelerEmail, formatReviewModeratedAgencyEmail } from '../notifications/email-templates';
 import { reviewContentVersion } from './reviews.revision';
 import type { Review } from '../../generated/prisma/client';
@@ -42,7 +42,7 @@ export class ReviewTriageRepository {
       await writeAudit(tx, { actorId: actor.userId, actorRole: actor.role, action: AUDIT_ACTIONS.REVIEW_MODERATED, targetType: 'review', targetId: id, metadata: { keep: input.keep, reason: input.reason, reportIds: input.reportIds, before: { status: review.status }, after: { status } } });
       const [traveler, agency] = await Promise.all([
         tx.user.findUnique({ where: { id: review.travelerId }, select: { fullName: true } }),
-        tx.user.findUnique({ where: { id: review.agencyId }, select: { fullName: true } }),
+        tx.agencyProfile.findUnique({ where: { id: review.agencyId }, select: { companyName: true } }),
       ]);
       await writeNotification(tx, review.travelerId, {
         type: 'REVIEW_MODERATED',
@@ -58,14 +58,14 @@ export class ReviewTriageRepository {
         }),
       });
       if (review.agencyId !== review.travelerId) {
-        await writeNotification(tx, review.agencyId, {
+        await writeAgencyNotification(tx, review.agencyId, {
           type: 'REVIEW_MODERATED',
           title: input.keep ? 'Đánh giá tour được giữ lại' : 'Đánh giá tour đã bị ẩn',
           body: `Đánh giá về "${review.tourTitle}": ${input.reason}`,
           data: { reviewId: id, tourId: review.tourId },
           emailSubject: input.keep ? `[TripRI] Đánh giá cho tour "${review.tourTitle}" được giữ lại` : `[TripRI] Cập nhật trạng thái đánh giá tour "${review.tourTitle}"`,
           emailText: formatReviewModeratedAgencyEmail({
-            agencyName: agency?.fullName,
+            agencyName: agency?.companyName ?? undefined,
             tourTitle: review.tourTitle,
             hidden: !input.keep,
             reason: input.reason,

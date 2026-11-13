@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { PERMISSIONS, ROLES, ROLE_PERMISSIONS, type Permission } from '@travel-platform/constants';
+import { PERMISSIONS, ROLES, ROLE_PERMISSIONS } from '@travel-platform/constants';
+import { AGENCY_ROLE_PERMISSIONS, type AgencyPermission } from '../../modules/agencies/agency.policy';
 import { listRoutes, type RouteInfo } from '../introspect';
 
 /**
@@ -12,6 +13,7 @@ const labels = (items: RouteInfo[]) => items.map(label).sort();
 
 /** Endpoints anybody (GUEST) may call. Mutations here are credential flows or the signed payment webhook. */
 const PUBLIC_ROUTES = [
+  'GET /agency-invitations/invitations/:token',
   'POST /auth/staff/activate',
   'GET /premium/plans',
   'GET /premium/guides/:id',
@@ -53,6 +55,8 @@ const PUBLIC_ROUTES = [
 
 /** Logged-in-only routes WITHOUT a permission: each one is scoped to the caller's own data by the token. */
 const LOGIN_ONLY_ROUTES = [
+  'GET /users/me/agencies',
+  'POST /agency-invitations/accept',
   'POST /policies/accept',
   'GET /auth/security',
   'POST /auth/change-password',
@@ -67,6 +71,7 @@ const LOGIN_ONLY_ROUTES = [
 
 /** Mutating routes that carry no JSON body by design (pure actions on the caller's own resource / signed callbacks). */
 const BODYLESS_MUTATIONS = [
+  'POST /agency/invitations/:id/revoke',
   'POST /premium/guide/images/signature',
   'POST /agency/premium/contributions/:id/stop',
   'PATCH /notifications/:id/read',
@@ -120,8 +125,8 @@ describe('route audit: who can call what', () => {
   });
 
   it('every permission a route demands can be held by at least one role (no unreachable endpoint)', () => {
-    const grantable = (needed: Permission[]) =>
-      Object.values(ROLES).some((role) => needed.every((p) => ROLE_PERMISSIONS[role].includes(p)));
+    const grantable = (needed: AgencyPermission[]) =>
+      [...Object.values(ROLES).map(role => ROLE_PERMISSIONS[role] as readonly AgencyPermission[]), ...Object.values(AGENCY_ROLE_PERMISSIONS)].some(granted => needed.every(p => granted.includes(p)));
     const unreachable = routes.filter((r) => Array.isArray(r.access) && !grantable(r.access));
     expect(labels(unreachable)).toEqual([]);
   });

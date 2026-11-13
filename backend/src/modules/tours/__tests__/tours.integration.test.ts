@@ -64,10 +64,11 @@ describe('tours (integration)', () => {
     const a = await actors();
     const tourId = await draftTour(a.agency.token, a.categoryId);
 
-    // A draft is invisible to the public and to other users, visible to its owner.
+    // A draft is invisible on the public endpoint, even to its owner; the agency reads it at /agency/tours/:id.
     expect((await request(app).get(`/api/v1/tours/${tourId}`)).status).toBe(404);
     expect((await request(app).get(`/api/v1/tours/${tourId}`).set(bearer(a.traveler.token))).status).toBe(404);
-    expect((await request(app).get(`/api/v1/tours/${tourId}`).set(bearer(a.agency.token))).status).toBe(200);
+    expect((await request(app).get(`/api/v1/tours/${tourId}`).set(bearer(a.agency.token))).status).toBe(404);
+    expect((await request(app).get(`/api/v1/agency/tours/${tourId}`).set(bearer(a.agency.token))).status).toBe(200);
 
     // Cannot be submitted without a departure.
     expect((await request(app).post(`/api/v1/agency/tours/${tourId}/submit`).set(bearer(a.agency.token))).status).toBeGreaterThanOrEqual(400);

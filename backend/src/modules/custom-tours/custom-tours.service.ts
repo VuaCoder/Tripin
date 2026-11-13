@@ -53,7 +53,7 @@ export class CustomToursService {
     private readonly tours: Pick<ToursService, 'getBriefs'> = toursService,
     private readonly users: Pick<UsersService, 'assertAgencyVerified'> = usersService,
     private readonly chat: Pick<ChatService, 'startConversation'> = chatService,
-    private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
+    private readonly notifications: Pick<NotificationsService, 'notify' | 'notifyAgency'> = notificationsService,
     private readonly discovery: Pick<ToursDiscoveryService, 'invalidateCache'> = toursDiscoveryService,
     private readonly categories: Pick<CategoriesService, 'assertActiveIds'> = categoriesService,
     private readonly bookings: Pick<BookingsService, 'createBooking' | 'activeForCustomTour' | 'activeForCustomTours'> = bookingsService,
@@ -99,7 +99,7 @@ export class CustomToursService {
     // Chat is best-effort: a failure here must not lose the request.
     const conversationId = await this.ensureConversation(record);
 
-    await this.notifications.notify(source.agencyId, {
+    await this.notifications.notifyAgency(source.agencyId, {
       type: NOTIFICATION_TYPE.CUSTOM_TOUR_REQUESTED,
       title: 'Yêu cầu booking đoàn mới',
       body: `Có yêu cầu cho ${input.participants} khách từ tour "${source.title}".`,
@@ -248,7 +248,7 @@ export class CustomToursService {
     // The private tour just became APPROVED; the cache is cleared although it stays invisible (PRIVATE).
     this.discovery.invalidateCache(updated.privateTourId ?? undefined);
 
-    await this.notifications.notify(updated.agencyId, {
+    await this.notifications.notifyAgency(updated.agencyId, {
       type: NOTIFICATION_TYPE.CUSTOM_TOUR_ACCEPTED,
       title: 'Khách đã chấp nhận báo giá booking đoàn',
       body: `Khách đã chấp nhận báo giá cho ${updated.participants} khách.`,
@@ -386,7 +386,11 @@ export class CustomToursService {
     return { departureDate: future[0]!.date, guests };
   }
 
-  /** Realtime nudge only: clients refetch over REST, which stays the source of truth (D-85). */
+  /**
+   * Realtime nudge only: clients refetch over REST, which stays the source of truth (D-85).
+   * shortcut: the agency counterpart is its owner's User.id (AgencyProfile.id == userId while onboarding links a user);
+   * an independent agency with no linked user needs member routing, upgrade when that onboarding ships.
+   */
   private nudge(record: CustomTourRecord, conversationId = record.conversationId): void {
     if (conversationId) emitChatUpdated([record.travelerId, record.agencyId], conversationId);
   }
@@ -410,11 +414,14 @@ export class CustomToursService {
   private async notifyDecision(record: CustomTourRecord, decision: CustomTourDecision, conversationId?: string): Promise<void> {
     const data = { requestId: record.id, ...(conversationId ? { conversationId } : {}) };
     const copy = {
-      ACCEPT: { to: record.travelerId, title: 'Agency đã nhận yêu cầu booking đoàn', body: `Hãy trao đổi trong chat để chốt lịch trình và giá cho ${record.participants} khách.` },
-      DECLINE: { to: record.travelerId, title: 'Yêu cầu booking đoàn bị từ chối', body: `Agency không nhận được yêu cầu cho ${record.participants} khách.` },
-      CANCEL: { to: record.agencyId, title: 'Khách đã rút yêu cầu booking đoàn', body: `Yêu cầu cho ${record.participants} khách đã được rút.` },
+      ACCEPT: { title: 'Agency đã nhận yêu cầu booking đoàn', body: `Hãy trao đổi trong chat để chốt lịch trình và giá cho ${record.participants} khách.` },
+      DECLINE: { title: 'Yêu cầu booking đoàn bị từ chối', body: `Agency không nhận được yêu cầu cho ${record.participants} khách.` },
+      CANCEL: { title: 'Khách đã rút yêu cầu booking đoàn', body: `Yêu cầu cho ${record.participants} khách đã được rút.` },
     }[decision];
-    await this.notifications.notify(copy.to, { type: NOTIFICATION_TYPE.CUSTOM_TOUR_DECIDED, title: copy.title, body: copy.body, data });
+    const input = { type: NOTIFICATION_TYPE.CUSTOM_TOUR_DECIDED, title: copy.title, body: copy.body, data } as const;
+    // A withdrawal reaches the whole agency; accept/decline reach the traveler.
+    if (decision === 'CANCEL') await this.notifications.notifyAgency(record.agencyId, input);
+    else await this.notifications.notify(record.travelerId, input);
   }
 
   private async describe(record: CustomTourRecord): Promise<CustomTourRequestDto> {

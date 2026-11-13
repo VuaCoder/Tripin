@@ -55,6 +55,8 @@ const COVERED_ELSEWHERE: Record<string, string> = {
   REPORT_SNAPSHOT_CONFLICT: 'review-triage.integration.test.ts rejects decisions for already-resolved reports',
   TICKET_WRONG_DEPARTURE: 'e-tickets.check-in.test.ts verifies departure-scoped scan ownership',
   ACCOUNT_NOT_FOUND: 'auth.service.test.ts verifies missing/banned accounts at password-change time',
+  AGENCY_NOT_VERIFIED: 'tours.service.test.ts rejects submission from an unverified agency; /agency/* mounts now answer 403 first',
+  LEGACY_TRANSFER_QUARANTINED: 'payout-ledger.integration.test.ts provokes the quarantined legacy transfer endpoint',
   PROMOTION_ACTIVE_LOCKED: 'promotions.service.test.ts verifies immutable terms after start',
   TICKET_NOT_FOUND: 'e-tickets.check-in.test.ts verifies unknown QR codes',
   TICKET_ALREADY_USED: 'e-tickets.check-in.test.ts verifies duplicate check-ins',
@@ -165,14 +167,8 @@ describe('error contract over HTTP', () => {
     const dormant = await createUser('SUPER_ADMIN', 'dormant@example.com', { status: 'BANNED' });
     expectError(await request(app).patch(`/api/v1/admin/users/${dormant.id}/access`).set(bearer(admin.token)).send({ role: 'MODERATOR' }), 'LAST_SUPER_ADMIN');
 
-    // Unverified agency submitting a tour.
-    const unverified = await createUser('AGENCY', 'unverified@example.com', { agencyProfile: { companyName: 'X Co', verificationStatus: 'UNVERIFIED' } });
-    const categoryId = await createCategory('Mountain');
-    const tour = await request(app)
-      .post('/api/v1/agency/tours')
-      .set(bearer(unverified.token))
-      .send({ title: 'Sapa trekking', destination: 'Lao Cai', durationDays: 3, basePrice: 2_000_000, categoryIds: [categoryId] });
-    expectError(await request(app).post(`/api/v1/agency/tours/${tour.body.data.id}/submit`).set(bearer(unverified.token)), 'AGENCY_NOT_VERIFIED');
+    // AGENCY_NOT_VERIFIED is now unreachable over HTTP: every /agency/* mount checks the profile first
+    // and answers a plain 403. The service guard stays covered by tours.service.test.ts (see COVERED_ELSEWHERE).
 
     // Agency portal separation: an agency account cannot use the traveler login, and an unfinished agency
     // registration cannot sign in through the agency portal.

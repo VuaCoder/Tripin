@@ -59,7 +59,7 @@ function make(seed: R[] = []) {
     ),
   };
   const bookings = { getFacts: vi.fn(async (id: string) => (id === 'ghost' ? null : { id, travelerId: 'u1' })) };
-  const notifications = { notify: vi.fn(async () => undefined) };
+  const notifications = { notify: vi.fn(async () => undefined), notifyAgency: vi.fn(async () => undefined) };
   const audit = { record: vi.fn(async () => undefined) };
   return { service: new ReportsService(repo as never, tours as never, users as never, reviews as never, bookings as never, notifications, audit), repo, tours, users, reviews, bookings, notifications, audit, db };
 }
@@ -73,7 +73,7 @@ describe('createReport', () => {
     const dto = await service.createReport('u1', { ...base, targetType: 'TOUR', targetId: 't1' });
     expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ reporterId: 'u1', agencyId: 'a1', tourId: 't1' }));
     expect(dto).toMatchObject({ status: 'OPEN', targetType: 'TOUR' });
-    expect(notifications.notify).toHaveBeenCalledWith('a1', expect.objectContaining({ type: 'COMPLAINT_RECEIVED' }));
+    expect(notifications.notifyAgency).toHaveBeenCalledWith('a1', expect.objectContaining({ type: 'COMPLAINT_RECEIVED' }));
   });
 
   it('routes an agency account report to that agency, but a guide report to nobody', async () => {
@@ -156,7 +156,7 @@ describe('moderator resolution', () => {
       expect(db[0]!.resolution).toMatchObject({ decision: 'RESOLVED', by: 'm1' });
       expect(repo.transition).toHaveBeenCalledWith('r1', expect.anything(), expect.any(Object), expect.objectContaining({ action: 'report.resolved' }));
       expect(notifications.notify).toHaveBeenCalledWith('u1', expect.objectContaining({ type: 'REPORT_RESOLVED' }), { email: true });
-      expect(notifications.notify).toHaveBeenCalledWith('a1', expect.objectContaining({ type: 'REPORT_UPDATED' }));
+      expect(notifications.notifyAgency).toHaveBeenCalledWith('a1', expect.objectContaining({ type: 'REPORT_UPDATED' }));
     }
   });
 

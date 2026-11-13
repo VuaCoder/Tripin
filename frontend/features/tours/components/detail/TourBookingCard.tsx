@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { CUSTOM_TOUR_POLICY, calculateGuestPrice, guestTotal, type GuestCounts } from '@travel-platform/constants';
@@ -12,7 +12,13 @@ import { GroupBookingRequestDialog } from '@/features/custom-tours/components/Gr
 import { TourGuestSelector } from './TourGuestSelector';
 import { readSearchGuests } from '../../utils/searchContext';
 import styles from './tour-detail.module.css';
-export function TourBookingCard({ tour }: { tour: TourReviewContext }) {
+export function TourBookingCard({
+  tour,
+  onSelectionChange,
+}: {
+  tour: TourReviewContext;
+  onSelectionChange?: (selection: { departureId?: string; guests: GuestCounts }) => void;
+}) {
   const router = useRouter();
   const params = useSearchParams();
   const authenticated = useAppSelector(selectIsAuthenticated);
@@ -29,6 +35,9 @@ export function TourBookingCard({ tour }: { tour: TourReviewContext }) {
       return (!params.get('departureFrom') || date >= params.get('departureFrom')!)
         && (!params.get('departureTo') || date <= params.get('departureTo')!);
     }) ?? departures[0];
+  useEffect(() => {
+    onSelectionChange?.({ departureId: departure?.id, guests });
+  }, [departure?.id, guests, onSelectionChange]);
   const price = departure?.price ?? tour.basePrice;
   const count = guestTotal(guests);
   const max = Math.min(50, departure?.remaining ?? 0);
@@ -89,7 +98,6 @@ export function TourBookingCard({ tour }: { tour: TourReviewContext }) {
           Yêu cầu booking đoàn
         </button>
       )}
-      <p className={styles.footnote}>Giá và ưu đãi sẽ được kiểm tra lại trước khi xác nhận đặt chỗ. Mỗi hành khách, kể cả em bé, được tính một chỗ.</p>
       {groupDialogOpen && (
         <GroupBookingRequestDialog
           tourId={tour.id}

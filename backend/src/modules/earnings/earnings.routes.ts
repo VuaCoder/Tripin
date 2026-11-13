@@ -1,23 +1,23 @@
 import { Router } from 'express';
 import { PERMISSIONS } from '@travel-platform/constants';
-import { requirePermission, userActor } from '../../middlewares/authorize';
-import { z } from 'zod';
-import { validated } from '../../middlewares/validate';
+import { requirePermission } from '../../middlewares/authorize';
+import { resolveAgencyContext, requireAgencyPermission, requireVerifiedAgency } from '../../middlewares/agency-context';
+import { AGENCY_PERMISSIONS } from '../agencies/agency.policy';
 import { idParamsSchema } from '../../utils/id';
-import { sendOk } from '../../utils/api-response';
+import { z } from 'zod';
 import { AppError } from '../../utils/app-error';
-import { earningsService } from './earnings.service';
 import { validate } from '../../middlewares/validate';
 import { earningsController } from './earnings.controller';
 import { listEarningsQuery, summaryQuery } from './earnings.validation';
 
 /** Mounted at /api/v1/earnings — the logged-in tour guide's earnings. */
 export const earningsRouter = Router();
-earningsRouter.post('/payouts/:id/transfer', requirePermission(PERMISSIONS.TOUR_UPDATE_OWN), validate({ params: idParamsSchema, body: z.object({ transferReference: z.string().trim().min(3).max(120) }).strict() }), async (req, res) => {
-  const actor = userActor(req);
-  if (actor.role !== 'AGENCY') throw AppError.forbidden('Only the paying agency can record a transfer');
-  const { params, body } = validated<{ transferReference: string }, unknown, { id: string }>(req);
-  sendOk(res, await earningsService.recordTransfer(actor.userId, params.id, body.transferReference));
+// H2.7: no global permission or legacy User.id can authorize a tenant transfer.
+// Re-enable only with an approved AgencyContext finance workflow and actor audit.
+earningsRouter.post('/payouts/:id/transfer', resolveAgencyContext, requireVerifiedAgency,
+  requireAgencyPermission(AGENCY_PERMISSIONS.FINANCE_MANAGE),
+  validate({ params: idParamsSchema, body: z.object({ transferReference: z.string().trim().min(3).max(120) }).strict() }), (_req, _res) => {
+  throw new AppError(410, 'LEGACY_TRANSFER_QUARANTINED', 'Legacy transfer endpoint is quarantined');
 });
 earningsRouter.use(requirePermission(PERMISSIONS.EARNINGS_VIEW));
 earningsRouter.get('/me', validate({ query: listEarningsQuery }), earningsController.list);

@@ -38,7 +38,7 @@ export class ReviewsService {
     private readonly bookings: Pick<BookingsService, 'getFacts'> = bookingsService,
     _tours: Pick<ToursService, 'updateRatingStats'> = toursService,
     private readonly users: Pick<UsersService, 'getSummaries'> = usersService,
-    private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
+    private readonly notifications: Pick<NotificationsService, 'notify' | 'notifyAgency'> = notificationsService,
     _audit: Pick<AuditService, 'record'> = auditService,
   ) {}
 
@@ -105,7 +105,7 @@ export class ReviewsService {
       throw error;
     }
 
-    await this.notifications.notify(booking.agencyId, {
+    await this.notifications.notifyAgency(booking.agencyId, {
       type: NOTIFICATION_TYPE.REVIEW_RECEIVED,
       title: 'New review',
       body: `A traveler rated "${booking.tourTitle}" ${input.rating}/5.`,

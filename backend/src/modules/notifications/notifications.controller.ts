@@ -12,26 +12,26 @@ export class NotificationsController {
 
   list: RequestHandler = async (req, res) => {
     const { query } = validated<unknown, ListNotificationsQueryInput>(req);
-    const page = await this.service.list(userActor(req).userId, query);
+    const page = await this.service.list(userActor(req).userId, query, ...(req.agencyContext ? [req.agencyContext.agencyId] : []));
     sendPaginated(res, page.items, page.meta);
   };
 
   unreadCount: RequestHandler = async (req, res) => {
-    sendOk(res, await this.service.unreadCount(userActor(req).userId));
+    sendOk(res, await this.service.unreadCount(userActor(req).userId, ...(req.agencyContext ? [req.agencyContext.agencyId] : [])));
   };
 
   markRead: RequestHandler = async (req, res) => {
     const { params } = validated<unknown, unknown, IdParams>(req);
-    sendOk(res, await this.service.markRead(userActor(req).userId, params.id));
+    sendOk(res, await this.service.markRead(userActor(req).userId, params.id, ...(req.agencyContext ? [req.agencyContext.agencyId] : [])));
   };
 
   markAllRead: RequestHandler = async (req, res) => {
-    sendOk(res, await this.service.markAllRead(userActor(req).userId));
+    sendOk(res, await this.service.markAllRead(userActor(req).userId, ...(req.agencyContext ? [req.agencyContext.agencyId] : [])));
   };
 
   remove: RequestHandler = async (req, res) => {
     const { params } = validated<unknown, unknown, IdParams>(req);
-    sendOk(res, await this.service.remove(userActor(req).userId, params.id));
+    sendOk(res, await this.service.remove(userActor(req).userId, params.id, ...(req.agencyContext ? [req.agencyContext.agencyId] : [])));
   };
 }
 

@@ -47,6 +47,9 @@ model User {
 
   @@index([role, status, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
+  agencyMembers AgencyMember[]
+  agencyInvitesSent AgencyInvitation[] @relation("AgencyInviteSender")
+  agencyInvitesTaken AgencyInvitation[] @relation("AgencyInviteAcceptor")
 }
 
 model GuidePayoutAccount {
@@ -56,11 +59,12 @@ model GuidePayoutAccount {
   last4 String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  guide User @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  guide User @relation(fields: [guideId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model AgencyProfile {
-  userId             String                   @id @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId String? @unique(map: "AgencyProfile_legacy_user_key") @db.Uuid
   companyName        String?
   description        String?
   address            String?
@@ -75,9 +79,22 @@ model AgencyProfile {
   submissionDateEstimated Boolean @default(false)
   verificationNote   String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([verificationStatus, submittedAt, userId])
+  members AgencyMember[]
+  invitations AgencyInvitation[]
+  ownedTour Tour[]
+  ownedBooking Booking[]
+  ownedETicket ETicket[]
+  ownedReview Review[]
+  ownedReport Report[]
+  ownedComplaintTicket ComplaintTicket[]
+  ownedComplaintFeedback ComplaintFeedback[]
+  ownedEarning Earning[]
+  ownedGuidePayoutLedger GuidePayoutLedger[]
+  ownedPremiumContribution PremiumContribution[]
+  notifications Notification[]
 }
 
 model GuideProfile {
@@ -180,6 +197,7 @@ model Tour {
   @@index([status, ratingAvg(sort: Desc), ratingCount(sort: Desc), id(sort: Desc)])
   @@index([status, submittedAt(sort: Desc), id(sort: Desc)])
   @@index([agencyId, status, updatedAt(sort: Desc)])
+  agency AgencyProfile @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 }
 
 model TourDeparture {
@@ -195,6 +213,7 @@ model TourDeparture {
 
   @@index([tourId])
   @@index([date])
+  @@index([tourId, date])
 }
 
 model TourGuideAssignment {
@@ -310,6 +329,7 @@ model Booking {
   @@index([status, paymentExpiresAt])
   @@index([status, endDate])
   @@index([status, fulfillmentStatus, fulfillmentNextAttemptAt])
+  agency AgencyProfile @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 }
 
 /// One named member of a group booking. CCCD is required for every age, infants included.
@@ -398,6 +418,7 @@ model ETicket {
   updatedAt     DateTime      @updatedAt
 
   @@index([travelerId, issuedAt(sort: Desc), id(sort: Desc)])
+  agency AgencyProfile @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 }
 
 model Earning {
@@ -414,6 +435,7 @@ model Earning {
   createdAt   DateTime @default(now())
 
   @@index([guideId, earnedAt(sort: Desc), id(sort: Desc)])
+  agency AgencyProfile @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 }
 
 model GuidePayoutLedger {
@@ -427,8 +449,9 @@ model GuidePayoutLedger {
   transferReference String?
   transferredAt DateTime?
   createdAt DateTime @default(now())
-  earning Earning @relation(fields: [earningId], references: [id], onDelete: Restrict)
+  earning Earning @relation(fields: [earningId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   @@index([guideId, createdAt(sort: Desc)])
+  agency AgencyProfile @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 }
 
 model Review {
@@ -453,6 +476,7 @@ model Review {
   @@index([agencyId, status, createdAt(sort: Desc), id(sort: Desc)])
   @@index([travelerId, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])
+  agency AgencyProfile @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 }
 
 model Report {
@@ -484,6 +508,7 @@ model Report {
   @@index([status, createdAt(sort: Desc)])
   @@index([targetType, targetId])
   @@index([status, targetType, createdAt])
+  agency AgencyProfile? @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 }
 
 model Promotion {
@@ -646,6 +671,7 @@ model PremiumContribution {
   plans PremiumPlanVoucher[]
   reservations PremiumReservation[]
   @@index([agencyId, createdAt])
+  agency AgencyProfile @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 }
 
 model PremiumPlanVoucher {
@@ -799,6 +825,7 @@ model ComplaintTicket {
   @@index([agencyId, status, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])
   @@index([tourId, createdAt(sort: Desc)])
+  agency AgencyProfile @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 }
 
 model ComplaintTicketMessage {
@@ -832,11 +859,14 @@ model ComplaintFeedback {
 
   @@index([agencyId, createdAt(sort: Desc)])
   @@index([travelerId, createdAt(sort: Desc)])
+  agency AgencyProfile @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 }
 
 model Notification {
   id        String           @id @default(uuid()) @db.Uuid
   userId    String           @db.Uuid
+  agencyId  String?          @db.Uuid
+  agency    AgencyProfile?   @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   type      NotificationType
   title     String
   body      String
@@ -848,6 +878,7 @@ model Notification {
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([userId, readAt, createdAt(sort: Desc)])
   @@index([createdAt])
+  @@index([agencyId, userId])
 }
 
 model Conversation {
@@ -1239,4 +1270,56 @@ model MailOutbox {
   leaseUntil DateTime?
   createdAt DateTime @default(now())
   @@index([sentAt, leaseUntil, createdAt])
+}
+
+// Appended to an artifact copy of the current schema. Not the application's schema.
+enum AgencyMemberRole {
+  OWNER
+  MANAGER
+  STAFF
+  ACCOUNTANT
+}
+enum AgencyMemberStatus {
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+enum AgencyInvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+model AgencyMember {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agencyId String @db.Uuid
+  userId String @db.Uuid
+  role AgencyMemberRole
+  status AgencyMemberStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  agency AgencyProfile @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@unique([agencyId, userId])
+  @@index([userId, status, agencyId])
+  @@index([agencyId, status, role])
+}
+model AgencyInvitation {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agencyId String @db.Uuid
+  email String
+  role AgencyMemberRole
+  status AgencyInvitationStatus @default(PENDING)
+  tokenHash String @unique
+  invitedByUserId String @db.Uuid
+  acceptedByUserId String? @db.Uuid
+  expiresAt DateTime
+  acceptedAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  agency AgencyProfile @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  invitedBy User @relation("AgencyInviteSender", fields: [invitedByUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  acceptedBy User? @relation("AgencyInviteAcceptor", fields: [acceptedByUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@index([email, status])
 }

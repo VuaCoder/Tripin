@@ -13,7 +13,7 @@ afterAll(stopDatabase);
 beforeEach(resetDatabase);
 
 async function setup() {
-  const agency = await createUser('AGENCY', 'agency@example.com');
+  const agency = await createUser('AGENCY', 'agency@example.com', { agencyProfile: { companyName: 'Sunrise Travel', verificationStatus: 'VERIFIED' } });
   const rival = await createUser('AGENCY', 'rival@example.com');
   const traveler = await createUser('TRAVELER', 'traveler@example.com');
   const moderator = await createUser('MODERATOR', 'mod@example.com');
@@ -75,7 +75,7 @@ describe('reports (integration)', () => {
     expect(queue.status).toBe(200);
     const [row] = queue.body.data as { reporterName: string; agencyName: string; tourTitle: string; targetName: string; targetId: string }[];
     expect(row!.reporterName).toBe('TRAVELER traveler@example.com');
-    expect(row!.agencyName).toBe('AGENCY agency@example.com'); // no company profile: the account name stands in
+    expect(row!.agencyName).toBe('Sunrise Travel'); // the company profile wins over the account name
     expect(row!.tourTitle).toBe('Ha Long Bay 2D1N');
     expect(row!.targetName).toBe('Ha Long Bay 2D1N');
     expect(row!.targetId).toBe(tourId); // the ids stay: the ban action of a USER report needs one

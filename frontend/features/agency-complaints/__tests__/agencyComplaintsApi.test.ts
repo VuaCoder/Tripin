@@ -1,7 +1,8 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { baseApi } from '@/store/api/baseApi';
-import authReducer from '@/features/auth/store/authSlice';
+import authReducer, { setCredentials } from '@/features/auth/store/authSlice';
+import { withAgencyMembership } from '@/test/agencySession';
 import { agencyComplaintsApi } from '../api/agencyComplaintsApi';
 
 const response = (body: unknown, status = 200) => {
@@ -24,11 +25,14 @@ const mockFetch = (...responses: ReturnType<typeof response>[]) => {
   return fetchMock;
 };
 
-const createTestStore = () =>
-  configureStore({
+const createTestStore = () => {
+  const store = configureStore({
     reducer: { auth: authReducer, [baseApi.reducerPath]: baseApi.reducer },
     middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(baseApi.middleware),
   });
+  store.dispatch(setCredentials(withAgencyMembership({ accessToken: 'test-token', user: { id: 'actor', role: 'TRAVELER', permissions: [] } as any })));
+  return store;
+};
 
 const COMPLAINT = {
   id: 'c1',

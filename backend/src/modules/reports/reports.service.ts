@@ -42,7 +42,7 @@ export class ReportsService {
     private readonly users: Pick<UsersService, 'getSummaries'> = usersService,
     private readonly reviews: Pick<ReviewsService, 'getFacts'> = reviewsService,
     private readonly bookings: Pick<BookingsService, 'getFacts'> = bookingsService,
-    private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
+    private readonly notifications: Pick<NotificationsService, 'notify' | 'notifyAgency'> = notificationsService,
     _audit: Pick<AuditService, 'record'> = auditService,
   ) {}
 
@@ -82,7 +82,7 @@ export class ReportsService {
     }
 
     if (routing.agencyId) {
-      await this.notifications.notify(routing.agencyId, {
+      await this.notifications.notifyAgency(routing.agencyId, {
         type: NOTIFICATION_TYPE.COMPLAINT_RECEIVED,
         title: 'A traveler filed a report',
         body: `A report (${input.category}) was filed about your ${input.targetType === REPORT_TARGET.TOUR ? 'tour' : 'account'}. Please respond.`,
@@ -201,7 +201,7 @@ export class ReportsService {
     const notice = { title: 'Your report was reviewed', body: `A moderator reviewed your report and it ${outcome}: ${decision.note}`, data: { reportId: id } };
     await this.notifications.notify(report.reporterId, { type: NOTIFICATION_TYPE.REPORT_RESOLVED, ...notice }, { email: true });
     if (report.agencyId) {
-      await this.notifications.notify(report.agencyId, {
+      await this.notifications.notifyAgency(report.agencyId, {
         type: NOTIFICATION_TYPE.REPORT_UPDATED,
         title: 'A report about you was decided',
         body: `A moderator decided a report filed about you: ${next === REPORT_STATUS.RESOLVED ? 'upheld' : 'not upheld'}. ${decision.note}`,
@@ -235,7 +235,7 @@ export class ReportsService {
           };
           await Promise.all([
             this.notifications.notify(relatedTicket.travelerId, ticketNotice, { email: true }),
-            this.notifications.notify(relatedTicket.agencyId, ticketNotice, { email: true }),
+            this.notifications.notifyAgency(relatedTicket.agencyId, ticketNotice, { email: true }),
           ]);
         }
       } catch (err) {

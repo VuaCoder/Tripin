@@ -3,6 +3,23 @@
 In-app notifications (with an optional email copy) for every actor, plus the `notify()` API other modules call when
 something relevant to a user happens.
 
+H2.7: organization events must use `notifyAgency(agencyId, input, {email?})`,
+or `writeAgencyNotification(tx, agencyId, input)` inside an existing business
+transaction. These fan out only to ACTIVE members with the matching permission
+and ACTIVE accounts; no legacy owner fallback. New rows carry `agencyId` with
+an AgencyProfile FK. Inbox/list/count/read/bulk-read/delete recheck membership
+and role permissions. The DTO adds optional `agencyId` for multi-agency clients.
+Personal `notify(userId, ...)` and historical rows with null agencyId stay personal;
+no historical rows are reclassified or removed.
+
+Agency emails are durable outbox entries, delivered by `mail.deliverOutbox`.
+Delivery and socket publication recheck access under the same agency row lock
+as team mutations. An already-started email can finish before suspension commits;
+delivery cannot start after committed suspension/removal. Revoked pending emails
+remain unsent and retained, not deleted. Email retries retain existing at-least-once
+semantics; a provider send followed by a failed DB commit can be retried. Keep
+the outbox worker enabled; there is no direct-email fallback for organization events.
+
 System notification templates are localized to Vietnamese by `notifications.locale.ts` before storage, realtime publication and optional email delivery. The DTO mapper also localizes matching legacy English templates when reading existing inbox rows, so no data rewrite is required. Dynamic tour names, booking codes, chat previews and user-written notes remain unchanged. Add a template and regression coverage here when introducing a system notification.
 
 ## Use cases covered

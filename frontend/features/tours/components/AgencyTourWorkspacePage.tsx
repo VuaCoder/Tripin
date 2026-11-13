@@ -8,17 +8,21 @@ import { getTourApiMessage, useDeleteAgencyTourMutation, useGetAgencyTourQuery, 
 import type { TourDeparture, TourItineraryDay } from '../types';
 import { toursApi } from '../api/toursApi';
 import { useAppDispatch } from '@/store/hooks';
-import { AgencyCustomersPanel, AgencyGuidePanel } from '@/features/agency/AgencyTourOperations';
+import { AgencyCustomersPanel } from '@/features/agency/AgencyTourOperations';
 import { AgencyDenied, useAgencyPermission } from '@/features/agency/AgencyCommon';
-import { ArrowLeft, ArrowRight, RotateCw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, RotateCw, Edit3, Archive, Send, RefreshCw as RestoreIcon } from 'lucide-react';
+import { agencyNotice } from '@/features/agency/agencyNotice';
+import { Modal, Switch } from 'antd';
 import { AgencyTourStepper } from './AgencyTourStepper';
 import { AgencyTourLivePreview } from './AgencyTourLivePreview';
 import { AntDatePicker } from '@/components/ui/AntDatePicker';
+import { GuestGroupDropdown } from '@/components/ui/GuestGroupDropdown';
 import { formatCurrencyVndInput, parseCurrencyVndInput } from '@/lib/travel-format';
+import { guestTotal, resolveGuestGroupCounts, type GuestCounts } from '@travel-platform/constants';
 
 const inputClass = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20';
 const emptyDay = (day: number, toDay?: number): TourItineraryDay => ({ day, toDay, title: '', description: '', activities: [] });
-type DepartureForm = { id?: string; date: string; capacity: number; price: number; isOpen: boolean; remaining?: number };
+type DepartureForm = { id?: string; date: string; capacity: number; guestCounts?: GuestCounts | null; price: number; isOpen: boolean; remaining?: number };
 const statusText: Record<string, string> = { DRAFT: 'Bản nháp', PENDING_REVIEW: 'Chờ duyệt', APPROVED: 'Đã duyệt', REJECTED: 'Cần chỉnh sửa', SUSPENDED: 'Tạm ẩn', ARCHIVED: 'Đã lưu trữ' };
 
 export function AgencyTourWorkspacePage() {
@@ -57,17 +61,42 @@ export function AgencyTourWorkspacePage() {
       itinerarySnapshot.current = itinerary;
     }
     if (!availabilityDirty.current && availability !== availabilitySnapshot.current) {
-      setDeparturesState(tour.departures.map((item: TourDeparture) => ({ id: item.id, date: item.date.slice(0, 10), capacity: item.capacity, price: item.price, isOpen: item.isOpen, remaining: item.remaining })));
+      setDeparturesState(
+        tour.departures.map((item: TourDeparture) => {
+          const counts = resolveGuestGroupCounts(item.capacity, tour.agePricing);
+          return {
+            id: item.id,
+            date: item.date.slice(0, 10),
+            capacity: item.capacity,
+            guestCounts: counts,
+            price: item.price,
+            isOpen: item.isOpen,
+            remaining: item.remaining,
+          };
+        }),
+      );
       availabilitySnapshot.current = availability;
     }
   }, [tour]);
 
   const run = async (operation: () => Promise<unknown>, success: string) => {
     setMessage(''); setErrorText('');
-    try { await operation(); setMessage(success); }
-    catch (e) {
+    try {
+      await operation();
+      setMessage(success);
+      agencyNotice.success(success, {
+        description: `Tour: ${tour?.title || ''}`,
+        inbox: true,
+        type: 'TOUR_UPDATE',
+      });
+    } catch (e) {
       const msg = getTourApiMessage(e, 'Không thể lưu thay đổi. Vui lòng thử lại.');
       setErrorText(msg);
+      agencyNotice.error(msg, {
+        description: `Tour: ${tour?.title || ''}`,
+        inbox: true,
+        type: 'TOUR_ERROR',
+      });
       const isMissingDeparture = (e as { data?: { error?: { code?: string } }; error?: { data?: { error?: { code?: string } } } })?.data?.error?.code === 'NO_OPEN_DEPARTURE' || (e as { error?: { data?: { error?: { code?: string } } } })?.error?.data?.error?.code === 'NO_OPEN_DEPARTURE' || msg.includes('Khởi hành');
       if (isMissingDeparture) {
         setStep(2);
@@ -141,29 +170,75 @@ export function AgencyTourWorkspacePage() {
       await dispatch(toursApi.util.upsertQueryData('getAgencyTour', id, saved));
       availabilityDirty.current = false;
       availabilitySnapshot.current = '';
-      setDeparturesState(saved.departures.map((item) => ({ id: item.id, date: item.date.slice(0, 10), capacity: item.capacity, price: item.price, isOpen: item.isOpen, remaining: item.remaining })));
+      setDeparturesState(
+        saved.departures.map((item) => {
+          const counts = resolveGuestGroupCounts(item.capacity, tour?.agePricing);
+          return {
+            id: item.id,
+            date: item.date.slice(0, 10),
+            capacity: item.capacity,
+            guestCounts: counts,
+            price: item.price,
+            isOpen: item.isOpen,
+            remaining: item.remaining,
+          };
+        }),
+      );
     }, 'Đã cập nhật ngày khởi hành.');
   };
   const submit = () => {
     void run(() => submitTour(id).unwrap(), 'Tour đã được gửi để kiểm duyệt.');
   };
   const remove = async () => {
-    if (!tour || !window.confirm(`Lưu trữ tour “${tour.title}”?`)) return;
-    setErrorText('');
-    try { await deleteTour(id).unwrap(); window.location.assign('/agency/tours'); }
-    catch (e) { setErrorText(getTourApiMessage(e, 'Không thể lưu trữ tour.')); }
+    Modal.confirm({
+      title: 'Tạm dừng / Lưu trữ tour',
+      content: `Bạn có chắc chắn muốn lưu trữ tour “${tour?.title || ''}”? Tour sẽ tạm ngừng mở bán và chuyển vào danh sách lưu trữ.`,
+      okText: 'Xác nhận lưu trữ',
+      okType: 'danger',
+      cancelText: 'Hủy bỏ',
+      onOk: async () => {
+        try {
+          await deleteTour(id).unwrap();
+          agencyNotice.success('Đã chuyển tour vào danh sách lưu trữ.', {
+            description: `Tour: ${tour?.title || ''}`,
+            inbox: true,
+            type: 'TOUR_ARCHIVED',
+          });
+          window.location.assign('/agency/tours');
+        } catch (e) {
+          const err = getTourApiMessage(e, 'Không thể lưu trữ tour.');
+          setErrorText(err);
+          agencyNotice.error(err, { inbox: true, type: 'TOUR_ERROR' });
+        }
+      },
+    });
   };
   const handleRestore = async () => {
-    if (!tour || !window.confirm(`Khôi phục tour “${tour.title}” về bản nháp để tiếp tục sử dụng?`)) return;
-    setErrorText('');
-    setMessage('');
-    try {
-      const restored = await restoreTour(id).unwrap();
-      await dispatch(toursApi.util.upsertQueryData('getAgencyTour', id, restored));
-      setMessage('Đã khôi phục tour về bản nháp thành công!');
-    } catch (e) {
-      setErrorText(getTourApiMessage(e, 'Không thể khôi phục tour.'));
-    }
+    Modal.confirm({
+      title: 'Khôi phục tour hoạt động',
+      content: `Khôi phục tour “${tour?.title || ''}” về bản nháp để tiếp tục mở bán và chỉnh sửa?`,
+      okText: 'Khôi phục ngay',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        setErrorText('');
+        setMessage('');
+        try {
+          const restored = await restoreTour(id).unwrap();
+          await dispatch(toursApi.util.upsertQueryData('getAgencyTour', id, restored));
+          const msg = 'Đã khôi phục tour về bản nháp thành công!';
+          setMessage(msg);
+          agencyNotice.success(msg, {
+            description: `Tour: ${tour?.title || ''}`,
+            inbox: true,
+            type: 'TOUR_RESTORED',
+          });
+        } catch (e) {
+          const err = getTourApiMessage(e, 'Không thể khôi phục tour.');
+          setErrorText(err);
+          agencyNotice.error(err, { inbox: true, type: 'TOUR_ERROR' });
+        }
+      },
+    });
   };
 
   if (!canView) return <AgencyDenied />;
@@ -201,23 +276,55 @@ export function AgencyTourWorkspacePage() {
         <p className="mt-1 text-sm text-slate-600">{tour.destination} · {tour.durationDays} ngày · {new Intl.NumberFormat('vi-VN').format(tour.basePrice)} ₫</p>
         {tour.statusReason && <p className="mt-2 text-sm text-amber-800">Ghi chú kiểm duyệt: {tour.statusReason}</p>}
       </div>
-      <div className="flex flex-wrap gap-2">
-        {isArchived && (
+      <div className="flex flex-wrap items-center gap-2.5">
+        {isArchived ? (
           <button
             type="button"
             onClick={() => void handleRestore()}
             disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs sm:text-sm font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
           >
+            <RestoreIcon size={16} />
             <span>{restoreState.isLoading ? 'Đang khôi phục…' : 'Khôi phục tour'}</span>
           </button>
-        )}
-        <Link href={`/agency/tours/${id}/edit?from=/agency/tours/${id}`} aria-disabled={locked} className={`rounded-lg border px-3 py-2 text-sm font-semibold ${locked ? 'pointer-events-none border-slate-200 text-slate-400' : 'border-slate-300 text-slate-700'}`}>Sửa thông tin</Link>
-        {tour.status !== 'APPROVED' && !isArchived && (
-          <button type="button" onClick={submit} disabled={busy || locked} className="rounded-lg bg-primary-container px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{submitState.isLoading ? 'Đang gửi…' : 'Gửi duyệt'}</button>
-        )}
-        {!isArchived && (
-          <button type="button" onClick={() => void remove()} disabled={busy || locked} className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">Lưu trữ</button>
+        ) : (
+          <>
+            <Link
+              href={`/agency/tours/${id}/edit?from=/agency/tours/${id}`}
+              aria-disabled={locked}
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs sm:text-sm font-semibold transition-colors shadow-2xs ${
+                locked
+                  ? 'pointer-events-none border-slate-200 bg-slate-50 text-slate-400'
+                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <Edit3 size={15} />
+              <span>Chỉnh sửa nội dung</span>
+            </Link>
+
+            {tour.status !== 'APPROVED' && (
+              <button
+                type="button"
+                onClick={submit}
+                disabled={busy || locked}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-teal-700 px-4 py-2 text-xs sm:text-sm font-bold text-white hover:bg-teal-800 transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+              >
+                <Send size={15} />
+                <span>{submitState.isLoading ? 'Đang gửi…' : 'Gửi duyệt tour'}</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => void remove()}
+              disabled={busy || locked}
+              title="Tạm dừng mở bán và lưu trữ tour"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-medium text-slate-500 hover:border-red-200 hover:bg-red-50 hover:text-red-700 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <Archive size={15} />
+              <span>Lưu trữ tour</span>
+            </button>
+          </>
         )}
       </div>
     </header>
@@ -233,45 +340,9 @@ export function AgencyTourWorkspacePage() {
       allowSkip={true}
       steps={[
         { id: 1, title: 'Lịch trình', complete: days.length > 0 },
-        { id: 2, title: 'Khởi hành', complete: departures.some((d) => d.isOpen && Boolean(d.date)) },
-        { id: 3, title: 'Hướng dẫn viên', complete: Boolean(tour.guide) },
-        { id: 4, title: 'Khách hàng' },
+        { id: 2, title: 'Khởi hành & Giá vé', complete: departures.some((d) => d.isOpen && Boolean(d.date)) },
       ]}
     />
-    <div hidden={step !== 3}>
-      <AgencyGuidePanel key={id} tour={tour} />
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
-        <button
-          type="button"
-          onClick={() => setStep(2)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-        >
-          <ArrowLeft size={16} />
-          <span>Quay lại: Khởi hành</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setStep(4)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-primary bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary hover:text-white transition-colors"
-        >
-          <span>Sang bước 4: Khách hàng</span>
-          <ArrowRight size={16} />
-        </button>
-      </div>
-    </div>
-    <div hidden={step !== 4}>
-      <AgencyCustomersPanel key={`customers-${id}`} tour={tour} />
-      <div className="mt-5 flex justify-start border-t border-slate-200 pt-4">
-        <button
-          type="button"
-          onClick={() => setStep(3)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-        >
-          <ArrowLeft size={16} />
-          <span>Quay lại: Hướng dẫn viên</span>
-        </button>
-      </div>
-    </div>
     <div className="space-y-6">
       <div hidden={step !== 1} className="space-y-6">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
@@ -296,51 +367,9 @@ export function AgencyTourWorkspacePage() {
             {days.map((day, index) => (
               <fieldset key={index} disabled={locked} className="space-y-3.5 rounded-xl border border-slate-200 bg-slate-50/80 p-4 transition-all hover:border-slate-300">
                 <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex shrink-0 items-center rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-bold text-white shadow-2xs">
-                      {day.toDay && day.toDay > day.day ? `Ngày ${day.day} – ${day.toDay}` : `Ngày ${day.day}`}
-                    </span>
-                    <div className="flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg px-2.5 py-1">
-                      <label className="flex items-center gap-1">
-                        <span className="text-slate-500">Từ ngày</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={tour.durationDays}
-                          value={day.day}
-                          onKeyDown={(e) => {
-                            if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
-                          }}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
-                            setDays((prev) => prev.map((item, i) => i === index ? { ...item, day: val } : item));
-                          }}
-                          className="w-12 rounded border border-slate-200 px-1 py-0.5 text-center text-xs font-semibold text-slate-900 outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container"
-                          title="Ngày bắt đầu"
-                        />
-                      </label>
-                      <span className="text-slate-400">–</span>
-                      <label className="flex items-center gap-1">
-                        <span className="text-slate-500">đến</span>
-                        <input
-                          type="number"
-                          min={day.day}
-                          max={tour.durationDays}
-                          placeholder="1 ngày"
-                          value={day.toDay ?? ''}
-                          onKeyDown={(e) => {
-                            if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
-                          }}
-                          onChange={(e) => {
-                            const val = e.target.value === '' ? undefined : Number(e.target.value);
-                            setDays((prev) => prev.map((item, i) => i === index ? { ...item, toDay: val } : item));
-                          }}
-                          className="w-14 rounded border border-slate-200 px-1 py-0.5 text-center text-xs font-semibold text-slate-900 outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container placeholder:font-normal placeholder:text-slate-400"
-                          title="Ngày kết thúc (để trống nếu lịch trình trong 1 ngày)"
-                        />
-                      </label>
-                    </div>
-                  </div>
+                  <span className="inline-flex shrink-0 items-center rounded-lg bg-teal-700 px-3 py-1 text-xs font-bold text-white shadow-2xs">
+                    Ngày {day.day}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setDays((prev) => prev.filter((_, i) => i !== index))}
@@ -395,39 +424,42 @@ export function AgencyTourWorkspacePage() {
             </div>
           </form>
         </section>
-
-        {/* Lịch trình đang thiết lập placed right under Itinerary */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm text-sm">
-          <h2 className="text-base font-bold text-slate-900">Lịch trình đang thiết lập</h2>
-          <ol className="mt-3 space-y-2 text-slate-600">
-            {days.map((day, index) => {
-              const label = day.toDay && day.toDay > day.day ? `Ngày ${day.day} – ${day.toDay}` : `Ngày ${day.day}`;
-              return (
-                <li key={index} className="flex items-start gap-2">
-                  <span className="font-semibold text-slate-800 whitespace-nowrap">{label}:</span>
-                  <span className="text-slate-700">{day.title || 'Chưa nhập tiêu đề'}</span>
-                </li>
-              );
-            })}
-          </ol>
-          <p className="mt-4 text-slate-600 border-t border-slate-100 pt-3">
-            {departures.filter((departure) => departure.isOpen).length} ngày khởi hành đang mở.
-          </p>
-          <p className="mt-2 text-xs text-amber-800">
-            Bản xem trước. Chỉ cập nhật hệ thống sau khi bạn lưu từng mục.
-          </p>
-        </div>
       </div>
 
       <section hidden={step !== 2} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">Ngày khởi hành</h2><p className="text-sm text-slate-600">Chỗ còn lại được giữ theo số ghế đã bán.</p></div><button type="button" disabled={departures.length >= 200} onClick={() => setDepartures((current) => [...current, { date: '', capacity: tour?.maxGroupSize && tour.maxGroupSize > 0 ? tour.maxGroupSize : 10, price: tour.basePrice, isOpen: true }])} className="rounded-lg border border-primary px-3 py-2 text-sm font-semibold text-primary disabled:opacity-50">+ Thêm ngày</button></div>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Ngày khởi hành</h2>
+          </div>
+          <button
+            type="button"
+            disabled={departures.length >= 200}
+            onClick={() => {
+              const defaultCapacity = tour?.maxGroupSize && tour.maxGroupSize > 0 ? tour.maxGroupSize : 10;
+              const defaultCounts = resolveGuestGroupCounts(defaultCapacity, tour?.agePricing);
+              setDepartures((current) => [
+                ...current,
+                {
+                  date: '',
+                  capacity: defaultCapacity,
+                  guestCounts: defaultCounts,
+                  price: tour?.basePrice ?? 0,
+                  isOpen: true,
+                },
+              ]);
+            }}
+            className="rounded-lg border border-primary px-3 py-2 text-sm font-semibold text-primary disabled:opacity-50 hover:bg-primary/5 transition-colors"
+          >
+            + Thêm ngày
+          </button>
+        </div>
         <form onSubmit={saveDepartures} className="space-y-4" aria-busy={availabilityState.isLoading}>
           {departures.length === 0 && <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Chưa thiết lập ngày khởi hành.</p>}
           {departures.map((departure, index) => {
             const sold = departure.remaining === undefined ? 0 : departure.capacity - departure.remaining;
             const dateLocked = sold > 0;
             return (
-              <fieldset key={departure.id ?? `new-${index}`} className="grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
+              <fieldset key={departure.id ?? `new-${index}`} className="grid gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-2">
                 <div className="space-y-1 text-sm font-medium text-slate-700">
                   <span>Ngày khởi hành</span>
                   <AntDatePicker
@@ -440,23 +472,34 @@ export function AgencyTourWorkspacePage() {
                     placeholder="Chọn ngày khởi hành"
                   />
                 </div>
-                <label className="space-y-1 text-sm font-medium text-slate-700">
-                  Sức chứa
-                  <input
-                    type="number"
-                    required
-                    min={Math.max(1, sold)}
-                    max={10000}
-                    value={departure.capacity}
-                    onKeyDown={(e) => {
-                      if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+                <div className="space-y-1 text-sm font-medium text-slate-700">
+                  <div className="flex items-center justify-between">
+                    <span>Số lượng khách (3 nhóm)</span>
+                    <span className="text-xs font-semibold text-slate-500">Tổng: {departure.capacity} chỗ</span>
+                  </div>
+                  <GuestGroupDropdown
+                    value={departure.guestCounts ?? resolveGuestGroupCounts(departure.capacity, tour?.agePricing)}
+                    minTotal={Math.max(1, sold)}
+                    maxTotal={10000}
+                    onChange={(nextCounts) => {
+                      if (!nextCounts) return;
+                      const nextTotal = guestTotal(nextCounts);
+                      setDepartures((prev) =>
+                        prev.map((item, i) =>
+                          i === index
+                            ? {
+                                ...item,
+                                capacity: Math.max(Math.max(1, sold), nextTotal),
+                                guestCounts: nextCounts,
+                              }
+                            : item,
+                        ),
+                      );
                     }}
-                    onChange={(e) => setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, capacity: Number(e.target.value) } : item))}
-                    className={inputClass}
                   />
-                </label>
+                </div>
                 <label className="space-y-1 text-sm font-medium text-slate-700">
-                  Giá riêng (VND)
+                  <span>Giá riêng (VND)</span>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -472,29 +515,29 @@ export function AgencyTourWorkspacePage() {
                     className={inputClass}
                   />
                 </label>
-                <div className="flex items-center justify-between gap-2">
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                    <input
-                      type="checkbox"
+                <div className="flex items-center justify-between gap-3 pt-5">
+                  <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                    <Switch
                       checked={departure.isOpen}
-                      onChange={(e) => setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, isOpen: e.target.checked } : item))}
+                      onChange={(checked) => setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, isOpen: checked } : item))}
+                      size="small"
                     />
-                    Đang mở
-                  </label>
-                  <span className="text-xs text-slate-500">Đã bán {sold}/{departure.capacity}</span>
+                    <span>{departure.isOpen ? 'Đang mở nhận khách' : 'Đóng nhận khách'}</span>
+                  </div>
+                  <span className="text-xs text-slate-500 font-medium">Đã bán {sold}/{departure.capacity}</span>
                   <button
                     type="button"
                     disabled={dateLocked}
                     onClick={() => setDepartures((prev) => prev.filter((_, i) => i !== index))}
-                    className="text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="text-xs font-semibold text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Gỡ
+                    Gỡ ngày
                   </button>
                 </div>
                 {dateLocked && (
-                  <p className="sm:col-span-2 text-xs text-amber-800">
-                    Đã có khách: không thể đổi ngày hoặc gỡ. Hãy đóng ngày khởi hành.
-                  </p>
+                  <div className="sm:col-span-2 flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200/80 px-2.5 py-1.5 text-xs text-amber-800 font-medium">
+                    <span>🔒 Đã có {sold} khách đặt. Không thể đổi ngày hoặc gỡ bỏ (hãy đóng nhận khách nếu muốn dừng bán).</span>
+                  </div>
                 )}
               </fieldset>
             );
@@ -508,29 +551,30 @@ export function AgencyTourWorkspacePage() {
               <ArrowLeft size={16} />
               <span>Quay lại: Lịch trình</span>
             </button>
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="submit"
-                disabled={availabilityState.isLoading}
-                className="rounded-lg bg-primary-container px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-800 disabled:opacity-50 shadow-sm"
-              >
-                {availabilityState.isLoading ? 'Đang lưu…' : 'Lưu ngày khởi hành'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setStep(3)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-primary bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary hover:text-white transition-colors"
-              >
-                <span>Sang bước 3: HDV</span>
-                <ArrowRight size={16} />
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={availabilityState.isLoading}
+              className="rounded-lg bg-primary-container px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-800 disabled:opacity-50 shadow-sm"
+            >
+              {availabilityState.isLoading ? 'Đang lưu…' : 'Lưu ngày khởi hành'}
+            </button>
           </div>
         </form>
       </section>
     </div></div>
     <aside aria-label="Xem trước tour" className="min-w-0 lg:sticky lg:top-6">
-      <AgencyTourLivePreview title={tour.title} destination={tour.destination} durationDays={tour.durationDays} basePrice={tour.basePrice} images={tour.images ?? []} summary={tour.summary} inclusions={tour.inclusions ?? []} guide={tour.guide} />
+      <AgencyTourLivePreview
+        title={tour.title}
+        destination={tour.destination}
+        durationDays={tour.durationDays}
+        basePrice={tour.basePrice}
+        images={tour.images ?? []}
+        summary={tour.summary}
+        inclusions={tour.inclusions ?? []}
+        guide={tour.guide}
+        itineraryDays={days.map((d) => ({ day: d.day, toDay: d.toDay, title: d.title }))}
+        openDeparturesCount={departures.filter((d) => d.isOpen).length}
+      />
     </aside></div>
   </main>;
 }

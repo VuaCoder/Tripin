@@ -9,7 +9,7 @@ const fixtures = vi.hoisted(() => ({
 }));
 vi.mock('socket.io-client', () => ({ io: fixtures.io }));
 vi.mock('@/store/hooks', () => ({ useAppDispatch: () => fixtures.dispatch, useAppSelector: (selector: (state: unknown) => unknown) => selector({ auth: fixtures.auth }) }));
-vi.mock('@/features/auth/store/authSlice', () => ({ selectUser: (state: any) => state.auth.user, selectAccessToken: (state: any) => state.auth.accessToken, setCredentials: (payload: unknown) => ({ type: 'credentials', payload }) }));
+vi.mock('@/features/auth/store/authSlice', () => ({ selectUser: (state: any) => state.auth.user, selectActiveAgency: () => ({ agencyId: 'agency-1' }), selectAccessToken: (state: any) => state.auth.accessToken, setCredentials: (payload: unknown) => ({ type: 'credentials', payload }) }));
 vi.mock('@/store/api/baseApi', () => ({
   refreshSession: fixtures.refresh,
   baseApi: {
@@ -30,7 +30,7 @@ describe('Agency realtime notifications', () => {
     expect(fixtures.io).toHaveBeenCalledWith('http://localhost:3001', { auth: { token: 'token-1' }, withCredentials: true });
     act(() => fixtures.handlers.connect());
     expect(result.current.connected).toBe(true);
-    act(() => fixtures.handlers['notification:new']({ id: 'notification-1', title: 'Booking mới' }));
+    act(() => fixtures.handlers['notification:new']({ id: 'notification-1', agencyId: 'agency-1', title: 'Booking mới' }));
     expect(result.current.latest).toBe('Booking mới');
     expect(fixtures.dispatch).toHaveBeenCalledTimes(2);
     act(() => fixtures.handlers.disconnect());

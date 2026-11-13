@@ -160,6 +160,7 @@ function createMockService(initialTickets: ComplaintTicketWithRelations[] = []) 
   };
 
   const notifications: any = {
+    notifyAgency: vi.fn(async () => {}),
     notify: vi.fn(async () => {}),
   };
 
@@ -176,6 +177,14 @@ function createMockService(initialTickets: ComplaintTicketWithRelations[] = []) 
 }
 
 describe('ComplaintsService', () => {
+  it('does not infer Agency access from a matching historical User ID without AgencyContext', async () => {
+    const ticket = mockTicket();
+    const { service } = createMockService([ticket]);
+    const actor = { userId: 'u_agency', role: 'AGENCY' };
+    await expect(service.getTicketDetail(ticket.id, actor)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(service.sendMessage(ticket.id, actor, { text: 'Unauthorized' })).rejects.toMatchObject({ statusCode: 404 });
+    await expect(service.escalateTicket(ticket.id, actor, { reason: 'Unauthorized' })).rejects.toMatchObject({ statusCode: 404 });
+  });
   it('tạo phiếu khiếu nại thành công và thông báo cho agency', async () => {
     const { service, notifications } = createMockService();
 
@@ -191,7 +200,7 @@ describe('ComplaintsService', () => {
     expect(created.ticketCode).toBe('CP-20261022-0001');
     expect(created.status).toBe('OPEN');
     expect(created.agencyId).toBe('u_agency');
-    expect(notifications.notify).toHaveBeenCalledWith('u_agency', expect.objectContaining({ type: 'COMPLAINT_RECEIVED' }), { email: true });
+    expect(notifications.notifyAgency).toHaveBeenCalledWith('u_agency', expect.objectContaining({ type: 'COMPLAINT_RECEIVED' }), { email: true });
   });
 
   it('chặn gửi trùng khi đã có phiếu đang mở cho cùng một tour', async () => {
@@ -213,7 +222,7 @@ describe('ComplaintsService', () => {
     const ticket = mockTicket({ status: 'OPEN', firstResponseAt: null });
     const { service, repo, notifications } = createMockService([ticket]);
 
-    const msg = await service.sendMessage(ticket.id, { userId: 'u_agency', role: 'AGENCY' }, {
+    const msg = await service.sendMessage(ticket.id, { userId: 'u_agency', role: 'AGENCY', agencyId: 'u_agency' }, {
       text: 'Chào bạn, chúng tôi đã tiếp nhận và đang liên hệ điều hành xe.',
     });
 
@@ -264,7 +273,7 @@ describe('ComplaintsService', () => {
     });
 
     expect(escalated.status).toBe('ESCALATED');
-    expect(notifications.notify).toHaveBeenCalledWith('u_agency', expect.objectContaining({ type: 'COMPLAINT_ESCALATED' }));
+    expect(notifications.notifyAgency).toHaveBeenCalledWith('u_agency', expect.objectContaining({ type: 'COMPLAINT_ESCALATED' }));
   });
 
   it('kiểm duyệt viên sàn đưa ra phán quyết đóng vụ việc leo thang', async () => {

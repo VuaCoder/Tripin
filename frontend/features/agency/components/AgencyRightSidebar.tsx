@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, useLogout } from '@/features/auth';
+import { selectActiveAgency } from '@/features/auth/store/authSlice';
 import { useAgencyNotifications } from '../notifications';
 import styles from './AgencySidebar.module.css';
 const AgencyNotificationPopover = dynamic(() => import('./AgencyNotificationPopover').then((module) => module.AgencyNotificationPopover), { ssr: false });
@@ -42,12 +43,13 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
   const focusSearch = useRef(false);
   const shortcut = '⌘K';
   const user = useAppSelector(selectUser);
+  const agency = useAppSelector(selectActiveAgency);
   const logout = useLogout();
   const pathname = usePathname();
   const router = useRouter();
   const { count, connected, latest } = useAgencyNotifications();
 
-  const companyName = user?.agencyProfile?.companyName?.trim() || 'Đối tác du lịch';
+  const companyName = agency?.companyName?.trim() || 'Đối tác du lịch';
   const ToggleIcon = expanded ? PanelLeftClose : PanelLeftOpen;
   const closeMenu = () => { setExpanded(false); setQuery(''); setShowProfileMenu(false); };
   const toggleLabel = expanded ? 'Thu gọn thanh bên' : 'Mở rộng thanh bên';
@@ -101,6 +103,7 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
     ] },
     { label: 'Đối tác', items: [
       { href: '/agency/settings/commission', label: 'Chiết khấu hoa hồng', icon: BadgePercent, permission: '' },
+      { href: '/agency/settings/team', label: 'Thành viên', icon: Users, permission: 'agency:team-view' },
       { href: '/agency/notifications', label: 'Thông báo', icon: Bell, permission: '' },
     ] },
   ];
@@ -108,7 +111,7 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
   const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLocaleLowerCase('vi').trim();
   const searchTerm = normalize(query);
   const visibleGroups = groups.map((group) => ({ ...group, items: group.items.filter((item) =>
-    (!item.permission || user?.permissions?.includes(item.permission)) &&
+    (!item.permission || agency?.permissions?.includes(item.permission)) &&
     (item.href !== '/agency/notifications' || searchTerm) &&
     (!searchTerm || normalize(`${item.label} ${group.label}`).includes(searchTerm)),
   ) })).filter((group) => group.items.length > 0);
@@ -191,10 +194,23 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
             title={companyName}
             onClick={(event) => { event.preventDefault(); setShowProfileMenu((prev) => !prev); }}
           >
-            <span className={styles.avatar}>{user?.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.avatarUrl} alt="" className="h-full w-full rounded-lg object-cover" />
-            ) : companyName.slice(0, 1).toLocaleUpperCase('vi')}</span>
+            <span className={styles.avatar}>
+              {user?.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={user.avatarUrl}
+                  alt={companyName}
+                  className="h-full w-full rounded-lg object-cover"
+                  onError={(e) => {
+                    // Fallback to text initials if avatar url fails to load
+                    (e.currentTarget as HTMLElement).style.display = 'none';
+                    if (e.currentTarget.parentElement) {
+                      e.currentTarget.parentElement.textContent = companyName.slice(0, 1).toLocaleUpperCase('vi');
+                    }
+                  }}
+                />
+              ) : companyName.slice(0, 1).toLocaleUpperCase('vi')}
+            </span>
             <span className={styles.company}>{companyName}</span>
           </Link>
           <Link 

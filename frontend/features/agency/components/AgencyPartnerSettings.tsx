@@ -4,6 +4,7 @@ import { agencyNotice } from '../agencyNotice';
 import React, { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectUser, setUser } from '@/features/auth';
+import { selectActiveAgency } from '@/features/auth/store/authSlice';
 import { useUpdateMeMutation, useRemoveAvatarMutation } from '@/features/traveler-account/api/profileApi';
 import { CounterUp } from '@/components/ui/CounterUp';
 
@@ -12,6 +13,8 @@ const formatMoney = (val: number) => `${new Intl.NumberFormat('vi-VN').format(Ma
 export function AgencyPartnerSettings({ onClose }: { onClose?: () => void }) {
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectUser);
+  const agency = useAppSelector(selectActiveAgency);
+  const canEditLegacyProfile = agency?.memberRole === 'OWNER' && agency.agencyId === user?.id;
 
   const [activeSection, setActiveSection] = useState<'profile' | 'commission'>('commission');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -29,7 +32,7 @@ export function AgencyPartnerSettings({ onClose }: { onClose?: () => void }) {
   const [description, setDescription] = useState(user?.agencyProfile?.description || '');
 
   // Commission & Product Discount Rate State
-  const storageKey = user?.id ? `tripri_agency_discount_rate_${user.id}` : 'tripri_agency_discount_rate';
+  const storageKey = agency?.agencyId && user?.id ? `tripri_agency_discount_rate_${user.id}_${agency.agencyId}` : null;
   const [commissionRate, setCommissionRate] = useState<number>(10.0);
   const [samplePrice, setSamplePrice] = useState<number>(3500000);
   const [commissionSaved, setCommissionSaved] = useState(false);
@@ -40,7 +43,7 @@ export function AgencyPartnerSettings({ onClose }: { onClose?: () => void }) {
 
   // Load saved commission rate from localStorage
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && storageKey) {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = parseFloat(saved);
@@ -66,6 +69,7 @@ export function AgencyPartnerSettings({ onClose }: { onClose?: () => void }) {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEditLegacyProfile) return;
     setErrorMessage(null);
     setSaveSuccessMsg(null);
 
@@ -95,6 +99,7 @@ export function AgencyPartnerSettings({ onClose }: { onClose?: () => void }) {
   };
 
   const handleClearField = async (field: 'phone' | 'address' | 'website' | 'description' | 'avatar') => {
+    if (!canEditLegacyProfile) return;
     setErrorMessage(null);
     setSaveSuccessMsg(null);
 
@@ -138,7 +143,7 @@ export function AgencyPartnerSettings({ onClose }: { onClose?: () => void }) {
   };
 
   const handleSaveCommission = () => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && storageKey) {
       localStorage.setItem(storageKey, commissionRate.toString());
     }
     setCommissionSaved(true);
@@ -149,6 +154,8 @@ export function AgencyPartnerSettings({ onClose }: { onClose?: () => void }) {
   const calculatedCommission = (samplePrice * commissionRate) / 100;
   const calculatedNetRevenue = samplePrice - calculatedCommission;
   const partnerRetentionRate = 100 - commissionRate;
+
+  if (activeSection === 'profile' && !canEditLegacyProfile) return <section className="space-y-3 p-5"><h2 className="text-xl font-bold">{agency?.companyName}</h2><p>Hồ sơ doanh nghiệp này đang chờ tích hợp API theo AgencyContext.</p><button type="button" className="underline" onClick={() => setActiveSection('commission')}>Về chiết khấu hoa hồng</button></section>;
 
   return (
     <div className="flex flex-col h-full overflow-y-auto text-slate-800">

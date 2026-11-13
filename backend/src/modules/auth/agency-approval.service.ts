@@ -1,4 +1,5 @@
 import { signOnboardingToken, readOnboardingToken } from './onboarding.tokens';
+import { prisma } from '../../config/database';
 import { AGENCY_VERIFICATION_STATUS, ROLES } from '@travel-platform/constants';
 import { isProduction } from '../../config/env';
 import { mailProvider, type MailProvider } from '../../integrations/mail';
@@ -61,15 +62,22 @@ export class AgencyApprovalService {
     if (query.userId) {
       const user = await this.users.findById(query.userId);
       if (!user || user.role !== ROLES.AGENCY) throw AppError.forbidden('Agency account required');
+      await this.assertOwner(user.id);
       return user.email;
     }
     if (query.token) {
       const payload = readOnboardingToken(query.token);
       const user = await this.users.findByEmail(payload.email);
       if (!user || user.role !== ROLES.AGENCY || user.status !== 'ACTIVE' || user.tokenVersion !== payload.tokenVersion) throw AppError.unauthenticated('Onboarding session revoked');
+      await this.assertOwner(user.id);
       return user.email;
     }
     throw AppError.unauthenticated('Sign in or use a valid onboarding token');
+  }
+
+  private async assertOwner(userId: string) {
+    const member = await prisma.agencyMember.findFirst({ where: { userId, agency: { userId }, role: 'OWNER', status: 'ACTIVE' } });
+    if (!member) throw AppError.forbidden('Active agency OWNER membership required');
   }
 
   async getStatus(query: { email?: string; token?: string; userId?: string }): Promise<AgencyStatusDto> {

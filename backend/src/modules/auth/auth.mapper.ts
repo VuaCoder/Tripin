@@ -6,7 +6,7 @@ import type { Session } from './auth.types';
 
 /** What the client receives after authenticating. The refresh token is deliberately absent (cookie only). */
 export function toSessionResponse(session: Session) {
-  return { accessToken: session.accessToken, user: toProfileDto(session.user) };
+  return { accessToken: session.accessToken, user: toProfileDto(session.user), agencies: session.agencies ?? [] };
 }
 
 export function setRefreshCookie(res: Response, session: Pick<Session, 'refreshToken' | 'refreshTokenExpiresAt'>): void {

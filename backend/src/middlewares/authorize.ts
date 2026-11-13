@@ -2,13 +2,14 @@ import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { ROLES, type PersistedRole, type Permission } from '@travel-platform/constants';
 import { AppError } from '../utils/app-error';
 import type { UserActor } from '../types/actor';
+import type { AgencyPermission } from '../modules/agencies/agency.policy';
 
 /** Metadata attached to guard middlewares so the route table (docs + audit tests) can tell who may call what. */
 export const GUARD_META = Symbol.for('travel.guard');
 export type GuardMeta =
   | { kind: 'auth' }
-  | { kind: 'permission'; permissions: Permission[] }
-  | { kind: 'any_permission'; permissions: Permission[] }
+  | { kind: 'permission'; permissions: AgencyPermission[] }
+  | { kind: 'any_permission'; permissions: AgencyPermission[] }
   | { kind: 'role'; role: PersistedRole };
 
 function tag<T extends RequestHandler>(handler: T, meta: GuardMeta): T {
@@ -29,7 +30,7 @@ export const requireAuth: RequestHandler = tag((req: Request, _res: Response, ne
 export function requirePermission(...permissions: Permission[]): RequestHandler {
   return tag((req, _res, next) => {
     if (req.actor.kind !== 'user') return next(AppError.unauthenticated());
-    const granted = req.actor.permissions;
+    const granted = req.agencyContext?.permissions ?? req.actor.permissions;
     if (!permissions.every((permission) => granted.includes(permission))) return next(AppError.forbidden());
     next();
   }, { kind: 'permission', permissions });
@@ -41,7 +42,7 @@ export function requirePermission(...permissions: Permission[]): RequestHandler 
 export function requireAnyPermission(...permissions: Permission[]): RequestHandler {
   return tag((req, _res, next) => {
     if (req.actor.kind !== 'user') return next(AppError.unauthenticated());
-    const granted = req.actor.permissions;
+    const granted = req.agencyContext?.permissions ?? req.actor.permissions;
     if (!permissions.some((permission) => granted.includes(permission))) return next(AppError.forbidden());
     next();
   }, { kind: 'any_permission', permissions });

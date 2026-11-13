@@ -14,6 +14,7 @@ const cloudinary = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../integrations/cloudinary', () => cloudinary);
+vi.mock('../../../config/database', () => ({ prisma: { agencyMember: { findFirst: vi.fn(async () => ({ role: 'OWNER', status: 'ACTIVE' })) } } }));
 
 function makeUser(overrides: Record<string, unknown> = {}) {
   return {

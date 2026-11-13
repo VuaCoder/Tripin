@@ -6,10 +6,15 @@ import {
   type FetchBaseQueryError,
 } from '@reduxjs/toolkit/query/react';
 import type { RootState } from '..';
-import { clearCredentials, setCredentials } from '@/features/auth/store/authSlice';
-import type { SessionData } from '@/features/auth/types';
+import { clearCredentials, selectActiveAgency, setAgencyMemberships, setCredentials } from '@/features/auth/store/authSlice';
+import type { AgencyMembership, SessionData } from '@/features/auth/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+
+export const isAgencyRequest = (args: FetchArgs | string) => {
+  const url = typeof args === 'string' ? args : args.url;
+  return /^\/?agency(?:\/|$)/.test(url);
+};
 
 type RetryableArgs = string | (FetchArgs & { _retried?: boolean });
 
@@ -68,6 +73,7 @@ const rawBaseQuery = fetchBaseQuery({
 
 const AUTH_EXEMPT_PATHS = [
   '/auth/agency/login',
+  '/auth/agency/google',
   '/auth/agency/register',
   '/auth/agency/verify-otp',
   '/auth/agency/resend-otp',
@@ -92,15 +98,32 @@ export const baseQueryWithReauth: BaseQueryFn<FetchArgs | string, unknown, Fetch
   api,
   extraOptions,
 ) => {
+  const agencyRequest = isAgencyRequest(args);
   const requestUserId = (api.getState() as RootState).auth.user?.id;
+  let requestAgencyEpoch = (api.getState() as RootState).auth.agencyEpoch;
   let requestRole = (api.getState() as RootState).auth.user?.role;
   const identityChanged = () => {
     const user = (api.getState() as RootState).auth.user;
-    return user?.id !== requestUserId || user?.role !== requestRole;
+    return user?.id !== requestUserId || user?.role !== requestRole ||
+      (api.getState() as RootState).auth.agencyEpoch !== requestAgencyEpoch;
   };
   const superseded = { error: { status: 'CUSTOM_ERROR' as const, error: 'Account changed during request' } };
   const cleanArgs = stripRetryFlag(args);
-  let result = await rawBaseQuery(cleanArgs, api, extraOptions);
+  const scopedArgs = () => {
+    const request = typeof cleanArgs === 'string' ? { url: cleanArgs } : { ...cleanArgs };
+    const headers = new Headers(request.headers as HeadersInit | undefined);
+    // Tenant headers are owned by the authenticated state, never arbitrary callers.
+    headers.delete('X-Agency-Id');
+    if (agencyRequest) {
+      const agency = selectActiveAgency(api.getState() as RootState);
+      if (agency) headers.set('X-Agency-Id', agency.agencyId);
+    }
+    return { ...request, headers };
+  };
+  if (agencyRequest && !selectActiveAgency(api.getState() as RootState)) {
+    return { error: { status: 403, data: { error: { code: 'AGENCY_SELECTION_REQUIRED', message: 'Select an active agency first' } } } };
+  }
+  let result = await rawBaseQuery(scopedArgs(), api, extraOptions);
   if (identityChanged()) return superseded;
 
   if (result.error?.status === 401 && !hasRetried(args) && !isAuthExempt(cleanArgs)) {
@@ -116,7 +139,9 @@ export const baseQueryWithReauth: BaseQueryFn<FetchArgs | string, unknown, Fetch
       if (session && (!requestUserId || session.user.id === requestUserId)) {
         requestRole = session.user.role;
         api.dispatch(setCredentials(session));
-        result = await rawBaseQuery(markRetried(cleanArgs), api, extraOptions);
+        if (agencyRequest && identityChanged()) return superseded;
+        if (!agencyRequest) requestAgencyEpoch = (api.getState() as RootState).auth.agencyEpoch;
+        result = await rawBaseQuery(scopedArgs(), api, extraOptions);
         if (requestUserId && identityChanged()) return superseded;
       } else {
         api.dispatch(clearCredentials());
@@ -127,6 +152,18 @@ export const baseQueryWithReauth: BaseQueryFn<FetchArgs | string, unknown, Fetch
         }
       }
     }
+  }
+
+  // A permission-level 403 is not proof of revocation. Re-read memberships,
+  // preserving personal access and removing only memberships absent on the server.
+  if (agencyRequest && result.error?.status === 403 && !identityChanged()) {
+    try {
+      const memberships = await rawBaseQuery('/users/me/agencies', api, extraOptions);
+      if (!identityChanged() && Array.isArray((memberships.data as { data?: unknown })?.data)) {
+        api.dispatch(setAgencyMemberships({ userId: requestUserId!, agencies: (memberships.data as { data: AgencyMembership[] }).data }));
+      }
+    } catch { /* Keep the original permission error if synchronization is unavailable. */ }
+    if (identityChanged()) return superseded;
   }
 
   return result;
@@ -161,6 +198,7 @@ export const baseApi = createApi({
     'Earning',
     'AiChat',
     'CustomTour',
+    'AgencyMember',
   ],
   endpoints: () => ({}),
 });

@@ -69,6 +69,7 @@ export function useGoogleLogin({ onSuccess, onError, authenticate, rememberMe }:
           setCredentials({
             user: session.user,
             accessToken: session.accessToken,
+            agencies: session.agencies,
             ...(persistSession !== undefined ? { rememberMe: persistSession } : {}),
           }),
         );

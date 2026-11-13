@@ -75,7 +75,7 @@ export class BookingsService {
     private readonly tours: Pick<ToursService, 'getBookableDeparture' | 'reserveSeats' | 'releaseSeats' | 'getTourFacts'> = toursService,
     private readonly promotions: Pick<PromotionsService, 'redeem' | 'lockForBooking' | 'releaseForBooking' | 'release'> = promotionsService,
     private readonly settings: Pick<SystemSettingsService, 'getCommissionBps' | 'getPolicyNumber' | 'getPolicy'> = systemSettingsService,
-    private readonly notifications: Pick<NotificationsService, 'notify'> = notificationsService,
+    private readonly notifications: Pick<NotificationsService, 'notify' | 'notifyAgency'> = notificationsService,
     private readonly transact: TransactionRunner = runInTransaction,
   ) {}
 
@@ -348,7 +348,7 @@ export class BookingsService {
     );
     if (!cancelled) throw AppError.conflict('The booking changed, please retry', 'CONCURRENT_UPDATE');
 
-    await this.notifications.notify(booking.agencyId, {
+    await this.notifications.notifyAgency(booking.agencyId, {
       type: NOTIFICATION_TYPE.BOOKING_CANCELLED,
       title: 'Đơn đặt tour đã huỷ',
       body: `Đơn đặt chỗ ${booking.bookingCode} cho tour "${booking.tourTitle}" đã bị huỷ bởi du khách.`,
@@ -471,7 +471,7 @@ export class BookingsService {
         body: `Đã nhận thanh toán. Đơn đặt chỗ ${facts.bookingCode} cho tour "${facts.tourTitle}" đã được xác nhận.`,
         data: { bookingId: facts.id },
       }),
-      this.notifications.notify(facts.agencyId, {
+      this.notifications.notifyAgency(facts.agencyId, {
         type: NOTIFICATION_TYPE.BOOKING_CONFIRMED,
         title: 'Đặt tour mới đã xác nhận',
         body: `${facts.participants} du khách đã đặt "${facts.tourTitle}" (${facts.bookingCode}).`,

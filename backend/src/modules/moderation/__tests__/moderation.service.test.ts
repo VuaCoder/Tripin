@@ -15,7 +15,7 @@ function make() {
   const reviews = { listForModeration: vi.fn(async () => 'reviews'), moderate: vi.fn(async () => 'moderated') };
   const reports = { listForModeration: vi.fn(async () => 'reports'), getForModeration: vi.fn(async () => 'report'), resolve: vi.fn(async () => 'resolved') };
   const support = { listForModeration: vi.fn(async () => 'tickets'), getForModeration: vi.fn(async () => 'ticket'), replyAsStaff: vi.fn(async () => 'replied'), setStatus: vi.fn(async () => 'status') };
-  const notifications = { notify: vi.fn(async () => undefined) };
+  const notifications = { notify: vi.fn(async () => undefined), notifyAgency: vi.fn(async () => undefined) };
   const service = new ModerationService(tours as never, users as never, reviews as never, reports as never, support as never, notifications);
   return { service, tours, users, reviews, reports, support, notifications };
 }
@@ -53,13 +53,13 @@ describe('verifyAgency', () => {
     const { service, users, notifications } = make();
     await service.verifyAgency(moderator, 'a1', { approve: true });
     expect(users.decideAgencyVerification).toHaveBeenCalledWith(moderator, 'a1', { approve: true });
-    expect(notifications.notify).toHaveBeenCalledWith('a1', expect.objectContaining({ type: 'AGENCY_VERIFICATION_DECIDED', title: 'Your agency was verified' }), { email: true });
+    expect(notifications.notifyAgency).toHaveBeenCalledWith('a1', expect.objectContaining({ type: 'AGENCY_VERIFICATION_DECIDED', title: 'Your agency was verified' }), { email: true });
   });
 
   it('includes the moderator\'s note when rejecting', async () => {
     const { service, notifications } = make();
     await service.verifyAgency(moderator, 'a1', { approve: false, note: 'License unreadable' });
-    expect(notifications.notify).toHaveBeenCalledWith('a1', expect.objectContaining({ body: expect.stringContaining('License unreadable') }), { email: true });
+    expect(notifications.notifyAgency).toHaveBeenCalledWith('a1', expect.objectContaining({ body: expect.stringContaining('License unreadable') }), { email: true });
   });
 
   it('does not notify when the decision itself failed (e.g. invalid transition)', async () => {

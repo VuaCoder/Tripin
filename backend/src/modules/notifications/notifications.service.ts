@@ -7,6 +7,9 @@ import { usersService, type UsersService } from '../users';
 import { toNotificationDto } from './notifications.mapper';
 import { vietnameseNotification } from './notifications.locale';
 import { notificationsRepository, type NotificationsRepository } from './notifications.repository';
+import { prisma } from '../../config/database';
+import { writeAgencyNotification } from './notifications.writer';
+import { canReceiveAgencyNotification } from './notifications.policy';
 import type {
   ListNotificationsQuery,
   NotificationDto,
@@ -34,6 +37,23 @@ export class NotificationsService {
   }
 
   // ----------------------------------------------- Used by other modules
+
+  /** Explicit organization recipient, never a legacy User.id fallback. */
+  async notifyAgency(agencyId: string, input: NotifyInput, options: NotifyOptions = {}): Promise<void> {
+    try {
+      const localized = { ...input, ...vietnameseNotification(input.title, input.body) };
+      const rows = await prisma.$transaction(tx => writeAgencyNotification(tx, agencyId, localized, options.email ?? false));
+      for (const row of rows) await prisma.$transaction(async tx => {
+        await tx.$queryRaw`SELECT id FROM "AgencyProfile" WHERE id = ${agencyId}::uuid FOR UPDATE`;
+        const member = await tx.agencyMember.findFirst({ where: { agencyId, userId: row.userId, status: 'ACTIVE', user: { status: 'ACTIVE' } } });
+        if (member && canReceiveAgencyNotification(member.role, row.type)) {
+          this.publish(row.userId, toNotificationDto({ ...row, data: row.data as Record<string, string> | null }));
+        }
+      });
+    } catch (error) {
+      logger.error(`Agency notification failed (${input.type})`, { message: (error as Error).message });
+    }
+  }
 
   /**
    * Stores an in-app notification (and optionally emails it). NEVER throws: a failed notification must not break the
@@ -71,30 +91,30 @@ export class NotificationsService {
 
   // ------------------------------------------------------- Own inbox
 
-  async list(userId: string, query: ListNotificationsQuery): Promise<Page<NotificationDto>> {
-    const { items, total } = await this.notifications.list(userId, query.unreadOnly ?? false, query);
+  async list(userId: string, query: ListNotificationsQuery, agencyId?: string): Promise<Page<NotificationDto>> {
+    const { items, total } = await this.notifications.list(userId, query.unreadOnly ?? false, query, ...(agencyId ? [agencyId] : []));
     return buildPage(items.map(toNotificationDto), total, query);
   }
 
-  async unreadCount(userId: string): Promise<{ unread: number }> {
-    return { unread: await this.notifications.countUnread(userId) };
+  async unreadCount(userId: string, agencyId?: string): Promise<{ unread: number }> {
+    return { unread: await this.notifications.countUnread(userId, ...(agencyId ? [agencyId] : [])) };
   }
 
   /** Idempotent: marking an already-read notification returns it unchanged. */
-  async markRead(userId: string, id: string): Promise<NotificationDto> {
-    const updated = await this.notifications.markRead(id, userId);
+  async markRead(userId: string, id: string, agencyId?: string): Promise<NotificationDto> {
+    const updated = await this.notifications.markRead(id, userId, ...(agencyId ? [agencyId] : []));
     if (updated) return toNotificationDto(updated);
-    const existing = await this.notifications.findOwned(id, userId);
+    const existing = await this.notifications.findOwned(id, userId, ...(agencyId ? [agencyId] : []));
     if (!existing) throw AppError.notFound('Notification not found');
     return toNotificationDto(existing);
   }
 
-  async markAllRead(userId: string): Promise<{ updated: number }> {
-    return { updated: await this.notifications.markAllRead(userId) };
+  async markAllRead(userId: string, agencyId?: string): Promise<{ updated: number }> {
+    return { updated: await this.notifications.markAllRead(userId, ...(agencyId ? [agencyId] : [])) };
   }
 
-  async remove(userId: string, id: string): Promise<{ deleted: true }> {
-    if (!await this.notifications.deleteOwned(id, userId)) throw AppError.notFound('Notification not found');
+  async remove(userId: string, id: string, agencyId?: string): Promise<{ deleted: true }> {
+    if (!await this.notifications.deleteOwned(id, userId, ...(agencyId ? [agencyId] : []))) throw AppError.notFound('Notification not found');
     return { deleted: true };
   }
 

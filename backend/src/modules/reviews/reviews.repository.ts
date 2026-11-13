@@ -1,5 +1,5 @@
 import { writeAudit } from '../audit/audit.writer';
-import { writeNotification } from '../notifications/notifications.writer';
+import { writeNotification, writeAgencyNotification } from '../notifications/notifications.writer';
 import { formatReviewModeratedTravelerEmail, formatReviewModeratedAgencyEmail } from '../notifications/email-templates';
 import type { AuditEntry } from '../audit/audit.types';
 import { nullIfNotFound, prisma, type Prisma, type DbExecutor } from '../../config/database';
@@ -53,7 +53,7 @@ export class ReviewsRepository {
         const reason = String(audit.metadata?.reason ?? '');
         const [traveler, agency] = await Promise.all([
           tx.user.findUnique({ where: { id: updated.travelerId }, select: { fullName: true } }),
-          tx.user.findUnique({ where: { id: updated.agencyId }, select: { fullName: true } }),
+          tx.agencyProfile.findUnique({ where: { id: updated.agencyId }, select: { companyName: true } }),
         ]);
 
         await writeNotification(tx, updated.travelerId, {
@@ -71,14 +71,14 @@ export class ReviewsRepository {
         });
 
         if (updated.agencyId !== updated.travelerId) {
-          await writeNotification(tx, updated.agencyId, {
+          await writeAgencyNotification(tx, updated.agencyId, {
             type: 'REVIEW_MODERATED',
             title: hidden ? 'Đánh giá tour đã bị ẩn' : 'Đánh giá tour đã được khôi phục',
             body: `Đánh giá về "${updated.tourTitle}" đã ${hidden ? 'bị ẩn' : 'được khôi phục'}. Lý do kiểm duyệt: ${reason}`,
             data: { reviewId: id, tourId: updated.tourId },
             emailSubject: hidden ? `[TripRI] Cập nhật trạng thái đánh giá tour "${updated.tourTitle}"` : `[TripRI] Đánh giá cho tour "${updated.tourTitle}" đã được khôi phục`,
             emailText: formatReviewModeratedAgencyEmail({
-              agencyName: agency?.fullName,
+              agencyName: agency?.companyName ?? undefined,
               tourTitle: updated.tourTitle,
               hidden,
               reason,

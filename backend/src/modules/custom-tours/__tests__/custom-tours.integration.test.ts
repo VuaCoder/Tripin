@@ -77,7 +77,8 @@ describe('custom-tours (integration)', () => {
       data: { agencyId: agency.id, title: 'Draft', destination: 'Hue', durationDays: 1, basePrice: 1000, status: 'DRAFT' },
     });
     await prisma.tour.update({ where: { id: tourId }, data: { visibility: 'PRIVATE' } });
-    const unverified = await createUser('AGENCY', 'unverified@example.com');
+    // An agency whose profile exists but is not VERIFIED (the tour row needs the profile FK).
+    const unverified = await createUser('AGENCY', 'unverified@example.com', { agencyProfile: { companyName: 'Unverified Travel' } });
     const { tourId: unverifiedTour } = await createApprovedTour(unverified.id);
 
     expect((await send(traveler.token, { sourceTourId: draft.id, participants: 2 })).status).toBe(404);

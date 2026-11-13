@@ -43,9 +43,9 @@ describe('admin: users and access', () => {
 
     expect((await audit()).status).toBe(403);
     expect((await access(admin.token, traveler.id, { extraPermissions: [PERMISSIONS.AUDIT_LOG_VIEW, PERMISSIONS.AGENCY_DASHBOARD_VIEW] })).status).toBe(200);
-    // Admin permissions cannot bypass the mandatory role guard; other extra grants still work immediately.
+    // Admin permissions cannot bypass the mandatory role guard, and an extra grant never fakes agency membership.
     expect((await audit()).status).toBe(403);
-    expect((await request(app).get('/api/v1/agency/dashboard').set(bearer(traveler.token))).status).toBe(200);
+    expect((await request(app).get('/api/v1/agency/dashboard').set(bearer(traveler.token))).status).toBe(403);
     expect((await access(admin.token, traveler.id, { extraPermissions: [] })).status).toBe(200);
     expect((await audit()).status).toBe(403);
     expect((await request(app).get('/api/v1/agency/dashboard').set(bearer(traveler.token))).status).toBe(403);
@@ -53,8 +53,11 @@ describe('admin: users and access', () => {
     expect((await request(app).get('/api/v1/agency/tours').set(bearer(traveler.token))).status).toBe(403);
     const promoted = await access(admin.token, traveler.id, { role: 'AGENCY' });
     expect(promoted.status).toBe(200);
-    expect((await request(app).get('/api/v1/agency/tours').set(bearer(traveler.token))).status).toBe(200);
     expect((await prisma.user.findUnique({ where: { id: traveler.id }, include: { agencyProfile: true } }))!.agencyProfile!.verificationStatus).toBe('UNVERIFIED');
+    // Promotion creates the membership, but every /agency/* mount waits for a verified profile.
+    expect((await request(app).get('/api/v1/agency/tours').set(bearer(traveler.token))).status).toBe(403);
+    await prisma.agencyProfile.update({ where: { userId: traveler.id }, data: { verificationStatus: 'VERIFIED' } });
+    expect((await request(app).get('/api/v1/agency/tours').set(bearer(traveler.token))).status).toBe(200);
 
     expect(await prisma.auditLog.count({ where: { action: 'user.access_assigned' } })).toBe(3);
   });

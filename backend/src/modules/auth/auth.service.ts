@@ -33,8 +33,10 @@ import type {
 import { disconnectUserSessions } from '../chat/chat.gateway';
 import { OtpService, otpService } from './otp.service';
 import { refreshTokenRepository, type RefreshTokenRepository } from './refresh-token.repository';
+import { agencyService, type AgencyService } from '../agencies/agency.service';
 
 export interface AuthDeps {
+  agencies?: Pick<AgencyService, 'listForUser'>;
   users: Pick<
     UsersRepository,
     | 'findByEmail'
@@ -66,6 +68,7 @@ export class AuthService {
       otp: otpService,
       mail: mailProvider,
       google: googleIdentityVerifier,
+      agencies: agencyService,
     },
   ) {}
 
@@ -177,7 +180,7 @@ export class AuthService {
   /** Agency-only credential login. Other roles receive the same generic credentials error. */
   async loginAgency(input: LoginInput, context: RequestContext = {}): Promise<LoginResult> {
     const user = await this.validateCredentials(input);
-    if (user.role !== ROLES.AGENCY) {
+    if (!(await this.hasAgencyMembership(user.id))) {
       throw AppError.unauthenticated('Invalid email or password', ERROR_CODES.INVALID_CREDENTIALS);
     }
     if (user.status === USER_STATUS.PENDING_VERIFICATION && !this.hasCompleteAgencyProfile(user)) {
@@ -234,7 +237,7 @@ export class AuthService {
     context: RequestContext = {},
   ): Promise<AgencyOtpResult> {
     const user = await this.deps.users.findByEmail(input.email);
-    if (!user || user.role !== ROLES.AGENCY) {
+    if (!user || (input.purpose === OTP_PURPOSE.REGISTER ? user.role !== ROLES.AGENCY : !(await this.hasAgencyMembership(user.id)))) {
       throw AppError.badRequest(AUTH_POLICY.OTP_INVALID_MESSAGE, undefined, ERROR_CODES.OTP_INVALID);
     }
     if (user.status === USER_STATUS.BANNED) {
@@ -295,7 +298,7 @@ export class AuthService {
   }): Promise<{ expiresInSeconds: number }> {
     if (input.purpose === OTP_PURPOSE.LOGIN_2FA) {
       const user = await this.requireLogin2faPassword(input.email, input.password);
-      if (user.role !== ROLES.AGENCY) throw AppError.badRequest('Invalid or expired request');
+      if (!(await this.hasAgencyMembership(user.id))) throw AppError.badRequest('Invalid or expired request');
       if (user.status === USER_STATUS.BANNED) {
         throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
       }
@@ -403,7 +406,7 @@ export class AuthService {
         'AGENCY_ONBOARDING_REQUIRED',
       );
     }
-    if (user.role !== ROLES.AGENCY) {
+    if (!(await this.hasAgencyMembership(user.id))) {
       throw AppError.forbidden('Email Google này không thuộc tài khoản Đối tác Agency.', 'AGENCY_PORTAL_REQUIRED');
     }
     if (user.status === USER_STATUS.BANNED) {
@@ -414,6 +417,7 @@ export class AuthService {
     }
 
     const patch: Parameters<UsersRepository['updateById']>[1] = {};
+    if (user.status === USER_STATUS.PENDING_VERIFICATION) patch.passwordHash = null;
     if (!user.googleId) patch.googleId = identity.googleId;
     if (!user.emailVerifiedAt) patch.emailVerifiedAt = new Date();
     if (!user.avatarUrl && identity.avatarUrl) patch.avatarUrl = identity.avatarUrl;
@@ -639,7 +643,12 @@ export class AuthService {
       refreshToken: refresh.raw,
       refreshTokenExpiresAt: refresh.expiresAt,
       user: toPrivateUserDto(user),
+      agencies: this.deps.agencies ? await this.deps.agencies.listForUser(user.id) : [],
     };
+  }
+
+  private async hasAgencyMembership(userId: string): Promise<boolean> {
+    return Boolean((await this.deps.agencies?.listForUser(userId))?.length);
   }
 
   private hasCompleteAgencyProfile(user: UserRecord): boolean {

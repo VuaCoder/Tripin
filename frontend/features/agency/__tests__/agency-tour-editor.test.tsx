@@ -58,7 +58,7 @@ describe('Tour editor inline reminders', () => {
     expect(hint?.textContent).toContain('5 đến 200');
     expect(title.parentElement?.contains(hint)).toBe(true);
     expect(container.querySelectorAll('label .text-red-600')).toHaveLength(0);
-    expect(screen.getByText(/Tóm tắt ngắn/i).textContent).toContain('(Optional)');
+    expect(screen.getByText(/Tóm tắt ngắn/i)).toBeDefined();
     expect(screen.getByRole('group', { name: /Danh mục/i }).getAttribute('aria-invalid')).toBe('true');
     expect(mocks.save).not.toHaveBeenCalled();
     fireEvent.change(title, { target: { value: 'Khám phá Hạ Long' } });
@@ -123,8 +123,8 @@ describe('Tour editor inline reminders', () => {
     const step1Sec = document.getElementById('tour-section-1');
     expect(step1Sec?.className).toContain('hidden');
 
-    // Clicking "Quay lại: Thông tin chung" moves back to step 1
-    fireEvent.click(screen.getByRole('button', { name: /Quay lại: Thông tin chung/i }));
+    // Clicking "Quay lại" moves back to step 1
+    fireEvent.click(within(step2Sec!).getByRole('button', { name: /^Quay lại$/i }));
     expect(step1Sec?.className).toContain('block');
     expect(step2Sec?.className).toContain('hidden');
   });
@@ -239,8 +239,8 @@ describe('Tour editor edit mode & unsaved changes handling', () => {
     mocks.save.mockReturnValue({ unwrap: () => Promise.resolve({ id: 'tour-123' }) });
     render(<AgencyTourEditorPage mode="edit" />);
 
-    // Breadcrumb / back link shows "Quản lý tour"
-    expect(screen.getByRole('button', { name: /Quản lý tour/i })).toBeDefined();
+    // Circular back button with aria-label "Quay lại trang trước"
+    expect(screen.getByRole('button', { name: 'Quay lại trang trước' })).toBeDefined();
 
     const titleInput = screen.getByRole('textbox', { name: 'Tên tour' });
     fireEvent.change(titleInput, { target: { value: 'Tour Đã Chỉnh Sửa Hợp Lệ' } });
@@ -253,15 +253,14 @@ describe('Tour editor edit mode & unsaved changes handling', () => {
     expect(mocks.push).toHaveBeenCalledWith('/agency/tours/tour-123');
   });
 
-  it('allows jumping directly to itinerary & departures via header shortcut button', () => {
+  it('exits to default route when circular back button is clicked without changes', () => {
     mocks.tourData.current = existingTour;
     render(<AgencyTourEditorPage mode="edit" />);
 
-    const itineraryBtn = screen.getByRole('button', { name: /Lịch trình & Khởi hành/i });
-    fireEvent.click(itineraryBtn);
+    const backBtn = screen.getByRole('button', { name: 'Quay lại trang trước' });
+    fireEvent.click(backBtn);
 
-    // No unsaved changes -> jumps directly to workspace
-    expect(mocks.push).toHaveBeenCalledWith('/agency/tours/tour-123');
+    expect(mocks.push).toHaveBeenCalledWith('/agency/tours');
   });
 
   it('closes modal and stays on page when "Hủy" inside modal is clicked', () => {

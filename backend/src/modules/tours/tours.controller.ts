@@ -3,6 +3,7 @@ import type { Request, RequestHandler } from 'express';
 import type { TourStatus } from '@travel-platform/constants';
 import { uploadImageBuffer } from '../../integrations/cloudinary';
 import { userActor } from '../../middlewares/authorize';
+import { agencyContext } from '../../middlewares/agency-context';
 import { validated } from '../../middlewares/validate';
 import { sendCreated, sendNoContent, sendOk, sendPaginated } from '../../utils/api-response';
 import { AppError } from '../../utils/app-error';
@@ -22,7 +23,7 @@ import type {
   UpdateTourBody,
 } from './tours.validation';
 
-const agencyIdOf = (req: Request) => userActor(req).userId;
+const agencyIdOf = (req: Request) => agencyContext(req).agencyId;
 
 /** HTTP only. Three routers (public, agency, guide) share this controller; rules live in the services. */
 export class ToursController {

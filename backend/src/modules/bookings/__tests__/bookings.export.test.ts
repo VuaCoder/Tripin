@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { resolvePermissions, type Role } from '@travel-platform/constants';
 import { errorHandler } from '../../../middlewares/error-handler';
 import { GUEST_ACTOR } from '../../../types/actor';
+import { AGENCY_ROLE_PERMISSIONS } from '../../agencies/agency.policy';
 import { renderCustomersPdf } from '../bookings.export';
 import { BookingsService } from '../bookings.service';
 import { CUSTOMER_EXPORT_LIMIT } from '../bookings.types';
@@ -102,6 +103,7 @@ describe('GET /agency/tours/:id/customers.pdf', () => {
       req.actor = role
         ? { kind: 'user', userId: 'agency-9', email: 'x@y.z', role: role as never, permissions: resolvePermissions(role), emailVerified: true }
         : GUEST_ACTOR;
+      if (role === 'AGENCY') req.agencyContext = { agencyId: 'agency-9', actorUserId: 'agency-9', memberId: 'fixture-member', memberRole: 'OWNER', permissions: AGENCY_ROLE_PERMISSIONS.OWNER };
       next();
     });
     server.use('/agency/tours', agencyCustomersExportRouter);

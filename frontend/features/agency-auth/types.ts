@@ -1,4 +1,4 @@
-import type { UserProfile } from '@/features/auth/types';
+import type { AgencyMembership, UserProfile } from '@/features/auth/types';
 export type AgencyOtpPurpose = 'REGISTER' | 'LOGIN_2FA';
 
 export interface AgencyRegisterPayload {
@@ -19,7 +19,7 @@ export interface AgencyUser extends Omit<UserProfile, 'role' | 'agencyProfile'> 
   id: string;
   email: string;
   fullName: string;
-  role: 'AGENCY';
+  role: UserProfile['role'];
   status: 'ACTIVE' | 'PENDING_VERIFICATION' | 'BANNED';
   phone?: string;
   agencyProfile?: {
@@ -37,11 +37,11 @@ export interface AgencyUser extends Omit<UserProfile, 'role' | 'agencyProfile'> 
 
 export type AgencyLoginResult =
   | { twoFactorRequired: true; email: string }
-  | { twoFactorRequired: false; accessToken: string; user: AgencyUser };
+  | { twoFactorRequired: false; accessToken: string; user: AgencyUser; agencies?: AgencyMembership[] };
 
 export type AgencyVerifyResult =
   | { registrationComplete: true; email: string; agencyVerificationStatus: 'PENDING'; statusToken?: string }
-  | { registrationComplete: false; accessToken: string; user: AgencyUser };
+  | { registrationComplete: false; accessToken: string; user: AgencyUser; agencies?: AgencyMembership[] };
 
 export interface AgencyApplicationStatusDto {
   email: string;

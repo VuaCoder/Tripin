@@ -39,10 +39,10 @@ describe('ToursDiscoveryService.getDetail', () => {
     },
   );
 
-  it('shows the owner their own tour including archived, with the management view', async () => {
+  it('does not infer membership from a historical matching User ID on the public endpoint', async () => {
     const owner = user({ userId: 'a1', role: ROLES.AGENCY });
-    expect(await make(tour(TOUR_STATUS.DRAFT)).service.getDetail('t1', owner)).toBe('MANAGE');
-    expect(await make(tour(TOUR_STATUS.ARCHIVED)).service.getDetail('t1', owner)).toBe('MANAGE');
+    await expect(make(tour(TOUR_STATUS.DRAFT)).service.getDetail('t1', owner)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(make(tour(TOUR_STATUS.ARCHIVED)).service.getDetail('t1', owner)).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it('does not show another agency\'s draft', async () => {
@@ -56,11 +56,9 @@ describe('ToursDiscoveryService.getDetail', () => {
     await expect(make(privateTour).service.getDetail('t1', user())).rejects.toMatchObject({ statusCode: 404 });
     const other = user({ userId: 'a2', role: ROLES.AGENCY });
     await expect(make(privateTour).service.getDetail('t1', other)).rejects.toMatchObject({ statusCode: 404 });
-  });
-
-  it('still shows an APPROVED PRIVATE tour to its owner with the management view', async () => {
+    // Its owner manages it through /agency/tours/:id, never the public endpoint.
     const owner = user({ userId: 'a1', role: ROLES.AGENCY });
-    expect(await make(tour(TOUR_STATUS.APPROVED, 'a1', TOUR_VISIBILITY.PRIVATE)).service.getDetail('t1', owner)).toBe('MANAGE');
+    await expect(make(privateTour).service.getDetail('t1', owner)).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it('lets staff with tour:list-all see any status', async () => {

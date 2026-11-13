@@ -6,6 +6,7 @@ export function toNotificationDto(notification: NotificationRecord): Notificatio
   const data = notification.data ?? undefined;
   return {
     id: notification.id,
+    ...(notification.agencyId ? { agencyId: notification.agencyId } : {}),
     type: notification.type as NotificationType,
     ...vietnameseNotification(notification.title, notification.body),
     data: data && Object.keys(data).length > 0 ? data : undefined,

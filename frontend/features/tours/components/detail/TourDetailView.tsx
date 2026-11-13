@@ -1,6 +1,8 @@
 'use client';
-import { useState, useEffect, type MouseEvent } from 'react';
+import { useState, useEffect, useCallback, type MouseEvent } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { type GuestCounts } from '@travel-platform/constants';
 import { GuestLoginPromptModal } from '@/components/shared';
 import { ChevronRight, Printer, MapPin, Clock3, Building2, Check, User } from 'lucide-react';
 import { WishlistButton } from '@/features/wishlist';
@@ -17,12 +19,38 @@ import { TourChildPricing } from './TourChildPricing';
 import { TourCancellationPolicy } from './TourCancellationPolicy';
 import { TourRequiredDocuments } from './TourRequiredDocuments';
 import { TourTravelNotes } from './TourTravelNotes';
+import { SimilarToursSection } from './SimilarToursSection';
 import { saveRecentlyViewedTour } from '../../utils';
+import { readSearchGuests } from '../../utils/searchContext';
 import styles from './tour-detail.module.css';
 export function TourDetailView({ tour }: { tour: TourReviewContext }) {
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState('lich-trinh');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [failedAgencyAvatar, setFailedAgencyAvatar] = useState<string | null>(null);
+  const [printSelection, setPrintSelection] = useState<{ departureId?: string; guests: GuestCounts }>(() => ({
+    departureId: searchParams?.get('departureId') ?? undefined,
+    guests: readSearchGuests(searchParams),
+  }));
+  const handleSelectionChange = useCallback((selection: { departureId?: string; guests: GuestCounts }) => {
+    setPrintSelection(prev => {
+      if (
+        prev.departureId === selection.departureId &&
+        prev.guests.adults === selection.guests.adults &&
+        prev.guests.children === selection.guests.children &&
+        prev.guests.infants === selection.guests.infants
+      ) {
+        return prev;
+      }
+      return selection;
+    });
+  }, []);
+  const printQuery = new URLSearchParams();
+  if (printSelection.departureId) printQuery.set('departureId', printSelection.departureId);
+  printQuery.set('adults', String(printSelection.guests.adults));
+  printQuery.set('children', String(printSelection.guests.children));
+  printQuery.set('infants', String(printSelection.guests.infants));
+  const printHref = `/tours/${tour.id}/print?${printQuery.toString()}`;
   useEffect(() => {
     if (tour?.id) {
       saveRecentlyViewedTour({
@@ -52,7 +80,7 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
         <div className={styles.ratings}>
           <RatingStars value={tour.ratingAvg} count={tour.ratingCount} size="sm" />
           <a href="#danh-gia" onClick={event => navigateSection(event, 'danh-gia')}>
-            {tour.ratingCount ? `${tour.ratingAvg.toFixed(1)}/5 · ${tour.ratingCount} đánh giá` : 'Chưa có đánh giá'}
+            {tour.ratingCount ? `${tour.ratingAvg.toFixed(1)}/5` : 'Chưa có đánh giá'}
           </a>
         </div>
       </div>
@@ -66,9 +94,7 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
         />
         <ReportButton targetType="TOUR" targetId={tour.id} targetLabel={tour.title} iconOnly />
         <Link
-          href={`/tours/${tour.id}/print`}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={printHref}
           className={styles.iconActionButton}
           aria-label="In chương trình"
           title="In chương trình"
@@ -158,8 +184,13 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
         {tab === 'chinh-sach-gia' && <section id="chinh-sach-gia" className={styles.section} aria-labelledby="price-policy-heading"><h2 id="price-policy-heading">Chính sách giá</h2><TourIncludedServices items={tour.inclusions ?? []} /><TourExcludedServices items={tour.exclusions ?? []} /><TourChildPricing unitPrice={tour.basePrice} content={tour.childPricingPolicy} pricing={tour.agePricing} /></section>}
         {tab === 'huong-dan' && <section id="huong-dan" className={styles.section} aria-labelledby="travel-guidance-heading"><h2 id="travel-guidance-heading">Hướng dẫn trước chuyến đi</h2><TourTravelNotes content={tour.travelNotes} /><TourCancellationPolicy content={tour.cancellationPolicy} /><TourRequiredDocuments content={tour.requiredDocuments} /></section>}
       </div>
-    </div><TourBookingCard key={tour.id} tour={tour} /></div>
+    </div><TourBookingCard key={tour.id} tour={tour} onSelectionChange={handleSelectionChange} /></div>
     <div id="danh-gia" className={styles.section}><TourReviewsSection tourId={tour.id} tourTitle={tour.title} ratingAvg={tour.ratingAvg} ratingCount={tour.ratingCount} /></div>
+    <SimilarToursSection
+      currentTourId={tour.id}
+      destination={tour.destination}
+      categoryId={tour.categories?.[0]?.id || tour.categoryIds?.[0]}
+    />
     <GuestLoginPromptModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} redirectUrl={`/tours/${tour.id}`} tourTitle={tour.title} />
   </div>;
 }

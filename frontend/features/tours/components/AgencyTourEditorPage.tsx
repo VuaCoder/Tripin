@@ -123,6 +123,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
   const [showMobilePreview, setShowMobilePreview] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showExitConfirmModal, setShowExitConfirmModal] = useState(false);
+  const [agePricingAlert, setAgePricingAlert] = useState<string | null>(null);
   const [pendingExitUrl, setPendingExitUrl] = useState<string>('');
   const [initialSnapshot, setInitialSnapshot] = useState<string>('');
   const uploadInputId = useId();
@@ -360,6 +361,13 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
       setPageError('Nội dung và thông tin tour chưa có thay đổi nào để lưu.');
       return;
     }
+    const errors = validateTourEditor(value);
+    if (errors.agePricing) {
+      setAgePricingAlert(errors.agePricing);
+      setCurrentStep(3);
+      setFieldErrors(errors);
+      return;
+    }
     if (validateFields(editorFields, true)) {
       setShowCompleteModal(true);
     }
@@ -406,46 +414,26 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      {/* Top Status */}
-      {tour && (
-        <div className="mb-4 flex justify-end">
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 border border-slate-200">
-            Trạng thái: {tour.status}
-          </span>
-        </div>
-      )}
-
       {/* Page Title & Quick Action Header */}
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
-            <button
-              type="button"
-              onClick={() => handleRequestExit(defaultExitUrl)}
-              className="hover:text-primary transition-colors flex items-center gap-1 cursor-pointer"
-            >
-              <ArrowLeft size={14} /> {fromUrl?.startsWith(`/agency/tours/${id}`) ? 'Quản lý tour' : 'Danh sách tour'}
-            </button>
+      <div className="mb-7 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/80 pb-5">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => handleRequestExit(defaultExitUrl)}
+            className="flex size-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer shrink-0"
+            aria-label="Quay lại trang trước"
+            title="Quay lại"
+          >
+            <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+          </button>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+              {mode === 'create' ? 'Tạo tour mới' : 'Chỉnh sửa tour'}
+            </h1>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-            {mode === 'create' ? 'Tạo tour mới' : 'Chỉnh sửa tour'}
-          </h1>
         </div>
 
         <div className="flex items-center gap-2.5">
-          {/* Quick jump to Itinerary & Departures in edit mode */}
-          {mode === 'edit' && id && (
-            <button
-              type="button"
-              onClick={() => handleRequestExit(`/agency/tours/${id}`)}
-              title="Mở màn hình Quản lý Lịch trình & Khởi hành"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-teal-600/30 bg-teal-50/70 px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-teal-800 hover:bg-teal-100/80 transition-colors shadow-2xs cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[17px] text-teal-700">calendar_month</span>
-              <span>Lịch trình & Khởi hành</span>
-            </button>
-          )}
-
           {/* Mobile preview toggle */}
           <button
             type="button"
@@ -644,7 +632,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
               <div className="space-y-1.5">
                 <div className="flex justify-between items-baseline">
                   <label htmlFor={fieldId('summary')} className="text-sm font-bold text-slate-800">
-                    Tóm tắt ngắn <span className="text-xs font-normal text-slate-500">(Optional)</span>
+                    Tóm tắt ngắn
                   </label>
                   <span className="text-xs text-slate-400">{(value.summary ?? '').length}/500</span>
                 </div>
@@ -663,7 +651,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
               {/* Categories */}
               <div className="space-y-2">
                 <span id={fieldId('categoryIds')} className="text-sm font-bold text-slate-800 block">
-                  Danh mục tour <span className="text-xs font-normal text-slate-500">(chọn từ 1 đến 10)</span>
+                  Danh mục tour
                 </span>
                 <TourCategoryCombobox
                   id={`${formId}-categoryIds`}
@@ -680,16 +668,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
               </div>
 
               {/* Step 1 Footer */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-6 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => handleRequestExit()}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
-                >
-                  <X size={16} />
-                  <span>Hủy</span>
-                </button>
-
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-6 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => {
@@ -698,7 +677,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   }}
                   className="inline-flex items-center gap-2 rounded-xl bg-[#087e8b] px-6 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-[#00636e] transition-colors shadow-sm cursor-pointer"
                 >
-                  <span>Tiếp tục: Hình ảnh tour</span>
+                  <span>Tiếp tục</span>
                   <ArrowRight size={16} />
                 </button>
               </div>
@@ -919,7 +898,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
                 >
                   <ArrowLeft size={16} />
-                  <span>Quay lại: Thông tin chung</span>
+                  <span>Quay lại</span>
                 </button>
 
                 <button
@@ -927,7 +906,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   onClick={() => setCurrentStep(3)}
                   className="inline-flex items-center gap-2 rounded-xl bg-[#087e8b] px-6 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-[#00636e] transition-colors shadow-sm cursor-pointer"
                 >
-                  <span>Tiếp tục: Giá &amp; Dịch vụ</span>
+                  <span>Tiếp tục</span>
                   <ArrowRight size={16} />
                 </button>
               </div>
@@ -958,38 +937,8 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                 )}
               </div>
 
-              {/* Base price & Max group */}
+              {/* Max group & Base price: Reordered so Max group is FIRST */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label htmlFor={fieldId('basePrice')} className="text-sm font-bold text-slate-800">
-                    Giá người lớn · từ 13 tuổi trở lên (VND)
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      required
-                      {...fieldProps('basePrice')}
-                      value={formatCurrencyVndInput(value.basePrice)}
-                      onChange={(e) => {
-                        const parsed = parseCurrencyVndInput(e.target.value);
-                        if (parsed <= MONEY_LIMITS.MAX_UNIT_PRICE) {
-                          updateField('basePrice', parsed);
-                        }
-                      }}
-                      placeholder="Ví dụ: 1.500.000"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 pr-10 text-sm font-medium text-slate-900 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20 placeholder:font-normal placeholder:text-slate-400"
-                    />
-                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 select-none">₫</span>
-                  </div>
-                  {fieldHint('basePrice')}
-                  {value.basePrice > 0 && (
-                    <span className="block text-xs font-medium text-slate-500">
-                      Hiển thị: {new Intl.NumberFormat('vi-VN').format(value.basePrice)} ₫ / khách
-                    </span>
-                  )}
-                </div>
-
                 <div className="space-y-1.5">
                   <label htmlFor={fieldId('maxGroupSize')} className="text-sm font-bold text-slate-800">
                     Số khách tối đa / đoàn
@@ -1059,6 +1008,31 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   />
                   {fieldHint('maxGroupSize')}
                 </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor={fieldId('basePrice')} className="text-sm font-bold text-slate-800">
+                    Giá người lớn · từ 13 tuổi trở lên (VND)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      required
+                      {...fieldProps('basePrice')}
+                      value={formatCurrencyVndInput(value.basePrice)}
+                      onChange={(e) => {
+                        const parsed = parseCurrencyVndInput(e.target.value);
+                        if (parsed <= MONEY_LIMITS.MAX_UNIT_PRICE) {
+                          updateField('basePrice', parsed);
+                        }
+                      }}
+                      placeholder="Ví dụ: 1.500.000"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 pr-10 text-sm font-medium text-slate-900 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20 placeholder:font-normal placeholder:text-slate-400"
+                    />
+                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 select-none">₫</span>
+                  </div>
+                  {fieldHint('basePrice')}
+                </div>
               </div>
 
               {/* Age Pricing & Child Policy */}
@@ -1100,7 +1074,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
                 >
                   <ArrowLeft size={16} />
-                  <span>Quay lại: Hình ảnh tour</span>
+                  <span>Quay lại</span>
                 </button>
 
                 <button
@@ -1111,7 +1085,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   }}
                   className="inline-flex items-center gap-2 rounded-xl bg-[#087e8b] px-6 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-[#00636e] transition-colors shadow-sm cursor-pointer"
                 >
-                  <span>Tiếp tục: Chính sách &amp; Hoàn tất</span>
+                  <span>Tiếp tục</span>
                   <ArrowRight size={16} />
                 </button>
               </div>
@@ -1144,87 +1118,16 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
 
               <TourPolicyFields value={value} onChange={setValue} includeAgePricing={false} />
 
-              {/* Guide assignment is only managed after the tour exists; creation never assigns one. */}
-              {mode === 'edit' && (
-              <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/70">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
-                  Hướng dẫn viên phụ trách
-                </span>
-                {tour?.guide ? (
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-10 items-center justify-center rounded-full bg-teal-600 text-white font-bold">
-                      {tour.guide.fullName.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">{tour.guide.fullName}</p>
-                      <p className="text-xs text-slate-500">Đã được phân công phụ trách tour này</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <UserX size={18} className="text-slate-400" />
-                      <p className="text-sm font-semibold text-slate-700">Chưa phân công hướng dẫn viên</p>
-                    </div>
-                    {id && (
-                      <Link 
-                        href={`/agency/tours/${id}`}
-                        className="rounded-xl border border-primary px-3 py-1.5 text-xs font-bold text-primary hover:bg-teal-50"
-                      >
-                        Phân công trong trang Quản lý
-                      </Link>
-                    )}
-                  </div>
-                )}
-              </div>
-              )}
-
-              {/* Checklist Summary */}
-              <div className="rounded-2xl border border-teal-100 bg-teal-50/60 p-4 space-y-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-teal-800 block mb-2">
-                  Checklist sẵn sàng xuất bản:
-                </span>
-                <div className="space-y-1.5 text-xs font-semibold text-slate-700">
-                  <p className="flex items-center gap-2">
-                    <CheckCircle2 size={16} className={value.title ? 'text-emerald-600 shrink-0' : 'text-slate-300 shrink-0'} />
-                    <span>Tên tour & điểm đến: <strong>{value.destination || 'Chưa có'}</strong></span>
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <CheckCircle2 size={16} className={(value.images ?? []).length > 0 ? 'text-emerald-600 shrink-0' : 'text-slate-300 shrink-0'} />
-                    <span>Hình ảnh thương hiệu: <strong>{(value.images ?? []).length} ảnh</strong></span>
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <CheckCircle2 size={16} className={value.basePrice > 0 ? 'text-emerald-600 shrink-0' : 'text-slate-300 shrink-0'} />
-                    <span>Giá cơ bản niêm yết: <strong>{new Intl.NumberFormat('vi-VN').format(value.basePrice)} ₫</strong></span>
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <CheckCircle2 size={16} className={value.categoryIds.length > 0 ? 'text-emerald-600 shrink-0' : 'text-slate-300 shrink-0'} />
-                    <span>Danh mục: <strong>{value.categoryIds.length} danh mục</strong></span>
-                  </p>
-                </div>
-              </div>
-
               {/* Bottom Action Card */}
               <div className="pt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100">
-                <div className="flex items-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(3)}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
-                  >
-                    <ArrowLeft size={16} />
-                    <span>Quay lại: Giá &amp; Dịch vụ</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleRequestExit()}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
-                  >
-                    <X size={16} />
-                    <span>Hủy</span>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(3)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
+                >
+                  <ArrowLeft size={16} />
+                  <span>Quay lại</span>
+                </button>
 
                 <button
                   type="button"
@@ -1264,28 +1167,71 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
         </div>
 
         {/* ========================================================================= */}
+        {/* AGE PRICING WARNING MODAL                                                 */}
+        {/* ========================================================================= */}
+        {agePricingAlert && (
+          <div 
+            onClick={() => setAgePricingAlert(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200 cursor-pointer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="age-pricing-modal-title"
+          >
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 cursor-default"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 border border-amber-200/60">
+                  <AlertTriangle className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 id="age-pricing-modal-title" className="text-base font-bold text-slate-900">
+                    Thiếu thông tin giá vé theo nhóm
+                  </h3>
+                  <p className="text-xs text-slate-500">Chính sách giá vé trẻ em &amp; em bé</p>
+                </div>
+              </div>
+
+              <p className="text-sm text-slate-600 leading-relaxed">
+                {agePricingAlert}
+              </p>
+
+              <div className="flex items-center justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setAgePricingAlert(null)}
+                  className="rounded-xl bg-[#087e8b] px-6 py-2.5 text-sm font-bold text-white hover:bg-[#00636e] transition-colors shadow-sm cursor-pointer"
+                >
+                  Đã hiểu, tôi sẽ bổ sung
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
         {/* COMPLETE CONFIRMATION MODAL                                              */}
         {/* ========================================================================= */}
         {showCompleteModal && (
           <div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+            onClick={() => setShowCompleteModal(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200 cursor-pointer"
             role="dialog"
             aria-modal="true"
             aria-labelledby="complete-modal-title"
           >
-            <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-teal-50 text-teal-600 border border-teal-200/60 shrink-0">
-                  <span className="material-symbols-outlined text-2xl">task_alt</span>
-                </div>
-                <div className="min-w-0">
-                  <h3 id="complete-modal-title" className="text-lg font-bold text-slate-900">
-                    {mode === 'create' ? 'Xác nhận tạo tour mới?' : 'Xác nhận lưu thay đổi?'}
-                  </h3>
-                  <p className="text-xs text-slate-500 truncate">
-                    Tour: <span className="font-semibold text-slate-700">{value.title || 'Tour mới'}</span>
-                  </p>
-                </div>
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 cursor-default"
+            >
+              <div>
+                <h3 id="complete-modal-title" className="text-lg font-bold text-slate-900">
+                  {mode === 'create' ? 'Xác nhận tạo tour mới?' : 'Xác nhận lưu thay đổi?'}
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  Tour: <span className="font-semibold text-slate-700">{value.title || 'Tour mới'}</span>
+                </p>
               </div>
 
               <p className="text-sm text-slate-600">
@@ -1322,28 +1268,24 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
         {/* ========================================================================= */}
         {showExitConfirmModal && (
           <div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+            onClick={handleCancelExit}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200 cursor-pointer"
             role="dialog"
             aria-modal="true"
             aria-labelledby="exit-modal-title"
           >
-            <div className="w-full max-w-lg rounded-3xl bg-white p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5">
-              <div className="flex items-start gap-4">
-                <div className="flex size-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 border border-amber-200/60 shrink-0">
-                  <AlertTriangle size={24} />
-                </div>
-                <div className="min-w-0">
-                  <h3 id="exit-modal-title" className="text-lg sm:text-xl font-bold text-slate-900">
-                    Bạn có thay đổi chưa lưu!
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Tour: <span className="font-semibold text-slate-700">{value.title || 'Tour đang chỉnh sửa'}</span>
-                  </p>
-                </div>
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-3xl bg-white p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-4 cursor-default"
+            >
+              <div>
+                <h3 id="exit-modal-title" className="text-lg font-bold text-slate-900">
+                  Bạn có thay đổi chưa lưu!
+                </h3>
               </div>
 
               <p className="text-sm text-slate-600 leading-relaxed">
-                Nội dung và thông tin bạn vừa chỉnh sửa chưa được lưu vào hệ thống. Bạn muốn xử lý thế nào trước khi rời khỏi trang này?
+                Tour <span className="font-semibold text-slate-800">“{value.title?.trim() || tour?.title || 'Tour đang chỉnh sửa'}”</span> chưa được lưu. Bạn có muốn lưu trước khi rời khỏi trang không?
               </p>
 
               <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5 pt-3 border-t border-slate-100">
@@ -1359,7 +1301,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   type="button"
                   onClick={handleExitWithoutSave}
                   disabled={busy}
-                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs sm:text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors cursor-pointer"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs sm:text-sm font-semibold text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition-colors cursor-pointer"
                 >
                   Thoát không lưu
                 </button>

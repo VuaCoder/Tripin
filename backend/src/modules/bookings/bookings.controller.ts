@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import type { BookingStatus } from '@travel-platform/constants';
 import { userActor } from '../../middlewares/authorize';
+import { agencyContext } from '../../middlewares/agency-context';
 import { validated } from '../../middlewares/validate';
 import { sendCreated, sendOk, sendPaginated } from '../../utils/api-response';
 import type { IdParams } from '../../utils/id';
@@ -46,19 +47,19 @@ export class BookingsController {
 
   listForAgency: RequestHandler = async (req, res) => {
     const { query } = validated<unknown, ListAgencyBookingsQueryInput>(req);
-    const page = await this.service.listForAgency(userActor(req).userId, { ...query, status: query.status as BookingStatus | undefined });
+    const page = await this.service.listForAgency(agencyContext(req).agencyId, { ...query, status: query.status as BookingStatus | undefined });
     sendPaginated(res, page.items, page.meta);
   };
 
   getForAgency: RequestHandler = async (req, res) => {
     const { params } = validated<unknown, unknown, IdParams>(req);
-    sendOk(res, await this.service.getForAgency(userActor(req).userId, params.id));
+    sendOk(res, await this.service.getForAgency(agencyContext(req).agencyId, params.id));
   };
 
   /** Streams the PDF customer list of one of the agency's tours. */
   exportCustomers: RequestHandler = async (req, res) => {
     const { params, query } = validated<unknown, CustomersExportQueryInput, IdParams>(req);
-    const { tourTitle, rows, truncated } = await this.service.listCustomers(userActor(req).userId, params.id, query.departureId);
+    const { tourTitle, rows, truncated } = await this.service.listCustomers(agencyContext(req).agencyId, params.id, query.departureId);
     const doc = renderCustomersPdf({ tourTitle, rows, truncated, generatedAt: new Date() });
     res.status(200);
     res.setHeader('Content-Type', 'application/pdf');

@@ -483,37 +483,16 @@ export function AgencyTourListPage() {
                         </div>
 
                         <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                          <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5">
-                            <span className="material-symbols-outlined text-[14px]">event</span>
-                            {tour.departures?.length ?? 0} ngày khởi hành
+                          <span>
+                            Cập nhật: {new Date(tour.updatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}{' '}
+                            {new Date(tour.updatedAt).toLocaleDateString('vi-VN')}
                           </span>
-                          <span>Cập nhật: {new Date(tour.updatedAt).toLocaleDateString('vi-VN')}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openImageManager(tour);
-                            }}
-                            className="inline-flex items-center gap-1 font-semibold text-teal-700 hover:text-teal-900 underline ml-1 cursor-pointer"
-                          >
-                            <span className="material-symbols-outlined text-[14px]">image</span>
-                            {tour.images?.length ? `${tour.images.length} ảnh` : '+ Thêm ảnh'}
-                          </button>
                         </div>
                       </div>
                     </div>
 
                     {/* Right: Actions */}
                     <div className="flex shrink-0 items-center gap-2 border-t border-slate-100 pt-3 sm:border-t-0 sm:pt-0" onClick={(e) => e.stopPropagation()}>
-                      <Link 
-                        href={`/agency/tours/${tour.id}`} 
-                        title="Quản lý lịch trình, ngày khởi hành và chỗ ngồi"
-                        aria-label="Quản lý lịch trình & chỗ ngồi"
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-colors shadow-2xs"
-                      >
-                        <span className="material-symbols-outlined text-[17px] text-teal-700">calendar_month</span>
-                        <span className="hidden sm:inline">Lịch trình & Chỗ</span>
-                      </Link>
                       <Link 
                         href={`/agency/tours/${tour.id}/edit?from=/agency/tours`} 
                         aria-disabled={tour.status === 'PENDING_REVIEW' || tour.status === 'ARCHIVED'} 
@@ -525,14 +504,13 @@ export function AgencyTourListPage() {
                               : 'Chỉnh sửa thông tin tour'
                         }
                         aria-label="Chỉnh sửa thông tin tour"
-                        className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-colors shadow-2xs ${
+                        className={`flex size-9 items-center justify-center rounded-xl border transition-colors shadow-2xs ${
                           tour.status === 'PENDING_REVIEW' || tour.status === 'ARCHIVED' 
                             ? 'pointer-events-none border-slate-200 text-slate-300' 
                             : 'border-teal-600/30 text-teal-700 bg-teal-50/60 hover:bg-teal-100/70 hover:border-teal-600'
                         }`}
                       >
-                        <span className="material-symbols-outlined text-[17px]">edit</span>
-                        <span className="hidden sm:inline">Sửa thông tin</span>
+                        <span className="material-symbols-outlined text-[18px]">edit</span>
                       </Link>
                       {tour.status === 'ARCHIVED' ? (
                         <button
@@ -629,21 +607,14 @@ export function AgencyTourListPage() {
                       </div>
 
                       <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-                        <span>{tour.departures?.length ?? 0} ngày khởi hành</span>
-                        <span>Cập nhật {new Date(tour.updatedAt).toLocaleDateString('vi-VN')}</span>
+                        <span>
+                          Cập nhật: {new Date(tour.updatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}{' '}
+                          {new Date(tour.updatedAt).toLocaleDateString('vi-VN')}
+                        </span>
                       </div>
 
                       {/* Card Footer Actions */}
                       <div className="mt-5 flex items-center justify-between gap-2 border-t border-slate-100 pt-3" onClick={(e) => e.stopPropagation()}>
-                        <Link 
-                          href={`/agency/tours/${tour.id}`} 
-                          title="Quản lý lịch trình, ngày khởi hành và chỗ ngồi"
-                          aria-label="Quản lý lịch trình & chỗ ngồi"
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2 px-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs"
-                        >
-                          <span className="material-symbols-outlined text-[16px] text-teal-700">calendar_month</span>
-                          <span>Lịch trình</span>
-                        </Link>
                         <Link 
                           href={`/agency/tours/${tour.id}/edit?from=/agency/tours`} 
                           aria-disabled={tour.status === 'PENDING_REVIEW' || tour.status === 'ARCHIVED'} 
@@ -662,7 +633,7 @@ export function AgencyTourListPage() {
                           }`}
                         >
                           <span className="material-symbols-outlined text-[16px]">edit</span>
-                          <span>Sửa thông tin</span>
+                          <span>Chỉnh sửa tour</span>
                         </Link>
                         {tour.status === 'ARCHIVED' ? (
                           <button
@@ -956,20 +927,21 @@ export function AgencyTourListPage() {
       {/* ARCHIVE CONFIRMATION MODAL                                                */}
       {/* ========================================================================= */}
       {archivingTour && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="flex size-11 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 border border-amber-200/60 shrink-0">
-                <span className="material-symbols-outlined text-2xl">archive</span>
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-lg font-bold text-slate-900">
-                  Bạn có muốn lưu trữ?
-                </h3>
-                <p className="text-xs text-slate-500 truncate">
-                  Tour: <span className="font-semibold text-slate-700">{archivingTour.title}</span>
-                </p>
-              </div>
+        <div 
+          onClick={() => setArchivingTour(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200 cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 cursor-default"
+          >
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">
+                Bạn có muốn lưu trữ?
+              </h3>
+              <p className="mt-1 text-xs text-slate-500">
+                Tour: <span className="font-semibold text-slate-700">{archivingTour.title}</span>
+              </p>
             </div>
 
             <p className="text-sm text-slate-600">
@@ -977,7 +949,6 @@ export function AgencyTourListPage() {
             </p>
 
             <div className="flex items-center justify-end gap-3 pt-2">
-              {/* Nút Huỷ: Chữ trắng nền xanh (để người dùng không bị click lộn khi đã bấm lộn lưu trữ rồi) */}
               <button
                 type="button"
                 onClick={() => setArchivingTour(null)}
@@ -987,7 +958,6 @@ export function AgencyTourListPage() {
                 Huỷ
               </button>
 
-              {/* Nút Tiếp tục: Chữ xanh viền trắng */}
               <button
                 type="button"
                 onClick={handleConfirmArchive}
