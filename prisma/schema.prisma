@@ -173,6 +173,7 @@ model Tour {
   basePrice    BigInt
   maxGroupSize Int?
   images       String[]   @default([])
+  highlights   String[]   @default([])
   inclusions   String[]   @default([])
   exclusions   String[]   @default([])
   /// [{ day, title, description?, activities[] }]
@@ -230,6 +231,8 @@ model TourGuideAssignment {
 
 model Booking {
   guestPricing Json?
+  /// Passenger details captured at checkout for departure rosters.
+  passengers Json?
   id          String @id @default(uuid()) @db.Uuid
   bookingCode String @unique
   travelerId  String @db.Uuid
