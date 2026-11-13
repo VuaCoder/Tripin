@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(), 
   replace: vi.fn(),
   tourData: { current: null as any },
+  memberRole: { current: 'OWNER' as 'OWNER' | 'STAFF' },
   fromUrl: { current: '' as string }
 }));
 
@@ -26,6 +27,7 @@ vi.mock('@/features/tours/api/toursApi', () => ({
   useCreateAgencyCategoryMutation: () => [vi.fn(), {}],
   getTourApiMessage: (_error: unknown, fallback: string) => fallback,
 }));
+vi.mock('@/features/agency/agencyContext', () => ({ useAgencyContext: () => ({ memberRole: mocks.memberRole.current }) }));
 vi.mock('@/features/tours/components/AgencyTourLivePreview', () => ({ AgencyTourLivePreview: () => null }));
 
 beforeEach(() => { 
@@ -33,6 +35,7 @@ beforeEach(() => {
   mocks.push.mockReset(); 
   mocks.replace.mockReset(); 
   mocks.tourData.current = null;
+  mocks.memberRole.current = 'OWNER';
   mocks.fromUrl.current = '';
 });
 afterEach(cleanup);
@@ -141,6 +144,20 @@ describe('Tour editor edit mode & unsaved changes handling', () => {
     exclusions: ['Chi phí cá nhân'],
     status: 'DRAFT',
   };
+
+  it('locks pricing and sends only allowed changed fields for STAFF', async () => {
+    mocks.memberRole.current = 'STAFF';
+    mocks.tourData.current = existingTour;
+    mocks.save.mockReturnValue({ unwrap: () => Promise.resolve({ id: 'tour-123' }) });
+    render(<AgencyTourEditorPage mode="edit" />);
+    expect(screen.getByText(/Chỉ Quản lý \(Manager\) hoặc Chủ đại lý/)).toBeDefined();
+    const price = screen.getByLabelText(/Giá người lớn/) as HTMLInputElement;
+    expect(price.closest('fieldset')?.disabled).toBe(true);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tên tour' }), { target: { value: 'Tour Staff cập nhật' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Hủy' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu rồi thoát' }));
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledWith({ id: 'tour-123', body: { title: 'Tour Staff cập nhật' } }));
+  });
 
   it('disables save button with "Chưa có thay đổi" when tour content is unchanged in edit mode', () => {
     mocks.tourData.current = existingTour;

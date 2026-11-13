@@ -44,6 +44,7 @@ export interface TourDetail extends TourListItem {
   maxGroupSize?: number;
   images: string[];
   inclusions: string[];
+  highlights?: string[];
   exclusions: string[];
   itinerary: TourItineraryDay[];
   departures: TourDeparture[];
@@ -76,6 +77,7 @@ export interface TourContentInput {
   categoryIds: string[];
   images?: string[];
   inclusions?: string[];
+  highlights?: string[];
   exclusions?: string[];
 }
 export type ExtractedTourCandidate = Partial<TourContentInput>;

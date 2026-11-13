@@ -89,14 +89,29 @@ export class ToursService {
    * Use case "Edit tour". Locked while PENDING_REVIEW. Editing an APPROVED tour preserves its APPROVED status
    * so agencies can update content without resubmitting — existing bookings keep their price snapshot.
    */
-  async updateTour(agencyId: string, id: string, input: UpdateTourInput): Promise<TourManageDto> {
+  async updateTour(agencyId: string, id: string, input: UpdateTourInput, memberRole?: import('../agencies/agency.policy').AgencyContext['memberRole']): Promise<TourManageDto> {
+    if (memberRole === 'STAFF' && Object.keys(input).some((key) => !['title', 'description', 'images', 'highlights', 'itinerary', 'inclusions', 'exclusions'].includes(key))) {
+      throw AppError.forbidden('Staff can update tour content only');
+    }
     const tour = await this.requireOwned(agencyId, id);
     this.assertAgencyEditable(tour);
     if (input.categoryIds) await this.categories.assertActiveIds(input.categoryIds);
     if (input.durationDays !== undefined && tour.itinerary.some((day) => (day.toDay && day.toDay > day.day ? day.toDay : day.day) > input.durationDays!)) {
       throw AppError.badRequest('durationDays is shorter than the configured itinerary', undefined, 'ITINERARY_EXCEEDS_DURATION');
     }
-    return this.applyContentChange(tour, { ...input });
+    const { itinerary: days, ...content } = input;
+    if (days) {
+      const duration = input.durationDays ?? tour.durationDays;
+      const sorted = [...days].sort((a, b) => a.day - b.day);
+      if (sorted.some((day, index) => {
+        const end = day.toDay && day.toDay > day.day ? day.toDay : day.day;
+        const previous = sorted[index - 1];
+        const previousEnd = previous ? (previous.toDay && previous.toDay > previous.day ? previous.toDay : previous.day) : 0;
+        return end > duration || (previous && day.day <= previousEnd);
+      })) throw AppError.badRequest('Invalid itinerary days', undefined, 'ITINERARY_EXCEEDS_DURATION');
+      return this.applyContentChange(tour, { ...content, itinerary: sorted.map(day => ({ ...day, activities: day.activities ?? [] })) });
+    }
+    return this.applyContentChange(tour, content);
   }
 
   /** Use case "Delete tour": archives it (soft delete). Refused while future departures have booked seats. */

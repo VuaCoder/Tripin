@@ -28,6 +28,8 @@ const statusText: Record<string, string> = { DRAFT: 'Bản nháp', PENDING_REVIE
 export function AgencyTourWorkspacePage() {
   const { id } = useParams<{ id: string }>();
   const canView = useAgencyPermission('tour:update-own');
+  const canManageLifecycle = useAgencyPermission('tour:delete-own');
+  const canManageAvailability = useAgencyPermission('tour:set-availability');
   const dispatch = useAppDispatch();
   const { currentData: tour, isLoading, isFetching, error, refetch } = useGetAgencyTourQuery(id, { skip: !canView, pollingInterval: 30_000, skipPollingIfUnfocused: true, refetchOnFocus: true, refetchOnReconnect: true });
   const [saveItinerary, itineraryState] = useSetAgencyTourItineraryMutation();
@@ -277,7 +279,7 @@ export function AgencyTourWorkspacePage() {
         {tour.statusReason && <p className="mt-2 text-sm text-amber-800">Ghi chú kiểm duyệt: {tour.statusReason}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-2.5">
-        {isArchived ? (
+        {isArchived ? (canManageLifecycle ? (
           <button
             type="button"
             onClick={() => void handleRestore()}
@@ -287,7 +289,7 @@ export function AgencyTourWorkspacePage() {
             <RestoreIcon size={16} />
             <span>{restoreState.isLoading ? 'Đang khôi phục…' : 'Khôi phục tour'}</span>
           </button>
-        ) : (
+        ) : null) : (
           <>
             <Link
               href={`/agency/tours/${id}/edit?from=/agency/tours/${id}`}
@@ -302,7 +304,7 @@ export function AgencyTourWorkspacePage() {
               <span>Chỉnh sửa nội dung</span>
             </Link>
 
-            {tour.status !== 'APPROVED' && (
+            {canManageLifecycle && tour.status !== 'APPROVED' && (
               <button
                 type="button"
                 onClick={submit}
@@ -314,7 +316,7 @@ export function AgencyTourWorkspacePage() {
               </button>
             )}
 
-            <button
+            {canManageLifecycle && <button
               type="button"
               onClick={() => void remove()}
               disabled={busy || locked}
@@ -323,7 +325,7 @@ export function AgencyTourWorkspacePage() {
             >
               <Archive size={15} />
               <span>Lưu trữ tour</span>
-            </button>
+            </button>}
           </>
         )}
       </div>
@@ -426,7 +428,8 @@ export function AgencyTourWorkspacePage() {
         </section>
       </div>
 
-      <section hidden={step !== 2} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      {!canManageAvailability && step === 2 && <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">🔒 Chỉ Quản lý hoặc Chủ đại lý mới có quyền thay đổi ngày khởi hành và trạng thái mở bán.</section>}
+      {canManageAvailability && <section hidden={step !== 2} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Ngày khởi hành</h2>
@@ -560,7 +563,7 @@ export function AgencyTourWorkspacePage() {
             </button>
           </div>
         </form>
-      </section>
+      </section>}
     </div></div>
     <aside aria-label="Xem trước tour" className="min-w-0 lg:sticky lg:top-6">
       <AgencyTourLivePreview

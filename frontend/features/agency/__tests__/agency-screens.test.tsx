@@ -8,7 +8,7 @@ import { AgencyTourWorkspacePage } from '@/features/tours/components/AgencyTourW
 import type { TourDetail } from '@/features/tours/types';
 
 const mocks = vi.hoisted(() => ({
-  permissions: ['agency:dashboard', 'agency:bookings-view', 'tour:update-own', 'tour:assign-guide', 'agency:export-customers'],
+  permissions: ['agency:dashboard', 'agency:bookings-view', 'tour:update-own', 'tour:set-availability', 'tour:assign-guide', 'agency:export-customers'],
   dashboard: vi.fn(), bookings: vi.fn(), booking: vi.fn(), tour: vi.fn(), tourList: vi.fn(), guides: vi.fn(), assign: vi.fn(), mutation: vi.fn(),
 }));
 vi.mock('next/navigation', () => ({ usePathname: () => '/agency', useSearchParams: () => new URLSearchParams(), useParams: () => ({ id: 'tour-1' }) }));
@@ -36,7 +36,7 @@ const tour: TourDetail = {
 
 beforeEach(() => {
   vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
-  mocks.permissions = ['agency:dashboard', 'agency:bookings-view', 'tour:update-own', 'tour:assign-guide', 'agency:export-customers'];
+  mocks.permissions = ['agency:dashboard', 'agency:bookings-view', 'tour:update-own', 'tour:set-availability', 'tour:assign-guide', 'agency:export-customers'];
   mocks.guides.mockReturnValue({ data: { items: [{ id: 'guide-1', fullName: 'Nguyễn An', languages: ['Vietnamese'] }], meta: { totalPages: 1 } } });
   mocks.tour.mockReturnValue({ currentData: tour, refetch: vi.fn() });
   mocks.tourList.mockReturnValue({ currentData: { items: [], meta: { totalPages: 1 } }, refetch: vi.fn() });

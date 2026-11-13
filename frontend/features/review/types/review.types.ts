@@ -84,6 +84,7 @@ export interface TourReviewContext {
   summary?: string;
   itinerary?: Array<{ day: number; toDay?: number; title: string; description?: string; activities: string[] }>;
   inclusions?: string[];
+  highlights?: string[];
   exclusions?: string[];
   childPricingPolicy?: string;
   cancellationPolicy?: string;

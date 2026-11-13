@@ -25,6 +25,7 @@ import { TourItemCombobox } from './TourItemCombobox';
 import { editorFields, fieldStep, validateTourEditor, tourEditorServerErrors, type EditorField, type EditorErrors } from './tourEditorValidation';
 import { formatCurrencyVndInput, parseCurrencyVndInput } from '../utils';
 import editorStyles from './AgencyTourEditor.module.css';
+import { useAgencyContext } from '@/features/agency/agencyContext';
 
 const emptyForm: TourContentInput = { 
   title: '', 
@@ -34,6 +35,7 @@ const emptyForm: TourContentInput = {
   categoryIds: [], 
   images: [], 
   inclusions: [], 
+  highlights: [],
   exclusions: [] 
 };
 
@@ -49,6 +51,7 @@ function serializeForm(val: TourContentInput): string {
     categoryIds: [...(val.categoryIds || [])].sort(),
     images: [...(val.images || [])],
     inclusions: [...(val.inclusions || [])],
+    highlights: [...(val.highlights || [])],
     exclusions: [...(val.exclusions || [])],
     agePricing: val.agePricing || null,
     childPricingPolicy: (val.childPricingPolicy || '').trim(),
@@ -86,6 +89,9 @@ const DEFAULT_EXCLUSIONS = [
 type StepId = 1 | 2 | 3 | 4;
 
 export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
+  const agency = useAgencyContext();
+  const staffEdit = mode === 'edit' && agency?.memberRole === 'STAFF';
+  const staffFields = ['title', 'description', 'images', 'highlights', 'inclusions', 'exclusions'] as const;
   const params = useParams<{ id: string }>();
   const id = mode === 'edit' ? params.id : undefined;
   const router = useRouter();
@@ -145,6 +151,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
         categoryIds: tour.categoryIds ? [...tour.categoryIds].sort() : [],
         images: tour.images && tour.images.length > 0 ? [...tour.images] : (tour.coverImage ? [tour.coverImage] : []),
         inclusions: tour.inclusions ? [...tour.inclusions] : [],
+        highlights: tour.highlights ? [...tour.highlights] : [],
         exclusions: tour.exclusions ? [...tour.exclusions] : [],
         agePricing: tour.agePricing ?? null,
         childPricingPolicy: tour.childPricingPolicy ?? '',
@@ -189,6 +196,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
   const locked = tour?.status === 'PENDING_REVIEW' || isArchived;
 
   const updateField = <K extends keyof TourContentInput>(key: K, nextVal: TourContentInput[K]) => {
+    if (staffEdit && !staffFields.some((field) => field === key)) return;
     setValue((prev) => ({ ...prev, [key]: nextVal }));
     if (editorFields.includes(key as EditorField)) {
       setFieldErrors((current) => current[key as EditorField] ? { ...current, [key]: validateTourEditor({ ...value, [key]: nextVal })[key as EditorField] } : current);
@@ -287,7 +295,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
   const saveTourPayload = async (destinationUrl?: string): Promise<boolean> => {
     setPageError('');
     if (isSubmittingRef.current || busy || locked) return false;
-    if (!validateFields(editorFields, true)) return false;
+    if (!validateFields(staffEdit ? ['title'] : editorFields, true)) return false;
 
     isSubmittingRef.current = true;
     setIsSubmitting(true);
@@ -304,7 +312,13 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
         router.replace(destinationUrl || `/agency/tours/${created.id}`);
         return true;
       } else if (id) {
-        await updateTour({ id, body: payload }).unwrap();
+        const body = staffEdit
+          ? Object.fromEntries(staffFields.filter((field) => {
+              const empty = Array.isArray(value[field]) ? [] : '';
+              return JSON.stringify(value[field] ?? empty) !== JSON.stringify(tour?.[field] ?? empty);
+            }).map((field) => [field, payload[field]]))
+          : payload;
+        await updateTour({ id, body }).unwrap();
         router.push(destinationUrl || defaultExitUrl);
         return true;
       }
@@ -379,13 +393,13 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
       return;
     }
     const errors = validateTourEditor(value);
-    if (errors.agePricing) {
+    if (!staffEdit && errors.agePricing) {
       setAgePricingAlert(errors.agePricing);
       setCurrentStep(3);
       setFieldErrors(errors);
       return;
     }
-    if (validateFields(editorFields, true)) {
+    if (validateFields(staffEdit ? ['title'] : editorFields, true)) {
       setShowCompleteModal(true);
     }
   };
@@ -609,6 +623,8 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
               </div>
 
               {/* Destination & Duration */}
+              <div className="space-y-1.5"><label htmlFor={`${formId}-description`} className="text-sm font-bold text-slate-800">Mô tả tour</label><textarea id={`${formId}-description`} rows={5} maxLength={20000} value={value.description ?? ''} onChange={(event) => updateField('description', event.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900" /></div>
+              <fieldset disabled={staffEdit} className="contents">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label htmlFor={fieldId('destination')} className="text-sm font-bold text-slate-800">
@@ -644,8 +660,10 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   {fieldHint('durationDays')}
                 </div>
               </div>
+              </fieldset>
 
               {/* Summary */}
+              <fieldset disabled={staffEdit} className="contents">
               <div className="space-y-1.5">
                 <div className="flex justify-between items-baseline">
                   <label htmlFor={fieldId('summary')} className="text-sm font-bold text-slate-800">
@@ -664,8 +682,10 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                 />
                 {fieldHint('summary')}
               </div>
+              </fieldset>
 
               {/* Categories */}
+              <fieldset disabled={staffEdit} className="contents">
               <div className="space-y-2">
                 <span id={fieldId('categoryIds')} className="text-sm font-bold text-slate-800 block">
                   Danh mục tour
@@ -683,13 +703,14 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                 {fieldHint('categoryIds')}
                 {categoriesError && <TourFieldHint id={`${formId}-categories-load-error`} message="Chưa tải được danh mục. Hãy tải lại trang để chọn nhé." />}
               </div>
+              </fieldset>
 
               {/* Step 1 Footer */}
               <div className="flex flex-wrap items-center justify-end gap-3 pt-6 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => {
-                    const ok = validateFields(['title', 'destination', 'durationDays', 'summary', 'categoryIds'], true);
+                    const ok = validateFields(staffEdit ? ['title'] : ['title', 'destination', 'durationDays', 'summary', 'categoryIds'], true);
                     if (ok) setCurrentStep(2);
                   }}
                   className="inline-flex items-center gap-2 rounded-xl bg-[#087e8b] px-6 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-[#00636e] transition-colors shadow-sm cursor-pointer"
@@ -955,6 +976,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
               </div>
 
               {/* Max group & Base price: Reordered so Max group is FIRST */}
+              <fieldset disabled={staffEdit} className="contents">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label htmlFor={fieldId('maxGroupSize')} className="text-sm font-bold text-slate-800">
@@ -1052,14 +1074,17 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                 </div>
               </div>
 
+              {staffEdit && <p role="note" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">🔒 Chỉ Quản lý (Manager) hoặc Chủ đại lý (Owner) mới có quyền chỉnh sửa giá &amp; chính sách hoàn hủy.</p>}
+              </fieldset>
               {/* Age Pricing & Child Policy */}
               <div id={fieldId('agePricing')} className="space-y-2">
-                <TourAgePricingFields value={value} onChange={setValue} />
+                <fieldset disabled={staffEdit}><TourAgePricingFields value={value} onChange={setValue} /></fieldset>
                 {fieldErrors.agePricing && <p role="alert" className="text-sm font-semibold text-red-600">{fieldErrors.agePricing}</p>}
               </div>
 
               {/* Inclusions & Exclusions - Separated into full-width stacked rows */}
               <div className="space-y-6 pt-4 border-t border-slate-100">
+                <TourItemCombobox id={`${formId}-highlights`} label="Điểm nổi bật" placeholder="Ví dụ: Ngắm bình minh trên đỉnh núi" items={value.highlights ?? []} onChange={(items) => updateField('highlights', items)} suggestions={[]} tone="positive" />
                 <TourItemCombobox
                   id={`${formId}-inclusions`}
                   label="Dịch vụ bao gồm"
@@ -1097,7 +1122,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                 <button
                   type="button"
                   onClick={() => {
-                    const ok = validateFields(['basePrice', 'maxGroupSize', 'agePricing'], true);
+                    const ok = staffEdit || validateFields(['basePrice', 'maxGroupSize', 'agePricing'], true);
                     if (ok) setCurrentStep(4);
                   }}
                   className="inline-flex items-center gap-2 rounded-xl bg-[#087e8b] px-6 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-[#00636e] transition-colors shadow-sm cursor-pointer"
@@ -1133,7 +1158,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                 ) : null}
               </div>
 
-              <TourPolicyFields value={value} onChange={setValue} includeAgePricing={false} />
+              <fieldset disabled={staffEdit}><TourPolicyFields value={value} onChange={setValue} includeAgePricing={false} /></fieldset>
 
               {/* Bottom Action Card */}
               <div className="pt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100">

@@ -14,6 +14,7 @@ import {
 import type { TourDetail, TourStatus } from '../types';
 import { Pagination } from '@/components/ui/Pagination';
 import { AntSelect } from '@/components/ui/AntSelect';
+import { useAgencyPermission } from '@/features/agency/AgencyCommon';
 
 function TourGridImageCarousel({ tour, onManageImages }: { tour: TourDetail; onManageImages: () => void }) {
   const images = (tour.images && tour.images.length > 0) ? tour.images : (tour.coverImage ? [tour.coverImage] : []);
@@ -130,6 +131,7 @@ const PRESET_PHOTOS = [
 ];
 
 export function AgencyTourListPage() {
+  const canManageLifecycle = useAgencyPermission('tour:delete-own');
   const router = useRouter();
   const [status, setStatus] = useState<TourStatus | undefined>();
   const [page, setPage] = useState(1);
@@ -512,7 +514,7 @@ export function AgencyTourListPage() {
                       >
                         <span className="material-symbols-outlined text-[18px]">edit</span>
                       </Link>
-                      {tour.status === 'ARCHIVED' ? (
+                      {canManageLifecycle && (tour.status === 'ARCHIVED' ? (
                         <button
                           type="button"
                           disabled={restoreState.isLoading}
@@ -541,7 +543,7 @@ export function AgencyTourListPage() {
                         >
                           <span className="material-symbols-outlined text-[18px]">archive</span>
                         </button>
-                      )}
+                      ))}
                     </div>
                   </article>
                 );
@@ -635,7 +637,7 @@ export function AgencyTourListPage() {
                           <span className="material-symbols-outlined text-[16px]">edit</span>
                           <span>Chỉnh sửa tour</span>
                         </Link>
-                        {tour.status === 'ARCHIVED' ? (
+                        {canManageLifecycle && (tour.status === 'ARCHIVED' ? (
                           <button
                             type="button"
                             disabled={restoreState.isLoading}
@@ -664,7 +666,7 @@ export function AgencyTourListPage() {
                           >
                             <span className="material-symbols-outlined text-[17px]">archive</span>
                           </button>
-                        )}
+                        ))}
                       </div>
                     </div>
                   </article>

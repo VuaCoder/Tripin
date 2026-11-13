@@ -145,6 +145,26 @@ describe('ownership', () => {
 });
 
 describe('edit rules', () => {
+  it('allows STAFF content updates and rejects a mixed price payload without writing', async () => {
+    const { service, repo, db } = setup(makeTour({ basePrice: 3_000_000 }));
+    await service.updateTour('a1', 't1', { title: 'Updated tour title' }, 'STAFF');
+    expect(db!.title).toBe('Updated tour title');
+    const writes = repo.updateIfStatus.mock.calls.length;
+    await expect(service.updateTour('a1', 't1', { description: 'New copy', basePrice: 1 } as never, 'STAFF'))
+      .rejects.toMatchObject({ statusCode: 403 });
+    expect(repo.updateIfStatus).toHaveBeenCalledTimes(writes);
+    expect(db!.basePrice).toBe(3_000_000);
+  });
+
+  it('lets STAFF patch itinerary while rejecting overlapping days', async () => {
+    const { service, db } = setup(makeTour());
+    await service.updateTour('a1', 't1', { itinerary: [{ day: 1, title: 'Day one' }] }, 'STAFF');
+    expect(db!.itinerary).toMatchObject([{ day: 1, title: 'Day one' }]);
+    await expect(service.updateTour('a1', 't1', { itinerary: [
+      { day: 1, toDay: 2, title: 'Two days' }, { day: 2, title: 'Overlap' },
+    ] }, 'STAFF')).rejects.toMatchObject({ statusCode: 400 });
+  });
+
   it('locks a tour that is under review', async () => {
     const { service } = setup(makeTour({ status: TOUR_STATUS.PENDING_REVIEW }));
     await expect(service.updateTour('a1', 't1', { title: 'New title here' })).rejects.toMatchObject({ code: 'TOUR_LOCKED' });

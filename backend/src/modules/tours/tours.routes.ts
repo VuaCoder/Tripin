@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { requirePermission } from '../../middlewares/authorize';
 import { validate } from '../../middlewares/validate';
 import { AppError } from '../../utils/app-error';
+import { agencyContext } from '../../middlewares/agency-context';
 import { TOUR_DOCUMENT_LIMITS } from './tour-document-extraction.service';
 import { tourDocumentExtractionController } from './tour-document-extraction.controller';
 import { toursController } from './tours.controller';
@@ -37,6 +38,19 @@ const uploadTourDocument: import('express').RequestHandler = (req, res, next) =>
 };
 
 const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 1 } }).single('file');
+const staffContentFields = new Set(['title', 'description', 'images', 'highlights', 'itinerary', 'inclusions', 'exclusions']);
+const guardStaffTourPatch: import('express').RequestHandler = (req, _res, next) => {
+  if (agencyContext(req).memberRole === 'STAFF' &&
+    (!req.body || typeof req.body !== 'object' || Array.isArray(req.body) ||
+      Object.keys(req.body).some((key) => !staffContentFields.has(key)))) {
+    return next(AppError.forbidden('Staff can update tour content only'));
+  }
+  next();
+};
+const guardTourManagement: import('express').RequestHandler = (req, _res, next) => {
+  if (agencyContext(req).memberRole === 'STAFF') return next(AppError.forbidden('Tour lifecycle requires Manager or Owner'));
+  next();
+};
 const uploadTourImage: import('express').RequestHandler = (req, res, next) => {
   imageUpload(req, res, (error: unknown) => {
     if (!error) return next();
@@ -66,6 +80,7 @@ agencyToursRouter.get('/:id', requirePermission(P.TOUR_UPDATE_OWN), validate({ p
 agencyToursRouter.patch(
   '/:id',
   requirePermission(P.TOUR_UPDATE_OWN),
+  guardStaffTourPatch,
   validate({ params: tourIdParams, body: updateTourBody }),
   toursController.update,
 );
@@ -73,6 +88,7 @@ agencyToursRouter.delete('/:id', requirePermission(P.TOUR_DELETE_OWN), validate(
 agencyToursRouter.post(
   '/:id/restore',
   requirePermission(P.TOUR_UPDATE_OWN),
+  guardTourManagement,
   validate({ params: tourIdParams }),
   toursController.restore,
 );
@@ -94,7 +110,7 @@ agencyToursRouter.put(
   validate({ params: tourIdParams, body: assignGuideBody }),
   toursController.assignGuide,
 );
-agencyToursRouter.post('/:id/submit', requirePermission(P.TOUR_UPDATE_OWN), validate({ params: tourIdParams }), toursController.submit);
+agencyToursRouter.post('/:id/submit', requirePermission(P.TOUR_UPDATE_OWN), guardTourManagement, validate({ params: tourIdParams }), toursController.submit);
 
 /** Mounted at /api/v1/guide/tours — tours assigned to the logged-in tour guide. */
 export const guideToursRouter = Router();

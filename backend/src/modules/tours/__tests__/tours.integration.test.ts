@@ -60,6 +60,21 @@ const book = (token: string, tourId: string, departureId: string, participants =
   request(app).post('/api/v1/bookings').set(bearer(token)).send({ tourId, departureId, participants, contact });
 
 describe('tours (integration)', () => {
+  it('enforces STAFF field authorization and lifecycle across real HTTP routes', async () => {
+    const a = await actors();
+    const tourId = await draftTour(a.agency.token, a.categoryId);
+    await prisma.agencyMember.create({ data: { agencyId: a.agency.id, userId: a.traveler.id, role: 'STAFF' } });
+    const staff = { ...bearer(a.traveler.token), 'X-Agency-Id': a.agency.id };
+    const allowed = await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(staff).send({ title: 'Tour Staff updated', highlights: ['Sunrise'] });
+    expect(allowed.status).toBe(200);
+    const forbidden = await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(staff).send({ title: 'Blocked title', basePrice: 1 });
+    expect(forbidden.status).toBe(403);
+    expect((await loadTour(tourId))!.title).toBe('Tour Staff updated');
+    expect((await setDepartures(a.traveler.token, tourId, [{ date: inDays(20), capacity: 5, isOpen: false }])).status).toBe(403);
+    expect((await request(app).post(`/api/v1/agency/tours/${tourId}/submit`).set(staff)).status).toBe(403);
+    expect((await request(app).delete(`/api/v1/agency/tours/${tourId}`).set(staff)).status).toBe(403);
+  });
+
   it('walks the whole lifecycle: draft is private, approval publishes, an edit sends it back to review', async () => {
     const a = await actors();
     const tourId = await draftTour(a.agency.token, a.categoryId);
@@ -67,7 +82,8 @@ describe('tours (integration)', () => {
     // A draft is invisible to the public and to other users, visible to its owner.
     expect((await request(app).get(`/api/v1/tours/${tourId}`)).status).toBe(404);
     expect((await request(app).get(`/api/v1/tours/${tourId}`).set(bearer(a.traveler.token))).status).toBe(404);
-    expect((await request(app).get(`/api/v1/tours/${tourId}`).set(bearer(a.agency.token))).status).toBe(200);
+    expect((await request(app).get(`/api/v1/tours/${tourId}`).set(bearer(a.agency.token))).status).toBe(404);
+    expect((await request(app).get(`/api/v1/agency/tours/${tourId}`).set(bearer(a.agency.token))).status).toBe(200);
 
     // Cannot be submitted without a departure.
     expect((await request(app).post(`/api/v1/agency/tours/${tourId}/submit`).set(bearer(a.agency.token))).status).toBeGreaterThanOrEqual(400);
@@ -141,7 +157,7 @@ describe('tours (integration)', () => {
     expect((await request(app).post(`/api/v1/moderation/tours/${tourId}/suspend`).set(bearer(a.moderator.token)).send({})).status).toBe(400);
     expect((await request(app).post(`/api/v1/moderation/tours/${tourId}/suspend`).set(bearer(a.moderator.token)).send({ reason: 'Fraud report' })).status).toBe(200);
     expect((await request(app).get(`/api/v1/tours/${tourId}`)).status).toBe(404);
-    expect((await book(a.traveler.token, tourId, departureId)).status).toBe(404);
+    expect((await book(a.traveler.token, tourId, departureId)).status).toBe(409);
   });
 
   it("agencies only reach their own tours (404) and cannot touch each other's inventory", async () => {
