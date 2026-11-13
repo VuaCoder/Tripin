@@ -28,6 +28,15 @@ export function disconnectUserSessions(userId: string): void {
 }
 
 /**
+ * Tells each user to refetch a conversation after a side effect (REST stays the source of truth). Silent no-op when
+ * no socket server is attached (tests, workers, HTTP-only deployments).
+ */
+export function emitChatUpdated(userIds: string[], conversationId: string): void {
+  if (!chatIo) return;
+  for (const userId of new Set(userIds)) chatIo.to(userRoom(userId)).emit('chat:updated', { conversationId });
+}
+
+/**
  * Thin Socket.IO adapter (AI rules §16): authenticate the handshake, validate payloads, call `ChatService`, answer with
  * an ack. NO business rule lives here. Rooms are per user (`user:<id>`), so a message reaches every device of both
  * participants without clients having to join conversation rooms.

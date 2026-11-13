@@ -39,6 +39,8 @@ async function clean() {
   const userIds = users.map((user) => user.id);
   await prisma.$transaction([
     prisma.earning.deleteMany({ where: { guideId: { in: userIds } } }),
+    prisma.agencyMember.deleteMany({ where: { userId: { in: userIds } } }),
+    prisma.agencyProfile.deleteMany({ where: { userId: { in: userIds } } }),
     prisma.payment.deleteMany({
       where: { userId: { in: userIds }, purpose: 'SUBSCRIPTION' },
     }),
@@ -75,6 +77,10 @@ async function create() {
   }
   const guide = users[0]!;
   const agency = users[3]!;
+  // Earning.agencyId references AgencyProfile.id; the onboarding trigger keeps it equal to the owner user id.
+  await prisma.agencyProfile.create({
+    data: { userId: agency.id, companyName: 'Agency kiểm tra quyền', verificationStatus: 'VERIFIED' },
+  });
   const monthly = await prisma.subscriptionPlan.create({
     data: {
       code: CODES[0]!,

@@ -1,10 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useListCustomToursQuery } from '@/features/custom-tours/api';
 import { useGetMyBookingsQuery } from '../api/bookingApi';
 
 const DEFAULT_COVER =
   'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80';
+const dayShort = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
 function formatDatesShort(depIso?: string, endIso?: string): string {
   if (!depIso) return '';
@@ -31,38 +33,53 @@ function formatDatesShort(depIso?: string, endIso?: string): string {
 export function IncompleteBookingBanner() {
   const router = useRouter();
   const { data: bookingsData, isLoading } = useGetMyBookingsQuery({ limit: 5 });
+  // An accepted group offer without a booking has no row in the booking list yet; resume it at the passenger form.
+  const { data: customTours, isLoading: isLoadingCustomTours } = useListCustomToursQuery({ status: 'ACCEPTED', limit: 5 });
 
-  if (isLoading || !bookingsData?.items) return null;
+  if (isLoading || isLoadingCustomTours || !bookingsData?.items) return null;
 
   // Find incomplete / pending booking
   const incompleteBooking = bookingsData.items.find(
     (b) => b.status === 'PENDING' || (!b.isPaid && b.status !== 'CANCELLED'),
   );
+  const pendingGroup = customTours?.items.find((request) => !request.currentBooking);
 
-  if (!incompleteBooking) return null;
+  const groupDate = pendingGroup?.offer?.departureDate ?? pendingGroup?.startDate;
+  const target = incompleteBooking
+    ? {
+        href: `/settings/history/${incompleteBooking.id}`,
+        prefix: 'Hoàn tất quy trình đặt tour của bạn tại ',
+        title: (incompleteBooking.tour as any)?.destination || incompleteBooking.tour?.title || 'chuyến đi',
+        meta: [formatDatesShort(incompleteBooking.departureDate, incompleteBooking.endDate), `${incompleteBooking.participants} khách`]
+          .filter(Boolean)
+          .join(' · '),
+        coverImage: (incompleteBooking.tour as any)?.coverImage || DEFAULT_COVER,
+      }
+    : pendingGroup
+      ? {
+          href: `/traveler/bookings/new?customTourRequestId=${pendingGroup.id}`,
+          prefix: 'Hoàn tất đặt chỗ cho đoàn của bạn tại ',
+          title: pendingGroup.offer?.content?.title ?? pendingGroup.sourceTour?.title ?? 'tour riêng',
+          meta: [groupDate ? dayShort.format(new Date(groupDate)) : '', `${pendingGroup.participants} khách`]
+            .filter(Boolean)
+            .join(' · '),
+          coverImage: pendingGroup.sourceTour?.images?.[0] || DEFAULT_COVER,
+        }
+      : null;
 
-  const datesText = formatDatesShort(
-    incompleteBooking.departureDate,
-    incompleteBooking.endDate,
-  );
-  const locationText =
-    (incompleteBooking.tour as any)?.destination ||
-    incompleteBooking.tour?.title ||
-    'chuyến đi';
-  const coverImage =
-    (incompleteBooking.tour as any)?.coverImage || DEFAULT_COVER;
+  if (!target) return null;
 
   return (
     <aside
-      onClick={() => router.push(`/settings/history/${incompleteBooking.id}`)}
+      onClick={() => router.push(target.href)}
       className="group mb-8 flex items-center gap-3.5 rounded-2xl border border-slate-200/90 bg-white p-3 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer select-none"
       aria-label="Tiếp tục hoàn tất đặt tour"
     >
       {/* Thumbnail */}
       <div className="size-11 shrink-0 overflow-hidden rounded-xl bg-slate-100 border border-slate-100">
         <img
-          src={coverImage}
-          alt={locationText}
+          src={target.coverImage}
+          alt={target.title}
           className="size-full object-cover"
           onError={(e) => {
             e.currentTarget.src = DEFAULT_COVER;
@@ -70,14 +87,11 @@ export function IncompleteBookingBanner() {
         />
       </div>
 
-      {/* Text Banner: "Hoàn tất quy trình đặt tour của bạn tại [Địa điểm] [Ngày] · [Số] khách →" */}
+      {/* Text Banner: "Hoàn tất [việc] của bạn tại [Địa điểm] [Ngày] · [Số] khách →" */}
       <div className="flex-1 min-w-0 text-sm font-medium text-slate-800">
-        <span>Hoàn tất quy trình đặt tour của bạn tại </span>
-        <span className="font-semibold text-slate-900">{locationText}</span>
-        {datesText && (
-          <span className="text-slate-600"> {datesText}</span>
-        )}
-        <span className="text-slate-600"> · {incompleteBooking.participants} khách</span>
+        <span>{target.prefix}</span>
+        <span className="font-semibold text-slate-900">{target.title}</span>
+        <span className="text-slate-600"> {target.meta}</span>
       </div>
 
       {/* Arrow Icon */}
@@ -87,4 +101,3 @@ export function IncompleteBookingBanner() {
     </aside>
   );
 }
-

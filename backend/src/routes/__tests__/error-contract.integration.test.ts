@@ -55,12 +55,18 @@ const COVERED_ELSEWHERE: Record<string, string> = {
   REPORT_SNAPSHOT_CONFLICT: 'review-triage.integration.test.ts rejects decisions for already-resolved reports',
   TICKET_WRONG_DEPARTURE: 'e-tickets.check-in.test.ts verifies departure-scoped scan ownership',
   ACCOUNT_NOT_FOUND: 'auth.service.test.ts verifies missing/banned accounts at password-change time',
+  AGENCY_NOT_VERIFIED: 'tours.service.test.ts rejects submission from an unverified agency; /agency/* mounts now answer 403 first',
+  LEGACY_TRANSFER_QUARANTINED: 'payout-ledger.integration.test.ts provokes the quarantined legacy transfer endpoint',
   PROMOTION_ACTIVE_LOCKED: 'promotions.service.test.ts verifies immutable terms after start',
   TICKET_NOT_FOUND: 'e-tickets.check-in.test.ts verifies unknown QR codes',
   TICKET_ALREADY_USED: 'e-tickets.check-in.test.ts verifies duplicate check-ins',
   TICKET_WRONG_TOUR: 'e-tickets.check-in.test.ts verifies tour scope',
   TICKET_CANCELLED: 'e-tickets.check-in.test.ts verifies cancelled ticket rejection',
   SETTINGS_CONFLICT: 'admin-staff.integration.test.ts verifies optimistic policy conflicts',
+  IDEMPOTENCY_KEY_REUSED: 'custom-tours.integration.test.ts verifies a reused clientRequestId with a different payload',
+  TOUR_PRIVATE_MANAGED_BY_CUSTOM_TOUR: 'custom-tours.integration.test.ts verifies every normal agency write is refused on a private clone',
+  DEPARTURE_PASSED: 'custom-tours.booking.integration.test.ts refuses an accepted offer whose day has passed',
+  TOUR_UNAVAILABLE: 'custom-tours.booking.integration.test.ts refuses a private clone that is no longer approved',
   AGENCY_REVERIFICATION_REQUIRED: 'admin-staff.integration.test.ts verifies legal identity protection',
   CONFLICT: 'global handler for unique-constraint violations (parallel creation tests)',
   CONCURRENT_UPDATE: 'needs a lost compare-and-set: service tests with fake repositories',
@@ -161,14 +167,8 @@ describe('error contract over HTTP', () => {
     const dormant = await createUser('SUPER_ADMIN', 'dormant@example.com', { status: 'BANNED' });
     expectError(await request(app).patch(`/api/v1/admin/users/${dormant.id}/access`).set(bearer(admin.token)).send({ role: 'MODERATOR' }), 'LAST_SUPER_ADMIN');
 
-    // Unverified agency submitting a tour.
-    const unverified = await createUser('AGENCY', 'unverified@example.com', { agencyProfile: { companyName: 'X Co', verificationStatus: 'UNVERIFIED' } });
-    const categoryId = await createCategory('Mountain');
-    const tour = await request(app)
-      .post('/api/v1/agency/tours')
-      .set(bearer(unverified.token))
-      .send({ title: 'Sapa trekking', destination: 'Lao Cai', durationDays: 3, basePrice: 2_000_000, categoryIds: [categoryId] });
-    expectError(await request(app).post(`/api/v1/agency/tours/${tour.body.data.id}/submit`).set(bearer(unverified.token)), 'AGENCY_NOT_VERIFIED');
+    // AGENCY_NOT_VERIFIED is now unreachable over HTTP: every /agency/* mount checks the profile first
+    // and answers a plain 403. The service guard stays covered by tours.service.test.ts (see COVERED_ELSEWHERE).
 
     // Agency portal separation: an agency account cannot use the traveler login, and an unfinished agency
     // registration cannot sign in through the agency portal.
@@ -188,8 +188,8 @@ describe('error contract over HTTP', () => {
 
     expectError(await request(app).post('/api/v1/admin/categories').set(bearer(admin.token)).send({ name: 'Beach' }).then(async () => request(app).post('/api/v1/admin/categories').set(bearer(admin.token)).send({ name: 'beach' })), 'CATEGORY_EXISTS');
 
-    const book = (participants = 1) =>
-      request(app).post('/api/v1/bookings').set(bearer(traveler.token)).send({ tourId, departureId, participants, contact });
+    const book = (participants = 1, token = traveler.token) =>
+      request(app).post('/api/v1/bookings').set(bearer(token)).send({ tourId, departureId, participants, contact });
     const first = await book(2);
     expect(first.status).toBe(201);
 
@@ -204,10 +204,11 @@ describe('error contract over HTTP', () => {
     const locked = await prisma.tour.create({ data: { agencyId: agency.id, title: 'In review', destination: 'Hue', durationDays: 1, basePrice: 1, status: 'PENDING_REVIEW' } });
     expectError(await request(app).patch(`/api/v1/agency/tours/${locked.id}`).set(bearer(agency.token)).send({ title: 'Changed title' }), 'TOUR_LOCKED');
 
-    // Seats and departures.
-    expectError(await book(50), 'NOT_ENOUGH_SEATS');
+    // Seats and departures. A fresh traveler: the first one still holds a PENDING booking on this departure.
+    const seatTraveler = await createUser('TRAVELER', 'seat-probe@example.com');
+    expectError(await book(50, seatTraveler.token), 'NOT_ENOUGH_SEATS');
     await prisma.tourDeparture.updateMany({ where: { tourId }, data: { isOpen: false } });
-    expectError(await book(1), 'DEPARTURE_UNAVAILABLE');
+    expectError(await book(1, seatTraveler.token), 'DEPARTURE_UNAVAILABLE');
     await prisma.tourDeparture.updateMany({ where: { tourId }, data: { isOpen: true } });
 
     // Promotions.
@@ -218,7 +219,12 @@ describe('error contract over HTTP', () => {
         .send({ code: 'SAVE10', title: 'Save ten', discountType: 'PERCENT', discountValue: 10, startsAt: new Date(Date.now() - day).toISOString(), endsAt: new Date(Date.now() + day).toISOString(), ...body });
     const created = await promo({});
     expectError(await promo({}), 'PROMOTION_CODE_EXISTS');
-    const withCode = (code: string) => request(app).post('/api/v1/bookings').set(bearer(traveler.token)).send({ tourId, departureId, participants: 1, contact, promotionCode: code });
+    // One pending booking per traveler and departure: every promotion probe books as a fresh traveler.
+    let promoSeq = 0;
+    const withCode = async (code: string) => {
+      const promoTraveler = await createUser('TRAVELER', `promo${(promoSeq += 1)}@example.com`);
+      return request(app).post('/api/v1/bookings').set(bearer(promoTraveler.token)).send({ tourId, departureId, participants: 1, contact, promotionCode: code });
+    };
     expect((await withCode('SAVE10')).status).toBe(201);
     expectError(await request(app).patch(`/api/v1/agency/promotions/${created.body.data.id}`).set(bearer(agency.token)).send({ discountValue: 20 }), 'PROMOTION_IN_USE');
 
@@ -239,20 +245,65 @@ describe('error contract over HTTP', () => {
     expectError(await withCode('THEIRS'), 'PROMOTION_NOT_APPLICABLE');
   });
 
+  it('booking and departure rules answer their own conflict codes', async () => {
+    await resetDatabase();
+    const agency = await createVerifiedAgency('agency@example.com');
+    const traveler = await createUser('TRAVELER', 'conflicts@example.com');
+    const { tourId, departureId } = await createApprovedTour(agency.id, { capacity: 5, daysAhead: 30 });
+    const book = () => request(app).post('/api/v1/bookings').set(bearer(traveler.token)).send({ tourId, departureId, participants: 1, contact });
+
+    // One PENDING booking per traveler and departure.
+    expect((await book()).status).toBe(201);
+    expectError(await book(), 'PENDING_BOOKING_EXISTS');
+
+    // Moving a departure onto a date the tour already uses.
+    const second = await prisma.tourDeparture.create({ data: { tourId, date: new Date(Date.now() + 40 * day), capacity: 5, remaining: 5 } });
+    const firstDate = (await loadTour(tourId))!.departures.find((d) => d.id === departureId)!.date;
+    expectError(
+      await request(app)
+        .patch(`/api/v1/agency/tours/${tourId}/departures/${second.id}`)
+        .set(bearer(agency.token))
+        .send({ expectedDate: second.date.toISOString(), date: firstDate.toISOString() }),
+      'DEPARTURE_EXISTS',
+    );
+
+    // Reusing a departure id for a different change, then the per-tour ceiling.
+    const newId = randomUUID();
+    const createDeparture = (id: string, offsetDays: number, capacity: number) =>
+      request(app)
+        .post(`/api/v1/agency/tours/${tourId}/departures`)
+        .set(bearer(agency.token))
+        .send({ departures: [{ id, date: new Date(Date.now() + offsetDays * day).toISOString(), capacity }] });
+    expect((await createDeparture(newId, 50, 3)).status).toBe(201);
+    expectError(await createDeparture(newId, 50, 4), 'REQUEST_ALREADY_USED');
+
+    await prisma.tourDeparture.createMany({
+      data: Array.from({ length: 200 }, (_, i) => ({ tourId, date: new Date(Date.now() + (60 + i) * day), capacity: 5, remaining: 5 })),
+    });
+    expectError(await createDeparture(randomUUID(), 400, 2), 'DEPARTURE_LIMIT');
+  });
+
   it('bookings, payments, reviews, reports, support, wishlists', async () => {
     await resetDatabase();
     const agency = await createUser('AGENCY', 'agency@example.com');
     const traveler = await createUser('TRAVELER', 'traveler@example.com');
     const admin = await createUser('SUPER_ADMIN', 'admin@example.com');
     const { tourId, departureId } = await createApprovedTour(agency.id, { capacity: 10, daysAhead: 3 });
-    const create = async () => (await request(app).post('/api/v1/bookings').set(bearer(traveler.token)).send({ tourId, departureId, participants: 1, contact })).body.data.id as string;
-    const checkout = (id: string) => request(app).post(`/api/v1/payments/bookings/${id}/checkout`).set(bearer(traveler.token));
+    // One pending booking per traveler and departure, so each booking below belongs to its own traveler.
+    let bookerSeq = 0;
+    const create = async () => {
+      const booker = await createUser('TRAVELER', `booker${(bookerSeq += 1)}@example.com`);
+      const id = (await request(app).post('/api/v1/bookings').set(bearer(booker.token)).send({ tourId, departureId, participants: 1, contact })).body.data.id as string;
+      return { id, token: booker.token };
+    };
+    const checkout = (booking: { id: string; token: string }) =>
+      request(app).post(`/api/v1/payments/bookings/${booking.id}/checkout`).set(bearer(booking.token));
 
     const cancelled = await create();
-    await request(app).post(`/api/v1/bookings/${cancelled}/cancel`).set(bearer(traveler.token)).send({});
+    await request(app).post(`/api/v1/bookings/${cancelled.id}/cancel`).set(bearer(cancelled.token)).send({});
     expectError(await checkout(cancelled), 'BOOKING_NOT_PAYABLE');
     const stale = await create();
-    await prisma.booking.updateMany({ where: { id: stale }, data: { paymentExpiresAt: new Date(Date.now() - 1000) } });
+    await prisma.booking.updateMany({ where: { id: stale.id }, data: { paymentExpiresAt: new Date(Date.now() - 1000) } });
     expectError(await checkout(stale), 'BOOKING_PAYMENT_EXPIRED');
 
     // An order with nothing to pay cannot be booked online.
@@ -265,14 +316,14 @@ describe('error contract over HTTP', () => {
     // Cancelling a paid trip that is too close to departure (policy window 10 days, departure in 3 days).
     await request(app).put('/api/v1/admin/policies/cancellation').set(bearer(admin.token)).send({ expectedVersion: 0, reason: 'Policy reviewed and updated', title: 'Cancellation', content: 'Strict', params: { cancellationWindowHours: 240 } });
     const paid = await create();
-    await prisma.booking.updateMany({ where: { id: paid }, data: { status: 'CONFIRMED', isPaid: true, paymentExpiresAt: null } });
-    expectError(await request(app).post(`/api/v1/bookings/${paid}/cancel`).set(bearer(traveler.token)).send({}), 'CANCELLATION_WINDOW_PASSED');
+    await prisma.booking.updateMany({ where: { id: paid.id }, data: { status: 'CONFIRMED', isPaid: true, paymentExpiresAt: null } });
+    expectError(await request(app).post(`/api/v1/bookings/${paid.id}/cancel`).set(bearer(paid.token)).send({}), 'CANCELLATION_WINDOW_PASSED');
 
     // Reviews.
-    expectError(await request(app).post('/api/v1/reviews').set(bearer(traveler.token)).send({ bookingId: paid, rating: 5, comment: 'Wonderful trip indeed' }), 'BOOKING_NOT_COMPLETED');
-    await prisma.booking.updateMany({ where: { id: paid }, data: { status: 'COMPLETED', endDate: new Date(Date.now() - day) } });
-    expect((await request(app).post('/api/v1/reviews').set(bearer(traveler.token)).send({ bookingId: paid, rating: 5, comment: 'Wonderful trip indeed' })).status).toBe(201);
-    expectError(await request(app).post('/api/v1/reviews').set(bearer(traveler.token)).send({ bookingId: paid, rating: 4, comment: 'Wonderful trip indeed' }), 'REVIEW_EXISTS');
+    expectError(await request(app).post('/api/v1/reviews').set(bearer(paid.token)).send({ bookingId: paid.id, rating: 5, comment: 'Wonderful trip indeed' }), 'BOOKING_NOT_COMPLETED');
+    await prisma.booking.updateMany({ where: { id: paid.id }, data: { status: 'COMPLETED', endDate: new Date(Date.now() - day) } });
+    expect((await request(app).post('/api/v1/reviews').set(bearer(paid.token)).send({ bookingId: paid.id, rating: 5, comment: 'Wonderful trip indeed' })).status).toBe(201);
+    expectError(await request(app).post('/api/v1/reviews').set(bearer(paid.token)).send({ bookingId: paid.id, rating: 4, comment: 'Wonderful trip indeed' }), 'REVIEW_EXISTS');
 
     // Reports.
     const report = { targetType: 'TOUR', targetId: tourId, category: 'OTHER', description: 'Something is wrong with this tour.' };

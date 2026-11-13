@@ -11,12 +11,12 @@ Written from the code, `PROGRESS.md` and `DECISIONS.md`; nothing here is a new c
 
 | | |
 |---|---|
-| Feature modules | 22 working (`auth users audit system-settings categories tours promotions wishlists carts notifications bookings payments e-tickets reviews subscriptions earnings chat ai reports support moderation dashboards`) + 1 README-only placeholder (`custom-tours`, not in the use-case diagram, D-56) |
-| Endpoints | 128 under `/api/v1` (+ Socket.IO on the same port for chat and live notifications) — list: `docs/api/ENDPOINTS.md` (generated), errors: `docs/api/ERRORS.md` |
+| Feature modules | 23 working (`auth users audit system-settings categories tours promotions wishlists carts notifications bookings payments e-tickets reviews subscriptions earnings chat ai reports support moderation dashboards custom-tours`); no README-only placeholder is left (D-56 was reversed by D-81 and D-85) |
+| Endpoints | 250 under `/api/v1` (+ Socket.IO on the same port for chat and live notifications) — list: `docs/api/ENDPOINTS.md` (generated), errors: `docs/api/ERRORS.md` |
 | Use cases | All use cases of the diagram are `done` in `docs/backend/USE_CASE_MAP.md` (Guest, Traveler, Agency, Tour guide, Moderator, Super admin) |
-| Code / tests | ~12.5 k lines of source, ~7.7 k lines of tests; 590 tests in 63 files (27 of the files run against a real PostgreSQL) |
+| Code / tests | ~27 k lines of source, ~15 k lines of tests; 1080 tests in 107 files (50 of the files run against a real PostgreSQL) |
 | Structure | `modules/<feature>/{routes,validation,controller,service,repository,model,mapper,types}.ts + index.ts + README.md + __tests__/` — rules in `docs/backend/ARCHITECTURE.md` |
-| Git | **Nothing was committed or pushed** (D-23). `git status` shows ~280 changed/new files for you to review |
+| Git | **Nothing was committed or pushed** (D-23). `git status` shows 92 changed/new files for you to review |
 
 ## 2. Run and verify
 
@@ -34,18 +34,22 @@ pnpm --filter backend build && pnpm --filter backend start
 pnpm --filter backend docs:routes  # regenerate docs/api/ENDPOINTS.md after changing a route (a test fails if you forget)
 ```
 
-State at hand-over: typecheck clean; the last COMPLETE run was 590/590 green, after which one unit test was added (D-79) and the affected test files were re-run green, the database-free suite is 440/440 (the full suite is expected at 591 — run it once to confirm), `build` succeeds and the bundle was booted
-with plain `node` by a test. Stability evidence: 5 consecutive green full runs after the last flake fix, 4 more after the fuzz was added,
-2 after the soak test. A planned 10-run soak was stopped after run 1 because the machine ran out of memory (a full run starts ~25 `mongod`
-processes) — repeat it on a machine with free memory before trusting CI timings. Earlier in the night a few isolated failures looked like
-two test files sharing one database; every file now has a database of its own (D-77) and default timeouts were raised (D-78).
+State at hand-over: `typecheck` clean and the full suite is **1080/1080 green in 107 files** (57 unit files / 763 tests;
+50 integration files / 317 tests, each on a PostgreSQL database of its own), including the soak, the route fuzz and the
+production-bundle smoke test; `tsup build` succeeds and that smoke test boots the bundle with plain `node`,
+serves `/api/v1/health` and exits on SIGTERM. Earlier full runs failed at random with `too many database connections`
+once a dozen files ran in parallel (every process pools 20); the throw-away test server now allows 500 connections in
+`src/test/global-setup.ts`, and the run after that change was green. Frontend is out of scope: its suite is 728/728 in
+the 115 files that can import their dependencies — the three `agency-calendar` test files (and `next build`) need
+`@fullcalendar/*`, `dayjs` and `temporal-polyfill`, which this machine's `node_modules` does not contain though
+`frontend/package.json` declares them; the rest of `tsc` is clean.
 
 ## 3. Where to read
 
 1. `docs/backend/ARCHITECTURE.md` — layers, conventions, automated guard rails, checklist for a new feature.
 2. `docs/backend/USE_CASE_MAP.md` — use case → module → endpoint.
 3. `backend/src/modules/<feature>/README.md` — behaviour, rules, state machines, permissions, indexes, tests.
-4. `docs/backend/DECISIONS.md` — every assumption taken instead of asking (D-1 … D-79). **Nothing is deleted from it.**
+4. `docs/backend/DECISIONS.md` — every assumption taken instead of asking (D-1 … D-85). **Nothing is deleted from it.**
 5. `docs/backend/PROGRESS.md` — what was done, in order, with the result of each step.
 
 ## 4. Decisions that are really yours (ranked by how much they change the product)
@@ -53,17 +57,17 @@ two test files sharing one database; every file now has a database of its own (D
 | # | Question | Current behaviour | Where / how to change |
 |---|---|---|---|
 | D-25 | Platform **commission** | 0 % until the Super admin sets it (`PUT /admin/settings/commission`); snapshotted into every booking | seed option `SEED_COMMISSION_PERCENT` or the endpoint |
-| D-34, D-39, D-15 | **Payment window and refunds** | A booking holds seats 30 min; a late payment is accepted but only *flags* `refundRequired`; **no money is ever moved back** — refunds are a manual/offline process | `bookings.policy.ts`; a refund flow needs PayOS refund API + a state machine |
+| D-34, D-39, D-15 | **Payment window and refunds** | A booking holds seats 15 min; a late payment is accepted but only *flags* `refundRequired`; **no money is ever moved back** — refunds are a manual/offline process | `bookings.policy.ts`; a refund flow needs PayOS refund API + a state machine |
 | D-18, D-44 | Does the **guide subscription gate anything**? | No — `hasActiveSubscription()` exists but nothing calls it; prices of the 2 seeded plans are illustrative | decide which guide features need an active plan, then guard them in `tours`/`chat` |
 | D-19, D-45 | **Guide earnings** | Guide earns the fee the agency agreed when assigning (per COMPLETED booking, only if the guide ACCEPTED); no payout workflow | `earnings` module |
 | D-26 | **Cancellation rules** | Traveler may cancel a CONFIRMED booking up to `cancellationWindowHours` (default 24) before departure; set by policy `cancellation` | `PUT /admin/policies/cancellation` |
 | D-27, D-28 | Agency must be **VERIFIED** to submit tours; a tour needs a category and an open future departure | enforced in `tours.service` | |
 | D-4 | **Staff accounts** | Moderators/Super admins cannot self-register: first Super admin from the seed, then "Assign User Permissions" | |
-| D-13, D-46 | **Chat** is traveler ↔ guide only (agencies cannot chat yet) | one function decides the allowed pairs | `chat.policy` |
+| D-13, D-46, D-85 | **Chat** is traveler ↔ guide or traveler ↔ agency (agencies share the same inbox for group-booking requests) | one function decides the allowed pairs | `chat.policy` |
 | D-43 | **Reviews** | only after COMPLETED, one per booking, immutable by the author, moderators can hide | |
 | D-74 | **Free orders / minimum amount** | refused (`BOOKING_AMOUNT_TOO_LOW`, minimum 1 VND); no free-booking flow exists. PayOS likely has a higher minimum — set `BOOKING_POLICY.MIN_PAYABLE_AMOUNT` after checking the sandbox | `bookings.policy.ts` |
 | D-11 | "Upload tours" = bulk JSON import (≤ 50) | | |
-| D-56 | `custom-tours` is **not built** | README-only placeholder; a test fails if code or a route appears before you approve the feature. `carts` was approved and built in P2 (D-81) | |
+| D-56 | `custom-tours` **was not built**, now is | Reversed by the owner: carts were built in P2 (D-81) and group booking in S0–S12 (D-85, `custom-tours` module). Only the generated endpoint index counts every route | `docs/backend/DECISIONS.md` D-85 |
 | D-7, D-73 | **Google login** skips the app's own 2FA code and links to an existing account with the same verified email (a planted password on an unverified account is removed) | | `auth.service.loginWithGoogle` |
 
 ## 5. To verify against real services (cannot be proven offline)
@@ -113,5 +117,5 @@ two test files sharing one database; every file now has a database of its own (D
 * E-ticket PDF/QR image rendering (the API returns the unguessable code; D-42).
 * Per-account login lockout / CAPTCHA (only per-IP limits and the OTP attempt limit exist).
 * "Logout everywhere" (not in the diagram); change-password while logged in (not in the diagram).
-* Custom tours (D-56). Carts are now implemented (D-81).
+* Group booking (D-56 reversed by D-85) is implemented end to end in S0–S12. Carts were implemented in P2 (D-81).
 * When the frontend starts: it can be generated against `docs/api/ENDPOINTS.md` + `docs/api/ERRORS.md`; Socket.IO usage is in `modules/chat/README.md`.

@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "checks": [
+    "Dialog blocks a group below the 2-person floor",
+    "Request from the tour page opens its conversation with ?request=<id>",
+    "Traveler list renders the request with status and member count",
+    "Agency accepts from the list and the card moves to negotiating",
+    "Traveler sees the agency decision and the chat link keeps the request id",
+    "Mobile list has no horizontal overflow"
+  ],
+  "shots": [
+    "01-tour-cta.png",
+    "02-request-dialog.png",
+    "03-traveler-conversation.png",
+    "04-traveler-requests.png",
+    "05-agency-requests.png",
+    "06-agency-accepted.png",
+    "07-traveler-negotiating.png",
+    "08-mobile-requests.png"
+  ],
+  "errors": [],
+  "requestId": "abb8c87d-1a3a-472c-a555-af1ef985e962",
+  "conversationId": "c7c6c305-4fa7-4c5e-8ada-d0a16841443d"
+}

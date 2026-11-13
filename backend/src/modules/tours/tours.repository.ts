@@ -1,7 +1,7 @@
 import { writeAudit } from '../audit/audit.writer';
 import { assertGuideAvailability, lockGuideSchedules } from './guide-availability';
 import type { AuditEntry } from '../audit/audit.types';
-import { TOUR_STATUS, type TourStatus } from '@travel-platform/constants';
+import { TOUR_STATUS, TOUR_VISIBILITY, type TourStatus } from '@travel-platform/constants';
 import { nullIfNotFound, prisma, type DbExecutor, type Prisma } from '../../config/database';
 import type { GuideAssignmentStatus, Tour as StoredTour, TourDeparture, TourGuideAssignment } from '../../generated/prisma/client';
 import { numericRecord, type NumericRecord } from '../../utils/money';
@@ -180,7 +180,7 @@ export class ToursRepository {
   // ------------------------------------------------------- discovery
 
   async searchPublic(query: SearchToursQuery): Promise<{ items: TourRecord[]; total: number }> {
-    const where: Prisma.TourWhereInput = { status: TOUR_STATUS.APPROVED };
+    const where: Prisma.TourWhereInput = { status: TOUR_STATUS.APPROVED, visibility: TOUR_VISIBILITY.PUBLIC };
     const and: Prisma.TourWhereInput[] = [];
     const guests = (query.adults ?? 0) + (query.children ?? 0) + (query.infants ?? 0);
     if (guests > 0) {
@@ -243,7 +243,7 @@ export class ToursRepository {
     return rows.map((row) => ({ status: row.status, count: row._count._all }));
   }
 
-  /** Distinct destinations with tour counts and real tour info directly from the database for APPROVED tours. */
+  /** Distinct destinations with tour counts and real tour info directly from the database for APPROVED, PUBLIC tours. */
   async getPublicDestinations(): Promise<
     {
       destination: string;
@@ -253,7 +253,7 @@ export class ToursRepository {
     }[]
   > {
     const tours = await prisma.tour.findMany({
-      where: { status: TOUR_STATUS.APPROVED },
+      where: { status: TOUR_STATUS.APPROVED, visibility: TOUR_VISIBILITY.PUBLIC },
       select: {
         destination: true,
         title: true,

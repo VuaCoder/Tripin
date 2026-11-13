@@ -1,4 +1,4 @@
-import { TOUR_STATUS } from '@travel-platform/constants';
+import { TOUR_STATUS, TOUR_VISIBILITY } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
 import { buildPage, type Page } from '../../utils/pagination';
 import { toursDiscoveryService, toursService, type ToursDiscoveryService, type ToursService } from '../tours';
@@ -15,7 +15,8 @@ export class WishlistsService {
   /** Use case "Add wishlist". Idempotent: saving the same tour twice is a no-op that still succeeds. */
   async add(userId: string, tourId: string): Promise<{ created: boolean }> {
     const tour = await this.tours.getTourFacts(tourId);
-    if (!tour || tour.status !== TOUR_STATUS.APPROVED) throw AppError.notFound('Tour not found');
+    // PRIVATE tours are not public: knowing the id must not be enough to save one.
+    if (!tour || tour.status !== TOUR_STATUS.APPROVED || tour.visibility !== TOUR_VISIBILITY.PUBLIC) throw AppError.notFound('Tour not found');
 
     return this.items.addWithCap(userId, tourId, WISHLIST_LIMITS.MAX_ITEMS);
   }

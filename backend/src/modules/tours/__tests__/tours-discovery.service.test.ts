@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { PERMISSIONS, ROLES, TOUR_STATUS } from '@travel-platform/constants';
+import { PERMISSIONS, ROLES, TOUR_STATUS, TOUR_VISIBILITY } from '@travel-platform/constants';
 import { GUEST_ACTOR, type UserActor } from '../../../types/actor';
 import { ToursDiscoveryService } from '../tours-discovery.service';
 
-const tour = (status: string, agencyId = 'a1') => ({ id: 't1', status, agencyId });
+const tour = (status: string, agencyId = 'a1', visibility: string = TOUR_VISIBILITY.PUBLIC) => ({ id: 't1', status, agencyId, visibility });
 
 function make(found: ReturnType<typeof tour> | null) {
   const repo = { findById: vi.fn(async () => found), searchPublic: vi.fn(async () => ({ items: [found], total: 41 })) };
@@ -48,6 +48,17 @@ describe('ToursDiscoveryService.getDetail', () => {
   it('does not show another agency\'s draft', async () => {
     const other = user({ userId: 'a2', role: ROLES.AGENCY });
     await expect(make(tour(TOUR_STATUS.DRAFT)).service.getDetail('t1', other)).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('hides an APPROVED PRIVATE tour from guests, travelers, other agencies and guides', async () => {
+    const privateTour = tour(TOUR_STATUS.APPROVED, 'a1', TOUR_VISIBILITY.PRIVATE);
+    await expect(make(privateTour).service.getDetail('t1', GUEST_ACTOR)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(make(privateTour).service.getDetail('t1', user())).rejects.toMatchObject({ statusCode: 404 });
+    const other = user({ userId: 'a2', role: ROLES.AGENCY });
+    await expect(make(privateTour).service.getDetail('t1', other)).rejects.toMatchObject({ statusCode: 404 });
+    // Its owner manages it through /agency/tours/:id, never the public endpoint.
+    const owner = user({ userId: 'a1', role: ROLES.AGENCY });
+    await expect(make(privateTour).service.getDetail('t1', owner)).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it('lets staff with tour:list-all see any status', async () => {

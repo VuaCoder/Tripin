@@ -229,8 +229,10 @@ describe('earnings (integration)', () => {
 
   it('filters inclusive instants and UTC months, keeping summary independent of pagination', async () => {
     const { traveler, guide, tourId, departureId } = await guideSetup('ACCEPTED');
+    // One pending booking per traveler and departure, so the three trips come from three travelers.
+    const travelers = [traveler, await createUser('TRAVELER', 'traveler2@example.com'), await createUser('TRAVELER', 'traveler3@example.com')];
     const bookings = [];
-    for (let i = 0; i < 3; i++) bookings.push(await bookTrip(traveler, tourId, departureId));
+    for (let i = 0; i < 3; i++) bookings.push(await bookTrip(travelers[i]!, tourId, departureId));
     await completeTrips(bookings);
     const instants = ['2026-09-30T16:59:59.999Z', '2026-09-30T17:00:00.000Z', '2026-10-01T16:59:59.999Z'];
     for (let i = 0; i < bookings.length; i++) await prisma.earning.update({ where: { bookingId: bookings[i] }, data: { earnedAt: new Date(instants[i]!) } });

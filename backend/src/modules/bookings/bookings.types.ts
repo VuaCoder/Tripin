@@ -1,8 +1,28 @@
-import type { BookingCancelReason, BookingStatus, PromotionScope } from '@travel-platform/constants';
+import type { AgePricing, BookingCancelReason, BookingStatus, GuestCounts, PassengerType, PromotionScope } from '@travel-platform/constants';
+
+/** One member of a group booking, printed on the booking for its owner and the agency. */
+export interface BookingPassengerDto {
+  fullName: string;
+  phone: string;
+  idCard: string;
+  guestType: PassengerType;
+}
+
+/**
+ * Internal only: the frozen terms of an accepted group-booking offer, built by custom-tours from its snapshot.
+ * It is never read from HTTP and it is what allows the booking to use a PRIVATE tour (`allowPrivate: true`).
+ */
+export interface CustomTourBookingInput {
+  requestId: string;
+  unitPrice: number;
+  agePricing?: AgePricing | null;
+  guestCounts: GuestCounts;
+  passengers: BookingPassengerDto[];
+}
 
 export interface CreateBookingInput {
   premiumVoucherId?: string;
-  guestCounts?: import('@travel-platform/constants').GuestCounts;
+  guestCounts?: GuestCounts;
   tourId: string;
   departureId: string;
   participants: number;
@@ -12,6 +32,7 @@ export interface CreateBookingInput {
   agencyPromotionCode?: string;
   platformPromotionCode?: string;
   clientRequestId?: string;
+  customTour?: CustomTourBookingInput;
 }
 
 export interface ListBookingsQuery {
@@ -53,6 +74,8 @@ export interface BookingDto {
   redemptions?: PromotionRedemptionDto[];
   totalAmount: number;
   contact: { fullName: string; phone: string };
+  /** Detail only: the named members of a group booking. Lists omit them. */
+  passengers?: BookingPassengerDto[];
   notes?: string;
   isPaid: boolean;
   refundRequired: boolean;
@@ -61,6 +84,8 @@ export interface BookingDto {
   completedAt?: string;
   cancelledAt?: string;
   cancelReason?: BookingCancelReason;
+  /** Set when the booking came from an accepted group offer; the detail page can offer to book again from it. */
+  customTourRequestId?: string;
   createdAt: string;
   review?: import('./bookings.repository').BookingReviewSnapshot;
 }
@@ -79,6 +104,8 @@ export interface AgencyBookingDto {
   agencyAmount: number;
   isPaid: boolean;
   traveler?: { fullName: string; phone: string };
+  /** Detail only: who is travelling, when it is a group booking. */
+  passengers?: BookingPassengerDto[];
   notes?: string;
   createdAt: string;
   confirmedAt?: string;
@@ -103,6 +130,14 @@ export interface BookingFacts {
   totalAmount: number;
   commissionAmount: number;
   agencyAmount: number;
+}
+
+/** The one live booking of a group request; custom-tours shows it as `currentBooking` and derives `nextStep` from it. */
+export interface ActiveCustomTourBooking {
+  id: string;
+  status: BookingStatus;
+  bookingCode: string;
+  isPaid: boolean;
 }
 
 export interface PayableBooking {

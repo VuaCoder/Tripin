@@ -20,6 +20,7 @@ import {
   Command,
   Ticket,
   MessageSquareWarning,
+  MessageSquare,
   Users
 } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
@@ -88,6 +89,10 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
       { href: '/agency', label: 'Tổng quan', icon: LayoutDashboard, permission: 'agency:dashboard' },
       { href: '/agency/bookings', label: 'Đơn đặt chỗ', icon: CalendarCheck, permission: 'agency:bookings-view' },
     ] },
+    { label: 'Trao đổi', items: [
+      { href: '/conversations', label: 'Tin nhắn', icon: MessageSquare, permission: 'chat:use' },
+      { href: '/agency/custom-tours', label: 'Yêu cầu đoàn', icon: Users, permission: 'custom-tour:view' },
+    ] },
     { label: 'Sản phẩm', items: [
       { href: '/agency/tours', label: 'Quản lý tour', icon: Compass, permission: 'tour:update-own' },
       { href: '/agency/calendar', label: 'Lịch khởi hành', icon: CalendarDays, permission: 'tour:update-own' },
@@ -148,7 +153,8 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
               (href === '/agency/settings/commission' && pathname.startsWith('/agency/settings/commission/')) ||
               (href === '/agency/tours' && pathname.startsWith('/agency/tours/')) ||
               (href === '/agency/promotions' && (pathname.startsWith('/agency/promotions') || pathname.startsWith('/agency/premium'))) ||
-              (href === '/agency/bookings' && pathname.startsWith('/agency/bookings/'));
+              (href === '/agency/bookings' && pathname.startsWith('/agency/bookings/')) ||
+              (href === '/conversations' && pathname.startsWith('/conversations'));
             return (
               <Link 
                 key={href} 

@@ -2,12 +2,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight, Loader2 } from 'lucide-react';
-import { calculateGuestPrice, guestTotal, type GuestCounts } from '@travel-platform/constants';
+import { CUSTOM_TOUR_POLICY, calculateGuestPrice, guestTotal, type GuestCounts } from '@travel-platform/constants';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated, selectRole } from '@/features/auth';
 import { formatVnd } from '@/features/review';
 import type { TourReviewContext } from '@/features/review/types';
 import { usePreloader } from '@/components/preloader';
+import { GroupBookingRequestDialog } from '@/features/custom-tours/components/GroupBookingRequestDialog';
 import { TourGuestSelector } from './TourGuestSelector';
 import { readSearchGuests } from '../../utils/searchContext';
 import styles from './tour-detail.module.css';
@@ -24,6 +25,7 @@ export function TourBookingCard({
   const role = useAppSelector(selectRole);
   const { start: startPreloader } = usePreloader();
   const [isNavigating, setIsNavigating] = useState(false);
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [selected, setSelected] = useState('');
   const [guests, setGuests] = useState<GuestCounts>(() => readSearchGuests(params));
   const departures = (tour.departures ?? []).filter(item => item.isOpen && item.remaining > 0 && new Date(item.date).getTime() > Date.now());
@@ -52,6 +54,10 @@ export function TourBookingCard({
     const bookingHref = `/traveler/bookings/new?${bookingParams}`;
     if (!authenticated) { router.push(`/login?next=${encodeURIComponent(bookingHref)}`); return; }
     if (role === 'TRAVELER') router.push(bookingHref);
+  };
+  const requestGroup = () => {
+    if (!authenticated) { router.push(`/login?next=/tours/${tour.id}`); return; }
+    if (role === 'TRAVELER') setGroupDialogOpen(true);
   };
   return <aside className={styles.booking} aria-label="Đặt tour"><div className={styles.priceHeader}><p>Giá từ</p><strong>{formatVnd(price)}</strong><small>/ khách</small></div>
     <div className={styles.bookingBody}><h2 className={styles.bookingLabel}>NGÀY KHỞI HÀNH</h2>{departures.length ? <div className={styles.departureGrid}>{departures.map(item => <button type="button" key={item.id} aria-pressed={departure?.id === item.id} aria-label={`Khởi hành ${new Date(item.date).toLocaleDateString('vi-VN')}`} onClick={() => setSelected(item.id)}>{new Date(item.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}<small>{formatVnd(item.price)}</small></button>)}</div> : <p className={styles.muted}>Tour hiện chưa có ngày khởi hành còn chỗ.</p>}
@@ -86,6 +92,22 @@ export function TourBookingCard({
             </>
           )}
         </button>
+      )}
+      {(!authenticated || role === 'TRAVELER') && (
+        <button type="button" className={styles.outlineButton} aria-haspopup="dialog" onClick={requestGroup}>
+          Yêu cầu booking đoàn
+        </button>
+      )}
+      {groupDialogOpen && (
+        <GroupBookingRequestDialog
+          tourId={tour.id}
+          open={groupDialogOpen}
+          onClose={() => setGroupDialogOpen(false)}
+          defaultGuests={count >= CUSTOM_TOUR_POLICY.MIN_PARTICIPANTS ? guests : { ...guests, adults: guests.adults + CUSTOM_TOUR_POLICY.MIN_PARTICIPANTS - count }}
+          defaultStartDate={departure?.date.slice(0, 10)}
+          unitPrice={price}
+          pricing={tour.agePricing}
+        />
       )}
     </div>
   </aside>;

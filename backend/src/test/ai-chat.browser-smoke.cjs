@@ -1,4 +1,5 @@
-/* Run with CHAT_SMOKE_AI=1 on chat-browser-server.ts and frontend :3002. */
+/* Run with CHAT_SMOKE_PASSWORD=<local test password> and CHAT_SMOKE_AI=1 on
+ * chat-browser-server.ts and frontend :3002. */
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -7,6 +8,8 @@ const base = 'http://localhost:3002';
 const api = 'http://localhost:3003/api/v1';
 const output = path.resolve(process.cwd(), '../test-results/ai-chat-browser');
 fs.mkdirSync(output, { recursive: true });
+const PASSWORD = process.env.CHAT_SMOKE_PASSWORD;
+if (!PASSWORD) throw new Error('CHAT_SMOKE_PASSWORD is required');
 
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
@@ -22,7 +25,7 @@ fs.mkdirSync(output, { recursive: true });
       return form && Object.keys(form).some(key => key.startsWith('__reactProps$') && typeof form[key]?.onSubmit === 'function');
     });
     await page.locator('#user-credential').fill('traveler@chat.test');
-    await page.locator('#user-password').fill('ChatSmoke2026!');
+    await page.locator('#user-password').fill(PASSWORD);
     const loginResponse = page.waitForResponse(r => r.url() === `${api}/auth/login` && r.request().method() === 'POST');
     await page.locator('form[data-purpose="login-form"] button[type="submit"]').click();
     const login = await (await loginResponse).json();
