@@ -134,10 +134,10 @@ All `/admin/*` endpoints require the current `SUPER_ADMIN` role in addition to t
 
 | Use case | Module | Endpoint | Permission | Status |
 |---|---|---|---|---|
-| Set platform commission rates | system-settings | `GET/PUT /admin/settings/commission` | commission:configure | done |
+| Set platform commission rates | system-settings | `GET/PUT /admin/settings/commission`, `GET /admin/settings/agency-commissions`, `PUT /admin/settings/agency-commissions/:id` | commission:configure | done |
 | View detailed dashboards | dashboards | `GET /admin/dashboard` | admin:dashboard | done |
 | Config platform promotions | promotions | `GET/POST /admin/promotions`, `GET/PATCH /admin/promotions/:id`, `POST /admin/promotions/:id/generate-batch`, `GET /admin/promotions/:id/batch` | promotion:platform-manage | done |
-| Assign User Permissions | users | `GET /admin/users`, `PATCH /admin/users/:id/access` (role + extra permissions) | user:assign-permissions | done |
+| Assign User Permissions | users | `GET /admin/users`, `DELETE /admin/users/:id`, `PATCH /admin/users/:id/access` (role + extra permissions) | user:assign-permissions | done |
 | Config Tour Categories | categories | `GET/POST /admin/categories`, `PATCH/DELETE /admin/categories/:id` | category:configure | done |
 | Configure System Policies | system-settings | `PUT /admin/policies/:key` (read is public `GET /policies`) | policy:configure | done |
 | (supporting) audit log | audit | `GET /admin/audit-logs` | audit:view | done |
