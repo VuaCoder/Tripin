@@ -25,6 +25,27 @@ async function setup(capacity = 10) {
 }
 
 describe('bookings (integration)', () => {
+  it('stores passenger details and exports the selected departure for agency STAFF', async () => {
+    const { agency, traveler, tourId, departureId } = await setup();
+    const staff = await createUser('TRAVELER', 'staff@example.com');
+    await prisma.agencyMember.create({ data: { agencyId: agency.id, userId: staff.id, role: 'STAFF' } });
+    const created = await book(traveler.token, tourId, departureId, 2, { passengers: [
+      { fullName: 'Nguyen Lan', birthYear: 1990, ageGroup: 'ADULT', pickupPoint: 'Gate A', phone: '0901234567' },
+      { fullName: 'Tran An', ageGroup: 'CHILD', specialNotes: 'Allergy' },
+    ] });
+    expect(created.status).toBe(201);
+    const bookingId = created.body.data.id as string;
+    expect((await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } })).passengers).toHaveLength(2);
+    await prisma.booking.update({ where: { id: bookingId }, data: { status: 'CONFIRMED', isPaid: true } });
+    const url = `/api/v1/agency/tours/${tourId}/departures/${departureId}/customers.pdf`;
+    const result = await request(app).get(url).set(bearer(staff.token)).set('X-Agency-Id', agency.id);
+    expect(result.status).toBe(200);
+    expect(result.headers['content-type']).toContain('application/pdf');
+    const otherAgency = await createUser('AGENCY', 'other-agency@example.com');
+    expect((await request(app).get(url).set(bearer(otherAgency.token))).status).toBe(404);
+    expect((await request(app).get(`/api/v1/agency/tours/${tourId}/departures/11111111-1111-4111-8111-111111111111/customers.pdf`).set(bearer(staff.token)).set('X-Agency-Id', agency.id)).status).toBe(404);
+  });
+
   it('creates a PENDING booking with server-side money and reserves the seats', async () => {
     const { traveler, tourId, departureId } = await setup(10);
 

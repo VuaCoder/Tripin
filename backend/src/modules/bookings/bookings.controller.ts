@@ -69,6 +69,18 @@ export class BookingsController {
     doc.pipe(res);
     doc.end();
   };
+  exportDepartureCustomers: RequestHandler = async (req, res) => {
+    const { tourId, departureId } = req.params as { tourId: string; departureId: string };
+    const { tourTitle, rows, truncated } = await this.service.listDepartureCustomers(agencyContext(req).agencyId, tourId, departureId);
+    const doc = renderCustomersPdf({ tourTitle, rows, truncated, generatedAt: new Date() });
+    res.status(200);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="customers-${departureId}.pdf"`);
+    res.setHeader('Cache-Control', 'no-store');
+    doc.on('error', () => res.destroy());
+    doc.pipe(res);
+    doc.end();
+  };
 }
 
 export const bookingsController = new BookingsController();

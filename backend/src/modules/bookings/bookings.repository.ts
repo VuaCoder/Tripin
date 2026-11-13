@@ -45,7 +45,7 @@ export type BookingRecord = Omit<Booking, FlattenedColumns> & {
   review?: BookingReviewSnapshot;
 };
 
-type BookingScalars = Omit<Booking, 'id' | 'createdAt' | 'updatedAt' | 'guestPricing' | 'cancellationPolicySnapshot' | FlattenedColumns> & { guestPricing: Prisma.InputJsonValue; cancellationPolicySnapshot: Prisma.InputJsonValue };
+type BookingScalars = Omit<Booking, 'id' | 'createdAt' | 'updatedAt' | 'guestPricing' | 'passengers' | 'cancellationPolicySnapshot' | FlattenedColumns> & { guestPricing: Prisma.InputJsonValue; passengers: Prisma.InputJsonValue; cancellationPolicySnapshot: Prisma.InputJsonValue };
 
 export type NewBooking = Pick<
   Booking,

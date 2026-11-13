@@ -13,6 +13,7 @@ export interface AgencyDashboard {
 }
 
 export interface AgencyBooking {
+  passengers?: { fullName: string; birthYear?: number; ageGroup: 'ADULT' | 'CHILD' | 'INFANT'; phone?: string; pickupPoint?: string; specialNotes?: string }[];
   id: string;
   bookingCode: string;
   status: BookingStatus;

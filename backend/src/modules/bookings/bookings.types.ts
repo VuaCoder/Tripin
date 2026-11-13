@@ -1,6 +1,7 @@
 import type { BookingCancelReason, BookingStatus, PromotionScope } from '@travel-platform/constants';
 
 export interface CreateBookingInput {
+  passengers?: BookingPassenger[];
   premiumVoucherId?: string;
   guestCounts?: import('@travel-platform/constants').GuestCounts;
   tourId: string;
@@ -12,6 +13,15 @@ export interface CreateBookingInput {
   agencyPromotionCode?: string;
   platformPromotionCode?: string;
   clientRequestId?: string;
+}
+
+export interface BookingPassenger {
+  fullName: string;
+  birthYear?: number;
+  ageGroup: 'ADULT' | 'CHILD' | 'INFANT';
+  phone?: string;
+  pickupPoint?: string;
+  specialNotes?: string;
 }
 
 export interface ListBookingsQuery {
@@ -79,6 +89,7 @@ export interface AgencyBookingDto {
   agencyAmount: number;
   isPaid: boolean;
   traveler?: { fullName: string; phone: string };
+  passengers?: BookingPassenger[];
   notes?: string;
   createdAt: string;
   confirmedAt?: string;
@@ -152,6 +163,10 @@ export interface CustomerRow {
   phone: string;
   participants: number;
   notes?: string;
+  birthYear?: number;
+  ageGroup?: BookingPassenger['ageGroup'];
+  pickupPoint?: string;
+  specialNotes?: string;
 }
 
 export const CUSTOMER_EXPORT_LIMIT = 5000;

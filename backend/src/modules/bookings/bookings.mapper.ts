@@ -63,6 +63,8 @@ export function toAgencyBookingDto(booking: BookingRecord): AgencyBookingDto {
     agencyAmount: booking.agencyAmount,
     isPaid: booking.isPaid,
     traveler: shareContact ? { fullName: booking.contact.fullName, phone: booking.contact.phone } : undefined,
+    passengers: shareContact && Array.isArray(booking.passengers)
+      ? booking.passengers as unknown as import('./bookings.types').BookingPassenger[] : undefined,
     notes: shareContact ? (booking.notes ?? undefined) : undefined,
     createdAt: createdAtOf(booking),
     confirmedAt: iso(booking.confirmedAt),

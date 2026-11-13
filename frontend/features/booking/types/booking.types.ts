@@ -10,6 +10,7 @@ export interface BookingContact {
 }
 
 export interface CreateBookingInput {
+  passengers?: { fullName: string; birthYear?: number; ageGroup: 'ADULT' | 'CHILD' | 'INFANT'; phone?: string; pickupPoint?: string; specialNotes?: string }[];
   premiumVoucherId?: string;
   guestCounts?: import('@travel-platform/constants').GuestCounts;
   tourId: string;

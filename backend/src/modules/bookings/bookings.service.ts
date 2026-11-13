@@ -1,7 +1,7 @@
 import type { DateRange } from '../../utils/date-range';
 import { premiumRepository } from '../premium/premium.repository';
 import { BOOKING_CANCEL_REASON, BOOKING_STATUS, PROMOTION_SCOPE, ratioVnd, sumVnd, type BookingCancelReason, type BookingStatus, type PromotionScope } from '@travel-platform/constants';
-import { isUniqueViolation, runInTransaction, type DbExecutor, type TransactionRunner } from '../../config/database';
+import { isUniqueViolation, runInTransaction, type DbExecutor, type TransactionRunner, type Prisma } from '../../config/database';
 import { AppError } from '../../utils/app-error';
 import { randomInt, randomUUID } from 'node:crypto';
 import { buildPage, type Page } from '../../utils/pagination';
@@ -71,7 +71,7 @@ const AMOUNT_TOO_LOW = () =>
 export class BookingsService {
   constructor(
     private readonly bookings: Repo = bookingsRepository,
-    private readonly tours: Pick<ToursService, 'getBookableDeparture' | 'reserveSeats' | 'releaseSeats' | 'getTourFacts'> = toursService,
+    private readonly tours: Pick<ToursService, 'getBookableDeparture' | 'reserveSeats' | 'releaseSeats' | 'getTourFacts' | 'getDepartureFacts'> = toursService,
     private readonly promotions: Pick<PromotionsService, 'redeem' | 'lockForBooking' | 'releaseForBooking' | 'release'> = promotionsService,
     private readonly settings: Pick<SystemSettingsService, 'getCommissionBps' | 'getPolicyNumber' | 'getPolicy'> = systemSettingsService,
     private readonly notifications: Pick<NotificationsService, 'notify' | 'notifyAgency'> = notificationsService,
@@ -103,6 +103,7 @@ export class BookingsService {
   }
 
   private async createBookingOnce(travelerId: string, input: CreateBookingInput): Promise<BookingDto> {
+    if (input.passengers && input.passengers.length > input.participants) throw AppError.badRequest('Passenger count exceeds participants');
     if (input.premiumVoucherId && (input.promotionCode || input.agencyPromotionCode || input.platformPromotionCode)) throw AppError.badRequest('Voucher Premium không cộng với mã khác');
     if (input.clientRequestId) {
       const duplicate = await this.bookings.findByRequestId(travelerId, input.clientRequestId);
@@ -195,6 +196,7 @@ export class BookingsService {
               departureDate: departure.departureDate,
               endDate: new Date(departure.departureDate.getTime() + departure.durationDays * DAY_MS),
               participants: input.participants,
+              ...(input.passengers?.length ? { passengers: input.passengers as unknown as Prisma.InputJsonValue } : {}),
               ...(input.guestCounts ? { guestPricing: { ...guestPricing, guests: { ...guestPricing.guests } } } : {}),
               contact: input.contact,
               notes: input.notes,
@@ -507,6 +509,14 @@ export class BookingsService {
 
   // ======================================================= Customer export
 
+  async listDepartureCustomers(agencyId: string, tourId: string, departureId: string) {
+    const tour = await this.tours.getTourFacts(tourId);
+    if (!tour || tour.agencyId !== agencyId) throw AppError.notFound('Tour not found');
+    const facts = await this.tours.getDepartureFacts([{ tourId, departureId }]);
+    if (!facts.has(`${tourId}:${departureId}`)) throw AppError.notFound('Departure not found');
+    return this.listCustomers(agencyId, tourId, departureId);
+  }
+
   /**
    * Data for "Export customer PDF": paid bookings of one of the agency's tours (optionally one departure).
    * The tour must belong to the agency (404 otherwise). The list is capped; `truncated` says when it was cut.
@@ -516,15 +526,24 @@ export class BookingsService {
     if (!tour || tour.agencyId !== agencyId) throw AppError.notFound('Tour not found');
 
     const bookings = await this.bookings.listPaidForTour(agencyId, tourId, departureId, CUSTOMER_EXPORT_LIMIT + 1);
-    const rows = bookings.slice(0, CUSTOMER_EXPORT_LIMIT).map((booking) => ({
-      bookingCode: booking.bookingCode,
-      departureDate: booking.departureDate,
-      travelerName: booking.contact.fullName,
-      phone: booking.contact.phone,
-      participants: booking.participants,
-      notes: booking.notes ?? undefined,
-    }));
-    return { tourTitle: tour.title, rows, truncated: bookings.length > CUSTOMER_EXPORT_LIMIT };
+    const rows: CustomerRow[] = [];
+    for (const booking of bookings) {
+      const candidates: unknown[] = Array.isArray(booking.passengers) ? booking.passengers : [];
+      const people = candidates.filter((value): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value));
+      if (!people.length) {
+        rows.push({ bookingCode: booking.bookingCode, departureDate: booking.departureDate, travelerName: booking.contact.fullName,
+          phone: booking.contact.phone, participants: booking.participants, notes: booking.notes ?? undefined });
+      } else {
+        for (const person of people) rows.push({ bookingCode: booking.bookingCode, departureDate: booking.departureDate,
+          travelerName: String(person.fullName ?? ''), phone: String(person.phone ?? booking.contact.phone), participants: 1,
+          birthYear: typeof person.birthYear === 'number' ? person.birthYear : undefined,
+          ageGroup: person.ageGroup === 'ADULT' || person.ageGroup === 'CHILD' || person.ageGroup === 'INFANT' ? person.ageGroup : undefined,
+          pickupPoint: typeof person.pickupPoint === 'string' ? person.pickupPoint : undefined,
+          specialNotes: typeof person.specialNotes === 'string' ? person.specialNotes : undefined });
+      }
+      if (rows.length > CUSTOMER_EXPORT_LIMIT) break;
+    }
+    return { tourTitle: tour.title, rows: rows.slice(0, CUSTOMER_EXPORT_LIMIT), truncated: rows.length > CUSTOMER_EXPORT_LIMIT || bookings.length > CUSTOMER_EXPORT_LIMIT };
   }
 
   // ======================================================== Dashboard stats

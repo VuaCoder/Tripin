@@ -40,10 +40,11 @@ export function renderCustomersPdf(input: CustomersPdfInput): PDFKit.PDFDocument
     { title: '#', width: 28 },
     { title: 'Booking', width: 92 },
     { title: 'Departure', width: 70 },
-    { title: 'Traveler', width: 170 },
-    { title: 'Phone', width: 100 },
-    { title: 'Pax', width: 30 },
-    { title: 'Notes', width: doc.page.width - doc.page.margins.left - doc.page.margins.right - 490 },
+    { title: 'Họ tên', width: 145 },
+    { title: 'Năm sinh / nhóm', width: 80 },
+    { title: 'SĐT', width: 90 },
+    { title: 'Điểm đón', width: 120 },
+    { title: 'Ghi chú', width: doc.page.width - doc.page.margins.left - doc.page.margins.right - 625 },
   ];
   const left = doc.page.margins.left;
   const bottom = () => doc.page.height - doc.page.margins.bottom - 20;
@@ -71,7 +72,8 @@ export function renderCustomersPdf(input: CustomersPdfInput): PDFKit.PDFDocument
   header();
   tableHead();
   input.rows.forEach((row, index) => {
-    const cells = [String(index + 1), row.bookingCode, fmtDate(row.departureDate), row.travelerName, row.phone, String(row.participants), row.notes ?? ''];
+    const cells = [String(index + 1), row.bookingCode, fmtDate(row.departureDate), row.travelerName,
+      [row.birthYear, row.ageGroup].filter(Boolean).join(' / '), row.phone, row.pickupPoint ?? '', row.specialNotes ?? row.notes ?? ''];
     // Wrap every cell explicitly so even one very long note can continue safely onto another page.
     const lines = cells.map((text, column) => {
       const result: string[] = [];
