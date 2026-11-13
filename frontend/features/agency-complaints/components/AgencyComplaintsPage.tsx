@@ -8,6 +8,8 @@ import { useGetAgencyComplaintsQuery, useRespondToComplaintMutation } from '../a
 import { CATEGORY_LABELS, COMPLAINT_ERROR_MESSAGES, STATUS_LABELS } from '../labels';
 import type { Complaint, ComplaintStatus } from '../types';
 import { ComplaintResponseDialog } from './ComplaintResponseDialog';
+import { AgencyPageTitle } from '@/features/agency/components/AgencyPageTitle';
+import { MessageSquareWarning } from 'lucide-react';
 
 const PAGE_SIZE = 10;
 type StatusFilter = 'ALL' | ComplaintStatus;
@@ -51,7 +53,7 @@ export function AgencyComplaintsPage() {
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Khiếu nại về tour</h1>
+          <AgencyPageTitle icon={MessageSquareWarning}>Khiếu nại về tour</AgencyPageTitle>
           <p className="mt-1 text-sm text-slate-500">
             Các khiếu nại liên quan đến tour của bạn. Bạn có thể phản hồi một lần; kiểm duyệt viên sẽ đưa ra quyết định cuối cùng.
           </p>

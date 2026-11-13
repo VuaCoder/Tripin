@@ -21,6 +21,7 @@ import {
 import { useAppSelector } from '@/store/hooks';
 import { selectActiveAgency, selectUser } from '@/features/auth/store/authSlice';
 import { agencyNotice } from '@/features/agency/agencyNotice';
+import { AgencyPageTitle } from './AgencyPageTitle';
 
 const ROLE_NAMES: Record<AgencyMemberRole, string> = {
   OWNER: 'Đại lý sở hữu',
@@ -235,7 +236,7 @@ export function AgencyTeamPage() {
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Bảng thành viên</h1>
+          <AgencyPageTitle icon={Users}>Bảng thành viên</AgencyPageTitle>
           <p className="mt-1 text-sm text-slate-500 font-medium">
             Quản lý đội ngũ và lời mời tham gia đối tác
           </p>

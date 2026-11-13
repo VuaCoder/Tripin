@@ -23,6 +23,7 @@ import { AgencyDenied, AgencyError, AgencyLoading, agencyButton, agencyPanel, bo
 import { Pagination } from '@/components/ui/Pagination';
 import { AntSelect } from '@/components/ui/AntSelect';
 import { AntDatePicker } from '@/components/ui/AntDatePicker';
+import { AgencyPageTitle } from './components/AgencyPageTitle';
 
 export function AgencyBookingsPage() {
   const params = useSearchParams();
@@ -72,8 +73,7 @@ export function AgencyBookingsPage() {
       {/* Header with Title and Modern Icon Refresh Button */}
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Booking của Agency</h1>
-          <p className="mt-1 text-sm text-slate-600">Theo dõi đặt chỗ và trạng thái thanh toán thuộc tour của bạn.</p>
+          <AgencyPageTitle icon={Calendar}>Đơn đặt chỗ</AgencyPageTitle>
         </div>
         <button
           type="button"
@@ -340,7 +340,7 @@ export function AgencyBookingDetailPage({ id }: { id: string }) {
   const { data: booking, isLoading, error, refetch } = useGetAgencyBookingQuery(id, { skip: !canView, refetchOnFocus: true });
   if (!canView) return <AgencyDenied />;
   return <main className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6"><Link href="/agency/bookings" className="text-sm font-semibold text-primary hover:underline">← Booking của Agency</Link>{isLoading ? <AgencyLoading /> : error || !booking ? <AgencyError message={getTourApiMessage(error, 'Không tìm thấy booking hoặc bạn không có quyền truy cập.')} retry={() => void refetch()} /> : <>
-    <header><h1 className="text-2xl font-bold text-slate-900">{booking.bookingCode}</h1><p className="mt-2 text-sm text-slate-600">{bookingStatusNames[booking.status]} · {booking.isPaid ? 'Đã thanh toán' : 'Chưa thanh toán'}</p></header>
+    <header><AgencyPageTitle icon={Calendar}>{booking.bookingCode}</AgencyPageTitle><p className="mt-2 text-sm text-slate-600">{bookingStatusNames[booking.status]} · {booking.isPaid ? 'Đã thanh toán' : 'Chưa thanh toán'}</p></header>
     <section className={agencyPanel}><h2 className="mb-4 text-lg font-semibold">Thông tin đặt chỗ</h2><dl className="grid gap-5 sm:grid-cols-2">{[['Tour', booking.tour.title], ['Ngày khởi hành', dateTime(booking.departureDate)], ['Số khách', booking.participants], ['Ngày đặt', dateTime(booking.createdAt)], ['Tổng thanh toán', money(booking.totalAmount)], ['Hoa hồng nền tảng', money(booking.commissionAmount)], ['Agency nhận', money(booking.agencyAmount)], ...(booking.confirmedAt ? [['Ngày xác nhận', dateTime(booking.confirmedAt)]] : []), ...(booking.cancelledAt ? [['Ngày hủy', dateTime(booking.cancelledAt)]] : [])].map(([label, value]) => <div key={label}><dt className="text-sm text-slate-500">{label}</dt><dd className="mt-1 break-words text-sm font-medium text-slate-900">{value}</dd></div>)}</dl>{canViewTours && <Link href={`/agency/tours/${booking.tour.id}`} className={`${agencyButton} mt-5`}>Xem tour / xuất danh sách khách</Link>}</section>
     <section className={agencyPanel}><h2 className="mb-4 text-lg font-semibold">Liên hệ khách hàng</h2>{booking.traveler ? <dl className="space-y-3 text-sm"><div><dt className="text-slate-500">Họ tên</dt><dd className="font-medium">{booking.traveler.fullName}</dd></div><div><dt className="text-slate-500">Điện thoại</dt><dd>{booking.traveler.phone}</dd></div>{booking.notes && <div><dt className="text-slate-500">Ghi chú</dt><dd className="whitespace-pre-wrap break-words">{booking.notes}</dd></div>}</dl> : <p className="text-sm text-slate-600">Thông tin liên hệ chỉ được chia sẻ khi booking đã xác nhận hoặc hoàn thành.</p>}</section>
     {booking.traveler && <section className={agencyPanel}><h2 className="mb-4 text-lg font-semibold">Hành khách</h2>{booking.passengers?.length ? <ul className="space-y-2 text-sm">{booking.passengers.map((passenger, index) => <li key={index} className="rounded-lg border border-slate-200 p-3"><strong>{passenger.fullName}</strong> · {'guestType' in passenger ? passenger.guestType : passenger.birthYear ?? passenger.ageGroup} · {passenger.phone ?? booking.traveler?.phone}{'idCard' in passenger && <span> · CCCD {passenger.idCard}</span>}{'pickupPoint' in passenger && passenger.pickupPoint && <span> · Điểm đón: {passenger.pickupPoint}</span>}{'specialNotes' in passenger && passenger.specialNotes && <span> · {passenger.specialNotes}</span>}</li>)}</ul> : <p className="text-sm text-slate-600">Booking cũ chưa có hồ sơ từng hành khách.</p>}</section>}
