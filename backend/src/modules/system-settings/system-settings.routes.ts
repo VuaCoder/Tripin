@@ -3,7 +3,7 @@ import { PERMISSIONS } from '@travel-platform/constants';
 import { requirePermission, requireSuperAdmin } from '../../middlewares/authorize';
 import { validate } from '../../middlewares/validate';
 import { systemSettingsController } from './system-settings.controller';
-import { commissionBody, policyBody, policyKeyParams } from './system-settings.validation';
+import { agencyCommissionBody, agencyCommissionParams, commissionBody, policyBody, policyKeyParams } from './system-settings.validation';
 
 /** Mounted at /api/v1/policies — public (GUEST) read of policy texts. */
 export const publicPoliciesRouter = Router();
@@ -19,6 +19,13 @@ adminSettingsRouter.put(
   requirePermission(PERMISSIONS.COMMISSION_CONFIGURE),
   validate({ body: commissionBody }),
   systemSettingsController.setCommission,
+);
+adminSettingsRouter.get('/agency-commissions', requirePermission(PERMISSIONS.COMMISSION_CONFIGURE), systemSettingsController.listAgencyCommissions);
+adminSettingsRouter.put(
+  '/agency-commissions/:id',
+  requirePermission(PERMISSIONS.COMMISSION_CONFIGURE),
+  validate({ params: agencyCommissionParams, body: agencyCommissionBody }),
+  systemSettingsController.setAgencyCommission,
 );
 
 /** Mounted at /api/v1/admin/policies — SUPER_ADMIN. */

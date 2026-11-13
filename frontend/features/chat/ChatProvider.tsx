@@ -36,7 +36,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState('Đang kết nối');
   const [revision, setRevision] = useState(0);
   const [delivered, setDelivered] = useState<Set<string>>(new Set());
-  const eligible = !!user && ['TRAVELER', 'TOUR_GUIDE', 'AGENCY'].includes(user.role) && user.permissions.includes('chat:use');
+  const eligible = !!user && ['TRAVELER', 'TOUR_GUIDE', 'AGENCY', 'SUPER_ADMIN'].includes(user.role) && user.permissions.includes('chat:use');
   useEffect(() => {
     setConnected(false);
     if (!eligible || !token || !user) return;

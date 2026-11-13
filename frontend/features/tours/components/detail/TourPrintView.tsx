@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Printer, ChevronLeft, Minus, Plus } from 'lucide-react';
-import { ageUnitPrice, calculateGuestPrice, guestTotal, type GuestCounts } from '@travel-platform/constants';
+import { Printer, ChevronLeft } from 'lucide-react';
+import { ageUnitPrice, calculateGuestPrice, guestTotal } from '@travel-platform/constants';
 import type { TourReviewContext } from '@/features/review/types';
 import { formatVnd, formatDepartureDate } from '../../utils';
 import { readSearchGuests } from '../../utils/searchContext';
@@ -13,8 +13,13 @@ import styles from './tour-print.module.css';
 export function TourPrintView({ tour }: { tour: TourReviewContext }) {
   const searchParams = useSearchParams();
 
-  // Initialize guests from query params or default
-  const [guests, setGuests] = useState<GuestCounts>(() => readSearchGuests(searchParams));
+  const guests = readSearchGuests(searchParams);
+  const autoPrintStarted = useRef(false);
+  useEffect(() => {
+    if (autoPrintStarted.current) return;
+    autoPrintStarted.current = true;
+    window.print();
+  }, []);
 
   // Departures
   const departures = [...(tour.departures ?? [])]
@@ -23,12 +28,9 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
 
   // Selected departure
   const selectedDepId = searchParams?.get('departureId');
-  const [selectedDepartureId, setSelectedDepartureId] = useState<string>(() => {
-    if (selectedDepId && departures.some(d => d.id === selectedDepId)) return selectedDepId;
-    return departures[0]?.id ?? '';
-  });
-
-  const activeDeparture = departures.find(d => d.id === selectedDepartureId) || departures[0];
+  const selectedDate = searchParams?.get('departureDate');
+  const activeDeparture = departures.find(d => d.id === selectedDepId || (selectedDate && d.date.slice(0, 10) === selectedDate)) || departures[0];
+  const selectedDepartureId = activeDeparture?.id ?? '';
   const unitPrice = activeDeparture?.price ?? tour.basePrice;
 
   // Prices per age group
@@ -48,15 +50,8 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
     totalPrice = adultLineTotal + childLineTotal + infantLineTotal;
   }
 
-  // Images for 3-frame collage (Saigontourist style)
-  const allImages = (tour.images && tour.images.length > 0)
-    ? tour.images
-    : tour.coverImage
-      ? [tour.coverImage]
-      : [];
-  const mainImage = allImages[0] || 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80';
-  const subImage1 = allImages[1] || allImages[0] || mainImage;
-  const subImage2 = allImages[2] || allImages[1] || mainImage;
+  const allImages = Array.from(new Set([...(tour.images ?? []), tour.coverImage].filter((image): image is string => !!image)));
+  const galleryImages = allImages.slice(0, 3);
 
   // Overview content points
   const overviewPoints = tour.summary
@@ -103,22 +98,20 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
             ẢNH 1: GALLERY 3 ẢNH + TIÊU ĐỀ TOUR & GIÁ THAM KHẢO + THÔNG TIN CHUYẾN ĐI
             ========================================================================= */}
         <section className={styles.headerSection}>
-          <div className={styles.photoGrid}>
+          {galleryImages.length > 0 && <div className={`${styles.photoGrid} ${galleryImages.length === 1 ? styles.photoGridSingle : galleryImages.length === 2 ? styles.photoGridDouble : ''}`}>
             <div className={styles.photoMain}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={mainImage} alt={tour.title} crossOrigin="anonymous" />
+              <img src={galleryImages[0]} alt={tour.title} />
             </div>
-            <div className={styles.photoSubCol}>
-              <div className={styles.photoSub}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={subImage1} alt={`${tour.title} - ảnh 2`} crossOrigin="anonymous" />
-              </div>
-              <div className={styles.photoSub}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={subImage2} alt={`${tour.title} - ảnh 3`} crossOrigin="anonymous" />
-              </div>
-            </div>
-          </div>
+            {galleryImages.length === 2 && <div className={styles.photoSub}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={galleryImages[1]} alt={`${tour.title} - ảnh 2`} />
+            </div>}
+            {galleryImages.length > 2 && <div className={styles.photoSubCol}>{galleryImages.slice(1).map((image, index) => <div key={image} className={styles.photoSub}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={image} alt={`${tour.title} - ảnh ${index + 2}`} />
+            </div>)}</div>}
+          </div>}
 
           <div className={styles.titlePriceRow}>
             <div className={styles.titleCol}>
@@ -159,97 +152,12 @@ export function TourPrintView({ tour }: { tour: TourReviewContext }) {
             ẢNH 2: LỊCH KHỞI HÀNH & BẢNG GIÁ + TỔNG QUAN
             ========================================================================= */}
         <section className={styles.sectionBlock}>
-          <div className={styles.sectionHeadingBar}>
+        <div className={styles.sectionHeadingBar}>
             <h2 className={styles.sectionTitle}>Lịch khởi hành & Bảng giá</h2>
-
-            {/* Bộ chỉnh số lượng hành khách trực tiếp trên bản xem trước (ẩn khi in giấy) */}
-            <div className={styles.guestSelectorToolbar}>
-              <div className={styles.guestControlItem}>
-                <span className={styles.guestItemLabel}>Người lớn:</span>
-                <div className={styles.counterGroup}>
-                  <button
-                    type="button"
-                    onClick={() => setGuests(prev => ({ ...prev, adults: Math.max(1, prev.adults - 1) }))}
-                    disabled={guests.adults <= 1}
-                    aria-label="Giảm người lớn"
-                  >
-                    <Minus size={12} />
-                  </button>
-                  <span className={styles.counterVal}>{guests.adults}</span>
-                  <button
-                    type="button"
-                    onClick={() => setGuests(prev => ({ ...prev, adults: prev.adults + 1 }))}
-                    aria-label="Tăng người lớn"
-                  >
-                    <Plus size={12} />
-                  </button>
-                </div>
-              </div>
-
-              <div className={styles.guestControlItem}>
-                <span className={styles.guestItemLabel}>Trẻ em:</span>
-                <div className={styles.counterGroup}>
-                  <button
-                    type="button"
-                    onClick={() => setGuests(prev => ({ ...prev, children: Math.max(0, prev.children - 1) }))}
-                    disabled={guests.children <= 0}
-                    aria-label="Giảm trẻ em"
-                  >
-                    <Minus size={12} />
-                  </button>
-                  <span className={styles.counterVal}>{guests.children}</span>
-                  <button
-                    type="button"
-                    onClick={() => setGuests(prev => ({ ...prev, children: prev.children + 1 }))}
-                    aria-label="Tăng trẻ em"
-                  >
-                    <Plus size={12} />
-                  </button>
-                </div>
-              </div>
-
-              <div className={styles.guestControlItem}>
-                <span className={styles.guestItemLabel}>Em bé:</span>
-                <div className={styles.counterGroup}>
-                  <button
-                    type="button"
-                    onClick={() => setGuests(prev => ({ ...prev, infants: Math.max(0, prev.infants - 1) }))}
-                    disabled={guests.infants <= 0}
-                    aria-label="Giảm em bé"
-                  >
-                    <Minus size={12} />
-                  </button>
-                  <span className={styles.counterVal}>{guests.infants}</span>
-                  <button
-                    type="button"
-                    onClick={() => setGuests(prev => ({ ...prev, infants: prev.infants + 1 }))}
-                    aria-label="Tăng em bé"
-                  >
-                    <Plus size={12} />
-                  </button>
-                </div>
-              </div>
-            </div>
+          <p className={styles.guestSelectorToolbar}>Người lớn: {guests.adults} · Trẻ em: {guests.children} · Em bé: {guests.infants}</p>
           </div>
 
-          {/* Chọn ngày khởi hành khác nếu tour có nhiều lịch */}
-          {departures.length > 1 && (
-            <div className={styles.departurePills}>
-              <span className={styles.departurePillsLabel}>Chọn ngày khởi hành:</span>
-              <div className={styles.departurePillsRow}>
-                {departures.map(d => (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() => setSelectedDepartureId(d.id)}
-                    className={`${styles.departurePill} ${selectedDepartureId === d.id ? styles.departurePillActive : ''}`}
-                  >
-                    {formatDepartureDate(d.date)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          <p className={styles.departurePills}>Ngày khởi hành: {activeDeparture ? formatDepartureDate(activeDeparture.date) : 'Theo yêu cầu'}</p>
 
           <div className={styles.tableWrapper}>
             <table className={styles.priceTable}>

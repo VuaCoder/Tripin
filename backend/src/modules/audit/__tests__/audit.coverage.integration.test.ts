@@ -183,6 +183,12 @@ describe('audit coverage (integration)', () => {
 
   it('records audit exports', async () => { const a = await actors(); await expectOneAudit(AUDIT_ACTIONS.AUDIT_EXPORTED, a.admin.id, () => request(app).get('/api/v1/admin/export/audit-logs').set(bearer(a.admin.token))); });
 
+  it('records deletion of an account without retained business records', async () => {
+    const a = await actors();
+    const disposable = await createUser('TRAVELER', 'remove@example.com');
+    await expectOneAudit(AUDIT_ACTIONS.USER_DELETED, a.admin.id, () => request(app).delete(`/api/v1/admin/users/${disposable.id}`).set(bearer(a.admin.token)), disposable.id);
+  });
+
   it('every action declared in AUDIT_ACTIONS is exercised by this file', () => {
     const source = require('node:fs').readFileSync(__filename, 'utf-8') as string;
     // Premium and guide payout transfer coverage live in their domain integration suites.

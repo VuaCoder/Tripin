@@ -35,3 +35,40 @@ export function parseCurrencyVndInput(raw: string): number {
   const digits = raw.replace(/\D/g, '');
   return digits ? parseInt(digits, 10) : 0;
 }
+
+/**
+ * Định dạng ngày thông minh chuẩn hệ thống:
+ * - Cùng năm hiện tại: DD/MM
+ * - Khác năm hiện tại: DD/MM/YY
+ */
+export function formatSmartDate(isoOrDate?: string | Date | null): string {
+  if (!isoOrDate) return '—';
+  const date = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate;
+  if (Number.isNaN(date.getTime())) return '—';
+
+  const now = new Date();
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+
+  if (date.getFullYear() === now.getFullYear()) {
+    return `${day}/${month}`;
+  }
+  const yearShort = String(date.getFullYear()).slice(-2);
+  return `${day}/${month}/${yearShort}`;
+}
+
+/**
+ * Định dạng ngày giờ thông minh chuẩn hệ thống:
+ * - Cùng năm hiện tại: HH:MM - DD/MM
+ * - Khác năm hiện tại: HH:MM - DD/MM/YY
+ */
+export function formatSmartDateTime(isoOrDate?: string | Date | null): string {
+  if (!isoOrDate) return '—';
+  const date = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate;
+  if (Number.isNaN(date.getTime())) return '—';
+
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const datePart = formatSmartDate(date);
+  return `${hours}:${minutes} - ${datePart}`;
+}

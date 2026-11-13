@@ -108,6 +108,12 @@ export class UsersController {
       }),
     );
   };
+
+  deleteAdminUser: RequestHandler = async (req, res) => {
+    const { params } = validated<unknown, unknown, IdParams>(req);
+    await this.service.deleteAdminUser({ userId: userActor(req).userId, role: userActor(req).role }, params.id);
+    sendOk(res, { deleted: true });
+  };
 }
 
 export const usersController = new UsersController();

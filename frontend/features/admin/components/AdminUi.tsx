@@ -1,12 +1,14 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { ChevronRight, RefreshCw } from 'lucide-react';
+import { message } from 'antd';
+import { RefreshCw } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectAuthStatus, selectUser } from '@/features/auth/store/authSlice';
-import { ErrorState, LoadingState } from '@/components/shared';
+import { ErrorState } from '@/components/shared';
 import { Button } from '@/components/ui';
 import { getApiErrorCode, getApiErrorMessage } from '@/features/auth/utils/apiError';
+import { AdminFallbackSkeleton } from './AdminSkeletons';
 
 export const control = 'min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 disabled:opacity-60';
 export const panel = 'rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_12px_-5px_rgba(15,23,42,0.12)] sm:p-6';
@@ -35,20 +37,50 @@ export function useAdminSession() {
   const status = useAppSelector(selectAuthStatus);
   return { user, ready: status === 'authenticated' && user?.role === 'SUPER_ADMIN' };
 }
-export function AdminFrame({ title, description, error, loading, refreshing, onRefresh, filters, children }: {
-  title: string; description: string; error?: unknown; loading?: boolean; refreshing?: boolean; onRefresh?: () => void; filters?: ReactNode; children: ReactNode;
+export function AdminFrame({ title, actions, error, loading, loadingSkeleton, refreshing, onRefresh, filters, children }: {
+  title: string; description?: string; actions?: ReactNode; error?: unknown; loading?: boolean; loadingSkeleton?: ReactNode; refreshing?: boolean; onRefresh?: () => unknown | Promise<unknown>; filters?: ReactNode; children: ReactNode;
 }) {
-  return <div className="mx-auto w-full min-w-0 max-w-[1480px] space-y-6 pb-8">
-    <header className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-6">
-      <div className="min-w-0"><p className="mb-3 flex items-center gap-1.5 text-xs text-slate-400">Workspace <ChevronRight size={12} /> <span className="text-teal-700">Quản trị</span></p>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{title}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{description}</p></div>
-      {onRefresh && <Button variant="outline" disabled={(loading && !error) || refreshing} onClick={onRefresh}><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />Tải lại dữ liệu</Button>}
+  const [messageApi, contextHolder] = message.useMessage();
+  const refresh = async () => {
+    if (!onRefresh) return;
+    try {
+      const result = await onRefresh();
+      const results = Array.isArray(result) ? result : [result];
+      const failed = results.some((item) => item && typeof item === 'object' && 'error' in item && Boolean(item.error));
+      if (!failed) messageApi.success('Đã cập nhật thành công!');
+    } catch {
+      // The page query renders the shared error state when the refresh fails.
+    }
+  };
+  return <div className="mx-auto w-full min-w-0 max-w-[1480px] space-y-6 pb-10">
+    {contextHolder}
+    <header className="flex flex-wrap items-center justify-between gap-4">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-[28px]">{title}</h1>
+      </div>
+      <div className="flex items-center gap-2">
+        {actions}
+        {onRefresh && (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={(loading && !error) || refreshing}
+            onClick={() => void refresh()}
+            aria-label="Làm mới"
+            title="Làm mới"
+            className="flex items-center justify-center !p-2.5 rounded-xl border-slate-200 hover:bg-slate-100"
+          >
+            <RefreshCw size={18} className={refreshing ? 'animate-spin text-teal-600' : 'text-slate-600'} />
+            <span className="sr-only">Làm mới</span>
+          </Button>
+        )}
+      </div>
     </header>
     {!forbidden(error) && filters}
     {!!error && <ErrorState title={forbidden(error) ? 'Không có quyền truy cập' : 'Không thể tải dữ liệu quản trị'} message={adminError(error)} onAction={forbidden(error) ? undefined : onRefresh} />}
-    {!forbidden(error) && (loading ? !error && <LoadingState label="Đang tải dữ liệu quản trị..." /> : <>
+    {!forbidden(error) && (loading ? !error && <div aria-busy="true" className="min-w-0">{loadingSkeleton ?? <AdminFallbackSkeleton />}</div> : <>
       {!!error && <p role="alert" className="text-sm text-amber-800">Dữ liệu bên dưới là lần tải trước. Kết quả tải lại chưa được xác nhận; thao tác đã được backend xác nhận lưu vẫn được giữ.</p>}
-      {refreshing && <p role="status" className="text-sm text-slate-500">Đang cập nhật dữ liệu...</p>}{children}</>)}
+      {children}</>)}
   </div>;
 }
 export function Feedback({ error, success }: { error?: string | null; success?: string | null }) {

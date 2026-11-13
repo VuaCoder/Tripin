@@ -7,18 +7,19 @@ import { baseApi } from '@/store/api/baseApi';
 import { useLogoutMutation } from '../api/authApi';
 import { clearCredentials } from '../store/authSlice';
 
-export function useLogout() {
+export function useLogout(customRedirect?: string) {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const [logoutMutation] = useLogoutMutation();
 
-  return useCallback(async () => {
+  return useCallback(async (redirectOverride?: string) => {
     try {
       await logoutMutation().unwrap();
     } catch {}
 
     dispatch(clearCredentials());
     dispatch(baseApi.util.resetApiState());
-    router.push('/login');
-  }, [dispatch, router, logoutMutation]);
+    const target = redirectOverride ?? customRedirect ?? '/login';
+    router.push(target);
+  }, [dispatch, router, logoutMutation, customRedirect]);
 }

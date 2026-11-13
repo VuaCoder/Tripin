@@ -35,7 +35,8 @@ export function AppShell({
   const effectiveRole: AppRole = role || (isAuthenticated && user?.role ? (user.role as AppRole) : 'PUBLIC');
   const isAgency = effectiveRole === 'AGENCY';
   const isModerator = effectiveRole === 'MODERATOR';
-  const hasSidebar = isAgency || isModerator;
+  const isAdmin = effectiveRole === 'SUPER_ADMIN';
+  const hasSidebar = isAgency || isModerator || isAdmin;
 
   return (
     <div className={`flex min-h-screen flex-col bg-slate-50 text-slate-800 ${hasSidebar ? sidebarStyles.shell : ''} ${className}`}>

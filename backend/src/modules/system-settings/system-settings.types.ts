@@ -26,6 +26,16 @@ export interface CommissionDto {
   updatedAt?: string;
 }
 
+export interface AgencyCommissionDto {
+  id: string;
+  companyName: string;
+  contactName: string;
+  email: string;
+  ratePercent: number | null;
+  rateBps: number | null;
+  version: number;
+}
+
 export const SETTING_KEYS = {
   COMMISSION: 'commission',
   policy: (key: PolicyKey) => `policy:${key}`,

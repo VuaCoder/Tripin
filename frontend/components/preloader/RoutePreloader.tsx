@@ -20,8 +20,19 @@ const MIN_DISPLAY_MS = 380;
 const MAX_SAFETY_TIMEOUT_MS = 4500;
 const AUTOMATIC_DELAY_MS = 180;
 
+function isExcludedFromPreloader(pathname: string) {
+  return (
+    pathname === '/agency' ||
+    pathname.startsWith('/agency/') ||
+    pathname === '/super-admin' ||
+    pathname.startsWith('/super-admin/') ||
+    pathname === '/moderator' ||
+    pathname.startsWith('/moderator/')
+  );
+}
+
 function isAgencyPath(pathname: string) {
-  return pathname === '/agency' || pathname.startsWith('/agency/');
+  return isExcludedFromPreloader(pathname);
 }
 
 /**

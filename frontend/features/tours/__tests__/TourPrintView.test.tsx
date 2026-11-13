@@ -20,6 +20,7 @@ it('prints all itinerary days and policies without reviews or booking controls',
   expect(screen.queryByText(/đánh giá/i)).toBeNull();
   expect(screen.queryByRole('button', { name: /đặt tour/i })).toBeNull();
   expect(screen.getByRole('table')).toBeTruthy();
+  print.mockClear();
   fireEvent.click(screen.getByRole('button', { name: 'In chương trình' }));
   expect(print).toHaveBeenCalledOnce();
   print.mockRestore();

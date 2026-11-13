@@ -7,6 +7,34 @@ import type { PersistedRole } from '@travel-platform/constants';
 export type SystemSettingRecord = SystemSetting;
 
 export class SystemSettingsRepository {
+  findAgencyCommission(id: string) {
+    return prisma.agencyProfile.findUnique({ where: { id }, select: { commissionRateBps: true } });
+  }
+
+  listAgencyCommissions() {
+    return prisma.agencyProfile.findMany({
+      where: { OR: [{ user: { role: 'AGENCY', status: 'ACTIVE' } }, { members: { some: { status: 'ACTIVE', user: { role: 'AGENCY', status: 'ACTIVE' } } } }] },
+      select: { id: true, companyName: true, commissionRateBps: true, commissionVersion: true, user: { select: { fullName: true, email: true } }, members: { where: { status: 'ACTIVE' }, select: { role: true, user: { select: { fullName: true, email: true } } } } },
+      orderBy: [{ companyName: 'asc' }, { id: 'asc' }],
+    });
+  }
+
+  async setAgencyCommission(input: { id: string; rateBps: number | null; expectedVersion: number; actor: { userId: string; role: PersistedRole } }) {
+    return prisma.$transaction(async (tx) => {
+      const before = await tx.agencyProfile.findUnique({ where: { id: input.id }, select: { id: true, commissionRateBps: true, commissionVersion: true } });
+      if (!before) throw AppError.notFound('Agency not found');
+      if (before.commissionVersion !== input.expectedVersion) throw AppError.conflict('Agency commission changed; reload before saving', 'SETTINGS_CONFLICT');
+      const updated = await tx.agencyProfile.updateMany({
+        where: { id: input.id, commissionVersion: input.expectedVersion },
+        data: { commissionRateBps: input.rateBps, commissionVersion: { increment: 1 } },
+      });
+      if (updated.count !== 1) throw AppError.conflict('Agency commission changed; reload before saving', 'SETTINGS_CONFLICT');
+      const after = await tx.agencyProfile.findUniqueOrThrow({ where: { id: input.id }, select: { id: true, commissionRateBps: true, commissionVersion: true, companyName: true } });
+      await writeAudit(tx, { actorId: input.actor.userId, actorRole: input.actor.role, action: 'settings.agency_commission_updated', targetType: 'agency', targetId: input.id, metadata: { before: { rateBps: before.commissionRateBps }, after: { rateBps: after.commissionRateBps }, reason: 'Cập nhật mức phí dịch vụ riêng cho công ty' } });
+      return after;
+    });
+  }
+
   async saveRevision(key: string, value: unknown, actor: { userId: string; role: PersistedRole }, expectedVersion: number, reason: string, options?: { effectiveFrom?: Date; rollbackOf?: string; baseline?: unknown }) {
     return prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(54822)`;

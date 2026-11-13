@@ -36,10 +36,13 @@ const markRetried = (args: FetchArgs | string): RetryableArgs => {
 };
 
 async function requestRefresh(): Promise<SessionData | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
   try {
     const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: 'POST',
       credentials: 'include',
+      signal: controller.signal,
     });
     if (!res.ok) return null;
     const body = (await res.json()) as { success?: boolean; data?: SessionData };
@@ -47,6 +50,8 @@ async function requestRefresh(): Promise<SessionData | null> {
     return body.data;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

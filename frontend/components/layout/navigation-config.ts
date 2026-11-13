@@ -58,12 +58,12 @@ export const navigationByRole: Record<AppRole, NavigationItem[]> = {
     { label: 'Khiếu nại hỗ trợ', href: '/moderator/support-tickets', permission: 'complaint:handle', icon: 'support_agent' },
   ],
   SUPER_ADMIN: [
-    { label: 'Audit log', href: '/super-admin/audit-logs', icon: 'history' },
-    { label: 'Premium', href: '/super-admin/premium', icon: 'workspace_premium' },
-    { label: 'Hệ thống', href: '/super-admin', icon: 'admin_panel_settings' },
+    { label: 'Tổng quan', href: '/super-admin', icon: 'dashboard' },
     { label: 'Người dùng', href: '/super-admin/users', icon: 'group' },
-    { label: 'Đối tác Agency', href: '/super-admin/agencies', icon: 'corporate_fare' },
-    { label: 'Báo cáo vi phạm', href: '/super-admin/reports', icon: 'flag' },
-    { label: 'Cấu hình hệ thống', href: '/super-admin/settings', icon: 'settings' },
+    { label: 'Danh mục tour', href: '/super-admin/categories', icon: 'category' },
+    { label: 'Khuyến mãi', href: '/super-admin/promotions', icon: 'sell' },
+    { label: 'Chính sách', href: '/super-admin/policies', icon: 'policy' },
+    { label: 'Hoa hồng', href: '/super-admin/settings/commission', icon: 'payments' },
+    { label: 'Nhật ký hoạt động', href: '/super-admin/audit-logs', icon: 'history' },
   ],
 };

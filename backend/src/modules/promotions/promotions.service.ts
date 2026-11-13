@@ -3,6 +3,7 @@ import { AppError } from '../../utils/app-error';
 import type { DbExecutor } from '../../config/database';
 import { buildPage, type Page, type PageRequest } from '../../utils/pagination';
 import { TtlCache } from '../../utils/ttl-cache';
+import { publishPublicEvent } from '../realtime/public-events';
 import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
 import { toursService, type ToursService } from '../tours';
 import { notificationsService, type NotificationsService, NOTIFICATION_TYPE } from '../notifications';
@@ -572,6 +573,7 @@ export class PromotionsService {
     });
     await this.auditPlatform(scope, actor, created.id, { change: 'created', code: created.code });
     this.hotCache.clear();
+    if (scope === PROMOTION_SCOPE.PLATFORM) publishPublicEvent('promotion:updated', { id: created.id });
     return toPromotionDto(created);
   }
 
@@ -618,6 +620,7 @@ export class PromotionsService {
     const updated = await this.promotions.updateById(id, patchData);
     await this.auditPlatform(scope, actor, id, { change: 'updated', fields: Object.keys(input) });
     this.hotCache.clear();
+    if (scope === PROMOTION_SCOPE.PLATFORM) publishPublicEvent('promotion:updated', { id });
     return toPromotionDto(updated ?? current);
   }
 
