@@ -15,6 +15,25 @@ export function formatDate(iso?: string): string {
   return DATE.format(date);
 }
 
+/** Format relative time or Airbnb style: e.g. "4 ngày trước", "1 tuần trước", "tháng 10 năm 2026" */
+export function formatReviewDate(iso?: string): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 0) return 'Hôm nay';
+  if (diffDays === 1) return 'Hôm qua';
+  if (diffDays < 7) return `${diffDays} ngày trước`;
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffWeeks < 4) return `${diffWeeks} tuần trước`;
+
+  return `tháng ${date.getMonth() + 1} năm ${date.getFullYear()}`;
+}
+
 export function formatDuration(days: number): string {
   return days <= 1 ? '1 ngày' : `${days} ngày ${days - 1} đêm`;
 }

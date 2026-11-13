@@ -34,6 +34,7 @@ export function toBookingDto(booking: BookingRecord): BookingDto {
       : undefined,
     totalAmount: booking.totalAmount,
     contact: { fullName: booking.contact.fullName, phone: booking.contact.phone },
+    passengers: booking.passengers,
     notes: booking.notes ?? undefined,
     isPaid: booking.isPaid,
     refundRequired: booking.refundRequired,
@@ -42,6 +43,7 @@ export function toBookingDto(booking: BookingRecord): BookingDto {
     completedAt: iso(booking.completedAt),
     cancelledAt: iso(booking.cancelledAt),
     cancelReason: (booking.cancelReason as BookingCancelReason | undefined) ?? undefined,
+    customTourRequestId: booking.customTourRequestId ?? undefined,
     createdAt: createdAtOf(booking),
     review: booking.review,
   };
@@ -63,6 +65,7 @@ export function toAgencyBookingDto(booking: BookingRecord): AgencyBookingDto {
     agencyAmount: booking.agencyAmount,
     isPaid: booking.isPaid,
     traveler: shareContact ? { fullName: booking.contact.fullName, phone: booking.contact.phone } : undefined,
+    passengers: booking.passengers,
     notes: shareContact ? (booking.notes ?? undefined) : undefined,
     createdAt: createdAtOf(booking),
     confirmedAt: iso(booking.confirmedAt),

@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 274 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 284 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -139,6 +139,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | POST | `/api/v1/agency-invitations/:id/accept` | login |
 | POST | `/api/v1/agency-invitations/accept` | login |
+| GET | `/api/v1/agency-invitations/invitations/:token` | public |
 
 ## `/agency-join-requests`
 
@@ -334,6 +335,20 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/complaints/:id/messages` | `report:create`, `complaint:respond`, `dispute:resolve` |
 | POST | `/api/v1/complaints/images/upload-signature` | `report:create`, `complaint:respond`, `dispute:resolve` |
 | GET | `/api/v1/complaints/me` | `report:create` |
+
+## `/custom-tours`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/custom-tours` | `custom-tour:view` |
+| POST | `/api/v1/custom-tours` | `custom-tour:request` |
+| GET | `/api/v1/custom-tours/:id` | `custom-tour:view` |
+| POST | `/api/v1/custom-tours/:id/acceptance` | `custom-tour:request` |
+| POST | `/api/v1/custom-tours/:id/bookings` | `custom-tour:request` |
+| PATCH | `/api/v1/custom-tours/:id/checkout-draft` | `custom-tour:request` |
+| PATCH | `/api/v1/custom-tours/:id/decision` | `custom-tour:respond` |
+| PATCH | `/api/v1/custom-tours/:id/draft` | `custom-tour:respond` |
+| POST | `/api/v1/custom-tours/:id/offers` | `custom-tour:respond` |
 
 ## `/e-tickets`
 

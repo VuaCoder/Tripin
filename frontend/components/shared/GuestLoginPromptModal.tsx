@@ -16,7 +16,13 @@ export function GuestLoginPromptModal({
   onClose,
   redirectUrl,
 }: GuestLoginPromptModalProps) {
-  const router = useRouter();
+  let router: { push: (url: string) => void } | null = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    router = useRouter();
+  } catch {
+    router = null;
+  }
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -100,7 +106,11 @@ export function GuestLoginPromptModal({
             type="button"
             onClick={() => {
               onClose();
-              router.push(loginHref);
+              if (router) {
+                router.push(loginHref);
+              } else if (typeof window !== 'undefined') {
+                window.location.href = loginHref;
+              }
             }}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-container py-3 text-sm font-bold text-white shadow-md shadow-primary-container/20 transition hover:bg-primary active:scale-[0.98]"
           >

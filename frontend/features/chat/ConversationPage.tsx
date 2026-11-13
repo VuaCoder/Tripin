@@ -30,6 +30,7 @@ import {
   useSendMessageMutation,
 } from './api';
 import { useChat } from './ChatProvider';
+import { CustomTourChatSection } from '@/features/custom-tours/components/CustomTourChatSection';
 import { ConversationWelcome } from './ConversationWelcome';
 import { TypingBubble } from './components/TypingBubble';
 import { AiThread } from './components/AiThread';
@@ -87,6 +88,7 @@ function ChatWorkspace({ id }: { id?: string }) {
   useOfflineRefresh(chat.connected, refetch);
 
   const isTraveler = user?.role === 'TRAVELER' || user?.permissions?.includes('ai:chat');
+  const audience = user?.role === 'AGENCY' ? 'agency' : user?.role === 'TOUR_GUIDE' ? 'guide' : 'traveler';
   const aiOverview = useGetAiOverviewQuery(undefined, {
     skip: !isTraveler,
     refetchOnFocus: true,
@@ -190,7 +192,7 @@ function ChatWorkspace({ id }: { id?: string }) {
               <p className="hidden md:block">Chưa có cuộc trò chuyện nào.</p>
               {!id && (
                 <div className="h-full md:hidden">
-                  <ConversationWelcome guide={user?.role === 'TOUR_GUIDE'} />
+                  <ConversationWelcome audience={audience} />
                 </div>
               )}
             </div>
@@ -337,7 +339,7 @@ function ChatWorkspace({ id }: { id?: string }) {
           <div className="hidden min-w-0 md:block">
             {!isLoading && !error && (
               <ConversationWelcome
-                guide={user?.role === 'TOUR_GUIDE'}
+                audience={audience}
                 recent={
                   data?.data[0]
                     ? { id: data.data[0].id, name: data.data[0].counterpart?.fullName || 'người đồng hành' }
@@ -393,6 +395,7 @@ function renderMessageContent(text: string, isMine: boolean) {
 
 function Thread({ id }: { id: string }) {
   const now = useChatClock();
+  const isAgency = useAppSelector(selectUser)?.role === 'AGENCY';
   const dispatch = useAppDispatch();
   const chat = useChat();
   const detail = useConversationQuery(id, { pollingInterval: 30_000 });
@@ -914,102 +917,105 @@ function Thread({ id }: { id: string }) {
           </button>
         </div>
       )}
-      <div
-        ref={scroll}
-        role="log"
-        aria-label="Lịch sử tin nhắn"
-        aria-busy={loading}
-        className="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-4"
-        onDragOver={(e) => {
-          e.preventDefault();
-          if (!isDragOver) setIsDragOver(true);
-        }}
-        onDragLeave={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-            setIsDragOver(false);
-          }
-        }}
-        onDrop={handleDrop}
-        onScroll={() => {
-          const element = scroll.current!;
-          const bottom = element.scrollHeight - element.scrollTop - element.clientHeight < 80;
-          stick.current = bottom;
-          setAtBottom(bottom);
-          if (bottom) setNewMessages(false);
-        }}
-      >
-        {!loading && (
-          <>
-            {hasMore && (
-              <button
-                disabled={loadingOlder}
-                onClick={() => void older()}
-                className="mx-auto block text-sm font-semibold text-teal-800"
-              >
-                {loadingOlder ? 'Đang tải…' : 'Tải tin cũ'}
-              </button>
-            )}
-            {!messages.length && !historyError && detail.data?.counterpart && (
-              <p className="py-12 text-center text-sm text-slate-600">
-                Bắt đầu tin nhắn cùng {detail.data.counterpart.fullName}
-              </p>
-            )}
-            {messages.map((message, index) => (
-              <Fragment key={message.id}>
-                {(!index || !sameDay(messages[index - 1].createdAt, message.createdAt)) && (
-                  <p className="py-2 text-center text-xs font-medium text-slate-600">
-                    {dayLabel(message.createdAt, now)}
-                  </p>
-                )}
-                <div className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}>
-                  <div className="max-w-[85%] sm:max-w-[75%]">
-                    <div
-                      className={`whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm [overflow-wrap:anywhere] ${
-                        message.isMine
-                          ? 'rounded-br-sm bg-primary-container text-white'
-                          : 'rounded-bl-sm border border-slate-200 bg-white text-slate-900'
-                      }`}
-                    >
-                      {renderMessageContent(message.text, message.isMine)}
-                    </div>
-                    <div className={`mt-1 text-xs text-slate-600 ${message.isMine ? 'text-right' : ''}`}>
-                      <time
-                        dateTime={message.createdAt}
-                        title={fullTime(message.createdAt)}
-                        aria-label={fullTime(message.createdAt)}
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        {id && id !== 'ai' && <CustomTourChatSection conversationId={id} isAgency={isAgency} />}
+        <div
+          ref={scroll}
+          role="log"
+          aria-label="Lịch sử tin nhắn"
+          aria-busy={loading}
+          className="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-4"
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (!isDragOver) setIsDragOver(true);
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+              setIsDragOver(false);
+            }
+          }}
+          onDrop={handleDrop}
+          onScroll={() => {
+            const element = scroll.current!;
+            const bottom = element.scrollHeight - element.scrollTop - element.clientHeight < 80;
+            stick.current = bottom;
+            setAtBottom(bottom);
+            if (bottom) setNewMessages(false);
+          }}
+        >
+          {!loading && (
+            <>
+              {hasMore && (
+                <button
+                  disabled={loadingOlder}
+                  onClick={() => void older()}
+                  className="mx-auto block text-sm font-semibold text-teal-800"
+                >
+                  {loadingOlder ? 'Đang tải…' : 'Tải tin cũ'}
+                </button>
+              )}
+              {!messages.length && !historyError && detail.data?.counterpart && (
+                <p className="py-12 text-center text-sm text-slate-600">
+                  Bắt đầu tin nhắn cùng {detail.data.counterpart.fullName}
+                </p>
+              )}
+              {messages.map((message, index) => (
+                <Fragment key={message.id}>
+                  {(!index || !sameDay(messages[index - 1].createdAt, message.createdAt)) && (
+                    <p className="py-2 text-center text-xs font-medium text-slate-600">
+                      {dayLabel(message.createdAt, now)}
+                    </p>
+                  )}
+                  <div className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}>
+                    <div className="max-w-[85%] sm:max-w-[75%]">
+                      <div
+                        className={`whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm [overflow-wrap:anywhere] ${
+                          message.isMine
+                            ? 'rounded-br-sm bg-primary-container text-white'
+                            : 'rounded-bl-sm border border-slate-200 bg-white text-slate-900'
+                        }`}
                       >
-                        {clockTime(message.createdAt)}
-                      </time>
-                      {message.isMine && (
-                        <span>
-                          {' '}
-                          · {message.readAt ? 'Đã xem' : chat.delivered.has(message.id) ? 'Đã nhận' : 'Đã gửi'}
-                        </span>
-                      )}
+                        {renderMessageContent(message.text, message.isMine)}
+                      </div>
+                      <div className={`mt-1 text-xs text-slate-600 ${message.isMine ? 'text-right' : ''}`}>
+                        <time
+                          dateTime={message.createdAt}
+                          title={fullTime(message.createdAt)}
+                          aria-label={fullTime(message.createdAt)}
+                        >
+                          {clockTime(message.createdAt)}
+                        </time>
+                        {message.isMine && (
+                          <span>
+                            {' '}
+                            · {message.readAt ? 'Đã xem' : chat.delivered.has(message.id) ? 'Đã nhận' : 'Đã gửi'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Fragment>
-            ))}
-          </>
-        )}
-        {isTyping && (
-          <TypingBubble label={`${detail.data?.counterpart?.fullName || 'Người nhận'} đang nhập tin nhắn`} />
+                </Fragment>
+              ))}
+            </>
+          )}
+          {isTyping && (
+            <TypingBubble label={`${detail.data?.counterpart?.fullName || 'Người nhận'} đang nhập tin nhắn`} />
+          )}
+        </div>
+        {newMessages && (
+          <button
+            onClick={() => {
+              stick.current = true;
+              setAtBottom(true);
+              setNewMessages(false);
+              if (scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight;
+            }}
+            className="bg-teal-50 p-2 text-sm font-semibold text-teal-900"
+          >
+            Tin nhắn mới
+          </button>
         )}
       </div>
-      {newMessages && (
-        <button
-          onClick={() => {
-            stick.current = true;
-            setAtBottom(true);
-            setNewMessages(false);
-            if (scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight;
-          }}
-          className="bg-teal-50 p-2 text-sm font-semibold text-teal-900"
-        >
-          Tin nhắn mới
-        </button>
-      )}
       {isLocallyBlocked ? (
         <div className="border-t border-slate-200/90 bg-slate-50 p-4 text-center">
           <p className="text-sm font-medium text-slate-600">

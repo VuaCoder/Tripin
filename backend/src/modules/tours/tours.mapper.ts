@@ -1,4 +1,4 @@
-import type { TourStatus } from '@travel-platform/constants';
+import type { TourStatus, TourVisibility } from '@travel-platform/constants';
 import type { AgePricing } from '@travel-platform/constants';
 import type { CategoryDto } from '../categories';
 import type { UserSummary } from '../users';
@@ -110,6 +110,7 @@ export function toTourManageDto(tour: TourRecord, context: Omit<DetailContext, '
   return {
     ...toTourDetailDto(tour, { ...context, onlyBookable: false }),
     status: tour.status as TourStatus,
+    visibility: tour.visibility as TourVisibility,
     statusReason: tour.statusReason ?? undefined,
     submittedAt: iso(tour.submittedAt),
     reviewedAt: iso(tour.reviewedAt),

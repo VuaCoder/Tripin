@@ -189,6 +189,7 @@ model Tour {
   /// [{ day, title, description?, activities[] }]
   itinerary    Json       @default("[]")
   status       TourStatus @default(DRAFT)
+  visibility   TourVisibility @default(PUBLIC)
   submittedAt  DateTime?
   reviewedAt   DateTime?
   reviewedById String?    @db.Uuid
@@ -239,6 +240,40 @@ model TourGuideAssignment {
   @@index([guideId])
 }
 
+/// A traveler's group-booking request on a public tour, and the negotiation that follows.
+/// `offerSnapshot` is the frozen price/terms the traveler accepts; `checkoutDraft` is the resumable passenger form.
+model CustomTourRequest {
+  id               String           @id @default(uuid()) @db.Uuid
+  travelerId       String           @db.Uuid
+  agencyId         String           @db.Uuid
+  sourceTourId     String           @db.Uuid
+  /// Conversation between this traveler and the receiving agency; set as soon as one exists.
+  conversationId   String?          @db.Uuid
+  /// The cloned, PRIVATE tour. Unique: one request never owns two tours.
+  privateTourId    String?          @db.Uuid @unique
+  status           CustomTourStatus @default(SUBMITTED)
+  /// Bumped on every agency edit of the offer; the traveler accepts exactly the revision they saw.
+  revision         Int              @default(1)
+  participants     Int
+  /// The date the group wants to start; the clone's first departure uses it while it is still in the future.
+  startDate        DateTime?
+  /// Per-age head counts as requested ({ adults, children, infants }).
+  guestCounts      Json?
+  notes            String?
+  offerSnapshot    Json?
+  checkoutDraft    Json?
+  checkoutRevision Int              @default(1)
+  clientRequestId  String?
+  acceptedAt       DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([travelerId, clientRequestId])
+  @@index([travelerId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([agencyId, status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([conversationId])
+}
+
 model Booking {
   guestPricing Json?
   id          String @id @default(uuid()) @db.Uuid
@@ -287,21 +322,41 @@ model Booking {
 
   cancellationPolicySnapshot Json?
   clientRequestId String?
+  /// Set when this booking came from a group-booking request (one active booking per request).
+  customTourRequestId String? @db.Uuid
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   redemptions     PromotionRedemption[]
+  passengers      BookingPassenger[]
 
   @@unique([travelerId, clientRequestId])
   @@index([travelerId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([agencyId, status, createdAt(sort: Desc), id(sort: Desc)])
   @@index([agencyId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([tourId, departureId, status])
+  @@index([customTourRequestId, createdAt])
   @@index([status, confirmedAt(sort: Desc)])
   @@index([status, paymentExpiresAt])
   @@index([status, endDate])
   @@index([status, fulfillmentStatus, fulfillmentNextAttemptAt])
   agency AgencyProfile @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+}
+
+/// One named member of a group booking. CCCD is required for every age, infants included.
+model BookingPassenger {
+  id        String        @id @default(uuid()) @db.Uuid
+  bookingId String        @db.Uuid
+  guestType PassengerType
+  fullName  String
+  phone     String
+  idCard    String
+  createdAt DateTime      @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, idCard])
+  @@index([bookingId])
 }
 
 model Payment {
@@ -999,6 +1054,27 @@ enum GuideAssignmentStatus {
   DECLINED
 }
 
+/// Private tours exist only for a group-booking request: never listed, never bookable through the public flow.
+enum TourVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum CustomTourStatus {
+  SUBMITTED
+  NEGOTIATING
+  OFFERED
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+enum PassengerType {
+  ADULT
+  CHILD
+  INFANT
+}
+
 enum BookingStatus {
   PENDING
   CONFIRMED
@@ -1085,6 +1161,10 @@ enum NotificationType {
   SUBSCRIPTION_EXPIRING_SOON
   AGENCY_JOIN_REQUESTED
   AGENCY_JOIN_REVIEWED
+  CUSTOM_TOUR_REQUESTED
+  CUSTOM_TOUR_DECIDED
+  CUSTOM_TOUR_OFFERED
+  CUSTOM_TOUR_ACCEPTED
 }
 
 enum ReportTarget {

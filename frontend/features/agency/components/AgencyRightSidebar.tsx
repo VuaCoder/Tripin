@@ -21,7 +21,8 @@ import {
   Ticket,
   MessageSquareWarning,
   Users,
-  ArrowLeftRight
+  ArrowLeftRight,
+  MessageSquare
 } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, useLogout } from '@/features/auth';
@@ -90,6 +91,10 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
       { href: '/agency/bookings', label: 'Đơn đặt chỗ', icon: CalendarCheck, permission: 'agency:bookings-view' },
       { href: '/agency/work/bookings', label: 'Theo dõi booking', icon: CalendarCheck, permission: 'agency:booking-monitor' },
     ] },
+    { label: 'Trao đổi', items: [
+      { href: '/conversations', label: 'Tin nhắn', icon: MessageSquare, permission: 'chat:use' },
+      { href: '/agency/custom-tours', label: 'Yêu cầu đoàn', icon: Users, permission: 'custom-tour:view' },
+    ] },
     { label: 'Sản phẩm', items: [
       { href: '/agency/tours', label: 'Quản lý tour', icon: Compass, permission: 'agency:tour-view' },
       { href: '/agency/work/tours', label: 'Nội dung được giao', icon: Compass, permission: 'agency:tour-content-update' },
@@ -102,6 +107,7 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
     { label: 'Đối tác', items: [
       { href: '/agency/team', label: 'Thành viên & phân quyền', icon: Users, permission: 'agency:team-view' },
       { href: '/agency/settings/commission', label: 'Chiết khấu hoa hồng', icon: BadgePercent, permission: '' },
+      { href: '/agency/settings/team', label: 'Thành viên', icon: Users, permission: 'agency:team-view' },
       { href: '/agency/notifications', label: 'Thông báo', icon: Bell, permission: '' },
     ] },
   ];
@@ -152,7 +158,8 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
               (href === '/agency/settings/commission' && pathname.startsWith('/agency/settings/commission/')) ||
               (href === '/agency/tours' && pathname.startsWith('/agency/tours/')) ||
               (href === '/agency/promotions' && (pathname.startsWith('/agency/promotions') || pathname.startsWith('/agency/premium'))) ||
-              (href === '/agency/bookings' && pathname.startsWith('/agency/bookings/'));
+              (href === '/agency/bookings' && pathname.startsWith('/agency/bookings/')) ||
+              (href === '/conversations' && pathname.startsWith('/conversations'));
             return (
               <Link 
                 key={href} 
@@ -192,10 +199,23 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
             title={companyName}
             onClick={(event) => { event.preventDefault(); setShowProfileMenu((prev) => !prev); }}
           >
-            <span className={styles.avatar}>{user?.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.avatarUrl} alt="" className="h-full w-full rounded-lg object-cover" />
-            ) : companyName.slice(0, 1).toLocaleUpperCase('vi')}</span>
+            <span className={styles.avatar}>
+              {user?.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={user.avatarUrl}
+                  alt={companyName}
+                  className="h-full w-full rounded-lg object-cover"
+                  onError={(e) => {
+                    // Fallback to text initials if avatar url fails to load
+                    (e.currentTarget as HTMLElement).style.display = 'none';
+                    if (e.currentTarget.parentElement) {
+                      e.currentTarget.parentElement.textContent = companyName.slice(0, 1).toLocaleUpperCase('vi');
+                    }
+                  }}
+                />
+              ) : companyName.slice(0, 1).toLocaleUpperCase('vi')}
+            </span>
             <span className={styles.company}>{companyName}</span>
           </Link>
           <Link 

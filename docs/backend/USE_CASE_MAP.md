@@ -41,6 +41,7 @@ below are historical; MANAGER has no team administration by default.
 | Invite member | OWNER / MANAGER (STAFF only) | `POST /agency/invitations` | done |
 | Revoke invitation | OWNER | `POST /agency/invitations/:id/revoke` | done |
 | Accept invitation | Verified matching User | `POST /agency-invitations/accept` | done |
+| Validate invitation token before accept | Guest / invitee | `GET /agency-invitations/invitations/:token` | done |
 | Read unreconciled booking finance summary | OWNER / MANAGER / ACCOUNTANT | `GET /agency/finance/summary` | done |
 
 ## Authentication endpoints
@@ -86,6 +87,7 @@ below are historical; MANAGER has no team administration by default.
 | Upload profile avatar | users | `POST /users/me/avatar/upload-signature`, `POST /users/me/avatar/complete`, `DELETE /users/me/avatar` | profile:update-own | done |
 | Add wishlist / Remove tour from wishlist | wishlists | `GET /wishlist`, `POST /wishlist/:tourId`, `DELETE /wishlist/:tourId` | wishlist:manage | done |
 | Add tour to cart / view cart / update or remove an item (supports Book tour) | carts | `GET /cart`, `POST /cart/items`, `PATCH/DELETE /cart/items/:id` | cart:manage | done |
+| Request a group booking / negotiate and accept an offer / enter the members / book the group | custom-tours | `POST /custom-tours`, `GET /custom-tours`, `GET /custom-tours/:id`, `PATCH /custom-tours/:id/decision`, `PATCH /custom-tours/:id/draft`, `POST /custom-tours/:id/offers`, `POST /custom-tours/:id/acceptance`, `PATCH /custom-tours/:id/checkout-draft`, `POST /custom-tours/:id/bookings` | custom-tour:request / custom-tour:view / custom-tour:respond | done |
 | Book tour | bookings | `GET /promotions/hot`, `GET /promotions/preview`, `GET /promotions/available` (available promotions for tour), `GET /promotions/my-vouchers`, `POST /promotions/collect`, `POST /bookings`, `GET /bookings/me`, `GET /bookings/:id`, `POST /bookings/:id/cancel` | booking:* | done |
 | Complete an owned booking | bookings | `POST /bookings/:id/complete` | booking:view-own | done |
 | Make payment (Payment Gateway) | payments | `POST /payments/bookings/:bookingId/checkout`, `GET /payments/:id`, `POST /payments/webhooks/payos` (GUEST, signature) | payment:create | done |
@@ -163,10 +165,9 @@ All `/admin/*` endpoints require the current `SUPER_ADMIN` role in addition to t
 | Configure System Policies | system-settings | `PUT /admin/policies/:key` (read is public `GET /policies`) | policy:configure | done |
 | (supporting) audit log | audit | `GET /admin/audit-logs` | audit:view | done |
 
-## Out of the diagram (kept as documented placeholders, no code)
-`custom-tours` — present in the repository architecture (AI rules §13) but not in the use-case diagram; its folder
-contains only a README explaining the intended boundary. `carts` was approved by the owner and is now implemented
-(D-81); it is mapped to the Traveler "Book tour" flow above.
+## Out of the diagram (owner-approved extensions)
+`custom-tours` (D-85) and `carts` (D-81) are implemented and mapped to the Traveler flows above; neither appears in the
+original use-case diagram.
 
 ## ADMIN-01 reporting/filter extension
 Admin dashboard accepts paired `from`/`to` (max 366 days), returns previous-period comparison and a bounded zero-filled UTC monthly series. Admin user list supports createdAt date filters; promotion lists support literal q, discountType and overlapping validity bounds. All filtering happens before pagination and uses the original admin role/permission guards.

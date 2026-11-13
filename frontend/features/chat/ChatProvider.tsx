@@ -6,6 +6,7 @@ import { selectUser, selectAccessToken, setCredentials, clearCredentials } from 
 import { refreshSession } from '@/store/api/baseApi';
 import { chatApi } from './api';
 import { aiChatApi } from './api/aiChatApi';
+import { customToursApi } from '@/features/custom-tours/api';
 import type { Ack, Message } from './types';
 
 interface ChatContextValue {
@@ -35,7 +36,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState('Đang kết nối');
   const [revision, setRevision] = useState(0);
   const [delivered, setDelivered] = useState<Set<string>>(new Set());
-  const eligible = !!user && ['TRAVELER', 'TOUR_GUIDE'].includes(user.role) && user.permissions.includes('chat:use');
+  const eligible = !!user && ['TRAVELER', 'TOUR_GUIDE', 'AGENCY'].includes(user.role) && user.permissions.includes('chat:use');
   useEffect(() => {
     setConnected(false);
     if (!eligible || !token || !user) return;
@@ -74,7 +75,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       acknowledge?.(true);
       invalidate();
     });
-    socket.on('chat:updated', () => { invalidate(); });
+    // A group request change is announced over the chat channel; REST stays the source of truth.
+    socket.on('chat:updated', () => { invalidate(); dispatch(customToursApi.util.invalidateTags(['CustomTour'])); });
     socket.on('ai:updated', () => {
       dispatch(aiChatApi.util.invalidateTags(['AiChat']));
       setRevision(value => value + 1);

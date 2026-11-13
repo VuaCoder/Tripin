@@ -10,8 +10,9 @@ import { Navigation } from './Navigation';
 import { MobileNavigation } from './MobileNavigation';
 import { Container } from './Container';
 import { useAppSelector } from '@/store/hooks';
-import { selectUser, selectIsAuthenticated, useLogout } from '@/features/auth';
+import { selectUser, selectRole, selectIsAuthenticated, useLogout } from '@/features/auth';
 import { homeForRole } from '@/features/auth/utils/roles';
+import { notificationHref } from '@/features/custom-tours/links';
 import { Dropdown } from '@/components/shared/Dropdown';
 import { OwnPremiumIdentity, PremiumStatusText, useOwnPremium } from '@/features/premium/PremiumIdentity';
 import { AgencyRightSidebar } from '@/features/agency/components/AgencyRightSidebar';
@@ -75,6 +76,7 @@ function accountMenuForRole(role: AppRole): AccountMenuItem[] {
 
 export function Header({ role }: { role?: AppRole }) {
   const user = useAppSelector(selectUser);
+  const authRole = useAppSelector(selectRole);
   const router = useRouter();
   const premium = useOwnPremium(user?.id);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
@@ -115,12 +117,12 @@ export function Header({ role }: { role?: AppRole }) {
         icon: item.type.includes('BOOKING') ? 'check_circle' : item.type.includes('PROMOTION') ? 'local_offer' : 'notifications',
         iconBg: item.type.includes('BOOKING') ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600',
         time: new Date(item.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-        href: item.type.includes('BOOKING') ? '/settings/history' : '/tours',
+        href: notificationHref(item, authRole) ?? (item.type.includes('BOOKING') ? '/settings/history' : '/tours'),
         isRead: item.isRead,
       }));
       setNotificationsList(mapped);
     }
-  }, [apiNotifications, isNotificationsError]);
+  }, [apiNotifications, isNotificationsError, authRole]);
 
   const unreadNotifCount = notificationsList.filter((n) => !n.isRead).length;
 

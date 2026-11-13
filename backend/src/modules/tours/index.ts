@@ -13,4 +13,5 @@ export type {
   TourDetailDto,
   TourListItemDto,
   TourManageDto,
+  TourBrief,
 } from './tours.types';

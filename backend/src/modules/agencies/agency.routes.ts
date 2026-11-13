@@ -9,7 +9,7 @@ import { agencyOwnershipSelect, primaryAgencyOwnerId, agencyOwnerLabel } from '.
 import { agencyAccessInclude, AGENCY_PERMISSION_CATALOG, AGENCY_PERMISSIONS as P, effectiveAgencyPermissions } from './agency.policy';
 import { agencyAccessService } from './agency-access.service';
 import { agencyWorkService } from './agency-work.service';
-import { validate } from '../../middlewares/validate';
+import { validate, validated } from '../../middlewares/validate';
 import { AppError } from '../../utils/app-error';
 import { notificationsRouter } from '../notifications/notifications.routes';
 import { createRateLimiter } from '../../middlewares/rate-limit';
@@ -28,6 +28,15 @@ export const agencyInvitationAcceptanceRouter = Router();
 agencyInvitationAcceptanceRouter.post('/:id/accept', requireAuth, createRateLimiter({ windowMs: 15 * 60000, limit: 30 }),
   validate({ params: z.object({ id }), body: z.object({}).strict() }), async (req,res) =>
     sendOk(res, await agencyService.acceptById(userActor(req).userId, id.parse(req.params.id))));
+const invitationToken = z.string().min(32).max(200);
+// Optional `email` lets the accept page pass the signed-in user's email; when it matches the
+// invitee the address is returned in full, otherwise it stays masked. Unknown query params are
+// ignored (non-strict) so analytics/cache-buster params never break the public landing page.
+const invitationQuery = z.object({ email: z.email().toLowerCase().optional() });
+agencyInvitationAcceptanceRouter.get('/invitations/:token', validate({ params: z.object({ token: invitationToken }).strict(), query: invitationQuery }), async (req,res) => {
+  const { params, query } = validated<unknown, { email?: string }, { token: string }>(req);
+  sendOk(res, await agencyService.validateInvitationToken(params.token, query.email));
+});
 agencyInvitationAcceptanceRouter.post('/accept', requireAuth, validate({ body: z.object({ token: z.string().min(32).max(200) }).strict() }), async (req,res) => {
   const body = z.object({ token: z.string().min(32).max(200) }).strict().parse(req.body);
   sendOk(res, await agencyService.accept(userActor(req).userId, body.token));

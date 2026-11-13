@@ -13,6 +13,7 @@ import { agencyCalendarRouter, agencyDeparturesRouter } from '../modules/tours/a
 import { adminPromotionsRouter, agencyPromotionsRouter, promotionsRouter } from '../modules/promotions';
 import { wishlistsRouter } from '../modules/wishlists';
 import { cartsRouter } from '../modules/carts';
+import { customToursRouter } from '../modules/custom-tours';
 import { notificationsRouter } from '../modules/notifications';
 import { agencyBookingsRouter, agencyCustomersExportRouter, bookingsRouter } from '../modules/bookings';
 import { paymentsRouter } from '../modules/payments';
@@ -80,6 +81,7 @@ mount('/admin/promotions', adminPromotionsRouter);
 mount('/promotions', promotionsRouter);
 mount('/wishlist', wishlistsRouter);
 mount('/cart', cartsRouter);
+mount('/custom-tours', customToursRouter);
 mount('/notifications', notificationsRouter);
 mount('/bookings', bookingsRouter);
 mount('/agency/bookings', agencyBookingsRouter);

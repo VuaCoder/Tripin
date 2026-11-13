@@ -37,7 +37,7 @@ const mockUser: UserProfile = {
   phone: '0901234567',
   role: 'AGENCY',
   status: 'ACTIVE',
-  permissions: ['agency:dashboard', 'agency:bookings-view', 'agency:tour-view', 'tour:update-own'],
+  permissions: ['agency:dashboard', 'agency:bookings-view', 'agency:tour-view', 'tour:update-own', 'chat:use', 'custom-tour:view'],
   extraPermissions: [],
   twoFactorEnabled: false,
   createdAt: '2026-01-01T00:00:00Z',
@@ -64,6 +64,7 @@ vi.mock('@/store/hooks', () => ({
 
 vi.mock('@/features/auth', () => ({
   selectUser: () => mockUser,
+  selectRole: () => mockUser.role,
   selectIsAuthenticated: () => true,
   useLogout: () => mockLogout,
   setUser: vi.fn(),
@@ -157,6 +158,12 @@ describe('AgencyRightSidebar & Partner Settings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thu gọn thanh bên' }));
     fireEvent.keyDown(sidebar, { key: 'Escape' });
     expect(sidebar.getAttribute('data-expanded')).toBe('false');
+  });
+
+  it('offers the shared inbox and group requests to an agency', () => {
+    render(<AgencyRightSidebar initialExpanded />);
+    expect(screen.getByRole('link', { name: 'Tin nhắn' }).getAttribute('href')).toBe('/conversations');
+    expect(screen.getByRole('link', { name: 'Yêu cầu đoàn' }).getAttribute('href')).toBe('/agency/custom-tours');
   });
 
   it('opens and focuses search with Ctrl+K or Meta+K, then searches without Vietnamese accents', () => {

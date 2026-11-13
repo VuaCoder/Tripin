@@ -11,6 +11,7 @@ export function agencyRoutePermission(pathname: string): string | null {
     ['/agency/complaints', 'complaint:respond'], ['/agency/premium', 'premium:contribute'],
     ['/agency/finance', 'agency:finance-view'],
     ['/agency/team', 'agency:team-view'],
+    ['/agency/settings/team', 'agency:team-view'],
   ];
   return routes.find(([route]) => pathname === route || pathname.startsWith(route + '/'))?.[1] ?? null;
 }

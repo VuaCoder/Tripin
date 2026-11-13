@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../../app';
 import { AUDIT_ACTIONS } from '../audit.types';
 import { bearer, createApprovedTour, createCategory, createUser, createVerifiedAgency, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
+import { decodeMailBody } from '../../notifications/mail-outbox';
 import { prisma } from '../../../config/database';
 import { randomUUID } from 'node:crypto';
 
@@ -155,6 +156,29 @@ describe('audit coverage (integration)', () => {
     ]);
     expect(results.filter((r) => r.status === 200)).toHaveLength(1);
     expect(await prisma.auditLog.count({ where: { action: AUDIT_ACTIONS.USER_BANNED, targetId: victim.id } })).toBe(1);
+  });
+
+  it('agency team: member role change and invitation lifecycle', async () => {
+    const owner = await createVerifiedAgency('owner@example.com');
+    const staff = await createUser('TRAVELER', 'staff@example.com');
+    const invitee = await createUser('TRAVELER', 'invitee@example.com');
+    const membership = await prisma.agencyMember.create({ data: { agencyId: owner.id, userId: staff.id, role: 'STAFF' } });
+
+    const before = await prisma.auditLog.count();
+    expect((await request(app).patch(`/api/v1/agency/members/${membership.id}`).set(bearer(owner.token)).send({ role: 'MANAGER' })).status).toBe(200);
+    expect((await request(app).post('/api/v1/agency/invitations').set(bearer(owner.token)).send({ email: 'invitee@example.com', role: 'STAFF' })).status).toBe(201);
+    const mail = await prisma.mailOutbox.findFirst({ where: { recipient: 'invitee@example.com' } });
+    const token = /token=([0-9a-f]{64})/.exec(decodeMailBody(mail!.text))![1]!;
+    expect((await request(app).post('/api/v1/agency-invitations/accept').set(bearer(invitee.token)).send({ token })).status).toBe(200);
+
+    const entries = await prisma.auditLog.findMany({ orderBy: { createdAt: 'asc' }, skip: before });
+    expect(entries.map((entry) => entry.action)).toEqual([
+      AUDIT_ACTIONS.AGENCY_MEMBER_CHANGED,
+      AUDIT_ACTIONS.AGENCY_INVITATION_CREATED,
+      AUDIT_ACTIONS.AGENCY_INVITATION_ACCEPTED,
+    ]);
+    expect(entries.map((entry) => entry.actorId)).toEqual([owner.id, owner.id, invitee.id]);
+    expect(JSON.stringify(entries.map((entry) => entry.metadata))).not.toMatch(/token|secret/i);
   });
 
   it('records audit exports', async () => { const a = await actors(); await expectOneAudit(AUDIT_ACTIONS.AUDIT_EXPORTED, a.admin.id, () => request(app).get('/api/v1/admin/export/audit-logs').set(bearer(a.admin.token))); });

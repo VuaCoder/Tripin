@@ -7,6 +7,7 @@ vi.mock('@/features/report', () => ({ ReportButton: () => null }));
 vi.mock('@/features/complaints', () => ({ ComplaintButton: () => null }));
 vi.mock('@/features/chat/StartConversationButton', () => ({ StartConversationButton: () => null }));
 vi.mock('@/features/review', () => ({ RatingStars: () => null, TourReviewsSection: () => <div>Đánh giá</div>, formatVnd: (value: number) => `${value} đ` }));
+vi.mock('../components/detail/SimilarToursSection', () => ({ SimilarToursSection: () => <div>Có thể bạn sẽ thích</div> }));
 import { TourDetailView } from '../components/detail/TourDetailView';
 const tour = { id: 't1', title: 'Tour Ninh Bình 3 ngày', destination: 'Ninh Bình', durationDays: 3, basePrice: 1000000, ratingAvg: 0, ratingCount: 0,
   inclusions: ['Xe đưa đón'], exclusions: ['Chi phí cá nhân'],

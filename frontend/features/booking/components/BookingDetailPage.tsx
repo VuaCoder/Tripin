@@ -17,6 +17,9 @@ import { WriteReviewDialog } from '@/features/review/components';
 import { useGetMyReviewsQuery } from '@/features/review/api/reviewApi';
 import type { MyReview } from '@/features/review/types';
 import { useGetTourQuery } from '@/features/tours/api/toursApi';
+import type { BookingPassenger } from '../types';
+
+const PASSENGER_LABEL: Record<BookingPassenger['guestType'], string> = { ADULT: 'Người lớn', CHILD: 'Trẻ em', INFANT: 'Em bé' };
 
 export interface BookingDetailPageProps {
   bookingId: string;
@@ -370,6 +373,22 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
                   : 'Yêu cầu hủy từ phía du khách.'}
                 {booking.refundRequired && ' Hệ thống đang xử lý thủ tục hoàn tiền cho bạn.'}
               </span>
+              {booking.cancelReason === 'PAYMENT_EXPIRED' && (
+                <p className="mt-2">
+                  {booking.customTourRequestId
+                    ? 'Ghế đã được trả lại. Thỏa thuận của đoàn vẫn còn hiệu lực và giữ nguyên giá — bạn có thể đặt lại từ thông tin hành khách đã lưu.'
+                    : 'Ghế đã được trả lại. Bạn có thể chọn lịch khởi hành khác từ trang tour.'}
+                </p>
+              )}
+              {booking.customTourRequestId && (
+                <Link
+                  href={`/traveler/bookings/new?customTourRequestId=${booking.customTourRequestId}`}
+                  className="mt-2 inline-flex items-center gap-1 font-bold text-rose-800 underline"
+                >
+                  Đặt lại theo thỏa thuận
+                  <span className="material-symbols-outlined text-sm" aria-hidden="true">arrow_forward</span>
+                </Link>
+              )}
             </div>
           </div>
         )}
@@ -429,6 +448,29 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
               )}
             </div>
           </div>
+
+          {/* Group members: only bookings made from a group offer carry them. */}
+          {booking.passengers && booking.passengers.length > 0 && (
+            <div className="space-y-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
+              <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 sm:text-lg">
+                <span className="material-symbols-outlined text-primary-container text-xl" aria-hidden="true">groups</span>
+                <span>Thông tin hành khách</span>
+              </h2>
+              <ul className="divide-y divide-slate-100 text-xs">
+                {booking.passengers.map((passenger) => (
+                  <li key={`${passenger.idCard}-${passenger.fullName}`} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                    <div>
+                      <p className="font-bold text-slate-800">{passenger.fullName}</p>
+                      <p className="text-slate-500">{passenger.phone} · CCCD {passenger.idCard}</p>
+                    </div>
+                    <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-bold text-teal-800">
+                      {PASSENGER_LABEL[passenger.guestType]}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Timeline Milestones */}
           <div className="space-y-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">

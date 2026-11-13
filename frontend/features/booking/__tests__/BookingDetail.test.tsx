@@ -192,6 +192,46 @@ describe('BookingDetailPage', () => {
     });
   });
 
+  it('lists the named members of a group booking, with their papers', () => {
+    mockUseGetBookingByIdQuery.mockReturnValue({
+      isLoading: false,
+      data: {
+        ...mockBooking,
+        passengers: [
+          { fullName: 'Nguyễn Văn A', phone: '0912345678', idCard: '001204012340', guestType: 'ADULT' },
+          { fullName: 'Bé Minh', phone: '0912345679', idCard: '001204012341', guestType: 'CHILD' },
+        ],
+      },
+    });
+
+    render(<BookingDetailPage bookingId="b-1" />);
+
+    expect(screen.getByText('Thông tin hành khách')).toBeTruthy();
+    expect(screen.getByText('Nguyễn Văn A')).toBeTruthy();
+    expect(screen.getByText(/001204012341/)).toBeTruthy();
+    expect(screen.getByText('Trẻ em')).toBeTruthy();
+  });
+
+  it('offers a rebooking from the group offer when the hold expired', () => {
+    mockUseGetBookingByIdQuery.mockReturnValue({
+      isLoading: false,
+      data: {
+        ...mockBooking,
+        status: 'CANCELLED',
+        cancelReason: 'PAYMENT_EXPIRED',
+        isPaid: false,
+        customTourRequestId: 'ct-1',
+      },
+    });
+
+    render(<BookingDetailPage bookingId="b-1" />);
+
+    expect(screen.getByText(/Thỏa thuận của đoàn vẫn còn hiệu lực/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Đặt lại theo thỏa thuận/ }).getAttribute('href')).toBe(
+      '/traveler/bookings/new?customTourRequestId=ct-1',
+    );
+  });
+
   it('renders "Đánh giá tour" button when COMPLETED', () => {
     mockUseGetBookingByIdQuery.mockReturnValue({
       isLoading: false,
