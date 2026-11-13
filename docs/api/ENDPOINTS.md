@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 249 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 274 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -99,6 +99,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 
 | Method | Path | Access |
 |---|---|---|
+| POST | `/api/v1/agencies` | login |
 | GET | `/api/v1/agencies/:id` | public |
 | GET | `/api/v1/agencies/:id/promotions` | public |
 
@@ -106,18 +107,45 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 
 | Method | Path | Access |
 |---|---|---|
+| GET | `/api/v1/agency/application` | `agency:context-view`, `agency:permissions-manage` |
+| PUT | `/api/v1/agency/application` | `agency:context-view`, `agency:permissions-manage` |
+| POST | `/api/v1/agency/application/submit` | `agency:context-view`, `agency:permissions-manage` |
 | GET | `/api/v1/agency/context` | `agency:context-view` |
 | GET | `/api/v1/agency/finance/summary` | `agency:context-view`, `agency:finance-view` |
+| GET | `/api/v1/agency/invitations` | `agency:context-view`, `agency:team-view` |
 | POST | `/api/v1/agency/invitations` | `agency:context-view`, `agency:team-invite` |
 | POST | `/api/v1/agency/invitations/:id/revoke` | `agency:context-view`, `agency:team-manage` |
+| POST | `/api/v1/agency/join-codes` | `agency:context-view`, `agency:permissions-manage` |
+| POST | `/api/v1/agency/join-codes/:id/revoke` | `agency:context-view`, `agency:permissions-manage` |
+| GET | `/api/v1/agency/join-codes/current` | `agency:context-view`, `agency:permissions-manage` |
+| GET | `/api/v1/agency/join-requests` | `agency:context-view`, `agency:team-view` |
+| POST | `/api/v1/agency/join-requests/:id/approve` | `agency:context-view`, `agency:permissions-manage` |
+| POST | `/api/v1/agency/join-requests/:id/reject` | `agency:context-view`, `agency:permissions-manage` |
 | GET | `/api/v1/agency/members` | `agency:context-view`, `agency:team-view` |
 | PATCH | `/api/v1/agency/members/:id` | `agency:context-view`, `agency:team-manage` |
+| PUT | `/api/v1/agency/members/:id/access` | `agency:context-view`, `agency:permissions-manage` |
+| PUT | `/api/v1/agency/members/:id/tour-scopes` | `agency:context-view`, `agency:permissions-manage` |
+| GET | `/api/v1/agency/permissions` | `agency:context-view`, `agency:team-view` |
+| GET | `/api/v1/agency/roles` | `agency:context-view`, `agency:team-view` |
+| POST | `/api/v1/agency/roles` | `agency:context-view`, `agency:permissions-manage` |
+| PATCH | `/api/v1/agency/roles/:id` | `agency:context-view`, `agency:permissions-manage` |
+| GET | `/api/v1/agency/work/bookings` | `agency:context-view`, `agency:booking-monitor` |
+| GET | `/api/v1/agency/work/tours` | `agency:context-view`, `agency:tour-view` |
+| PATCH | `/api/v1/agency/work/tours/:id/content` | `agency:context-view`, `agency:tour-content-update` |
 
 ## `/agency-invitations`
 
 | Method | Path | Access |
 |---|---|---|
+| POST | `/api/v1/agency-invitations/:id/accept` | login |
 | POST | `/api/v1/agency-invitations/accept` | login |
+
+## `/agency-join-requests`
+
+| Method | Path | Access |
+|---|---|---|
+| POST | `/api/v1/agency-join-requests` | login |
+| POST | `/api/v1/agency-join-requests/:id/cancel` | login |
 
 ## `/agency/bookings`
 
@@ -194,10 +222,10 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 
 | Method | Path | Access |
 |---|---|---|
-| GET | `/api/v1/agency/tours` | `tour:update-own` |
+| GET | `/api/v1/agency/tours` | `agency:tour-view` |
 | POST | `/api/v1/agency/tours` | `tour:create` |
 | DELETE | `/api/v1/agency/tours/:id` | `tour:delete-own` |
-| GET | `/api/v1/agency/tours/:id` | `tour:update-own` |
+| GET | `/api/v1/agency/tours/:id` | `agency:tour-view` |
 | PATCH | `/api/v1/agency/tours/:id` | `tour:update-own` |
 | PUT | `/api/v1/agency/tours/:id/availability` | `tour:set-availability` |
 | GET | `/api/v1/agency/tours/:id/customers.pdf` | `agency:export-customers` |
@@ -509,6 +537,8 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | GET | `/api/v1/users/me` | `profile:view-own` |
 | PATCH | `/api/v1/users/me` | `profile:update-own` |
 | GET | `/api/v1/users/me/agencies` | login |
+| GET | `/api/v1/users/me/agency-invitations` | login |
+| GET | `/api/v1/users/me/agency-join-requests` | login |
 | POST | `/api/v1/users/me/agency-verification` | `profile:update-own` |
 | DELETE | `/api/v1/users/me/avatar` | `profile:update-own` |
 | POST | `/api/v1/users/me/avatar/complete` | `profile:update-own` |

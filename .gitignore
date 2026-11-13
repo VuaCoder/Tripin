@@ -82,3 +82,6 @@ blender/
 
 # Isolated local production preview
 .next-preview/
+
+# Local Taste browser profiles and visual QA captures
+/.taste-skill/

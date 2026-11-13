@@ -2,6 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
+import { useSearchParams } from 'next/navigation';
+import { safeNextPath } from '../utils/safeNextPath';
 import { useRegisterForm } from "../hooks/useRegisterForm";
 import {
   LoginResultData,
@@ -25,6 +27,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
   onGoogleSuccess,
   onSwitchToLogin,
 }) => {
+  const nextPath = safeNextPath(useSearchParams().get('next'));
   const {
     formData,
     showPassword,
@@ -413,7 +416,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
         <div className="text-slate-500 pt-1">
           Đã có tài khoản?{" "}
           <Link
-            href="/login"
+            href={'/login' + (nextPath ? '?next=' + encodeURIComponent(nextPath) : '')}
             className="text-brand-tealLight hover:text-brand-teal font-semibold transition-colors underline decoration-dotted"
           >
             Đăng nhập ngay

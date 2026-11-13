@@ -2,7 +2,8 @@ import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
 import type { Notification } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
 import { NOTIFICATION_TYPE } from './notifications.types';
-import { canReceiveAgencyNotification } from './notifications.policy';
+import { agencyNotificationPermission } from './notifications.policy';
+import { memberHasAgencyPermission } from '../agencies/agency-access.query';
 
 /** A stored notification; `data` is a free-form string map. */
 export type NotificationRecord = Omit<Notification, 'data'> & { data: Record<string, string> | null };
@@ -18,10 +19,13 @@ const toRow = (data: NewNotification): Prisma.NotificationUncheckedCreateInput =
 /** Personal history stays personal; agency rows require current membership. */
 const visibleTo = (userId: string, agencyId?: string): Prisma.NotificationWhereInput => ({ userId, ...(agencyId ? { agencyId } : {}), OR: [
   { agencyId: null },
-  ...(['OWNER','MANAGER','STAFF','ACCOUNTANT'] as const).map(role => ({
-    type: { in: Object.values(NOTIFICATION_TYPE).filter(type => canReceiveAgencyNotification(role, type)) },
-    agency: { members: { some: { userId, role, status: 'ACTIVE' as const, user: { status: 'ACTIVE' as const } } } },
-  })),
+  ...Object.values(NOTIFICATION_TYPE).flatMap(type => {
+    const permission = agencyNotificationPermission(type);
+    return permission ? [{
+    type,
+    agency: { members: { some: { userId, status: 'ACTIVE' as const, user: { status: 'ACTIVE' as const, staffStatus: 'ACTIVE' }, ...memberHasAgencyPermission(permission) } } },
+    }] : [];
+  }),
 ] });
 
 export class NotificationsRepository {

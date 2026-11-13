@@ -55,6 +55,16 @@ describe('auth hydration', () => {
     expect(refreshed.membershipsReady).toBe(false);
   });
 
+  it('refreshes agency authority when primary-owner identity changes', async () => {
+    const { default: reducer, setCredentials, setAgencyMemberships } = await import('../store/authSlice');
+    const membership = { agencyId: 'agency-1', memberId: 'member-1', memberRole: 'OWNER' as const, isPrimaryOwner: true, companyName: 'Agency', verificationStatus: 'VERIFIED' as const, permissions: ['agency:context-view'] };
+    const signedIn = reducer(undefined, setCredentials({ user: { id: 'traveler-1', role: 'TRAVELER' } as any, accessToken: 'token', agencies: [membership] }));
+    const unchanged = reducer(signedIn, setAgencyMemberships({ userId: 'traveler-1', agencies: [membership] }));
+    expect(unchanged.agencyEpoch).toBe(signedIn.agencyEpoch);
+    const refreshed = reducer(unchanged, setAgencyMemberships({ userId: 'traveler-1', agencies: [{ ...membership, isPrimaryOwner: false }] }));
+    expect(refreshed.agencyEpoch).toBeGreaterThan(unchanged.agencyEpoch);
+    expect(refreshed.agencies[0].isPrimaryOwner).toBe(false);
+  });
   it('still invalidates agency authority if a refresh no longer supplies memberships', async () => {
     const { default: reducer, selectActiveAgency, setCredentials } = await import('../store/authSlice');
     const session = { user: { id: 'traveler-1', role: 'TRAVELER' } as any, accessToken: 'old-token', agencies: [{ agencyId: 'agency-1', memberId: 'member-1', memberRole: 'OWNER' as const, companyName: 'Agency', verificationStatus: 'VERIFIED' as const, permissions: ['agency:context-view'] }] };

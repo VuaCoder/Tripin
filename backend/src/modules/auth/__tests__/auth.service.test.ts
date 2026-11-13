@@ -306,7 +306,7 @@ describe('AuthService.loginAgencyWithGoogle', () => {
     );
   });
 
-  it('rejects non-agency or unregistered Google accounts', async () => {
+  it('authenticates a personal account without workplaces through Partner Google', async () => {
     const travelerCtx = makeDeps(makeUser({ role: ROLES.TRAVELER, email: 'traveler@example.com' }));
     travelerCtx.mocks.google.verifyIdToken.mockResolvedValue({
       googleId: randomUUID(),
@@ -315,10 +315,13 @@ describe('AuthService.loginAgencyWithGoogle', () => {
       fullName: 'Traveler',
     });
 
-    await expect(new AuthService(travelerCtx.deps).loginAgencyWithGoogle({ idToken: randomUUID() })).rejects.toMatchObject({
-      code: 'AGENCY_PORTAL_REQUIRED',
-    });
+    const session = await new AuthService(travelerCtx.deps).loginAgencyWithGoogle({ idToken: randomUUID() });
+    expect(session.user.role).toBe(ROLES.TRAVELER);
+    expect(session.agencies).toEqual([]);
+    expect(travelerCtx.mocks.users.create).not.toHaveBeenCalled();
+  });
 
+  it('creates a verified personal account for a new Partner Google identity', async () => {
     const emptyCtx = makeDeps(null);
     emptyCtx.mocks.google.verifyIdToken.mockResolvedValue({
       googleId: randomUUID(),
@@ -327,8 +330,44 @@ describe('AuthService.loginAgencyWithGoogle', () => {
       fullName: 'Unknown',
     });
 
-    await expect(new AuthService(emptyCtx.deps).loginAgencyWithGoogle({ idToken: randomUUID() })).rejects.toMatchObject({
-      code: 'AGENCY_ONBOARDING_REQUIRED',
-    });
+    const session = await new AuthService(emptyCtx.deps).loginAgencyWithGoogle({ idToken: randomUUID() });
+    expect(session.user.role).toBe(ROLES.TRAVELER);
+    expect(session.agencies).toEqual([]);
+    expect(emptyCtx.mocks.users.create).toHaveBeenCalledWith(expect.objectContaining({ role: ROLES.TRAVELER, status: USER_STATUS.ACTIVE }));
+  });
+});
+
+describe('Partner login before the first workplace', () => {
+  it('opens a personal session without requiring membership', async () => {
+    const ctx = makeDeps(makeUser());
+    const result = await new AuthService(ctx.deps).loginAgency({ email: 'a@b.com', password: 'Passw0rdX' });
+    expect(result.twoFactorRequired).toBe(false);
+    if (!result.twoFactorRequired) expect(result.session.agencies).toEqual([]);
+  });
+  it('requires email verification without requiring a business profile', async () => {
+    const ctx = makeDeps(makeUser({ status: USER_STATUS.PENDING_VERIFICATION }));
+    await expect(new AuthService(ctx.deps).loginAgency({ email: 'a@b.com', password: 'Passw0rdX' })).rejects.toMatchObject({ code: ERROR_CODES.ACCOUNT_NOT_VERIFIED });
+    expect(ctx.tokens).toHaveLength(0);
+    expect(ctx.mocks.otp.issue).toHaveBeenCalledWith('u1', OTP_PURPOSE.REGISTER);
+  });
+  it('requires 2FA and permits verification without a membership', async () => {
+    const ctx = makeDeps(makeUser({ twoFactorEnabled: true }));
+    const service = new AuthService(ctx.deps);
+    expect(await service.loginAgency({ email: 'a@b.com', password: 'Passw0rdX' })).toMatchObject({ twoFactorRequired: true });
+    expect(ctx.tokens).toHaveLength(0);
+    const verified = await service.verifyAgencyOtp({ email: 'a@b.com', code: '123456', purpose: OTP_PURPOSE.LOGIN_2FA });
+    expect(verified.registrationComplete).toBe(false);
+    expect(ctx.tokens).toHaveLength(1);
+  });
+  it('keeps a banned account out of the Partner portal', async () => {
+    const ctx = makeDeps(makeUser({ status: USER_STATUS.BANNED }));
+    await expect(new AuthService(ctx.deps).loginAgency({ email: 'a@b.com', password: 'Passw0rdX' })).rejects.toMatchObject({ code: ERROR_CODES.ACCOUNT_BANNED });
+    expect(ctx.tokens).toHaveLength(0);
+  });
+  it('keeps rememberMe duration through the common OTP completion', async () => {
+    const ctx = makeDeps(makeUser({ twoFactorEnabled: true }));
+    const session = await new AuthService(ctx.deps).verifyOtp({ email: 'a@b.com', code: '123456', purpose: OTP_PURPOSE.LOGIN_2FA, rememberMe: true });
+    const payload = JSON.parse(Buffer.from(session.accessToken.split('.')[1]!, 'base64url').toString('utf8'));
+    expect(payload.exp - payload.iat).toBe(30 * 86400);
   });
 });

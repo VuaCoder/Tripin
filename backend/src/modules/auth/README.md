@@ -1,8 +1,20 @@
 # auth
 
+## Common account entry (workplaces)
+
+The web Agency login/register entry points now render Partner account screens using common auth,
+preserving a local continuation through OTP/Google/2FA. Generic login, OTP and
+Google support existing global AGENCY accounts as well as personal accounts.
+New workplace users register a normal TRAVELER account, verify their email, then
+create or join an agency without changing User.role. Memberships determine tenant
+access. The dedicated `/auth/agency/*` APIs below remain compatibility contracts
+for older clients, including the legacy REGISTER OTP response without a session.
+Partner login and Google compatibility aliases also accept accounts without memberships.
+Membership and business verification remain requirements of tenant operations, not identity login.
+
 Account access for every actor: registration with email OTP, password login (with optional 2FA), Google login, forgot /
-reset password, session refresh and logout. Agency registration/login uses a dedicated API contract so the complete
-business profile is captured before activation. Agency Google sign-up is intentionally unavailable.
+reset password, session refresh and logout. Only legacy Agency registration retains its dedicated
+business-profile/REGISTER-OTP contract. New Partner web signup creates a personal account first.
 
 ## Use cases covered
 | Use case | Actor | Endpoint |
@@ -45,10 +57,10 @@ the read-only `/security` endpoint are rate limited (20 req / 15 min / IP).
 |---|---|---|---|
 | `POST /register` | `email, password, fullName, role?` (TRAVELER default; TRAVELER/TOUR_GUIDE only) | 201 `{ email, otpExpiresInSeconds, message }` | 400 validation, 409 `EMAIL_ALREADY_REGISTERED`, 429 `OTP_RESEND_TOO_SOON` |
 | `POST /agency/register` | `email, password, fullName, phone, companyName, licenseNumber, address, description?, website?` | 201 `{ email, otpExpiresInSeconds, message }` | 400 validation, 409 `EMAIL_ALREADY_REGISTERED` |
-| `POST /agency/login` | `email, password` | same shape as `/login`; Agency role only | 401 `INVALID_CREDENTIALS`, 403 `ACCOUNT_*` / `AGENCY_ONBOARDING_REQUIRED` |
+| `POST /agency/login` | `email, password, rememberMe?` | same shape/core as `/login`; zero memberships is valid | 401 `INVALID_CREDENTIALS`, 403 `ACCOUNT_*` |
 | `POST /agency/verify-otp` | `email, code, purpose` (`REGISTER` \| `LOGIN_2FA`) | REGISTER completes registration without a session; 2FA returns a session | `OTP_*`, `AGENCY_ONBOARDING_REQUIRED` |
-| `POST /agency/resend-otp` | `email, purpose` | 200 `{ expiresInSeconds, message }` | 400 invalid state, 429 cooldown |
-| `POST /verify-otp` | `email, code, purpose` (`REGISTER` \| `LOGIN_2FA`) | 200 `{ accessToken, user }` + refresh cookie | 400 `OTP_INVALID`/`OTP_EXPIRED`, 429 `OTP_TOO_MANY_ATTEMPTS`, 403 `ACCOUNT_BANNED` |
+| `POST /agency/resend-otp` | `email, purpose, password?` (password required for LOGIN_2FA) | 200 `{ expiresInSeconds, message }`; 2FA does not require membership | 400 invalid state, 429 cooldown |
+| `POST /verify-otp` | `email, code, purpose` (`REGISTER` \| `LOGIN_2FA`), `rememberMe?` | 200 `{ accessToken, user, agencies }` + refresh cookie; optional persistence follows the verified challenge | 400 `OTP_INVALID`/`OTP_EXPIRED`, 429 `OTP_TOO_MANY_ATTEMPTS`, 403 `ACCOUNT_BANNED` |
 | `POST /login` | `email, password` | 200 `{ twoFactorRequired:false, accessToken, user }` + cookie, or `{ twoFactorRequired:true, email }` (then call `/verify-otp` with `LOGIN_2FA`) | 401 `INVALID_CREDENTIALS`, 403 `ACCOUNT_BANNED` / `ACCOUNT_NOT_VERIFIED` |
 | `POST /google` | `idToken, role?` | 200 `{ accessToken, user }` + cookie | 401, 503 when `GOOGLE_CLIENT_ID` is missing |
 | `POST /forgot-password` | `email` | 202 always the same message | — |
@@ -73,7 +85,7 @@ Access token: `Authorization: Bearer <jwt>` (15 min). The refresh token is **nev
 8. Activation (`PENDING_VERIFICATION -> ACTIVE`, via REGISTER OTP or a verified Google email) is a compare-and-set on the status that was read, validated with `USER_STATUS_TRANSITIONS`: if a moderator banned the account meanwhile, the ban wins. Resetting a password never activates an account.
 9. A role is never accepted from a login/refresh request. Generic sign-up allows TRAVELER/TOUR_GUIDE only; Agency is forced by the dedicated endpoint.
 10. Agency onboarding requires phone, company name, license number and address. Phone is stored but is not verified. REGISTER OTP atomically activates the user and changes the agency profile from UNVERIFIED to PENDING, then the UI returns to Agency login without opening a session.
-11. Agency accounts cannot use customer login/OTP/Google routes; non-Agency accounts receive generic invalid credentials from the Agency login route.
+11. Common and Partner login authenticate an account without membership prerequisites. Google Partner login shares the common verified-identity linking/creation flow, including rememberMe; legacy Agency REGISTER OTP keeps its original response. Tenant access still requires an active membership and effective permissions.
 
 Agency application status tokens are HMAC-signed with the configured `JWT_ACCESS_SECRET`; there is no hardcoded secret fallback. Tokens issued by the previous fallback implementation must be obtained again. Agency application controllers read the authenticated identity from `req.actor`, consistent with the shared authentication middleware.
 

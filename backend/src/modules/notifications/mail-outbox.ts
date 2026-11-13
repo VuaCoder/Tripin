@@ -4,6 +4,7 @@ import { logger } from '../../utils/logger';
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { env } from '../../config/env';
 import { canReceiveAgencyNotification } from './notifications.policy';
+import { agencyAccessInclude, effectiveAgencyPermissions } from '../agencies/agency.policy';
 
 const encryptionKey = () => createHash('sha256').update(`tripri:mail-outbox:v1:${env.JWT_ACCESS_SECRET}`).digest();
 function encodeMailBody(text: string): string {
@@ -42,9 +43,9 @@ export async function flushMailOutbox(): Promise<void> {
         // complete before revocation commits, never start after that commit.
         await prisma.$transaction(async tx => {
           await tx.$queryRaw`SELECT id FROM "AgencyProfile" WHERE id = ${agencyId}::uuid FOR UPDATE`;
-          const member = await tx.agencyMember.findFirst({ where: { agencyId, userId, status: 'ACTIVE', user: { status: 'ACTIVE' } } });
+          const member = await tx.agencyMember.findFirst({ where: { agencyId, userId, status: 'ACTIVE', user: { status: 'ACTIVE', staffStatus: 'ACTIVE' } }, include: agencyAccessInclude });
           const notification = await tx.notification.findFirst({ where: { id: notificationId, agencyId, userId } });
-          if (!member || !notification || !canReceiveAgencyNotification(member.role, notification.type)) return;
+          if (!member || !notification || !canReceiveAgencyNotification(effectiveAgencyPermissions(member), notification.type)) return;
           await mailProvider.send({ to: row.recipient, subject: row.subject, text: decodeMailBody(row.text) });
           await tx.mailOutbox.update({ where: { id: row.id }, data: { sentAt: new Date(), leaseUntil: null } });
         }, { timeout: 30_000 });

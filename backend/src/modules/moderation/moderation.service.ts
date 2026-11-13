@@ -7,6 +7,7 @@ import { reviewsService, type ReviewsService, type ModerationReviewDto } from '.
 import { supportService, type SupportService, type ModerationTicketDto, type TicketSummaryDto } from '../support';
 import { toursService, type ToursService, type ListTourFilter, type TourManageDto } from '../tours';
 import { usersService, type PrivateUserDto, type UsersService } from '../users';
+import { agencyProfileRepository, type AgencyModerationDto } from '../agencies/agency-profile.repository';
 
 type Actor = { userId: string; role: PersistedRole };
 type PageQuery = { page: number; limit: number };
@@ -24,6 +25,7 @@ export class ModerationService {
     private readonly reports: Pick<ReportsService, 'listForModeration' | 'getForModeration' | 'resolve'> = reportsService,
     private readonly support: Pick<SupportService, 'listForModeration' | 'getForModeration' | 'replyAsStaff' | 'setStatus'> = supportService,
     private readonly notifications: Pick<NotificationsService, 'notify' | 'notifyAgency'> = notificationsService,
+    private readonly agencyProfiles: Pick<typeof agencyProfileRepository, 'list' | 'decide'> = agencyProfileRepository,
   ) {}
 
   // -------------------------------------------------------------- Tours
@@ -50,13 +52,13 @@ export class ModerationService {
   // ----------------------------------------------------------- Agencies
 
   /** Agencies filtered by verification status (default: waiting for a decision). */
-  listAgencies(status: AgencyVerificationStatus, page: PageQuery): Promise<Page<PrivateUserDto>> {
-    return this.users.listAgenciesByVerification(status, page);
+  listAgencies(status: AgencyVerificationStatus, page: PageQuery): Promise<Page<AgencyModerationDto>> {
+    return this.agencyProfiles.list(status, page);
   }
 
   /** Use case "Verify Agency Profile". The agency is told by app and email. */
-  async verifyAgency(actor: Actor, agencyId: string, decision: { approve: boolean; note?: string; requestInformation?: boolean }): Promise<PrivateUserDto> {
-    const agency = await this.users.decideAgencyVerification(actor, agencyId, decision);
+  async verifyAgency(actor: Actor, agencyId: string, decision: { approve: boolean; note?: string; requestInformation?: boolean }): Promise<AgencyModerationDto> {
+    const agency = await this.agencyProfiles.decide(actor, agencyId, decision);
     await this.notifications.notifyAgency(
       agencyId,
       {

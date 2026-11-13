@@ -1,5 +1,79 @@
 # Agency operations UI
 
+Team members and sent email invitations have separate views, using the existing
+tab controls. The member list stays full-width and hides REMOVED memberships;
+SUSPENDED memberships remain visible for reactivation. No membership data is
+deleted or filtered out of the API. Invitations retain status, expiry and revoke
+actions in the Lời mời tab, with an empty state and the shared creation button.
+
+Member permissions use a single role preset followed by always-open, grouped
+checkbox sections. Checked means effective access; unchecked means no access.
+The UI translates changes to minimal ALLOW/DENY overrides relative to the role,
+keeping the existing API and backend authorization unchanged. Changing the role
+resets custom selections to that role's defaults; mandatory access is locked,
+unheld permissions cannot be granted, and self/OWNER protections remain in place.
+The profile shows actual contact/verification fields plus membership dates, with
+explicit empty values for missing data. Personal fields remain read-only. Access
+editing opens a separate modal; X, Escape, Cancel or backdrop returns to the
+profile and discards unsaved selections. Saving refreshes the profile from the
+server. Role presets use single-choice radios styled as square ticks. Permission
+checkbox groups remain open. Both modals hide scrollbar chrome without disabling
+scrolling; their footers stay pinned. Helper/implementation notes are omitted;
+only the explicit co-owner promotion confirmation and actionable errors remain.
+
+The primary owner (`isPrimaryOwner` from the backend) can select **co_owner** for
+another active member and explicitly confirm **Xác nhận thêm co_owner**. The same
+popup lets the primary owner downgrade a co-owner to a standard staff/manager/
+accountant role through the membership PATCH workflow, not permission overrides.
+Primary owners remain view-only; co-owners cannot administer other owners or add
+more co-owners, but retain ordinary team/business permissions. Owner template
+checkboxes are read-only, including during role-transition previews. There is no
+direct OWNER invitation by email. Permission labels omit
+parenthetical implementation notes; authorization of unsupported legacy modules
+is still enforced on the server even without displaying implementation notes.
+
+## Workplace onboarding
+
+`/workplaces` also has an always-visible **Lời mời của tôi** tab for verified-email
+invitations, including accounts with no memberships. Its badge uses the server
+total; accepting refreshes memberships, invitations and code requests, then shows
+the company list without navigating into a tenant. A committed acceptance remains
+successful if membership refresh fails. Loading, empty, expired/revoked and retry
+states are isolated from the company list. Email notices contain no web links.
+
+`/workplaces` lists current memberships with their agency-local roles and pending
+join requests. Partner login and completed signup/OTP both land here by default.
+`/workplaces/new` begins a three-step independent-agency wizard with an OWNER;
+The Nhập mã mời action opens an in-place dialog for OWNER approval. The common
+account registration/OTP flow preserves invitation continuations. Partner login
+and signup use the shared account APIs with dedicated Partner UI. Both go to
+workplace selection, even with zero
+memberships. Normal traveler registration keeps its own home destination.
+
+Closing/canceling the join dialog keeps the current workplace list/tab. Successful
+submission opens Yêu cầu đã gửi and refreshes personal requests without granting
+local membership. Legacy `/workplaces/start` redirects to `/workplaces`, and
+`/workplaces/join` redirects to `/workplaces?join=1`, preserving safe continuations.
+The empty list explains how an owner can invite the account email later; email
+invitations still require acceptance. The list is searchable and uses compact rows;
+submitted requests have a separate tab. Draft creation preserves a per-account/tab
+idempotency key across retries, refreshes memberships, then opens the selected draft
+at `/agency/application/workplace?step=2`. The wizard saves/resumes a server draft,
+supports finishing later and shows PENDING only after actual submission. Business
+information is not stored in browser storage; only the non-secret creation key is.
+
+Team includes code rotation/revocation and an OWNER-only approval queue with role
+selection and confirmation. Applicant status refreshes without signing out. A
+workplace opens at a route allowed by its current permissions. Unverified OWNERs
+can edit their application at `/agency/application/workplace` and manage Team;
+business operations still require verification. Settings/profile forwards to the
+tenant application. The code and invitation token are never copied into browser
+storage. Clipboard access is explicitly initiated by the OWNER's copy action.
+
+These screens require migration `20261113000200_agency_workplaces`, after flexible
+permissions. Independent agencies still cannot use legacy promotions, premium,
+complaints or review disputes until those modules separate tenant/actor/recipients.
+
 - `/agency`: backend dashboard; revenue totals and a separate empty state for the rolling 30-day series.
 
 The overview uses a Tripri-green bento grid: three lifetime financial metrics, a larger revenue chart beside the top-tour ranking, then booking/tour status panels. Chart range is 30 days (backend rolling window) or the last 7 UTC calendar days, grouped into Monday-based weekly bars without changing totals. No month-over-month percentages or six-month figures are inferred. The daily table remains available for exact values; missing tour photographs use ranking markers rather than unrelated stock imagery.

@@ -42,7 +42,7 @@ const initialState: AuthState = {
 
 function replaceMemberships(state: AuthState, agencies: AgencyMembership[], selected = state.activeAgencyId) {
   const activeAgencyId = agencies.some(a => a.agencyId === selected) ? selected : agencies.length === 1 ? agencies[0].agencyId : null;
-  const signature = (rows: AgencyMembership[]) => JSON.stringify(rows.map(a => [a.agencyId, a.memberId, a.memberRole, a.verificationStatus, [...a.permissions].sort()]));
+  const signature = (rows: AgencyMembership[]) => JSON.stringify(rows.map(a => [a.agencyId, a.memberId, a.memberRole, a.isPrimaryOwner, a.roleId, a.roleName, a.permissionVersion, a.verificationStatus, [...a.permissions].sort()]));
   if (state.activeAgencyId !== activeAgencyId || signature(state.agencies) !== signature(agencies) || !state.membershipsReady) state.agencyEpoch++;
   state.agencies = agencies;
   state.activeAgencyId = activeAgencyId;

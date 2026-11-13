@@ -54,7 +54,13 @@ const PUBLIC_ROUTES = [
 
 /** Logged-in-only routes WITHOUT a permission: each one is scoped to the caller's own data by the token. */
 const LOGIN_ONLY_ROUTES = [
+  'POST /agencies',
+  'POST /agency-join-requests',
+  'POST /agency-join-requests/:id/cancel',
+  'GET /users/me/agency-join-requests',
   'GET /users/me/agencies',
+  'GET /users/me/agency-invitations',
+  'POST /agency-invitations/:id/accept',
   'POST /agency-invitations/accept',
   'POST /policies/accept',
   'GET /auth/security',

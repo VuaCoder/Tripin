@@ -159,8 +159,9 @@ describe('audit coverage (integration)', () => {
 
   it('records audit exports', async () => { const a = await actors(); await expectOneAudit(AUDIT_ACTIONS.AUDIT_EXPORTED, a.admin.id, () => request(app).get('/api/v1/admin/export/audit-logs').set(bearer(a.admin.token))); });
 
-  it('every action declared in AUDIT_ACTIONS is exercised by this file', () => {
-    const source = require('node:fs').readFileSync(__filename, 'utf-8') as string;
+  it('every action declared in AUDIT_ACTIONS is exercised by this file or the agency audit suite', () => {
+    const fs = require('node:fs') as typeof import('node:fs');
+    const source = fs.readFileSync(__filename, 'utf-8') + fs.readFileSync(require('node:path').resolve(__dirname, '../../agencies/__tests__/agency-audit.integration.test.ts'), 'utf-8');
     // Premium and guide payout transfer coverage live in their domain integration suites.
     const unused = Object.keys(AUDIT_ACTIONS).filter((key) => !['PREMIUM_CHANGED', 'GUIDE_PAYOUT_TRANSFERRED'].includes(key)).filter((key) => !source.includes(`AUDIT_ACTIONS.${key}`));
     expect(unused).toEqual([]);

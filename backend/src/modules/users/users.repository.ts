@@ -240,7 +240,7 @@ export class UsersRepository {
   }
 
   countAgenciesByVerification(status: AgencyVerificationStatus): Promise<number> {
-    return prisma.user.count({ where: { role: 'AGENCY', agencyProfile: { is: { verificationStatus: status } } } });
+    return prisma.agencyProfile.count({ where: { verificationStatus: status } });
   }
 
   async list(filter: UserListFilter, page: PageRequest): Promise<{ items: UserRecord[]; total: number }> {

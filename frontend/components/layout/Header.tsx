@@ -51,6 +51,7 @@ function accountMenuForRole(role: AppRole): AccountMenuItem[] {
 
   if (role === 'TRAVELER') {
     return [
+      { label: 'Nơi làm việc', href: '/workplaces', icon: 'business' },
       {
         label: 'Danh sách yêu thích',
         href: '/settings/wishlist',

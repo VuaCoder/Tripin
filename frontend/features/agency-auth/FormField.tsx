@@ -30,7 +30,7 @@ export function FormField({ label, name, value, onChange, error, placeholder, ty
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       {multiline ? (
-        <textarea id={name} name={name} value={value} onChange={onChange} placeholder={placeholder} autoComplete={autoComplete} required={required} rows={4} className={`${base} resize-y`} aria-invalid={Boolean(error)} />
+        <textarea id={name} name={name} value={value} onChange={onChange} placeholder={placeholder} autoComplete={autoComplete} required={required} rows={4} className={`${base} resize-y`} aria-invalid={Boolean(error)} aria-describedby={error ? `${name}-error` : hint ? `${name}-hint` : undefined} />
       ) : (
         <div className="relative">
           <input
@@ -45,6 +45,7 @@ export function FormField({ label, name, value, onChange, error, placeholder, ty
             autoComplete={autoComplete}
             className={`${base} ${isPassword ? 'pr-11' : ''}`}
             aria-invalid={Boolean(error)}
+            aria-describedby={error ? `${name}-error` : hint ? `${name}-hint` : undefined}
             required={required}
           />
           {isPassword && (
@@ -69,7 +70,7 @@ export function FormField({ label, name, value, onChange, error, placeholder, ty
           )}
         </div>
       )}
-      {error ? <span className="mt-1 block text-xs font-medium text-red-600">{error}</span> : hint ? <span className="mt-1 block text-xs text-slate-400">{hint}</span> : null}
+      {error ? <span id={`${name}-error`} className="mt-1 block text-xs font-medium text-red-600">{error}</span> : hint ? <span id={`${name}-hint`} className="mt-1 block text-xs text-slate-400">{hint}</span> : null}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ModerationAgency, ModerationTour } from '../types';
 
@@ -161,6 +161,73 @@ describe('ModerationTourListPage', () => {
 });
 
 describe('ModerationAgencyListPage', () => {
+  it('shows business, contact, legal documents and previous notes in the expanded profile', async () => {
+    permissions = ['agency:verify'];
+    const item = agency();
+    item.phone = '0905113789';
+    item.agencyProfile = { ...item.agencyProfile!, address: 'Đà Nẵng', description: 'Tổ chức tour nội địa', website: 'https://tripri.example', licenseNumber: 'GP-123', taxId: '1234567890', businessLicenseUrl: 'https://files.example/license.pdf', submittedAt: '2026-10-02T08:00:00Z', verificationNote: 'Kiểm tra lại giấy phép.' };
+    mockAgencies.mockReturnValue(q({ data: { items: [item], meta: META } }));
+    render(<ModerationAgencyListPage />);
+    expect(screen.getByText('Có giấy phép kinh doanh đính kèm')).toBeTruthy();
+    expect(screen.getByText('GP-123')).toBeTruthy();
+    // Optional rendered-component fixtures for local visual QA; never used by the application.
+    const exportVisual = async (name: string) => {
+      if (!process.env.MODERATION_VISUAL_OUTPUT) return;
+      const { mkdirSync, writeFileSync } = await import('node:fs');
+      const { resolve } = await import('node:path');
+      const directory = resolve(process.env.MODERATION_VISUAL_OUTPUT);
+      mkdirSync(directory, { recursive: true });
+      const styles = Array.from(document.head.querySelectorAll('style')).map((style) => style.outerHTML).join('');
+      const bodyStyle = `background:#f7f8f5;padding:24px;${name === 'agency-dialog' ? 'height:100vh;overflow:hidden;' : ''}`;
+      writeFileSync(resolve(directory, `${name}.html`), `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agency verification visual fixture</title><link rel="stylesheet" href="moderation.css">${styles}</head><body style="${bodyStyle}">${document.body.innerHTML}</body></html>`);
+    };
+    await exportVisual('agency-list');
+    fireEvent.click(screen.getByText('Xem & xử lý'));
+    const dialog = within(screen.getByRole('dialog'));
+    expect(screen.getByRole('dialog').className).toContain('max-w-5xl');
+    for (const value of ['Đà Nẵng', 'Tổ chức tour nội địa', '0905113789', '1234567890', 'Kiểm tra lại giấy phép.']) expect(dialog.getByText(value)).toBeTruthy();
+    expect(dialog.getByRole('link', { name: 'Mở tài liệu đính kèm' }).getAttribute('href')).toBe('https://files.example/license.pdf');
+    expect(dialog.getByLabelText('Ghi chú xử lý')).toBeTruthy();
+    await exportVisual('agency-dialog');
+  });
+
+  it('does not turn unsafe applicant URLs into links', () => {
+    permissions = ['agency:verify'];
+    const item = agency();
+    item.agencyProfile = { ...item.agencyProfile!, businessLicenseUrl: 'javascript:alert(1)', website: 'javascript:alert(2)' };
+    mockAgencies.mockReturnValue(q({ data: { items: [item], meta: META } }));
+    render(<ModerationAgencyListPage />);
+    fireEvent.click(screen.getByText('Xem & xử lý'));
+    expect(within(screen.getByRole('dialog')).queryByRole('link')).toBeNull();
+    expect(screen.getByText('Liên kết tài liệu không hợp lệ.')).toBeTruthy();
+  });
+
+  it('requires a note for requesting information and sends the dedicated action', async () => {
+    permissions = ['agency:verify'];
+    mockAgencies.mockReturnValue(q({ data: { items: [agency()], meta: META } }));
+    mockVerify.mockReturnValue(unwrapOk());
+    render(<ModerationAgencyListPage />);
+    fireEvent.click(screen.getByText('Xem & xử lý'));
+    fireEvent.click(screen.getByText('Yêu cầu bổ sung'));
+    expect(mockVerify).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(screen.getByLabelText('Ghi chú xử lý'));
+    fireEvent.change(screen.getByLabelText('Ghi chú xử lý'), { target: { value: '  Bổ sung giấy phép rõ nét  ' } });
+    fireEvent.click(screen.getByText('Yêu cầu bổ sung'));
+    await waitFor(() => expect(mockVerify).toHaveBeenCalledWith({ id: 'u1', approve: false, requestInformation: true, note: 'Bổ sung giấy phép rõ nét' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('resets a draft note after closing and reopening a profile', () => {
+    permissions = ['agency:verify'];
+    mockAgencies.mockReturnValue(q({ data: { items: [agency()], meta: META } }));
+    render(<ModerationAgencyListPage />);
+    fireEvent.click(screen.getByText('Xem & xử lý'));
+    fireEvent.change(screen.getByLabelText('Ghi chú xử lý'), { target: { value: 'Ghi chú cũ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    fireEvent.click(screen.getByText('Xem & xử lý'));
+    expect((screen.getByLabelText('Ghi chú xử lý') as HTMLTextAreaElement).value).toBe('');
+  });
+
   it('verifies a pending agency', async () => {
     permissions = ['agency:verify'];
     mockAgencies.mockReturnValue(q({ data: { items: [agency()], meta: META } }));

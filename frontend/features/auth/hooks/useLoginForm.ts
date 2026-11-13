@@ -2,25 +2,27 @@
 
 import { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { validateCredential, validatePassword } from "../utils/validation";
+import { validateCredential } from "../utils/validation";
 import { useLoginMutation } from "../api/authApi";
 import { useAppDispatch } from "@/store/hooks";
 import { setCredentials } from "../store/authSlice";
 import { getApiErrorCode, getApiErrorMessage } from "../utils/apiError";
 import { LoginFormValues, LoginResultData } from "../types";
-import { safeNextPath } from '../utils/safeNextPath';
+import { authNextPath, safeNextPath } from '../utils/safeNextPath';
 
 interface UseLoginFormProps {
+  continuation?: string;
+  initialEmail?: string;
   onSuccess?: (data: LoginResultData) => void;
   onError?: (errorMessage: string) => void;
 }
 
-export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
+export function useLoginForm({ onSuccess, onError, continuation, initialEmail = '' }: UseLoginFormProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [formData, setFormData] = useState<LoginFormValues>({
-    credential: "",
+    credential: initialEmail,
     password: "",
     rememberMe: false,
   });
@@ -61,7 +63,8 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
 
   const validateForm = (): boolean => {
     const credValidation = validateCredential(formData.credential);
-    const passValidation = validatePassword(formData.password);
+    // Login must accept existing passwords, not reapply the signup policy.
+    const passValidation = { isValid: formData.password.length > 0, error: 'Vui lòng nhập mật khẩu.' };
 
     const newErrors: { credential?: string; password?: string } = {};
     if (!credValidation.isValid) {
@@ -97,9 +100,9 @@ export function useLoginForm({ onSuccess, onError }: UseLoginFormProps = {}) {
 
       // Tài khoản chưa xác thực email → đưa sang trang OTP
       if (getApiErrorCode(err) === "ACCOUNT_NOT_VERIFIED") {
-        const nextPath = safeNextPath(searchParams.get('next'));
+        const nextPath = continuation ? authNextPath(searchParams.get('next'), continuation) : safeNextPath(searchParams.get('next'));
         router.push(
-          `/verify-otp?email=${encodeURIComponent(formData.credential)}&purpose=REGISTER${nextPath ? `&next=${encodeURIComponent(nextPath)}` : ''}`,
+          `/verify-otp?email=${encodeURIComponent(formData.credential)}&purpose=REGISTER${nextPath ? `&next=${encodeURIComponent(nextPath)}` : ''}${formData.rememberMe ? '&rememberMe=true' : ''}`,
         );
         return;
       }
