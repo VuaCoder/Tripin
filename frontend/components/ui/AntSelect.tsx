@@ -26,13 +26,14 @@ export interface AntSelectProps<T = string | number> {
   id?: string;
   'aria-label'?: string;
   placement?: 'left' | 'right';
+  popupMatchSelectWidth?: boolean;
 }
 
 export function AntSelect<T extends string | number = string>({
   value, onChange, onOpen, options, placeholder = 'Chọn một mục',
   className = '', triggerClassName = '', dropdownClassName = '',
   size = 'middle', disabled = false, prefix, allowClear = false,
-  id, 'aria-label': ariaLabel, placement = 'left',
+  id, 'aria-label': ariaLabel, placement = 'left', popupMatchSelectWidth = false,
 }: AntSelectProps<T>) {
   return (
     <ConfigProvider theme={{
@@ -77,7 +78,7 @@ export function AntSelect<T extends string | number = string>({
         prefix={prefix}
         allowClear={allowClear}
         placement={placement === 'right' ? 'bottomRight' : 'bottomLeft'}
-        popupMatchSelectWidth={false}
+        popupMatchSelectWidth={popupMatchSelectWidth}
         suffixIcon={
           <ChevronDown
             className="size-4 text-slate-500 transition-transform duration-200 ant-select-suffix-chevron"

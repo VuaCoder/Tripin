@@ -10,6 +10,7 @@ import { notificationsRepository, type NotificationsRepository } from './notific
 import { prisma } from '../../config/database';
 import { writeAgencyNotification } from './notifications.writer';
 import { canReceiveAgencyNotification } from './notifications.policy';
+import { agencyAccessInclude, effectiveAgencyPermissions } from '../agencies/agency.policy';
 import { NOTIFICATION_TYPE } from './notifications.types';
 import type {
   ListNotificationsQuery,
@@ -46,8 +47,8 @@ export class NotificationsService {
       const rows = await prisma.$transaction(tx => writeAgencyNotification(tx, agencyId, localized, options.email ?? false));
       for (const row of rows) await prisma.$transaction(async tx => {
         await tx.$queryRaw`SELECT id FROM "AgencyProfile" WHERE id = ${agencyId}::uuid FOR UPDATE`;
-        const member = await tx.agencyMember.findFirst({ where: { agencyId, userId: row.userId, status: 'ACTIVE', user: { status: 'ACTIVE' } } });
-        if (member && canReceiveAgencyNotification(member.role, row.type)) {
+        const member = await tx.agencyMember.findFirst({ where: { agencyId, userId: row.userId, status: 'ACTIVE', user: { status: 'ACTIVE', staffStatus: 'ACTIVE' } }, include: agencyAccessInclude });
+        if (member && canReceiveAgencyNotification(effectiveAgencyPermissions(member), row.type)) {
           this.publish(row.userId, toNotificationDto({ ...row, data: row.data as Record<string, string> | null }));
         }
       });

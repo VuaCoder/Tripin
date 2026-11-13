@@ -20,8 +20,9 @@ import {
   Command,
   Ticket,
   MessageSquareWarning,
-  MessageSquare,
-  Users
+  Users,
+  ArrowLeftRight,
+  MessageSquare
 } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, useLogout } from '@/features/auth';
@@ -88,13 +89,15 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
     { label: 'Vận hành', items: [
       { href: '/agency', label: 'Tổng quan', icon: LayoutDashboard, permission: 'agency:dashboard' },
       { href: '/agency/bookings', label: 'Đơn đặt chỗ', icon: CalendarCheck, permission: 'agency:bookings-view' },
+      { href: '/agency/work/bookings', label: 'Theo dõi booking', icon: CalendarCheck, permission: 'agency:booking-monitor' },
     ] },
     { label: 'Trao đổi', items: [
       { href: '/conversations', label: 'Tin nhắn', icon: MessageSquare, permission: 'chat:use' },
       { href: '/agency/custom-tours', label: 'Yêu cầu đoàn', icon: Users, permission: 'custom-tour:view' },
     ] },
     { label: 'Sản phẩm', items: [
-      { href: '/agency/tours', label: 'Quản lý tour', icon: Compass, permission: 'tour:update-own' },
+      { href: '/agency/tours', label: 'Quản lý tour', icon: Compass, permission: 'agency:tour-view' },
+      { href: '/agency/work/tours', label: 'Nội dung được giao', icon: Compass, permission: 'agency:tour-content-update' },
       { href: '/agency/calendar', label: 'Lịch khởi hành', icon: CalendarDays, permission: 'tour:update-own' },
     ] },
     { label: 'Chăm sóc & Ưu đãi', items: [
@@ -102,6 +105,7 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
       { href: '/agency/complaints', label: 'Khiếu nại', icon: MessageSquareWarning, permission: 'complaint:respond' },
     ] },
     { label: 'Đối tác', items: [
+      { href: '/agency/team', label: 'Thành viên & phân quyền', icon: Users, permission: 'agency:team-view' },
       { href: '/agency/settings/commission', label: 'Chiết khấu hoa hồng', icon: BadgePercent, permission: '' },
       { href: '/agency/settings/team', label: 'Thành viên', icon: Users, permission: 'agency:team-view' },
       { href: '/agency/notifications', label: 'Thông báo', icon: Bell, permission: '' },
@@ -112,6 +116,7 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
   const searchTerm = normalize(query);
   const visibleGroups = groups.map((group) => ({ ...group, items: group.items.filter((item) =>
     (!item.permission || agency?.permissions?.includes(item.permission)) &&
+    (!['/agency/promotions', '/agency/complaints'].includes(item.href) || (agency?.memberRole === 'OWNER' && agency.agencyId === user?.id)) &&
     (item.href !== '/agency/notifications' || searchTerm) &&
     (!searchTerm || normalize(`${item.label} ${group.label}`).includes(searchTerm)),
   ) })).filter((group) => group.items.length > 0);
@@ -233,6 +238,10 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
           </Link>
         </div>
         {showProfileMenu && <div ref={profileMenuRef} className={styles.profileMenu} role="menu" aria-label="Tùy chọn tài khoản">
+          <Link href="/workplaces" className={styles.profileMenuItem} role="menuitem" onClick={() => setShowProfileMenu(false)}>
+            <ArrowLeftRight size={17} aria-hidden="true" />
+            <span>Chuyển doanh nghiệp</span>
+          </Link>
           <Link href="/agency/settings/profile" className={styles.profileMenuItem} role="menuitem" onClick={() => setShowProfileMenu(false)}>
             <Settings size={17} aria-hidden="true" />
             <span>Cài đặt</span>

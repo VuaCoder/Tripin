@@ -170,24 +170,12 @@ export class AuthService {
   /** Use case "Login" including "Validate credentials" and, when enabled, the Verify OTP extension (2FA). */
   async login(input: LoginInput, context: RequestContext = {}): Promise<LoginResult> {
     const user = await this.validateCredentials(input);
-    if (user.role === ROLES.AGENCY) {
-      throw AppError.forbidden('Please use the Agency login portal', 'AGENCY_PORTAL_REQUIRED');
-    }
-
     return this.loginUser(user, context, Boolean(input.rememberMe));
   }
 
-  /** Agency-only credential login. Other roles receive the same generic credentials error. */
+  /** Partner entry authenticates an account, including before its first workplace. */
   async loginAgency(input: LoginInput, context: RequestContext = {}): Promise<LoginResult> {
-    const user = await this.validateCredentials(input);
-    if (!(await this.hasAgencyMembership(user.id))) {
-      throw AppError.unauthenticated('Invalid email or password', ERROR_CODES.INVALID_CREDENTIALS);
-    }
-    if (user.status === USER_STATUS.PENDING_VERIFICATION && !this.hasCompleteAgencyProfile(user)) {
-      throw AppError.forbidden('Please complete Agency registration first', 'AGENCY_ONBOARDING_REQUIRED');
-    }
-
-    return this.loginUser(user, context, Boolean(input.rememberMe));
+    return this.login(input, context);
   }
 
   private async loginUser(user: UserRecord, context: RequestContext, rememberMe = false): Promise<LoginResult> {
@@ -210,14 +198,11 @@ export class AuthService {
 
   /** Use case "Verify OTP": completes REGISTER (activates the account) or LOGIN_2FA and opens a session. */
   async verifyOtp(
-    input: { email: string; code: string; purpose: typeof OTP_PURPOSE.REGISTER | typeof OTP_PURPOSE.LOGIN_2FA },
+    input: { email: string; code: string; purpose: typeof OTP_PURPOSE.REGISTER | typeof OTP_PURPOSE.LOGIN_2FA; rememberMe?: boolean },
     context: RequestContext = {},
   ): Promise<Session> {
     const user = await this.deps.users.findByEmail(input.email);
     if (!user) throw AppError.badRequest(AUTH_POLICY.OTP_INVALID_MESSAGE, undefined, ERROR_CODES.OTP_INVALID);
-    if (user.role === ROLES.AGENCY) {
-      throw AppError.forbidden('Please use the Agency verification portal', 'AGENCY_PORTAL_REQUIRED');
-    }
     if (user.status === USER_STATUS.BANNED) {
       throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
     }
@@ -226,9 +211,9 @@ export class AuthService {
 
     const active =
       input.purpose === OTP_PURPOSE.REGISTER && user.status === USER_STATUS.PENDING_VERIFICATION
-        ? await this.activatePending(user)
+        ? await this.activatePending(user, user.role === ROLES.AGENCY && this.hasCompleteAgencyProfile(user))
         : user;
-    return this.createSession(active, context);
+    return this.createSession(active, context, undefined, Boolean(input.rememberMe));
   }
 
   /** Agency registration activates the account and submits its complete profile; 2FA still opens a session. */
@@ -237,7 +222,7 @@ export class AuthService {
     context: RequestContext = {},
   ): Promise<AgencyOtpResult> {
     const user = await this.deps.users.findByEmail(input.email);
-    if (!user || (input.purpose === OTP_PURPOSE.REGISTER ? user.role !== ROLES.AGENCY : !(await this.hasAgencyMembership(user.id)))) {
+    if (!user || (input.purpose === OTP_PURPOSE.REGISTER && user.role !== ROLES.AGENCY)) {
       throw AppError.badRequest(AUTH_POLICY.OTP_INVALID_MESSAGE, undefined, ERROR_CODES.OTP_INVALID);
     }
     if (user.status === USER_STATUS.BANNED) {
@@ -271,9 +256,6 @@ export class AuthService {
   }): Promise<{ expiresInSeconds: number }> {
     if (input.purpose === OTP_PURPOSE.LOGIN_2FA) {
       const user = await this.requireLogin2faPassword(input.email, input.password);
-      if (user.role === ROLES.AGENCY) {
-        throw AppError.forbidden('Please use the Agency verification portal', 'AGENCY_PORTAL_REQUIRED');
-      }
       if (user.status === USER_STATUS.BANNED) {
         throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
       }
@@ -282,9 +264,6 @@ export class AuthService {
 
     const user = await this.deps.users.findByEmail(input.email);
     if (!user) throw AppError.badRequest('Invalid or expired request');
-    if (user.role === ROLES.AGENCY) {
-      throw AppError.forbidden('Please use the Agency verification portal', 'AGENCY_PORTAL_REQUIRED');
-    }
     if (user.status === USER_STATUS.BANNED) {
       throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
     }
@@ -298,7 +277,6 @@ export class AuthService {
   }): Promise<{ expiresInSeconds: number }> {
     if (input.purpose === OTP_PURPOSE.LOGIN_2FA) {
       const user = await this.requireLogin2faPassword(input.email, input.password);
-      if (!(await this.hasAgencyMembership(user.id))) throw AppError.badRequest('Invalid or expired request');
       if (user.status === USER_STATUS.BANNED) {
         throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
       }
@@ -324,7 +302,7 @@ export class AuthService {
 
   /** Use cases "Login with Google" + "Authenticate via OAuth" (Google OAuth System actor). */
   async loginWithGoogle(
-    input: { idToken: string; role?: RegisterInput['role'] },
+    input: { idToken: string; role?: RegisterInput['role']; rememberMe?: boolean },
     context: RequestContext = {},
   ): Promise<Session> {
     if (input.role === ROLES.AGENCY) {
@@ -334,9 +312,6 @@ export class AuthService {
     if (!identity.emailVerified) throw AppError.unauthenticated('Google email is not verified');
 
     let user = await this.deps.users.findByGoogleId(identity.googleId);
-    if (user?.role === ROLES.AGENCY) {
-      throw AppError.forbidden('Google sign-in is not available in the Agency portal', 'AGENCY_PORTAL_REQUIRED');
-    }
     if (user) {
       if (!user.avatarUrl && identity.avatarUrl) {
         user = (await this.deps.users.updateById(user.id, { avatarUrl: identity.avatarUrl })) ?? user;
@@ -344,9 +319,6 @@ export class AuthService {
     } else {
       const sameEmail = await this.deps.users.findByEmail(identity.email);
       if (sameEmail) {
-        if (sameEmail.role === ROLES.AGENCY) {
-          throw AppError.forbidden('Google sign-in is not available in the Agency portal', 'AGENCY_PORTAL_REQUIRED');
-        }
         // Link Google to the existing account (the email is verified by Google).
         const wasUnverified = sameEmail.status === USER_STATUS.PENDING_VERIFICATION;
         const linked =
@@ -358,7 +330,7 @@ export class AuthService {
             // password they chose must not survive the real owner proving the address through Google.
             ...(wasUnverified ? { passwordHash: null } : {}),
           })) ?? sameEmail;
-        user = wasUnverified ? await this.activatePending(linked) : linked;
+        user = wasUnverified ? await this.activatePending(linked, linked.role === ROLES.AGENCY && this.hasCompleteAgencyProfile(linked)) : linked;
       } else {
         const role = input.role ?? ROLES.TRAVELER;
         try {
@@ -385,52 +357,15 @@ export class AuthService {
     if (user.status === USER_STATUS.BANNED) {
       throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
     }
-    return this.createSession(user, context);
+    return this.createSession(user, context, undefined, Boolean(input.rememberMe));
   }
 
-  /** Agency portal login via Google OAuth for registered Agency accounts. */
+  /** Compatible Partner alias; Google may create an account before any workplace. */
   async loginAgencyWithGoogle(
     input: { idToken: string; rememberMe?: boolean },
     context: RequestContext = {},
   ): Promise<Session> {
-    const identity = await this.deps.google.verifyIdToken(input.idToken);
-    if (!identity.emailVerified) throw AppError.unauthenticated('Google email is not verified');
-
-    let user =
-      (await this.deps.users.findByGoogleId(identity.googleId)) ??
-      (await this.deps.users.findByEmail(identity.email));
-
-    if (!user) {
-      throw AppError.forbidden(
-        'Tài khoản Google này chưa đăng ký làm Đối tác Agency. Vui lòng đăng ký hồ sơ doanh nghiệp trước.',
-        'AGENCY_ONBOARDING_REQUIRED',
-      );
-    }
-    if (!(await this.hasAgencyMembership(user.id))) {
-      throw AppError.forbidden('Email Google này không thuộc tài khoản Đối tác Agency.', 'AGENCY_PORTAL_REQUIRED');
-    }
-    if (user.status === USER_STATUS.BANNED) {
-      throw AppError.forbidden('This account has been banned', ERROR_CODES.ACCOUNT_BANNED);
-    }
-    if (user.status === USER_STATUS.PENDING_VERIFICATION && !this.hasCompleteAgencyProfile(user)) {
-      throw AppError.forbidden('Please complete Agency registration first', 'AGENCY_ONBOARDING_REQUIRED');
-    }
-
-    const patch: Parameters<UsersRepository['updateById']>[1] = {};
-    if (user.status === USER_STATUS.PENDING_VERIFICATION) patch.passwordHash = null;
-    if (!user.googleId) patch.googleId = identity.googleId;
-    if (!user.emailVerifiedAt) patch.emailVerifiedAt = new Date();
-    if (!user.avatarUrl && identity.avatarUrl) patch.avatarUrl = identity.avatarUrl;
-
-    if (Object.keys(patch).length > 0) {
-      user = (await this.deps.users.updateById(user.id, patch)) ?? user;
-    }
-
-    if (user.status === USER_STATUS.PENDING_VERIFICATION) {
-      user = await this.activatePending(user, true);
-    }
-
-    return this.createSession(user, context, undefined, Boolean(input.rememberMe));
+    return this.loginWithGoogle(input, context);
   }
 
   // --------------------------------------------------------- Forgot password
@@ -645,10 +580,6 @@ export class AuthService {
       user: toPrivateUserDto(user),
       agencies: this.deps.agencies ? await this.deps.agencies.listForUser(user.id) : [],
     };
-  }
-
-  private async hasAgencyMembership(userId: string): Promise<boolean> {
-    return Boolean((await this.deps.agencies?.listForUser(userId))?.length);
   }
 
   private hasCompleteAgencyProfile(user: UserRecord): boolean {

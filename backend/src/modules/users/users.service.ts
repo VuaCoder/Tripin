@@ -1,4 +1,5 @@
 import { prisma } from '../../config/database';
+import { agencyProfileRepository } from '../agencies/agency-profile.repository';
 import {
   AGENCY_VERIFICATION_STATUS,
   ROLES,
@@ -20,7 +21,7 @@ import { notificationsService } from '../notifications';
 import { AUDIT_ACTIONS } from '../audit/audit.types';
 import { buildPage, type Page } from '../../utils/pagination';
 import { assertTransition } from '../../utils/state-machine';
-import { toPrivateUserDto, toPublicAgencyDto, toPublicGuideDto } from './users.mapper';
+import { toPrivateUserDto, toPublicGuideDto } from './users.mapper';
 import { usersRepository, type UserPatch, type UserRecord, type UsersRepository } from './users.repository';
 import {
   AGENCY_VERIFICATION_TRANSITIONS,
@@ -58,6 +59,7 @@ export class UsersService {
   constructor(
     private readonly users: UsersRepo = usersRepository,
     _audit?: { record?: (entry: never) => Promise<void> },
+    private readonly agencyProfiles: Pick<typeof agencyProfileRepository, 'publicProfile'> = agencyProfileRepository,
   ) {}
 
   // ------------------------------------------------------- Own profile
@@ -345,11 +347,7 @@ export class UsersService {
 
   /** Use case "View public agency profile" (Guest). Only ACTIVE agencies are visible. */
   async getPublicAgency(id: string): Promise<PublicAgencyDto> {
-    const user = await this.users.findById(id);
-    if (!user || user.role !== ROLES.AGENCY || user.status !== USER_STATUS.ACTIVE) {
-      throw AppError.notFound('Agency not found');
-    }
-    return toPublicAgencyDto(user);
+    return this.agencyProfiles.publicProfile(id);
   }
 
   // ------------------------------------------------ Super admin: access

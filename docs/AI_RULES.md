@@ -46,12 +46,17 @@ repository; inspect source files only when a task touches them.
 - The canonical logo is `frontend/public/images/tripri-logo.png`; it is already used by
   header, footer and auth screens. Do not replace it with the old SVG unless explicitly requested.
 - Successful login routing:
-  - `TRAVELER` -> `/` (homepage, continue browsing/booking)
-  - `AGENCY` -> `/agency`
+  - `TRAVELER` -> `/home` (homepage, continue browsing/booking)
+  - Legacy `AGENCY` -> `/workplaces`
   - `TOUR_GUIDE` -> `/guide`
   - `MODERATOR` -> `/moderator`
   - `SUPER_ADMIN` -> `/super-admin`
   Keep this mapping in `frontend/features/auth/utils/roles.ts` via `homeForRole`.
+  Agency frontend entry points render Partner UI using common account auth. Login
+  defaults to `/workplaces`, signup through REGISTER OTP to `/workplaces/start`.
+  Accounts without memberships may authenticate and defer a missing invitation code.
+  Normal traveler registration keeps its home destination; explicit booking/guide/platform destinations take
+  precedence. Agency membership role never changes global User.role.
 - Register creates a pending account and sends `REGISTER` OTP; successful registration goes to
   the OTP screen, not directly to an authenticated page.
 - OTP purposes:

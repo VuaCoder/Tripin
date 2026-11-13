@@ -50,6 +50,7 @@ export const verifyOtpBody = z.object({
   email,
   code: otpCode,
   purpose: z.enum([OTP_PURPOSE.REGISTER, OTP_PURPOSE.LOGIN_2FA]),
+  rememberMe: z.boolean().optional(),
 });
 
 export const agencyVerifyOtpBody = z.object({
@@ -67,6 +68,7 @@ export const agencyResendOtpBody = z.object({
 
 export const googleLoginBody = z.object({
   idToken: z.string().min(10).max(4096),
+  rememberMe: z.boolean().optional(),
   /** Only used when the Google account creates a brand-new Tripri account. */
   role: z.enum([ROLES.TRAVELER, ROLES.TOUR_GUIDE] as const).optional(),
 });

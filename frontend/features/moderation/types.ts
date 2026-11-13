@@ -65,7 +65,8 @@ export interface ModerationAgency {
   email: string;
   fullName: string;
   phone?: string;
-  status: string;
+  /** Legacy user status; independent agencies use agencyProfile.verificationStatus. */
+  status?: string;
   createdAt: string;
   agencyProfile?: {
     companyName?: string;

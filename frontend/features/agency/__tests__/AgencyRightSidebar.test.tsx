@@ -37,7 +37,7 @@ const mockUser: UserProfile = {
   phone: '0901234567',
   role: 'AGENCY',
   status: 'ACTIVE',
-  permissions: ['agency:dashboard', 'agency:bookings-view', 'tour:update-own', 'chat:use', 'custom-tour:view'],
+  permissions: ['agency:dashboard', 'agency:bookings-view', 'agency:tour-view', 'tour:update-own', 'chat:use', 'custom-tour:view'],
   extraPermissions: [],
   twoFactorEnabled: false,
   createdAt: '2026-01-01T00:00:00Z',
@@ -211,6 +211,16 @@ describe('AgencyRightSidebar & Partner Settings', () => {
     }
     fireEvent.click(screen.getByRole('link', { name: 'Hồ sơ đối tác: Công ty Du lịch Hoàng Phúc' }));
     expect(screen.getByRole('menuitem', { name: 'Cài đặt' }).hasAttribute('data-route-preloader')).toBe(false);
+  });
+
+  it('offers company switching from the account menu without logging out', () => {
+    render(<AgencyRightSidebar initialExpanded />);
+    fireEvent.click(screen.getByRole('link', { name: 'Hồ sơ đối tác: Công ty Du lịch Hoàng Phúc' }));
+    const switchCompany = screen.getByRole('menuitem', { name: 'Chuyển doanh nghiệp' });
+    expect(switchCompany.getAttribute('href')).toBe('/workplaces');
+    fireEvent.click(switchCompany);
+    expect(screen.queryByRole('menu', { name: 'Tùy chọn tài khoản' })).toBeNull();
+    expect(mockLogout).not.toHaveBeenCalled();
   });
 
   it('opens account actions from the avatar and logs out from the popup', () => {

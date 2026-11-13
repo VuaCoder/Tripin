@@ -39,8 +39,13 @@ import { adminUsersRouter, publicAgenciesRouter, publicGuidesRouter, usersRouter
 export { apiRouter } from './registry';
 import { apiRouter } from './registry';
 import { agencyFoundationRouter, agencyIdentityRouter, agencyInvitationAcceptanceRouter } from '../modules/agencies/agency.routes';
+import { workplaceCreationRouter, joinRequestRouter, personalWorkplaceRouter, workplaceTeamRouter } from '../modules/agencies/workplaces.routes';
 
 mount('/users', agencyIdentityRouter);
+mount('/users', personalWorkplaceRouter);
+mount('/agencies', workplaceCreationRouter);
+mount('/agency-join-requests', joinRequestRouter);
+mount('/agency', workplaceTeamRouter);
 mount('/agency-invitations', agencyInvitationAcceptanceRouter);
 mount('/agency', agencyFoundationRouter);
 

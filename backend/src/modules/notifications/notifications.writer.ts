@@ -2,14 +2,15 @@ import type { DbExecutor } from '../../config/database';
 import type { NotifyInput } from './notifications.types';
 import { enqueueMail } from './mail-outbox';
 import { canReceiveAgencyNotification } from './notifications.policy';
+import { agencyAccessInclude, effectiveAgencyPermissions } from '../agencies/agency.policy';
 
 /** Same agency lock as team mutations: fanout and revocation serialize. */
 export async function writeAgencyNotification(tx: DbExecutor, agencyId: string, input: NotifyInput, email = true) {
   await tx.$queryRaw`SELECT id FROM "AgencyProfile" WHERE id = ${agencyId}::uuid FOR UPDATE`;
-  const members = await tx.agencyMember.findMany({ where: { agencyId, status: 'ACTIVE', user: { status: 'ACTIVE' } } });
+  const members = await tx.agencyMember.findMany({ where: { agencyId, status: 'ACTIVE', user: { status: 'ACTIVE', staffStatus: 'ACTIVE' } }, include: agencyAccessInclude });
   const rows = [];
   for (const member of members) {
-    if (!canReceiveAgencyNotification(member.role, input.type)) continue;
+    if (!canReceiveAgencyNotification(effectiveAgencyPermissions(member), input.type)) continue;
     const notification = await tx.notification.create({ data: {
       userId: member.userId, agencyId, type: input.type, title: input.title, body: input.body,
       ...(input.data ? { data: input.data } : {}),

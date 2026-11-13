@@ -14,7 +14,7 @@ export function AgencySelector() {
       onChange={event => dispatch(selectAgency(event.target.value))}
       className="mt-2 block min-h-11 w-full max-w-xl rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">
       <option value="" disabled>Chọn doanh nghiệp</option>
-      {agencies.map(agency => <option key={agency.agencyId} value={agency.agencyId}>{agency.companyName} — {agency.memberRole}</option>)}
+      {agencies.map(agency => <option key={agency.agencyId} value={agency.agencyId}>{agency.companyName} — {agency.roleName ?? agency.memberRole}</option>)}
     </select>
   </label>;
 }

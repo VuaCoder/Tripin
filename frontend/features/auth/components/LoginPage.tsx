@@ -25,7 +25,7 @@ export const LoginPage: React.FC = () => {
   };
 
   const handleRegisterSuccess = (data: RegisterResultData) => {
-    router.push(`/login?registered=true&email=${encodeURIComponent(data.email)}`);
+    router.push(`/verify-otp?email=${encodeURIComponent(data.email)}&purpose=REGISTER&next=${encodeURIComponent(nextPath ?? homeForRole('TRAVELER'))}`);
   };
 
   return (

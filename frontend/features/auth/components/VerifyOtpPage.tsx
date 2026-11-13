@@ -21,6 +21,8 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
   const router = useRouter();
   const params = useSearchParams();
   const nextPath = safeNextPath(params.get('next'));
+  const rememberMe = params.get('rememberMe') === 'true';
+  const [resendPassword, setResendPassword] = useState('');
   const dispatch = useAppDispatch();
   const [verifyOtp] = useVerifyOtpMutation();
   const [resendOtp] = useResendOtpMutation();
@@ -107,13 +109,19 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
     setErrorMsg(null);
     
     try {
+      if (purpose === 'FORGOT_PASSWORD') {
+        router.push(`/reset-password?email=${encodeURIComponent(email || '')}&code=${encodeURIComponent(otpValue)}`);
+        return;
+      }
       const data = await verifyOtp({
         email: email || '',
         code: otpValue,
         purpose: purpose as VerifyOtpPurpose,
+        rememberMe,
       }).unwrap();
 
-      dispatch(setCredentials(data));
+      dispatch(setCredentials({ ...data, rememberMe }));
+      setResendPassword('');
       setIsSuccess(true);
       setTimeout(() => {
         if (purpose === 'FORGOT_PASSWORD') {
@@ -141,7 +149,8 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
     setErrorMsg(null);
     
     try {
-      await resendOtp({ email: email || '', purpose: purpose as ResendOtpPurpose }).unwrap();
+      await resendOtp({ email: email || '', purpose: purpose as ResendOtpPurpose, ...(purpose === 'LOGIN_2FA' ? { password: resendPassword } : {}) }).unwrap();
+      setResendPassword('');
       setTimeLeft(600);
       setResendCooldown(60);
       setResendToast(true);
@@ -313,6 +322,7 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
                       )}
                     </button>
                     
+                    {purpose === 'LOGIN_2FA' && resendCooldown === 0 && <label className="mt-4 block text-sm text-slate-700">Mật khẩu để gửi lại mã<input type="password" autoComplete="current-password" value={resendPassword} onChange={event => setResendPassword(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 p-3" /><span className="mt-1 block text-xs text-slate-500">Chỉ cần nhập khi bạn muốn nhận mã mới.</span></label>}
                     {/* Resend OTP Row (Left: Text & 60s Countdown, Right: Resend Button) */}
                     <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between gap-3 font-vietnam text-xs sm:text-sm">
                       <div className="text-slate-500 font-medium flex items-center gap-1.5">
@@ -327,7 +337,7 @@ export const VerifyOtpPage: React.FC<VerifyOtpPageProps> = ({ email, purpose = '
                       <button
                         type="button"
                         onClick={handleResend}
-                        disabled={isResending || resendCooldown > 0}
+                        disabled={isResending || resendCooldown > 0 || (purpose === 'LOGIN_2FA' && !resendPassword)}
                         className="py-2 px-4 rounded-xl border border-slate-200 hover:border-brand-teal text-slate-700 hover:text-brand-teal disabled:opacity-40 disabled:cursor-not-allowed bg-white font-vietnam font-semibold text-xs transition-all duration-200 flex items-center gap-1.5 shrink-0 cursor-pointer"
                       >
                         {isResending ? (

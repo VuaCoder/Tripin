@@ -1,4 +1,5 @@
 import { RegisterPage } from "@/features/auth";
+import { Suspense } from "react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function RegisterGuideRoute() {
-  return <RegisterPage role="TOUR_GUIDE" />;
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-slate-500">Đang tải...</div>}>
+      <RegisterPage role="TOUR_GUIDE" />
+    </Suspense>
+  );
 }
