@@ -3,8 +3,6 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node
 import net from 'node:net';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import request from 'supertest';
-import { createApp } from '../../app';
 import { createApprovedTour, createVerifiedAgency, databaseUrl, startDatabase, stopDatabase } from '../../test/integration';
 
 // The production artefact: `tsup` bundle started with plain `node`, exactly like `pnpm --filter backend start`.
@@ -129,18 +127,4 @@ describe('production build (integration)', () => {
     expect(identical.status).not.toBe(0);
     expect(`${identical.stdout}${identical.stderr}`).toMatch(/must differ/);
   }, 60_000);
-});
-
-describe('placeholder modules (custom tours)', () => {
-  it('contain only their README and expose no route', async () => {
-    for (const name of ['custom-tours']) {
-      const dir = path.join(apiRoot, 'src/modules', name);
-      expect(readdirSync(dir).filter((file) => file !== '.gitkeep')).toEqual(['README.md']);
-    }
-    const app = createApp();
-    for (const url of ['/api/v1/carts', '/api/v1/custom-tours']) {
-      expect((await request(app).get(url)).status, url).toBe(404);
-      expect((await request(app).post(url).send({})).status, url).toBe(404);
-    }
-  });
 });

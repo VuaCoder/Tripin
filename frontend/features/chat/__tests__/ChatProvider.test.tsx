@@ -10,6 +10,7 @@ vi.mock('@/store/hooks', () => ({ useAppDispatch: () => mocks.dispatch, useAppSe
 vi.mock('@/store/api/baseApi', () => ({ refreshSession: mocks.refresh }));
 vi.mock('../api', () => ({ chatApi: { util: { invalidateTags: () => ({ type: 'invalidate' }) } } }));
 vi.mock('../api/aiChatApi', () => ({ aiChatApi: { util: { invalidateTags: () => ({ type: 'invalidate-ai' }) } } }));
+vi.mock('@/features/custom-tours/api', () => ({ customToursApi: { util: { invalidateTags: () => ({ type: 'invalidate-custom-tour' }) } } }));
 import { ChatProvider, useChat } from '../ChatProvider';
 let socket: ReturnType<typeof createSocket>;
 function createSocket() {
@@ -61,6 +62,23 @@ describe('ChatProvider', () => {
     await act(async () => resolve({ user: { id: 't1' }, accessToken: 'late' }));
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(1));
     expect(mocks.dispatch).not.toHaveBeenCalled();
+  });
+});
+
+describe('ChatProvider eligibility', () => {
+  it('opens the shared socket for an agency account', () => {
+    mocks.user = { id: 'a1', role: 'AGENCY', permissions: ['chat:use'] };
+    render(<ChatProvider><Consumer /></ChatProvider>);
+    expect(mocks.io).toHaveBeenCalledTimes(1);
+  });
+  it('stays offline for a role outside the inbox and for a user without chat:use', () => {
+    mocks.user = { id: 'm1', role: 'MODERATOR', permissions: ['chat:use'] };
+    render(<ChatProvider><Consumer /></ChatProvider>);
+    expect(mocks.io).not.toHaveBeenCalled();
+    cleanup();
+    mocks.user = { id: 't1', role: 'TRAVELER', permissions: [] };
+    render(<ChatProvider><Consumer /></ChatProvider>);
+    expect(mocks.io).not.toHaveBeenCalled();
   });
 });
 

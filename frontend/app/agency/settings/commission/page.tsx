@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { AgencyCommissionSettings } from '@/features/agency/components/AgencyCommissionSettings';
-import { Building2, Percent, ShieldCheck } from 'lucide-react';
+import { Building2, Percent, Users, ShieldCheck } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth';
 
@@ -19,9 +19,6 @@ export default function AgencyCommissionSettingsPage() {
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
             Chiết khấu Hoa hồng
           </h1>
-          <p className="mt-1 text-sm text-slate-500 font-medium">
-            Chính sách phân chia doanh thu và công cụ mô phỏng hoa hồng nền tảng
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -36,7 +33,7 @@ export default function AgencyCommissionSettingsPage() {
         </div>
       </div>
 
-      {/* Two-Function Tab Controller */}
+      {/* Three Independent Settings Tabs */}
       <div className="flex items-center justify-start">
         <div className="inline-flex rounded-2xl bg-slate-100/90 p-1.5 border border-slate-200/70 shadow-xs">
           <Link
@@ -53,6 +50,14 @@ export default function AgencyCommissionSettingsPage() {
           >
             <Percent size={18} className="text-teal-600" />
             <span>Chiết khấu Hoa hồng</span>
+          </Link>
+
+          <Link
+            href="/agency/settings/team"
+            className="inline-flex items-center gap-2.5 rounded-xl px-5 py-2.5 text-xs sm:text-sm font-bold transition-all text-slate-600 hover:text-slate-900 cursor-pointer"
+          >
+            <Users size={18} className="text-slate-400" />
+            <span>Bảng thành viên</span>
           </Link>
         </div>
       </div>

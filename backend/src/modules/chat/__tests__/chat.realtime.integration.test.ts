@@ -4,7 +4,7 @@ import request from 'supertest';
 import { io as connect, type Socket } from 'socket.io-client';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../../app';
-import { attachChatGateway } from '../chat.gateway';
+import { attachChatGateway, emitChatUpdated } from '../chat.gateway';
 import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
 import { prisma } from '../../../config/database';
 
@@ -89,6 +89,23 @@ describe('chat over sockets (real stack)', () => {
       expect(event.message.text).toBe('Hello guide!');
     }
     expect(await nothing).toBe(true);
+  });
+
+  it('emitChatUpdated nudges every given user room and nothing else', async () => {
+    const { traveler, guide, outsider, conversationId } = await conversation();
+    const travelerSocket = open(traveler.token);
+    const guideSocket = open(guide.token);
+    const outsiderSocket = open(outsider.token);
+    await Promise.all([travelerSocket, guideSocket, outsiderSocket].map(ready));
+
+    const travelerUpdate = nextEvent(travelerSocket, 'chat:updated');
+    const guideUpdate = nextEvent(guideSocket, 'chat:updated');
+    const outsiderUpdate = silent(outsiderSocket, 'chat:updated');
+    emitChatUpdated([traveler.id, guide.id], conversationId);
+
+    await expect(travelerUpdate).resolves.toEqual({ conversationId });
+    await expect(guideUpdate).resolves.toEqual({ conversationId });
+    expect(await outsiderUpdate).toBe(true);
   });
 
   it('chat:send over the socket stores the message, acks, and fans out; a foreign conversation is refused and leaks nothing', async () => {

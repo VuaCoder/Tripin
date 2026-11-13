@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { GUIDE_ASSIGNMENT_STATUS, ROLES, TOUR_STATUS } from '@travel-platform/constants';
+import { GUIDE_ASSIGNMENT_STATUS, ROLES, TOUR_STATUS, TOUR_VISIBILITY } from '@travel-platform/constants';
 import { ERROR_CODES } from '../../../utils/app-error';
 import { ToursService } from '../tours.service';
 import { agencyToursQuery } from '../tours.validation';
@@ -15,6 +15,7 @@ function makeTour(overrides: AnyTour = {}): AnyTour {
     agencyId: 'a1',
     title: 'Ha Long 3D2N',
     status: TOUR_STATUS.DRAFT,
+    visibility: TOUR_VISIBILITY.PUBLIC,
     durationDays: 3,
     categoryIds: ['c1'],
     itinerary: [],
@@ -31,6 +32,7 @@ function setup(tour: AnyTour | null) {
     create: vi.fn(async (data: AnyTour) => ({ id: 'new', ...data })),
     insertMany: vi.fn(async (data: AnyTour[]) => data.map((d, i) => ({ id: `n${i}`, ...d }))),
     findById: vi.fn(async (id: string) => (db && db.id === id ? db : null)),
+    findManyByIds: vi.fn(async (ids: string[]) => (db && ids.includes(db.id) ? [db] : [])),
     updateIfStatus: vi.fn(async (_id: string, expected: string[], patch: AnyTour) => {
       if (!db || !expected.includes(db.status)) return null;
       const { guide, ...rest } = patch;
@@ -395,6 +397,24 @@ describe('inventory for bookings', () => {
     await expect(closed.service.getBookableDeparture('t1', 'd1')).rejects.toMatchObject({ code: 'DEPARTURE_UNAVAILABLE' });
     const soldOut = setup(makeTour({ status: TOUR_STATUS.APPROVED, departures: [departure({ remaining: 0 })] }));
     await expect(soldOut.service.getBookableDeparture('t1', 'd1')).rejects.toMatchObject({ code: 'DEPARTURE_UNAVAILABLE' });
+  });
+
+  it('refuses a PRIVATE tour unless the internal group-booking path asks', async () => {
+    const { service } = setup(makeTour({ status: TOUR_STATUS.APPROVED, visibility: TOUR_VISIBILITY.PRIVATE, departures: [departure()] }));
+    await expect(service.getBookableDeparture('t1', 'd1')).rejects.toMatchObject({ statusCode: 404 });
+    await expect(service.getBookableDeparture('t1', 'd1', { allowPrivate: false })).rejects.toMatchObject({ statusCode: 404 });
+    await expect(service.getBookableDeparture('t1', 'd1', { allowPrivate: true })).resolves.toMatchObject({ tourId: 't1', departureId: 'd1' });
+  });
+
+  it('reports a PRIVATE tour departure as not bookable for carts, keeping the map key', async () => {
+    const { service } = setup(makeTour({ status: TOUR_STATUS.APPROVED, visibility: TOUR_VISIBILITY.PRIVATE, departures: [departure()] }));
+    const facts = await service.getDepartureFacts([{ tourId: 't1', departureId: 'd1' }]);
+    expect(facts.get('t1:d1')).toMatchObject({ tourId: 't1', departureId: 'd1', bookable: false });
+  });
+
+  it('includes visibility in tour facts', async () => {
+    const { service } = setup(makeTour({ status: TOUR_STATUS.APPROVED, visibility: TOUR_VISIBILITY.PRIVATE }));
+    await expect(service.getTourFacts('t1')).resolves.toMatchObject({ id: 't1', visibility: TOUR_VISIBILITY.PRIVATE });
   });
 
   it('turns a failed atomic reservation into NOT_ENOUGH_SEATS', async () => {

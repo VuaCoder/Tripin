@@ -83,7 +83,7 @@ describe('BookingsService.listCustomers', () => {
   });
 
   it('prints one row per saved passenger and keeps legacy bookings explicit', async () => {
-    const { service } = makeService({ bookings: [{ ...booking(1), passengers: [
+    const { service } = makeService({ bookings: [{ ...booking(1), passengerSnapshot: [
       { fullName: 'Lan', birthYear: 1990, ageGroup: 'ADULT', pickupPoint: 'Cổng A' },
       { fullName: 'An', ageGroup: 'CHILD', specialNotes: 'Dị ứng đậu' },
     ] }, booking(2)] });

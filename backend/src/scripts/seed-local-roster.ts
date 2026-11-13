@@ -31,7 +31,7 @@ async function main(): Promise<void> {
         tourId: tour.id, departureId: departure.id, tourTitle: tour.title, departureDate: departure.date, endDate,
         participants: 2, contactName: 'Nguyễn Minh Anh', contactPhone: '0901234567',
         notes: 'Đoàn khách thử nghiệm để kiểm tra danh sách hành khách.',
-        passengers: [
+        passengerSnapshot: [
           { fullName: 'Nguyễn Minh Anh', birthYear: 1992, ageGroup: 'ADULT', phone: '0901234567', pickupPoint: 'Nhà hát Lớn Hà Nội', specialNotes: 'Ăn chay' },
           { fullName: 'Trần Gia Bảo', birthYear: 2017, ageGroup: 'CHILD', phone: '0907654321', pickupPoint: 'Nhà hát Lớn Hà Nội', specialNotes: 'Dị ứng đậu phộng' },
         ],

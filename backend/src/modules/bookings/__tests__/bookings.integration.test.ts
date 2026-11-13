@@ -35,7 +35,7 @@ describe('bookings (integration)', () => {
     ] });
     expect(created.status).toBe(201);
     const bookingId = created.body.data.id as string;
-    expect((await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } })).passengers).toHaveLength(2);
+    expect((await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } })).passengerSnapshot).toHaveLength(2);
     await prisma.booking.update({ where: { id: bookingId }, data: { status: 'CONFIRMED', isPaid: true } });
     const url = `/api/v1/agency/tours/${tourId}/departures/${departureId}/customers.pdf`;
     const result = await request(app).get(url).set(bearer(staff.token)).set('X-Agency-Id', agency.id);

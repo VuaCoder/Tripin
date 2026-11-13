@@ -1,12 +1,12 @@
 # chat
 
-One-to-one conversations between a **Traveler** and a **Tour guide**, over REST (history, sending, inbox) and Socket.IO
+One-to-one conversations between a **Traveler** and a **Tour guide or Agency**, over REST (history, sending, inbox) and Socket.IO
 (live delivery). AI chat is a different module (`ai`).
 
 ## Use cases covered
 | Use case (diagram) | Actor | Endpoint / event |
 |---|---|---|
-| Make a conservation | Traveler, Tour guide | `POST /chat/conversations`, `GET /chat/conversations`, `GET/POST /chat/conversations/:id/messages`, `POST /chat/conversations/:id/read`; Socket.IO `chat:send / chat:read / chat:typing` |
+| Make a conservation | Traveler, Tour guide, Agency | `POST /chat/conversations`, `GET /chat/conversations`, `GET/POST /chat/conversations/:id/messages`, `POST /chat/conversations/:id/read`; Socket.IO `chat:send / chat:read / chat:typing` |
 
 ## Files
 | File | Role |
@@ -36,8 +36,8 @@ Unknown conversations **and** conversations of other people answer 404.
 * Payloads are validated with zod; at most 20 events / 10 s per socket (`RATE_LIMITED`); users without `chat:use` get `FORBIDDEN`. The sender id is always the authenticated user.
 
 ## Business rules
-1. Only TRAVELER ↔ TOUR_GUIDE (D-13); changing that means editing `chat.policy.ts` only. Agencies and staff are refused (403).
-2. One conversation per traveler/guide pair (unique index), optionally remembering the tour it started from.
+1. Only TRAVELER ↔ TOUR_GUIDE or TRAVELER ↔ AGENCY (D-13, D-85); changing that means editing `chat.policy.ts` only. Staff roles are refused (403).
+2. One conversation per traveler/operator pair (unique index), optionally remembering the tour it started from.
 3. Messages are stored in PostgreSQL (plain text, trimmed, ≤ 2000); clients must render them as text, not HTML.
 4. Sending bumps the recipient's unread counter atomically; an in-app notification (`CHAT_MESSAGE`) is created only when the recipient had nothing unread, to avoid notification floods.
 5. A failing realtime publisher never fails the send (the message is already stored).
@@ -47,11 +47,11 @@ Unknown conversations **and** conversations of other people answer 404.
 None.
 
 ## Data model
-`Conversation { travelerId, guideId, tourId?, lastMessage{text,senderId,sentAt}, unreadTraveler, unreadGuide, lastActivityAt }` with unique `(travelerId, guideId)` and inbox indexes `(travelerId|guideId, lastActivityAt desc)`;
+`Conversation { travelerId, guideId, tourId?, lastMessage{text,senderId,sentAt}, unreadTraveler, unreadGuide, lastActivityAt }` with unique `(travelerId, guideId)` and inbox indexes `(travelerId|guideId, lastActivityAt desc)`; `guideId` holds the operator side (guide or agency);
 `Message { conversationId, senderId, text, readAt?, createdAt }` with index `(conversationId, _id desc)` for cursor pagination.
 
 ## Permissions
-`chat:use` (TRAVELER, TOUR_GUIDE). Participation is verified per conversation in the service.
+`chat:use` (TRAVELER, TOUR_GUIDE, AGENCY). Participation is verified per conversation in the service.
 
 ## Dependencies
 * Uses: `users` (`assertActiveWithRole`, `getSummaries`), `notifications` (`notify`, `setPublisher`), `middlewares/authenticate` (`resolveUserActor`).
@@ -69,4 +69,4 @@ Socket events above; notification `CHAT_MESSAGE`.
 ## Not implemented / follow-ups
 * Attachments, message edit/delete, delivery receipts per device, presence.
 * Horizontal scaling needs the Socket.IO Redis adapter (rooms are per node today).
-* Conversations are not closed when a guide is banned (the other side simply cannot message a non-ACTIVE account in new conversations).
+* Conversations are not closed when a guide or agency is banned (the other side simply cannot message a non-ACTIVE account in new conversations).

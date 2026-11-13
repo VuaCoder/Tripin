@@ -93,6 +93,7 @@ export function TourReviewsSection({ tourId, tourTitle, ratingAvg, ratingCount }
   const meta = data?.meta;
   const canLoadMore = Boolean(meta && meta.page < meta.totalPages);
   const showLoading = isLoading && items.length === 0;
+  const showShimmer = isFetching && items.length > 0;
   const showError = isError && items.length === 0;
   const loginHref = `/login?next=${encodeURIComponent(`/tours/${tourId}`)}`;
 
@@ -219,18 +220,16 @@ export function TourReviewsSection({ tourId, tourTitle, ratingAvg, ratingCount }
         </div>
       </header>
 
-      <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="space-y-4">
+      <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div>
           {created && (
             <p
               role="status"
-              className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
+              className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
             >
               Cảm ơn bạn! Đánh giá đã được đăng.
             </p>
           )}
-
-          {showLoading && <LoadingState label="Đang tải đánh giá..." />}
 
           {showError && (
             <ErrorState
@@ -240,25 +239,56 @@ export function TourReviewsSection({ tourId, tourTitle, ratingAvg, ratingCount }
             />
           )}
 
-          {!showLoading && !showError && items.length === 0 && (
+          {showLoading && <LoadingState label="Đang tải đánh giá..." />}
+
+          {showShimmer && page === 1 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8 animate-pulse" aria-label="Đang tải đánh giá">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="flex flex-col py-2 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="size-11 rounded-full bg-slate-200" />
+                    <div className="space-y-1.5 flex-1">
+                      <div className="h-4 w-28 bg-slate-200 rounded" />
+                      <div className="h-3 w-20 bg-slate-100 rounded" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 w-20 bg-slate-200 rounded" />
+                    <div className="h-3 w-16 bg-slate-100 rounded" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="h-3.5 w-full bg-slate-200 rounded" />
+                    <div className="h-3.5 w-5/6 bg-slate-200 rounded" />
+                    <div className="h-3.5 w-2/3 bg-slate-100 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!showShimmer && !showError && items.length === 0 && (
             <EmptyState
               title="Chưa có đánh giá nào"
               description="Hãy là người đầu tiên chia sẻ cảm nhận về tour này."
             />
           )}
 
-          {items.map((review) => (
-            <ReviewCard key={review.id} review={review} />
-          ))}
+          {(!showShimmer || page > 1) && items.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+              {items.map((review) => (
+                <ReviewCard key={review.id} review={review} />
+              ))}
+            </div>
+          )}
 
           {isError && items.length > 0 && (
-            <p role="alert" className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+            <p role="alert" className="mt-4 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
               Không tải thêm được đánh giá. Vui lòng thử lại.
             </p>
           )}
 
           {canLoadMore && (
-            <div className="flex justify-center">
+            <div className="mt-8 flex justify-center">
               <Button
                 variant="outline"
                 size="sm"

@@ -53,6 +53,7 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 |---|---|---|
 | `TOUR_LOCKED` | 409 | The tour is in PENDING_REVIEW and cannot be edited |
 | `TOUR_HAS_BOOKINGS` | 409 | The tour has sold seats on a future departure and cannot be deleted |
+| `TOUR_PRIVATE_MANAGED_BY_CUSTOM_TOUR` | 409 | The tour is the private clone of a group-booking request; edit it from that request |
 | `DEPARTURE_EXISTS` | 409 | A departure already exists at this date and time |
 | `DEPARTURE_LIMIT` | 409 | A tour cannot exceed the maximum departure count limit |
 | `REQUEST_ALREADY_USED` | 409 | The request id has already been processed with different parameters |
@@ -62,6 +63,8 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `CAPACITY_BELOW_BOOKED` | 409 | Capacity cannot go below the seats already sold |
 | `DEPARTURE_HAS_BOOKINGS` | 409 | A departure with sold seats cannot be moved or removed (close it instead) |
 | `DEPARTURE_UNAVAILABLE` | 409 | The departure is closed, past, or sold out |
+| `DEPARTURE_PASSED` | 409 | A group booking's accepted offer has a departure date that is already in the past; the traveler must agree a new date |
+| `TOUR_UNAVAILABLE` | 409 | The private tour behind an accepted group offer is no longer APPROVED (e.g. suspended); nothing can be booked from it |
 | `PENDING_BOOKING_EXISTS` | 409 | The traveler already has a PENDING booking for the same tour and departure; pay or cancel it first. Details contain that traveler's existing bookingId and bookingCode. A retry with the same clientRequestId still returns the original booking. |
 | `CATEGORY_EXISTS` | 409 | A category with the same slug exists |
 | `PROMOTION_CODE_EXISTS` | 409 | The promotion code is already used |
@@ -124,6 +127,7 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `TICKET_FULL` | 409 | The support ticket reached its message limit |
 | `WISHLIST_FULL` | 409 | The wishlist reached its size limit |
 | `CART_FULL` | 409 | The cart reached its limit of distinct departures |
+| `IDEMPOTENCY_KEY_REUSED` | 409 | The same clientRequestId was already used with a different payload |
 | `AI_CONVERSATION_FULL` | 409 | The AI conversation reached its message limit; start a new one |
 | `AI_NOT_CONFIGURED` | 503 | AI provider configuration or credentials are invalid |
 | `AI_QUOTA_EXCEEDED` | 503 | AI provider quota or rate limit exceeded |

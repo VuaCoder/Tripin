@@ -23,7 +23,7 @@ import { TourDestinationCombobox } from './TourDestinationCombobox';
 import { TourCategoryCombobox } from './TourCategoryCombobox';
 import { TourItemCombobox } from './TourItemCombobox';
 import { editorFields, fieldStep, validateTourEditor, tourEditorServerErrors, type EditorField, type EditorErrors } from './tourEditorValidation';
-import { formatCurrencyVndInput, parseCurrencyVndInput } from '../utils';
+import { formatCurrencyVndInput, parseCurrencyVndInput, toTourContentInput } from '../utils';
 import editorStyles from './AgencyTourEditor.module.css';
 import { useAgencyContext } from '@/features/agency/agencyContext';
 
@@ -140,25 +140,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
 
   useEffect(() => {
     if (tour && !initialSnapshot) {
-      const initial: TourContentInput = {
-        title: tour.title ?? '',
-        summary: tour.summary ?? '',
-        description: tour.description ?? '',
-        destination: tour.destination ?? '',
-        durationDays: tour.durationDays ?? 1,
-        basePrice: tour.basePrice ?? 0,
-        maxGroupSize: tour.maxGroupSize,
-        categoryIds: tour.categoryIds ? [...tour.categoryIds].sort() : [],
-        images: tour.images && tour.images.length > 0 ? [...tour.images] : (tour.coverImage ? [tour.coverImage] : []),
-        inclusions: tour.inclusions ? [...tour.inclusions] : [],
-        highlights: tour.highlights ? [...tour.highlights] : [],
-        exclusions: tour.exclusions ? [...tour.exclusions] : [],
-        agePricing: tour.agePricing ?? null,
-        childPricingPolicy: tour.childPricingPolicy ?? '',
-        cancellationPolicy: tour.cancellationPolicy ?? '',
-        travelNotes: tour.travelNotes ?? '',
-        requiredDocuments: tour.requiredDocuments ?? '',
-      };
+      const initial = toTourContentInput(tour);
       setValue(initial);
       setInitialSnapshot(serializeForm(initial));
     }

@@ -1,4 +1,4 @@
-import type { BookingStatus } from '@/features/booking/types';
+import type { BookingPassenger, BookingStatus } from '@/features/booking/types';
 
 export interface AgencyDashboard {
   customers?: number;
@@ -13,7 +13,6 @@ export interface AgencyDashboard {
 }
 
 export interface AgencyBooking {
-  passengers?: { fullName: string; birthYear?: number; ageGroup: 'ADULT' | 'CHILD' | 'INFANT'; phone?: string; pickupPoint?: string; specialNotes?: string }[];
   id: string;
   bookingCode: string;
   status: BookingStatus;
@@ -26,6 +25,7 @@ export interface AgencyBooking {
   agencyAmount: number;
   isPaid: boolean;
   traveler?: { fullName: string; phone: string };
+  passengers?: (BookingPassenger | { fullName: string; birthYear?: number; ageGroup: 'ADULT' | 'CHILD' | 'INFANT'; phone?: string; pickupPoint?: string; specialNotes?: string })[];
   notes?: string;
   createdAt: string;
   confirmedAt?: string;

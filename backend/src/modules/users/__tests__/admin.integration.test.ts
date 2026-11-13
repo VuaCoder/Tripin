@@ -43,9 +43,9 @@ describe('admin: users and access', () => {
 
     expect((await audit()).status).toBe(403);
     expect((await access(admin.token, traveler.id, { extraPermissions: [PERMISSIONS.AUDIT_LOG_VIEW, PERMISSIONS.AGENCY_DASHBOARD_VIEW] })).status).toBe(200);
-    // Admin permissions cannot bypass the mandatory role guard; other extra grants still work immediately.
+    // Admin permissions cannot bypass the mandatory role guard, and an extra grant never fakes agency membership.
     expect((await audit()).status).toBe(403);
-    expect((await request(app).get('/api/v1/agency/dashboard').set(bearer(traveler.token))).status).toBe(200);
+    expect((await request(app).get('/api/v1/agency/dashboard').set(bearer(traveler.token))).status).toBe(403);
     expect((await access(admin.token, traveler.id, { extraPermissions: [] })).status).toBe(200);
     expect((await audit()).status).toBe(403);
     expect((await request(app).get('/api/v1/agency/dashboard').set(bearer(traveler.token))).status).toBe(403);
@@ -53,8 +53,11 @@ describe('admin: users and access', () => {
     expect((await request(app).get('/api/v1/agency/tours').set(bearer(traveler.token))).status).toBe(403);
     const promoted = await access(admin.token, traveler.id, { role: 'AGENCY' });
     expect(promoted.status).toBe(200);
-    expect((await request(app).get('/api/v1/agency/tours').set(bearer(traveler.token))).status).toBe(200);
     expect((await prisma.user.findUnique({ where: { id: traveler.id }, include: { agencyProfile: true } }))!.agencyProfile!.verificationStatus).toBe('UNVERIFIED');
+    // Promotion creates the membership, but every /agency/* mount waits for a verified profile.
+    expect((await request(app).get('/api/v1/agency/tours').set(bearer(traveler.token))).status).toBe(403);
+    await prisma.agencyProfile.update({ where: { userId: traveler.id }, data: { verificationStatus: 'VERIFIED' } });
+    expect((await request(app).get('/api/v1/agency/tours').set(bearer(traveler.token))).status).toBe(200);
 
     expect(await prisma.auditLog.count({ where: { action: 'user.access_assigned' } })).toBe(3);
   });
@@ -140,13 +143,14 @@ describe('admin: commission and policies', () => {
     const admin = await createUser('SUPER_ADMIN', 'admin@example.com');
     const agency = await createUser('AGENCY', 'agency@example.com');
     const traveler = await createUser('TRAVELER', 'traveler@example.com');
+    const secondTraveler = await createUser('TRAVELER', 'traveler2@example.com');
     const { tourId, departureId } = await createApprovedTour(agency.id, { price: 1_000_000, capacity: 10 });
     let revision = 0;
     const setRate = async (ratePercent: unknown, token = admin.token) => { const result = await request(app).put('/api/v1/admin/settings/commission').set(bearer(token)).send({ ratePercent, expectedVersion: revision }); if (result.status === 200) revision = result.body.data.version; return result; };
-    const book = () =>
+    const book = (token = traveler.token) =>
       request(app)
         .post('/api/v1/bookings')
-        .set(bearer(traveler.token))
+        .set(bearer(token))
         .send({ tourId, departureId, participants: 1, contact: { fullName: 'Nguyen Van A', phone: '0901234567' } });
 
     const initial = await request(app).get('/api/v1/admin/settings/commission').set(bearer(admin.token));
@@ -161,7 +165,8 @@ describe('admin: commission and policies', () => {
     expect((await setRate(10)).status).toBe(200);
     const oldBooking = (await book()).body.data.id;
     expect((await setRate(12.5)).status).toBe(200);
-    const newBooking = (await book()).body.data.id;
+    // One pending booking per traveler and departure, so the second snapshot needs a second traveler.
+    const newBooking = (await book(secondTraveler.token)).body.data.id;
 
     expect((await prisma.booking.findUnique({ where: { id: oldBooking } }))!.commissionBps).toBe(1000);
     const fresh = (await prisma.booking.findUnique({ where: { id: newBooking } }))!;

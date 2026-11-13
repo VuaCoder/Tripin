@@ -148,69 +148,124 @@ function PaymentResult({
     }
   };
 
+  const theme = {
+    PAID: {
+      bgIcon: 'bg-emerald-50 text-emerald-600 ring-8 ring-emerald-50/60',
+      icon: 'check_circle',
+      titleColor: 'text-slate-900',
+      accentColor: 'text-emerald-700',
+    },
+    PENDING: {
+      bgIcon: 'bg-amber-50 text-amber-600 ring-8 ring-amber-50/60',
+      icon: 'hourglass_top',
+      titleColor: 'text-slate-900',
+      accentColor: 'text-amber-700',
+    },
+    CANCELLED: {
+      bgIcon: 'bg-amber-50 text-amber-600 ring-8 ring-amber-50/60',
+      icon: 'info',
+      titleColor: 'text-slate-900',
+      accentColor: 'text-slate-700',
+    },
+    EXPIRED: {
+      bgIcon: 'bg-rose-50 text-rose-600 ring-8 ring-rose-50/60',
+      icon: 'schedule',
+      titleColor: 'text-slate-900',
+      accentColor: 'text-rose-700',
+    },
+    FAILED: {
+      bgIcon: 'bg-rose-50 text-rose-600 ring-8 ring-rose-50/60',
+      icon: 'error',
+      titleColor: 'text-slate-900',
+      accentColor: 'text-rose-700',
+    },
+  }[payment.status as 'PAID' | 'PENDING' | 'CANCELLED' | 'EXPIRED' | 'FAILED'] ?? {
+    bgIcon: 'bg-slate-50 text-slate-600 ring-8 ring-slate-50/60',
+    icon: 'info',
+    titleColor: 'text-slate-900',
+    accentColor: 'text-slate-700',
+  };
+
   return (
     <section
-      className="w-full max-w-xl space-y-5 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8"
+      className="w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-7 shadow-xl shadow-slate-900/5 sm:p-9"
       aria-live="polite"
     >
-      <div
-        className={`mx-auto flex size-14 items-center justify-center rounded-full ${paid ? 'bg-teal-50 text-teal-700' : 'bg-amber-50 text-amber-700'}`}
-      >
-        <span className="material-symbols-outlined text-3xl" aria-hidden="true">
-          {paid ? 'check_circle' : pending ? 'hourglass_top' : 'info'}
-        </span>
+      {/* Top Status Icon */}
+      <div className="flex justify-center mb-5">
+        <div className={`flex size-16 items-center justify-center rounded-full transition-transform ${theme.bgIcon}`}>
+          <span className="material-symbols-outlined text-3xl font-medium" aria-hidden="true">
+            {theme.icon}
+          </span>
+        </div>
       </div>
-      <h1 className="text-center text-2xl font-extrabold text-slate-900">
-        {title}
-      </h1>
-      {paid ? (
-        subscription ? (
-          payment.premium ? (
-            <PremiumActivation subscriptionId={payment.referenceId} />
+
+      {/* Main Title & Subtitle */}
+      <div className="text-center space-y-2 mb-6">
+        <h1 className={`text-2xl font-black tracking-tight sm:text-[26px] ${theme.titleColor}`}>
+          {title}
+        </h1>
+        {paid ? (
+          subscription ? (
+            payment.premium ? (
+              <PremiumActivation subscriptionId={payment.referenceId} />
+            ) : (
+              <SubscriptionActivation subscriptionId={payment.referenceId} />
+            )
           ) : (
-            <SubscriptionActivation subscriptionId={payment.referenceId} />
+            <p className="text-sm font-medium leading-relaxed text-slate-600 max-w-sm mx-auto">
+              Hệ thống đã xác nhận thanh toán thành công. Chi tiết chuyến đi và mã vé đã sẵn sàng bên dưới.
+            </p>
           )
         ) : (
-          <p className="text-sm text-slate-600">
-            Hệ thống đã xác nhận thanh toán. Xem chi tiết chuyến đi và vé điện
-            tử bên dưới.
+          <p className="text-sm font-medium leading-relaxed text-slate-600 max-w-md mx-auto">
+            {pending
+              ? cancelled
+                ? 'Bạn đã quay lại từ cổng thanh toán. Giao dịch vẫn đang chờ thanh toán; chưa có xác nhận thành công.'
+                : 'Hệ thống đang kiểm tra kết quả với cổng thanh toán. Chưa có xác nhận thành công.'
+              : 'Bạn có thể kiểm tra lại hoặc mở lại thanh toán từ trang quản lý.'}{' '}
+            {subscription &&
+              'Gói chỉ được kích hoạt sau khi hệ thống xác nhận thanh toán.'}
           </p>
-        )
-      ) : (
-        <p className="text-sm text-slate-600">
-          {pending
-            ? cancelled
-              ? 'Bạn đã quay lại từ cổng thanh toán. Giao dịch vẫn đang chờ thanh toán; chưa có xác nhận thành công.'
-              : 'Hệ thống đang kiểm tra kết quả với cổng thanh toán. Chưa có xác nhận thành công.'
-            : 'Bạn có thể kiểm tra lại hoặc mở lại thanh toán từ trang quản lý.'}{' '}
-          {subscription &&
-            'Gói chỉ được kích hoạt sau khi hệ thống xác nhận thanh toán.'}
-        </p>
-      )}
-      <dl className="space-y-3 rounded-2xl bg-slate-50 p-4 text-sm">
-        <div>
-          <dt className="text-slate-500">Mã giao dịch</dt>
-          <dd className="mt-1 break-all font-mono text-xs">{payment.id}</dd>
+        )}
+      </div>
+
+      {/* Transaction Details Card */}
+      <div className="rounded-2xl border border-slate-100 bg-slate-50/90 p-5 space-y-3.5 mb-7">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 pb-3 border-b border-slate-200/60">
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            Mã giao dịch
+          </span>
+          <span className="font-mono text-xs font-bold text-slate-800 break-all select-all sm:text-right">
+            {payment.id}
+          </span>
         </div>
-        <div className="flex justify-between gap-3">
-          <dt>Số tiền</dt>
-          <dd className="font-bold text-teal-800">
+
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-semibold text-slate-600">Số tiền thanh toán</span>
+          <span className="text-lg font-black text-teal-800 tracking-tight" style={{ fontVariantNumeric: 'tabular-nums' }}>
             {formatGuideMoney(payment.amount)}
-          </dd>
+          </span>
         </div>
+
         {!paid && (
-          <div>
-            <dt>Hạn thanh toán</dt>
-            <dd>{formatGuideDate(payment.expiresAt)}</dd>
+          <div className="flex items-center justify-between gap-3 pt-2.5 border-t border-slate-200/60 text-xs">
+            <span className="font-medium text-slate-500">Hạn thanh toán</span>
+            <span className="font-semibold text-slate-700">
+              {formatGuideDate(payment.expiresAt)}
+            </span>
           </div>
         )}
-      </dl>
+      </div>
+
       {retryError && (
-        <p role="alert" className="text-sm text-red-700">
+        <div role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 p-3.5 text-center text-sm font-semibold text-red-700">
           {retryError}
-        </p>
+        </div>
       )}
-      <div className="flex flex-wrap gap-3">
+
+      {/* Action Buttons */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-center gap-3">
         {!paid && (
           <Button
             variant="outline"
@@ -219,21 +274,25 @@ function PaymentResult({
               setPolling(true);
               void query.refetch();
             }}
+            className="w-full sm:w-auto h-11 px-5 rounded-xl font-bold border-slate-300 text-slate-700 hover:bg-slate-50"
           >
             Kiểm tra lại
           </Button>
         )}
+
         {!paid && !subscription && (
           <Button
             loading={checkoutState.isLoading}
             onClick={() => void retryBooking()}
+            className="w-full sm:w-auto h-11 px-6 rounded-xl font-bold bg-primary-container text-white hover:bg-primary shadow-sm"
           >
             Thanh toán lại
           </Button>
         )}
+
         <Link
           href={destination}
-          className="inline-flex min-h-10 items-center rounded-xl bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800"
+          className="inline-flex h-11 items-center justify-center rounded-xl bg-teal-800 px-6 text-sm font-bold text-white shadow-sm transition hover:bg-teal-900 active:scale-[0.98] w-full sm:w-auto"
         >
           {subscription
             ? paid
@@ -245,19 +304,20 @@ function PaymentResult({
                 : 'Quay lại gói dịch vụ / Thanh toán tiếp'
             : 'Chi tiết chuyến đi'}
         </Link>
+
         {paid && !subscription && (
           <Link
             href={`${destination}/ticket`}
-            className="inline-flex min-h-10 items-center rounded-xl border border-slate-200 px-4 text-sm font-semibold"
+            className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 text-sm font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] w-full sm:w-auto"
           >
             Xem vé điện tử (E-ticket)
           </Link>
         )}
       </div>
+
       {pending && !polling && (
-        <p className="text-xs text-slate-500">
-          Chưa xác định được kết quả. Bạn có thể kiểm tra lại; không cần tạo
-          đăng ký mới để xác nhận giao dịch này.
+        <p className="mt-4 text-center text-xs font-medium text-slate-500">
+          Chưa xác định được kết quả. Bạn có thể bấm "Kiểm tra lại"; không cần tạo đăng ký mới để xác nhận giao dịch này.
         </p>
       )}
     </section>

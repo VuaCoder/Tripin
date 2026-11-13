@@ -48,7 +48,7 @@ export default function AgencyLayout({ children }: { children: ReactNode }) {
   return (
       <div className={`${sidebarStyles.shell} bg-[#f7f8f5]`}>
         <AgencyNav />
-        <div className={sidebarStyles.body}><div className="px-4 pt-4 sm:px-6"><AgencySelector /></div><AntdRegistry><div key={activeAgency.agencyId}>{allowed ? children : <p role="alert" className="p-6">Bạn không có quyền truy cập chức năng này trong doanh nghiệp đang chọn.</p>}</div></AntdRegistry></div>
+        <div className={sidebarStyles.body}><AntdRegistry><div key={activeAgency.agencyId}>{allowed ? children : <p role="alert" className="p-6">Bạn không có quyền truy cập chức năng này trong doanh nghiệp đang chọn.</p>}</div></AntdRegistry></div>
       </div>
   );
 }

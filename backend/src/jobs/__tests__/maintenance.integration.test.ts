@@ -130,6 +130,7 @@ describe('maintenance jobs (integration)', () => {
       'promotions.sweepExpiring',
       'subscriptions.cancelAbandoned',
       'subscriptions.expireEnded',
+      'subscriptions.notifyExpiring',
     ].sort());
     for (let round = 0; round < 2; round += 1) {
       const results = await Promise.all(tasks.map((t) => t.run()));

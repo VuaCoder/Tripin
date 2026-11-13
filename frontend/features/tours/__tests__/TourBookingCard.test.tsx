@@ -64,4 +64,9 @@ describe('Booking search context', () => {
     expect(screen.getByRole('alert').textContent).toContain('chưa công bố giá');
     expect(screen.getByRole('button', { name: 'Yêu cầu đặt tour' }).hasAttribute('disabled')).toBe(true);
   });
+  it('offers a group request even when the tour has no open departure', () => {
+    render(<TourBookingCard tour={{ ...tour, departures: [] }} />);
+    expect(screen.getByText('Tour hiện chưa có ngày khởi hành còn chỗ.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Yêu cầu booking đoàn' })).toBeTruthy();
+  });
 });

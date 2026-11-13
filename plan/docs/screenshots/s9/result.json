@@ -1,0 +1,29 @@
+{
+  "requestId": "7d165b8b-963f-4db0-a86b-699e8d0f383a",
+  "checks": [
+    "Traveler sees the pinned group-request card in the new conversation",
+    "Dialog is centred over a dimmed page",
+    "Agency accepts a fresh request from the pinned panel",
+    "Agency edits the tour details (description, inclusions, exclusions) and saves them",
+    "Agency sends the offer from the panel",
+    "Traveler sees the negotiated tour details next to the per-group price table",
+    "Dialog fits a phone with a 16px gutter",
+    "Escape closes the dialog and returns focus to the pinned card",
+    "Traveler accepts the offer and is sent to the passenger form",
+    "Agency sees the accepted state",
+    "Passenger form autosaves once every member is filled",
+    "Reload restores the saved members with nothing left to save",
+    "Passenger form fits a phone without sideways scrolling",
+    "Passenger form becomes exactly one booking and opens its PayOS detail page",
+    "Request list shows the live booking instead of the passenger form",
+    "Request list resumes the existing booking",
+    "Pinned chat card resumes the booking too",
+    "Request list and dialog fit 320/768/1024/1440px; focus is trapped and returns to the card"
+  ],
+  "shots9": [
+    "01-traveler-passenger-form.png",
+    "02-traveler-reloaded.png",
+    "03-mobile-passenger-form.png"
+  ],
+  "errors": []
+}

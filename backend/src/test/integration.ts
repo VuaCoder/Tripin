@@ -46,11 +46,22 @@ export async function stopDatabase(): Promise<void> {
   databaseUrl = undefined;
 }
 
-/** Empties every table but keeps the schema. */
+/**
+ * Empties every table but keeps the schema.
+ * A concurrent connection can deadlock the TRUNCATE (40P01), so it retries instead of failing the suite.
+ */
 export async function resetDatabase(): Promise<void> {
   const tables = await prisma.$queryRaw<{ tablename: string }[]>`SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`;
   if (tables.length === 0) return;
-  await prisma.$executeRawUnsafe(`TRUNCATE ${tables.map((t) => `"${t.tablename}"`).join(', ')} RESTART IDENTITY CASCADE`);
+  const sql = `TRUNCATE ${tables.map((t) => `"${t.tablename}"`).join(', ')} RESTART IDENTITY CASCADE`;
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await prisma.$executeRawUnsafe(sql);
+      return;
+    } catch (error) {
+      if (attempt === 3 || !String((error as Error).message).includes('40P01')) throw error;
+    }
+  }
 }
 
 /** Replaces the mail transport with an in-memory outbox so OTP codes can be read back. */
@@ -91,7 +102,11 @@ export async function registerAndVerify(app: Express, mail: ReturnType<typeof ca
 
 type AgencyProfileInput = Omit<Prisma.AgencyProfileUncheckedCreateInput, 'userId'>;
 
-/** Active account created straight in the database (agencies are not part of the flow under test). */
+/**
+ * Active account created straight in the database (agencies are not part of the flow under test).
+ * An AGENCY always gets a profile: `Tour.agencyId` and `CustomTourRequest.agencyId` reference
+ * `AgencyProfile.id`, and the onboarding trigger keeps that id equal to the user id.
+ */
 export async function createUser(
   role: Exclude<keyof typeof ROLES, 'GUEST'>,
   email: string,

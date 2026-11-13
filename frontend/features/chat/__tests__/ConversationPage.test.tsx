@@ -8,11 +8,12 @@ const mocks = vi.hoisted(() => ({
   connected: true,
   detailError: undefined as unknown, revision: 0,
   isListLoading: false,
+  role: 'TRAVELER', permissions: ['chat:use'],
   convList: [{ id: 'c1', counterpart: { fullName: 'Guide A' }, lastMessage: { text: 'Xin chào' }, updatedAt: '2026-10-18T10:00:00Z', unreadCount: 2 }],
 }));
 vi.mock('next/link', () => ({ default: ({ href, children, ...props }: any) => <a href={href} {...props}>{children}</a> }));
 vi.mock('@/store/hooks', () => ({
-  useAppSelector: () => ({ id: 't1', role: 'TRAVELER', permissions: ['chat:use'] }),
+  useAppSelector: () => ({ id: 't1', role: mocks.role, permissions: mocks.permissions }),
   useAppDispatch: () => mocks.dispatch,
 }));
 vi.mock('../api', () => ({
@@ -23,6 +24,10 @@ vi.mock('../api', () => ({
   useSendMessageMutation: () => [(args: unknown) => ({ unwrap: () => mocks.sendRest(args) })],
 }));
 vi.mock('../api/aiChatApi', () => ({ useGetAiOverviewQuery: () => ({ data: { latest: null, unreadCount: 0 }, refetch: vi.fn() }) }));
+// The pinned group-booking card has its own suite in features/custom-tours; here it only needs to mount.
+vi.mock('@/features/custom-tours/components/CustomTourChatSection', () => ({
+  CustomTourChatSection: ({ conversationId }: { conversationId: string }) => <p>Thỏa thuận đoàn {conversationId}</p>,
+}));
 vi.mock('../ChatProvider', () => ({ useChat: () => ({ connected: mocks.connected, delivered: new Set(), revision: mocks.revision, reconnect: vi.fn(), send: mocks.send,
   typing: vi.fn(), subscribeTyping: mocks.subscribeTyping,
   subscribe: (listener: (message: unknown) => void) => { mocks.listener = listener; return () => { mocks.listener = null; }; },
@@ -35,6 +40,7 @@ import { ConversationPage } from '../ConversationPage';
 const message = (id: string, mine = false) => ({ id, conversationId: 'c1', senderId: mine ? 't1' : 'g1', text: `Tin ${id}`, isMine: mine, createdAt: `2026-10-18T10:00:${id.padStart(2, '0')}Z` });
 beforeEach(() => {
   vi.clearAllMocks(); mocks.connected = true; mocks.detailError = undefined; mocks.revision = 0; mocks.isListLoading = false;
+  mocks.role = 'TRAVELER'; mocks.permissions = ['chat:use'];
   mocks.convList = [{ id: 'c1', counterpart: { fullName: 'Guide A' }, lastMessage: { text: 'Xin chào' }, updatedAt: '2026-10-18T10:00:00Z', unreadCount: 2 }];
   mocks.subscribeTyping.mockImplementation((listener: any) => { mocks.typingListener = listener; return () => { mocks.typingListener = null; }; });
   mocks.fetch.mockResolvedValue({ items: [], hasMore: false }); mocks.read.mockResolvedValue({ unreadCount: 0 }); mocks.send.mockReturnValue(null);
@@ -142,6 +148,12 @@ describe('ConversationPage', () => {
     expect(screen.queryByText('Khám phá tour & liên hệ HDV →')).toBeNull();
   });
 
+  it('welcomes an agency empty inbox with the group-booking copy', async () => {
+    mocks.role = 'AGENCY'; mocks.convList = [];
+    render(<ConversationPage />);
+    expect((await screen.findAllByText(/Khi khách gửi yêu cầu booking đoàn/)).length).toBeGreaterThan(0);
+  });
+
   it('does not display complaints tab in inbox and renders counterpart avatar', () => {
     render(<ConversationPage />);
     expect(screen.queryByText('Phiếu khiếu nại')).toBeNull();
@@ -185,6 +197,11 @@ describe('Typing bubble', () => {
     expect(await screen.findByText('Tin nhắn chứa từ ngữ không phù hợp hoặc vi phạm tiêu chuẩn cộng đồng')).toBeTruthy();
     expect(mocks.sendRest).not.toHaveBeenCalled();
     expect(mocks.send).not.toHaveBeenCalled();
+  });
+  it('pins the group-booking card above a real conversation', async () => {
+    render(<ConversationPage id="c1" />);
+    await screen.findByText('Bắt đầu tin nhắn cùng Guide A');
+    expect(screen.getByText('Thỏa thuận đoàn c1')).toBeTruthy();
   });
 });
 

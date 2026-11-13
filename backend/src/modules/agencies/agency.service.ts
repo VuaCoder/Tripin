@@ -10,6 +10,19 @@ import { AGENCY_ROLE_PERMISSIONS, type AgencyContext } from './agency.policy';
 const digest = (s: string) => createHash('sha256').update(s).digest('hex');
 const memberInclude = { agency: { select: { id: true, companyName: true, verificationStatus: true } } } as const;
 
+/** Redact the local part of an email to `j***n@example.com` so it is never exposed to an unverified caller. */
+function maskEmail(email: string): string {
+  const at = email.indexOf('@');
+  if (at <= 1) return email.length > 1 ? email[0] + '***' : email; // no usable domain → keep it vague
+  const local = email.slice(0, at), domain = email.slice(at);
+  const head = local[0];
+  const tail = local.length > 2 ? local[local.length - 1] : '';
+  const mid = '*'.repeat(Math.max(1, local.length - 1 - (tail ? 1 : 0)));
+  return `${head}${mid}${tail}${domain}`;
+}
+
+export type InvitationValidateStatus = 'PENDING' | 'EXPIRED' | 'ACCEPTED' | 'REVOKED';
+
 export class AgencyService {
   async listForUser(userId: string) {
     const rows = await prisma.agencyMember.findMany({
@@ -75,7 +88,7 @@ export class AgencyService {
       }
       const row = await tx.agencyInvitation.create({ data: { agencyId: ctx.agencyId, email, role: input.role,
         tokenHash: digest(token), invitedByUserId: ctx.actorUserId, expiresAt: new Date(Date.now() + 86400000) } });
-      const url = (env.CLIENT_URL.split(',')[0] ?? '').replace(/\/$/, '') + '/agency/invitations/accept?token=' + token;
+      const url = (env.CLIENT_URL.split(',')[0] ?? '').replace(/\/$/, '') + '/invitations/accept?token=' + token;
       await enqueueMail(tx, 'agency-invitation:' + row.id, email, 'Agency invitation', 'Accept your agency invitation: ' + url);
       await writeAudit(tx, { actorId: ctx.actorUserId, actorRole: actor.user.role, action: 'agency.invitation_created', targetType: 'agency-invitation', targetId: row.id,
         metadata: { agencyId: ctx.agencyId, role: row.role } });
@@ -109,6 +122,38 @@ export class AgencyService {
       await writeAudit(tx, { actorId: userId, actorRole: user.role, action: 'agency.invitation_accepted', targetType: 'agency-member', targetId: member.id, metadata: { agencyId: inv.agencyId } });
       return member;
     });
+  }
+
+  /**
+   * Public, pre-accept validation of an invitation token. Only safe metadata is returned:
+   * never the raw token or its hash. The invited email is redacted unless `emailHint` matches
+   * (case-insensitive), so the accept page can confirm the signing-in user is the invitee.
+   */
+  async validateInvitationToken(token: string, emailHint?: string): Promise<{
+    status: InvitationValidateStatus;
+    email: string;
+    emailMatched: boolean;
+    role: AgencyMemberRole;
+    expiresAt: Date;
+    agencyName: string | null;
+  }> {
+    const hint = await prisma.agencyInvitation.findUnique({
+      where: { tokenHash: digest(token) },
+      select: { email: true, role: true, status: true, expiresAt: true, agency: { select: { companyName: true } } },
+    });
+    if (!hint) throw AppError.notFound('Invitation not found');
+    const expired = hint.status === 'EXPIRED' || hint.expiresAt <= new Date();
+    const status: InvitationValidateStatus = expired ? 'EXPIRED'
+      : hint.status === 'ACCEPTED' ? 'ACCEPTED' : hint.status === 'REVOKED' ? 'REVOKED' : 'PENDING';
+    const emailMatched = emailHint !== undefined && hint.email === emailHint.toLowerCase();
+    return {
+      status,
+      email: emailMatched ? hint.email : maskEmail(hint.email),
+      emailMatched,
+      role: hint.role,
+      expiresAt: hint.expiresAt,
+      agencyName: hint.agency.companyName,
+    };
   }
 
   async revoke(ctx: AgencyContext, invitationId: string) {

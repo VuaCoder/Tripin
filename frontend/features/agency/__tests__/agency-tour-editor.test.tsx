@@ -69,6 +69,11 @@ describe('Tour editor inline reminders', () => {
     expect(screen.queryByText('Nhập tên tour từ 5 đến 200 ký tự nhé.')).toBeNull();
   });
 
+  it('does not render guide assignment while creating a tour', () => {
+    render(<AgencyTourEditorPage mode="create" />);
+    expect(screen.queryByText('Hướng dẫn viên phụ trách')).toBeNull();
+  });
+
   it('validates on blur and rejects fractional days locally', () => {
     render(<AgencyTourEditorPage mode="create" />);
     const days = screen.getByRole('spinbutton', { name: 'Thời lượng (Số ngày)' });

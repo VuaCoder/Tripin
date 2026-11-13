@@ -1,4 +1,4 @@
-import { GUIDE_ASSIGNMENT_STATUS, TOUR_STATUS, type GuideAssignmentStatus, type TourStatus } from '@travel-platform/constants';
+import { GUIDE_ASSIGNMENT_STATUS, TOUR_STATUS, type GuideAssignmentStatus, type TourStatus, type TourVisibility } from '@travel-platform/constants';
 import type { TransitionMap } from '../../utils/state-machine';
 import type { CategoryDto } from '../categories';
 import type { AgePricing } from '@travel-platform/constants';
@@ -158,6 +158,8 @@ export interface TourDetailDto extends TourListItemDto {
 /** What the owning agency / moderators see (adds workflow fields). */
 export interface TourManageDto extends TourDetailDto {
   status: TourStatus;
+  /** PRIVATE tours exist only for one group-booking request and never reach public discovery. */
+  visibility: TourVisibility;
   statusReason?: string;
   submittedAt?: string;
   reviewedAt?: string;
@@ -214,5 +216,15 @@ export interface DepartureFacts {
   remaining: number;
   isOpen: boolean;
   bookable: boolean;
+}
+
+/** Card facts other modules need about a tour of any status (e.g. a group request's source tour). */
+export interface TourBrief {
+  id: string;
+  agencyId: string;
+  title: string;
+  images: string[];
+  status: TourStatus;
+  visibility: TourVisibility;
 }
 
