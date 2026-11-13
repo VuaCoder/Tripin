@@ -57,12 +57,14 @@ export class ChatService {
    * The counterpart must be an ACTIVE user of the opposite role (policy in `chat.policy.ts`).
    */
   async startConversation(actor: Actor, input: StartConversationInput): Promise<ConversationDto> {
-    if (actor.role !== 'TRAVELER' && actor.role !== 'TOUR_GUIDE' && actor.role !== 'AGENCY') {
-      throw AppError.forbidden('Conversations are only possible between a traveler and an agency or tour guide');
+    if (actor.role !== 'TRAVELER' && actor.role !== 'TOUR_GUIDE' && actor.role !== 'AGENCY' && actor.role !== 'SUPER_ADMIN') {
+      throw AppError.forbidden('Bạn không có quyền mở cuộc trò chuyện này.');
     }
 
     let other: { id: string; role: PersistedRole; fullName: string; avatarUrl: string | null; agencyProfile?: { companyName: string | null } | null };
-    if (actor.role === 'TRAVELER') {
+    if (actor.role === 'SUPER_ADMIN') {
+      other = await this.users.assertActiveWithRole(input.participantId, 'AGENCY');
+    } else if (actor.role === 'TRAVELER') {
       other = await this.users.assertActiveWithRoles(input.participantId, ['AGENCY', 'TOUR_GUIDE']);
     } else {
       // Counterpart of an operator must be checked before 404
@@ -182,7 +184,7 @@ export class ChatService {
   }
 
   private sideForRole(role: PersistedRole): ChatSide {
-    if (role === 'TRAVELER') return 'traveler';
+    if (role === 'TRAVELER' || role === 'SUPER_ADMIN') return 'traveler';
     if (role === 'TOUR_GUIDE' || role === 'AGENCY') return 'guide';
     throw AppError.forbidden('Conversations are only possible between a traveler and an agency or tour guide');
   }

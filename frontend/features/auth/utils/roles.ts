@@ -3,7 +3,7 @@ import type { UserRole } from '../types';
 export const homeForRole = (role?: UserRole | null): string => {
   switch (role) {
     case 'AGENCY':
-      return '/agency';
+      return '/workplaces';
     case 'TOUR_GUIDE':
       return '/guide';
     case 'MODERATOR':

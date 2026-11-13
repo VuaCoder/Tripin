@@ -1,5 +1,8 @@
 // Vitest setup: deterministic environment so config/env.ts can be imported without a .env file.
 process.env.NODE_ENV = 'test';
+// Unit imports must never inherit a developer's shared database. Integration
+// helpers explicitly replace this with their isolated loopback database.
+process.env.DATABASE_URL = 'postgresql://postgres:postgres@127.0.0.1:1/tripri_test_unconfigured';
 // Prevent a developer's local Google credentials from changing offline test behavior.
 process.env.GOOGLE_CLIENT_ID = '';
 process.env.GOOGLE_CLIENT_SECRET = '';

@@ -11,4 +11,5 @@ export * from './AntDateRangePicker';
 export * from './Checkbox';
 export * from './ViewModeToggle';
 export * from './RefreshButton';
+export * from './TimeWheelPicker';
 export * from '../shared/Dropdown';

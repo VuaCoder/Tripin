@@ -64,7 +64,7 @@ export function useGoogleLogin({ onSuccess, onError, authenticate, rememberMe }:
         const persistSession = handlers.current.rememberMe;
         const session = customAuthenticate
           ? await customAuthenticate(response.credential)
-          : await loginWithGoogle({ idToken: response.credential }).unwrap();
+          : await loginWithGoogle({ idToken: response.credential, ...(persistSession !== undefined ? { rememberMe: persistSession } : {}) }).unwrap();
         dispatch(
           setCredentials({
             user: session.user,

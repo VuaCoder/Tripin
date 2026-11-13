@@ -82,7 +82,7 @@ export const AuthContainer: React.FC<AuthContainerProps> = ({
               ? 'CHÀO MỪNG QUAY LẠI !'
               : registerRole === 'TOUR_GUIDE'
               ? 'TẠO TÀI KHOẢN HƯỚNG DẪN VIÊN'
-              : 'TẠO TÀI KHOẢN TRAVELER'}
+              : 'TẠO TÀI KHOẢN TRIPRI'}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             {mode === 'login'

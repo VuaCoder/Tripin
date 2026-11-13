@@ -14,6 +14,7 @@ export interface AccessInput { revokedPermissions?: Permission[]; id: string; ro
 export interface Category { id: string; name: string; slug: string; description?: string; sortOrder: number; isActive: boolean }
 export interface CategoryInput { name: string; description?: string; sortOrder: number }
 export interface Commission { version?: number; ratePercent: number; rateBps: number; updatedAt?: string }
+export interface AgencyCommission { id: string; companyName: string; contactName: string; email: string; ratePercent: number | null; rateBps: number | null; version: number }
 export const POLICY_KEYS = ['cancellation', 'refund', 'terms', 'privacy', 'moderation'] as const;
 export type PolicyKey = typeof POLICY_KEYS[number];
 export interface Policy { version?: number; activeVersion?: number; policyVersionId?: string; key: PolicyKey; title: string; content: string; params: Record<string, number | string | boolean>; updatedAt?: string }

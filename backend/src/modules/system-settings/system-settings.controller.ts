@@ -3,7 +3,7 @@ import { userActor } from '../../middlewares/authorize';
 import { validated } from '../../middlewares/validate';
 import { sendOk } from '../../utils/api-response';
 import { systemSettingsService, type SystemSettingsService } from './system-settings.service';
-import type { CommissionBody, PolicyBody, PolicyKeyParams } from './system-settings.validation';
+import type { AgencyCommissionBody, AgencyCommissionParams, CommissionBody, PolicyBody, PolicyKeyParams } from './system-settings.validation';
 
 const actorOf = (req: Parameters<RequestHandler>[0]) => {
   const actor = userActor(req);
@@ -20,6 +20,15 @@ export class SystemSettingsController {
   setCommission: RequestHandler = async (req, res) => {
     const { body } = validated<CommissionBody>(req);
     sendOk(res, await this.service.setCommission(actorOf(req), body.ratePercent, body.expectedVersion));
+  };
+
+  listAgencyCommissions: RequestHandler = async (_req, res) => {
+    sendOk(res, await this.service.listAgencyCommissions());
+  };
+
+  setAgencyCommission: RequestHandler = async (req, res) => {
+    const { params, body } = validated<AgencyCommissionBody, unknown, AgencyCommissionParams>(req);
+    sendOk(res, await this.service.setAgencyCommission(actorOf(req), params.id, body.ratePercent, body.expectedVersion));
   };
 
   listPolicies: RequestHandler = async (_req, res) => {

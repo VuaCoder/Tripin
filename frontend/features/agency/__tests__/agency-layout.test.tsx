@@ -12,7 +12,7 @@ vi.mock('../agencyContext', () => ({ useAgencyMembershipsQuery: () => ({ isError
 vi.mock('../components/AgencyNav', () => ({ AgencyNav: () => <nav>Agency navigation</nav> }));
 vi.mock('@ant-design/nextjs-registry', () => ({ AntdRegistry: ({ children }: any) => <>{children}</> }));
 const user = { id: 'actor', role: 'TRAVELER', permissions: ['tour:update-own'] } as any;
-const owner = membershipFixture({ permissions: ['tour:update-own','agency:dashboard'] });
+const owner = membershipFixture({ permissions: ['agency:tour-view','tour:update-own','agency:dashboard'] });
 const accountant = membershipFixture({ agencyId: '22222222-2222-4222-8222-222222222222', memberId: 'accountant', memberRole: 'ACCOUNTANT', permissions: ['agency:finance-view','agency:bookings-view'] });
 function mount(agencies = [owner], restore = false) {
   const store = configureStore({ reducer: { auth: authReducer } });
@@ -26,10 +26,14 @@ describe('Agency membership layout gates', () => {
   it('allows a Traveler with an active OWNER membership into the agency shell', () => {
     mount(); expect(screen.getByText('Protected business screen')).toBeDefined();
   });
+  it('keeps workplace selection outside the business screen', () => {
+    mount();
+    expect(screen.queryByRole('combobox', { name: 'Doanh nghiệp đang truy cập' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Nơi làm việc/ })).toBeNull();
+  });
   it('requires explicit agency selection before mounting business screens', () => {
     mount([owner,accountant]); expect(screen.queryByText('Protected business screen')).toBeNull();
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: owner.agencyId } });
-    expect(screen.getByText('Protected business screen')).toBeDefined();
+    expect(mocks.replace).toHaveBeenCalledWith('/workplaces?next=%2Fagency%2Ftours');
   });
   it('does not trust cached permissions before server synchronization', () => {
     mount([owner], true); expect(screen.getByRole('status').textContent).toContain('Đang xác minh');
@@ -42,7 +46,7 @@ describe('Agency membership layout gates', () => {
   });
   it('preserves personal access navigation when no membership remains', () => {
     mount([]); expect(screen.getByRole('link', { name: 'Về trang cá nhân' })).toBeDefined();
-    expect(screen.queryByText('Protected business screen')).toBeNull(); expect(mocks.replace).not.toHaveBeenCalled();
+    expect(screen.queryByText('Protected business screen')).toBeNull(); expect(mocks.replace).toHaveBeenCalledWith('/workplaces?next=%2Fagency%2Ftours');
   });
   it('blocks Accountant tour management even if the personal user permissions contain it', () => {
     mount([accountant]); expect(screen.getByRole('alert').textContent).toContain('không có quyền');
@@ -53,8 +57,8 @@ describe('Agency membership layout gates', () => {
   });
   it('opens an allowed page when Staff lands on the dashboard URL', () => {
     mocks.pathname = '/agency';
-    mount([membershipFixture({ memberRole: 'STAFF', permissions: ['tour:update-own', 'agency:bookings-view'] })]);
-    expect(mocks.replace).toHaveBeenCalledWith('/agency/bookings');
+    mount([membershipFixture({ memberRole: 'STAFF', permissions: ['agency:tour-view', 'agency:booking-monitor'] })]);
+    expect(mocks.replace).toHaveBeenCalledWith('/agency/work/tours');
     expect(screen.queryByRole('alert')).toBeNull();
   });
   it('keeps the dashboard as the landing page for members with dashboard access', () => {

@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { safeNextPath } from '../utils/safeNextPath';
 import { AuthBackground } from './AuthBackground';
 import { BackButton } from './BackButton';
 import { AuthContainer } from './AuthContainer';
@@ -15,18 +16,19 @@ interface RegisterPageProps {
 
 export const RegisterPage: React.FC<RegisterPageProps> = ({ role = 'TRAVELER' }) => {
   const router = useRouter();
+  const nextPath = safeNextPath(useSearchParams().get('next'));
 
   const handleLoginSuccess = (data: LoginResultData) => {
     if (data.twoFactorRequired) {
-      router.push(`/verify-otp?email=${encodeURIComponent(data.email)}&purpose=LOGIN_2FA`);
+      router.push(`/verify-otp?email=${encodeURIComponent(data.email)}&purpose=LOGIN_2FA${nextPath ? '&next=' + encodeURIComponent(nextPath) : ''}`);
       return;
     }
 
-    router.push(homeForRole(data.user.role));
+    router.push(nextPath ?? homeForRole(data.user.role));
   };
 
   const handleRegisterSuccess = (data: RegisterResultData) => {
-    router.push(`/login?registered=true&email=${encodeURIComponent(data.email)}`);
+    router.push(`/verify-otp?email=${encodeURIComponent(data.email)}&purpose=REGISTER&next=${encodeURIComponent(nextPath ?? homeForRole(role))}`);
   };
 
   return (

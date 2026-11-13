@@ -78,12 +78,16 @@ export interface RegisterResultData {
 }
 
 export interface AgencyMembership {
+  isPrimaryOwner?: boolean;
   agencyId: string;
   memberId: string;
   memberRole: 'OWNER' | 'MANAGER' | 'STAFF' | 'ACCOUNTANT';
   companyName: string;
   verificationStatus: AgencyVerificationStatus;
   permissions: string[];
+  roleId?: string | null;
+  roleName?: string;
+  permissionVersion?: number;
 }
 
 export interface SessionData {
@@ -113,6 +117,7 @@ export interface VerifyOtpRequest {
   email: string;
   code: string;
   purpose: VerifyOtpPurpose;
+  rememberMe?: boolean;
 }
 
 export type ResendOtpPurpose = 'REGISTER' | 'LOGIN_2FA' | 'FORGOT_PASSWORD';
@@ -120,6 +125,7 @@ export type ResendOtpPurpose = 'REGISTER' | 'LOGIN_2FA' | 'FORGOT_PASSWORD';
 export interface ResendOtpRequest {
   email: string;
   purpose: ResendOtpPurpose;
+  password?: string;
 }
 
 export interface ForgotPasswordRequest {
@@ -144,6 +150,7 @@ export interface AuthApiResponse<T> {
 
 export interface GoogleAuthPayload {
   idToken: string;
+  rememberMe?: boolean;
   role?: 'TRAVELER' | 'TOUR_GUIDE';
 }
 

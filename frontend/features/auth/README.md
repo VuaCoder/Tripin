@@ -48,3 +48,14 @@ Các trang xác thực được định tuyến tại:
 - Xác thực OTP: `frontend/app/(auth)/verify-otp/page.tsx` — sau OTP điều hướng theo role qua `homeForRole()` (Tour Guide vào `/guide`)
 
 `RegisterPage` nhận prop `role` (`TRAVELER` mặc định hoặc `TOUR_GUIDE`) và truyền xuống `AuthContainer` → `RegisterForm` → `useRegisterForm`, nơi role được gửi kèm trong `POST /auth/register`. Lỗi backend được xử lý theo `code` (`EMAIL_ALREADY_REGISTERED` hiển thị ở field email, các mã khác hiển thị ở banner chung).
+
+## Partner account entry
+
+`/agency/login` và `/agency/register` dùng `PartnerAccountPage` cùng các hook/API
+account chung. Signup giữ safe next qua REGISTER OTP, mặc định tới
+`/workplaces`, giống login. Trang bắt đầu đã bỏ; nhập mã mời bằng popup ngay
+trong trang chọn nơi làm việc. URL cũ được chuyển tiếp an toàn. Membership không là điều
+kiện đăng nhập. Trang đăng ký Traveler thường vẫn về `/home`. Explicit invitation,
+booking và guide continuation được ưu tiên. Google gửi rememberMe lên server;
+Partner password 2FA giữ lựa chọn đó qua OTP bằng cờ không nhạy cảm, không lưu
+mật khẩu. Resend LOGIN_2FA yêu cầu nhập lại mật khẩu tại màn OTP.

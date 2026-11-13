@@ -1,0 +1,31 @@
+.shimmer {
+  position: relative;
+  overflow: hidden;
+  background: #e8eeed;
+  isolation: isolate;
+}
+
+.sidebarShimmer {
+  background: #294a50;
+}
+
+.sidebarShimmer::after {
+  background: linear-gradient(100deg, transparent 15%, rgb(143 170 176 / 38%) 48%, transparent 82%);
+}
+
+.shimmer::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  transform: translateX(-100%);
+  background: linear-gradient(100deg, transparent 15%, rgb(255 255 255 / 72%) 48%, transparent 82%);
+  animation: admin-skeleton-shimmer 1.45s ease-in-out infinite;
+}
+
+@keyframes admin-skeleton-shimmer {
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer::after { animation: none; }
+}

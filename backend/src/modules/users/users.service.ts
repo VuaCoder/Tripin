@@ -1,4 +1,5 @@
 import { prisma } from '../../config/database';
+import { agencyProfileRepository } from '../agencies/agency-profile.repository';
 import {
   AGENCY_VERIFICATION_STATUS,
   ROLES,
@@ -17,10 +18,10 @@ import {
 import { kickMailOutbox } from '../notifications/mail-outbox';
 import { encryptPayoutAccount } from './payout-account.crypto';
 import { notificationsService } from '../notifications';
-import { AUDIT_ACTIONS, auditService, type AuditService } from '../audit';
+import { AUDIT_ACTIONS } from '../audit/audit.types';
 import { buildPage, type Page } from '../../utils/pagination';
 import { assertTransition } from '../../utils/state-machine';
-import { toPrivateUserDto, toPublicAgencyDto, toPublicGuideDto } from './users.mapper';
+import { toPrivateUserDto, toPublicGuideDto } from './users.mapper';
 import { usersRepository, type UserPatch, type UserRecord, type UsersRepository } from './users.repository';
 import {
   AGENCY_VERIFICATION_TRANSITIONS,
@@ -46,7 +47,7 @@ export interface UserSummary {
 type UsersRepo = Pick<
   UsersRepository,
   'changeAccess' | 'changeBan' | 'findById' | 'findManyByIds' | 'updateById' | 'updateStatusIf' | 'updateAgencyVerificationIf' | 'count' | 'list' | 'countGroupedBy' | 'countCreatedSince' | 'countAgenciesByVerification' | 'listActiveGuides'
-> & Partial<Pick<UsersRepository, 'findAgencySummaries'>>;
+> & Partial<Pick<UsersRepository, 'findAgencySummaries' | 'deleteAdminUser'>>;
 
 const STAFF = new Set<PersistedRole>([ROLES.MODERATOR, ROLES.SUPER_ADMIN]);
 
@@ -57,7 +58,8 @@ export class UsersService {
   }
   constructor(
     private readonly users: UsersRepo = usersRepository,
-    _audit: Pick<AuditService, 'record'> = auditService,
+    _audit?: { record?: (entry: never) => Promise<void> },
+    private readonly agencyProfiles: Pick<typeof agencyProfileRepository, 'publicProfile'> = agencyProfileRepository,
   ) {}
 
   // ------------------------------------------------------- Own profile
@@ -197,6 +199,7 @@ export class UsersService {
       agencyProfile: { verificationStatus: AGENCY_VERIFICATION_STATUS.PENDING, verificationNote: null, submittedAt: new Date(), submissionDateEstimated: false },
     });
     if (!updated) throw AppError.invalidTransition(current, AGENCY_VERIFICATION_STATUS.PENDING, 'Agency verification');
+    await notificationsService.notifyAdmins({ type: 'ADMIN_REQUEST_RECEIVED', title: 'Yêu cầu xác minh doanh nghiệp mới', body: `Doanh nghiệp ${user.agencyProfile?.companyName ?? user.fullName} vừa gửi hồ sơ xác minh.`, data: { userId } });
     return toPrivateUserDto(updated);
   }
 
@@ -242,6 +245,8 @@ export class UsersService {
         guideApplication: application,
       },
     });
+
+    await notificationsService.notifyAdmins({ type: 'ADMIN_REQUEST_RECEIVED', title: 'Đơn đăng ký hướng dẫn viên mới', body: `${user.fullName} vừa gửi hồ sơ đăng ký làm hướng dẫn viên.`, data: { userId } });
 
     return {
       success: true,
@@ -342,11 +347,7 @@ export class UsersService {
 
   /** Use case "View public agency profile" (Guest). Only ACTIVE agencies are visible. */
   async getPublicAgency(id: string): Promise<PublicAgencyDto> {
-    const user = await this.users.findById(id);
-    if (!user || user.role !== ROLES.AGENCY || user.status !== USER_STATUS.ACTIVE) {
-      throw AppError.notFound('Agency not found');
-    }
-    return toPublicAgencyDto(user);
+    return this.agencyProfiles.publicProfile(id);
   }
 
   // ------------------------------------------------ Super admin: access
@@ -357,6 +358,12 @@ export class UsersService {
       { page: query.page, limit: query.limit },
     );
     return buildPage(items.map(toPrivateUserDto), total, query);
+  }
+
+  async deleteAdminUser(actor: { userId: string; role: PersistedRole }, targetId: string): Promise<void> {
+    if (actor.role !== ROLES.SUPER_ADMIN) throw AppError.forbidden();
+    if (!this.users.deleteAdminUser) throw AppError.unavailable();
+    return this.users.deleteAdminUser(actor, targetId);
   }
 
   /**

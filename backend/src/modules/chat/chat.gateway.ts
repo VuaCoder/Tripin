@@ -10,6 +10,7 @@ import { notificationsService, type NotificationsService } from '../notification
 import { chatService, type ChatService } from './chat.service';
 import { aiService } from '../ai/ai.service';
 import { socketConversationPayload, socketSendPayload } from './chat.validation';
+import { setPublicEventPublisher } from '../realtime/public-events';
 
 type Ack = (response: { ok: true; data?: unknown } | { ok: false; error: { code: string; message: string } }) => void;
 
@@ -46,7 +47,7 @@ export function emitChatUpdated(userIds: string[], conversationId: string): void
  *   chat:read   { conversationId }        -> ack { ok, data: { unreadCount } }
  *   chat:typing { conversationId }        -> forwarded to the counterpart as `chat:typing`
  * Server -> client events: `chat:message` { conversationId, message }, `notification:new` NotificationDto.
- * Authentication: `io(url, { auth: { token: <access token> } })`.
+ * Chat namespace authentication: `io(url, { auth: { token: <access token> } })`. Public change events use `/public`.
  */
 export function attachChatGateway(
   httpServer: HttpServer,
@@ -101,6 +102,8 @@ export function attachChatGateway(
     }
   });
 
+  const publicEvents = io.of('/public');
+
   io.on('connection', (socket) => {
     const connected = socket.data.actor as UserActor;
     const token = socket.handshake.auth.token as string;
@@ -114,6 +117,11 @@ export function attachChatGateway(
     const handle = <T>(event: string, run: (payload: unknown, actor: UserActor) => Promise<T>) => {
       socket.on(event, async (payload: unknown, ack?: Ack) => {
         try {
+          if (!token) {
+            ack?.({ ok: false, error: toSocketError(AppError.unauthenticated()) });
+            socket.disconnect(true);
+            return;
+          }
           let actor: UserActor;
           try {
             actor = await resolveUserActor(token);
@@ -189,6 +197,7 @@ export function attachChatGateway(
   notifications.setPublisher((userId, notification) => {
     io.to(userRoom(userId)).emit('notification:new', notification);
   });
+  setPublicEventPublisher((event, payload) => { publicEvents.emit(event, payload); });
 
   return io;
 }

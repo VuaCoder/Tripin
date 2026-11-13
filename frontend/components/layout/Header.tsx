@@ -17,6 +17,7 @@ import { Dropdown } from '@/components/shared/Dropdown';
 import { OwnPremiumIdentity, PremiumStatusText, useOwnPremium } from '@/features/premium/PremiumIdentity';
 import { AgencyRightSidebar } from '@/features/agency/components/AgencyRightSidebar';
 import { ModeratorSidebar } from '@/features/moderation/components/ModeratorSidebar';
+import { AdminSidebar } from '@/features/admin';
 import { cn } from '../ui/cn';
 
 import { useConversationsQuery } from '@/features/chat/api';
@@ -52,6 +53,7 @@ function accountMenuForRole(role: AppRole): AccountMenuItem[] {
 
   if (role === 'TRAVELER') {
     return [
+      { label: 'Nơi làm việc', href: '/workplaces', icon: 'business' },
       {
         label: 'Danh sách yêu thích',
         href: '/settings/wishlist',
@@ -165,6 +167,9 @@ export function Header({ role }: { role?: AppRole }) {
   }
   if (effectiveRole === 'MODERATOR') {
     return <ModeratorSidebar />;
+  }
+  if (effectiveRole === 'SUPER_ADMIN') {
+    return <AdminSidebar />;
   }
 
   const items = (navigationByRole[effectiveRole] || navigationByRole.PUBLIC).filter((item) => !item.permission || user?.permissions.includes(item.permission));

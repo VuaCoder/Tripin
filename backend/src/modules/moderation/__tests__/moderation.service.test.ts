@@ -16,7 +16,8 @@ function make() {
   const reports = { listForModeration: vi.fn(async () => 'reports'), getForModeration: vi.fn(async () => 'report'), resolve: vi.fn(async () => 'resolved') };
   const support = { listForModeration: vi.fn(async () => 'tickets'), getForModeration: vi.fn(async () => 'ticket'), replyAsStaff: vi.fn(async () => 'replied'), setStatus: vi.fn(async () => 'status') };
   const notifications = { notify: vi.fn(async () => undefined), notifyAgency: vi.fn(async () => undefined) };
-  const service = new ModerationService(tours as never, users as never, reviews as never, reports as never, support as never, notifications);
+  const service = new ModerationService(tours as never, users as never, reviews as never, reports as never, support as never, notifications,
+    { list: users.listAgenciesByVerification, decide: users.decideAgencyVerification } as never);
   return { service, tours, users, reviews, reports, support, notifications };
 }
 

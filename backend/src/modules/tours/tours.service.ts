@@ -46,7 +46,7 @@ export class ToursService {
     private readonly categories: Pick<CategoriesService, 'assertActiveIds' | 'upsertActive'> = categoriesService,
     _audit: Pick<AuditService, 'record'> = auditService,
     private readonly views: Pick<TourViewBuilder, 'manage' | 'manageMany' | 'guideItems'> = tourViewBuilder,
-    private readonly notifications: Pick<NotificationsService, 'notify' | 'notifyAgency'> = notificationsService,
+    private readonly notifications: Pick<NotificationsService, 'notify' | 'notifyAgency'> & Partial<Pick<NotificationsService, 'notifyAdmins'>> = notificationsService,
   ) {}
 
   // ================================================================ Agency
@@ -271,6 +271,7 @@ export class ToursService {
       statusReason: null,
     });
     if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
+    await this.notifications.notifyAdmins?.({ type: NOTIFICATION_TYPE.ADMIN_REQUEST_RECEIVED, title: 'Tour mới chờ duyệt', body: 'Tour "' + tour.title + '" vừa được gửi để kiểm duyệt.', data: { tourId: tour.id } });
     return this.views.manage(updated);
   }
 

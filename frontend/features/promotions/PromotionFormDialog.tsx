@@ -453,7 +453,7 @@ export function PromotionFormDialog({
               </FormField>
             )}
 
-            <FormField label="Tiêu đề khuyến mãi" htmlFor="promo-title" required error={errors.title}>
+            <FormField label="Tiêu đề khuyến mãi (Tên voucher)" htmlFor="promo-title" required error={errors.title}>
               <Input
                 id="promo-title"
                 value={values.title}
@@ -704,6 +704,9 @@ export function PromotionFormDialog({
         <div className="sticky bottom-0 -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 flex flex-col-reverse gap-3 border-t border-slate-100 bg-white/95 backdrop-blur-xs px-5 py-4 sm:px-6 sm:flex-row sm:justify-end shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
           <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting} className="h-11 px-5">
             Hủy
+          </Button>
+          <Button type="button" variant="outline" className="h-11 px-5" onClick={() => {}}>
+            Tiếp theo
           </Button>
           <Button type="submit" loading={isSubmitting} loadingLabel="Đang lưu..." className="h-11 px-7 font-bold shadow-md">
             {isEdit ? 'Lưu thay đổi' : 'Tạo khuyến mãi'}

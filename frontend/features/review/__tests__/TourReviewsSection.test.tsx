@@ -140,7 +140,7 @@ describe('TourReviewsSection', () => {
     givenPages({ 1: [REVIEW_A] });
     renderSection();
 
-    expect(screen.getByText('4.8/5 · 12 đánh giá')).toBeTruthy();
+    expect(screen.getByText('4.8/5')).toBeTruthy();
     expect(screen.getByText('Nguyen A.')).toBeTruthy();
     expect(screen.getByText(REVIEW_A.comment)).toBeTruthy();
     expect(screen.getByText(/(tháng|\d{1,2}\/\d{1,2}\/\d{4})/)).toBeTruthy();

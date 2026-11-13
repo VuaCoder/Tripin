@@ -110,3 +110,4 @@ adminUsersRouter.patch(
   validate({ params: assignAccessParams, body: assignAccessBody }),
   usersController.assignAccess,
 );
+adminUsersRouter.delete('/:id', validate({ params: assignAccessParams }), usersController.deleteAdminUser);

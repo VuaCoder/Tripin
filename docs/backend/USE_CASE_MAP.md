@@ -10,12 +10,34 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 
 ## Agency membership foundation H2 (module `agencies`)
 
+Current access is based on effective membership permissions. The H2 actor labels
+below are historical; MANAGER has no team administration by default.
+
+## Agency workplaces and flexible access (module `agencies`)
+
+| Use case | Actor | Endpoint | Status |
+|---|---|---|---|
+| Create independent agency and OWNER | Verified account | `POST /agencies` | done |
+| Read/edit/submit selected agency application | ACTIVE OWNER | `GET /agency/application`, `PUT /agency/application`, `POST /agency/application/submit` | done |
+| Create/rotate/revoke short-lived join code | ACTIVE OWNER | `POST /agency/join-codes`, `GET /agency/join-codes/current`, `POST /agency/join-codes/:id/revoke` | done |
+| Request agency membership using code | Verified account | `POST /agency-join-requests` | done |
+| View/cancel own requests | Requester | `GET /users/me/agency-join-requests`, `POST /agency-join-requests/:id/cancel` | done |
+| View own unexpired email invitations | Active account with verified email, no membership required | `GET /users/me/agency-invitations?page=1` | done |
+| Accept own email invitation from workplace inbox | Active account matching verified recipient email | `POST /agency-invitations/:id/accept` | done |
+| Review join request and assign tenant role | ACTIVE OWNER | `GET /agency/join-requests`, `POST /agency/join-requests/:id/approve`, `POST /agency/join-requests/:id/reject` | done |
+| List role templates and capability catalog | Team view | `GET /agency/roles`, `GET /agency/permissions` | done |
+| Create/edit tenant role | Permissions management | `POST /agency/roles`, `PATCH /agency/roles/:id` | done |
+| Set member role/overrides and tour scopes | Permissions management | `PUT /agency/members/:id/access`, `PUT /agency/members/:id/tour-scopes` | done |
+| List invitation metadata | Team view | `GET /agency/invitations` | done |
+| Scoped content and minimal booking monitoring | Effective work permissions | `GET /agency/work/tours`, `PATCH /agency/work/tours/:id/content`, `GET /agency/work/bookings` | done |
+
 | Use case | Actor | Endpoint | Status |
 |---|---|---|---|
 | Discover active agencies | Authenticated User | `GET /users/me/agencies` | done |
 | Resolve live tenant context | ACTIVE member | `GET /agency/context` | done |
 | View team | OWNER / MANAGER | `GET /agency/members` | done |
 | Change member role or status | OWNER | `PATCH /agency/members/:id` | done |
+| Add an active verified member as co-owner, preserving the current owner | OWNER with team and permission management, bounded by delegable access | `PATCH /agency/members/:id` with `role: OWNER` | done |
 | Invite member | OWNER / MANAGER (STAFF only) | `POST /agency/invitations` | done |
 | Revoke invitation | OWNER | `POST /agency/invitations/:id/revoke` | done |
 | Accept invitation | Verified matching User | `POST /agency-invitations/accept` | done |
@@ -36,7 +58,8 @@ Permission column: `GUEST` = no login needed, `auth` = any logged-in user, other
 | View authentication security status | authenticated user | `GET /auth/security` | done |
 | Resend OTP (register / login 2FA) | Guest/User | `POST /auth/resend-otp` | done |
 | Customer login (+ Validate credentials, + 2FA extend) | Traveler / Tour guide / Staff | `POST /auth/login` | done |
-| Agency login (+ 2FA extend) | Agency | `POST /auth/agency/login` | done |
+| Partner account login (+ 2FA extend), including before first membership | Guest / personal or legacy Agency account | `POST /auth/agency/login` | done |
+| Partner Google account login/signup (no membership prerequisite) | Guest | `POST /auth/agency/google` | done |
 | Login with Google (+ Authenticate via OAuth) | Guest | `POST /auth/google` | done |
 | Forgot password (+ Verify OTP) | All | `POST /auth/forgot-password`, `POST /auth/reset-password` | done |
 | Change own password | auth | `POST /auth/change-password` | done |
@@ -135,10 +158,10 @@ All `/admin/*` endpoints require the current `SUPER_ADMIN` role in addition to t
 
 | Use case | Module | Endpoint | Permission | Status |
 |---|---|---|---|---|
-| Set platform commission rates | system-settings | `GET/PUT /admin/settings/commission` | commission:configure | done |
+| Set platform commission rates | system-settings | `GET/PUT /admin/settings/commission`, `GET /admin/settings/agency-commissions`, `PUT /admin/settings/agency-commissions/:id` | commission:configure | done |
 | View detailed dashboards | dashboards | `GET /admin/dashboard` | admin:dashboard | done |
 | Config platform promotions | promotions | `GET/POST /admin/promotions`, `GET/PATCH /admin/promotions/:id`, `POST /admin/promotions/:id/generate-batch`, `GET /admin/promotions/:id/batch` | promotion:platform-manage | done |
-| Assign User Permissions | users | `GET /admin/users`, `PATCH /admin/users/:id/access` (role + extra permissions) | user:assign-permissions | done |
+| Assign User Permissions | users | `GET /admin/users`, `DELETE /admin/users/:id`, `PATCH /admin/users/:id/access` (role + extra permissions) | user:assign-permissions | done |
 | Config Tour Categories | categories | `GET/POST /admin/categories`, `PATCH/DELETE /admin/categories/:id` | category:configure | done |
 | Configure System Policies | system-settings | `PUT /admin/policies/:key` (read is public `GET /policies`) | policy:configure | done |
 | (supporting) audit log | audit | `GET /admin/audit-logs` | audit:view | done |

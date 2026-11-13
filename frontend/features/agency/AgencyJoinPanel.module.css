@@ -1,0 +1,37 @@
+.panel { display:flex; flex-direction:column; gap:20px; color:#18343b; }
+.description { color:#617479; font-size:14px; line-height:1.75; margin:0; }
+.codeWell { padding:22px; background:#f0f7f6; border:1px solid #d4e7e3; border-radius:14px; }
+.codeMeta { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:12px; }
+.activeBadge { display:inline-flex; align-items:center; gap:7px; color:#24604f; font-weight:600; }
+.activeBadge > span { width:6px; height:6px; background:#247b60; border-radius:50%; }
+.countdown { display:inline-flex; align-items:center; gap:6px; font-variant-numeric:tabular-nums; color:#315d60; font-weight:600; }
+.codeValue { display:flex; justify-content:center; gap:16px; margin:28px 0; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:clamp(22px,5vw,30px); line-height:1.4; font-weight:600; color:#103e43; user-select:all; font-variant-numeric:tabular-nums; }
+.primary,.secondary,.danger,.revoke { min-height:44px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 16px; border-radius:9px; font-size:13px; font-weight:600; line-height:1.5; cursor:pointer; transition:background .15s; }
+.primary { color:white; background:#00636e; border:1px solid #00636e; }
+.primary:hover { background:#004f58; }
+.codeWell .primary { width:100%; }
+.secondary { color:#18343b; background:white; border:1px solid #ccdad5; }
+.secondary:hover { background:#f3f8f5; }
+.revoke { color:#a43b36; padding-inline:8px; background:transparent; border:0; }
+.revoke:hover { background:#fff1ee; }
+.danger { color:white; background:#a43b36; border:1px solid #a43b36; }
+.danger:hover { background:#852b27; }
+.panel button:disabled { opacity:.5; cursor:not-allowed; }
+.panel button:focus-visible { outline:2px solid #087e8b; outline-offset:3px; }
+.hint { display:flex; align-items:flex-start; gap:8px; font-size:12px; line-height:1.7; color:#617479; margin:0; }
+.hint svg { flex-shrink:0; margin-top:2px; color:#36796f; }
+.footer { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding-top:18px; border-top:1px solid #e5ebe7; }
+.replaceHint { font-size:11px; line-height:1.6; color:#617479; margin:7px 0 0; }
+.hiddenCode,.empty { display:flex; align-items:center; flex-direction:column; gap:12px; text-align:center; color:#617479; padding:28px 0; font-size:13px; line-height:1.75; }
+.hiddenCode svg,.empty svg { color:#087e8b; }
+.empty { background:#f7f9f8; padding:28px 20px; border-radius:14px; }
+.empty h3 { color:#18343b; font-size:15px; font-weight:600; }
+.empty p,.hiddenCode p { margin:0; }
+.error { font-size:13px; line-height:1.7; color:#9a3027; background:#fff1ee; padding:12px 14px; border-radius:9px; margin:0; }
+.notice { color:#215f4a; font-size:13px; line-height:1.7; margin:0; }
+.retry { text-decoration:underline; text-underline-offset:3px; min-height:44px; font-weight:600; }
+.confirm { padding-top:18px; border-top:1px solid #e5ebe7; }
+.confirm p { font-size:13px; line-height:1.75; margin:0 0 14px; }
+.actions { display:flex; justify-content:flex-end; gap:10px; }
+@media(max-width:380px) { .codeWell { padding:16px; } .codeValue { gap:10px; } .footer { gap:8px; } .primary,.secondary,.danger { padding-inline:12px; } }
+@media(prefers-reduced-motion:reduce) { .panel button { transition:none; } }

@@ -19,7 +19,7 @@ import { useAgencyPermission } from '@/features/agency/AgencyCommon';
 import { AgencyPageTitle } from '@/features/agency/components/AgencyPageTitle';
 import { Compass } from 'lucide-react';
 
-function TourGridImageCarousel({ tour, onManageImages }: { tour: TourDetail; onManageImages: () => void }) {
+function TourGridImageCarousel({ tour, onManageImages, canEdit }: { tour: TourDetail; onManageImages: () => void; canEdit: boolean }) {
   const images = (tour.images && tour.images.length > 0) ? tour.images : (tour.coverImage ? [tour.coverImage] : []);
   const [activeIdx, setActiveIdx] = useState(0);
 
@@ -29,6 +29,7 @@ function TourGridImageCarousel({ tour, onManageImages }: { tour: TourDetail; onM
         <span className="material-symbols-outlined text-4xl text-slate-400">landscape</span>
         <span className="mt-2 text-xs font-bold text-slate-600">Chưa có ảnh bìa</span>
         <button
+          hidden={!canEdit}
           type="button"
           onClick={onManageImages}
           className="mt-2 rounded-lg bg-white px-3 py-1 text-xs font-bold text-teal-700 shadow-sm hover:bg-teal-50 cursor-pointer"
@@ -136,6 +137,9 @@ const PRESET_PHOTOS = [
 export function AgencyTourListPage() {
   const canManageLifecycle = useAgencyPermission('tour:delete-own');
   const canCreateTour = useAgencyPermission('tour:create');
+  const canCreate = useAgencyPermission('tour:create');
+  const canEdit = useAgencyPermission('tour:update-own');
+  const canDelete = useAgencyPermission('tour:delete-own');
   const router = useRouter();
   const [status, setStatus] = useState<TourStatus | undefined>();
   const [page, setPage] = useState(1);
@@ -298,6 +302,7 @@ export function AgencyTourListPage() {
         <div className="flex flex-wrap items-center gap-3">
           {canCreateTour && <Link
             href="/agency/tours/new" 
+            hidden={!canCreate}
             className="inline-flex items-center gap-1.5 rounded-xl bg-primary-container px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary transition-colors shadow-md shadow-primary-container/20"
           >
             <span className="material-symbols-outlined text-[18px]">add</span>
@@ -408,6 +413,7 @@ export function AgencyTourListPage() {
           <div className="mt-6 flex justify-center gap-3">
             {canCreateTour && <Link
               href="/agency/tours/new" 
+              hidden={!canCreate}
               className="rounded-xl bg-primary-container px-5 py-2.5 text-sm font-bold text-white hover:bg-primary transition-colors shadow-sm"
             >
               + Tạo tour mới
@@ -449,6 +455,7 @@ export function AgencyTourListPage() {
                         {/* Hover button to change/upload photo directly */}
                         <button
                           type="button"
+                          hidden={!canEdit}
                           onClick={(e) => {
                             e.stopPropagation();
                             openImageManager(tour);
@@ -507,6 +514,7 @@ export function AgencyTourListPage() {
                     <div className="flex shrink-0 items-center gap-2 border-t border-slate-100 pt-3 sm:border-t-0 sm:pt-0" onClick={(e) => e.stopPropagation()}>
                       <Link 
                         href={tour.status === 'PENDING_REVIEW' || tour.status === 'ARCHIVED' ? `/agency/tours/${tour.id}` : `/agency/tours/${tour.id}/edit?from=/agency/tours`}
+                        hidden={!canEdit}
                         aria-disabled={tour.status === 'PENDING_REVIEW' || tour.status === 'ARCHIVED'} 
                         title={
                           tour.status === 'ARCHIVED' 
@@ -528,6 +536,7 @@ export function AgencyTourListPage() {
                         <button
                           type="button"
                           disabled={restoreState.isLoading}
+                          hidden={!canEdit}
                           onClick={(e) => {
                             e.stopPropagation();
                             setRestoringTour({ id: tour.id, title: tour.title });
@@ -543,6 +552,7 @@ export function AgencyTourListPage() {
                         <button 
                           type="button" 
                           disabled={deleteState.isLoading || tour.status === 'PENDING_REVIEW'} 
+                          hidden={!canDelete}
                           onClick={(e) => {
                             e.stopPropagation();
                             setArchivingTour({ id: tour.id, title: tour.title });
@@ -577,7 +587,7 @@ export function AgencyTourListPage() {
                   >
                     {/* Card Cover Image with Carousel */}
                     <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100">
-                      <TourGridImageCarousel tour={tour} onManageImages={() => openImageManager(tour)} />
+                      <TourGridImageCarousel tour={tour} canEdit={canEdit} onManageImages={() => openImageManager(tour)} />
 
                       {/* Top Badges */}
                       <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 pointer-events-none">
@@ -629,6 +639,7 @@ export function AgencyTourListPage() {
                       <div className="mt-5 flex items-center justify-between gap-2 border-t border-slate-100 pt-3" onClick={(e) => e.stopPropagation()}>
                         <Link 
                           href={tour.status === 'PENDING_REVIEW' || tour.status === 'ARCHIVED' ? `/agency/tours/${tour.id}` : `/agency/tours/${tour.id}/edit?from=/agency/tours`}
+                          hidden={!canEdit}
                           aria-disabled={tour.status === 'PENDING_REVIEW' || tour.status === 'ARCHIVED'} 
                           title={
                             tour.status === 'ARCHIVED' 
@@ -651,6 +662,7 @@ export function AgencyTourListPage() {
                           <button
                             type="button"
                             disabled={restoreState.isLoading}
+                            hidden={!canEdit}
                             onClick={(e) => {
                               e.stopPropagation();
                               setRestoringTour({ id: tour.id, title: tour.title });
@@ -666,6 +678,7 @@ export function AgencyTourListPage() {
                           <button 
                             type="button" 
                             disabled={deleteState.isLoading || tour.status === 'PENDING_REVIEW'} 
+                            hidden={!canDelete}
                             onClick={(e) => {
                               e.stopPropagation();
                               setArchivingTour({ id: tour.id, title: tour.title });

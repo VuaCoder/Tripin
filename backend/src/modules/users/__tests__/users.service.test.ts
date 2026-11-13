@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AGENCY_VERIFICATION_STATUS, ROLES, USER_STATUS } from '@travel-platform/constants';
 import { ERROR_CODES } from '../../../utils/app-error';
+import { AppError } from '../../../utils/app-error';
 import { UsersService } from '../users.service';
 
 const LICENSE_URL = 'https://res.cloudinary.com/demo/image/upload/v1/license.jpg';
@@ -71,7 +72,8 @@ function makeService(initial: Record<string, FakeUser>) {
     list: vi.fn(async () => ({ items: Object.values(db), total: Object.keys(db).length })),
   };
   const audit = { record: vi.fn(async () => undefined) };
-  return { service: new UsersService(repo as never, audit), repo, db, audit };
+  const profiles = { publicProfile: vi.fn(async () => { throw AppError.notFound('Agency not found'); }) };
+  return { service: new UsersService(repo as never, audit, profiles), repo, db, audit, profiles };
 }
 
 const MOD = { userId: 'm1', role: ROLES.MODERATOR } as const;

@@ -131,7 +131,7 @@ export class BookingsService {
     const subtotal = guestPricing.subtotal;
     if (subtotal < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
 
-    const commissionBps = await this.settings.getCommissionBps();
+    const commissionBps = await this.settings.getCommissionBps(departure.agencyId);
     const bookingId = randomUUID();
     await this.tours.reserveSeats(input.tourId, input.departureId, input.participants);
     let result: { booking: BookingRecord; created: boolean };

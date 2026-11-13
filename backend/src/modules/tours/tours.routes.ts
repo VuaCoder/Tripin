@@ -3,6 +3,8 @@ import { PERMISSIONS } from '@travel-platform/constants';
 import multer from 'multer';
 import { z } from 'zod';
 import { requirePermission } from '../../middlewares/authorize';
+import { requireAgencyPermission } from '../../middlewares/agency-context';
+import { AGENCY_PERMISSIONS } from '../agencies/agency.policy';
 import { validate } from '../../middlewares/validate';
 import { AppError } from '../../utils/app-error';
 import { agencyContext } from '../../middlewares/agency-context';
@@ -69,14 +71,14 @@ publicToursRouter.get('/:id', validate({ params: tourIdParams }), toursControlle
 
 /** Mounted at /api/v1/agency/tours — the logged-in agency's own tours. */
 export const agencyToursRouter = Router();
-agencyToursRouter.get('/', requirePermission(P.TOUR_UPDATE_OWN), validate({ query: agencyToursQuery }), toursController.listOwn);
+agencyToursRouter.get('/', requireAgencyPermission(AGENCY_PERMISSIONS.TOUR_VIEW), validate({ query: agencyToursQuery }), toursController.listOwn);
 agencyToursRouter.post('/', requirePermission(P.TOUR_CREATE), validate({ body: createTourBody }), toursController.create);
 // Declared before '/:id' routes so "import", "categories" and "upload-image" are not read as an id.
 agencyToursRouter.post('/categories', requirePermission(P.TOUR_CREATE), validate({ body: createCategoryQuickBody }), toursController.createCategory);
 agencyToursRouter.post('/import', requirePermission(P.TOUR_IMPORT), validate({ body: importToursBody }), toursController.importTours);
 agencyToursRouter.post('/upload-image', requirePermission(P.TOUR_UPDATE_OWN), uploadTourImage, validate({ body: emptyMultipartBody }), toursController.uploadImage);
 agencyToursRouter.post('/extract-document', requirePermission(P.TOUR_IMPORT), uploadTourDocument, validate({ body: emptyMultipartBody }), tourDocumentExtractionController.extract);
-agencyToursRouter.get('/:id', requirePermission(P.TOUR_UPDATE_OWN), validate({ params: tourIdParams }), toursController.getOwn);
+agencyToursRouter.get('/:id', requireAgencyPermission(AGENCY_PERMISSIONS.TOUR_VIEW), validate({ params: tourIdParams }), toursController.getOwn);
 agencyToursRouter.patch(
   '/:id',
   requirePermission(P.TOUR_UPDATE_OWN),
