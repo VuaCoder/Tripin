@@ -8,7 +8,7 @@ import { AgencyTourWorkspacePage } from '@/features/tours/components/AgencyTourW
 import type { TourDetail } from '@/features/tours/types';
 
 const mocks = vi.hoisted(() => ({
-  permissions: ['agency:dashboard', 'agency:bookings-view', 'tour:update-own', 'tour:set-availability', 'tour:assign-guide', 'agency:export-customers'],
+  permissions: ['agency:dashboard', 'agency:bookings-view', 'tour:update-own', 'tour:configure-itinerary', 'tour:set-availability', 'tour:assign-guide', 'agency:export-customers'],
   dashboard: vi.fn(), bookings: vi.fn(), booking: vi.fn(), tour: vi.fn(), tourList: vi.fn(), guides: vi.fn(), assign: vi.fn(), mutation: vi.fn(),
 }));
 vi.mock('next/navigation', () => ({ usePathname: () => '/agency', useSearchParams: () => new URLSearchParams(), useParams: () => ({ id: 'tour-1' }) }));
@@ -36,7 +36,7 @@ const tour: TourDetail = {
 
 beforeEach(() => {
   vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
-  mocks.permissions = ['agency:dashboard', 'agency:bookings-view', 'tour:update-own', 'tour:set-availability', 'tour:assign-guide', 'agency:export-customers'];
+  mocks.permissions = ['agency:dashboard', 'agency:bookings-view', 'tour:update-own', 'tour:configure-itinerary', 'tour:set-availability', 'tour:assign-guide', 'agency:export-customers'];
   mocks.guides.mockReturnValue({ data: { items: [{ id: 'guide-1', fullName: 'Nguyễn An', languages: ['Vietnamese'] }], meta: { totalPages: 1 } } });
   mocks.tour.mockReturnValue({ currentData: tour, refetch: vi.fn() });
   mocks.tourList.mockReturnValue({ currentData: { items: [], meta: { totalPages: 1 } }, refetch: vi.fn() });
@@ -44,6 +44,62 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.clearAllMocks(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('Agency operation screens', () => {
+  it('opens tour details in read mode and exposes section-specific actions', () => {
+    render(<AgencyTourWorkspacePage />);
+    expect(screen.getByRole('heading', { name: 'Thông tin tour' })).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Ngày 1: Lịch trình ban đầu' })).toBeDefined();
+    expect(screen.queryByLabelText('Tiêu đề ngày 1')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Sửa lịch trình' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Quản lý khởi hành & giá vé' })).toBeDefined();
+  });
+
+  it('keeps a staff member able to edit the itinerary but unable to manage departures', () => {
+    mocks.permissions = ['tour:update-own', 'tour:configure-itinerary'];
+    render(<AgencyTourWorkspacePage />);
+    expect(screen.getByRole('button', { name: 'Sửa lịch trình' })).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Quản lý khởi hành & giá vé' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa lịch trình' }));
+    expect(screen.getByLabelText('Tiêu đề ngày 1')).toBeDefined();
+  });
+
+  it('uses a raised departure card and only enables saving after a change', () => {
+    render(<AgencyTourWorkspacePage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Quản lý khởi hành & giá vé' }));
+    const save = screen.getByRole('button', { name: 'Lưu ngày khởi hành' });
+    expect(save.hasAttribute('disabled')).toBe(true);
+    const price = screen.getByRole('textbox', { name: /Giá riêng/ });
+    expect(price.closest('fieldset')?.className).toContain('shadow-');
+    fireEvent.change(price, { target: { value: '1.200.000' } });
+    expect(save.hasAttribute('disabled')).toBe(false);
+  });
+
+  it('sends only fields accepted by the availability API', async () => {
+    mocks.mutation.mockReturnValue({ unwrap: () => new Promise(() => {}) });
+    render(<AgencyTourWorkspacePage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Quản lý khởi hành & giá vé' }));
+    fireEvent.change(screen.getByRole('textbox', { name: /Giá riêng/ }), { target: { value: '1.200.000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu ngày khởi hành' }));
+    await waitFor(() => expect(mocks.mutation).toHaveBeenCalled());
+    expect(mocks.mutation.mock.calls[0][0].departures).toEqual([{
+      id: 'dep-1', date: '2026-12-01T00:00:00.000Z', capacity: 10,
+      isOpen: true, priceOverride: 1_200_000,
+    }]);
+  });
+
+  it('keeps an unsaved itinerary when leaving edit mode is cancelled', () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<AgencyTourWorkspacePage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa lịch trình' }));
+    fireEvent.change(screen.getByLabelText('Tiêu đề ngày 1'), { target: { value: 'Bản sửa chưa lưu' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng chế độ sửa' }));
+    expect(confirm).toHaveBeenCalled();
+    expect((screen.getByLabelText('Tiêu đề ngày 1') as HTMLInputElement).value).toBe('Bản sửa chưa lưu');
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng chế độ sửa' }));
+    expect(screen.queryByLabelText('Tiêu đề ngày 1')).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Ngày 1: Lịch trình ban đầu' })).toBeDefined();
+  });
+
   it('shows a green bordered tour-list button and Vietnamese copy while awaiting review', () => {
     mocks.tour.mockReturnValue({ currentData: { ...tour, status: 'PENDING_REVIEW' }, refetch: vi.fn() });
     render(<AgencyTourWorkspacePage />);
@@ -52,7 +108,8 @@ describe('Agency operation screens', () => {
     expect(back.className).toContain('border-primary');
     expect(back.className).toContain('text-white');
     expect(screen.getByText(/Tour đang chờ xét duyệt/).textContent).not.toMatch(/itinerary|availability/i);
-    expect(screen.getByRole('button', { name: 'Lưu lịch trình' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Sửa lịch trình' })).toBeNull();
+    expect(screen.getByText(/Tour đang chờ duyệt nên chưa thể sửa lịch trình/)).toBeDefined();
   });
   it('keeps lifetime metrics unchanged when filtering the bento revenue chart and never invents growth', () => {
     mocks.dashboard.mockReturnValue({ data: {
@@ -172,7 +229,7 @@ describe('Agency operation screens', () => {
     await selectFormValue(/Chọn hướng dẫn viên/, 'guide-1');
     fireEvent.change(screen.getByLabelText('Phí mỗi đơn đặt chỗ (VND)'), { target: { value: '450000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Gửi phân công' }));
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Tour đã thay đổi'));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Tour đã được cập nhật ở phiên khác'));
     expect(screen.getByText(/Nguyễn An/, { selector: '.ant-select-content' })).toBeTruthy();
     expect((screen.getByLabelText('Phí mỗi đơn đặt chỗ (VND)') as HTMLInputElement).value).toBe('450.000');
     expect(screen.queryByRole('status')).toBeNull();
@@ -180,13 +237,11 @@ describe('Agency operation screens', () => {
 
   it('preserves unsaved itinerary and availability across guide polling refreshes', async () => {
     const view = render(<AgencyTourWorkspacePage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa lịch trình' }));
     const title = await screen.findByLabelText('Tiêu đề ngày 1');
     fireEvent.change(title, { target: { value: 'Nội dung chưa lưu' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Bước 2: Khởi hành & Giá vé' }));
-    expect(screen.getByText('Số lượng khách (3 nhóm)')).toBeDefined();
     mocks.tour.mockReturnValue({ currentData: { ...tour, guideAssignment: { guideId: 'guide-1', status: 'ACCEPTED', feePerBooking: 100000 } }, refetch: vi.fn() });
     view.rerender(<AgencyTourWorkspacePage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Bước 1: Lịch trình' }));
     expect((screen.getByLabelText('Tiêu đề ngày 1') as HTMLInputElement).value).toBe('Nội dung chưa lưu');
   });
 });

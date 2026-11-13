@@ -28,6 +28,7 @@ vi.mock('@/features/tours/api/toursApi', () => ({
   getTourApiMessage: (_error: unknown, fallback: string) => fallback,
 }));
 vi.mock('@/features/agency/agencyContext', () => ({ useAgencyContext: () => ({ memberRole: mocks.memberRole.current }) }));
+vi.mock('@/features/agency/agencyNotice', () => ({ agencyNotice: { error: vi.fn(), success: vi.fn(), warning: vi.fn(), info: vi.fn() } }));
 vi.mock('@/features/tours/components/AgencyTourLivePreview', () => ({ AgencyTourLivePreview: () => null }));
 
 beforeEach(() => { 
@@ -51,6 +52,39 @@ function completeRequiredFields() {
 }
 
 describe('Tour editor inline reminders', () => {
+  it('moves to the next field with Enter and keeps Shift+Enter for textarea newlines', () => {
+    render(<AgencyTourEditorPage mode="create" />);
+    const title = screen.getByRole('textbox', { name: 'Tên tour' });
+    const description = screen.getByRole('textbox', { name: 'Mô tả tour' });
+    const days = screen.getByRole('spinbutton', { name: 'Thời lượng (Số ngày)' });
+    const summary = screen.getByRole('textbox', { name: 'Tóm tắt ngắn' });
+    title.focus();
+    fireEvent.keyDown(title, { key: 'Enter' });
+    expect(document.activeElement).toBe(description);
+    fireEvent.keyDown(description, { key: 'Enter', shiftKey: true });
+    expect(document.activeElement).toBe(description);
+    fireEvent.keyDown(description, { key: 'Enter' });
+    expect(document.activeElement?.getAttribute('name')).toBe('destination');
+    days.focus();
+    fireEvent.keyDown(days, { key: 'Enter' });
+    expect(document.activeElement).toBe(summary);
+  });
+
+  it('blocks direct creation for staff while preserving edit access', () => {
+    mocks.memberRole.current = 'STAFF';
+    render(<AgencyTourEditorPage mode="create" />);
+    expect(screen.getByRole('alert').textContent).toContain('Chỉ Chủ đại lý hoặc Quản lý');
+    expect(screen.queryByRole('button', { name: 'Tạo tour & Tiếp tục' })).toBeNull();
+  });
+
+  it('shows locked tour details instead of disabled edit fields', () => {
+    mocks.tourData.current = { id: 'tour-123', status: 'PENDING_REVIEW' };
+    render(<AgencyTourEditorPage mode="edit" />);
+    expect(screen.getByRole('heading', { name: 'Chưa thể sửa nội dung tour' })).toBeDefined();
+    expect(screen.getByRole('link', { name: 'Xem chi tiết tour' }).getAttribute('href')).toBe('/agency/tours/tour-123');
+    expect(screen.queryByRole('textbox', { name: 'Tên tour' })).toBeNull();
+  });
+
   it('shows errors below fields after continuing, clears corrected errors and labels optional fields without red asterisks', () => {
     const { container } = render(<AgencyTourEditorPage mode="create" />);
     expect(screen.queryByRole('alert')).toBeNull();
@@ -147,6 +181,7 @@ describe('Tour editor edit mode & unsaved changes handling', () => {
     images: ['https://images.unsplash.com/photo-1528127269322-539801943592'],
     inclusions: ['Xe đưa đón'],
     exclusions: ['Chi phí cá nhân'],
+    cancellationPolicy: 'Hủy trước 7 ngày được hoàn 50%.',
     status: 'DRAFT',
   };
 
@@ -158,6 +193,9 @@ describe('Tour editor edit mode & unsaved changes handling', () => {
     expect(screen.getByText(/Chỉ Quản lý \(Manager\) hoặc Chủ đại lý/)).toBeDefined();
     const price = screen.getByLabelText(/Giá người lớn/) as HTMLInputElement;
     expect(price.closest('fieldset')?.disabled).toBe(true);
+    expect(screen.getByText('Chính sách hủy hoàn · Chỉ xem')).toBeDefined();
+    expect(screen.getByText('Hủy trước 7 ngày được hoàn 50%.')).toBeDefined();
+    expect(screen.queryByText('Chọn nhanh chính sách đề xuất:')).toBeNull();
     fireEvent.change(screen.getByRole('textbox', { name: 'Tên tour' }), { target: { value: 'Tour Staff cập nhật' } });
     fireEvent.click(screen.getAllByRole('button', { name: 'Hủy' })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Lưu rồi thoát' }));

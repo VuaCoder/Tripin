@@ -128,6 +128,19 @@ export const {
 } = toursApi;
 
 const TOUR_ERROR_TRANSLATIONS: Record<string, string> = {
+  TOUR_LOCKED: 'Tour đang ở trạng thái không cho phép sửa. Hãy kiểm tra trạng thái tour rồi thử lại.',
+  ITINERARY_EXCEEDS_DURATION: 'Lịch trình vượt quá thời lượng tour hoặc có ngày trùng nhau. Hãy chỉnh lại lịch trình.',
+  DEPARTURE_HAS_BOOKINGS: 'Ngày khởi hành đã có khách đặt. Bạn có thể đóng nhận khách, nhưng không thể đổi hoặc gỡ ngày.',
+  CAPACITY_BELOW_BOOKED: 'Số chỗ mới thấp hơn số khách đã đặt. Hãy tăng sức chứa.',
+  TOUR_HAS_BOOKINGS: 'Tour còn ngày khởi hành sắp tới đã có khách đặt. Hãy đóng nhận khách trước khi lưu trữ.',
+  CONCURRENT_UPDATE: 'Tour đã được cập nhật ở phiên khác. Hãy làm mới dữ liệu rồi thử lại.',
+  TOUR_PRIVATE_MANAGED_BY_CUSTOM_TOUR: 'Tour này thuộc yêu cầu đặt riêng. Hãy chỉnh sửa từ yêu cầu đặt tour nhóm.',
+  FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này.',
+  'Staff can update tour content only': 'Nhân viên chỉ được sửa nội dung tour. Giá, chính sách và thông tin khác do Quản lý hoặc Chủ đại lý chỉnh sửa.',
+  'Tour lifecycle requires Manager or Owner': 'Chỉ Quản lý hoặc Chủ đại lý mới có quyền thực hiện thao tác này.',
+  'New departures must be in the future': 'Ngày khởi hành mới phải ở trong tương lai. Hãy chọn ngày khác.',
+  'Departures must be in the future': 'Ngày khởi hành được đổi phải ở trong tương lai. Hãy chọn ngày khác.',
+  'Tour not found': 'Không tìm thấy tour này hoặc bạn không có quyền xem.',
   NO_OPEN_DEPARTURE: 'Vui lòng chuyển sang tab "Khởi hành" và thêm ít nhất một ngày khởi hành trong tương lai đang mở bán trước khi gửi duyệt tour.',
   'Add at least one open future departure before submitting': 'Vui lòng chuyển sang tab "Khởi hành" và thêm ít nhất một ngày khởi hành trong tương lai đang mở bán trước khi gửi duyệt tour.',
   'Add at least one category before submitting': 'Vui lòng chọn ít nhất một danh mục cho tour trước khi gửi duyệt.',
@@ -146,5 +159,6 @@ export function getTourApiMessage(error: unknown, fallback = 'Đã có lỗi x�
   if (rawMsg && TOUR_ERROR_TRANSLATIONS[rawMsg]) {
     return TOUR_ERROR_TRANSLATIONS[rawMsg];
   }
-  return rawMsg || fallback;
+  if (rawMsg && /[À-ỹ]/.test(rawMsg)) return rawMsg;
+  return fallback;
 }

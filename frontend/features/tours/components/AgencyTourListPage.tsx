@@ -12,9 +12,12 @@ import {
   getTourApiMessage 
 } from '../api/toursApi';
 import type { TourDetail, TourStatus } from '../types';
+import { agencyNotice } from '@/features/agency/agencyNotice';
 import { Pagination } from '@/components/ui/Pagination';
 import { AntSelect } from '@/components/ui/AntSelect';
 import { useAgencyPermission } from '@/features/agency/AgencyCommon';
+import { AgencyPageTitle } from '@/features/agency/components/AgencyPageTitle';
+import { Compass } from 'lucide-react';
 
 function TourGridImageCarousel({ tour, onManageImages }: { tour: TourDetail; onManageImages: () => void }) {
   const images = (tour.images && tour.images.length > 0) ? tour.images : (tour.coverImage ? [tour.coverImage] : []);
@@ -132,6 +135,7 @@ const PRESET_PHOTOS = [
 
 export function AgencyTourListPage() {
   const canManageLifecycle = useAgencyPermission('tour:delete-own');
+  const canCreateTour = useAgencyPermission('tour:create');
   const router = useRouter();
   const [status, setStatus] = useState<TourStatus | undefined>();
   const [page, setPage] = useState(1);
@@ -204,7 +208,9 @@ export function AgencyTourListPage() {
         }
       }
     } catch (err) {
-      setModalImageError(getTourApiMessage(err, 'Không thể tải ảnh lên. Vui lòng thử lại.'));
+      const message = `Chưa tải được ảnh: ${getTourApiMessage(err, 'Vui lòng thử lại.')}`;
+      setModalImageError(message);
+      agencyNotice.error(message);
     } finally {
       setIsUploadingImage(false);
     }
@@ -236,12 +242,15 @@ export function AgencyTourListPage() {
         body: { images: validImages }
       }).unwrap();
       setImageSaveMessage('Đã cập nhật ảnh thành công!');
+      agencyNotice.success('Đã cập nhật ảnh tour.');
       setTimeout(() => {
         setEditingImageTour(null);
         setImageSaveMessage('');
       }, 1000);
     } catch (err) {
-      setActionError(getTourApiMessage(err, 'Không thể cập nhật ảnh tour.'));
+      const message = `Chưa lưu được ảnh tour: ${getTourApiMessage(err, 'Vui lòng thử lại.')}`;
+      setActionError(message);
+      agencyNotice.error(message);
     }
   };
 
@@ -251,9 +260,12 @@ export function AgencyTourListPage() {
     setActionSuccess('');
     try { 
       await deleteTour(archivingTour.id).unwrap(); 
+      agencyNotice.success('Đã lưu trữ tour.');
       setArchivingTour(null);
     } catch (e) { 
-      setActionError(getTourApiMessage(e, 'Không thể lưu trữ tour.')); 
+      const message = `Chưa lưu trữ được tour: ${getTourApiMessage(e, 'Vui lòng thử lại.')}`;
+      setActionError(message);
+      agencyNotice.error(message);
       setArchivingTour(null);
     }
   };
@@ -265,10 +277,13 @@ export function AgencyTourListPage() {
     try {
       await restoreTour(restoringTour.id).unwrap();
       setActionSuccess(`Đã khôi phục tour “${restoringTour.title}” về bản nháp thành công!`);
+      agencyNotice.success(`Đã khôi phục tour “${restoringTour.title}”.`);
       setRestoringTour(null);
       setTimeout(() => setActionSuccess(''), 4000);
     } catch (e) {
-      setActionError(getTourApiMessage(e, 'Không thể khôi phục tour.'));
+      const message = `Chưa khôi phục được tour: ${getTourApiMessage(e, 'Vui lòng thử lại.')}`;
+      setActionError(message);
+      agencyNotice.error(message);
       setRestoringTour(null);
     }
   };
@@ -278,21 +293,16 @@ export function AgencyTourListPage() {
       {/* Header bar */}
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-            Quản lý tour
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Tạo hành trình, quản lý ngày khởi hành, bổ sung hình ảnh thương hiệu và theo dõi trạng thái kiểm duyệt.
-          </p>
+          <AgencyPageTitle icon={Compass}>Quản lý tour</AgencyPageTitle>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Link 
+          {canCreateTour && <Link
             href="/agency/tours/new" 
             className="inline-flex items-center gap-1.5 rounded-xl bg-primary-container px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary transition-colors shadow-md shadow-primary-container/20"
           >
             <span className="material-symbols-outlined text-[18px]">add</span>
             <span>Tạo tour</span>
-          </Link>
+          </Link>}
         </div>
       </div>
 
@@ -396,12 +406,12 @@ export function AgencyTourListPage() {
             Tạo tour đầu tiên hoặc nhập nhiều tour để bắt đầu quản lý lịch trình, hình ảnh và ngày khởi hành.
           </p>
           <div className="mt-6 flex justify-center gap-3">
-            <Link 
+            {canCreateTour && <Link
               href="/agency/tours/new" 
               className="rounded-xl bg-primary-container px-5 py-2.5 text-sm font-bold text-white hover:bg-primary transition-colors shadow-sm"
             >
               + Tạo tour mới
-            </Link>
+            </Link>}
           </div>
         </section>
       ) : (
@@ -496,7 +506,7 @@ export function AgencyTourListPage() {
                     {/* Right: Actions */}
                     <div className="flex shrink-0 items-center gap-2 border-t border-slate-100 pt-3 sm:border-t-0 sm:pt-0" onClick={(e) => e.stopPropagation()}>
                       <Link 
-                        href={`/agency/tours/${tour.id}/edit?from=/agency/tours`} 
+                        href={tour.status === 'PENDING_REVIEW' || tour.status === 'ARCHIVED' ? `/agency/tours/${tour.id}` : `/agency/tours/${tour.id}/edit?from=/agency/tours`}
                         aria-disabled={tour.status === 'PENDING_REVIEW' || tour.status === 'ARCHIVED'} 
                         title={
                           tour.status === 'ARCHIVED' 
@@ -618,7 +628,7 @@ export function AgencyTourListPage() {
                       {/* Card Footer Actions */}
                       <div className="mt-5 flex items-center justify-between gap-2 border-t border-slate-100 pt-3" onClick={(e) => e.stopPropagation()}>
                         <Link 
-                          href={`/agency/tours/${tour.id}/edit?from=/agency/tours`} 
+                          href={tour.status === 'PENDING_REVIEW' || tour.status === 'ARCHIVED' ? `/agency/tours/${tour.id}` : `/agency/tours/${tour.id}/edit?from=/agency/tours`}
                           aria-disabled={tour.status === 'PENDING_REVIEW' || tour.status === 'ARCHIVED'} 
                           title={
                             tour.status === 'ARCHIVED' 

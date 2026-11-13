@@ -1,5 +1,7 @@
 # Kế hoạch cải thiện flow tạo và quản lý tour
 
+> Cập nhật theo code hiện tại ngày 13/11/2026. Phần **11. Đối chiếu với code hiện tại** dưới đây là nguồn tham chiếu khi các mô tả khái quát phía trên khác với hành vi đang được triển khai.
+
 ## 1. Mục tiêu
 
 Người dùng mở một tour từ danh sách để xem được toàn bộ thông tin trước khi quyết định sửa. Khi cần chỉnh sửa, họ nhận biết rõ phần nào có thể sửa, đi đến đúng phần đó và luôn biết vì sao một thao tác không thể hoàn thành. Flow tạo tour và flow quản lý tour dùng cùng cách trình bày, trạng thái và phản hồi.
@@ -153,3 +155,49 @@ Trạng thái tour tiếp tục giới hạn quyền: chờ duyệt và lưu tr�
 - Kiểm tra lỗi nhập liệu, lỗi API, khóa theo trạng thái/quyền và dữ liệu chưa lưu; xác nhận toast, lỗi tại trường và vị trí focus đúng.
 - So sánh giao diện card khởi hành ở desktop và mobile, gồm card thường, card đã có khách đặt, card đang lưu và card lỗi.
 - Chạy các bài kiểm tra frontend/backend liên quan sau khi triển khai; không coi riêng ảnh chụp màn hình là đủ để xác nhận hành vi.
+
+## 11. Đối chiếu với code hiện tại để triển khai đồng bộ
+
+### 11.1. Route, dữ liệu và thứ tự tạo tour thực tế
+
+| Route hiện có | Thành phần | Vai trò trong flow sau khi cải thiện |
+|---|---|---|
+| `/agency/tours` | `AgencyTourListPage` | Danh sách; card/tên dẫn đến chi tiết; nút sửa dẫn đến editor. |
+| `/agency/tours/new` | `AgencyTourEditorPage` (`create`) | Form **4 bước**: Thông tin chung → Hình ảnh tour → Giá & Dịch vụ → Chính sách. Tạo thành công gọi `router.replace('/agency/tours/{id}')`. |
+| `/agency/tours/[id]` | `AgencyTourWorkspacePage` | Hiện là workspace **2 bước**: Lịch trình → Khởi hành & Giá vé. Chuyển thành trang chi tiết đọc được đầy đủ, có lối vào hai biểu mẫu này. |
+| `/agency/tours/[id]/edit` | `AgencyTourEditorPage` (`edit`) | Sửa nội dung tour. Tham số `from` đang dùng để quay về trang đã mở editor. |
+
+- Không giả định form tạo tour đã có card ngày khởi hành. Card hiện nằm trong `AgencyTourWorkspacePage`, sau khi tour được tạo. Đồng bộ flow tạo bằng cách dẫn người dùng từ form 4 bước đến phần thiết lập lịch trình/khởi hành của tour mới, dùng **chính cùng thành phần card và quy tắc thông báo**, tránh làm thêm một bản card độc lập trong editor.
+- `AgencyTourEditorPage` đã có kiểm tra trường, chuyển đến bước và focus trường lỗi, cảnh báo khi rời form chưa lưu, modal xác nhận lưu/tạo, và `AgencyTourLivePreview`. Giữ và mở rộng các cơ chế này; không tạo thêm modal hoặc bản preview trùng chức năng. Bản preview hiện tại chỉ là bản xem trước trong editor, chưa thay được trang chi tiết đầy đủ.
+- `AgencyTourWorkspacePage` đã có `days`/`departures` local state, cờ dirty, snapshot dữ liệu, polling và cập nhật RTK Query cache sau khi lưu. Khi tách chế độ xem/sửa, giữ nguyên nguyên tắc không ghi đè bản nháp đang sửa bằng kết quả polling. Bổ sung cảnh báo rời workspace khi lịch trình hoặc khởi hành còn thay đổi chưa lưu, tương tự editor.
+- Dùng các mutation hiện có: `POST /agency/tours`, `PATCH /agency/tours/:id`, `PUT /agency/tours/:id/itinerary`, `PUT /agency/tours/:id/availability`, `POST /agency/tours/:id/submit`. Chỉ thêm route/API nếu một yêu cầu không thể đáp ứng bằng những endpoint này.
+
+### 11.2. Quyền và trạng thái theo code hiện tại
+
+- `OWNER` và `MANAGER` có đủ quyền tạo, sửa nội dung/lịch trình, quản lý khởi hành, gửi duyệt, lưu trữ/khôi phục. `STAFF` có `tour:update-own` và `tour:configure-itinerary`; chỉ sửa tour đã tồn tại, và `PATCH` chỉ nhận `title`, `description`, `images`, `highlights`, `itinerary`, `inclusions`, `exclusions`. `ACCOUNTANT` không có quyền truy cập module tour.
+- Route xem tour dùng `tour:update-own`, còn route sửa lịch trình dùng `tour:configure-itinerary`. Vì vậy UI phải kiểm tra **quyền sửa lịch trình riêng**, dù hiện tại ma trận role cùng cấp quyền đó cho Owner, Manager và Staff. Không dùng duy nhất `canView` để quyết định quyền sửa.
+- Form tạo tour hiện chưa được ràng buộc rõ bằng `tour:create` tại nút **Tạo tour** trong `AgencyTourListPage`; khi triển khai phải ẩn/khóa nút này cho Staff để khớp route backend. Kiểm tra cả truy cập trực tiếp `/agency/tours/new`.
+- `PENDING_REVIEW` và `ARCHIVED` khóa sửa nội dung/lịch trình. **`APPROVED` không bị khóa**: `applyContentChange` hiện giữ trạng thái `APPROVED` sau khi sửa nội dung hoặc lịch trình, không tự đưa tour về chờ duyệt. UI/toast và tiêu chí kiểm thử phải phản ánh đúng quy tắc này.
+- Thay đổi khởi hành được phép khi `PENDING_REVIEW` nếu có quyền `tour:set-availability`; `ARCHIVED` không cho sửa. Không dùng chung cờ `locked` của nội dung/lịch trình để khóa khởi hành.
+- `guardTourManagement` chặn Staff gửi duyệt và khôi phục; `tour:delete-own` giới hạn lưu trữ cho Owner/Manager. Tour private thuộc yêu cầu đặt tour nhóm được quản lý ở flow riêng và có thể bị backend từ chối bằng `TOUR_PRIVATE_MANAGED_BY_CUSTOM_TOUR`.
+- Có khách đã đặt: backend chặn đổi/gỡ ngày, chặn hạ sức chứa thấp hơn số đã bán, nhưng vẫn cho cập nhật các trường còn hợp lệ như mở/đóng nhận khách. Chỉ khóa đúng trường/hành động bị cấm.
+
+### 11.3. Các điểm lệch cần xử lý trong lần triển khai
+
+1. `AgencyTourWorkspacePage` hiện hiển thị trực tiếp input lịch trình và khởi hành sau khi mở tour; thay vùng chi tiết mặc định bằng nội dung đọc, rồi mở biểu mẫu khi người dùng chọn thao tác sửa. Giữ URL `/agency/tours/[id]` để các liên kết hiện có từ danh sách, booking và dashboard không gãy.
+2. `AgencyTourWorkspacePage` dùng `canView = tour:update-own` và `canManageAvailability = tour:set-availability`, nhưng chưa kiểm tra `tour:configure-itinerary` riêng cho nút sửa lịch trình. Thêm kiểm tra này khi tách chế độ.
+3. `AgencyTourListPage` hiển thị nút **Tạo tour** ở cả header và empty state; đồng bộ cả hai với quyền `tour:create`. Hai kiểu list và grid đều cần cùng đường dẫn/nhãn sửa.
+4. `AgencyTourEditorPage` có lỗi tại trường và `pageError`, còn workspace có `errorText` và `agencyNotice`; `getTourApiMessage` mới dịch một số lỗi. Chọn một quy tắc hiển thị toast cho các thao tác thất bại, tái dùng lỗi tại trường và chuyển bước đã có. Bổ sung ánh xạ cho `TOUR_LOCKED`, `ITINERARY_EXCEEDS_DURATION`, `DEPARTURE_HAS_BOOKINGS`, `CAPACITY_BELOW_BOOKED`, `TOUR_HAS_BOOKINGS`, `CONCURRENT_UPDATE` và quyền Staff nếu response có mã tương ứng. Không hiện raw English từ API.
+5. Workspace hiện có `itineraryDirty` và `availabilityDirty` để bảo vệ bản nhập khỏi polling, nhưng nút lưu chưa dựa vào so sánh snapshot và chưa có cảnh báo rời trang. Dùng trạng thái dirty thực tế cho nút lưu và cảnh báo điều hướng; reset snapshot sau khi lưu thành công.
+6. Card khởi hành hiện là `fieldset` viền slate trên nền slate, đặt trong một section cũng có viền. Giảm lớp viền ở cả card lẫn section; dùng nền trang và bóng card để tạo độ nổi theo ảnh tham chiếu. Giữ viền focus và viền trường nhập, trạng thái cảnh báo có khách đặt, dropdown nhóm khách và công tắc mở bán.
+7. `AgencyTourEditorPage` đã có modal xác nhận tạo/sửa và preview. Tránh thêm một bước xem lại làm đứt flow hiện có; trước tiên nâng cấp trang `/agency/tours/[id]` thành trang chi tiết đầy đủ để sau khi tạo người dùng xem lại, thiết lập lịch trình/khởi hành và gửi duyệt. Nếu cần xem lại trước **lần lưu đầu tiên**, dùng preview hiện có và nêu rõ rằng lịch trình/khởi hành chỉ thiết lập sau khi tạo tour.
+
+### 11.4. Thứ tự bàn giao kỹ thuật
+
+1. Chuẩn hóa quyền UI và ánh xạ lỗi dùng chung; xác nhận các mã lỗi thực tế từ API và trạng thái `APPROVED`.
+2. Tách trang `/agency/tours/[id]` thành chế độ xem chi tiết và các vùng sửa có chủ đích; bảo toàn state, polling và RTK Query cache hiện tại.
+3. Tinh chỉnh một thành phần card khởi hành dùng trong giai đoạn thiết lập sau tạo và giai đoạn quản lý; đồng bộ responsive, trạng thái đã bán và cảnh báo rời trang.
+4. Cập nhật editor 4 bước để nối flow tạo sang trang chi tiết/thiết lập, dùng cùng toast, lỗi tại trường và nhãn hành động.
+5. Cập nhật test hiện có ở `frontend/features/agency/__tests__/agency-tour-editor.test.tsx` và `frontend/features/agency/__tests__/agency-screens.test.tsx`; bổ sung kiểm thử riêng cho danh sách tour đại lý nếu chưa có. Kiểm tra role và trạng thái ở backend tour khi có thay đổi API/quy tắc.
+
+Điều kiện đồng bộ khi bàn giao: một thay đổi nghiệp vụ ở quyền, trạng thái hoặc điều kiện lưu phải được phản ánh đồng thời ở backend, ánh xạ lỗi frontend, trạng thái thao tác trên UI và bài kiểm thử tương ứng.
