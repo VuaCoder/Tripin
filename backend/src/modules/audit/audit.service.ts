@@ -5,9 +5,13 @@ import { logger } from '../../utils/logger';
 import { toAuditLogDto } from './audit.mapper';
 import { auditRepository, type AuditRepository } from './audit.repository';
 import type { AuditEntry, AuditLogDto, ListAuditQuery } from './audit.types';
+import { usersService, type UsersService } from '../users';
 
 export class AuditService {
-  constructor(private readonly logs: Pick<AuditRepository, 'create' | 'list'> = auditRepository) {}
+  constructor(
+    private readonly logs: Pick<AuditRepository, 'create' | 'list'> = auditRepository,
+    private readonly users?: Pick<UsersService, 'getSummaries'>,
+  ) {}
 
   /**
    * Appends an audit record. A failure to write the trail must not undo a business action that already succeeded,
@@ -32,7 +36,12 @@ export class AuditService {
   async list(query: ListAuditQuery): Promise<Page<AuditLogDto>> {
     const { page, limit, ...filter } = query;
     const { items, total } = await this.logs.list(filter, { page, limit });
-    return buildPage(items.map(toAuditLogDto), total, { page, limit });
+    const userSummary = this.users ?? usersService;
+    const actors = await userSummary.getSummaries(items.map((item) => item.actorId));
+    return buildPage(items.map((item) => ({
+      ...toAuditLogDto(item),
+      actorName: actors.get(item.actorId)?.fullName ?? 'Tài khoản đã xóa',
+    })), total, { page, limit });
   }
 }
 

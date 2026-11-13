@@ -511,9 +511,9 @@ export function AiThread() {
                 </div>
               )}
 
-              <div className={`max-w-[85%] sm:max-w-[75%] ${isMine ? 'items-end' : 'items-start'}`}>
+              <div className={`flex flex-col max-w-[85%] sm:max-w-[75%] ${isMine ? 'items-end' : 'items-start'}`}>
                 <div
-                  className={`break-words rounded-2xl px-4 py-3 text-sm leading-relaxed [overflow-wrap:anywhere] shadow-2xs ${
+                  className={`w-fit break-words rounded-2xl px-3.5 py-2 text-sm leading-normal [overflow-wrap:anywhere] shadow-2xs ${
                     isMine
                       ? 'rounded-br-xs bg-primary-container text-white'
                       : 'rounded-bl-xs border border-slate-200/90 bg-white text-slate-900'

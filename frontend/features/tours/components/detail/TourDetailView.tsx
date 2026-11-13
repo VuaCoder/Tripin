@@ -1,14 +1,14 @@
 'use client';
-import { useState, useEffect, useCallback, type MouseEvent } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { type GuestCounts } from '@travel-platform/constants';
-import { GuestLoginPromptModal } from '@/components/shared';
+import { GuestLoginPromptModal, BackButton } from '@/components/shared';
 import { ChevronRight, Printer, MapPin, Clock3, Building2, Check, User } from 'lucide-react';
 import { WishlistButton } from '@/features/wishlist';
 import { ReportButton } from '@/features/report';
 import { StartConversationButton } from '@/features/chat/StartConversationButton';
-import { RatingStars, TourReviewsSection } from '@/features/review';
+import { TourReviewsSection } from '@/features/review';
 import type { TourReviewContext } from '@/features/review/types';
 import { TourGallery } from './TourGallery';
 import { TourItinerary } from './TourItinerary';
@@ -47,6 +47,8 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
   }, []);
   const printQuery = new URLSearchParams();
   if (printSelection.departureId) printQuery.set('departureId', printSelection.departureId);
+  const selectedDeparture = tour.departures?.find((departure) => departure.id === printSelection.departureId);
+  if (selectedDeparture) printQuery.set('departureDate', selectedDeparture.date.slice(0, 10));
   printQuery.set('adults', String(printSelection.guests.adults));
   printQuery.set('children', String(printSelection.guests.children));
   printQuery.set('infants', String(printSelection.guests.infants));
@@ -66,23 +68,12 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
       });
     }
   }, [tour]);
-  const navigateSection = (event: MouseEvent<HTMLAnchorElement>, id: string) => {
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    event.preventDefault();
-    window.history.replaceState(null, '', `#${id}`);
-    document.getElementById(id)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
-  };
   const images = tour.images?.length ? tour.images : tour.coverImage ? [tour.coverImage] : [];
   return <div className={styles.page}>
     <div className={styles.titleRow}>
-      <div>
-        <h1>{tour.title}</h1>
-        <div className={styles.ratings}>
-          <RatingStars value={tour.ratingAvg} count={tour.ratingCount} size="sm" />
-          <a href="#danh-gia" onClick={event => navigateSection(event, 'danh-gia')}>
-            {tour.ratingCount ? `${tour.ratingAvg.toFixed(1)}/5` : 'Chưa có đánh giá'}
-          </a>
-        </div>
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <BackButton fallbackUrl="/tours" className="shrink-0" />
+        <h1 className="min-w-0">{tour.title}</h1>
       </div>
       <div className={styles.titleActions}>
         <WishlistButton
@@ -95,6 +86,8 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
         <ReportButton targetType="TOUR" targetId={tour.id} targetLabel={tour.title} iconOnly />
         <Link
           href={printHref}
+          target="_blank"
+          rel="noopener noreferrer"
           className={styles.iconActionButton}
           aria-label="In chương trình"
           title="In chương trình"

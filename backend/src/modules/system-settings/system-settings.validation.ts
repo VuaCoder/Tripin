@@ -12,6 +12,12 @@ export const commissionBody = z
   })
   .strict();
 
+export const agencyCommissionParams = z.object({ id: z.uuid() });
+export const agencyCommissionBody = z.object({
+  expectedVersion: z.number().int().nonnegative(),
+  ratePercent: z.number().min(0).max(100).refine((value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-9, 'At most 2 decimals').nullable(),
+}).strict();
+
 export const policyKeyParams = z.object({ key: z.enum(POLICY_KEYS) });
 
 export const policyBody = z
@@ -31,3 +37,5 @@ export const policyBody = z
 export type CommissionBody = z.infer<typeof commissionBody>;
 export type PolicyKeyParams = z.infer<typeof policyKeyParams>;
 export type PolicyBody = z.infer<typeof policyBody>;
+export type AgencyCommissionParams = z.infer<typeof agencyCommissionParams>;
+export type AgencyCommissionBody = z.infer<typeof agencyCommissionBody>;

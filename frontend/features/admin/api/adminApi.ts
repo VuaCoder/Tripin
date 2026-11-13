@@ -1,6 +1,6 @@
 import { baseApi } from '@/store/api/baseApi';
 import type { DashboardArgs } from '../types';
-import type { AccessInput, AdminUser, Category, CategoryInput, Commission, Dashboard, Envelope, ListPromotionsArgs, Page, Policy, PolicyInput, PolicyKey, Promotion, CreatePromotionInput, UpdatePromotionInput, UsersArgs } from '../types';
+import type { AccessInput, AdminUser, AgencyCommission, Category, CategoryInput, Commission, Dashboard, Envelope, ListPromotionsArgs, Page, Policy, PolicyInput, PolicyKey, Promotion, CreatePromotionInput, UpdatePromotionInput, UsersArgs } from '../types';
 
 const page = <T>(response: Envelope<T[]>): Page<T> => {
   if (!response.meta) throw new Error('Missing pagination metadata');
@@ -11,6 +11,7 @@ const users = { type: 'User' as const, id: 'ADMIN_LIST' };
 const categories = { type: 'Category' as const, id: 'LIST' };
 const policies = { type: 'Policy' as const, id: 'LIST' };
 const commission = { type: 'Commission' as const, id: 'PLATFORM' };
+const agencyCommissions = { type: 'Commission' as const, id: 'AGENCIES' };
 
 /** Mutations invalidate only after a confirmed success. No optimistic configuration writes. */
 export const adminApi = baseApi.injectEndpoints({
@@ -76,6 +77,13 @@ export const adminApi = baseApi.injectEndpoints({
       query: (body) => ({ url: '/admin/settings/commission', method: 'PUT', body }),
       transformResponse: (r: Envelope<Commission>) => r.data, invalidatesTags: (_r, e) => e ? [] : [commission],
     }),
+    getAgencyCommissions: build.query<AgencyCommission[], void>({
+      query: () => '/admin/settings/agency-commissions', transformResponse: (r: Envelope<AgencyCommission[]>) => r.data, providesTags: [agencyCommissions],
+    }),
+    setAgencyCommission: build.mutation<AgencyCommission, { id: string; ratePercent: number | null; expectedVersion: number }>({
+      query: ({ id, ...body }) => ({ url: `/admin/settings/agency-commissions/${id}`, method: 'PUT', body }),
+      transformResponse: (r: Envelope<AgencyCommission>) => r.data, invalidatesTags: (_r, e) => e ? [] : [agencyCommissions],
+    }),
     getAdminPolicies: build.query<Policy[], void>({
       query: () => '/policies', transformResponse: (r: Envelope<Policy[]>) => r.data, providesTags: [policies],
     }),
@@ -91,5 +99,5 @@ export const {
   useGenerateAdminBatchMutation, useGetAdminBatchQuery, useLazyGetAdminBatchQuery,
   useGetAdminUsersQuery, useAssignAdminAccessMutation, useGetAdminCategoriesQuery,
   useCreateAdminCategoryMutation, useUpdateAdminCategoryMutation, useDeactivateAdminCategoryMutation,
-  useGetAdminCommissionQuery, useSetAdminCommissionMutation, useGetAdminPoliciesQuery, useSetAdminPolicyMutation,
+  useGetAdminCommissionQuery, useSetAdminCommissionMutation, useGetAgencyCommissionsQuery, useSetAgencyCommissionMutation, useGetAdminPoliciesQuery, useSetAdminPolicyMutation,
 } = adminApi;

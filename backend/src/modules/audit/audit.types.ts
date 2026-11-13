@@ -19,8 +19,10 @@ export const AUDIT_ACTIONS = {
   USER_ACCESS_ASSIGNED: 'user.access_assigned',
   USER_BANNED: 'user.banned',
   USER_UNBANNED: 'user.unbanned',
+  USER_DELETED: 'user.deleted',
   AGENCY_VERIFICATION_DECIDED: 'agency.verification_decided',
   COMMISSION_UPDATED: 'settings.commission_updated',
+  AGENCY_COMMISSION_UPDATED: 'settings.agency_commission_updated',
   POLICY_UPDATED: 'settings.policy_updated',
   CATEGORY_CREATED: 'category.created',
   CATEGORY_UPDATED: 'category.updated',
@@ -48,6 +50,7 @@ export interface AuditEntry {
 export interface AuditLogDto {
   id: string;
   actorId: string;
+  actorName?: string;
   actorRole: string;
   action: string;
   targetType: string;

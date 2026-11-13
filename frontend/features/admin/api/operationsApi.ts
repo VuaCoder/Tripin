@@ -7,9 +7,11 @@ export const operationsApi = baseApi.injectEndpoints({ endpoints: (build) => ({
   reinviteStaff: build.mutation<unknown, string>({ query: (id) => ({ url: `/admin/staff/${id}/reinvite`, method: 'POST', body: {} }) }),
   disableStaff: build.mutation<AdminUser, { id: string; reason: string }>({ query: ({ id, ...body }) => ({ url: `/admin/staff/${id}/disable`, method: 'POST', body }), transformResponse: (r: Envelope<AdminUser>) => r.data, invalidatesTags: ['User'] }),
   unbanUser: build.mutation<AdminUser, { id: string; reason: string }>({ query: ({ id, ...body }) => ({ url: `/moderation/users/${id}/unban`, method: 'POST', body }), transformResponse: (r: Envelope<AdminUser>) => r.data, invalidatesTags: ['User', 'Moderation'] }),
+  banUser: build.mutation<AdminUser, { id: string; reason: string }>({ query: ({ id, ...body }) => ({ url: `/moderation/users/${id}/ban`, method: 'POST', body }), transformResponse: (r: Envelope<AdminUser>) => r.data, invalidatesTags: ['User', 'Moderation'] }),
+  deleteAdminUser: build.mutation<void, string>({ query: (id) => ({ url: `/admin/users/${id}`, method: 'DELETE' }), invalidatesTags: ['User'] }),
   activateStaff: build.mutation<{ activated: boolean }, { token: string; password: string }>({ query: (body) => ({ url: '/auth/staff/activate', method: 'POST', body }) }),
   policyHistory: build.query<PolicyVersion[], PolicyKey>({ query: (key) => `/admin/policies/${key}/history`, transformResponse: (r: Envelope<PolicyVersion[]>) => r.data, providesTags: ['Policy'] }),
   rollbackPolicy: build.mutation<Policy, { key: PolicyKey; versionId: string; expectedVersion: number; reason: string }>({ query: ({ key, ...body }) => ({ url: `/admin/policies/${key}/rollback`, method: 'POST', body }), transformResponse: (r: Envelope<Policy>) => r.data, invalidatesTags: ['Policy'] }),
   acceptPolicy: build.mutation<unknown, string>({ query: (policyVersionId) => ({ url: '/policies/accept', method: 'POST', body: { policyVersionId } }) }),
 }) });
-export const { useInviteStaffMutation, useReinviteStaffMutation, useDisableStaffMutation, useUnbanUserMutation, useActivateStaffMutation, usePolicyHistoryQuery, useRollbackPolicyMutation, useAcceptPolicyMutation } = operationsApi;
+export const { useInviteStaffMutation, useReinviteStaffMutation, useDisableStaffMutation, useUnbanUserMutation, useBanUserMutation, useDeleteAdminUserMutation, useActivateStaffMutation, usePolicyHistoryQuery, useRollbackPolicyMutation, useAcceptPolicyMutation } = operationsApi;

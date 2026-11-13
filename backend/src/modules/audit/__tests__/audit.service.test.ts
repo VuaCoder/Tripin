@@ -29,9 +29,10 @@ describe('AuditService', () => {
   it('lists with pagination meta and maps documents to DTOs', async () => {
     const doc = { id: 'a1', actorId: 'x', actorRole: 'MODERATOR', action: 'user.banned', targetType: 'user', createdAt: new Date('2026-01-01') };
     const list = vi.fn(async () => ({ items: [doc], total: 41 }));
-    const page = await new AuditService({ create: vi.fn(), list } as never).list({ page: 2, limit: 20, targetType: 'user' });
+    const users = { getSummaries: vi.fn(async () => new Map([['x', { id: 'x', fullName: 'Nguyen Van A', role: ROLES.MODERATOR }]])) };
+    const page = await new AuditService({ create: vi.fn(), list } as never, users as never).list({ page: 2, limit: 20, targetType: 'user' });
     expect(list).toHaveBeenCalledWith({ targetType: 'user' }, { page: 2, limit: 20 });
     expect(page.meta).toEqual({ page: 2, limit: 20, total: 41, totalPages: 3 });
-    expect(page.items[0]).toMatchObject({ id: 'a1', createdAt: '2026-01-01T00:00:00.000Z' });
+    expect(page.items[0]).toMatchObject({ id: 'a1', actorName: 'Nguyen Van A', createdAt: '2026-01-01T00:00:00.000Z' });
   });
 });

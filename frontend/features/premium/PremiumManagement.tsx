@@ -12,6 +12,7 @@ import {
 } from './api';
 import { premiumInput, premiumButton, premiumMoney, Retry } from './ui';
 import { PremiumOperations } from './PremiumOperations';
+import { AdminPremiumSkeleton } from '@/features/admin/components/AdminSkeletons';
 
 interface Contribution {
   id: string;
@@ -101,6 +102,7 @@ function ManagementContent({ admin }: { admin: boolean }) {
         used: number;
       }[]
     | undefined;
+  const adminInitialLoading = admin && (contributions.isLoading || plans.isLoading || refunds.isLoading || flags.isLoading);
   const run = async (url: string, body?: unknown, method = 'POST') => {
     setFeedback(null);
     try {
@@ -176,17 +178,21 @@ function ManagementContent({ admin }: { admin: boolean }) {
       }
     }
   };
+  if (adminInitialLoading) return <main className="mx-auto max-w-5xl space-y-9 px-4 py-8 sm:px-6" aria-busy="true">
+    <header><h1 className="text-3xl font-bold">Quản lý Premium</h1></header>
+    <AdminPremiumSkeleton />
+  </main>;
   return (
     <main className="mx-auto max-w-5xl space-y-9 px-4 py-8 sm:px-6">
       <header>
         <h1 className="text-3xl font-bold">
           {admin ? 'Quản lý Premium' : 'Đóng góp voucher Premium'}
         </h1>
-        <p className="mt-3 max-w-prose text-sm leading-6 text-slate-600">
-          {admin
-            ? 'Tạo phiên bản gói, duyệt nguồn voucher và quản lý yêu cầu hoàn tiền. Gói chỉ được mở bán khi đủ giá và quyền lợi.'
-            : 'Agency chịu khoản giảm giá và cam kết hạn mức cho các kỳ đã bán. Ngừng đóng góp chỉ chặn giao dịch mới.'}
-        </p>
+        {!admin && (
+          <p className="mt-3 max-w-prose text-sm leading-6 text-slate-600">
+            Agency chịu khoản giảm giá và cam kết hạn mức cho các kỳ đã bán. Ngừng đóng góp chỉ chặn giao dịch mới.
+          </p>
+        )}
       </header>
       {feedback && (
         <p

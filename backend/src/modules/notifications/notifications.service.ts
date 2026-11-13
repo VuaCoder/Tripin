@@ -11,6 +11,7 @@ import { prisma } from '../../config/database';
 import { writeAgencyNotification } from './notifications.writer';
 import { canReceiveAgencyNotification } from './notifications.policy';
 import { agencyAccessInclude, effectiveAgencyPermissions } from '../agencies/agency.policy';
+import { NOTIFICATION_TYPE } from './notifications.types';
 import type {
   ListNotificationsQuery,
   NotificationDto,
@@ -51,6 +52,9 @@ export class NotificationsService {
           this.publish(row.userId, toNotificationDto({ ...row, data: row.data as Record<string, string> | null }));
         }
       });
+      if (input.type === NOTIFICATION_TYPE.COMPLAINT_RECEIVED || input.type === NOTIFICATION_TYPE.CUSTOM_TOUR_REQUESTED) {
+        await this.notifyAdmins({ type: NOTIFICATION_TYPE.ADMIN_REQUEST_RECEIVED, title: input.title, body: input.body, data: input.data });
+      }
     } catch (error) {
       logger.error(`Agency notification failed (${input.type})`, { message: (error as Error).message });
     }
@@ -70,6 +74,9 @@ export class NotificationsService {
         data,
       });
       this.publish(userId, toNotificationDto(created));
+      if (input.type === NOTIFICATION_TYPE.BOOKING_CREATED) {
+        await this.notifyAdmins({ type: NOTIFICATION_TYPE.ADMIN_REQUEST_RECEIVED, title: input.title, body: input.body, data: input.data });
+      }
       if (options.email) await this.sendEmail(userId, localized);
     } catch (error) {
       logger.error(`Notification failed (${input.type})`, { message: (error as Error).message });
@@ -88,6 +95,19 @@ export class NotificationsService {
   /** Same content to several users (de-duplicated). Never throws. */
   async notifyMany(userIds: string[], input: NotifyInput, options: NotifyOptions = {}): Promise<void> {
     await Promise.all(Array.from(new Set(userIds)).map((userId) => this.notify(userId, input, options)));
+  }
+
+  /** Fan out incoming user requests to active Super Admin inboxes; each is then pushed through notification:new. */
+  async notifyAdmins(input: NotifyInput): Promise<void> {
+    try {
+      const admins = await prisma.user.findMany({
+        where: { role: 'SUPER_ADMIN', status: 'ACTIVE', staffStatus: 'ACTIVE' },
+        select: { id: true },
+      });
+      await this.notifyMany(admins.map(({ id }) => id), input);
+    } catch (error) {
+      logger.error(`Admin notification failed (${input.type})`, { message: (error as Error).message });
+    }
   }
 
   // ------------------------------------------------------- Own inbox

@@ -59,6 +59,27 @@ function toData(patch: UserPatch): Prisma.UserUncheckedUpdateInput {
 
 /** All database access of the users domain. Services never touch Prisma directly. */
 export class UsersRepository {
+  async deleteAdminUser(actor: { userId: string; role: PersistedRole }, targetId: string): Promise<void> {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const acting = await tx.user.findUnique({ where: { id: actor.userId }, select: { role: true, status: true, staffStatus: true } });
+        if (!acting || acting.role !== 'SUPER_ADMIN' || acting.status !== 'ACTIVE' || acting.staffStatus !== 'ACTIVE') throw AppError.forbidden();
+        const target = await tx.user.findUnique({ where: { id: targetId }, select: { id: true, role: true, status: true } });
+        if (!target) throw AppError.notFound('User not found');
+        if (actor.userId === targetId) throw AppError.forbidden('You cannot delete your own account');
+        if (target.role === 'MODERATOR' || target.role === 'SUPER_ADMIN') throw AppError.badRequest('Staff accounts cannot be deleted; disable or change their role first');
+        await writeAudit(tx, { actorId: actor.userId, actorRole: actor.role, action: AUDIT_ACTIONS.USER_DELETED, targetType: 'user', targetId,
+          metadata: { role: target.role, status: target.status } });
+        await tx.user.delete({ where: { id: targetId } });
+      });
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && ['P2003', 'P2014'].includes(String(error.code))) {
+        throw AppError.conflict('Tài khoản có dữ liệu nghiệp vụ cần lưu nên không thể xóa an toàn. Hãy khóa tài khoản thay thế.');
+      }
+      throw error;
+    }
+  }
+
   /** A shared transaction lock serializes all staff access/lifecycle mutations. */
   async changeAccess(actor: { userId: string; role: PersistedRole }, targetId: string, patch: UserPatch, reason?: string): Promise<UserRecord> {
     return prisma.$transaction(async (tx) => {

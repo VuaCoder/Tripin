@@ -87,7 +87,7 @@ function ChatWorkspace({ id }: { id?: string }) {
   const [aiEntryVersion, setAiEntryVersion] = useState(0);
   useOfflineRefresh(chat.connected, refetch);
 
-  const isTraveler = user?.role === 'TRAVELER' || user?.permissions?.includes('ai:chat');
+  const isTraveler = user?.role === 'TRAVELER';
   const audience = user?.role === 'AGENCY' ? 'agency' : user?.role === 'TOUR_GUIDE' ? 'guide' : 'traveler';
   const aiOverview = useGetAiOverviewQuery(undefined, {
     skip: !isTraveler,
@@ -967,9 +967,9 @@ function Thread({ id }: { id: string }) {
                     </p>
                   )}
                   <div className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}>
-                    <div className="max-w-[85%] sm:max-w-[75%]">
+                    <div className={`flex flex-col max-w-[85%] sm:max-w-[75%] ${message.isMine ? 'items-end' : 'items-start'}`}>
                       <div
-                        className={`whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm [overflow-wrap:anywhere] ${
+                        className={`w-fit break-words rounded-2xl px-3.5 py-2 text-sm leading-normal [overflow-wrap:anywhere] ${
                           message.isMine
                             ? 'rounded-br-sm bg-primary-container text-white'
                             : 'rounded-bl-sm border border-slate-200 bg-white text-slate-900'
