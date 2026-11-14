@@ -1,4 +1,4 @@
-import type { RequestHandler } from 'express';
+import type { Request, RequestHandler } from 'express';
 import { AppError } from '../../utils/app-error';
 import { uploadImageBuffer } from '../../integrations/cloudinary';
 import { userActor } from '../../middlewares/authorize';
@@ -6,6 +6,7 @@ import { validated } from '../../middlewares/validate';
 import { sendCreated, sendOk, sendPaginated } from '../../utils/api-response';
 import type { IdParams } from '../../utils/id';
 import { chatService, type ChatService } from './chat.service';
+import type { ChatActor } from './chat.types';
 import type {
   ListConversationsQueryInput,
   ListMessagesQueryInput,
@@ -13,9 +14,14 @@ import type {
   StartConversationBody,
 } from './chat.validation';
 
-/** HTTP only. The sender is always the authenticated user. */
+/** HTTP only. The sender is always the authenticated user; the tenant comes from the resolved agency context. */
 export class ChatController {
   constructor(private readonly service: ChatService = chatService) {}
+
+  private actor(req: Request): ChatActor {
+    const actor = userActor(req);
+    return { userId: actor.userId, role: actor.role, agencyId: req.agencyContext?.agencyId };
+  }
 
   uploadImage: RequestHandler = async (req, res) => {
     const file = req.file;
@@ -31,35 +37,37 @@ export class ChatController {
 
   start: RequestHandler = async (req, res) => {
     const { body } = validated<StartConversationBody>(req);
-    const actor = userActor(req);
-    sendOk(res, await this.service.startConversation({ userId: actor.userId, role: actor.role }, body));
+    sendOk(res, await this.service.startConversation(this.actor(req), body));
   };
 
   list: RequestHandler = async (req, res) => {
     const { query } = validated<unknown, ListConversationsQueryInput>(req);
-    const actor = userActor(req);
-    const page = await this.service.listConversations({ userId: actor.userId, role: actor.role }, query);
+    const page = await this.service.listConversations(this.actor(req), query);
     sendPaginated(res, page.items, page.meta);
   };
 
   detail: RequestHandler = async (req, res) => {
     const { params } = validated<unknown, unknown, IdParams>(req);
-    sendOk(res, await this.service.getConversation(userActor(req).userId, params.id));
+    const actor = this.actor(req);
+    sendOk(res, await this.service.getConversation(actor.userId, params.id, actor.agencyId));
   };
 
   messages: RequestHandler = async (req, res) => {
     const { params, query } = validated<unknown, ListMessagesQueryInput, IdParams>(req);
-    sendOk(res, await this.service.listMessages(userActor(req).userId, params.id, query));
+    const actor = this.actor(req);
+    sendOk(res, await this.service.listMessages(actor.userId, params.id, query, actor.agencyId));
   };
 
   send: RequestHandler = async (req, res) => {
     const { params, body } = validated<SendMessageBody, unknown, IdParams>(req);
-    sendCreated(res, await this.service.sendMessage(userActor(req).userId, params.id, body.text));
+    const actor = this.actor(req);
+    sendCreated(res, await this.service.sendMessage(actor.userId, params.id, body.text, actor.agencyId));
   };
 
   read: RequestHandler = async (req, res) => {
     const { params } = validated<unknown, unknown, IdParams>(req);
-    sendOk(res, await this.service.markRead(userActor(req).userId, params.id));
+    const actor = this.actor(req);
+    sendOk(res, await this.service.markRead(actor.userId, params.id, actor.agencyId));
   };
 }
 

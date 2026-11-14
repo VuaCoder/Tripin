@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 289 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 302 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -81,6 +81,14 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | PUT | `/api/v1/admin/settings/agency-commissions/:id` | role: `SUPER_ADMIN` + `commission:configure` |
 | GET | `/api/v1/admin/settings/commission` | role: `SUPER_ADMIN` + `commission:configure` |
 | PUT | `/api/v1/admin/settings/commission` | role: `SUPER_ADMIN` + `commission:configure` |
+
+## `/admin/settings/agency-commission-requests`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/admin/settings/agency-commission-requests` | role: `SUPER_ADMIN` + `commission:configure` |
+| POST | `/api/v1/admin/settings/agency-commission-requests/:id/approve` | role: `SUPER_ADMIN` + `commission:configure` |
+| POST | `/api/v1/admin/settings/agency-commission-requests/:id/reject` | role: `SUPER_ADMIN` + `commission:configure` |
 
 ## `/admin/staff`
 
@@ -163,6 +171,26 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | Method | Path | Access |
 |---|---|---|
 | GET | `/api/v1/agency/calendar` | `tour:update-own` |
+
+## `/agency/chat`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/agency/chat/conversations` | `chat:use` |
+| POST | `/api/v1/agency/chat/conversations` | `chat:use` |
+| GET | `/api/v1/agency/chat/conversations/:id` | `chat:use` |
+| GET | `/api/v1/agency/chat/conversations/:id/messages` | `chat:use` |
+| POST | `/api/v1/agency/chat/conversations/:id/messages` | `chat:use` |
+| POST | `/api/v1/agency/chat/conversations/:id/read` | `chat:use` |
+| POST | `/api/v1/agency/chat/upload-image` | `chat:use` |
+
+## `/agency/commission`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/agency/commission` | `agency:context-view` |
+| POST | `/api/v1/agency/commission/requests` | `agency:finance-manage` |
+| POST | `/api/v1/agency/commission/requests/:id/cancel` | `agency:finance-manage` |
 
 ## `/agency/complaint-tickets`
 

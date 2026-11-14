@@ -179,6 +179,7 @@ export const baseApi = createApi({
     'Category',
     'Policy',
     'Commission',
+    'AgencyCommission',
     'Auth',
     'User',
     'Tour',

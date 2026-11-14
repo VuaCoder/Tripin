@@ -153,8 +153,9 @@ export function attachChatGateway(
     });
     handle('chat:typing', async (payload, actor) => {
       const input = parse(socketConversationPayload, payload);
-      const counterpartId = await chat.getCounterpartId(actor.userId, input.conversationId);
-      io.to(userRoom(counterpartId)).emit('chat:typing', { conversationId: input.conversationId, userId: actor.userId });
+      for (const recipientId of await chat.getTypingRecipientIds(actor.userId, input.conversationId)) {
+        io.to(userRoom(recipientId)).emit('chat:typing', { conversationId: input.conversationId, userId: actor.userId });
+      }
       return undefined;
     });
 

@@ -13,6 +13,7 @@ export class AuditRepository {
   async list(filter: Omit<ListAuditQuery, keyof PageRequest>, page: PageRequest) {
     const where: Prisma.AuditLogWhereInput = {};
     if (filter.actorId) where.actorId = filter.actorId;
+    if (filter.actorRole) where.actorRole = filter.actorRole;
     if (filter.action) where.action = filter.action;
     if (filter.targetType) where.targetType = filter.targetType;
     if (filter.targetId) where.targetId = filter.targetId;
@@ -20,7 +21,11 @@ export class AuditRepository {
       where.createdAt = { ...(filter.from ? { gte: filter.from } : {}), ...(filter.to ? { lte: filter.to } : {}) };
     }
     const [items, total] = await Promise.all([
-      prisma.auditLog.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit }),
+      prisma.auditLog.findMany({
+        where,
+        orderBy: [{ createdAt: filter.order ?? 'desc' }, { id: filter.order ?? 'desc' }],
+        skip: toSkip(page), take: page.limit,
+      }),
       prisma.auditLog.count({ where }),
     ]);
     return { items, total };

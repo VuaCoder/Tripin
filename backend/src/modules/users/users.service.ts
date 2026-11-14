@@ -354,7 +354,7 @@ export class UsersService {
 
   async listUsers(query: ListUsersQuery): Promise<Page<PrivateUserDto>> {
     const { items, total } = await this.users.list(
-      { role: query.role, status: query.status, q: query.q, from: query.from, to: query.to },
+      { role: query.role, status: query.status, q: query.q, from: query.from, to: query.to, order: query.order },
       { page: query.page, limit: query.limit },
     );
     return buildPage(items.map(toPrivateUserDto), total, query);

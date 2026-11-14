@@ -7,7 +7,6 @@ import { connectDatabase, disconnectDatabase, prisma } from '../config/database'
 
 const prefix = '[TEST-TOUR-UX]';
 const bookingPrefix = 'TESTTOURUX-';
-const defaultPassword = 'TripriTourTest@2026!';
 const accounts = [
   { email: 'test.tour.owner@tripri.local', name: 'Test Tour Owner', role: 'OWNER' },
   { email: 'test.tour.manager@tripri.local', name: 'Test Tour Manager', role: 'MANAGER' },
@@ -41,7 +40,8 @@ async function create() {
     WHERE table_schema = 'public' AND table_name = 'Tour' AND column_name = 'highlights'
   `;
   if (!columns.length) throw new Error('Database is missing Tour.highlights. Apply the pending schema migration in a compatible test database before creating this fixture.');
-  const password = process.env.DEV_TOUR_TEST_PASSWORD || defaultPassword;
+  const password = process.env.DEV_TOUR_TEST_PASSWORD;
+  if (!password) throw new Error('DEV_TOUR_TEST_PASSWORD is required; this fixture ships no password.');
   if (password.length < 8) throw new Error('DEV_TOUR_TEST_PASSWORD must have at least 8 characters.');
   const existing = await prisma.user.count({ where: { email: { in: [...accounts.map((a) => a.email), travelerEmail] } } });
   if (existing || await prisma.tour.count({ where: { title: { startsWith: prefix } } })) {

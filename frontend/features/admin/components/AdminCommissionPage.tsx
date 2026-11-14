@@ -2,8 +2,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Building2, Edit3, Search } from 'lucide-react';
 import { Button, FormField, Input, Modal } from '@/components/ui';
-import { useGetAdminCommissionQuery, useGetAgencyCommissionsQuery, useSetAdminCommissionMutation, useSetAgencyCommissionMutation } from '../api/adminApi';
-import type { AgencyCommission, Commission } from '../types';
+import { useApproveAgencyCommissionRequestMutation, useGetAdminCommissionQuery, useGetAgencyCommissionRequestsQuery, useGetAgencyCommissionsQuery, useRejectAgencyCommissionRequestMutation, useSetAdminCommissionMutation, useSetAgencyCommissionMutation } from '../api/adminApi';
+import type { AgencyCommission, AgencyCommissionRequest, Commission } from '../types';
 import { commissionValue } from '../validation';
 import { AdminFrame, adminError, Feedback, forbidden, panel, timestamp, useAdminSession } from './AdminUi';
 import { AdminCommissionSkeleton } from './AdminSkeletons';
@@ -48,6 +48,12 @@ export function AdminCommissionPage() {
   const [agencyRate, setAgencyRate] = useState('');
   const [agencyError, setAgencyError] = useState<string | null>(null);
   const [saveAgency, agencySave] = useSetAgencyCommissionMutation();
+  const requestsQuery = useGetAgencyCommissionRequestsQuery({ status: 'PENDING', limit: 20 }, { skip: !ready, refetchOnMountOrArgChange: true });
+  const [approveRequest, approveState] = useApproveAgencyCommissionRequestMutation();
+  const [rejectRequest, rejectState] = useRejectAgencyCommissionRequestMutation();
+  const [reviewing, setReviewing] = useState<{ request: AgencyCommissionRequest; action: 'approve' | 'reject' } | null>(null);
+  const [reviewNote, setReviewNote] = useState('');
+  const [reviewError, setReviewError] = useState<string | null>(null);
   if (!ready) return null;
   const visibleAgencies = (agenciesQuery.currentData ?? []).filter((agency) => `${agency.companyName} ${agency.contactName} ${agency.email}`.toLocaleLowerCase('vi').includes(agencySearch.toLocaleLowerCase('vi')));
   const saveAgencyRate = async () => {
@@ -60,7 +66,18 @@ export function AdminCommissionPage() {
       setEditingAgency(null);
     } catch (error) { setAgencyError(adminError(error)); if (forbidden(error)) setDenied(error); }
   };
-  return <AdminFrame title="Phí dịch vụ" description="Đặt mức chung cho nền tảng và mức riêng cho từng công ty lữ hành. Mọi thay đổi chỉ áp dụng cho đơn đặt mới." error={denied || query.error || agenciesQuery.error} loading={!query.currentData || !agenciesQuery.currentData} loadingSkeleton={<AdminCommissionSkeleton />} refreshing={(query.isFetching || agenciesQuery.isFetching) && !!query.currentData && !!agenciesQuery.currentData} onRefresh={() => Promise.all([query.refetch(), agenciesQuery.refetch()])}>
+  const submitReview = async () => {
+    if (!reviewing) return;
+    if (reviewing.action === 'reject' && !reviewNote.trim()) { setReviewError('Vui lòng nhập lý do từ chối.'); return; }
+    setReviewError(null);
+    try {
+      if (reviewing.action === 'approve') await approveRequest({ id: reviewing.request.id, note: reviewNote.trim() || undefined }).unwrap();
+      else await rejectRequest({ id: reviewing.request.id, note: reviewNote.trim() }).unwrap();
+      setReviewing(null); setReviewNote('');
+    } catch (error) { setReviewError(adminError(error)); if (forbidden(error)) setDenied(error); }
+  };
+  const pendingRequests = requestsQuery.currentData?.items ?? [];
+  return <AdminFrame title="Phí dịch vụ" description="Đặt mức chung cho nền tảng và mức riêng cho từng công ty lữ hành. Mọi thay đổi chỉ áp dụng cho đơn đặt mới." error={denied || query.error || agenciesQuery.error || requestsQuery.error} loading={!query.currentData || !agenciesQuery.currentData || !requestsQuery.currentData} loadingSkeleton={<AdminCommissionSkeleton />} refreshing={(query.isFetching || agenciesQuery.isFetching || requestsQuery.isFetching) && !!query.currentData && !!agenciesQuery.currentData} onRefresh={() => Promise.all([query.refetch(), agenciesQuery.refetch(), requestsQuery.refetch()])}>
     {query.currentData && <>
       <section className={panel}>
         <div className="mb-4 flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-teal-50 text-teal-700"><Building2 size={19} /></span><div><h2 className="font-semibold text-slate-900">Mức chung mặc định</h2><p className="text-sm text-slate-600">Dùng cho agency chưa có mức riêng.</p></div></div>
@@ -73,6 +90,53 @@ export function AdminCommissionPage() {
         </div>
         <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-5 py-3">Agency</th><th className="px-4 py-3">Mức đang áp dụng</th><th className="px-4 py-3">Nguồn mức phí</th><th className="px-5 py-3 text-right">Thao tác</th></tr></thead><tbody className="divide-y divide-slate-100">{visibleAgencies.map((agency) => <tr key={agency.id}><td className="px-5 py-4"><strong className="block text-slate-900">{agency.companyName}</strong><span className="text-xs text-slate-500">{agency.contactName}{agency.email ? ` · ${agency.email}` : ''}</span></td><td className="px-4 py-4 font-semibold">{agency.ratePercent ?? query.currentData!.ratePercent}%</td><td className="px-4 py-4 text-slate-600">{agency.ratePercent === null ? 'Mức chung' : 'Mức riêng'}</td><td className="px-5 py-4 text-right"><Button variant="outline" size="sm" className="inline-flex items-center gap-2" onClick={() => { setEditingAgency(agency); setAgencyRate(agency.ratePercent === null ? '' : String(agency.ratePercent)); setAgencyError(null); }}><Edit3 size={15}/>{agency.ratePercent === null ? 'Đặt mức riêng' : 'Điều chỉnh'}</Button></td></tr>)}{visibleAgencies.length === 0 && <tr><td className="px-5 py-8 text-center text-slate-500" colSpan={4}>Không tìm thấy agency phù hợp.</td></tr>}</tbody></table></div>
       </section>
+      <section className={`${panel} !p-0 overflow-hidden`}>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+          <div>
+            <h2 className="font-semibold text-slate-900">Yêu cầu điều chỉnh chiết khấu</h2>
+            <p className="mt-1 text-sm text-slate-600">Agency gửi mức % doanh nghiệp hưởng; duyệt sẽ đổi phí nền tảng cho booking tạo sau.</p>
+          </div>
+          <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">{requestsQuery.currentData?.meta.total ?? 0} đang chờ</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+              <tr><th className="px-5 py-3">Agency</th><th className="px-4 py-3">Hiện tại</th><th className="px-4 py-3">Đề nghị</th><th className="px-4 py-3">Lý do</th><th className="px-4 py-3">Ngày gửi</th><th className="px-5 py-3 text-right">Thao tác</th></tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {pendingRequests.map((request) => (
+                <tr key={request.id}>
+                  <td className="px-5 py-4"><strong className="block text-slate-900">{request.agencyName}</strong><span className="text-xs text-slate-500">{request.requestedByName}</span></td>
+                  <td className="px-4 py-4 font-semibold">{request.currentSharePercent}%</td>
+                  <td className="px-4 py-4 font-semibold text-teal-700">{request.requestedSharePercent}%</td>
+                  <td className="max-w-xs px-4 py-4 text-slate-600">{request.reason}</td>
+                  <td className="px-4 py-4 text-slate-500">{timestamp(request.createdAt)}</td>
+                  <td className="px-5 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button size="sm" onClick={() => { setReviewing({ request, action: 'approve' }); setReviewNote(''); setReviewError(null); }}>Duyệt</Button>
+                      <Button variant="outline" size="sm" onClick={() => { setReviewing({ request, action: 'reject' }); setReviewNote(''); setReviewError(null); }}>Từ chối</Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {pendingRequests.length === 0 && <tr><td className="px-5 py-8 text-center text-slate-500" colSpan={6}>Không có yêu cầu nào đang chờ.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {reviewing && <Modal open title={reviewing.action === 'approve' ? 'Duyệt yêu cầu chiết khấu' : 'Từ chối yêu cầu chiết khấu'} onClose={() => { if (!approveState.isLoading && !rejectState.isLoading) setReviewing(null); }}>
+        <Feedback error={reviewError} />
+        <p className="text-sm text-slate-600">{reviewing.request.agencyName}: mức hiện tại <strong>{reviewing.request.currentSharePercent}%</strong> → đề nghị <strong>{reviewing.request.requestedSharePercent}%</strong> doanh nghiệp hưởng.</p>
+        <p className="mt-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-500">Phí nền tảng sau khi duyệt: {100 - reviewing.request.requestedSharePercent}%. Chỉ áp dụng cho booking tạo sau thời điểm duyệt.</p>
+        <label htmlFor="commission-review-note" className="mt-4 block text-xs font-bold text-slate-700">{reviewing.action === 'reject' ? 'Lý do từ chối' : 'Ghi chú (không bắt buộc)'}</label>
+        <textarea id="commission-review-note" rows={3} maxLength={1000} value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-900 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20" />
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="ghost" disabled={approveState.isLoading || rejectState.isLoading} onClick={() => setReviewing(null)}>Hủy</Button>
+          {reviewing.action === 'approve'
+            ? <Button loading={approveState.isLoading} onClick={() => void submitReview()}>Duyệt</Button>
+            : <Button variant="danger" loading={rejectState.isLoading} onClick={() => void submitReview()}>Từ chối</Button>}
+        </div>
+      </Modal>}
       {editingAgency && <Modal open title={`Mức phí · ${editingAgency.companyName}`} onClose={() => { if (!agencySave.isLoading) setEditingAgency(null); }}><Feedback error={agencyError}/><p className="mb-4 text-sm text-slate-600">Để trống để agency sử dụng mức chung ({query.currentData.ratePercent}%).</p><FormField label="Mức phí riêng (%)" htmlFor="agency-commission-rate"><Input id="agency-commission-rate" inputMode="decimal" value={agencyRate} onChange={(event) => setAgencyRate(event.target.value)} placeholder="Để trống = dùng mức chung" /></FormField><div className="mt-5 flex justify-end gap-2"><Button variant="ghost" disabled={agencySave.isLoading} onClick={() => setEditingAgency(null)}>Hủy</Button><Button loading={agencySave.isLoading} onClick={() => void saveAgencyRate()}>Lưu mức phí</Button></div></Modal>}
     </>}
   </AdminFrame>;

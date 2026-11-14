@@ -25,14 +25,14 @@ function fillLogin() {
   fireEvent.change(screen.getByLabelText(/^Mật khẩu/), { target: { value: 'Passw0rdX' } });
 }
 describe('Partner account auth without an existing workplace', () => {
-  it('uses common login and keeps a personal account with zero memberships signed in', async () => {
+  it('uses the partner login endpoint and keeps a personal account with zero memberships signed in', async () => {
     const requests: any[] = [];
     vi.stubGlobal('fetch', vi.fn(async (req: Request) => { requests.push({ url: req.url, body: await req.json() }); return Response.json({ success: true, data: { ...session, twoFactorRequired: false } }); }));
     const store = mount(); fillLogin();
     fireEvent.click(screen.getByLabelText('Ghi nhớ đăng nhập'));
     fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập' }));
     await waitFor(() => expect(nav.push).toHaveBeenCalledWith('/workplaces'));
-    expect(requests[0].url).toMatch(/\/auth\/login$/);
+    expect(requests[0].url).toMatch(/\/auth\/agency\/login$/);
     expect(requests[0].body.rememberMe).toBe(true);
     expect(store.getState().auth.user?.role).toBe('TRAVELER');
     expect(store.getState().auth.agencies).toEqual([]);

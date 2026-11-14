@@ -19,7 +19,7 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { selectUser } from '@/features/auth/store/authSlice';
+import { selectActiveAgency, selectUser } from '@/features/auth/store/authSlice';
 import { getApiErrorMessage } from '@/features/auth/utils/apiError';
 import { containsProfanity, PROFANITY_ERROR_MESSAGE } from '@travel-platform/constants';
 import {
@@ -61,15 +61,25 @@ const denied = (error: unknown) =>
   [403, 404].includes((error as { status?: number })?.status ?? 0) ||
   ['FORBIDDEN', 'NOT_FOUND'].includes((error as { code?: string })?.code ?? '');
 
-export function ConversationPage({ id }: { id?: string }) {
+export function ConversationPage({ id, autoOpenNewest }: { id?: string; autoOpenNewest?: boolean }) {
   const user = useAppSelector(selectUser);
   if (!user || !user.permissions.includes('chat:use')) {
     return <p role="alert">Bạn không có quyền sử dụng tin nhắn.</p>;
   }
-  return <ChatWorkspace key={user.id} id={id} />;
+  return <ChatWorkspace key={user.id} id={id} autoOpenNewest={autoOpenNewest} />;
 }
 
-function ChatWorkspace({ id }: { id?: string }) {
+/** The agency's shared inbox: every member with chat:use sees the same threads under the agency shell. */
+export function AgencyConversationPage({ id }: { id?: string }) {
+  const user = useAppSelector(selectUser);
+  const agency = useAppSelector(selectActiveAgency);
+  if (!user || !agency || !agency.permissions.includes('chat:use')) {
+    return <p role="alert">Bạn không có quyền sử dụng tin nhắn trong doanh nghiệp này.</p>;
+  }
+  return <ChatWorkspace key={`${agency.agencyId}:${user.id}:${id ?? 'list'}`} id={id} agency basePath="/agency/conversations" />;
+}
+
+function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conversations' }: { id?: string; autoOpenNewest?: boolean; agency?: boolean; basePath?: string }) {
   const user = useAppSelector(selectUser);
   const searchParams = useSearchParams();
   const paramTab = searchParams?.get('tab') ?? null;
@@ -77,7 +87,7 @@ function ChatWorkspace({ id }: { id?: string }) {
 
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const { data, isLoading, error, refetch, isFetching } = useConversationsQuery(page, {
+  const { data, isLoading, error, refetch, isFetching } = useConversationsQuery({ page, agency }, {
     refetchOnFocus: true,
     refetchOnReconnect: true,
     pollingInterval: 30_000,
@@ -139,6 +149,9 @@ function ChatWorkspace({ id }: { id?: string }) {
   );
 
   const isAgency = user?.role === 'AGENCY';
+  // When the page is a landing inbox (no :id) and autoOpenNewest is set, treat the
+  // most recent conversation as active so the thread opens immediately on the right.
+  const activeId = id ?? (autoOpenNewest ? data?.data?.[0]?.id : undefined);
 
   return (
     <section aria-label="Tin nhắn" className="w-full flex-1 flex flex-col min-h-0">
@@ -162,7 +175,7 @@ function ChatWorkspace({ id }: { id?: string }) {
         {/* Sidebar danh sách */}
         <aside
           aria-label="Danh sách hộp thư"
-          className={`${id ? 'hidden md:flex' : 'flex'} flex-col border-r border-slate-200/80 bg-slate-50/40`}
+          className={`${activeId ? 'hidden md:flex' : 'flex'} flex-col border-r border-slate-200/80 bg-slate-50/40`}
         >
           {/* Thanh tìm kiếm */}
           <div className="border-b border-slate-200/80 p-3 sm:p-4 bg-white">
@@ -253,10 +266,10 @@ function ChatWorkspace({ id }: { id?: string }) {
                 return (
                   <Link
                     key={item.id}
-                    href={`/conversations/${item.id}`}
-                    aria-current={id === item.id ? 'page' : undefined}
+                    href={`${basePath}/${item.id}`}
+                    aria-current={activeId === item.id ? 'page' : undefined}
                     className={`block border-b border-slate-100 p-3.5 transition-colors hover:bg-slate-100/70 ${
-                      id === item.id ? 'bg-teal-50/80 font-medium' : ''
+                      activeId === item.id ? 'bg-teal-50/80 font-medium' : ''
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -275,15 +288,15 @@ function ChatWorkspace({ id }: { id?: string }) {
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1">
-                          <span className={`truncate text-slate-900 text-sm ${item.unreadCount && id !== item.id ? 'font-bold' : 'font-medium'}`}>
+                          <span className={`truncate text-slate-900 text-sm ${item.unreadCount && activeId !== item.id ? 'font-bold' : 'font-medium'}`}>
                             {counterpartName}
                           </span>
-                          {id !== item.id && <UnreadBadge count={item.unreadCount} />}
+                          {activeId !== item.id && <UnreadBadge count={item.unreadCount} />}
                         </div>
-                        <p className={`mt-0.5 truncate text-xs ${item.unreadCount && id !== item.id ? 'font-bold text-slate-900' : 'text-slate-500'}`}>
+                        <p className={`mt-0.5 truncate text-xs ${item.unreadCount && activeId !== item.id ? 'font-bold text-slate-900' : 'text-slate-500'}`}>
                           {item.lastMessage
                             ? `${item.lastMessage.senderId === user?.id ? 'Bạn' : counterpartName}: ${preview(item.lastMessage.text)}`
-                            : item.unreadCount && id !== item.id
+                            : item.unreadCount && activeId !== item.id
                               ? `${item.unreadCount > 5 ? '5+' : item.unreadCount} tin nhắn mới`
                               : 'Chưa có tin nhắn'}
                         </p>
@@ -333,8 +346,8 @@ function ChatWorkspace({ id }: { id?: string }) {
         {/* Khung nội dung bên phải */}
         {id === 'ai' ? (
           <AiThread key={aiEntryVersion} />
-        ) : id ? (
-          <Thread key={id} id={id} />
+        ) : activeId ? (
+          <Thread key={activeId} id={activeId} agency={agency} basePath={basePath} />
         ) : (
           <div className="hidden min-w-0 md:block">
             {!isLoading && !error && (
@@ -393,12 +406,12 @@ function renderMessageContent(text: string, isMine: boolean) {
   return <p className="whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere]">{text}</p>;
 }
 
-function Thread({ id }: { id: string }) {
+function Thread({ id, agency = false, basePath = '/conversations' }: { id: string; agency?: boolean; basePath?: string }) {
   const now = useChatClock();
   const isAgency = useAppSelector(selectUser)?.role === 'AGENCY';
   const dispatch = useAppDispatch();
   const chat = useChat();
-  const detail = useConversationQuery(id, { pollingInterval: 30_000 });
+  const detail = useConversationQuery({ id, agency }, { pollingInterval: 30_000 });
   const [sendRest] = useSendMessageMutation();
   const [markRead] = useReadConversationMutation();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -727,7 +740,7 @@ function Thread({ id }: { id: string }) {
     const timer = setTimeout(async () => {
       readBusy.current = true;
       try {
-        await markRead(id).unwrap();
+        await markRead({ id, agency }).unwrap();
         if (mounted.current) {
           lastRead.current = newestIncoming;
           setReadError('');
@@ -792,7 +805,7 @@ function Thread({ id }: { id: string }) {
       }
 
       const request = chat.send(id, text);
-      const message = await (request ?? sendRest({ id, text }).unwrap());
+      const message = await (request ?? sendRest({ id, text, agency }).unwrap());
       if (!mounted.current) return;
       stick.current = true;
       setAtBottom(true);
@@ -821,7 +834,7 @@ function Thread({ id }: { id: string }) {
     return (
       <div role="alert" className="p-6">
         Không tìm thấy cuộc trò chuyện hoặc bạn không có quyền truy cập.
-        <Link href="/conversations" className="mt-3 block underline">
+        <Link href={basePath} className="mt-3 block underline">
           Về danh sách
         </Link>
       </div>
@@ -842,7 +855,7 @@ function Thread({ id }: { id: string }) {
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col">
       <header className="relative flex items-center gap-3 border-b p-3.5 sm:p-4 bg-white">
-        <Link href="/conversations" aria-label="Về danh sách" className="md:hidden flex size-8 items-center justify-center rounded-full hover:bg-slate-100 text-slate-700">
+        <Link href={basePath} aria-label="Về danh sách" className="md:hidden flex size-8 items-center justify-center rounded-full hover:bg-slate-100 text-slate-700">
           <ArrowLeft size={18} />
         </Link>
         <div className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-800 font-bold text-sm shadow-2xs overflow-hidden">

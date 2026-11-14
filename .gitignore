@@ -90,3 +90,6 @@ blender/
 skills-lock.json
 .codex/
 tripin-pr61-resolve/
+
+# LibreOffice lock files
+.~lock.*#

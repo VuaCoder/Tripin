@@ -1,6 +1,8 @@
+import { PERMISSIONS } from '@travel-platform/constants';
 import { prisma, type Prisma } from '../../config/database';
 import type { Conversation, Message } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
+import { agencyAccessInclude, effectiveAgencyPermissions } from '../agencies/agency.policy';
 import type { ChatSide } from './chat.types';
 
 type LastMessageColumns = 'lastMessageText' | 'lastMessageSenderId' | 'lastMessageSentAt';
@@ -15,7 +17,8 @@ export interface LastMessage {
 export type ConversationRecord = Omit<Conversation, LastMessageColumns> & { lastMessage?: LastMessage };
 export type MessageRecord = Message;
 
-export type NewConversation = Pick<Conversation, 'travelerId' | 'guideId'> & Partial<Pick<Conversation, 'tourId'>>;
+export type NewConversation = Pick<Conversation, 'travelerId'> &
+  Partial<Pick<Conversation, 'guideId' | 'agencyId' | 'tourId'>>;
 
 function toRecord(row: Conversation): ConversationRecord {
   const { lastMessageText, lastMessageSenderId, lastMessageSentAt, ...rest } = row;
@@ -33,7 +36,12 @@ export class ChatRepository {
   }
 
   async findByPair(travelerId: string, guideId: string): Promise<ConversationRecord | null> {
-    const row = await prisma.conversation.findUnique({ where: { travelerId_guideId: { travelerId, guideId } } });
+    const row = await prisma.conversation.findFirst({ where: { travelerId, guideId, agencyId: null } });
+    return row ? toRecord(row) : null;
+  }
+
+  async findByAgencyPair(travelerId: string, agencyId: string): Promise<ConversationRecord | null> {
+    const row = await prisma.conversation.findFirst({ where: { travelerId, agencyId } });
     return row ? toRecord(row) : null;
   }
 
@@ -41,13 +49,32 @@ export class ChatRepository {
     return toRecord(await prisma.conversation.create({ data }));
   }
 
-  async listConversations(side: ChatSide, userId: string, page: PageRequest) {
-    const where: Prisma.ConversationWhereInput = side === 'traveler' ? { travelerId: userId } : { guideId: userId };
+  async listConversations(where: Prisma.ConversationWhereInput, page: PageRequest) {
     const [rows, total] = await Promise.all([
       prisma.conversation.findMany({ where, orderBy: [{ lastActivityAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit }),
       prisma.conversation.count({ where }),
     ]);
     return { items: rows.map(toRecord), total };
+  }
+
+  /** Active members of the agency who may read and answer customer chat. */
+  async listAgencyChatUserIds(agencyId: string): Promise<string[]> {
+    const members = await prisma.agencyMember.findMany({
+      where: { agencyId, status: 'ACTIVE', user: { status: 'ACTIVE', staffStatus: 'ACTIVE' } },
+      include: agencyAccessInclude,
+    });
+    return members
+      .filter((member) => effectiveAgencyPermissions(member).includes(PERMISSIONS.CHAT_USE))
+      .map((member) => member.userId);
+  }
+
+  /** Socket handlers have no tenant header: prove membership from the conversation's agency. */
+  async isAgencyChatMember(userId: string, agencyId: string): Promise<boolean> {
+    const member = await prisma.agencyMember.findFirst({
+      where: { agencyId, userId, status: 'ACTIVE', user: { status: 'ACTIVE', staffStatus: 'ACTIVE' } },
+      include: agencyAccessInclude,
+    });
+    return Boolean(member && effectiveAgencyPermissions(member).includes(PERMISSIONS.CHAT_USE));
   }
 
   /**
@@ -138,18 +165,21 @@ export class ChatRepository {
     conversationId: string,
     side: ChatSide,
     readerId: string,
+    onlySenderId?: string,
     now = new Date(),
   ): Promise<{ unreadCount: number }> {
     const readField = side === 'traveler' ? 'lastReadTravelerAt' : 'lastReadGuideAt';
     const unreadField = side === 'traveler' ? 'unreadTraveler' : 'unreadGuide';
+    // Agency side counts only the traveler's messages; colleagues' replies are not "unread" for the agency.
+    const sender = onlySenderId ? { senderId: onlySenderId } : { senderId: { not: readerId } };
     return prisma.$transaction(async (tx) => {
       await tx.message.updateMany({
-        where: { conversationId, senderId: { not: readerId }, readAt: null, createdAt: { lte: now } },
+        where: { conversationId, ...sender, readAt: null, createdAt: { lte: now } },
         data: { readAt: now },
       });
       await tx.conversation.update({ where: { id: conversationId }, data: { [readField]: now } });
       const unread = await tx.message.count({
-        where: { conversationId, senderId: { not: readerId }, createdAt: { gt: now } },
+        where: { conversationId, ...sender, createdAt: { gt: now } },
       });
       await tx.conversation.update({ where: { id: conversationId }, data: { [unreadField]: unread } });
       return { unreadCount: unread };

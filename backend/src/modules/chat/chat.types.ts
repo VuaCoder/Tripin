@@ -9,6 +9,13 @@ export const CHAT_LIMITS = {
 /** Which side of the conversation a user is (the diagram's chat is Traveler <-> Tour guide only, DECISIONS D-13). */
 export type ChatSide = 'traveler' | 'guide';
 
+/** The authenticated actor plus the tenant they are acting for, when the request came through `/agency/chat`. */
+export interface ChatActor {
+  userId: string;
+  role: PersistedRole;
+  agencyId?: string;
+}
+
 export interface ConversationDto {
   id: string;
   counterpart: { id: string; fullName: string; avatarUrl?: string; role: PersistedRole } | null;
@@ -36,7 +43,10 @@ export interface MessagesPageDto {
 }
 
 export interface StartConversationInput {
-  participantId: string;
+  /** A traveler/guide user id, or the traveler id when an agency member starts the thread. */
+  participantId?: string;
+  /** An AgencyProfile id: the traveler starts the agency's shared inbox. */
+  agencyId?: string;
   tourId?: string;
 }
 
