@@ -152,13 +152,14 @@ export function AdminPromotionsPage() {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[880px] table-fixed text-left text-sm">
           <colgroup>
-            <col className="w-[20%]" />
-            <col className="w-[13%]" />
-            <col className="w-[13%]" />
+            <col className="w-[19%]" />
             <col className="w-[12%]" />
-            <col className="w-[20%]" />
             <col className="w-[12%]" />
+            <col className="w-[11%]" />
             <col className="w-[10%]" />
+            <col className="w-[10%]" />
+            <col className="w-[11%]" />
+            <col className="w-[15%]" />
           </colgroup>
           <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wide text-slate-400">
             <tr>
@@ -166,7 +167,8 @@ export function AdminPromotionsPage() {
               <th className="px-4 py-3 font-medium">Mã</th>
               <th className="px-4 py-3 font-medium">Giảm giá</th>
               <th className="px-4 py-3 font-medium">Trạng thái</th>
-              <th className="px-4 py-3 font-medium">Thời hạn</th>
+              <th className="px-4 py-3 font-medium">Bắt đầu</th>
+              <th className="px-4 py-3 font-medium">Kết thúc</th>
               <th className="px-4 py-3 font-medium">Lượt dùng</th>
               <th className="px-5 py-3 text-right font-medium">Thao tác</th>
             </tr>
@@ -191,10 +193,8 @@ export function AdminPromotionsPage() {
                   <span className={`inline-flex max-w-full rounded-full px-2.5 py-1 text-[10px] font-semibold ${p.isArchived ? 'bg-amber-100 text-amber-800' : p.isActive ? 'bg-teal-50 text-teal-700' : 'bg-slate-100 text-slate-600'}`}>{p.isArchived ? 'Đã lưu trữ' : p.isActive ? (p.isRunning ? 'Đang áp dụng' : 'Đã bật') : 'Đã tắt'}</span>
                   <span className="mt-1 block text-[11px] text-slate-500">{APPLY_LABEL[p.applyType] ?? p.applyType}</span>
                 </td>
-                <td className="px-4 py-3.5 align-middle text-xs leading-5 text-slate-600">
-                  <span className="block whitespace-nowrap">Từ {formatDateTime(p.startsAt)}</span>
-                  <span className="block whitespace-nowrap">Đến {formatDateTime(p.endsAt)}</span>
-                </td>
+                <td className="px-4 py-3.5 align-middle text-xs leading-5 text-slate-600"><span className="whitespace-nowrap">{formatDateTime(p.startsAt)}</span></td>
+                <td className="px-4 py-3.5 align-middle text-xs leading-5 text-slate-600"><span className="whitespace-nowrap">{formatDateTime(p.endsAt)}</span></td>
                 <td className="px-4 py-3.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">
                   {p.usedCount} <span className="text-slate-400">/</span> {p.usageLimit ?? '∞'}
                 </td>
