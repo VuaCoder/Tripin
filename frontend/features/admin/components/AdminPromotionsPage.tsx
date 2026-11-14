@@ -17,9 +17,9 @@ import { AdminPromotionsSkeleton, Shimmer } from './AdminSkeletons';
 const formatDateTime = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Chưa xác định';
-  const day = date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const day = date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: '2-digit' });
   const time = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-  return `${day} lúc ${time}`;
+  return `${time} - ${day}`;
 };
 
 const DISCOUNT_LABEL: Record<DiscountType, string> = { PERCENT: 'Theo %', FIXED: 'Theo số tiền' };
