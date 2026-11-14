@@ -20,7 +20,11 @@ export class AuditRepository {
       where.createdAt = { ...(filter.from ? { gte: filter.from } : {}), ...(filter.to ? { lte: filter.to } : {}) };
     }
     const [items, total] = await Promise.all([
-      prisma.auditLog.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit }),
+      prisma.auditLog.findMany({
+        where,
+        orderBy: [{ createdAt: filter.order ?? 'desc' }, { id: filter.order ?? 'desc' }],
+        skip: toSkip(page), take: page.limit,
+      }),
       prisma.auditLog.count({ where }),
     ]);
     return { items, total };

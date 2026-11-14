@@ -68,4 +68,5 @@ export interface ListAuditQuery {
   targetId?: string;
   from?: Date;
   to?: Date;
+  order?: 'asc' | 'desc';
 }
