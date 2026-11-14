@@ -6,7 +6,7 @@ import { ModerationTourListPage, TOUR_STATUS_LABELS, type ModerationTourStatus }
 
 function ToursWithFilter() {
   const raw = useSearchParams().get('status');
-  const initial = raw && raw in TOUR_STATUS_LABELS ? (raw as ModerationTourStatus) : 'ALL';
+  const initial = raw && raw in TOUR_STATUS_LABELS ? (raw as ModerationTourStatus) : 'PENDING_REVIEW';
   return <ModerationTourListPage initialStatus={initial} />;
 }
 

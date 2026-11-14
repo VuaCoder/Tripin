@@ -17,6 +17,7 @@ import { useCheckoutBookingMutation } from '@/features/payment/api/paymentApi';
 import type { PromotionPreview } from '../types';
 import {
   AlertCircle,
+  ArrowLeft,
   Building2,
   Check,
   ChevronRight,
@@ -27,7 +28,16 @@ import {
   TicketPercent,
   X,
 } from 'lucide-react';
+import {
+  getPassengerAgeGroup,
+  getPassengerAgeRangeLabel,
+  validatePassengerAge,
+} from '../utils/passengerValidation';
 import { ShopeePromotionModal } from './ShopeePromotionModal';
+import { BookingExtras } from './BookingExtras';
+import { BookedExtrasSummary } from './BookedExtrasSummary';
+import { useQuoteBookingMutation } from '../api/bookingApi';
+import { quoteExtras, type ExtraSelection, type ExtraPassenger } from '@travel-platform/constants';
 
 const PHONE_PATTERN = /^\+?[0-9 ().-]{6,20}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -69,7 +79,18 @@ function formatReturnDate(iso?: string, durationDays?: number): string {
 }
 
 function bookingErrorMessage(error: unknown, fallback: string): string {
-  switch (getApiErrorCode(error)) {
+  const apiError = error as { data?: { error?: { code?: string; details?: Array<{ path?: string; message?: string }> } } };
+  const code = getApiErrorCode(error);
+  if (code === 'VALIDATION_ERROR') {
+    const details = apiError.data?.error?.details;
+    if (Array.isArray(details) && details.length > 0) {
+      return details
+        .map((detail) => [detail.path, detail.message].filter(Boolean).join(': '))
+        .filter(Boolean)
+        .join(' · ') || 'Thông tin đặt tour chưa hợp lệ.';
+    }
+  }
+  switch (code) {
     case 'PENDING_BOOKING_EXISTS':
       return 'Bạn đã có đơn chờ thanh toán cho tour và lịch khởi hành này. Vui lòng thanh toán hoặc hủy đơn đó trước khi đặt thêm.';
     case 'NOT_ENOUGH_SEATS':
@@ -99,6 +120,7 @@ function bookingErrorMessage(error: unknown, fallback: string): string {
 }
 
 interface PassengerItem {
+  passengerId: string;
   fullName: string;
   gender: string;
   birthYear: string;
@@ -131,6 +153,8 @@ export function BookingEntryPage() {
   const { data: availablePromos } = useGetAvailablePromotionsQuery({ tourId }, { skip: !tourId });
   const { data: myVouchers } = useGetMyVouchersQuery(undefined, { skip: !user });
   const [createBooking, { isLoading: isSubmitting }] = useCreateBookingMutation();
+  const [quoteBooking] = useQuoteBookingMutation();
+  const [serviceSelections, setServiceSelections] = useState<ExtraSelection[]>([]);
   const [checkoutBooking, { isLoading: isPaying }] = useCheckoutBookingMutation();
   const [isCheckingBooking, setIsCheckingBooking] = useState(false);
   const submissionInFlight = useRef(false);
@@ -177,6 +201,7 @@ export function BookingEntryPage() {
   // Step 2: Passengers roster (optional per user request)
   const [passengers, setPassengers] = useState<PassengerItem[]>(() =>
     Array.from({ length: Math.max(1, participants) }, () => ({
+      passengerId: crypto.randomUUID(),
       fullName: '',
       gender: 'Nam',
       birthYear: '',
@@ -186,6 +211,36 @@ export function BookingEntryPage() {
       specialNotes: '',
     })),
   );
+  const tourYear = departure?.date ? new Date(departure.date).getFullYear() : new Date().getFullYear();
+  const [passengerErrors, setPassengerErrors] = useState<Record<number, string>>({});
+  const [passengerBirthYearErrors, setPassengerBirthYearErrors] = useState<Record<number, string>>({});
+
+  // Real-time synchronization & validation of passenger birth years
+  useEffect(() => {
+    setPassengerBirthYearErrors((prev) => {
+      const next: Record<number, string> = {};
+      passengers.forEach((p, idx) => {
+        if (p.birthYear && p.birthYear.trim()) {
+          const ageGroup = getPassengerAgeGroup(idx, guests);
+          const err = validatePassengerAge(p.birthYear, ageGroup, tourYear, tour?.agePricing);
+          if (err) next[idx] = err;
+        }
+      });
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(next);
+      if (prevKeys.length !== nextKeys.length || prevKeys.some((k) => prev[Number(k)] !== next[Number(k)])) {
+        return next;
+      }
+      return prev;
+    });
+  }, [passengers, guests, tourYear, tour?.agePricing]);
+  useEffect(() => {
+    const ids = new Set(passengers.map(p => p.passengerId));
+    setServiceSelections(current => current.map(s => ({ ...s,
+      passengerIds: s.passengerIds.filter(id => ids.has(id)),
+      pickups: s.pickups.filter(p => ids.has(p.passengerId)),
+    })).filter(s => !current.find(c => c.serviceId === s.serviceId)?.passengerIds.length || s.passengerIds.length > 0));
+  }, [passengers]);
 
   // Sync passenger roster size with participants count
   useEffect(() => {
@@ -193,6 +248,7 @@ export function BookingEntryPage() {
       if (prev.length === participants) return prev;
       if (prev.length < participants) {
         const added = Array.from({ length: participants - prev.length }, () => ({
+          passengerId: crypto.randomUUID(),
           fullName: '',
           gender: 'Nam',
           birthYear: '',
@@ -228,7 +284,12 @@ export function BookingEntryPage() {
 
   const [voucherModalOpen, setVoucherModalOpen] = useState(false);
   const [errors, setErrors] = useState<{ fullName?: string; phone?: string; email?: string; general?: string }>({});
-  const [alertModal, setAlertModal] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
+  const [alertModal, setAlertModal] = useState<{
+    open: boolean;
+    message: string;
+    actionLabel?: string;
+    onAction?: () => void;
+  }>({ open: false, message: '' });
   const [pendingBookingId, setPendingBookingId] = useState<string | null>(null);
   const clientRequestId = useRef(retryKey());
 
@@ -501,7 +562,17 @@ export function BookingEntryPage() {
       )
     : 0;
   const totalDiscount = premiumVoucherId ? premiumDiscount : agencyDiscount + platformDiscount;
-  const finalEstimate = Math.max(0, subtotal - totalDiscount);
+  const extraPassengers: ExtraPassenger[] = passengers.map((p, i) => ({ passengerId: p.passengerId, fullName: p.fullName.trim(), ageGroup: i < guests.adults ? 'ADULT' : i < guests.adults + guests.children ? 'CHILD' : 'INFANT' }));
+  let bookedExtras: ReturnType<typeof quoteExtras> = [];
+  let servicesError = '';
+  try { bookedExtras = quoteExtras(tour.optionalServices ?? [], serviceSelections, extraPassengers, departure.date); }
+  catch (error) { servicesError = (error as Error).message; }
+  // Keep the estimate visible while an address is being entered; the backend remains authoritative.
+  const servicesEstimate = serviceSelections.reduce((sum, selection) => {
+    const service = tour.optionalServices?.find(s => s.id === selection.serviceId);
+    return sum + (service ? service.price * (service.pricing === 'PER_PERSON' ? selection.passengerIds.length : service.pricing === 'PER_BOOKING' ? 1 : selection.quantity) : 0);
+  }, 0);
+  const finalEstimate = Math.max(0, subtotal - totalDiscount) + servicesEstimate;
   const departureDate = departure.date;
 
   const childPrice = ageUnitPrice(unitPrice, tour.agePricing, 'child') ?? unitPrice;
@@ -525,6 +596,45 @@ export function BookingEntryPage() {
   // Step 2 -> Step 3 validation: Priority Họ tên -> SĐT -> Email with Alert Modal & Red Highlight
   const handleNextToStep3 = () => {
     const next: typeof errors = {};
+    if (servicesError) { setErrors({ general: servicesError }); return; }
+
+    const invalidPassengers = passengers.reduce<Record<number, string>>((acc, passenger, index) => {
+      if (passenger.fullName.trim().length < 2) acc[index] = 'Họ và tên phải có ít nhất 2 ký tự.';
+      return acc;
+    }, {});
+    if (Object.keys(invalidPassengers).length > 0) {
+      setPassengerErrors(invalidPassengers);
+      setAlertModal({ open: true, message: `Vui lòng nhập họ và tên hành khách ${Number(Object.keys(invalidPassengers)[0]) + 1}.` });
+      return;
+    }
+    setPassengerErrors({});
+
+    // Priority Năm sinh / Độ tuổi phù hợp với loại vé
+    const invalidBirthYears = passengers.reduce<Record<number, string>>((acc, passenger, index) => {
+      if (passenger.birthYear && passenger.birthYear.trim()) {
+        const ageGroup = getPassengerAgeGroup(index, guests);
+        const err = validatePassengerAge(passenger.birthYear, ageGroup, tourYear, tour?.agePricing);
+        if (err) acc[index] = err;
+      }
+      return acc;
+    }, {});
+    if (Object.keys(invalidBirthYears).length > 0) {
+      setPassengerBirthYearErrors(invalidBirthYears);
+      const firstIdx = Number(Object.keys(invalidBirthYears)[0]);
+      const ageGroup = getPassengerAgeGroup(firstIdx, guests);
+      const typeLabel = ageGroup === 'ADULT' ? 'Người lớn' : ageGroup === 'CHILD' ? 'Trẻ em' : 'Em bé';
+      setAlertModal({
+        open: true,
+        message: `Hành khách ${firstIdx + 1} (${typeLabel}): ${invalidBirthYears[firstIdx]}`,
+        actionLabel: 'Quay lại Bước 1 để đổi vé',
+        onAction: () => {
+          setStep(1);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+      });
+      return;
+    }
+    setPassengerBirthYearErrors({});
 
     if (!fullName.trim() || fullName.trim().length < 2) {
       next.fullName = 'Vui lòng nhập họ và tên';
@@ -561,8 +671,17 @@ export function BookingEntryPage() {
     if (!Number.isInteger(participants) || participants < 1 || participants > maxParticipants) {
       next.general = `Số khách phải từ 1 đến ${maxParticipants}.`;
     }
+    const hasBirthYearErrors = passengers.some((p, index) => {
+      if (!p.birthYear || !p.birthYear.trim()) return false;
+      const ageGroup = getPassengerAgeGroup(index, guests);
+      return Boolean(validatePassengerAge(p.birthYear, ageGroup, tourYear, tour?.agePricing));
+    });
+    if (hasBirthYearErrors) {
+      next.general = 'Vui lòng kiểm tra lại năm sinh và độ tuổi của các hành khách trước khi thanh toán.';
+    }
     if (!agreedToTerms) {
       next.general = 'Vui lòng đọc và đồng ý với điều khoản dịch vụ để tiếp tục.';
+      setAlertModal({ open: true, message: 'Vui lòng đọc toàn bộ điều khoản và xác nhận “Tôi đã đọc và đồng ý” trước khi tiếp tục thanh toán.' });
     }
     if (needVatInvoice) {
       if (!vatCompany.trim()) {
@@ -652,11 +771,11 @@ export function BookingEntryPage() {
     const roster = filledPassengers.map((p) => {
       const idx = passengers.indexOf(p);
       return {
+        passengerId: p.passengerId,
         fullName: p.fullName.trim(),
         ...(p.birthYear.trim() ? { birthYear: Number(p.birthYear) } : {}),
         ageGroup: (idx < guests.adults ? 'ADULT' : idx < guests.adults + guests.children ? 'CHILD' : 'INFANT') as 'ADULT' | 'CHILD' | 'INFANT',
         phone: phone.trim(),
-        ...(p.pickupPoint.trim() ? { pickupPoint: p.pickupPoint.trim() } : {}),
         ...(p.specialNotes.trim() ? { specialNotes: p.specialNotes.trim() } : {}),
       };
     });
@@ -666,8 +785,9 @@ export function BookingEntryPage() {
     const combinedNotes = [notes.trim(), vatSummary].filter(Boolean).join(' | ').slice(0, 500);
 
     try {
-      const created = await createBooking({
+      const bookingInput = {
         tourId,
+        services: serviceSelections,
         departureId: effectiveDepartureId,
         participants,
         ...(roster.length ? { passengers: roster } : {}),
@@ -678,7 +798,14 @@ export function BookingEntryPage() {
         ...(checkedAgency ? { agencyPromotionCode: checkedAgency.code } : {}),
         ...(checkedPlatform ? { platformPromotionCode: checkedPlatform.code } : {}),
         clientRequestId: clientRequestId.current,
-      }).unwrap();
+      };
+      if (servicesError) { setStep(2); setErrors({ general: servicesError }); return; }
+      const quote = await quoteBooking(bookingInput).unwrap();
+      if (quote.tourSubtotal !== subtotal || quote.servicesSubtotal !== servicesEstimate) {
+        setErrors({ general: 'Giá tour hoặc dịch vụ vừa thay đổi. Vui lòng kiểm tra lại tổng tiền và xác nhận lần nữa.' });
+        return;
+      }
+      const created = await createBooking({ ...bookingInput, expectedTourSubtotal: quote.tourSubtotal }).unwrap();
 
       // Initiate 100% PayOS payment directly
       try {
@@ -1133,7 +1260,10 @@ export function BookingEntryPage() {
                   {passengers.map((p, idx) => {
                     const isAdult = idx < guests.adults;
                     const isChild = !isAdult && idx < guests.adults + guests.children;
+                    const isInfant = !isAdult && !isChild;
                     const typeLabel = isAdult ? 'Người lớn' : isChild ? 'Trẻ em' : 'Em bé';
+                    const ageGroup = isAdult ? 'ADULT' : isChild ? 'CHILD' : 'INFANT';
+                    const ageRangeInfo = getPassengerAgeRangeLabel(ageGroup, tourYear, tour?.agePricing);
 
                     return (
                       <div
@@ -1157,6 +1287,12 @@ export function BookingEntryPage() {
                               value={p.fullName}
                               onChange={(e) => {
                                 const val = e.target.value;
+                                setPassengerErrors((prev) => {
+                                  if (!prev[idx] || val.trim().length < 2) return prev;
+                                  const next = { ...prev };
+                                  delete next[idx];
+                                  return next;
+                                });
                                 setPassengers((prev) => {
                                   const next = [...prev];
                                   next[idx] = { ...next[idx], fullName: val };
@@ -1164,8 +1300,9 @@ export function BookingEntryPage() {
                                 });
                               }}
                               placeholder="VD: Nguyễn Văn A"
-                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-teal focus:ring-1 focus:ring-brand-teal"
+                              className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:ring-1 ${passengerErrors[idx] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-slate-200 focus:border-brand-teal focus:ring-brand-teal'}`}
                             />
+                            {passengerErrors[idx] && <p className="mt-1 text-xs font-medium text-red-600">{passengerErrors[idx]}</p>}
                           </div>
 
                           <div className="sm:col-span-1">
@@ -1190,10 +1327,16 @@ export function BookingEntryPage() {
                           </div>
 
                           <div className="sm:col-span-1">
-                            <label className="block text-xs font-semibold text-slate-600 mb-1">Năm sinh</label>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">
+                              Năm sinh
+                              <span className="ml-1 text-[11px] font-normal text-slate-500">
+                                ({ageRangeInfo.rangeText})
+                              </span>
+                            </label>
                             <input
                               type="text"
                               value={p.birthYear}
+                              maxLength={4}
                               onChange={(e) => {
                                 const val = e.target.value;
                                 setPassengers((prev) => {
@@ -1202,9 +1345,32 @@ export function BookingEntryPage() {
                                   return next;
                                 });
                               }}
-                              placeholder="1990"
-                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-teal focus:ring-1 focus:ring-brand-teal"
+                              placeholder={ageRangeInfo.placeholder}
+                              className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:ring-1 ${
+                                passengerBirthYearErrors[idx]
+                                  ? 'border-red-500 focus:border-red-500 focus:ring-red-500 bg-red-50/20'
+                                  : 'border-slate-200 focus:border-brand-teal focus:ring-brand-teal'
+                              }`}
                             />
+                            {passengerBirthYearErrors[idx] && (
+                              <div className="mt-1 space-y-1">
+                                <p className="text-xs font-medium text-red-600 flex items-start gap-1">
+                                  <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
+                                  <span>{passengerBirthYearErrors[idx]}</span>
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setStep(1);
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                  }}
+                                  className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 underline hover:text-teal-900 cursor-pointer"
+                                >
+                                  <ArrowLeft className="size-3" />
+                                  <span>Quay lại Bước 1 để đổi vé</span>
+                                </button>
+                              </div>
+                            )}
                           </div>
 
                           <div className="sm:col-span-2">
@@ -1242,11 +1408,7 @@ export function BookingEntryPage() {
                               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-teal focus:ring-1 focus:ring-brand-teal"
                             />
                           </div>
-                          <div className="sm:col-span-1">
-                            <label className="block text-xs font-semibold text-slate-600 mb-1">Điểm đón</label>
-                            <input type="text" maxLength={300} value={p.pickupPoint} onChange={(e) => setPassengers((prev) => prev.map((item, i) => i === idx ? { ...item, pickupPoint: e.target.value } : item))} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
-                          </div>
-                          <div className="sm:col-span-2">
+                          <div className="sm:col-span-3">
                             <label className="block text-xs font-semibold text-slate-600 mb-1">Ghi chú đặc biệt</label>
                             <input type="text" maxLength={500} value={p.specialNotes} onChange={(e) => setPassengers((prev) => prev.map((item, i) => i === idx ? { ...item, specialNotes: e.target.value } : item))} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
                           </div>
@@ -1259,6 +1421,8 @@ export function BookingEntryPage() {
             </div>
           )}
 
+          {step === 2 && (tour.optionalServices?.some(s => s.active) || serviceSelections.length > 0 || tour.meetingPoint) && <div className="rounded-2xl border border-slate-200 bg-white px-5 py-2 sm:px-6"><BookingExtras services={tour.optionalServices ?? []} passengers={extraPassengers} value={serviceSelections} onChange={value => { setServiceSelections(value); setErrors(current => ({ ...current, general: undefined })); }} departureDate={departure.date} meetingPoint={tour.meetingPoint} />{servicesError && <p role="alert" className="pb-4 text-sm text-red-700">{servicesError}</p>}</div>}
+          {step === 3 && <><button type="button" className="min-h-11 font-semibold text-teal-800 underline underline-offset-4" onClick={() => setStep(2)}>Sửa hành khách và dịch vụ</button><BookedExtrasSummary services={bookedExtras} meetingPoint={tour.meetingPoint} /></>}
           {/* ======================= STEP 3: THANH TOÁN ======================= */}
           {step === 3 && (
             <div className="space-y-6">
@@ -1737,6 +1901,7 @@ export function BookingEntryPage() {
               </dl>
 
               {/* Step 3: Thanh toán summary block */}
+              {servicesEstimate > 0 && <div className="mb-3 flex justify-between gap-3 text-sm"><span>Dịch vụ bổ sung</span><strong>{formatVnd(servicesEstimate)}</strong></div>}
               {step === 3 ? (
                 <div className="mt-3.5 space-y-2 border-t border-slate-100 pt-3 text-xs sm:text-sm">
                   <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
@@ -1830,11 +1995,24 @@ export function BookingEntryPage() {
               {alertModal.message}
             </p>
 
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-2.5">
+              {alertModal.actionLabel && alertModal.onAction && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const action = alertModal.onAction;
+                    setAlertModal({ open: false, message: '' });
+                    action?.();
+                  }}
+                  className="rounded-xl border border-teal-600 px-4 py-2.5 text-sm font-semibold text-teal-800 hover:bg-teal-50 transition cursor-pointer"
+                >
+                  {alertModal.actionLabel}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setAlertModal({ open: false, message: '' })}
-                className="rounded-xl bg-brand-teal px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-teal-700 transition cursor-pointer"
+                className="rounded-xl bg-brand-teal px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-teal-700 transition cursor-pointer"
               >
                 Đã hiểu
               </button>

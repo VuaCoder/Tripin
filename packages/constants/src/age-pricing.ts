@@ -7,11 +7,15 @@ export interface AgePricing {
   infantPercent: number;
   childPrice?: number | null;
   infantPrice?: number | null;
+  /** @deprecated Legacy quota field. Capacity is now managed as a single shared pool. */
   adultMaxCount?: number | null;
+  /** @deprecated Legacy quota field. Capacity is now managed as a single shared pool. */
   childMaxCount?: number | null;
+  /** @deprecated Legacy quota field. Capacity is now managed as a single shared pool. */
   infantMaxCount?: number | null;
 }
 export interface GuestCounts { adults: number; children: number; infants: number }
+/** @deprecated Legacy helper for projecting capacity into age quotas. Use total capacity instead. */
 export function resolveGuestGroupCounts(totalCapacity: number, pricing?: AgePricing | null): GuestCounts {
   const safeTotal = Math.max(0, Math.round(totalCapacity));
   const hasGroupLimits = pricing && (typeof pricing.adultMaxCount === 'number' || typeof pricing.childMaxCount === 'number' || typeof pricing.infantMaxCount === 'number');

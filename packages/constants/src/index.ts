@@ -1,6 +1,7 @@
 export * from './roles';
 export * from './permissions';
 export * from './auth';
+export * from './public-auth';
 export * from './tours';
 export * from './custom-tours';
 export * from './promotions';
@@ -8,5 +9,7 @@ export * from './bookings';
 export * from './payments';
 export * from './age-pricing';
 export * from './money';
+export * from './tour-services';
+export * from './tour-itinerary';
 export * from './complaints';
 export * from './profanity';

@@ -8,6 +8,9 @@ const createdAtOf = (booking: BookingRecord) => booking.createdAt.toISOString();
 export function toBookingDto(booking: BookingRecord): BookingDto {
   return {
     id: booking.id,
+    services: (booking.serviceSnapshot ?? []) as unknown as import('@travel-platform/constants').BookedExtra[],
+    servicesSubtotal: booking.servicesSubtotal ?? 0,
+    meetingPoint: booking.meetingPointSnapshot ?? undefined,
     premiumVoucherId: booking.premiumVoucherId ?? undefined,
     bookingCode: booking.bookingCode,
     status: booking.status as BookingStatus,
@@ -53,6 +56,9 @@ export function toBookingDto(booking: BookingRecord): BookingDto {
 export function toAgencyBookingDto(booking: BookingRecord): AgencyBookingDto {
   const shareContact = booking.status === BOOKING_STATUS.CONFIRMED || booking.status === BOOKING_STATUS.COMPLETED;
   return {
+    services: shareContact ? (booking.serviceSnapshot ?? []) as unknown as import('@travel-platform/constants').BookedExtra[] : undefined,
+    servicesSubtotal: booking.servicesSubtotal ?? 0,
+    meetingPoint: booking.meetingPointSnapshot ?? undefined,
     id: booking.id,
     bookingCode: booking.bookingCode,
     status: booking.status as BookingStatus,
@@ -77,6 +83,8 @@ export function toAgencyBookingDto(booking: BookingRecord): AgencyBookingDto {
 
 export function toBookingFacts(booking: BookingRecord): BookingFacts {
   return {
+    services: (booking.serviceSnapshot ?? []) as unknown as import('@travel-platform/constants').BookedExtra[],
+    meetingPoint: booking.meetingPointSnapshot ?? undefined,
     id: booking.id,
     bookingCode: booking.bookingCode,
     status: booking.status as BookingStatus,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo, type ChangeEvent, type KeyboardEvent } from 'react';
+import { useState, useRef, useEffect, useMemo, type ChangeEvent, type KeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { MapPin, Search, Check, X, Globe } from 'lucide-react';
 import { 
   VIETNAM_PROVINCES, 
@@ -70,8 +70,15 @@ export function TourDestinationCombobox({
 
   const handleSelect = (destinationName: string) => {
     onChange(destinationName);
+    inputRef.current?.focus();
     setIsOpen(false);
     setActiveIndex(-1);
+  };
+
+  // The input and suggestions are one field. Do not let a mouse press blur
+  // the empty input and insert an error that moves the option before click.
+  const keepInputFocus = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (event.button === 0) event.preventDefault();
   };
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -136,7 +143,12 @@ export function TourDestinationCombobox({
   const showCustomOption = value.trim() && !hasExactProvinceMatch;
 
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={containerRef} className="relative w-full" onBlur={(event) => {
+      if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+      setIsOpen(false);
+      setActiveIndex(-1);
+      onBlur?.();
+    }}>
       {/* Search Input Bar */}
       <div className="relative">
         <div className="pointer-events-none absolute top-3 left-3.5 text-slate-400">
@@ -153,7 +165,6 @@ export function TourDestinationCombobox({
           onChange={handleInputChange}
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
-          onBlur={onBlur}
           aria-invalid={ariaInvalid}
           aria-describedby={ariaDescribedby}
           placeholder="Ví dụ: Hà Giang, Sa Pa, Đà Nẵng, Phú Quốc..."
@@ -165,6 +176,7 @@ export function TourDestinationCombobox({
           <div className="absolute top-2.5 right-2.5 flex items-center">
             <button
               type="button"
+              onMouseDown={keepInputFocus}
               onClick={clearSelection}
               aria-label="Xoá điểm đến"
               className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
@@ -195,6 +207,7 @@ export function TourDestinationCombobox({
                       <button
                         key={province.name}
                         type="button"
+                        onMouseDown={keepInputFocus}
                         onClick={() => handleSelect(province.name)}
                         className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
                           isKeyboardActive
@@ -225,6 +238,7 @@ export function TourDestinationCombobox({
                 <div className="p-1">
                   <button
                     type="button"
+                    onMouseDown={keepInputFocus}
                     onClick={() => handleSelect(value.trim())}
                     className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left hover:bg-slate-50 transition-colors cursor-pointer text-slate-800"
                   >
@@ -246,6 +260,7 @@ export function TourDestinationCombobox({
                   <button
                     key={province.name}
                     type="button"
+                    onMouseDown={keepInputFocus}
                     onClick={() => handleSelect(province.name)}
                     className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
                       isKeyboardActive
@@ -272,6 +287,7 @@ export function TourDestinationCombobox({
               {/* Clean Option for "Khác" */}
               <button
                 type="button"
+                onMouseDown={keepInputFocus}
                 onClick={() => handleSelect('Khác')}
                 className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left hover:bg-slate-50 transition-colors cursor-pointer text-slate-700"
               >

@@ -24,6 +24,11 @@ export class BookingsController {
     sendCreated(res, await this.service.createBooking(userActor(req).userId, body));
   };
 
+  quote: RequestHandler = async (req, res) => {
+    const { body } = validated<CreateBookingBody>(req);
+    sendOk(res, await this.service.quoteBooking(body));
+  };
+
   listMine: RequestHandler = async (req, res) => {
     const { query } = validated<unknown, ListBookingsQueryInput>(req);
     const page = await this.service.listMine(userActor(req).userId, { ...query, status: query.status as BookingStatus | undefined });

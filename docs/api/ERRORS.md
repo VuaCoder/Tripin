@@ -13,6 +13,7 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 
 | Code | HTTP | Meaning |
 |---|---|---|
+| `ITINERARY_INCOMPLETE` | 400 | Complete the day-by-day tour program before submitting for review; departures are not required |
 | `VALIDATION_ERROR` | 400 | Body, query or path failed validation; `details[]` lists `location`, `path`, `message`. Also used for malformed JSON and `413` payload too large |
 | `UNAUTHENTICATED` | 401 | No or unusable credentials where a login is required |
 | `INVALID_CREDENTIALS` | 401 | Wrong email/password (same answer for unknown email), or wrong password confirmation |
@@ -57,7 +58,6 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `DEPARTURE_EXISTS` | 409 | A departure already exists at this date and time |
 | `DEPARTURE_LIMIT` | 409 | A tour cannot exceed the maximum departure count limit |
 | `REQUEST_ALREADY_USED` | 409 | The request id has already been processed with different parameters |
-| `NO_OPEN_DEPARTURE` | 400 | A tour needs at least one open future departure to be submitted |
 | `AI_EXTRACTION_FAILED` | 503 | The configured AI provider returned tour data that could not be parsed or validated |
 | `ITINERARY_EXCEEDS_DURATION` | 400 | An itinerary day is beyond `durationDays` |
 | `CAPACITY_BELOW_BOOKED` | 409 | Capacity cannot go below the seats already sold |
@@ -91,6 +91,9 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 |---|---|---|
 | `NOT_ENOUGH_SEATS` | 409 | Fewer seats left than requested |
 | `BOOKING_AMOUNT_TOO_LOW` | 409 | The amount to pay would be below 1 VND (a free departure, or a promotion that makes the order free); online payment is impossible, so no booking is created |
+| `BOOKING_QUOTE_CHANGED` | 409 | Tour price changed since the displayed quote; review a fresh quote before retrying. |
+| `BOOKING_REQUEST_CHANGED` | 409 | An idempotency key was reused with different booking details. |
+| `SERVICE_SELECTION_INVALID` | 409 | Selected extras, participants, pickup details or service terms are no longer valid. |
 | `BOOKING_NOT_PAYABLE` | 409 | The booking is not PENDING, so there is nothing to pay |
 | `BOOKING_PAYMENT_EXPIRED` | 409 | The payment window of the booking has passed |
 | `CANCELLATION_WINDOW_PASSED` | 409 | Too close to departure to cancel under the cancellation policy |

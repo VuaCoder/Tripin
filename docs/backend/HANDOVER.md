@@ -61,7 +61,7 @@ the 115 files that can import their dependencies — the three `agency-calendar`
 | D-18, D-44 | Does the **guide subscription gate anything**? | No — `hasActiveSubscription()` exists but nothing calls it; prices of the 2 seeded plans are illustrative | decide which guide features need an active plan, then guard them in `tours`/`chat` |
 | D-19, D-45 | **Guide earnings** | Guide earns the fee the agency agreed when assigning (per COMPLETED booking, only if the guide ACCEPTED); no payout workflow | `earnings` module |
 | D-26 | **Cancellation rules** | Traveler may cancel a CONFIRMED booking up to `cancellationWindowHours` (default 24) before departure; set by policy `cancellation` | `PUT /admin/policies/cancellation` |
-| D-27, D-28 | Agency must be **VERIFIED** to submit tours; a tour needs a category and an open future departure | enforced in `tours.service` | |
+| D-27, D-28 | Agency must be **VERIFIED** to submit tours; a tour needs a category and a complete day-by-day program, not a departure. Operational scheduling happens separately; booking still needs a valid departure | enforced in `tours.service` | |
 | D-4 | **Staff accounts** | Moderators/Super admins cannot self-register: first Super admin from the seed, then "Assign User Permissions" | |
 | D-13, D-46, D-85 | **Chat** is traveler ↔ guide or traveler ↔ agency (agencies share the same inbox for group-booking requests) | one function decides the allowed pairs | `chat.policy` |
 | D-43 | **Reviews** | only after COMPLETED, one per booking, immutable by the author, moderators can hide | |

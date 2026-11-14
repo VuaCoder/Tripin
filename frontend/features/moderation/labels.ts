@@ -1,11 +1,11 @@
 import type { AgencyVerificationStatus, ModerationTourStatus, ReviewStatus, TicketCategory, TicketStatus } from './types';
 
 export const TOUR_STATUS_LABELS: Record<ModerationTourStatus, { label: string; className: string }> = {
-  DRAFT: { label: 'Bản nháp', className: 'bg-slate-100 text-slate-600' },
-  PENDING_REVIEW: { label: 'Chờ duyệt', className: 'bg-amber-50 text-amber-700' },
+  PENDING_REVIEW: { label: 'Chờ xử lý', className: 'bg-amber-50 text-amber-700' },
   APPROVED: { label: 'Đã duyệt', className: 'bg-emerald-50 text-emerald-700' },
   REJECTED: { label: 'Bị từ chối', className: 'bg-red-50 text-red-700' },
   SUSPENDED: { label: 'Tạm ngưng', className: 'bg-orange-50 text-orange-700' },
+  DRAFT: { label: 'Bản nháp', className: 'bg-slate-100 text-slate-600' },
   ARCHIVED: { label: 'Lưu trữ', className: 'bg-slate-100 text-slate-500' },
 };
 

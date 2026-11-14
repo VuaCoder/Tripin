@@ -60,6 +60,8 @@ export class ETicketsService {
           participants: String(booking.participants),
           contactName: booking.contactName,
           totalAmount: String(booking.totalAmount),
+          serviceSummary: (booking.services ?? []).map(s => `${s.name} × ${s.quantity}: ${s.total.toLocaleString('vi-VN')} đ`).join('; '),
+          meetingPoint: booking.meetingPoint ?? '',
         },
       },
       { email: true },

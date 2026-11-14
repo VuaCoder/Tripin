@@ -1,35 +1,26 @@
 'use client';
 
 import Link from 'next/link';
-import { MONEY_LIMITS } from '@travel-platform/constants';
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction, type FormEvent } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
-import { getTourApiMessage, useDeleteAgencyTourMutation, useGetAgencyTourQuery, useRestoreAgencyTourMutation, useSetAgencyTourAvailabilityMutation, useSetAgencyTourItineraryMutation, useSubmitAgencyTourMutation } from '../api/toursApi';
-import type { TourDeparture, TourItineraryDay } from '../types';
+import { useEffect, useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { getTourApiMessage, useDeleteAgencyTourMutation, useGetAgencyTourQuery, useRestoreAgencyTourMutation, useSubmitAgencyTourMutation } from '../api/toursApi';
 import { toursApi } from '../api/toursApi';
 import { useAppDispatch } from '@/store/hooks';
-import { AgencyCustomersPanel } from '@/features/agency/AgencyTourOperations';
 import { AgencyDenied, useAgencyPermission } from '@/features/agency/AgencyCommon';
-import { ArrowLeft, ArrowRight, RotateCw, Edit3, Archive, Send, RefreshCw as RestoreIcon } from 'lucide-react';
+import { ArrowLeft, RotateCw, Edit3, Archive, Send, RefreshCw as RestoreIcon } from 'lucide-react';
 import { agencyNotice } from '@/features/agency/agencyNotice';
 import { AgencyPageTitle } from '@/features/agency/components/AgencyPageTitle';
 import { Compass } from 'lucide-react';
-import { Modal, Switch } from 'antd';
-import { AgencyTourLivePreview } from './AgencyTourLivePreview';
-import { AntDatePicker } from '@/components/ui/AntDatePicker';
-import { GuestGroupDropdown } from '@/components/ui/GuestGroupDropdown';
-import { formatCurrencyVndInput, parseCurrencyVndInput } from '@/lib/travel-format';
-import { guestTotal, resolveGuestGroupCounts, type GuestCounts } from '@travel-platform/constants';
+import { Modal } from 'antd';
+import { AgencyTourServicesSummary } from './AgencyTourServicesSummary';
 
-const inputClass = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20';
-const emptyDay = (day: number, toDay?: number): TourItineraryDay => ({ day, toDay, title: '', description: '', activities: [] });
-type DepartureForm = { id?: string; date: string; capacity: number; guestCounts?: GuestCounts | null; price: number; isOpen: boolean; remaining?: number };
 const statusText: Record<string, string> = { DRAFT: 'Bản nháp', PENDING_REVIEW: 'Chờ duyệt', APPROVED: 'Đã duyệt', REJECTED: 'Cần chỉnh sửa', SUSPENDED: 'Tạm ẩn', ARCHIVED: 'Đã lưu trữ' };
 
 export function AgencyTourWorkspacePage() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const requestedEdit = searchParams?.get('edit');
+  const router = useRouter();
   const canView = useAgencyPermission('agency:tour-view');
   const canEditBasics = useAgencyPermission('tour:update-own');
   const canEditItinerary = useAgencyPermission('tour:configure-itinerary');
@@ -37,71 +28,15 @@ export function AgencyTourWorkspacePage() {
   const canManageAvailability = useAgencyPermission('tour:set-availability');
   const dispatch = useAppDispatch();
   const { currentData: tour, isLoading, isFetching, error, refetch } = useGetAgencyTourQuery(id, { skip: !canView, pollingInterval: 30_000, skipPollingIfUnfocused: true, refetchOnFocus: true, refetchOnReconnect: true });
-  const [saveItinerary, itineraryState] = useSetAgencyTourItineraryMutation();
-  const [saveAvailability, availabilityState] = useSetAgencyTourAvailabilityMutation();
   const [submitTour, submitState] = useSubmitAgencyTourMutation();
   const [deleteTour, deleteState] = useDeleteAgencyTourMutation();
   const [restoreTour, restoreState] = useRestoreAgencyTourMutation();
-  const [days, setDaysState] = useState<TourItineraryDay[]>([]);
-  const [departures, setDeparturesState] = useState<DepartureForm[]>([]);
-  const itineraryDirty = useRef(false);
-  const availabilityDirty = useRef(false);
-  const itinerarySnapshot = useRef('');
-  const availabilitySnapshot = useRef('');
-  const setDays: Dispatch<SetStateAction<TourItineraryDay[]>> = (next) => { itineraryDirty.current = true; setValidationError(''); setValidationLocation(null); setDaysState(next); };
-  const setDepartures: Dispatch<SetStateAction<DepartureForm[]>> = (next) => { availabilityDirty.current = true; setValidationError(''); setValidationLocation(null); setDeparturesState(next); };
   const [errorText, setErrorText] = useState('');
-  const [editing, setEditing] = useState<'itinerary' | 'availability' | null>(null);
-  const [validationError, setValidationError] = useState('');
-  const [validationLocation, setValidationLocation] = useState<{ section: 'itinerary' | 'availability'; index: number } | null>(null);
-
   useEffect(() => {
-    if (!itineraryDirty.current && !availabilityDirty.current) return;
-    const beforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
-    window.addEventListener('beforeunload', beforeUnload);
-    return () => window.removeEventListener('beforeunload', beforeUnload);
-  }, [days, departures]);
-
-  useEffect(() => {
-    const section = requestedEdit;
-    setEditing(section === 'itinerary' && canEditItinerary ? 'itinerary' : section === 'availability' && canManageAvailability ? 'availability' : null);
-  }, [requestedEdit, canEditItinerary, canManageAvailability]);
-
-  useEffect(() => {
-    if (tour?.status === 'ARCHIVED' || (tour?.status === 'PENDING_REVIEW' && editing === 'itinerary')) setEditing(null);
-  }, [tour?.status, editing]);
-
-  useEffect(() => {
-    itineraryDirty.current = false; availabilityDirty.current = false;
-    itinerarySnapshot.current = ''; availabilitySnapshot.current = '';
-  }, [id]);
-
-  useEffect(() => {
-    if (!tour) return;
-    const itinerary = JSON.stringify(tour.itinerary);
-    const availability = JSON.stringify(tour.departures);
-    if (!itineraryDirty.current && itinerary !== itinerarySnapshot.current) {
-      setDaysState(tour.itinerary.map((item) => ({ ...item, activities: [...(item.activities ?? [])] })));
-      itinerarySnapshot.current = itinerary;
-    }
-    if (!availabilityDirty.current && availability !== availabilitySnapshot.current) {
-      setDeparturesState(
-        tour.departures.map((item: TourDeparture) => {
-          const counts = resolveGuestGroupCounts(item.capacity, tour.agePricing);
-          return {
-            id: item.id,
-            date: item.date.slice(0, 10),
-            capacity: item.capacity,
-            guestCounts: counts,
-            price: item.price,
-            isOpen: item.isOpen,
-            remaining: item.remaining,
-          };
-        }),
-      );
-      availabilitySnapshot.current = availability;
-    }
-  }, [tour]);
+    if (!tour || tour.status === 'ARCHIVED') return;
+    if (requestedEdit === 'availability' && canManageAvailability) router.replace('/agency/calendar');
+    if (requestedEdit === 'itinerary' && canEditItinerary && tour.status !== 'PENDING_REVIEW') router.replace(`/agency/tours/${id}/edit?section=itinerary`);
+  }, [requestedEdit, canManageAvailability, canEditItinerary, tour, router, id]);
 
   const run = async (operation: () => Promise<unknown>, success: string, action = 'Lưu thay đổi') => {
     setErrorText('');
@@ -120,116 +55,7 @@ export function AgencyTourWorkspacePage() {
         inbox: true,
         type: 'TOUR_ERROR',
       });
-      const isMissingDeparture = (e as { data?: { error?: { code?: string } }; error?: { data?: { error?: { code?: string } } } })?.data?.error?.code === 'NO_OPEN_DEPARTURE' || (e as { error?: { data?: { error?: { code?: string } } } })?.error?.data?.error?.code === 'NO_OPEN_DEPARTURE' || msg.includes('Khởi hành');
-      if (isMissingDeparture) {
-        if (canManageAvailability) setEditing('availability');
-      }
     }
-  };
-  const showValidationError = (message: string, location: { section: 'itinerary' | 'availability'; index: number } | null = null) => {
-    setValidationError(message);
-    setValidationLocation(location);
-    agencyNotice.error(message);
-  };
-  const saveDays = (event: FormEvent) => {
-    event.preventDefault();
-    if (!tour) return;
-    for (let i = 0; i < days.length; i++) {
-      const d = days[i];
-      if (d.title.trim().length < 2) {
-        showValidationError(`Chưa lưu lịch trình: Tiêu đề ngày ${d.day} cần ít nhất 2 ký tự.`, { section: 'itinerary', index: i });
-        return;
-      }
-      if (!d.day || d.day < 1 || d.day > tour.durationDays) {
-        showValidationError(`Chưa lưu lịch trình: Ngày bắt đầu của mục ${i + 1} phải từ 1 đến ${tour.durationDays}.`, { section: 'itinerary', index: i });
-        return;
-      }
-      if (d.toDay && (d.toDay < d.day || d.toDay > tour.durationDays)) {
-        showValidationError(`Chưa lưu lịch trình: Ngày kết thúc của mục ${i + 1} phải từ ngày ${d.day} đến ${tour.durationDays}.`, { section: 'itinerary', index: i });
-        return;
-      }
-    }
-    const sorted = [...days].sort((a, b) => a.day - b.day);
-    for (let i = 0; i < sorted.length - 1; i++) {
-      const currentEnd = sorted[i].toDay && sorted[i].toDay! > sorted[i].day ? sorted[i].toDay! : sorted[i].day;
-      const nextStart = sorted[i + 1].day;
-      if (currentEnd >= nextStart) {
-        const curLabel = sorted[i].toDay && sorted[i].toDay! > sorted[i].day ? `Ngày ${sorted[i].day} – ${sorted[i].toDay}` : `Ngày ${sorted[i].day}`;
-        const nextLabel = sorted[i + 1].toDay && sorted[i + 1].toDay! > sorted[i + 1].day ? `Ngày ${sorted[i + 1].day} – ${sorted[i + 1].toDay}` : `Ngày ${sorted[i + 1].day}`;
-        showValidationError(`Chưa lưu lịch trình: ${curLabel} trùng với ${nextLabel}. Hãy chỉnh lại các ngày.`, { section: 'itinerary', index: days.indexOf(sorted[i + 1]) });
-        return;
-      }
-    }
-    void run(async () => {
-      const payload = sorted.map((d) => ({
-        day: d.day,
-        toDay: d.toDay && d.toDay > d.day ? d.toDay : undefined,
-        title: d.title.trim(),
-        description: d.description?.trim() || undefined,
-        activities: d.activities ?? [],
-      }));
-      const saved = await saveItinerary({ id, days: payload }).unwrap();
-      await dispatch(toursApi.util.upsertQueryData('getAgencyTour', id, saved));
-      itineraryDirty.current = false;
-      itinerarySnapshot.current = JSON.stringify(saved.itinerary);
-      setDaysState(saved.itinerary);
-      setEditing(null);
-      setValidationError('');
-      setValidationLocation(null);
-    }, 'Đã lưu lịch trình.', 'Lưu lịch trình');
-  };
-  const saveDepartures = (event: FormEvent) => {
-    event.preventDefault();
-    const duplicateDate = departures.find((departure, index) => departure.date && departures.findIndex((item) => item.date === departure.date) !== index);
-    if (duplicateDate) { showValidationError(`Chưa lưu ngày khởi hành: ${new Date(`${duplicateDate.date}T00:00:00Z`).toLocaleDateString('vi-VN')} đã có trong danh sách.`, { section: 'availability', index: departures.indexOf(duplicateDate) }); return; }
-    const invalidCapacityIndex = departures.findIndex((departure) => departure.capacity < 1 || departure.capacity > 10000);
-    if (invalidCapacityIndex !== -1) { showValidationError('Chưa lưu ngày khởi hành: Số chỗ phải từ 1 đến 10.000.', { section: 'availability', index: invalidCapacityIndex }); return; }
-    const invalidPriceIndex = departures.findIndex(({ price }) => !Number.isSafeInteger(price) || price < 0 || price > MONEY_LIMITS.MAX_UNIT_PRICE);
-    if (invalidPriceIndex !== -1) {
-      showValidationError('Chưa lưu ngày khởi hành: Giá phải là số nguyên từ 0 đến 1 tỷ đồng.', { section: 'availability', index: invalidPriceIndex });
-      return;
-    }
-    const now = Date.now();
-    const invalidDateIndex = departures.findIndex((departure) => {
-      const original = departure.id ? tour?.departures.find((item) => item.id === departure.id)?.date.slice(0, 10) : undefined;
-      return (!departure.id || departure.date !== original) && new Date(`${departure.date}T00:00:00.000Z`).getTime() <= now;
-    });
-    if (invalidDateIndex !== -1) { showValidationError('Chưa lưu ngày khởi hành: Ngày mới hoặc ngày được đổi phải từ ngày mai trở đi.', { section: 'availability', index: invalidDateIndex }); return; }
-    void run(async () => {
-      const saved = await saveAvailability({
-        id,
-        departures: departures.map(({ id: departureId, date, capacity, isOpen, price }) => {
-          const effectivePrice = (!price || price <= 0) && tour ? tour.basePrice : price;
-          return {
-            ...(departureId ? { id: departureId } : {}),
-            date: new Date(`${date}T00:00:00.000Z`).toISOString(),
-            capacity,
-            isOpen,
-            ...(effectivePrice !== tour?.basePrice ? { priceOverride: effectivePrice } : {}),
-          };
-        }),
-      }).unwrap();
-      await dispatch(toursApi.util.upsertQueryData('getAgencyTour', id, saved));
-      availabilityDirty.current = false;
-      availabilitySnapshot.current = '';
-      setDeparturesState(
-        saved.departures.map((item) => {
-          const counts = resolveGuestGroupCounts(item.capacity, tour?.agePricing);
-          return {
-            id: item.id,
-            date: item.date.slice(0, 10),
-            capacity: item.capacity,
-            guestCounts: counts,
-            price: item.price,
-            isOpen: item.isOpen,
-            remaining: item.remaining,
-          };
-        }),
-      );
-      setEditing(null);
-      setValidationError('');
-      setValidationLocation(null);
-    }, 'Đã cập nhật ngày khởi hành.', 'Lưu ngày khởi hành');
   };
   const submit = () => {
     void run(() => submitTour(id).unwrap(), 'Tour đã được gửi để kiểm duyệt.', 'Gửi duyệt tour');
@@ -291,37 +117,10 @@ export function AgencyTourWorkspacePage() {
   const isArchived = tour.status === 'ARCHIVED';
   const isPendingReview = tour.status === 'PENDING_REVIEW';
   const locked = isPendingReview || isArchived;
-  const busy = itineraryState.isLoading || availabilityState.isLoading || submitState.isLoading || deleteState.isLoading || restoreState.isLoading;
-  const coveredDays = new Set(days.flatMap((day) => Array.from({ length: Math.max(1, (day.toDay ?? day.day) - day.day + 1) }, (_, index) => day.day + index)));
-  const nextStartDay = Array.from({ length: tour.durationDays }, (_, index) => index + 1).find((day) => !coveredDays.has(day)) ?? tour.durationDays;
-  const isScheduleFull = coveredDays.size >= tour.durationDays;
-  const itineraryChanged = JSON.stringify(days) !== itinerarySnapshot.current;
-  const availabilityChanged = JSON.stringify(departures.map(({ guestCounts: _counts, ...departure }) => departure)) !== JSON.stringify(tour.departures.map((departure) => ({
-    id: departure.id, date: departure.date.slice(0, 10), capacity: departure.capacity,
-    price: departure.price, isOpen: departure.isOpen, remaining: departure.remaining,
-  })));
-  const hasUnsavedChanges = editing === 'itinerary' ? itineraryChanged : editing === 'availability' ? availabilityChanged : false;
-  const confirmDiscard = () => !hasUnsavedChanges || window.confirm('Bạn có thay đổi chưa lưu. Rời đi và bỏ các thay đổi này?');
-  const discardDraft = () => {
-    if (tour) {
-      setDaysState(tour.itinerary.map((day) => ({ ...day, activities: [...(day.activities ?? [])] })));
-      setDeparturesState(tour.departures.map((departure) => ({ ...departure, date: departure.date.slice(0, 10), guestCounts: resolveGuestGroupCounts(departure.capacity, tour.agePricing) })));
-      itineraryDirty.current = false;
-      availabilityDirty.current = false;
-    }
-  };
-  const closeEditor = () => {
-    if (!confirmDiscard()) return;
-    discardDraft();
-    setEditing(null);
-    setValidationError('');
-    setValidationLocation(null);
-  };
-
-
+  const busy = submitState.isLoading || deleteState.isLoading || restoreState.isLoading;
   return <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
     <div className="flex items-center justify-between">
-      <Link href="/agency/tours" onClick={(event) => { if (!confirmDiscard()) event.preventDefault(); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:border-primary-container hover:bg-primary-container focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"><ArrowLeft size={16} aria-hidden="true" />Danh sách tour</Link>
+      <Link href="/agency/tours" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:border-primary-container hover:bg-primary-container focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"><ArrowLeft size={16} aria-hidden="true" />Danh sách tour</Link>
       <button 
         type="button" 
         disabled={isFetching} 
@@ -357,7 +156,7 @@ export function AgencyTourWorkspacePage() {
           <>
             {canEditBasics && <Link
               href={`/agency/tours/${id}/edit?from=/agency/tours/${id}`}
-              onClick={(event) => { if (locked || !confirmDiscard()) event.preventDefault(); }}
+              onClick={(event) => { if (locked) event.preventDefault(); }}
               aria-disabled={locked}
               className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs sm:text-sm font-semibold transition-colors shadow-2xs ${
                 locked
@@ -395,11 +194,11 @@ export function AgencyTourWorkspacePage() {
         )}
       </div>
     </header>
-    {isPendingReview && <p className="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Tour đang chờ xét duyệt. Thông tin và lịch trình tạm khóa chỉnh sửa; bạn vẫn có thể điều chỉnh ngày khởi hành và số chỗ.</p>}
+    {isPendingReview && <p className="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Tour đang chờ xét duyệt. Thông tin và lịch trình tạm khóa chỉnh sửa. Lịch khởi hành được quản lý riêng trong Calendar.</p>}
+    {searchParams?.get('review') === 'failed' && (tour.status === 'DRAFT' || tour.status === 'REJECTED') && <p role="alert" className="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Nội dung tour đã được lưu nhưng chưa gửi duyệt thành công. Bấm “Gửi duyệt tour” để thử lại; không cần tạo tour mới.</p>}
     {isArchived && <p className="mb-5 rounded-xl bg-slate-100 p-4 text-sm text-slate-700 border border-slate-200">Tour này đã được lưu trữ (ngừng hoạt động). Bấm nút <strong>Khôi phục tour</strong> ở trên để chuyển về Bản nháp và tiếp tục chỉnh sửa.</p>}
-    {validationError && !validationLocation && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{validationError}</p>}
     {errorText && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{errorText}</p>}
-    {!editing && <div className="space-y-7">
+    <div className="space-y-7">
       <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-6" aria-labelledby="tour-overview-title">
         <h2 id="tour-overview-title" className="text-lg font-bold text-slate-900">Thông tin tour</h2>
         {tour.images?.length > 0 && <div className="mt-4 flex gap-3 overflow-x-auto">{tour.images.map((src, index) => <img key={`${src}-${index}`} src={src} alt={`${tour.title} - ảnh ${index + 1}`} className="h-36 w-56 shrink-0 rounded-xl object-cover" />)}</div>}
@@ -416,256 +215,12 @@ export function AgencyTourWorkspacePage() {
         {tour.childPricingPolicy && <div className="mt-5"><h3 className="font-semibold text-slate-900">Chính sách giá trẻ em</h3><p className="mt-2 whitespace-pre-line text-sm text-slate-700">{tour.childPricingPolicy}</p></div>}
         {tour.travelNotes && <div className="mt-5"><h3 className="font-semibold text-slate-900">Lưu ý chuyến đi</h3><p className="mt-2 whitespace-pre-line text-sm text-slate-700">{tour.travelNotes}</p></div>}
         {tour.requiredDocuments && <div className="mt-5"><h3 className="font-semibold text-slate-900">Giấy tờ cần mang theo</h3><p className="mt-2 whitespace-pre-line text-sm text-slate-700">{tour.requiredDocuments}</p></div>}
+        <AgencyTourServicesSummary services={tour.optionalServices} />
       </section>
-      <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-6" aria-labelledby="tour-itinerary-title"><div className="flex flex-wrap items-center justify-between gap-3"><h2 id="tour-itinerary-title" className="text-lg font-bold text-slate-900">Lịch trình tour</h2>{canEditItinerary && !locked && <button type="button" onClick={() => setEditing('itinerary')} className="rounded-lg bg-primary-container px-4 py-2 text-sm font-semibold text-white">Sửa lịch trình</button>}</div>
+      <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-6" aria-labelledby="tour-itinerary-title"><div className="flex flex-wrap items-center justify-between gap-3"><h2 id="tour-itinerary-title" className="text-lg font-bold text-slate-900">Lịch trình tour</h2>{canEditItinerary && !locked && <Link href={`/agency/tours/${id}/edit?section=itinerary`} className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-teal-800 hover:bg-teal-50">Sửa lịch trình</Link>}</div>
         {locked && <p className="mt-2 text-sm text-amber-800">{isArchived ? 'Tour đã lưu trữ. Khôi phục tour để sửa lịch trình.' : 'Tour đang chờ duyệt nên chưa thể sửa lịch trình.'}</p>}
         {tour.itinerary.length === 0 ? <p className="mt-4 text-sm text-slate-600">Chưa có lịch trình.</p> : <ol className="mt-4 space-y-4">{[...tour.itinerary].sort((a, b) => a.day - b.day).map((day) => <li key={`${day.day}-${day.toDay ?? day.day}`} className="rounded-xl bg-slate-50 p-4"><h3 className="font-semibold text-slate-900">Ngày {day.day}{day.toDay && day.toDay > day.day ? `–${day.toDay}` : ''}: {day.title}</h3>{day.description && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">{day.description}</p>}{!!day.activities?.length && <ul className="mt-2 list-inside list-disc text-sm text-slate-700">{day.activities.map((activity, index) => <li key={index}>{activity}</li>)}</ul>}</li>)}</ol>}
       </section>
-      <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-6" aria-labelledby="tour-departures-title"><div className="flex flex-wrap items-center justify-between gap-3"><h2 id="tour-departures-title" className="text-lg font-bold text-slate-900">Khởi hành & Giá vé</h2>{canManageAvailability && !isArchived && <button type="button" onClick={() => setEditing('availability')} className="rounded-lg bg-primary-container px-4 py-2 text-sm font-semibold text-white">Quản lý khởi hành & giá vé</button>}</div>
-        {tour.departures.length === 0 ? <p className="mt-4 text-sm text-slate-600">Chưa có ngày khởi hành.</p> : <ul className="mt-4 grid gap-3 sm:grid-cols-2">{tour.departures.map((departure) => <li key={departure.id} className="rounded-xl bg-slate-50 p-4 text-sm"><p className="font-semibold text-slate-900">{new Date(departure.date).toLocaleDateString('vi-VN')}</p><p className="mt-2 text-slate-700">{new Intl.NumberFormat('vi-VN').format(departure.price)} ₫ · {departure.capacity} chỗ</p><p className="mt-1 text-slate-600">{departure.isOpen ? 'Đang mở nhận khách' : 'Đóng nhận khách'} · Đã bán {departure.capacity - departure.remaining}/{departure.capacity}</p></li>)}</ul>}
-      </section>
-    </div>}
-    {editing && <div className="mb-4 flex justify-end"><button type="button" onClick={closeEditor} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Đóng chế độ sửa</button></div>}
-    {editing &&
-    <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_340px]">
-    <div className="min-w-0 space-y-6">
-    <p className="text-sm font-semibold text-slate-700">{editing === 'itinerary' ? 'Sửa lịch trình' : 'Quản lý khởi hành & giá vé'}</p>
-    <div className="space-y-6">
-      <div hidden={editing !== 'itinerary'} className="space-y-6">
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Lịch trình tour</h2>
-              <p className="text-sm text-slate-600">
-                Tổng thời lượng: <span className="font-semibold text-slate-900">{tour.durationDays} ngày</span>. Hỗ trợ thiết lập từng ngày hoặc gộp khoảng ngày.
-              </p>
-            </div>
-            <button
-              type="button"
-              disabled={locked || !canEditItinerary || isScheduleFull}
-              title={isScheduleFull ? 'Đã đủ số ngày của tour' : locked ? 'Tour đang bị khóa chỉnh sửa lịch trình' : undefined}
-              onClick={() => setDays((current) => [...current, emptyDay(nextStartDay)])}
-              className="rounded-lg border border-primary px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/5 transition-colors disabled:opacity-50"
-            >
-              + Thêm ngày
-            </button>
-          </div>
-          <form onSubmit={saveDays} noValidate className="space-y-4" aria-busy={itineraryState.isLoading}>
-            {days.length === 0 && <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Chưa có lịch trình. Thêm ngày đầu tiên để bắt đầu.</p>}
-            {days.map((day, index) => (
-              <fieldset key={index} disabled={locked} className="space-y-3.5 rounded-xl border border-slate-200 bg-slate-50/80 p-4 transition-all hover:border-slate-300">
-                <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 pb-3">
-                  <span className="inline-flex shrink-0 items-center rounded-lg bg-teal-700 px-3 py-1 text-xs font-bold text-white shadow-2xs">
-                    Ngày {day.day}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setDays((prev) => prev.filter((_, i) => i !== index))}
-                    className="shrink-0 text-xs font-semibold text-red-600 hover:text-red-700 hover:underline transition-colors"
-                  >
-                    Xóa ngày
-                  </button>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Tiêu đề ngày</label>
-                  <input
-                    aria-label={`Tiêu đề ${day.toDay && day.toDay > day.day ? `ngày ${day.day} - ${day.toDay}` : `ngày ${day.day}`}`}
-                    required
-                    minLength={2}
-                    maxLength={200}
-                    value={day.title}
-                    onChange={(e) => setDays((prev) => prev.map((item, i) => i === index ? { ...item, title: e.target.value } : item))}
-                    placeholder={day.toDay && day.toDay > day.day ? `VD: Khám phá Đà Nẵng - Bán đảo Sơn Trà & Bà Nà Hills` : `VD: Đón sân bay - Khám phá trung tâm thành phố`}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900 outline-none transition-colors focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 placeholder:font-normal placeholder:text-slate-400"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Nội dung chi tiết</label>
-                  <textarea
-                    aria-label={`Nội dung ${day.toDay && day.toDay > day.day ? `ngày ${day.day} - ${day.toDay}` : `ngày ${day.day}`}`}
-                    maxLength={5000}
-                    rows={4}
-                    value={day.description ?? ''}
-                    onChange={(e) => setDays((prev) => prev.map((item, i) => i === index ? { ...item, description: e.target.value } : item))}
-                    placeholder="Mô tả chi tiết lịch trình, các hoạt động tham quan, trải nghiệm và bữa ăn trong ngày..."
-                    className="w-full rounded-lg border border-slate-300 bg-white p-3.5 text-sm leading-relaxed text-slate-800 outline-none transition-colors focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 placeholder:text-slate-400"
-                  />
-                </div>
-                {validationLocation?.section === 'itinerary' && validationLocation.index === index && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{validationError}</p>}
-              </fieldset>
-            ))}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200">
-              <button
-                type="submit"
-                disabled={locked || !canEditItinerary || itineraryState.isLoading || !itineraryChanged}
-                className="rounded-lg bg-primary-container px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-800 disabled:opacity-50 shadow-sm"
-              >
-                {itineraryState.isLoading ? 'Đang lưu…' : 'Lưu lịch trình'}
-              </button>
-              <button
-                type="button"
-                onClick={() => { if (confirmDiscard()) { discardDraft(); if (canManageAvailability) setEditing('availability'); else setEditing(null); } }}
-                className="inline-flex items-center gap-2 rounded-lg border border-primary bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary hover:text-white transition-colors ml-auto"
-              >
-                <span>Sang bước 2: Khởi hành</span>
-                <ArrowRight size={16} />
-              </button>
-            </div>
-          </form>
-        </section>
-      </div>
-
-      {!canManageAvailability && editing === 'availability' && <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">Chỉ Quản lý hoặc Chủ đại lý mới có quyền thay đổi ngày khởi hành và trạng thái mở bán.</section>}
-      {canManageAvailability && <section hidden={editing !== 'availability'} className="rounded-2xl bg-slate-100 p-5 sm:p-6">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Ngày khởi hành</h2>
-          </div>
-          <button
-            type="button"
-            disabled={departures.length >= 200}
-            onClick={() => {
-              const defaultCapacity = tour?.maxGroupSize && tour.maxGroupSize > 0 ? tour.maxGroupSize : 10;
-              const defaultCounts = resolveGuestGroupCounts(defaultCapacity, tour?.agePricing);
-              setDepartures((current) => [
-                ...current,
-                {
-                  date: '',
-                  capacity: defaultCapacity,
-                  guestCounts: defaultCounts,
-                  price: tour?.basePrice ?? 0,
-                  isOpen: true,
-                },
-              ]);
-            }}
-            className="rounded-lg border border-primary px-3 py-2 text-sm font-semibold text-primary disabled:opacity-50 hover:bg-primary/5 transition-colors"
-          >
-            + Thêm ngày
-          </button>
-        </div>
-        <form onSubmit={saveDepartures} noValidate className="space-y-4" aria-busy={availabilityState.isLoading}>
-          {departures.length === 0 && <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Chưa thiết lập ngày khởi hành.</p>}
-          {departures.map((departure, index) => {
-            const sold = departure.remaining === undefined ? 0 : departure.capacity - departure.remaining;
-            const dateLocked = sold > 0;
-            return (
-              <fieldset key={departure.id ?? `new-${index}`} className="grid gap-x-5 gap-y-4 rounded-2xl bg-white p-5 shadow-[0_12px_28px_-10px_rgba(15,23,42,0.30)] sm:grid-cols-2">
-                <div className="space-y-1 text-sm font-medium text-slate-700">
-                  <span>Ngày khởi hành</span>
-                  <AntDatePicker
-                    value={departure.date}
-                    disabled={dateLocked}
-                    min={new Date().toISOString().slice(0, 10)}
-                    onChange={(d) => setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, date: d } : item))}
-                    className="w-full"
-                    size="middle"
-                    placeholder="Chọn ngày khởi hành"
-                  />
-                </div>
-                <div className="space-y-1 text-sm font-medium text-slate-700">
-                  <div className="flex items-center justify-between">
-                    <span>Số lượng khách (3 nhóm)</span>
-                    <span className="text-xs font-semibold text-slate-500">Tổng: {departure.capacity} chỗ</span>
-                  </div>
-                  <GuestGroupDropdown
-                    value={departure.guestCounts ?? resolveGuestGroupCounts(departure.capacity, tour?.agePricing)}
-                    minTotal={Math.max(1, sold)}
-                    maxTotal={10000}
-                    onChange={(nextCounts) => {
-                      if (!nextCounts) return;
-                      const nextTotal = guestTotal(nextCounts);
-                      setDepartures((prev) =>
-                        prev.map((item, i) =>
-                          i === index
-                            ? {
-                                ...item,
-                                capacity: Math.max(Math.max(1, sold), nextTotal),
-                                guestCounts: nextCounts,
-                              }
-                            : item,
-                        ),
-                      );
-                    }}
-                  />
-                </div>
-                <label className="space-y-1 text-sm font-medium text-slate-700">
-                  <span>Giá riêng (VND)</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={formatCurrencyVndInput(departure.price)}
-                    placeholder={tour ? formatCurrencyVndInput(tour.basePrice) : 'Ví dụ: 500.000'}
-                    onKeyDown={(e) => {
-                      if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
-                    }}
-                    onChange={(e) => {
-                      const parsed = parseCurrencyVndInput(e.target.value);
-                      setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, price: parsed } : item));
-                    }}
-                    className={inputClass}
-                  />
-                </label>
-                <div className="flex items-center justify-between gap-3 pt-5">
-                  <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                    <Switch
-                      checked={departure.isOpen}
-                      onChange={(checked) => setDepartures((prev) => prev.map((item, i) => i === index ? { ...item, isOpen: checked } : item))}
-                      size="small"
-                    />
-                    <span>{departure.isOpen ? 'Đang mở nhận khách' : 'Đóng nhận khách'}</span>
-                  </div>
-                  <span className="text-xs text-slate-500 font-medium">Đã bán {sold}/{departure.capacity}</span>
-                  <button
-                    type="button"
-                    disabled={dateLocked}
-                    onClick={() => setDepartures((prev) => prev.filter((_, i) => i !== index))}
-                    className="text-xs font-semibold text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Gỡ ngày
-                  </button>
-                </div>
-                {dateLocked && (
-                  <div className="sm:col-span-2 flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 font-medium">
-                    <span>🔒 Đã có {sold} khách đặt. Không thể đổi ngày hoặc gỡ bỏ (hãy đóng nhận khách nếu muốn dừng bán).</span>
-                  </div>
-                )}
-                {validationLocation?.section === 'availability' && validationLocation.index === index && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-2">{validationError}</p>}
-              </fieldset>
-            );
-          })}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={() => { if (confirmDiscard()) { discardDraft(); if (canEditItinerary) setEditing('itinerary'); else setEditing(null); } }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-            >
-              <ArrowLeft size={16} />
-              <span>Quay lại: Lịch trình</span>
-            </button>
-            <button
-              type="submit"
-              disabled={availabilityState.isLoading || !availabilityChanged}
-              className="rounded-lg bg-primary-container px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-800 disabled:opacity-50 shadow-sm"
-            >
-              {availabilityState.isLoading ? 'Đang lưu…' : 'Lưu ngày khởi hành'}
-            </button>
-          </div>
-        </form>
-      </section>}
-    </div></div>
-    <aside aria-label="Xem trước tour" className="min-w-0 lg:sticky lg:top-6">
-      <AgencyTourLivePreview
-        title={tour.title}
-        destination={tour.destination}
-        durationDays={tour.durationDays}
-        basePrice={tour.basePrice}
-        images={tour.images ?? []}
-        summary={tour.summary}
-        inclusions={tour.inclusions ?? []}
-        guide={tour.guide}
-        itineraryDays={days.map((d) => ({ day: d.day, toDay: d.toDay, title: d.title }))}
-        openDeparturesCount={departures.filter((d) => d.isOpen).length}
-      />
-    </aside></div>}
+    </div>
   </main>;
 }

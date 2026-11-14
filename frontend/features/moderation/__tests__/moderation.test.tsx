@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ModerationAgency, ModerationTour } from '../types';
 
 const mockTours = vi.fn();
+const mockTourDetail = vi.fn().mockReturnValue({ data: undefined, isLoading: false, isError: false });
 const mockAgencies = vi.fn();
 const mockDashboard = vi.fn();
 const mockValidate = vi.fn();
@@ -12,6 +13,7 @@ let permissions: string[] = [];
 
 vi.mock('../api/moderationApi', () => ({
   useGetModerationToursQuery: (...a: unknown[]) => mockTours(...a),
+  useGetModerationTourQuery: (...a: unknown[]) => mockTourDetail(...a),
   useGetModerationAgenciesQuery: (...a: unknown[]) => mockAgencies(...a),
   useGetModerationDashboardQuery: (...a: unknown[]) => mockDashboard(...a),
   useValidateTourMutation: () => [mockValidate, { isLoading: false }],

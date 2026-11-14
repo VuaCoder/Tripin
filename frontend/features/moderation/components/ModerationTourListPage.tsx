@@ -7,7 +7,7 @@ import { Pagination, AntSelect, Modal, type AntSelectOption } from '@/components
 import { useGetModerationToursQuery, useSuspendTourMutation, useValidateTourMutation } from '../api/moderationApi';
 import { PERMISSION, TOUR_STATUS_LABELS } from '../labels';
 import type { ModerationTour, ModerationTourStatus } from '../types';
-import { DecisionDialog, type DecisionAction } from './DecisionDialog';
+import { ModeratorTourDetailModal } from './ModeratorTourDetailModal';
 import { dateTime, FeedbackBanner, ModerationDenied, money, moderationErrorMessage, useModerationPermission, type Feedback } from './ModerationUi';
 
 const PAGE_SIZE = 12;
@@ -106,7 +106,7 @@ export function ModerationTourSkeleton({ viewMode }: { viewMode: 'list' | 'grid'
 }
 
 /** Use cases "View tour lists", "Validate tour" and "Suspend tours". */
-export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
+export function ModerationTourListPage({ initialStatus = 'PENDING_REVIEW' }: Props) {
   const canList = useModerationPermission(PERMISSION.tourList);
   const canValidate = useModerationPermission(PERMISSION.tourValidate);
   const canSuspend = useModerationPermission(PERMISSION.tourSuspend);
@@ -163,47 +163,14 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
     }
   };
 
-  const actions: DecisionAction[] = [];
-  if (selected?.status === 'PENDING_REVIEW' && canValidate) {
-    actions.push(
-      {
-        key: 'approve',
-        label: 'Duyệt tour',
-        tone: 'positive',
-        requiresReason: false,
-        onConfirm: (reason) =>
-          void decide(() => validate({ id: selected.id, approve: true, ...(reason ? { reason } : {}) }).unwrap(), `Đã duyệt tour "${selected.title}".`, 'Không thể duyệt tour lúc này. Vui lòng thử lại.'),
-      },
-      {
-        key: 'reject',
-        label: 'Từ chối',
-        tone: 'negative',
-        requiresReason: true,
-        onConfirm: (reason) =>
-          void decide(() => validate({ id: selected.id, approve: false, reason }).unwrap(), `Đã từ chối tour "${selected.title}".`, 'Không thể từ chối tour lúc này. Vui lòng thử lại.'),
-      },
-    );
-  }
-  if (selected?.status === 'APPROVED' && canSuspend) {
-    actions.push({
-      key: 'suspend',
-      label: 'Tạm ngưng tour',
-      tone: 'negative',
-      requiresReason: true,
-      onConfirm: (reason) =>
-        void decide(() => suspend({ id: selected.id, reason }).unwrap(), `Đã tạm ngưng tour "${selected.title}".`, 'Không thể tạm ngưng tour lúc này. Vui lòng thử lại.'),
-    });
-  }
-
-  const reasonLabel =
-    selected?.status === 'APPROVED' ? 'Lý do tạm ngưng (bắt buộc)' : 'Lý do (bắt buộc khi từ chối, tùy chọn khi duyệt)';
-
   const statusOptions: AntSelectOption<StatusFilter>[] = [
+    { value: 'PENDING_REVIEW', label: TOUR_STATUS_LABELS.PENDING_REVIEW.label },
     { value: 'ALL', label: 'Tất cả trạng thái' },
-    ...(Object.keys(TOUR_STATUS_LABELS) as ModerationTourStatus[]).map((s) => ({
-      value: s,
-      label: TOUR_STATUS_LABELS[s].label,
-    })),
+    { value: 'APPROVED', label: TOUR_STATUS_LABELS.APPROVED.label },
+    { value: 'REJECTED', label: TOUR_STATUS_LABELS.REJECTED.label },
+    { value: 'SUSPENDED', label: TOUR_STATUS_LABELS.SUSPENDED.label },
+    { value: 'DRAFT', label: TOUR_STATUS_LABELS.DRAFT.label },
+    { value: 'ARCHIVED', label: TOUR_STATUS_LABELS.ARCHIVED.label },
   ];
 
   return (
@@ -218,14 +185,14 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
           {/* Smooth Expandable Search */}
           <div
             className={`relative flex h-10 items-center transition-all duration-300 ease-out ${
-              isSearchExpanded || search ? 'w-56 sm:w-72' : 'w-10'
+              isSearchExpanded || search ? 'w-56 sm:w-80' : 'w-10'
             }`}
           >
             <input
               ref={searchInputRef}
               type="search"
-              aria-label="Tìm theo tên tour"
-              placeholder="Tìm theo tên tour..."
+              aria-label="Tìm theo tên tour, điểm đến hoặc agency"
+              placeholder="Tìm theo tên tour, điểm đến hoặc agency..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onFocus={() => setIsSearchExpanded(true)}
@@ -527,50 +494,39 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
         </div>
       )}
 
-      {/* Decision Dialog Modal */}
-      <DecisionDialog
-        open={Boolean(selected)}
-        title="Chi tiết tour"
-        reasonLabel={reasonLabel}
-        actions={actions}
-        isSubmitting={isValidating || isSuspending}
-        serverError={serverError}
-        onClose={close}
-      >
-        {selected && (
-          <>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${TOUR_STATUS_LABELS[selected.status].className}`}>{TOUR_STATUS_LABELS[selected.status].label}</span>
-              <span className="text-slate-600">{selected.agency?.name ?? 'Không rõ agency'}</span>
-            </div>
-            <h3 className="text-base font-bold text-slate-900">{selected.title}</h3>
-            <p className="text-xs text-slate-500">
-              {selected.destination} · {selected.durationDays} ngày · {money.format(selected.basePrice)}
-              {selected.submittedAt ? ` · Gửi duyệt ${formatTourDate(selected.submittedAt)}` : ''}
-            </p>
-            {selected.description || selected.summary ? (
-              <p className="whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-slate-800">{selected.description || selected.summary}</p>
-            ) : null}
-            {selected.itinerary && selected.itinerary.length > 0 && (
-              <ol className="list-none space-y-1 pl-0 text-slate-700">
-                {selected.itinerary.map((d, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm">
-                    <span className="font-semibold text-slate-800 shrink-0">
-                      {d.toDay && d.toDay > d.day ? `Ngày ${d.day} – ${d.toDay}:` : `Ngày ${d.day}:`}
-                    </span>
-                    <span>{d.title}</span>
-                  </li>
-                ))}
-              </ol>
-            )}
-            {selected.statusReason && (
-              <p className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-amber-900">
-                <span className="font-bold">Lý do gần nhất:</span> {selected.statusReason}
-              </p>
-            )}
-          </>
-        )}
-      </DecisionDialog>
+      {/* Comprehensive Moderator Tour Detail Modal */}
+      {selectedId && (
+        <ModeratorTourDetailModal
+          tourId={selectedId}
+          initialTour={selected ?? undefined}
+          canValidate={canValidate}
+          canSuspend={canSuspend}
+          isSubmitting={isValidating || isSuspending}
+          serverError={serverError}
+          onClose={close}
+          onApprove={(reason) =>
+            decide(
+              () => validate({ id: selectedId, approve: true, ...(reason ? { reason } : {}) }).unwrap(),
+              `Đã duyệt tour "${selected?.title ?? ''}".`,
+              'Không thể duyệt tour lúc này. Vui lòng thử lại.',
+            )
+          }
+          onReject={(reason) =>
+            decide(
+              () => validate({ id: selectedId, approve: false, reason }).unwrap(),
+              `Đã từ chối tour "${selected?.title ?? ''}".`,
+              'Không thể từ chối tour lúc này. Vui lòng thử lại.',
+            )
+          }
+          onSuspend={(reason) =>
+            decide(
+              () => suspend({ id: selectedId, reason }).unwrap(),
+              `Đã tạm ngưng tour "${selected?.title ?? ''}".`,
+              'Không thể tạm ngưng tour lúc này. Vui lòng thử lại.',
+            )
+          }
+        />
+      )}
 
       {/* Quick Confirmation Modal */}
       {quickActionTour && (

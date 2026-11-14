@@ -169,6 +169,12 @@ describe('AuthService.login', () => {
 });
 
 describe('AuthService.register', () => {
+  it('rejects legacy Agency registration through the customer service', async () => {
+    const ctx = makeDeps(null);
+    await expect(new AuthService(ctx.deps).register({ email: 'agency@example.com', password: fixturePassword, fullName: 'Agency Tester', role: ROLES.AGENCY }))
+      .rejects.toMatchObject({ statusCode: 403, code: 'AGENCY_PORTAL_REQUIRED' });
+    expect(ctx.mocks.users.create).not.toHaveBeenCalled();
+  });
   it('creates a PENDING account and sends an OTP', async () => {
     const ctx = makeDeps(null);
     ctx.mocks.users.findByEmail.mockResolvedValueOnce(null);

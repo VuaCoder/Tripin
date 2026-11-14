@@ -1,5 +1,6 @@
 import { toProfileDto } from '../users/users.mapper';
-import type { Request, RequestHandler } from 'express';
+import { isProduction } from '../../config/env';
+import type { Request, RequestHandler, Response } from 'express';
 import { validated } from '../../middlewares/validate';
 import { userActor } from '../../middlewares/authorize';
 import { sendCreated, sendNoContent, sendOk } from '../../utils/api-response';
@@ -24,6 +25,14 @@ import type {
 
 const contextOf = (req: Request) => ({ ip: req.ip, userAgent: req.get('user-agent') });
 
+// Development diagnostics visible in Network → Server-Timing; no credential data.
+const timedContext = (req: Request, res: Response) => ({
+  ...contextOf(req),
+  onTiming: (stage: string, milliseconds: number) => {
+    if (!isProduction && !res.headersSent) res.append('Server-Timing', `${stage};dur=${milliseconds.toFixed(1)}`);
+  },
+});
+
 /** HTTP concerns only: parse validated input, call the service, shape the response. No business rules here. */
 export class AuthController {
   constructor(private readonly service: AuthService = authService) {}
@@ -42,7 +51,7 @@ export class AuthController {
 
   login: RequestHandler = async (req, res) => {
     const { body } = validated<LoginBody>(req);
-    const result = await this.service.login(body, contextOf(req));
+    const result = await this.service.login(body, timedContext(req, res));
     if (result.twoFactorRequired) {
       return void sendOk(res, { twoFactorRequired: true, email: result.email });
     }
@@ -52,7 +61,7 @@ export class AuthController {
 
   loginAgency: RequestHandler = async (req, res) => {
     const { body } = validated<LoginBody>(req);
-    const result = await this.service.loginAgency(body, contextOf(req));
+    const result = await this.service.loginAgency(body, timedContext(req, res));
     if (result.twoFactorRequired) {
       return void sendOk(res, { twoFactorRequired: true, email: result.email });
     }
@@ -119,7 +128,7 @@ export class AuthController {
       (req.cookies?.[AUTH_POLICY.REFRESH_COOKIE_NAME] as string | undefined) ??
       (req.body?.refreshToken as string | undefined) ??
       (req.headers['x-refresh-token'] as string | undefined);
-    const session = await this.service.refresh(rawToken, contextOf(req));
+    const session = await this.service.refresh(rawToken, timedContext(req, res));
     setRefreshCookie(res, session);
     sendOk(res, toSessionResponse(session));
   };

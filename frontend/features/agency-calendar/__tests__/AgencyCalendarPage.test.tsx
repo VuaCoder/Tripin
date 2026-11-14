@@ -117,8 +117,7 @@ describe('AgencyCalendarPage', () => {
     expect(eventEl).not.toBeNull();
     fireEvent.click(eventEl);
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Số lượng khách' })).toBeDefined());
-    fireEvent.click(screen.getByRole('button', { name: 'Số lượng khách' }));
+    await waitFor(() => expect(screen.getByRole('spinbutton', { name: 'Số lượng khách (Sức chứa)' })).toBeDefined());
     fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());

@@ -273,7 +273,7 @@ const ACCEPT_CONFLICT = Symbol('custom-tour-accept-conflict');
 
 /** Only the visible content fields; status, visibility and maxGroupSize are never written from a draft. */
 function tourContentData(content: CustomTourDraftContent): Prisma.TourUncheckedUpdateInput {
-  const { categoryIds, agePricing, ...scalars } = content;
+  const { categoryIds, agePricing, optionalServices: _optionalServices, ...scalars } = content;
   return {
     ...scalars,
     ...(agePricing !== undefined ? { agePricing: agePricing === null ? PrismaRuntime.DbNull : { ...agePricing } } : {}),

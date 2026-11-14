@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { measureAuth } from './auth.timing';
 import { randomUUID } from 'node:crypto';
 import {
   AGENCY_VERIFICATION_STATUS,
@@ -169,12 +170,8 @@ export class AuthService {
 
   /** Use case "Login" including "Validate credentials" and, when enabled, the Verify OTP extension (2FA). */
   async login(input: LoginInput, context: RequestContext = {}): Promise<LoginResult> {
-    const user = await this.validateCredentials(input);
-    // Portal separation: agency accounts sign in through /auth/agency/login.
-    if (user.role === ROLES.AGENCY) {
-      throw AppError.forbidden('Please use the Agency login portal', 'AGENCY_PORTAL_REQUIRED');
-    }
-    return this.loginUser(user, context, Boolean(input.rememberMe));
+    const user = await this.validateCredentials(input, context);
+    return measureAuth(context, 'session', () => this.loginUser(user, context, Boolean(input.rememberMe)));
   }
 
   /** Partner entry authenticates an account, including before its first workplace. */
@@ -540,9 +537,9 @@ export class AuthService {
   }
 
   /** "Validate credentials" use case. Same error for unknown email and wrong password. */
-  private async validateCredentials(input: LoginInput): Promise<UserRecord> {
-    const user = await this.deps.users.findByEmailWithPassword(input.email);
-    const matches = await bcrypt.compare(input.password, user?.passwordHash ?? DUMMY_HASH);
+  private async validateCredentials(input: LoginInput, context: RequestContext = {}): Promise<UserRecord> {
+    const user = await measureAuth(context, 'credential_lookup', () => this.deps.users.findByEmailWithPassword(input.email));
+    const matches = await measureAuth(context, 'password_verify', () => bcrypt.compare(input.password, user?.passwordHash ?? DUMMY_HASH));
     if (!user || !user.passwordHash || !matches) {
       throw AppError.unauthenticated('Invalid email or password', ERROR_CODES.INVALID_CREDENTIALS);
     }
@@ -566,7 +563,7 @@ export class AuthService {
     const refreshTtlDays = rememberMe ? AUTH_POLICY.REMEMBER_ME_REFRESH_EXPIRES_IN_DAYS : env.JWT_REFRESH_EXPIRES_IN_DAYS;
     const accessExpiresIn = (rememberMe ? AUTH_POLICY.REMEMBER_ME_ACCESS_EXPIRES_IN : env.JWT_ACCESS_EXPIRES_IN) as Parameters<typeof signAccessToken>[3];
     const refresh = generateRefreshToken(refreshTtlDays);
-    await this.deps.refreshTokens.create({
+    await measureAuth(context, 'refresh_token_write', () => this.deps.refreshTokens.create({
       userId: user.id,
       tokenHash: refresh.hash,
       tokenVersion: user.tokenVersion,
@@ -574,20 +571,20 @@ export class AuthService {
       expiresAt: refresh.expiresAt,
       ip: context.ip,
       userAgent: context.userAgent?.slice(0, 300),
-    });
-    const current = await this.deps.users.findById(user.id);
+    }));
+    const current = await measureAuth(context, 'session_recheck', () => this.deps.users.findById(user.id));
     if (!current || current.status !== 'ACTIVE' || current.staffStatus !== 'ACTIVE' || current.tokenVersion !== user.tokenVersion) {
       await this.deps.refreshTokens.revokeAllForUser(user.id);
       throw AppError.unauthenticated('Account session changed; sign in again');
     }
-    await this.deps.users.updateById(user.id, { lastLoginAt: new Date() });
+    await measureAuth(context, 'last_login_write', () => this.deps.users.updateById(user.id, { lastLoginAt: new Date() }));
 
     return {
       accessToken: signAccessToken(user.id, user.role as PersistedRole, user.tokenVersion, accessExpiresIn),
       refreshToken: refresh.raw,
       refreshTokenExpiresAt: refresh.expiresAt,
       user: toPrivateUserDto(user),
-      agencies: this.deps.agencies ? await this.deps.agencies.listForUser(user.id) : [],
+      agencies: this.deps.agencies ? await measureAuth(context, 'memberships', () => this.deps.agencies!.listForUser(user.id)) : [],
     };
   }
 

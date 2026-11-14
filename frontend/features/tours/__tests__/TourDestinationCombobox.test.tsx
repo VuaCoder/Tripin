@@ -1,10 +1,71 @@
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { TourDestinationCombobox } from '../components/TourDestinationCombobox';
+import { useState } from 'react';
 
 afterEach(cleanup);
 
 describe('TourDestinationCombobox', () => {
+  it('does not validate between pressing a suggestion and selecting it on the first click', () => {
+    const onBlur = vi.fn();
+    function Form() {
+      const [value, setValue] = useState('');
+      const [error, setError] = useState(false);
+      return <TourDestinationCombobox id="destination" value={value} onChange={setValue}
+        onBlur={() => { onBlur(value); setError(!value.trim()); }}
+        hint={error ? <p role="alert">Destination is required</p> : null} />;
+    }
+    render(<Form />);
+    const input = screen.getByRole('textbox');
+    fireEvent.focus(input);
+    const option = screen.getByRole('button', { name: /^Hà Nội$/ });
+    // Browsers blur the input before dispatching the option's click.
+    fireEvent.blur(input, { relatedTarget: option });
+    expect(onBlur).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alert')).toBeNull();
+    fireEvent.click(option);
+    expect((input as HTMLInputElement).value).toBe('Hà Nội');
+    expect(screen.queryByRole('button', { name: /^Hà Nội$/ })).toBeNull();
+    fireEvent.blur(input, { relatedTarget: document.body });
+    expect(onBlur).toHaveBeenCalledWith('Hà Nội');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('still validates an empty input when focus leaves the whole picker', () => {
+    const onBlur = vi.fn();
+    render(<TourDestinationCombobox id="destination" value="" onChange={vi.fn()} onBlur={onBlur} />);
+    const input = screen.getByRole('textbox');
+    fireEvent.focus(input);
+    fireEvent.blur(input, { relatedTarget: document.body });
+    expect(onBlur).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: /^Hà Nội$/ })).toBeNull();
+  });
+
+  it('keeps focus during the primary mouse press and selects only on click', () => {
+    const onChange = vi.fn();
+    render(<TourDestinationCombobox id="destination" value="" onChange={onChange} />);
+    fireEvent.focus(screen.getByRole('textbox'));
+    const option = screen.getByRole('button', { name: /^Hà Nội$/ });
+    expect(fireEvent.mouseDown(option, { button: 0 })).toBe(false);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(fireEvent.mouseDown(option, { button: 2 })).toBe(true);
+    fireEvent.click(option);
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('Hà Nội');
+  });
+
+  it('supports keyboard selection without premature validation', () => {
+    const onChange = vi.fn();
+    const onBlur = vi.fn();
+    render(<TourDestinationCombobox id="destination" value="" onChange={onChange} onBlur={onBlur} />);
+    const input = screen.getByRole('textbox');
+    fireEvent.focus(input);
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('Hà Nội');
+    expect(onBlur).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /^Hà Nội$/ })).toBeNull();
+  });
+
   it('renders search input with placeholder', () => {
     const onChange = vi.fn();
     render(<TourDestinationCombobox id="test-dest" value="" onChange={onChange} />);

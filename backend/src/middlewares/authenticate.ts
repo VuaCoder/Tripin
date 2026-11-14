@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { USER_STATUS } from '@travel-platform/constants';
+import { USER_STATUS, isPublicAuthRequest } from '@travel-platform/constants';
 import { verifyAccessToken } from '../modules/auth/auth.tokens';
 import { permissionsOf } from '../modules/users/users.mapper';
 import { usersRepository } from '../modules/users/users.repository';
@@ -36,6 +36,10 @@ export async function resolveUserActor(token: string): Promise<UserActor> {
  *  - malformed / expired token    -> 401 (so clients know to refresh instead of silently becoming GUEST)
  */
 export async function authenticate(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  if (isPublicAuthRequest(req.path.replace(/^\/api\/v1(?=\/)/, ''), req.method)) {
+    req.actor = GUEST_ACTOR;
+    return next();
+  }
   const header = req.headers.authorization;
   if (!header) {
     req.actor = GUEST_ACTOR;

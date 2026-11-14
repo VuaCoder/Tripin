@@ -87,6 +87,8 @@ function buildETicketMail(
     `Bạn đã hoàn tất đăng ký tour thành công. Dưới đây là thông tin vé điện tử của bạn:\n\n` +
     `-----------------------------------------\n` +
     `MÃ VÉ ĐIỆN TỬ: ${ticketCode}\n` +
+    (data.serviceSummary ? `DỊCH VỤ BỔ SUNG: ${String(data.serviceSummary)}\n` : '') +
+    (data.meetingPoint ? `ĐIỂM TẬP TRUNG: ${String(data.meetingPoint)}\n` : '') +
     `MÃ ĐẶT CHỖ: ${bookingCode}\n` +
     `TOUR: ${tourTitle}\n` +
     `HÀNH KHÁCH: ${contactName}\n` +
@@ -175,6 +177,8 @@ function buildETicketMail(
               </tr>
             </table>
 
+            ${input.data?.serviceSummary ? `<p><strong>Dịch vụ bổ sung:</strong> ${escapeHtml(String(input.data.serviceSummary))}</p>` : ''}
+            ${input.data?.meetingPoint ? `<p><strong>Điểm tập trung:</strong> ${escapeHtml(String(input.data.meetingPoint))}</p>` : ''}
             <div class="qr-section">
               <img src="${qrUrl}" alt="Mã QR vé ${escapeHtml(ticketCode)}" width="150" height="150" class="qr-img" />
               <p style="margin: 8px 0 0; font-size: 12px; color: #64748b; font-weight: 500;">

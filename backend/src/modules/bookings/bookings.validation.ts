@@ -4,10 +4,12 @@ import { idParamsSchema, idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 import { BOOKING_POLICY } from './bookings.policy';
 import { guestCountsSchema } from '../../utils/age-pricing';
+import { extraSelectionsSchema } from '../tours/tour-services.validation';
 
 const phone = z.string().trim().regex(/^\+?[0-9 ().-]{6,20}$/, 'Invalid phone number');
 const status = z.enum(Object.values(BOOKING_STATUS) as [string, ...string[]]);
 const passengerSchema = z.object({
+  passengerId: z.string().uuid().max(36).optional(),
   fullName: z.string().trim().min(2).max(120),
   birthYear: z.number().int().min(1900).max(new Date().getFullYear()).optional(),
   ageGroup: z.enum(['ADULT', 'CHILD', 'INFANT']),
@@ -19,6 +21,8 @@ const passengerSchema = z.object({
 export const createBookingBody = z
   .object({
     tourId: idSchema,
+    services: extraSelectionsSchema.optional(),
+    expectedTourSubtotal: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
     departureId: idSchema,
     participants: z.number().int().min(1).max(BOOKING_POLICY.MAX_PARTICIPANTS),
     guestCounts: guestCountsSchema.optional(),

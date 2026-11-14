@@ -172,6 +172,7 @@ model Category {
 }
 
 model Tour {
+  optionalServices Json @default("[]")
   memberScopes AgencyMemberTourScope[]
   id           String     @id @default(uuid()) @db.Uuid
   @@unique([agencyId, id])
@@ -282,6 +283,10 @@ model CustomTourRequest {
 }
 
 model Booking {
+  serviceSnapshot Json @default("[]")
+  servicesSubtotal BigInt @default(0)
+  meetingPointSnapshot String?
+  requestFingerprint String?
   guestPricing Json?
   /// Passenger details captured at checkout for departure rosters.
   passengerSnapshot Json? @map("passengers")

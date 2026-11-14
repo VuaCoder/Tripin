@@ -8,6 +8,7 @@ import {
 import type { RootState } from '..';
 import { clearCredentials, selectActiveAgency, setAgencyMemberships, setCredentials } from '@/features/auth/store/authSlice';
 import type { AgencyMembership, SessionData } from '@/features/auth/types';
+import { isPublicAuthRequest } from '@travel-platform/constants';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
@@ -44,12 +45,11 @@ async function requestRefresh(): Promise<SessionData | null> {
       credentials: 'include',
       signal: controller.signal,
     });
-    if (!res.ok) return null;
+    if (res.status === 401 || res.status === 403) return null;
+    if (!res.ok) throw new Error('Session service temporarily unavailable');
     const body = (await res.json()) as { success?: boolean; data?: SessionData };
-    if (!body?.success || !body.data?.accessToken || !body.data.user) return null;
+    if (!body?.success || !body.data?.accessToken || !body.data.user) throw new Error('Invalid session response');
     return body.data;
-  } catch {
-    return null;
   } finally {
     clearTimeout(timeout);
   }
@@ -57,7 +57,7 @@ async function requestRefresh(): Promise<SessionData | null> {
 
 let refreshPromise: Promise<SessionData | null> | null = null;
 
-export function refreshSession(): Promise<SessionData | null> {
+export function refreshSessionChecked(): Promise<SessionData | null> {
   if (!refreshPromise) {
     refreshPromise = requestRefresh().finally(() => {
       refreshPromise = null;
@@ -66,36 +66,27 @@ export function refreshSession(): Promise<SessionData | null> {
   return refreshPromise;
 }
 
+/** Compatibility for socket/legacy consumers that handle unavailable sessions as null. */
+export function refreshSession(): Promise<SessionData | null> {
+  return refreshSessionChecked().catch(() => null);
+}
+
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
   credentials: 'include',
-  prepareHeaders: (headers, { getState }) => {
+  prepareHeaders: (headers, { getState, arg }) => {
     const token = (getState() as RootState).auth.accessToken;
-    if (token) headers.set('authorization', `Bearer ${token}`);
+    if (isAuthExempt(arg)) headers.delete('authorization');
+    else if (token) headers.set('authorization', `Bearer ${token}`);
     return headers;
   },
 });
 
-const AUTH_EXEMPT_PATHS = [
-  '/auth/agency/login',
-  '/auth/agency/google',
-  '/auth/agency/register',
-  '/auth/agency/verify-otp',
-  '/auth/agency/resend-otp',
-  '/auth/login',
-  '/auth/register',
-  '/auth/verify-otp',
-  '/auth/resend-otp',
-  '/auth/google',
-  '/auth/forgot-password',
-  '/auth/reset-password',
-  '/auth/refresh',
-  '/auth/logout',
-];
 
 const isAuthExempt = (args: FetchArgs | string): boolean => {
   const url = typeof args === 'string' ? args : args.url;
-  return typeof url === 'string' && AUTH_EXEMPT_PATHS.some((path) => url.includes(path));
+  const pathname = new URL(url, `${API_BASE_URL.replace(/\/$/, '')}/`).pathname.replace(/^\/api\/v1(?=\/)/, '');
+  return isPublicAuthRequest(pathname, typeof args === 'string' ? 'GET' : args.method ?? 'GET');
 };
 
 export const baseQueryWithReauth: BaseQueryFn<FetchArgs | string, unknown, FetchBaseQueryError> = async (
@@ -136,7 +127,13 @@ export const baseQueryWithReauth: BaseQueryFn<FetchArgs | string, unknown, Fetch
     const sessionExpired = errorCode === 'TOKEN_INVALID' || errorCode === 'UNAUTHENTICATED';
 
     if (sessionExpired) {
-      const session = await refreshSession();
+      let session: SessionData | null;
+      try {
+        session = await refreshSessionChecked();
+      } catch {
+        if (identityChanged()) return superseded;
+        return { error: { status: 'CUSTOM_ERROR', error: 'Không thể khôi phục phiên. Vui lòng kiểm tra kết nối và thử lại.' } };
+      }
       // A refresh started by A must neither restore A nor clear B after an
       // account switch/logout while the request was in flight.
       if (identityChanged()) return superseded;
