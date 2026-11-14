@@ -78,8 +78,11 @@ export interface CreateComplaintTicketInput {
   imagePublicIds?: string[];
 }
 
+export type ComplaintActorRole = 'TRAVELER' | 'AGENCY' | 'MODERATOR' | 'SUPER_ADMIN';
+
 export interface SendComplaintMessageInput {
   ticketId: string;
+  role?: ComplaintActorRole;
   text: string;
   imagePublicIds?: string[];
 }
@@ -91,6 +94,7 @@ export interface ResolveComplaintTicketInput {
 
 export interface EscalateComplaintTicketInput {
   ticketId: string;
+  role?: ComplaintActorRole;
   reason: string;
 }
 

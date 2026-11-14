@@ -20,6 +20,9 @@ async function setup() {
 
 const start = (token: string, participantId: string) =>
   request(app).post('/api/v1/chat/conversations').set(bearer(token)).send({ participantId });
+const startAgency = (token: string, agencyId: string) =>
+  request(app).post('/api/v1/chat/conversations').set(bearer(token)).send({ agencyId });
+const agencyScope = (token: string, agencyId: string) => ({ ...bearer(token), 'X-Agency-Id': agencyId });
 const send = (token: string, conversationId: string, text: string) =>
   request(app).post(`/api/v1/chat/conversations/${conversationId}/messages`).set(bearer(token)).send({ text });
 
@@ -109,5 +112,63 @@ describe('chat REST (integration)', () => {
     await request(app).post(`/api/v1/moderation/users/${traveler.id}/ban`).set(bearer(moderator.token)).send({ reason: 'Harassment of guides' });
     expect((await send(traveler.token, id, 'still here')).status).toBe(401);
     expect((await send(guide.token, id, 'hello?')).status).toBeLessThan(300); // the other side is unaffected
+  });
+
+  it('traveler opens one agency thread that every member sees, and no other agency does', async () => {
+    const traveler = await createUser('TRAVELER', 'traveler@example.com');
+    const owner = await createUser('AGENCY', 'owner@example.com');
+    const manager = await createUser('AGENCY', 'manager@example.com');
+    const other = await createUser('AGENCY', 'other@example.com');
+    await prisma.agencyMember.createMany({ data: [
+      { agencyId: owner.id, userId: manager.id, role: 'MANAGER', status: 'ACTIVE' },
+    ] });
+
+    const started = await startAgency(traveler.token, owner.id);
+    expect(started.status).toBe(200);
+    const id = started.body.data.id;
+    expect(started.body.data.counterpart).toMatchObject({ id: owner.id, role: 'AGENCY' });
+    expect((await startAgency(traveler.token, owner.id)).body.data.id).toBe(id); // one shared thread
+
+    const ownerList = await request(app).get('/api/v1/agency/chat/conversations').set(agencyScope(owner.token, owner.id));
+    const managerList = await request(app).get('/api/v1/agency/chat/conversations').set(agencyScope(manager.token, owner.id));
+    const otherList = await request(app).get('/api/v1/agency/chat/conversations').set(agencyScope(other.token, other.id));
+    expect(ownerList.body.data.map((c: { id: string }) => c.id)).toContain(id);
+    expect(managerList.body.data.map((c: { id: string }) => c.id)).toContain(id);
+    expect(otherList.body.data.map((c: { id: string }) => c.id)).not.toContain(id);
+  });
+
+  it('a manager replies, the traveler sees it, and the agency shares one unread counter', async () => {
+    const traveler = await createUser('TRAVELER', 'traveler@example.com');
+    const owner = await createUser('AGENCY', 'owner@example.com');
+    const manager = await createUser('AGENCY', 'manager@example.com');
+    await prisma.agencyMember.createMany({ data: [
+      { agencyId: owner.id, userId: manager.id, role: 'MANAGER', status: 'ACTIVE' },
+    ] });
+    const id = (await startAgency(traveler.token, owner.id)).body.data.id;
+
+    expect((await request(app).post(`/api/v1/agency/chat/conversations/${id}/messages`)
+      .set(agencyScope(manager.token, owner.id)).send({ text: 'Hello from manager' })).status).toBe(201);
+    const travelerView = await request(app).get(`/api/v1/chat/conversations/${id}`).set(bearer(traveler.token));
+    expect(travelerView.body.data.counterpart.id).toBe(owner.id);
+    expect(travelerView.body.data.unreadCount).toBe(1);
+
+    expect((await send(traveler.token, id, 'Thanks')).status).toBe(201);
+    const ownerList = await request(app).get('/api/v1/agency/chat/conversations').set(agencyScope(owner.token, owner.id));
+    expect(ownerList.body.data[0].unreadCount).toBe(1);
+    await request(app).post(`/api/v1/agency/chat/conversations/${id}/read`).set(agencyScope(manager.token, owner.id));
+    const afterRead = await request(app).get('/api/v1/agency/chat/conversations').set(agencyScope(owner.token, owner.id));
+    expect(afterRead.body.data[0].unreadCount).toBe(0);
+  });
+
+  it('a guide thread stays personal and never appears in the agency inbox', async () => {
+    const traveler = await createUser('TRAVELER', 'traveler@example.com');
+    const owner = await createUser('AGENCY', 'owner@example.com');
+    const guide = await createUser('TOUR_GUIDE', 'guide@example.com');
+
+    const guideThread = (await start(traveler.token, guide.id)).body.data.id;
+    const agencyList = await request(app).get('/api/v1/agency/chat/conversations').set(agencyScope(owner.token, owner.id));
+    expect(agencyList.body.data.map((c: { id: string }) => c.id)).not.toContain(guideThread);
+    const travelerList = await request(app).get('/api/v1/chat/conversations').set(bearer(traveler.token));
+    expect(travelerList.body.data.map((c: { id: string }) => c.id)).toContain(guideThread);
   });
 });

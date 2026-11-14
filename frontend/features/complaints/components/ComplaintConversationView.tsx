@@ -51,7 +51,7 @@ export function ComplaintConversationView({
   userId,
   onBack,
 }: ComplaintConversationViewProps) {
-  const { data: ticket, isLoading, isError, refetch } = useGetComplaintDetailQuery(ticketId);
+  const { data: ticket, isLoading, isError, refetch } = useGetComplaintDetailQuery({ ticketId, role: userRole });
   const [createSignature] = useCreateComplaintImageSignatureMutation();
   const [sendMessage, { isLoading: isSending }] = useSendComplaintMessageMutation();
   const [resolveTicket, { isLoading: isResolving }] = useResolveComplaintTicketMutation();
@@ -190,6 +190,7 @@ export function ComplaintConversationView({
 
       await sendMessage({
         ticketId: ticket.id,
+        role: userRole,
         text: trimmed || '(Đính kèm hình ảnh bằng chứng)',
         imagePublicIds,
       }).unwrap();
@@ -236,7 +237,7 @@ export function ComplaintConversationView({
     if (!escalateReason.trim()) return;
     setActionError(null);
     try {
-      await escalateTicket({ ticketId: ticket.id, reason: escalateReason.trim() }).unwrap();
+      await escalateTicket({ ticketId: ticket.id, role: userRole, reason: escalateReason.trim() }).unwrap();
       setShowEscalateModal(false);
       setEscalateReason('');
     } catch (err: any) {

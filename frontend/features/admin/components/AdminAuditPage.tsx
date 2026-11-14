@@ -149,6 +149,22 @@ const ACTION_MAP: Record<string, ActionConfig> = {
     label: 'Chấp nhận lời mời công ty',
     badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200/80',
   },
+  'agency.commission_requested': {
+    label: 'Yêu cầu điều chỉnh chiết khấu',
+    badgeClass: 'bg-amber-50 text-amber-800 border-amber-200/80',
+  },
+  'agency.commission_request_cancelled': {
+    label: 'Huỷ yêu cầu chiết khấu',
+    badgeClass: 'bg-slate-100 text-slate-700 border-slate-300',
+  },
+  'agency.commission_request_approved': {
+    label: 'Duyệt yêu cầu chiết khấu',
+    badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200/80',
+  },
+  'agency.commission_request_rejected': {
+    label: 'Từ chối yêu cầu chiết khấu',
+    badgeClass: 'bg-rose-50 text-rose-700 border-rose-200/80',
+  },
   'settings.commission_updated': {
     label: 'Cập nhật hoa hồng sàn',
     badgeClass: 'bg-amber-50 text-amber-800 border-amber-200/80',

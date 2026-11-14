@@ -1,5 +1,6 @@
 import type { RequestHandler } from 'express';
 import { userActor } from '../../middlewares/authorize';
+import { agencyContext } from '../../middlewares/agency-context';
 import { validated } from '../../middlewares/validate';
 import { sendCreated, sendOk, sendPaginated } from '../../utils/api-response';
 import type { IdParams } from '../../utils/id';
@@ -45,7 +46,7 @@ export class ReportsController {
     const { params, body } = validated<DisputeReviewBody, unknown, ReviewIdParams>(req);
     sendCreated(
       res,
-      await this.service.disputeReview(userActor(req).userId, params.reviewId, {
+      await this.service.disputeReview(agencyContext(req).agencyId, params.reviewId, {
         category: body.category as ReportCategory,
         description: body.description,
       }),
@@ -55,7 +56,7 @@ export class ReportsController {
   /** The disputes this agency filed, so it can follow their outcome without waiting for a notification. */
   listDisputes: RequestHandler = async (req, res) => {
     const { query } = validated<unknown, ListReportsQueryInput>(req);
-    const page = await this.service.listDisputes(userActor(req).userId, { ...query, status: query.status as ReportStatus | undefined });
+    const page = await this.service.listDisputes(agencyContext(req).agencyId, { ...query, status: query.status as ReportStatus | undefined });
     sendPaginated(res, page.items, page.meta);
   };
 

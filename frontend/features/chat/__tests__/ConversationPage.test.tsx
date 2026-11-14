@@ -60,7 +60,7 @@ describe('ConversationPage', () => {
     fireEvent.change(screen.getByLabelText('Nội dung tin nhắn'), { target: { value: '<script>hello</script>' } });
     fireEvent.click(screen.getByLabelText('Gửi tin nhắn'));
     await screen.findByText('<script>hello</script>');
-    expect(mocks.sendRest).toHaveBeenCalledWith({ id: 'c1', text: '<script>hello</script>' });
+    expect(mocks.sendRest).toHaveBeenCalledWith({ id: 'c1', text: '<script>hello</script>', agency: false });
     expect(document.querySelector('script')).toBeNull();
   });
   it('merges socket echo and acknowledgment into one bubble', async () => {

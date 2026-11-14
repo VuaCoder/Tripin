@@ -22,7 +22,7 @@ export function PartnerAccountPage({ mode = 'login', initialEmail = '', register
     if (data.twoFactorRequired) router.push(`/verify-otp?email=${encodeURIComponent(data.email)}&purpose=LOGIN_2FA&next=${encodeURIComponent(next)}${login.formData.rememberMe ? '&rememberMe=true' : ''}`);
     else router.push(next);
   };
-  const login = useLoginForm({ onSuccess: verified, continuation: next, initialEmail });
+  const login = useLoginForm({ onSuccess: verified, continuation: next, initialEmail, portal: 'agency' });
   const registration = useRegisterForm({ onSuccess: data => router.push(`/verify-otp?email=${encodeURIComponent(data.email)}&purpose=REGISTER&next=${encodeURIComponent(next)}`) });
   useEffect(() => { if (status === 'authenticated') router.replace(next); }, [status, next, router]);
   const isRegister = mode === 'register';

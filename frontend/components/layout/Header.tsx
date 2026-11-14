@@ -11,6 +11,7 @@ import { MobileNavigation } from './MobileNavigation';
 import { Container } from './Container';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, selectRole, selectIsAuthenticated, useLogout } from '@/features/auth';
+import { selectActiveAgency } from '@/features/auth/store/authSlice';
 import { homeForRole } from '@/features/auth/utils/roles';
 import { notificationHref } from '@/features/custom-tours/links';
 import { Dropdown } from '@/components/shared/Dropdown';
@@ -89,8 +90,13 @@ export function Header({ role }: { role?: AppRole }) {
   const [notificationOpen, setNotificationOpen] = useState(false);
 
 
-  // Tin nhắn: Đếm số lượng tin nhắn chưa đọc
-  const { data: conversationsData } = useConversationsQuery(1, { skip: !isAuthenticated });
+  // Tin nhắn: Đếm số lượng tin nhắn chưa đọc (agency users read their tenant inbox, not a personal thread)
+  const activeAgency = useAppSelector(selectActiveAgency);
+  const isAgencyUser = user?.role === 'AGENCY';
+  const { data: conversationsData } = useConversationsQuery(
+    { page: 1, agency: isAgencyUser && Boolean(activeAgency) },
+    { skip: !isAuthenticated || (isAgencyUser && !activeAgency) },
+  );
   const unreadChatCount = conversationsData?.data?.reduce((total, conv) => total + (conv.unreadCount || 0), 0) || 0;
 
   // Thông báo: chỉ lấy từ API (không dùng dữ liệu mẫu)

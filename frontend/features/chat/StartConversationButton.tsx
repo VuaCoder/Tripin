@@ -9,7 +9,10 @@ import { selectUser } from '@/features/auth/store/authSlice';
 import { usePreloader } from '@/components/preloader';
 
 export interface StartConversationButtonProps {
-  participantId: string;
+  /** A guide's user id. Ignored when `agencyId` is set. */
+  participantId?: string;
+  /** The agency profile id: the traveler opens the agency's shared inbox. */
+  agencyId?: string;
   tourId: string;
   label?: string;
   className?: string;
@@ -19,6 +22,7 @@ export interface StartConversationButtonProps {
 
 export function StartConversationButton({
   participantId,
+  agencyId,
   tourId,
   label = 'Nhắn tin cho hướng dẫn viên',
   className,
@@ -65,7 +69,13 @@ export function StartConversationButton({
     startPreloader();
     const requestOwner = owner.current;
     try {
-      const conversation = await start({ participantId, tourId }).unwrap();
+      if (!participantId && !agencyId) {
+        setError('Không tìm thấy người nhận tin nhắn.');
+        setIsNavigating(false);
+        stopPreloader();
+        return;
+      }
+      const conversation = await start(agencyId ? { agencyId, tourId } : { participantId, tourId }).unwrap();
       if (mounted.current && owner.current === requestOwner) {
         router.push(`/conversations/${conversation.id}`);
       }

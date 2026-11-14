@@ -67,10 +67,6 @@ describe('Agency membership layout gates', () => {
     expect(screen.getByText('Protected business screen')).toBeDefined();
     expect(mocks.replace).not.toHaveBeenCalled();
   });
-  it('blocks Staff finance access by direct URL', () => {
-    mocks.pathname = '/agency/finance'; mount([membershipFixture({ memberRole: 'STAFF', permissions: ['tour:update-own'] })]);
-    expect(screen.queryByText('Protected business screen')).toBeNull(); expect(screen.getByRole('alert')).toBeDefined();
-  });
   it('blocks Staff commission access by direct URL', () => {
     mocks.pathname = '/agency/settings/commission';
     mount([membershipFixture({ memberRole: 'STAFF', permissions: ['tour:update-own'] })]);

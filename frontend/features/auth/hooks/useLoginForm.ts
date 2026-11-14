@@ -3,7 +3,7 @@
 import { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { validateCredential } from "../utils/validation";
-import { useLoginMutation } from "../api/authApi";
+import { useAgencyLoginMutation, useLoginMutation } from "../api/authApi";
 import { useAppDispatch } from "@/store/hooks";
 import { setCredentials } from "../store/authSlice";
 import { getApiErrorCode, getApiErrorMessage } from "../utils/apiError";
@@ -15,9 +15,11 @@ interface UseLoginFormProps {
   initialEmail?: string;
   onSuccess?: (data: LoginResultData) => void;
   onError?: (errorMessage: string) => void;
+  /** The Partner portal must authenticate against /auth/agency/login, not the traveler endpoint. */
+  portal?: 'traveler' | 'agency';
 }
 
-export function useLoginForm({ onSuccess, onError, continuation, initialEmail = '' }: UseLoginFormProps = {}) {
+export function useLoginForm({ onSuccess, onError, continuation, initialEmail = '', portal = 'traveler' }: UseLoginFormProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -36,6 +38,8 @@ export function useLoginForm({ onSuccess, onError, continuation, initialEmail = 
   const [isLoading, setIsLoading] = useState(false);
   const dispatch = useAppDispatch();
   const [login] = useLoginMutation();
+  const [agencyLogin] = useAgencyLoginMutation();
+  const authenticate = portal === 'agency' ? agencyLogin : login;
 
   useEffect(() => {
     const emailParam = searchParams.get("email");
@@ -87,7 +91,7 @@ export function useLoginForm({ onSuccess, onError, continuation, initialEmail = 
 
     try {
       const rememberMe = Boolean(formData.rememberMe);
-      const data = await login({ email: formData.credential, password: formData.password, rememberMe }).unwrap();
+      const data = await authenticate({ email: formData.credential, password: formData.password, rememberMe }).unwrap();
       if (!data.twoFactorRequired) {
         dispatch(setCredentials({ user: data.user, accessToken: data.accessToken, agencies: data.agencies, rememberMe }));
       }

@@ -171,7 +171,7 @@ describe('AgencyRightSidebar & Partner Settings', () => {
 
   it('offers the shared inbox and group requests to an agency', () => {
     render(<AgencyRightSidebar initialExpanded />);
-    expect(screen.getByRole('link', { name: 'Tin nhắn' }).getAttribute('href')).toBe('/conversations');
+    expect(screen.getByRole('link', { name: 'Tin nhắn' }).getAttribute('href')).toBe('/agency/conversations');
     expect(screen.getByRole('link', { name: 'Yêu cầu đoàn' }).getAttribute('href')).toBe('/agency/custom-tours');
   });
 

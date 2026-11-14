@@ -152,7 +152,8 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
             </div>
           </div>
           <StartConversationButton
-            participantId={tour.guide?.id || tour.agency?.id || ''}
+            participantId={tour.guide?.id}
+            agencyId={tour.guide ? undefined : tour.agency?.id}
             tourId={tour.id}
             label="Trò chuyện"
             iconOnly

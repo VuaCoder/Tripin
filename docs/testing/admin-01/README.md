@@ -96,7 +96,7 @@ Tạo một database PostgreSQL LOOPBACK riêng, ví dụ `tripri_admin_01`, kh�
 
 ```powershell
 $env:SEED_ADMIN_EMAIL = 'admin01@tripri.test'
-$env:SEED_ADMIN_PASSWORD = 'Admin01!LocalQA2026'
+$env:SEED_ADMIN_PASSWORD = '<mật-khẩu-local-của-bạn>'
 pnpm.cmd --filter backend db:deploy
 pnpm.cmd --filter backend seed
 pnpm.cmd --filter backend dev
