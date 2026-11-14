@@ -6,6 +6,21 @@ import type { Dashboard } from '../types';
 import { control, money, panel } from './AdminUi';
 
 const palette = ['#0f766e', '#38bdf8', '#fb923c', '#8b5cf6', '#e879a8', '#94a3b8'];
+// Semantic colors: negative states must never render "positive" (green); assignment is
+// deterministic per key so a status keeps the same color regardless of chart composition.
+const NEGATIVE = '#ef4444'; // cancelled / rejected / banned
+const SEMANTIC: Record<string, string> = {
+  CANCELLED: NEGATIVE, REJECTED: NEGATIVE, BANNED: NEGATIVE, SUSPENDED: '#f59e0b',
+  ACTIVE: '#0f766e', APPROVED: '#0f766e', CONFIRMED: '#0f766e',
+  TRAVELER: '#38bdf8', AGENCY: '#8b5cf6', TOUR_GUIDE: '#fb923c', MODERATOR: '#e879a8', SUPER_ADMIN: '#f59e0b',
+};
+function colorFor(key: string): string {
+  if (SEMANTIC[key]) return SEMANTIC[key];
+  // Stable fallback for arbitrary keys: hash by name, independent of sort order.
+  let h = 0;
+  for (let i = 0; i < key.length; i += 1) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return palette[h % palette.length];
+}
 const labels: Record<string, string> = {
   TRAVELER: 'Khách du lịch', AGENCY: 'Đại lý', TOUR_GUIDE: 'Hướng dẫn viên', MODERATOR: 'Kiểm duyệt viên', SUPER_ADMIN: 'Super Admin',
   ACTIVE: 'Hoạt động', BANNED: 'Đã khóa', PENDING_VERIFICATION: 'Chờ xác minh', APPROVED: 'Đã duyệt', DRAFT: 'Bản nháp',
@@ -17,8 +32,8 @@ export function DistributionChart({ title, values }: { title: string; values: Re
   const total = entries.reduce((sum, [, n]) => sum + n, 0);
   return <section className={panel}>
     <div className="mb-5 flex items-center justify-between gap-3"><h2 className="font-bold text-slate-900">{title}</h2><BarChart3 size={19} className="text-slate-300" /></div>
-    <div className="mb-5 flex h-3 overflow-hidden rounded-full bg-slate-100" role="img" aria-label={`${title}: tổng ${total}`}>{entries.map(([key, n], i) => <div key={key} style={{ width: `${total ? n / total * 100 : 0}%`, background: palette[i % palette.length] }}><span className="sr-only">{labels[key] ?? key}: {n}</span></div>)}</div>
-    <dl className="space-y-4">{entries.map(([key, n], i) => <div key={key}><div className="mb-1.5 flex items-center justify-between gap-3 text-sm"><dt className="flex items-center gap-2 text-slate-600"><span className="h-2 w-2 rounded-full" style={{ background: palette[i % palette.length] }} />{labels[key] ?? key}</dt><dd className="font-semibold tabular-nums text-slate-900">{n.toLocaleString('vi-VN')} <span className="ml-2 inline-block min-w-9 text-right text-xs font-normal text-slate-400">{total ? (n / total * 100).toFixed(0) : 0}%</span></dd></div><div className="h-1.5 overflow-hidden rounded-full bg-slate-50"><div className="h-full rounded-full" style={{ width: `${total ? n / total * 100 : 0}%`, background: palette[i % palette.length] }} /></div></div>)}</dl>
+    <div className="mb-5 flex h-3 overflow-hidden rounded-full bg-slate-100" role="img" aria-label={`${title}: tổng ${total}`}>{entries.map(([key, n]) => <div key={key} style={{ width: `${total ? n / total * 100 : 0}%`, background: colorFor(key) }}><span className="sr-only">{labels[key] ?? key}: {n}</span></div>)}</div>
+    <dl className="space-y-4">{entries.map(([key, n]) => <div key={key}><div className="mb-1.5 flex items-center justify-between gap-3 text-sm"><dt className="flex items-center gap-2 text-slate-600"><span className="h-2 w-2 rounded-full" style={{ background: colorFor(key) }} />{labels[key] ?? key}</dt><dd className="font-semibold tabular-nums text-slate-900">{n.toLocaleString('vi-VN')} <span className="ml-2 inline-block min-w-9 text-right text-xs font-normal text-slate-400">{total ? (n / total * 100).toFixed(0) : 0}%</span></dd></div><div className="h-1.5 overflow-hidden rounded-full bg-slate-50"><div className="h-full rounded-full" style={{ width: `${total ? n / total * 100 : 0}%`, background: colorFor(key) }} /></div></div>)}</dl>
     {!total && <p className="py-4 text-center text-sm text-slate-400">Chưa có dữ liệu trong phạm vi này.</p>}
   </section>;
 }
