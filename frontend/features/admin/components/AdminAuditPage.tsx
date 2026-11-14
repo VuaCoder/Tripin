@@ -6,7 +6,6 @@ import {
   ArrowUp,
   Download,
   FileSpreadsheet,
-  Eye,
   MessageSquare,
   RotateCcw,
 } from 'lucide-react';
@@ -623,7 +622,11 @@ export function AdminAuditPage() {
               {query.data?.items.map((r) => {
                 const actionInfo = getActionInfo(r.action);
                 return (
-                  <tr key={r.id} className="transition hover:bg-slate-50/70 align-top">
+                  <tr
+                    key={r.id}
+                    onClick={() => setSelectedAudit(r)}
+                    className="transition cursor-pointer hover:bg-slate-50/70 align-top"
+                  >
                     {/* Thời gian */}
                     <td className="px-5 py-4 whitespace-nowrap text-xs text-slate-700 font-medium">
                       {formatSmartDateTime(r.createdAt)}
@@ -655,21 +658,10 @@ export function AdminAuditPage() {
 
                     {/* Trạng thái */}
                     <td className="px-5 py-4">
-                      <div className="flex flex-col items-start gap-1.5">
-                        <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200/80 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
-                          <span className="size-1.5 rounded-full bg-emerald-500" />
-                          Thành công
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedAudit(r)}
-                          className="!h-7 px-2 text-xs font-semibold text-teal-800 hover:text-teal-900 hover:bg-teal-50 flex items-center gap-1"
-                        >
-                          <Eye size={13} />
-                          <span>Xem chi tiết</span>
-                        </Button>
-                      </div>
+                      <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200/80 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                        <span className="size-1.5 rounded-full bg-emerald-500" />
+                        Thành công
+                      </span>
                     </td>
                   </tr>
                 );
