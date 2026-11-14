@@ -139,7 +139,7 @@ export function AdminPromotionsPage() {
       </FormField>
       <FormField label="Trạng thái" htmlFor="promotion-status"><FormSelect id="promotion-status" value={statusFilter} className={control} disabled={busy} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); setSuccess(null); }}><option value="all">Tất cả</option><option value="true">Đang bật</option><option value="false">Đã tắt</option><option value="archived">Đã lưu trữ</option></FormSelect></FormField>
       <FormField label="Kiểu giảm giá" htmlFor="promotion-discount"><FormSelect id="promotion-discount" value={discountFilter} className={control} disabled={busy} onChange={(e) => { setDiscountFilter(e.target.value); setPage(1); setSuccess(null); }}><option value="all">Tất cả kiểu</option><option value="PERCENT">Theo %</option><option value="FIXED">Theo số tiền</option></FormSelect></FormField>
-      <FormField label="Cách áp dụng" htmlFor="promotion-apply"><FormSelect id="promotion-apply" value={applyFilter} className={control} disabled={busy} onChange={(e) => { setApplyFilter(e.target.value); setPage(1); setSuccess(null); }}><option value="all">Tất cả cách</option><option value="CODE">Nhập mã</option><option value="AUTO_APPLY">Tự động</option><option value="COLLECTABLE">Voucher trong ví</option></FormSelect></FormField>
+      <FormField label="Phương thức" htmlFor="promotion-apply"><FormSelect id="promotion-apply" value={applyFilter} className={control} disabled={busy} onChange={(e) => { setApplyFilter(e.target.value); setPage(1); setSuccess(null); }}><option value="all">Tất cả phương thức</option><option value="CODE">Nhập mã</option><option value="AUTO_APPLY">Tự động</option><option value="COLLECTABLE">Voucher trong ví</option></FormSelect></FormField>
       <div className="flex items-end">
         <Button variant="ghost" onClick={resetFilters} className="inline-flex min-h-11 w-full items-center justify-center gap-2 whitespace-nowrap sm:w-auto"><RotateCcw size={15} /> Đặt lại</Button>
       </div>
@@ -152,14 +152,15 @@ export function AdminPromotionsPage() {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[880px] table-fixed text-left text-sm">
           <colgroup>
-            <col className="w-[19%]" />
-            <col className="w-[12%]" />
-            <col className="w-[12%]" />
-            <col className="w-[11%]" />
-            <col className="w-[10%]" />
+            <col className="w-[18%]" />
             <col className="w-[10%]" />
             <col className="w-[11%]" />
-            <col className="w-[15%]" />
+            <col className="w-[9%]" />
+            <col className="w-[11%]" />
+            <col className="w-[9%]" />
+            <col className="w-[9%]" />
+            <col className="w-[10%]" />
+            <col className="w-[13%]" />
           </colgroup>
           <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wide text-slate-400">
             <tr>
@@ -167,6 +168,7 @@ export function AdminPromotionsPage() {
               <th className="px-4 py-3 font-medium">Mã</th>
               <th className="px-4 py-3 font-medium">Giảm giá</th>
               <th className="px-4 py-3 font-medium">Trạng thái</th>
+              <th className="px-4 py-3 font-medium">Phương thức</th>
               <th className="px-4 py-3 font-medium">Bắt đầu</th>
               <th className="px-4 py-3 font-medium">Kết thúc</th>
               <th className="px-4 py-3 font-medium">Lượt dùng</th>
@@ -191,8 +193,8 @@ export function AdminPromotionsPage() {
                 </td>
                 <td className="px-4 py-3.5 align-middle">
                   <span className={`inline-flex max-w-full rounded-full px-2.5 py-1 text-[10px] font-semibold ${p.isArchived ? 'bg-amber-100 text-amber-800' : p.isActive ? 'bg-teal-50 text-teal-700' : 'bg-slate-100 text-slate-600'}`}>{p.isArchived ? 'Đã lưu trữ' : p.isActive ? (p.isRunning ? 'Đang áp dụng' : 'Đã bật') : 'Đã tắt'}</span>
-                  <span className="mt-1 block text-[11px] text-slate-500">{APPLY_LABEL[p.applyType] ?? p.applyType}</span>
                 </td>
+                <td className="px-4 py-3.5 align-middle text-xs font-medium text-slate-900">{APPLY_LABEL[p.applyType] ?? p.applyType}</td>
                 <td className="px-4 py-3.5 align-middle text-xs leading-5 text-slate-600"><span className="whitespace-nowrap">{formatDateTime(p.startsAt)}</span></td>
                 <td className="px-4 py-3.5 align-middle text-xs leading-5 text-slate-600"><span className="whitespace-nowrap">{formatDateTime(p.endsAt)}</span></td>
                 <td className="px-4 py-3.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">
