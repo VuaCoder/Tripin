@@ -10,6 +10,8 @@ export type ETicketRecord = ETicket;
 
 export interface EnrichedETicketRecord extends ETicketRecord {
   bookingDetails?: {
+    serviceSnapshot?: unknown;
+    meetingPointSnapshot?: string | null;
     id: string;
     bookingCode: string;
     status: string;
@@ -79,6 +81,8 @@ export class ETicketsRepository {
           totalAmount: true,
           contactPhone: true,
           endDate: true,
+          serviceSnapshot: true,
+          meetingPointSnapshot: true,
         },
       }),
       prisma.tour.findUnique({

@@ -20,6 +20,7 @@ export interface ETicketTourInfo {
 }
 
 export interface ETicketDto {
+  services?: import('@travel-platform/constants').BookedExtra[];
   id: string;
   /** The value encoded in the QR code */
   code: string;

@@ -53,6 +53,7 @@ export type AgencyOtpResult =
   | { registrationComplete: false; session: Session };
 
 export interface RequestContext {
+  onTiming?: (stage: string, milliseconds: number) => void;
   ip?: string;
   userAgent?: string;
 }

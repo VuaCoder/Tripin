@@ -59,10 +59,10 @@ Common errors: 400 validation, 401/403 permission, 404 unknown/not owned, 409 `T
 1. Money is integer VND; a departure's price is `priceOverride ?? basePrice`.
 2. Ownership: every agency route loads the tour and answers **404** if it is not the caller's.
 3. Content edits are allowed in DRAFT / REJECTED / APPROVED / SUSPENDED; **locked** while PENDING_REVIEW. Editing (or changing the itinerary of) an APPROVED tour sends it back to PENDING_REVIEW. Availability and guide assignment do not trigger review.
-4. Submit requires: a **VERIFIED** agency (D-27), ≥1 category, ≥1 open future departure (D-28).
+4. Submit requires a **VERIFIED** agency (D-27), ≥1 category and a valid itinerary covering all tour days (D-28). Partial programs can be saved as drafts. Departures are not required for review; booking still requires an open future departure with sufficient seats.
 5. Delete = archive; refused while a future departure has sold seats (`remaining < capacity`).
 6. Availability: matched by departure id; capacity cannot go below sold seats; a departure with sold seats cannot be moved or removed (close it); new/moved dates must be future. The write is guarded by the document version, so it can never overwrite seats sold at the same moment.
-7. Itinerary: unique day numbers, each ≤ `durationDays`; `durationDays` cannot be cut below the itinerary.
+7. Itinerary is saved with content on create/update; day ranges must not overlap or exceed `durationDays`. A PATCH can shorten duration and update the program together. The Agency editor uses a compact itinerary popup; the workspace is read-only and departures/pricing are managed in the existing calendar.
 8. Guide assignment: the guide must be an ACTIVE TOUR_GUIDE; a new assignment is PENDING; only that guide can answer, only once (`PENDING → ACCEPTED|DECLINED`).
 9. Document extraction checks file extension, MIME and file signature, parses in memory only, and sends extracted text plus active category IDs/names to the configured AI provider. Documents and drafts are never persisted by extraction. The model is instructed to omit unsupported fields; its response is strict-schema validated and returned only as a candidate for the Agency to review before calling `/import`. Text-based PDFs only; no OCR. Limits: 10 MB, 40 PDF pages, 60,000 extracted characters, 10 AI candidates per file.
 10. Moderator: reject needs a reason; suspend needs a reason; both audited.

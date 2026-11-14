@@ -68,6 +68,7 @@ describe('moderation (integration)', () => {
 
     // A legacy user without an agency/membership has no authority to submit one.
     const incomplete = await createUser('AGENCY', 'bare@example.com');
+    await prisma.agencyMember.deleteMany({ where: { agencyId: incomplete.id } });
     expect((await request(app).post('/api/v1/users/me/agency-verification').set(bearer(incomplete.token)).send({})).status).toBe(403);
     const submit = await request(app).post('/api/v1/users/me/agency-verification').set(bearer(agency.token)).send({});
     expect(submit.status).toBeLessThan(300);

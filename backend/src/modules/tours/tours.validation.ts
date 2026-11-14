@@ -4,12 +4,14 @@ import { idParamsSchema, idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 import { TOUR_LIMITS } from './tours.types';
 import { agePricingSchema } from '../../utils/age-pricing';
+import { optionalServicesSchema } from './tour-services.validation';
 
 const text = (max: number) => z.string().trim().max(max);
 const stringList = (maxItems: number, maxLen: number) => z.array(z.string().trim().min(1).max(maxLen)).max(maxItems);
 const vnd = z.number().int().min(0).max(MONEY_LIMITS.MAX_UNIT_PRICE);
 
 export const tourContentShape = {
+  optionalServices: optionalServicesSchema.optional(),
   title: z.string().trim().min(5).max(200),
   summary: text(500).optional(),
   description: text(20_000).optional(),
@@ -34,8 +36,6 @@ export const createCategoryQuickBody = z.object({
   name: z.string().trim().min(2, 'Tên danh mục phải có từ 2 ký tự').max(80, 'Tên danh mục tối đa 80 ký tự'),
 }).strict();
 
-export const createTourBody = z.object(tourContentShape).strict();
-
 const itineraryPatchDay = z.object({
   day: z.number().int().min(1).max(365),
   toDay: z.number().int().min(1).max(365).optional(),
@@ -43,6 +43,8 @@ const itineraryPatchDay = z.object({
   description: text(5000).optional(),
   activities: stringList(30, 300).optional(),
 }).strict().refine(d => d.toDay === undefined || d.toDay >= d.day);
+
+export const createTourBody = z.object({ ...tourContentShape, itinerary: z.array(itineraryPatchDay).max(365).optional() }).strict();
 
 export const updateTourBody = z
   .object({ ...tourContentShape,

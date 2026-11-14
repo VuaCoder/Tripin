@@ -56,6 +56,10 @@ export const bookingApi = baseApi.injectEndpoints({
         }
       },
     }),
+    quoteBooking: build.mutation<{ tourSubtotal: number; servicesSubtotal: number; services: import('@travel-platform/constants').BookedExtra[] }, CreateBookingInput>({
+      query: body => ({ url: '/bookings/quote', method: 'POST', body }),
+      transformResponse: (response: BookingApiResponse<{ tourSubtotal: number; servicesSubtotal: number; services: import('@travel-platform/constants').BookedExtra[] }>) => response.data,
+    }),
     createBooking: build.mutation<BookingDto, CreateBookingInput>({
       query: (body) => ({ url: '/bookings', method: 'POST', body }),
       transformResponse: (response: BookingApiResponse<BookingDto>) => response.data,
@@ -193,6 +197,7 @@ export const bookingApi = baseApi.injectEndpoints({
 export const {
   useGetAgencyBookingsQuery, useGetAgencyBookingQuery, useDownloadAgencyCustomersMutation,
   useCreateBookingMutation,
+  useQuoteBookingMutation,
   useLazyPreviewPromotionQuery,
   useGetAvailablePromotionsQuery,
   useGetMyVouchersQuery,

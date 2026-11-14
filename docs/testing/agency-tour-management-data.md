@@ -35,6 +35,6 @@ npm.cmd --prefix backend run fixture:tour-ux:clean
 | `APPROVED` | Đã duyệt, khởi hành mở | Nội dung/lịch trình vẫn sửa được |
 | `ARCHIVED` | Lưu trữ, khởi hành đóng | Khóa sửa, khôi phục |
 | `BOOKED` | Đã duyệt, ngày khởi hành 20 chỗ, còn 18, booking xác nhận 2 khách | Không đổi/gỡ ngày; không hạ sức chứa dưới 2; vẫn đóng nhận khách |
-| `NO_OPEN_DEPARTURE` | Nháp, chỉ có ngày khởi hành đóng | Gửi duyệt báo cần ngày mở bán |
+| `NO_OPEN_DEPARTURE` (tên fixture cũ) | Nháp, chỉ có ngày khởi hành đóng | Vẫn gửi duyệt được; lịch mở bán không còn là điều kiện gửi duyệt |
 
 Các lỗi nhập liệu cần tạo trực tiếp trên form (fixture chỉ lưu data hợp lệ): tiêu đề ngày 1 ký tự, ngày vượt 3, khoảng ngày chồng nhau, ngày khởi hành trùng/quá khứ, sức chứa 0 hoặc trên 10.000, giá ngoài giới hạn. Lỗi cập nhật đồng thời cần mở cùng một tour trong hai phiên và lưu lần lượt.

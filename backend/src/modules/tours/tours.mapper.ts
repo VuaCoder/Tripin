@@ -80,6 +80,7 @@ export function toTourDetailDto(tour: TourRecord, context: DetailContext): TourD
   return {
     ...toTourListItemDto(tour, context.agency),
     description: tour.description ?? undefined,
+    optionalServices: (tour.optionalServices ?? []) as unknown as import('@travel-platform/constants').TourExtra[],
     childPricingPolicy: tour.childPricingPolicy || undefined,
     agePricing: tour.agePricing as unknown as AgePricing | null,
     cancellationPolicy: tour.cancellationPolicy || undefined,

@@ -79,6 +79,8 @@ export interface MyReviewsArgs {
  * the rating summary above the review list.
  */
 export interface TourReviewContext {
+  optionalServices?: import('@travel-platform/constants').TourExtra[];
+  meetingPoint?: string;
   agePricing?: import('@travel-platform/constants').AgePricing | null;
   images?: string[];
   summary?: string;

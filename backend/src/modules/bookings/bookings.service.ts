@@ -3,7 +3,8 @@ import { premiumRepository } from '../premium/premium.repository';
 import { BOOKING_CANCEL_REASON, BOOKING_STATUS, PROMOTION_SCOPE, ratioVnd, sumVnd, type BookingCancelReason, type BookingStatus, type PromotionScope } from '@travel-platform/constants';
 import { isUniqueViolation, runInTransaction, type DbExecutor, type TransactionRunner, type Prisma } from '../../config/database';
 import { AppError } from '../../utils/app-error';
-import { randomInt, randomUUID } from 'node:crypto';
+import { randomInt, randomUUID, createHash } from 'node:crypto';
+import { quoteExtras, type TourExtra, type ExtraPassenger } from '@travel-platform/constants';
 import { buildPage, type Page } from '../../utils/pagination';
 import { assertTransition } from '../../utils/state-machine';
 import { logger } from '../../utils/logger';
@@ -69,6 +70,16 @@ export function calculateRefundAmount(
 const AMOUNT_TOO_LOW = () =>
   AppError.conflict('The amount to pay must be at least 1 VND: this tour or promotion cannot be booked online', 'BOOKING_AMOUNT_TOO_LOW');
 
+const fingerprint = (input: CreateBookingInput) => createHash('sha256').update(JSON.stringify([
+  input.tourId, input.departureId, input.participants, input.guestCounts, input.contact, input.passengers,
+  input.services ?? [], input.premiumVoucherId, input.promotionCode, input.agencyPromotionCode, input.platformPromotionCode, input.notes, input.expectedTourSubtotal,
+])).digest('hex');
+function sameRequest(booking: BookingRecord, input: CreateBookingInput) {
+  if (booking.requestFingerprint && booking.requestFingerprint !== fingerprint(input))
+    throw AppError.conflict('Thông tin đặt tour đã đổi. Vui lòng dùng yêu cầu đặt mới.', 'BOOKING_REQUEST_CHANGED');
+  return booking;
+}
+
 export class BookingsService {
   constructor(
     private readonly bookings: Repo = bookingsRepository,
@@ -80,6 +91,21 @@ export class BookingsService {
   ) {}
 
   // ============================================================== Traveler
+
+  /** Non-mutating price check. Promotions remain validated/redeemed by createBooking. */
+  async quoteBooking(input: CreateBookingInput) {
+    const departure = await this.tours.getBookableDeparture(input.tourId, input.departureId);
+    const tourSubtotal = priceGuests(departure.unitPrice, input.participants, input.guestCounts, departure.agePricing).subtotal;
+    if (input.participants > departure.remaining) throw AppError.conflict('Không đủ chỗ.', 'NOT_ENOUGH_SEATS');
+    if (input.passengers?.some(p => p.pickupPoint?.trim())) throw AppError.badRequest('Chỉ nhập điểm đón trong dịch vụ đưa đón.');
+    const passengers = (input.passengers ?? []).filter(p => p.passengerId) as ExtraPassenger[];
+    if (input.services?.length && passengers.length !== input.participants) throw AppError.badRequest('Vui lòng nhập đủ hành khách.');
+    try {
+      const services = quoteExtras(departure.optionalServices ?? [], input.services ?? [], passengers, departure.departureDate);
+      const servicesSubtotal = sumVnd(services.map(s => s.total));
+      return { tourSubtotal, servicesSubtotal, services, beforeDiscount: sumVnd([tourSubtotal, servicesSubtotal]) };
+    } catch (error) { throw AppError.conflict((error as Error).message, 'SERVICE_SELECTION_INVALID'); }
+  }
 
   /**
    * Use case "Book tour". Price, discount and commission are computed here from server data only — the client sends
@@ -99,7 +125,7 @@ export class BookingsService {
         const winner = input.customTour ? await this.bookings.findActiveByCustomTourRequest(input.customTour.requestId) : null;
         if (winner) return toBookingDto(winner);
         const duplicate = input.clientRequestId ? await this.bookings.findByRequestId(travelerId, input.clientRequestId) : null;
-        if (duplicate) return toBookingDto(duplicate);
+        if (duplicate) return toBookingDto(sameRequest(duplicate, input));
       }
       throw error;
     }
@@ -114,7 +140,7 @@ export class BookingsService {
     }
     if (input.clientRequestId) {
       const duplicate = await this.bookings.findByRequestId(travelerId, input.clientRequestId);
-      if (duplicate) return toBookingDto(duplicate);
+      if (duplicate) return toBookingDto(sameRequest(duplicate, input));
     }
 
     await this.assertNoPendingDeparture(travelerId, input);
@@ -129,6 +155,24 @@ export class BookingsService {
     const guestCounts = input.customTour?.guestCounts ?? input.guestCounts;
     const guestPricing = priceGuests(unitPrice, input.participants, guestCounts, input.customTour ? input.customTour.agePricing : departure.agePricing);
     const subtotal = guestPricing.subtotal;
+    if (input.expectedTourSubtotal !== undefined && input.expectedTourSubtotal !== subtotal)
+      throw AppError.conflict('Giá tour vừa thay đổi. Vui lòng xem lại báo giá.', 'BOOKING_QUOTE_CHANGED');
+    if (input.customTour && input.services?.length) throw AppError.badRequest('Dịch vụ đoàn phải nằm trong báo giá đã chấp nhận.');
+    if (input.passengers?.some(p => p.pickupPoint?.trim())) throw AppError.badRequest('Vui lòng nhập điểm đón trong dịch vụ đưa đón đã chọn.');
+    const extraPassengers = (input.passengers ?? []).filter(p => p.passengerId) as ExtraPassenger[];
+    if (input.services?.length && (extraPassengers.length !== input.participants || input.passengers?.length !== input.participants))
+      throw AppError.badRequest('Vui lòng nhập đủ danh sách hành khách trước khi chọn dịch vụ.');
+    let services: ReturnType<typeof quoteExtras>;
+    try { services = quoteExtras(departure.optionalServices ?? [], input.services ?? [], extraPassengers, departure.departureDate); }
+    catch (error) { throw AppError.conflict((error as Error).message, 'SERVICE_SELECTION_INVALID'); }
+    const servicesSubtotal = sumVnd(services.map(s => s.total));
+    if (input.services?.length) {
+      const expected = guestPricing.guests;
+      if (extraPassengers.filter(p => p.ageGroup === 'ADULT').length !== expected.adults ||
+          extraPassengers.filter(p => p.ageGroup === 'CHILD').length !== expected.children ||
+          extraPassengers.filter(p => p.ageGroup === 'INFANT').length !== expected.infants)
+        throw AppError.badRequest('Nhóm tuổi của hành khách không khớp số lượng đã chọn.');
+    }
     if (subtotal < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
 
     const commissionBps = await this.settings.getCommissionBps(departure.agencyId);
@@ -146,7 +190,7 @@ export class BookingsService {
             await this.bookings.lockPendingDeparture(travelerId, input.departureId, tx);
             if (input.clientRequestId) {
               const existing = await this.bookings.findByRequestId(travelerId, input.clientRequestId, tx);
-              if (existing) return { booking: existing, created: false };
+              if (existing) return { booking: sameRequest(existing, input), created: false };
             }
             await this.assertNoPendingDeparture(travelerId, input, tx);
             const codes = input.agencyPromotionCode || input.platformPromotionCode
@@ -156,7 +200,7 @@ export class BookingsService {
             // A competing retry can commit while this request waits for the promotion locks.
             if (input.clientRequestId) {
               const existing = await this.bookings.findByRequestId(travelerId, input.clientRequestId, tx);
-              if (existing) return { booking: existing, created: false };
+              if (existing) return { booking: sameRequest(existing, input), created: false };
             }
             const redeemOpts = {
               participants: input.participants,
@@ -187,7 +231,13 @@ export class BookingsService {
               else appliedPlatform = applied;
             }
             const discountAmount = sumVnd([premium?.discountAmount ?? 0, appliedAgency?.discountAmount ?? 0, appliedPlatform?.discountAmount ?? 0]);
-            const totalAmount = Math.max(0, subtotal - discountAmount);
+            // Read and lock current service terms with the insert, so an agency edit cannot race the payment snapshot.
+            if (input.services?.length) {
+              const current = await tx.$queryRaw<Array<{ optionalServices: unknown }>>`SELECT "optionalServices" FROM "Tour" WHERE id = ${input.tourId}::uuid FOR SHARE`;
+              try { quoteExtras((current[0]?.optionalServices ?? []) as TourExtra[], input.services, extraPassengers, departure.departureDate); }
+              catch (error) { throw AppError.conflict((error as Error).message, 'SERVICE_SELECTION_INVALID'); }
+            }
+            const totalAmount = sumVnd([Math.max(0, subtotal - discountAmount), servicesSubtotal]);
             if (totalAmount < BOOKING_POLICY.MIN_PAYABLE_AMOUNT) throw AMOUNT_TOO_LOW();
             const commissionAmount = ratioVnd(totalAmount, commissionBps, 10_000);
             const primaryApplied = appliedAgency ?? appliedPlatform;
@@ -212,6 +262,10 @@ export class BookingsService {
               contact: input.contact,
               notes: input.notes,
               unitPrice,
+              serviceSnapshot: services as unknown as Prisma.InputJsonValue,
+              servicesSubtotal,
+              meetingPointSnapshot: departure.meetingPoint,
+              requestFingerprint: fingerprint(input),
               subtotal,
               promotion: primaryApplied ? {
                 promotionId: primaryApplied.promotionId,
@@ -239,11 +293,11 @@ export class BookingsService {
           // Two tabs raced the partial unique index on `customTourRequestId`; the winner's booking is the answer.
           if (input.customTour && isUniqueViolation(error)) {
             const existing = await this.bookings.findActiveByCustomTourRequest(input.customTour.requestId);
-            if (existing) { result = { booking: existing, created: false }; break; }
+            if (existing) { result = { booking: sameRequest(existing, input), created: false }; break; }
           }
           if (input.clientRequestId) {
             const existing = await this.bookings.findByRequestId(travelerId, input.clientRequestId);
-            if (existing) { result = { booking: existing, created: false }; break; }
+            if (existing) { result = { booking: sameRequest(existing, input), created: false }; break; }
           }
           const retryable = isDuplicateKey(error, 'bookingCode') || isTransactionConflict(error);
           if (!retryable || attempt >= BOOKING_POLICY.CODE_MAX_ATTEMPTS) throw error;
@@ -574,8 +628,12 @@ export class BookingsService {
           travelerName: String(person.fullName ?? ''), phone: String(person.phone ?? booking.contact.phone), participants: 1,
           birthYear: typeof person.birthYear === 'number' ? person.birthYear : undefined,
           ageGroup: person.ageGroup === 'ADULT' || person.ageGroup === 'CHILD' || person.ageGroup === 'INFANT' ? person.ageGroup : undefined,
-          pickupPoint: typeof person.pickupPoint === 'string' ? person.pickupPoint : undefined,
-          specialNotes: typeof person.specialNotes === 'string' ? person.specialNotes : undefined });
+          pickupPoint: ((booking.serviceSnapshot ?? []) as unknown as import('@travel-platform/constants').BookedExtra[])
+            .flatMap(s => s.pickups).find(p => p.passengerId === person.passengerId)?.address ?? (typeof person.pickupPoint === 'string' ? person.pickupPoint : undefined),
+          specialNotes: [typeof person.specialNotes === 'string' ? person.specialNotes : '',
+            ...((booking.serviceSnapshot ?? []) as unknown as import('@travel-platform/constants').BookedExtra[])
+              .filter(s => s.participants.some(p => p.passengerId === person.passengerId) || !s.participants.length)
+              .map(s => `${s.name}${s.participants.length ? '' : ` (cả đơn: ${s.quantity} ${s.unit})`}`)].filter(Boolean).join('; ') || undefined });
       }
       if (rows.length > CUSTOMER_EXPORT_LIMIT) break;
     }

@@ -20,19 +20,22 @@ const baseTour: TourContentInput = {
 };
 
 describe('TourAgePricingFields', () => {
-  it('converts legacy percentages to editable VND and can clear an age price', () => {
+  it('converts legacy percentages to editable VND with dot separators and can clear an age price', () => {
     const onChange = vi.fn();
     render(<TourAgePricingFields value={baseTour} onChange={onChange} />);
-    const inputs = screen.getAllByRole('spinbutton') as HTMLInputElement[];
-    expect(inputs.map(input => input.value)).toEqual(['1000000', '0']);
-    fireEvent.change(inputs[0], { target: { value: '' } });
+    const childInput = screen.getByLabelText('Giá Trẻ em (2 - 12 tuổi)') as HTMLInputElement;
+    const infantInput = screen.getByLabelText('Giá Em bé (dưới 2 tuổi)') as HTMLInputElement;
+    expect([childInput.value, infantInput.value]).toEqual(['1.000.000', '0']);
+    fireEvent.change(childInput, { target: { value: '' } });
     expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ agePricing: expect.objectContaining({ adultMinAge: 13, childMinAge: 2, childPrice: null, infantPrice: 0 }) }));
-    fireEvent.change(inputs[1], { target: { value: '150000' } });
+    fireEvent.change(infantInput, { target: { value: '150.000' } });
     expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ agePricing: expect.objectContaining({ infantPrice: 150000 }) }));
   });
   it('starts with optional prices blank', () => {
     render(<TourAgePricingFields value={{ ...baseTour, agePricing: null }} onChange={vi.fn()} />);
-    expect((screen.getAllByRole('spinbutton') as HTMLInputElement[]).map(input => input.value)).toEqual(['', '']);
+    const childInput = screen.getByLabelText('Giá Trẻ em (2 - 12 tuổi)') as HTMLInputElement;
+    const infantInput = screen.getByLabelText('Giá Em bé (dưới 2 tuổi)') as HTMLInputElement;
+    expect([childInput.value, infantInput.value]).toEqual(['', '']);
   });
 });
 

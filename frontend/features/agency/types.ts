@@ -13,6 +13,9 @@ export interface AgencyDashboard {
 }
 
 export interface AgencyBooking {
+  services?: import('@travel-platform/constants').BookedExtra[];
+  servicesSubtotal?: number;
+  meetingPoint?: string;
   id: string;
   bookingCode: string;
   status: BookingStatus;

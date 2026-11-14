@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useAppDispatch } from '@/store/hooks';
-import { refreshSession } from '@/store/api/baseApi';
+import { baseApi, refreshSessionChecked } from '@/store/api/baseApi';
 import { clearCredentials, restoreCredentials, setCredentials } from '../store/authSlice';
 import { store } from '@/store';
 
@@ -44,16 +44,22 @@ export const AuthBootstrap = () => {
     const synchronize = async () => {
       const identityAtStart = store.getState().auth.user?.id;
       const tokenAtStart = store.getState().auth.accessToken;
-      const session = await refreshSession();
+      let session;
+      try {
+        session = await refreshSessionChecked();
+      } catch {
+        // A temporary outage must not destroy the persisted session.
+        if (active && !identityAtStart && !store.getState().auth.user) dispatch(clearCredentials());
+        return;
+      }
       if (!active) return;
       const currentId = store.getState().auth.user?.id;
       if (currentId !== identityAtStart || store.getState().auth.accessToken !== tokenAtStart) return;
       if (session) {
         dispatch(setCredentials(session));
       } else {
-        if (!identityAtStart) {
-          dispatch(clearCredentials());
-        }
+        dispatch(clearCredentials());
+        dispatch(baseApi.util.resetApiState());
       }
     };
 
@@ -77,6 +83,11 @@ export const AuthBootstrap = () => {
 
     // Keep tabs in sync: when another tab rotates the token, update this tab immediately without re-refreshing
     const handleStorage = (e: StorageEvent) => {
+      if (e.storageArea === localStorage && e.key === STORAGE_KEY && !e.newValue && !sessionStorage.getItem(STORAGE_KEY)) {
+        dispatch(clearCredentials());
+        dispatch(baseApi.util.resetApiState());
+        return;
+      }
       if (e.key === STORAGE_KEY && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue);

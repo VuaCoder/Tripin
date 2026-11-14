@@ -32,7 +32,7 @@ export type TourRecord = Omit<Tour, 'itinerary'> & {
 
 export type GuideAssignmentFields = Partial<Omit<GuideAssignmentRecord, 'tourId'>> & Pick<GuideAssignmentRecord, 'guideId' | 'feePerBooking'>;
 
-type TourScalars = Omit<Tour, 'id' | 'agencyId' | 'createdAt' | 'updatedAt' | 'itinerary' | 'agePricing'> & { agePricing: import('@travel-platform/constants').AgePricing | null };
+type TourScalars = Omit<Tour, 'id' | 'agencyId' | 'createdAt' | 'updatedAt' | 'itinerary' | 'agePricing' | 'optionalServices'> & { agePricing: import('@travel-platform/constants').AgePricing | null; optionalServices: import('@travel-platform/constants').TourExtra[] };
 
 export type NewDeparture = Pick<DepartureRecord, 'date' | 'capacity' | 'remaining'> & Partial<Pick<DepartureRecord, 'priceOverride' | 'isOpen'>>;
 
@@ -83,9 +83,10 @@ const SORTS: Record<TourSort, Prisma.TourOrderByWithRelationInput[]> = {
 };
 
 function writeData(patch: TourPatch): Prisma.TourUncheckedUpdateInput {
-  const { categoryIds, guide, itinerary, agePricing, ...scalars } = patch;
+  const { categoryIds, guide, itinerary, agePricing, optionalServices, ...scalars } = patch;
   return {
     ...scalars,
+    ...(optionalServices !== undefined ? { optionalServices: optionalServices as unknown as Prisma.InputJsonValue } : {}),
     ...(agePricing !== undefined ? { agePricing: agePricing === null ? PrismaRuntime.DbNull : { ...agePricing } } : {}),
     ...(itinerary ? { itinerary: itinerary as unknown as Prisma.InputJsonValue } : {}),
     ...(categoryIds ? { categories: { set: categoryIds.map((id) => ({ id })) } } : {}),
@@ -233,7 +234,14 @@ export class ToursRepository {
   listForModeration(filter: ListTourFilter, page: PageRequest) {
     const where: Prisma.TourWhereInput = { status: filter.status ?? { not: TOUR_STATUS.ARCHIVED } };
     if (filter.agencyId) where.agencyId = filter.agencyId;
-    if (filter.q) where.OR = [{ title: containsText(filter.q) }, { destination: containsText(filter.q) }];
+    if (filter.q) {
+      where.OR = [
+        { title: containsText(filter.q) },
+        { destination: containsText(filter.q) },
+        { agency: { companyName: containsText(filter.q) } },
+        { agency: { user: { fullName: containsText(filter.q) } } },
+      ];
+    }
     return this.paginate(where, [{ submittedAt: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }], page);
   }
 
@@ -382,10 +390,11 @@ export class ToursRepository {
 }
 
 function createOne(db: DbExecutor, data: NewTour): Promise<Row> {
-  const { categoryIds, departures, guide, itinerary, agePricing, ...scalars } = data;
+  const { categoryIds, departures, guide, itinerary, agePricing, optionalServices, ...scalars } = data;
   return db.tour.create({
     data: {
       ...scalars,
+      ...(optionalServices !== undefined ? { optionalServices: optionalServices as unknown as Prisma.InputJsonValue } : {}),
       ...(agePricing !== undefined ? { agePricing: agePricing === null ? PrismaRuntime.DbNull : { ...agePricing } } : {}),
       ...(itinerary ? { itinerary: itinerary as unknown as Prisma.InputJsonValue } : {}),
       ...(categoryIds?.length ? { categories: { connect: categoryIds.map((id) => ({ id })) } } : {}),

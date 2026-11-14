@@ -5,6 +5,7 @@ import { validateTourEditor } from '@/features/tours/components/tourEditorValida
 
 const mocks = vi.hoisted(() => ({ 
   save: vi.fn(), 
+  review: vi.fn(),
   push: vi.fn(), 
   replace: vi.fn(),
   tourData: { current: null as any },
@@ -23,6 +24,7 @@ vi.mock('@/features/tours/api/toursApi', () => ({
   useGetTourCategoriesQuery: () => ({ data: [{ id: 'cat-1', name: 'Khám phá' }] }),
   useCreateAgencyTourMutation: () => [mocks.save, {}], 
   useUpdateAgencyTourMutation: () => [mocks.save, {}],
+  useSubmitAgencyTourMutation: () => [mocks.review, {}],
   useUploadAgencyTourImageMutation: () => [vi.fn(), {}],
   useCreateAgencyCategoryMutation: () => [vi.fn(), {}],
   getTourApiMessage: (_error: unknown, fallback: string) => fallback,
@@ -33,6 +35,7 @@ vi.mock('@/features/tours/components/AgencyTourLivePreview', () => ({ AgencyTour
 
 beforeEach(() => { 
   mocks.save.mockReset(); 
+  mocks.review.mockReset();
   mocks.push.mockReset(); 
   mocks.replace.mockReset(); 
   mocks.tourData.current = null;
@@ -41,17 +44,81 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-function completeRequiredFields() {
+function completeRequiredFields(action: 'save' | 'review' = 'save', includeProgram = true) {
   fireEvent.change(screen.getByRole('textbox', { name: 'Tên tour' }), { target: { value: 'Khám phá Hạ Long' } });
   fireEvent.change(screen.getByRole('textbox', { name: 'Điểm đến chính' }), { target: { value: 'Quảng Ninh' } });
   fireEvent.focus(screen.getByPlaceholderText(/Tìm hoặc nhập danh mục tour/i));
   fireEvent.click(screen.getByRole('button', { name: /Khám phá/i }));
   fireEvent.change(screen.getByLabelText('Giá người lớn · từ 13 tuổi trở lên (VND)'), { target: { value: '1.000.000' } });
-  fireEvent.click(screen.getAllByRole('button', { name: 'Tạo tour & Tiếp tục' })[0]);
-  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận tạo tour' }));
+  if (action === 'review') {
+    if (includeProgram) {
+    fireEvent.click(screen.getByRole('button', { name: 'Soạn lịch trình' }));
+    const dialog = within(screen.getByRole('dialog'));
+    fireEvent.click(dialog.getByRole('button', { name: 'Thêm ngày đầu tiên' }));
+    fireEvent.change(dialog.getByLabelText('Tiêu đề ngày'), { target: { value: 'Khám phá vịnh' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Áp dụng lịch trình' }));
+    }
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Các bước tạo tour' })).getByRole('button', { name: /Chính sách/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu & gửi duyệt' }));
+    if (includeProgram) fireEvent.click(screen.getByRole('button', { name: 'Xác nhận gửi duyệt' }));
+  } else {
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lưu bản nháp' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận lưu bản nháp' }));
+  }
 }
 
 describe('Tour editor inline reminders', () => {
+  it('requires a complete program for review but still permits saving the same input as a draft', async () => {
+    mocks.save.mockReturnValue({ unwrap: () => Promise.resolve({ id: 'saved-tour' }) });
+    render(<AgencyTourEditorPage mode="create" />);
+    completeRequiredFields('review', false);
+    expect(screen.getByRole('alert').textContent).toContain('Bổ sung lịch trình ngày 1');
+    expect(mocks.save).not.toHaveBeenCalled();
+    expect(mocks.review).not.toHaveBeenCalled();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lưu bản nháp' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận lưu bản nháp' }));
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/agency/tours/saved-tour'));
+    expect(mocks.review).not.toHaveBeenCalled();
+  });
+  it('saves a draft without submitting or creating a schedule', async () => {
+    mocks.save.mockReturnValue({ unwrap: () => Promise.resolve({ id: 'saved-tour' }) });
+    render(<AgencyTourEditorPage mode="create" />);
+    completeRequiredFields();
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/agency/tours/saved-tour'));
+    expect(mocks.review).not.toHaveBeenCalled();
+    expect(mocks.save.mock.calls[0][0].departures).toBeUndefined();
+  });
+
+  it('saves itinerary with content for review without departures', async () => {
+    mocks.save.mockReturnValue({ unwrap: () => Promise.resolve({ id: 'saved-tour' }) });
+    mocks.review.mockReturnValue({ unwrap: () => Promise.resolve({ status: 'PENDING_REVIEW' }) });
+    render(<AgencyTourEditorPage mode="create" />);
+    completeRequiredFields('review');
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/agency/tours/saved-tour'));
+    expect(mocks.save).toHaveBeenCalledTimes(1);
+    expect(mocks.review).toHaveBeenCalledWith('saved-tour');
+    expect(mocks.save.mock.calls[0][0].itinerary).toEqual([expect.objectContaining({ day: 1, title: 'Khám phá vịnh' })]);
+  });
+
+  it('preserves the saved tour on review failure and prevents duplicate create on repeated clicks', async () => {
+    mocks.save.mockReturnValue({ unwrap: () => Promise.resolve({ id: 'saved-tour' }) });
+    mocks.review.mockReturnValue({ unwrap: () => Promise.reject({ status: 403 }) });
+    render(<AgencyTourEditorPage mode="create" />);
+    completeRequiredFields('review');
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/agency/tours/saved-tour?review=failed'));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Đang lưu...' })[0]);
+    expect(mocks.save).toHaveBeenCalledTimes(1);
+    expect(mocks.review).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not submit for review if saving failed', async () => {
+    mocks.save.mockReturnValue({ unwrap: () => Promise.reject({ status: 'FETCH_ERROR' }) });
+    render(<AgencyTourEditorPage mode="create" />);
+    completeRequiredFields('review');
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    expect(mocks.review).not.toHaveBeenCalled();
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
   it('moves to the next field with Enter and keeps Shift+Enter for textarea newlines', () => {
     render(<AgencyTourEditorPage mode="create" />);
     const title = screen.getByRole('textbox', { name: 'Tên tour' });
@@ -74,7 +141,7 @@ describe('Tour editor inline reminders', () => {
     mocks.memberRole.current = 'STAFF';
     render(<AgencyTourEditorPage mode="create" />);
     expect(screen.getByRole('alert').textContent).toContain('Chỉ Chủ đại lý hoặc Quản lý');
-    expect(screen.queryByRole('button', { name: 'Tạo tour & Tiếp tục' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Lưu bản nháp' })).toBeNull();
   });
 
   it('shows locked tour details instead of disabled edit fields', () => {
@@ -88,7 +155,7 @@ describe('Tour editor inline reminders', () => {
   it('shows errors below fields after continuing, clears corrected errors and labels optional fields without red asterisks', () => {
     const { container } = render(<AgencyTourEditorPage mode="create" />);
     expect(screen.queryByRole('alert')).toBeNull();
-    fireEvent.click(screen.getAllByRole('button', { name: 'Tạo tour & Tiếp tục' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lưu bản nháp' })[0]);
     const title = screen.getByRole('textbox', { name: 'Tên tour' });
     const hint = document.getElementById(title.getAttribute('aria-describedby')!);
     expect(title.getAttribute('aria-invalid')).toBe('true');
@@ -183,6 +250,7 @@ describe('Tour editor edit mode & unsaved changes handling', () => {
     exclusions: ['Chi phí cá nhân'],
     cancellationPolicy: 'Hủy trước 7 ngày được hoàn 50%.',
     status: 'DRAFT',
+    itinerary: [{ day: 1, toDay: 3, title: 'Khám phá Ba Bể', activities: [] }],
   };
 
   it('locks pricing and sends only allowed changed fields for STAFF', async () => {
@@ -213,6 +281,26 @@ describe('Tour editor edit mode & unsaved changes handling', () => {
     // Clicking it should not call save
     fireEvent.click(buttons[0]);
     expect(mocks.save).not.toHaveBeenCalled();
+  });
+
+  it('can submit an unchanged saved draft from the editor', async () => {
+    mocks.tourData.current = existingTour;
+    mocks.save.mockReturnValue({ unwrap: () => Promise.resolve(existingTour) });
+    mocks.review.mockReturnValue({ unwrap: () => Promise.resolve({ status: 'PENDING_REVIEW' }) });
+    render(<AgencyTourEditorPage mode="edit" />);
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Các bước tạo tour' })).getByRole('button', { name: /Chính sách/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu & gửi duyệt' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận gửi duyệt' }));
+    await waitFor(() => expect(mocks.review).toHaveBeenCalledWith('tour-123'));
+    expect(mocks.save).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/agency/tours/tour-123'));
+  });
+
+  it('does not offer re-submission for an approved tour', () => {
+    mocks.tourData.current = { ...existingTour, status: 'APPROVED' };
+    render(<AgencyTourEditorPage mode="edit" />);
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Các bước tạo tour' })).getByRole('button', { name: /Chính sách/i }));
+    expect(screen.queryByRole('button', { name: 'Lưu & gửi duyệt' })).toBeNull();
   });
 
   it('enables save button as soon as an edit is made in edit mode', () => {
@@ -339,7 +427,7 @@ describe('Tour editor edit mode & unsaved changes handling', () => {
     expect(mocks.save).not.toHaveBeenCalled();
   });
 
-  it('edits adult, child, and infant max counts in step 3 dropdown and sends updated maxGroupSize + agePricing', async () => {
+  it('edits maxGroupSize in step 3 input and sends updated maxGroupSize and agePricing', async () => {
     mocks.tourData.current = {
       ...existingTour,
       maxGroupSize: 15,
@@ -350,21 +438,14 @@ describe('Tour editor edit mode & unsaved changes handling', () => {
         infantPercent: 100,
         childPrice: 1200000,
         infantPrice: 0,
-        adultMaxCount: 10,
-        childMaxCount: 4,
-        infantMaxCount: 1,
       },
     };
     mocks.save.mockReturnValue({ unwrap: () => Promise.resolve({ id: 'tour-123' }) });
     render(<AgencyTourEditorPage mode="edit" />);
 
-    const capacityTrigger = screen.getByRole('button', { name: 'Số khách tối đa / đoàn' });
-    expect(capacityTrigger.textContent).toContain('15 khách (10 người lớn, 4 trẻ em, 1 em bé)');
-    fireEvent.click(capacityTrigger);
-
-    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Số người lớn' })).toBeDefined());
-    fireEvent.click(screen.getByRole('button', { name: 'Tăng số người lớn' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Tăng số em bé' }));
+    const capacityInput = screen.getByLabelText('Số khách tối đa / đoàn') as HTMLInputElement;
+    expect(capacityInput.value).toBe('15');
+    fireEvent.change(capacityInput, { target: { value: '25' } });
 
     const saveButtons = screen.getAllByRole('button', { name: 'Lưu thay đổi' });
     fireEvent.click(saveButtons[0]);
@@ -372,11 +453,8 @@ describe('Tour editor edit mode & unsaved changes handling', () => {
 
     await waitFor(() => expect(mocks.save).toHaveBeenCalled());
     const savedPayload = mocks.save.mock.calls[0][0];
-    expect(savedPayload.body.maxGroupSize).toBe(17);
+    expect(savedPayload.body.maxGroupSize).toBe(25);
     expect(savedPayload.body.agePricing).toEqual(expect.objectContaining({
-      adultMaxCount: 11,
-      childMaxCount: 4,
-      infantMaxCount: 2,
       childPrice: 1200000,
       infantPrice: 0,
     }));

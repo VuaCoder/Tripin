@@ -23,6 +23,7 @@ import { SimilarToursSection } from './SimilarToursSection';
 import { saveRecentlyViewedTour } from '../../utils';
 import { readSearchGuests } from '../../utils/searchContext';
 import styles from './tour-detail.module.css';
+import { formatVnd } from '@/lib/travel-format';
 export function TourDetailView({ tour }: { tour: TourReviewContext }) {
   const searchParams = useSearchParams();
   const [tab, setTab] = useState('lich-trinh');
@@ -161,6 +162,8 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
           />
         </div>
       )}
+      {tour.meetingPoint && <p className="mb-6 rounded-xl bg-teal-50 p-4 text-sm leading-6 text-teal-950"><strong>Điểm tập trung:</strong> {tour.meetingPoint}</p>}
+      {!!tour.optionalServices?.filter(s => s.active).length && <section className="mb-7 border-y border-slate-200 py-5"><h2 className="text-lg font-bold text-slate-900">Dịch vụ có thể đặt thêm</h2><p className="mt-1 text-sm text-slate-600">Chọn dịch vụ và người sử dụng khi nhập thông tin đặt tour.</p><ul className="mt-3 divide-y divide-slate-100">{tour.optionalServices.filter(s => s.active).map(s => <li key={s.id} className="flex justify-between gap-5 py-3 text-sm"><div><strong>{s.name}</strong><p className="mt-1 leading-6 text-slate-600">{s.description}</p>{s.pickup && <p className="text-slate-600">Khu vực đón: {s.pickup.area}</p>}</div><span className="shrink-0 font-semibold text-teal-800">{s.price ? formatVnd(s.price) : 'Miễn phí'}<small className="mt-1 block text-right font-normal text-slate-600">/ {s.pricing === 'PER_PERSON' ? 'người' : s.pricing === 'PER_BOOKING' ? 'booking' : s.unit}</small></span></li>)}</ul></section>}
       <div className={styles.tabs} role="tablist" aria-label="Nội dung tour">{[['lich-trinh', 'Lịch trình'], ['chinh-sach-gia', 'Chính sách giá'], ['huong-dan', 'Hướng dẫn']].map(([id, label], index, tabs) => <button type="button" role="tab" key={id} id={`tab-${id}`} aria-controls={`panel-${id}`} aria-selected={tab === id} tabIndex={tab === id ? 0 : -1} onClick={() => setTab(id)} onKeyDown={event => {
         let next = index;
         if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;

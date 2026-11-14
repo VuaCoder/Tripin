@@ -44,6 +44,7 @@ function expectError(res: Response, code: string): void {
 
 // Codes covered by focused service/provider tests or requiring a specific concurrent failure.
 const COVERED_ELSEWHERE: Record<string, string> = {
+  AGENCY_PORTAL_REQUIRED: 'auth.service.test.ts verifies the legacy customer-registration portal guard; HTTP validation rejects AGENCY earlier',
   PAYOUT_NOT_CONFIGURED: 'payout-account.crypto.test.ts verifies missing encryption keys fail closed',
   PAYOUT_ACCOUNT_UNAVAILABLE: 'payout-account.crypto.test.ts verifies tampered and wrong-owner envelopes fail closed',
   BOOKING_NOT_CONFIRMED: 'e-tickets.lifecycle.integration.test.ts verifies issuance after cancellation is rejected',
@@ -127,13 +128,16 @@ describe('error contract over HTTP', () => {
     const tourId = tour.body.data.id;
     expectError(await request(app).post(`/api/v1/moderation/tours/${tourId}/validate`).set(bearer(moderator.token)).send({ approve: true }), 'INVALID_STATE_TRANSITION');
 
-    // Submitting without any departure.
-    expectError(await request(app).post(`/api/v1/agency/tours/${tourId}/submit`).set(bearer(agency.token)), 'NO_OPEN_DEPARTURE');
     // Itinerary day beyond the duration.
     expectError(
       await request(app).put(`/api/v1/agency/tours/${tourId}/itinerary`).set(bearer(agency.token)).send({ days: [{ day: 9, title: 'Too far away' }] }),
       'ITINERARY_EXCEEDS_DURATION',
     );
+    // Itinerary is review content; departures remain optional until scheduling.
+    expectError(await request(app).post(`/api/v1/agency/tours/${tourId}/submit`).set(bearer(agency.token)), 'ITINERARY_INCOMPLETE');
+    expect((await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(agency.token)).send({ itinerary: [{ day: 1, toDay: 2, title: 'Explore the bay' }] })).status).toBe(200);
+    expect((await request(app).post(`/api/v1/agency/tours/${tourId}/submit`).set(bearer(agency.token))).status).toBe(202);
+    expectError(await request(app).post(`/api/v1/agency/tours/${tourId}/submit`).set(bearer(agency.token)), 'INVALID_STATE_TRANSITION');
   });
 
   it('accounts and sessions', async () => {
@@ -170,13 +174,30 @@ describe('error contract over HTTP', () => {
     // AGENCY_NOT_VERIFIED is now unreachable over HTTP: every /agency/* mount checks the profile first
     // and answers a plain 403. The service guard stays covered by tours.service.test.ts (see COVERED_ELSEWHERE).
 
-    // Agency portal separation: an agency account cannot use the traveler login, and an unfinished agency
-    // registration cannot sign in through the agency portal.
+    // Identity login is shared; only legacy agency registration/OTP routes retain portal guards.
     const passwordHash = await bcrypt.hash(PASSWORD, 4);
     await createUser('AGENCY', 'agency-login@example.com', { passwordHash });
-    expectError(await request(app).post('/api/v1/auth/login').send({ email: 'agency-login@example.com', password: PASSWORD }), 'AGENCY_PORTAL_REQUIRED');
+    expect((await request(app).post('/api/v1/auth/login').send({ email: 'agency-login@example.com', password: PASSWORD })).status).toBe(200);
+    expectError(await request(app).post('/api/v1/auth/register').send({ email: 'new-agency@example.com', password: PASSWORD, fullName: 'Agency Tester', role: 'AGENCY' }), 'VALIDATION_ERROR');
     await createUser('AGENCY', 'agency-pending@example.com', { passwordHash, status: 'PENDING_VERIFICATION' });
-    expectError(await request(app).post('/api/v1/auth/agency/login').send({ email: 'agency-pending@example.com', password: PASSWORD }), 'AGENCY_ONBOARDING_REQUIRED');
+    expectError(await request(app).post('/api/v1/auth/agency/login').send({ email: 'agency-pending@example.com', password: PASSWORD }), 'ACCOUNT_NOT_VERIFIED');
+    expectError(await request(app).post('/api/v1/auth/agency/verify-otp').send({ email: 'agency-pending@example.com', code: '000000', purpose: 'REGISTER' }), 'AGENCY_ONBOARDING_REQUIRED');
+  });
+
+  it('booking quote, optional service and idempotency conflicts', async () => {
+    await resetDatabase();
+    const agency = await createVerifiedAgency('extras-agency@example.com');
+    const traveler = await createUser('TRAVELER', 'extras-traveler@example.com');
+    const { tourId, departureId } = await createApprovedTour(agency.id);
+    const body = { tourId, departureId, participants: 1, contact, clientRequestId: 'extras-contract-retry' };
+    expectError(await request(app).post('/api/v1/bookings').set(bearer(traveler.token)).send({ ...body, expectedTourSubtotal: 1 }), 'BOOKING_QUOTE_CHANGED');
+    const passengerId = randomUUID();
+    expectError(await request(app).post('/api/v1/bookings/quote').set(bearer(traveler.token)).send({ ...body,
+      passengers: [{ passengerId, fullName: 'Nguyen Lan', ageGroup: 'ADULT' }],
+      services: [{ serviceId: randomUUID(), terms: 'outdated', passengerIds: [passengerId], quantity: 1, pickups: [] }],
+    }), 'SERVICE_SELECTION_INVALID');
+    expect((await request(app).post('/api/v1/bookings').set(bearer(traveler.token)).send(body)).status).toBe(201);
+    expectError(await request(app).post('/api/v1/bookings').set(bearer(traveler.token)).send({ ...body, contact: { ...contact, fullName: 'Changed Passenger' } }), 'BOOKING_REQUEST_CHANGED');
   });
 
   it('tours, categories and promotions', async () => {

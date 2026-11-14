@@ -18,6 +18,8 @@ const P = PERMISSIONS;
 
 /** Mounted at /api/v1/bookings — the logged-in traveler's bookings. */
 export const bookingsRouter = Router();
+bookingsRouter.post('/quote', requirePermission(P.BOOKING_CREATE), requireVerifiedTraveler,
+  validate({ body: createBookingBody }), bookingsController.quote);
 bookingsRouter.post(
   '/',
   requirePermission(P.BOOKING_CREATE),

@@ -88,3 +88,5 @@ blender/
 # AI Agent local skills
 .agents/
 skills-lock.json
+.codex/
+tripin-pr61-resolve/

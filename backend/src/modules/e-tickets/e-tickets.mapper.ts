@@ -6,6 +6,7 @@ export function toETicketDto(ticket: ETicketRecord | EnrichedETicketRecord): ETi
   const enriched = ticket as EnrichedETicketRecord;
   return {
     id: ticket.id,
+    services: enriched.bookingDetails?.serviceSnapshot as import('@travel-platform/constants').BookedExtra[] | undefined,
     code: ticket.code,
     status: ticket.status as ETicketStatus,
     booking: {
@@ -27,7 +28,7 @@ export function toETicketDto(ticket: ETicketRecord | EnrichedETicketRecord): ETi
       ...(enriched.tourDetails
         ? {
             destination: enriched.tourDetails.destination,
-            meetingPoint: enriched.tourDetails.meetingPoint ?? undefined,
+            meetingPoint: enriched.bookingDetails?.meetingPointSnapshot ?? enriched.tourDetails.meetingPoint ?? undefined,
             durationDays: enriched.tourDetails.durationDays,
             coverImage: enriched.tourDetails.images?.[0],
           }

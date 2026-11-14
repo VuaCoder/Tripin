@@ -38,6 +38,55 @@ export interface ModerationDashboard {
   reviews?: { visible?: number; hidden: number };
 }
 
+export interface ModerationTourDeparture {
+  id: string;
+  date: string;
+  capacity: number;
+  bookedCount?: number;
+  remaining?: number;
+  price?: number;
+  priceOverride?: number | null;
+  isOpen?: boolean;
+}
+
+export interface ModerationTourDetail extends ModerationTour {
+  categoryIds?: string[];
+  categories?: { id: string; name: string }[];
+  ratingAvg?: number;
+  ratingCount?: number;
+  maxGroupSize?: number | null;
+  meetingPoint?: string | null;
+  highlights?: string[];
+  optionalServices?: Array<{
+    id: string;
+    kind: string;
+    name: string;
+    description?: string;
+    price: number;
+    unit: string;
+    pricing?: 'PER_PERSON' | 'PER_BOOKING';
+    active: boolean;
+    pickup?: {
+      area: string;
+      mode: 'ONE_WAY' | 'ROUND_TRIP';
+    };
+  }>;
+  childPricingPolicy?: string | null;
+  agePricing?: {
+    adultPrice?: number;
+    childPrice?: number | null;
+    childPricePercentage?: number | null;
+    infantPrice?: number | null;
+    infantPricePercentage?: number | null;
+  } | null;
+  cancellationPolicy?: string | null;
+  requiredDocuments?: string | null;
+  travelNotes?: string | null;
+  departures?: ModerationTourDeparture[];
+  visibility?: string;
+  guide?: { id: string; fullName: string; avatarUrl?: string } | null;
+}
+
 export interface ModerationTour {
   id: string;
   title: string;

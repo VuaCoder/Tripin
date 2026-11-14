@@ -16,6 +16,7 @@ import type {
   ModerationTicket,
   ModerationTicketSummary,
   ModerationTour,
+  ModerationTourDetail,
   ResolveReportInput,
   SuspendTourInput,
   TicketReplyInput,
@@ -55,6 +56,12 @@ export const moderationApi = baseApi.injectEndpoints({
       query: (args) => ({ url: '/moderation/tours', params: { page: 1, limit: 10, ...(args ?? {}) } }),
       transformResponse: (r: ModerationApiResponse<ModerationTour[]>) => toList(r),
       providesTags: [TOURS_TAG],
+    }),
+
+    getModerationTour: build.query<ModerationTourDetail, string>({
+      query: (id) => ({ url: `/moderation/tours/${id}` }),
+      transformResponse: (r: ModerationApiResponse<ModerationTourDetail>) => unwrap(r),
+      providesTags: (result, error, id) => [{ type: 'Moderation', id: `TOUR-${id}` }],
     }),
 
     validateTour: build.mutation<ModerationTour, ValidateTourInput>({
@@ -167,6 +174,7 @@ export const moderationApi = baseApi.injectEndpoints({
 export const {
   useGetModerationDashboardQuery,
   useGetModerationToursQuery,
+  useGetModerationTourQuery,
   useValidateTourMutation,
   useSuspendTourMutation,
   useGetModerationAgenciesQuery,

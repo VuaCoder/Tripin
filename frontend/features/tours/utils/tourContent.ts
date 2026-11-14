@@ -1,8 +1,11 @@
 import type { TourContentInput, TourDetail } from '../types';
 
 /** The editor form value for a tour. One mapping for the full agency editor and the chat offer panel. */
-export function toTourContentInput(tour: TourDetail): TourContentInput {
+export function toTourContentInput(tour: TourDetail, includeItinerary = false): TourContentInput {
   return {
+    ...(includeItinerary ? { itinerary: (tour.itinerary ?? []).map(day => ({ ...day, toDay: day.toDay ?? undefined, description: day.description ?? '', activities: [...(day.activities ?? [])] })) } : {}),
+    optionalServices: tour.optionalServices ?? [],
+    meetingPoint: tour.meetingPoint ?? '',
     title: tour.title ?? '',
     summary: tour.summary ?? '',
     description: tour.description ?? '',

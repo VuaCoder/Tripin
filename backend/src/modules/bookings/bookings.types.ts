@@ -21,6 +21,8 @@ export interface CustomTourBookingInput {
 }
 
 export interface CreateBookingInput {
+  services?: import('@travel-platform/constants').ExtraSelection[];
+  expectedTourSubtotal?: number;
   passengers?: BookingPassenger[];
   premiumVoucherId?: string;
   guestCounts?: GuestCounts;
@@ -37,6 +39,7 @@ export interface CreateBookingInput {
 }
 
 export interface BookingPassenger {
+  passengerId?: string;
   fullName: string;
   birthYear?: number;
   ageGroup: 'ADULT' | 'CHILD' | 'INFANT';
@@ -67,6 +70,9 @@ export interface PromotionRedemptionDto {
 }
 
 export interface BookingDto {
+  services?: import('@travel-platform/constants').BookedExtra[];
+  servicesSubtotal?: number;
+  meetingPoint?: string;
   premiumVoucherId?: string;
   guestPricing?: import('@travel-platform/constants').GuestPriceBreakdown;
   id: string;
@@ -102,6 +108,9 @@ export interface BookingDto {
 
 /** "View bookings status" for agencies: money split included, traveler contact only once the booking is confirmed. */
 export interface AgencyBookingDto {
+  services?: import('@travel-platform/constants').BookedExtra[];
+  servicesSubtotal?: number;
+  meetingPoint?: string;
   id: string;
   bookingCode: string;
   status: BookingStatus;
@@ -124,6 +133,8 @@ export interface AgencyBookingDto {
 
 /** Minimal immutable facts other modules (payments, e-tickets, earnings, reviews) need about a booking. */
 export interface BookingFacts {
+  services?: import('@travel-platform/constants').BookedExtra[];
+  meetingPoint?: string;
   id: string;
   bookingCode: string;
   status: BookingStatus;

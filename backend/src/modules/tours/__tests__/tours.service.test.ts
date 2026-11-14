@@ -100,7 +100,7 @@ describe('create / import', () => {
   });
 
   it('deduplicates tour creation when identical draft was created recently', async () => {
-    const existing = { id: 'existing-draft-id', title: 'Ha Long 3D2N', destination: 'Quang Ninh', status: 'DRAFT' };
+    const existing = { ...content, id: 'existing-draft-id', status: 'DRAFT' };
     const repo = {
       create: vi.fn(),
       findRecentDraft: vi.fn(async () => existing),
@@ -113,6 +113,26 @@ describe('create / import', () => {
     expect(result).toEqual({ id: 'existing-draft-id' });
     expect(repo.findRecentDraft).toHaveBeenCalledWith('a1', 'Ha Long 3D2N', 'Quang Ninh', 5000);
     expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  it('does not silently reuse a recent draft with a different itinerary', async () => {
+    const { service, repo } = setup(null);
+    Object.assign(repo, { findRecentDraft: vi.fn(async () => ({ ...content, id: 'old', itinerary: [] })) });
+    await service.createTour('a1', { ...content, itinerary: [{ day: 1, toDay: 3, title: 'New program' }] });
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ itinerary: [{ day: 1, toDay: 3, title: 'New program', activities: [] }] }));
+  });
+
+  it('rejects invalid initial program without writing a tour', async () => {
+    const { service, repo } = setup(null);
+    await expect(service.createTour('a1', { ...content, itinerary: [{ day: 4, title: 'Beyond duration' }] })).rejects.toMatchObject({ code: 'ITINERARY_EXCEEDS_DURATION' });
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  it('does not reuse a nonempty program when the new draft deliberately has none', async () => {
+    const { service, repo } = setup(null);
+    Object.assign(repo, { findRecentDraft: vi.fn(async () => ({ ...content, id: 'old', itinerary: [{ day: 1, title: 'Old program' }] })) });
+    await service.createTour('a1', content);
+    expect(repo.create).toHaveBeenCalled();
   });
 });
 
@@ -187,6 +207,13 @@ describe('edit rules', () => {
   it('refuses to shorten the tour below the configured itinerary', async () => {
     const { service } = setup(makeTour({ itinerary: [{ day: 3, title: 'Day 3' }] }));
     await expect(service.updateTour('a1', 't1', { durationDays: 2 })).rejects.toMatchObject({ code: 'ITINERARY_EXCEEDS_DURATION' });
+  });
+
+  it('allows shortening the duration and fixing the program atomically', async () => {
+    const { service, db } = setup(makeTour({ itinerary: [{ day: 1, toDay: 3, title: 'Three days', activities: [] }] }));
+    await service.updateTour('a1', 't1', { durationDays: 2, itinerary: [{ day: 1, toDay: 2, title: 'Two days' }] });
+    expect(db!.durationDays).toBe(2);
+    expect(db!.itinerary).toEqual([{ day: 1, toDay: 2, title: 'Two days', activities: [] }]);
   });
 
   it('refuses to shorten the tour below the itinerary toDay range', async () => {
@@ -292,7 +319,8 @@ describe('availability', () => {
 });
 
 describe('submit for review', () => {
-  const ready = () => makeTour({ departures: [departure()] });
+  const program = [{ day: 1, toDay: 3, title: 'Khám phá Hạ Long', activities: [] }];
+  const ready = () => makeTour({ departures: [departure()], itinerary: program });
 
   it('moves DRAFT to PENDING_REVIEW for a verified agency', async () => {
     const { service, db, users } = setup(ready());
@@ -307,9 +335,24 @@ describe('submit for review', () => {
     await expect(service.submitForReview('a1', 't1')).rejects.toMatchObject({ code: 'AGENCY_NOT_VERIFIED' });
   });
 
-  it('requires an open future departure', async () => {
-    const { service } = setup(makeTour({ departures: [departure({ date: future(-3) })] }));
-    await expect(service.submitForReview('a1', 't1')).rejects.toMatchObject({ code: 'NO_OPEN_DEPARTURE' });
+  it.each(['none', 'past', 'closed', 'sold-out'] as const)('allows content review with %s departures', async (state) => {
+    const departures = state === 'none' ? [] : [departure(state === 'past' ? { date: future(-3) } : state === 'closed' ? { isOpen: false } : { remaining: 0 })];
+    const { service, db } = setup(makeTour({ departures, itinerary: program }));
+    await service.submitForReview('a1', 't1');
+    expect(db!.status).toBe(TOUR_STATUS.PENDING_REVIEW);
+    expect(db!.departures).toEqual(departures);
+    expect(db!.itinerary).toEqual(program);
+  });
+
+  it('still requires a category', async () => {
+    const { service } = setup(makeTour({ categoryIds: [], departures: [] }));
+    await expect(service.submitForReview('a1', 't1')).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('saves partial programs but rejects submitting them until all days are covered', async () => {
+    const { service, db } = setup(makeTour({ itinerary: [{ day: 1, title: 'Ngày đầu' }] }));
+    await expect(service.submitForReview('a1', 't1')).rejects.toMatchObject({ code: 'ITINERARY_INCOMPLETE' });
+    expect(db!.status).toBe('DRAFT');
   });
 
   it('cannot be submitted twice', async () => {
@@ -348,7 +391,7 @@ describe('moderation', () => {
   });
 
   it('lets the agency resubmit a rejected tour', async () => {
-    const { service, db } = setup(makeTour({ status: TOUR_STATUS.REJECTED, departures: [departure()] }));
+    const { service, db } = setup(makeTour({ status: TOUR_STATUS.REJECTED, departures: [departure()], itinerary: [{ day: 1, toDay: 3, title: 'Chương trình đã sửa' }] }));
     await service.submitForReview('a1', 't1');
     expect(db!.status).toBe(TOUR_STATUS.PENDING_REVIEW);
   });
