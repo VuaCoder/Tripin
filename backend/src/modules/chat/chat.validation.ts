@@ -4,7 +4,12 @@ import { idParamsSchema, idSchema } from '../../utils/id';
 import { paginationQuerySchema } from '../../utils/pagination';
 import { CHAT_LIMITS } from './chat.types';
 
-export const startConversationBody = z.object({ participantId: idSchema, tourId: idSchema.optional() }).strict();
+export const startConversationBody = z
+  .object({ participantId: idSchema.optional(), agencyId: idSchema.optional(), tourId: idSchema.optional() })
+  .strict()
+  .refine((body) => Boolean(body.participantId) !== Boolean(body.agencyId), {
+    message: 'Provide either participantId or agencyId',
+  });
 
 export const sendMessageBody = z
   .object({

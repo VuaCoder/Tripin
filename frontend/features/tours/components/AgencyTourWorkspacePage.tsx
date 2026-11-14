@@ -30,7 +30,8 @@ export function AgencyTourWorkspacePage() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const requestedEdit = searchParams?.get('edit');
-  const canView = useAgencyPermission('tour:update-own');
+  const canView = useAgencyPermission('agency:tour-view');
+  const canEditBasics = useAgencyPermission('tour:update-own');
   const canEditItinerary = useAgencyPermission('tour:configure-itinerary');
   const canManageLifecycle = useAgencyPermission('tour:delete-own');
   const canManageAvailability = useAgencyPermission('tour:set-availability');
@@ -354,7 +355,7 @@ export function AgencyTourWorkspacePage() {
           </button>
         ) : null) : (
           <>
-            <Link
+            {canEditBasics && <Link
               href={`/agency/tours/${id}/edit?from=/agency/tours/${id}`}
               onClick={(event) => { if (locked || !confirmDiscard()) event.preventDefault(); }}
               aria-disabled={locked}
@@ -366,7 +367,7 @@ export function AgencyTourWorkspacePage() {
             >
               <Edit3 size={15} />
               <span>Sửa nội dung tour</span>
-            </Link>
+            </Link>}
 
             {canManageLifecycle && tour.status !== 'APPROVED' && (
               <button

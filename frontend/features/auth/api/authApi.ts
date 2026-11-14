@@ -20,6 +20,11 @@ export const authApi = baseApi.injectEndpoints({
       transformResponse: (response: AuthApiResponse<LoginResultData>) => response.data,
       invalidatesTags: ['Auth'],
     }),
+    agencyLogin: build.mutation<LoginResultData, LoginRequest>({
+      query: (body) => ({ url: '/auth/agency/login', method: 'POST', body }),
+      transformResponse: (response: AuthApiResponse<LoginResultData>) => response.data,
+      invalidatesTags: ['Auth'],
+    }),
     register: build.mutation<RegisterResultData, RegisterRequest>({
       query: (body) => ({ url: '/auth/register', method: 'POST', body }),
       transformResponse: (response: AuthApiResponse<RegisterResultData>) => response.data,
@@ -59,6 +64,7 @@ export const authApi = baseApi.injectEndpoints({
 
 export const {
   useLoginMutation,
+  useAgencyLoginMutation,
   useRegisterMutation,
   useVerifyOtpMutation,
   useResendOtpMutation,

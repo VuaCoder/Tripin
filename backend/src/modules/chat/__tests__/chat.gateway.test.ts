@@ -21,7 +21,7 @@ const CONV = '11111111-1111-4111-8111-111111111111';
 let server: http.Server;
 let url: string;
 let clients: Socket[] = [];
-let chat: { sendMessage: ReturnType<typeof vi.fn>; markRead: ReturnType<typeof vi.fn>; getCounterpartId: ReturnType<typeof vi.fn>; setPublisher: ReturnType<typeof vi.fn>; setReadPublisher: ReturnType<typeof vi.fn> };
+let chat: { sendMessage: ReturnType<typeof vi.fn>; markRead: ReturnType<typeof vi.fn>; getTypingRecipientIds: ReturnType<typeof vi.fn>; setPublisher: ReturnType<typeof vi.fn>; setReadPublisher: ReturnType<typeof vi.fn> };
 let publisher: (userId: string, event: unknown) => void;
 
 const client = (token?: string) => {
@@ -36,7 +36,7 @@ beforeEach(async () => {
   chat = {
     sendMessage: vi.fn(async (userId: string, _c: string, text: string) => ({ id: 'm1', text, senderId: userId })),
     markRead: vi.fn(async () => ({ unreadCount: 0 })),
-    getCounterpartId: vi.fn(async () => 'g1'),
+    getTypingRecipientIds: vi.fn(async () => ['g1']),
     setPublisher: vi.fn((fn) => { publisher = fn; }),
     setReadPublisher: vi.fn(),
   };

@@ -11,6 +11,7 @@ import {
   requirePermission,
   userActor,
 } from '../../middlewares/authorize';
+import { agencyContext } from '../../middlewares/agency-context';
 import { PERMISSIONS } from '@travel-platform/constants';
 import { validate } from '../../middlewares/validate';
 import { AppError } from '../../utils/app-error';
@@ -263,7 +264,7 @@ agencyPremiumRouter.use(
   requirePermission(PERMISSIONS.PREMIUM_CONTRIBUTE),
 );
 agencyPremiumRouter.get('/contributions', async (req, res) =>
-  sendOk(res, await repo.contributions(userActor(req).userId)),
+  sendOk(res, await repo.contributions(agencyContext(req).agencyId)),
 );
 agencyPremiumRouter.post(
   '/contributions',
@@ -272,7 +273,7 @@ agencyPremiumRouter.post(
     sendCreated(
       res,
       await repo.contribute(
-        userActor(req).userId,
+        agencyContext(req).agencyId,
         contributionBody.parse(req.body),
       ),
     ),
@@ -281,12 +282,12 @@ agencyPremiumRouter.post(
   '/contributions/:id/stop',
   validate({ params: paramsSchema }),
   async (req, res) => {
-    await repo.stopContribution(id(req.params.id), userActor(req).userId);
+    await repo.stopContribution(id(req.params.id), agencyContext(req).agencyId);
     sendOk(res, { stopped: true });
   },
 );
 agencyPremiumRouter.get('/usage', async (req, res) => {
-  const contributions = await repo.contributions(userActor(req).userId);
+  const contributions = await repo.contributions(agencyContext(req).agencyId);
   const ids = contributions.map((c) => c.id);
   const usage = await prisma.premiumVoucher.groupBy({
     by: ['contributionId'],
