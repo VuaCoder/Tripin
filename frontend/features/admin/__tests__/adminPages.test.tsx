@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   session: vi.fn(), dashboard: vi.fn(), promotions: vi.fn(), detail: vi.fn(), createPromotion: vi.fn(), updatePromotion: vi.fn(),
   users: vi.fn(), access: vi.fn(), categories: vi.fn(), createCategory: vi.fn(), updateCategory: vi.fn(), deactivate: vi.fn(),
   commission: vi.fn(), saveCommission: vi.fn(), agenciesCommission: vi.fn(), saveAgencyCommission: vi.fn(), policies: vi.fn(), savePolicy: vi.fn(),
+  commissionRequests: vi.fn(), approveRequest: vi.fn(), rejectRequest: vi.fn(),
 }));
 vi.mock('../components/AdminUi', async (original) => ({ ...await original<object>(), useAdminSession: () => mocks.session() }));
 vi.mock('../api/adminApi', () => ({
@@ -30,6 +31,9 @@ vi.mock('../api/adminApi', () => ({
   useSetAdminCommissionMutation: () => [mocks.saveCommission, { isLoading: false }],
   useGetAgencyCommissionsQuery: (...args: unknown[]) => mocks.agenciesCommission(...args),
   useSetAgencyCommissionMutation: () => [mocks.saveAgencyCommission, { isLoading: false }],
+  useGetAgencyCommissionRequestsQuery: (...args: unknown[]) => mocks.commissionRequests(...args),
+  useApproveAgencyCommissionRequestMutation: () => [mocks.approveRequest, { isLoading: false }],
+  useRejectAgencyCommissionRequestMutation: () => [mocks.rejectRequest, { isLoading: false }],
   useGetAdminPoliciesQuery: (...args: unknown[]) => mocks.policies(...args),
   useSetAdminPolicyMutation: () => [mocks.savePolicy, { isLoading: false }],
 }));
@@ -44,9 +48,10 @@ beforeEach(() => {
   mocks.categories.mockReturnValue(query([{ id: 'cat', name: 'Beach', slug: 'beach', isActive: true, sortOrder: 0 }]));
   mocks.commission.mockReturnValue(query({ ratePercent: 10, rateBps: 1000 }));
   mocks.agenciesCommission.mockReturnValue(query([]));
+  mocks.commissionRequests.mockReturnValue(query({ items: [], meta }));
   mocks.policies.mockReturnValue(query([policy]));
   mocks.detail.mockReturnValue({ unwrap: () => Promise.resolve(promotion) });
-  for (const mutation of [mocks.createPromotion, mocks.updatePromotion, mocks.access, mocks.createCategory, mocks.updateCategory, mocks.deactivate, mocks.saveCommission, mocks.saveAgencyCommission, mocks.savePolicy]) mutation.mockImplementation(() => reject());
+  for (const mutation of [mocks.createPromotion, mocks.updatePromotion, mocks.access, mocks.createCategory, mocks.updateCategory, mocks.deactivate, mocks.saveCommission, mocks.saveAgencyCommission, mocks.savePolicy, mocks.approveRequest, mocks.rejectRequest]) mutation.mockImplementation(() => reject());
 });
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 

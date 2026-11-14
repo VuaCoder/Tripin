@@ -3,8 +3,13 @@ import type { UserSummary } from '../users';
 import type { ConversationRecord, MessageRecord } from './chat.repository';
 import type { ChatSide, ConversationDto, MessageDto } from './chat.types';
 
-export function sideOf(conversation: Pick<ConversationRecord, 'travelerId' | 'guideId'>, userId: string): ChatSide | null {
+export function sideOf(
+  conversation: Pick<ConversationRecord, 'travelerId' | 'guideId' | 'agencyId'>,
+  userId: string,
+  agencyId?: string,
+): ChatSide | null {
   if (conversation.travelerId === userId) return 'traveler';
+  if (conversation.agencyId) return conversation.agencyId === agencyId ? 'guide' : null;
   if (conversation.guideId === userId) return 'guide';
   return null;
 }

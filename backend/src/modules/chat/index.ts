@@ -1,5 +1,5 @@
 // Public surface of chat.
-export { chatRouter } from './chat.routes';
+export { chatRouter, agencyChatRouter } from './chat.routes';
 export { chatService, ChatService } from './chat.service';
 export { attachChatGateway, disconnectUserSessions, emitChatUpdated } from './chat.gateway';
 export { canConverse } from './chat.policy';

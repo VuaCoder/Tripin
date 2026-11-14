@@ -21,7 +21,7 @@ import { eTicketsRouter, guideETicketsRouter } from '../modules/e-tickets';
 import { reviewsRouter } from '../modules/reviews';
 import { subscriptionsRouter } from '../modules/subscriptions';
 import { earningsRouter } from '../modules/earnings';
-import { chatRouter } from '../modules/chat';
+import { agencyChatRouter, chatRouter } from '../modules/chat';
 import { aiRouter } from '../modules/ai';
 import { agencyComplaintsRouter, agencyReviewDisputesRouter, reportsRouter } from '../modules/reports';
 import { agencyComplaintTicketsRouter, moderatorComplaintTicketsRouter, travelerComplaintsRouter } from '../modules/complaints';
@@ -30,6 +30,7 @@ import { moderationRouter } from '../modules/moderation';
 import { adminDashboardRouter, agencyDashboardRouter, moderationDashboardRouter } from '../modules/dashboards';
 import { adminPoliciesRouter, adminSettingsRouter, publicPoliciesRouter } from '../modules/system-settings';
 import { adminUsersRouter, publicAgenciesRouter, publicGuidesRouter, usersRouter, agencyGuidesRouter } from '../modules/users';
+import { adminAgencyCommissionRequestsRouter, agencyCommissionRouter } from '../modules/agency-commission';
 
 /**
  * Central route registry mounted at /api/v1.
@@ -48,6 +49,9 @@ mount('/agency-join-requests', joinRequestRouter);
 mount('/agency', workplaceTeamRouter);
 mount('/agency-invitations', agencyInvitationAcceptanceRouter);
 mount('/agency', agencyFoundationRouter);
+mount('/agency/chat', agencyChatRouter);
+mount('/agency/commission', agencyCommissionRouter);
+mount('/admin/settings/agency-commission-requests', adminAgencyCommissionRequestsRouter);
 
 apiRouter.get('/health', (_req, res) => {
   res.json({ success: true, data: { status: 'ok', uptimeSeconds: Math.round(process.uptime()) } });

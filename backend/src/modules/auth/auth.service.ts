@@ -170,12 +170,21 @@ export class AuthService {
   /** Use case "Login" including "Validate credentials" and, when enabled, the Verify OTP extension (2FA). */
   async login(input: LoginInput, context: RequestContext = {}): Promise<LoginResult> {
     const user = await this.validateCredentials(input);
+    // Portal separation: agency accounts sign in through /auth/agency/login.
+    if (user.role === ROLES.AGENCY) {
+      throw AppError.forbidden('Please use the Agency login portal', 'AGENCY_PORTAL_REQUIRED');
+    }
     return this.loginUser(user, context, Boolean(input.rememberMe));
   }
 
   /** Partner entry authenticates an account, including before its first workplace. */
   async loginAgency(input: LoginInput, context: RequestContext = {}): Promise<LoginResult> {
-    return this.login(input, context);
+    const user = await this.validateCredentials(input);
+    // A registration that never finished onboarding cannot open a Partner session yet.
+    if (user.role === ROLES.AGENCY && user.status === USER_STATUS.PENDING_VERIFICATION && !this.hasCompleteAgencyProfile(user)) {
+      throw AppError.forbidden('Please complete Agency registration first', 'AGENCY_ONBOARDING_REQUIRED');
+    }
+    return this.loginUser(user, context, Boolean(input.rememberMe));
   }
 
   private async loginUser(user: UserRecord, context: RequestContext, rememberMe = false): Promise<LoginResult> {

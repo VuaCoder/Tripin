@@ -6,7 +6,7 @@ Ngày 14/11/2026, hai migration còn thiếu đã được áp lên Neon đang c
 
 Fixture kiểm tra cột `Tour.highlights` trước khi tạo tài khoản. Nếu DB còn thiếu migration, chuẩn bị một DB test đã migrate đầy đủ rồi chạy lại. Không chạy migration lên DB có lịch sử migration khác repo khi chưa đối chiếu.
 
-Mật khẩu mặc định của toàn bộ tài khoản test: **`TripriTourTest@2026!`**. Có thể thay bằng biến môi trường `DEV_TOUR_TEST_PASSWORD` (ít nhất 8 ký tự).
+Mật khẩu của toàn bộ tài khoản test: đặt biến môi trường `DEV_TOUR_TEST_PASSWORD` (ít nhất 8 ký tự) trước khi chạy fixture; không ghi mật khẩu vào tài liệu.
 
 Từ thư mục gốc `E:\CN\Tripin`, trỏ `DATABASE_URL` đến DB local đã migrate, rồi chạy:
 

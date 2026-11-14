@@ -12,10 +12,13 @@ vi.mock('../api/agencyReviewsApi', () => ({
   useDisputeReviewMutation: () => [mockDispute, { isLoading: false }],
 }));
 vi.mock('@/store/hooks', () => ({
-  useAppSelector: () => ({ id: 'a1' }),
+  useAppSelector: () => ({ agencyId: 'agency-a1' }),
   useAppDispatch: () => vi.fn(),
 }));
-vi.mock('@/features/auth', () => ({ selectUser: () => null }));
+vi.mock('@/features/auth', () => ({
+  selectActiveAgency: () => ({ agencyId: 'agency-a1' }),
+  selectUser: () => null,
+}));
 vi.mock('@/features/review/components', () => ({ RatingStars: () => <span data-testid="stars" /> }));
 
 import { AgencyReviewsPage } from '../components/AgencyReviewsPage';
@@ -69,7 +72,7 @@ describe('AgencyReviewsPage', () => {
     allow();
     render(<AgencyReviewsPage />);
 
-    expect(mockReviews).toHaveBeenCalledWith({ agencyId: 'a1', page: 1, limit: 10 }, { skip: false });
+    expect(mockReviews).toHaveBeenCalledWith({ agencyId: 'agency-a1', page: 1, limit: 10 }, { skip: false });
     expect(screen.getByText('Hướng dẫn viên thô lỗ với khách.')).toBeTruthy();
     expect(screen.getByText('Lê V.')).toBeTruthy();
     expect(screen.getByText('Phản ánh đánh giá')).toBeTruthy();

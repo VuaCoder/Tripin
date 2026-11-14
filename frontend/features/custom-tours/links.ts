@@ -7,8 +7,8 @@ type LinkableRequest = Pick<
   'id' | 'nextStep' | 'conversationId' | 'currentBooking'
 >;
 
-const conversationHref = (requestId: string, conversationId: string) =>
-  `/conversations/${conversationId}?request=${requestId}`;
+const conversationHref = (requestId: string, conversationId: string, role?: CustomTourRole) =>
+  `${role === 'AGENCY' ? '/agency/conversations' : '/conversations'}/${conversationId}?request=${requestId}`;
 
 /** The chat (or the list) where the terms can be discussed again, whatever the next step is. */
 export function customTourChatHref(
@@ -16,7 +16,7 @@ export function customTourChatHref(
   role?: CustomTourRole,
 ): string {
   return request.conversationId
-    ? conversationHref(request.id, request.conversationId)
+    ? conversationHref(request.id, request.conversationId, role)
     : role === 'AGENCY' ? '/agency/custom-tours' : '/traveler/custom-tours';
 }
 
@@ -48,7 +48,8 @@ export function notificationHref(
 
   const { conversationId, requestId } = notification.data ?? {};
   if (conversationId) {
-    return requestId ? conversationHref(requestId, conversationId) : `/conversations/${conversationId}`;
+    const base = role === 'AGENCY' ? '/agency/conversations' : '/conversations';
+    return requestId ? conversationHref(requestId, conversationId, role) : `${base}/${conversationId}`;
   }
   return role === 'AGENCY' ? '/agency/custom-tours' : '/traveler/custom-tours';
 }

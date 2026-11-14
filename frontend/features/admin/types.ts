@@ -15,6 +15,13 @@ export interface Category { id: string; name: string; slug: string; description?
 export interface CategoryInput { name: string; description?: string; sortOrder: number }
 export interface Commission { version?: number; ratePercent: number; rateBps: number; updatedAt?: string }
 export interface AgencyCommission { id: string; companyName: string; contactName: string; email: string; ratePercent: number | null; rateBps: number | null; version: number }
+export interface AgencyCommissionRequest {
+  id: string; agencyId: string; agencyName?: string; requestedByName?: string;
+  currentSharePercent: number; requestedSharePercent: number;
+  baseVersion: number; reason: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  decisionNote?: string | null; createdAt: string; decidedAt?: string | null;
+}
 export const POLICY_KEYS = ['cancellation', 'refund', 'terms', 'privacy', 'moderation'] as const;
 export type PolicyKey = typeof POLICY_KEYS[number];
 export interface Policy { version?: number; activeVersion?: number; policyVersionId?: string; key: PolicyKey; title: string; content: string; params: Record<string, number | string | boolean>; updatedAt?: string }

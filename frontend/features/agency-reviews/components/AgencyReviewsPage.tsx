@@ -5,7 +5,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
 import { Pagination } from '@/components/ui';
 import { useAppSelector } from '@/store/hooks';
 import { getApiErrorCode, getApiErrorMessage } from '@/features/auth/utils/apiError';
-import { selectUser } from '@/features/auth';
+import { selectActiveAgency } from '@/features/auth';
 import { REPORT_CATEGORY_LABELS, REPORT_STATUS_LABELS, ReportDialog } from '@/features/report';
 import type { CreateReportInput } from '@/features/report';
 import { RatingStars } from '@/features/review/components';
@@ -22,7 +22,7 @@ const DISPUTE_HINT =
 
 /** Use case "Dispute a review": the reviews of this agency's tours, and the disputes it filed about them. */
 export function AgencyReviewsPage() {
-  const agencyId = useAppSelector(selectUser)?.id ?? '';
+  const agencyId = useAppSelector(selectActiveAgency)?.agencyId ?? '';
 
   const [page, setPage] = useState(1);
   const reviews = useGetAgencyReviewsQuery({ agencyId, page, limit: PAGE_SIZE }, { skip: !agencyId });

@@ -6,7 +6,9 @@ describe('agency notification recipient policy', () => {
     expect(allows('STAFF', 'PAYMENT_SUCCEEDED')).toBe(false);
     expect(allows('STAFF', 'EARNING_RECORDED')).toBe(false);
     expect(allows('ACCOUNTANT', 'PAYMENT_SUCCEEDED')).toBe(true);
-    expect(allows('OWNER', 'CHAT_MESSAGE')).toBe(false);
+    expect(allows('OWNER', 'CHAT_MESSAGE')).toBe(true);
+    expect(allows('STAFF', 'CHAT_MESSAGE')).toBe(true);
+    expect(allows('ACCOUNTANT', 'CHAT_MESSAGE')).toBe(false);
   });
   it('allows booking notifications for all booking-view roles', () => {
     for (const role of ['OWNER','MANAGER','ACCOUNTANT'] as const) expect(allows(role,'BOOKING_CONFIRMED')).toBe(true);

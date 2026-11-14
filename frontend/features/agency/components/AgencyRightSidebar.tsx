@@ -92,7 +92,7 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
       { href: '/agency/work/bookings', label: 'Theo dõi booking', icon: CalendarCheck, permission: 'agency:booking-monitor' },
     ] },
     { label: 'Trao đổi', items: [
-      { href: '/conversations', label: 'Tin nhắn', icon: MessageSquare, permission: 'chat:use' },
+      { href: '/agency/conversations', label: 'Tin nhắn', icon: MessageSquare, permission: 'chat:use' },
       { href: '/agency/custom-tours', label: 'Yêu cầu đoàn', icon: Users, permission: 'custom-tour:view' },
     ] },
     { label: 'Sản phẩm', items: [
@@ -117,7 +117,6 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
   const visibleGroups = groups.map((group) => ({ ...group, items: group.items.filter((item) =>
     (!item.permission || agency?.permissions?.includes(item.permission)) &&
     (item.href !== '/agency/settings/commission' || agency?.memberRole !== 'STAFF') &&
-    (!['/agency/promotions', '/agency/complaints'].includes(item.href) || (agency?.memberRole === 'OWNER' && agency.agencyId === user?.id)) &&
     (item.href !== '/agency/notifications' || searchTerm) &&
     (!searchTerm || normalize(`${item.label} ${group.label}`).includes(searchTerm)),
   ) })).filter((group) => group.items.length > 0);
