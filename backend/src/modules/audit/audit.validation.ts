@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PERSISTED_ROLES } from '@travel-platform/constants';
 import { paginationQuerySchema } from '../../utils/pagination';
 import { idSchema } from '../../utils/id';
 import { AUDIT_ACTIONS } from './audit.types';
@@ -6,6 +7,7 @@ import { AUDIT_ACTIONS } from './audit.types';
 export const listAuditQuery = paginationQuerySchema
   .extend({
     actorId: idSchema.optional(),
+    actorRole: z.enum(PERSISTED_ROLES).optional(),
     action: z.enum(Object.values(AUDIT_ACTIONS) as [string, ...string[]]).optional(),
     targetType: z.string().trim().min(1).max(60).optional(),
     targetId: z.string().trim().min(1).max(60).optional(),

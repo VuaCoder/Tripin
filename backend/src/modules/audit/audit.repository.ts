@@ -13,6 +13,7 @@ export class AuditRepository {
   async list(filter: Omit<ListAuditQuery, keyof PageRequest>, page: PageRequest) {
     const where: Prisma.AuditLogWhereInput = {};
     if (filter.actorId) where.actorId = filter.actorId;
+    if (filter.actorRole) where.actorRole = filter.actorRole;
     if (filter.action) where.action = filter.action;
     if (filter.targetType) where.targetType = filter.targetType;
     if (filter.targetId) where.targetId = filter.targetId;

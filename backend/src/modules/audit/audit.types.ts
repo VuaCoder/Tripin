@@ -63,6 +63,7 @@ export interface ListAuditQuery {
   page: number;
   limit: number;
   actorId?: string;
+  actorRole?: PersistedRole;
   action?: AuditAction;
   targetType?: string;
   targetId?: string;

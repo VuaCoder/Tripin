@@ -33,7 +33,7 @@ const api = baseApi.injectEndpoints({
   endpoints: (build) => ({
     auditList: build.query<
       { items: Audit[]; meta: { totalPages: number; total?: number } },
-      { page: number; from?: string; to?: string; targetType?: string; action?: string; order?: 'asc' | 'desc' }
+      { page: number; from?: string; to?: string; targetType?: string; action?: string; actorRole?: string; order?: 'asc' | 'desc' }
     >({
       query: (params) => ({ url: '/admin/audit-logs', params: { ...params, limit: 15 } }),
       transformResponse: (r: { data: Audit[]; meta: { totalPages: number; total?: number } }) => ({
@@ -427,6 +427,7 @@ export function AdminAuditPage() {
   const [to, setTo] = useState('');
   const [targetType, setTargetType] = useState('all');
   const [action, setAction] = useState('all');
+  const [role, setRole] = useState('all');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [selectedAudit, setSelectedAudit] = useState<Audit | null>(null);
 
@@ -435,6 +436,7 @@ export function AdminAuditPage() {
     ...(to ? { to: `${to}T23:59:59.999+07:00` } : {}),
     ...(targetType !== 'all' ? { targetType } : {}),
     ...(action !== 'all' ? { action } : {}),
+    ...(role !== 'all' ? { actorRole: role } : {}),
     order: sortOrder,
   };
 
@@ -499,7 +501,7 @@ export function AdminAuditPage() {
       <Feedback error={error} />
 
       {/* Toolbar filter */}
-      <div className={`${toolbar} items-end sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.2fr_1.5fr_auto]`}>
+      <div className={`${toolbar} items-end sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.1fr_1.3fr_1.1fr_auto] xl:grid-cols-[1fr_1fr_1fr_1.4fr_1fr_auto]`}>
         <FormField label="Từ ngày" htmlFor="audit-from">
           <Input
             id="audit-from"
@@ -554,6 +556,22 @@ export function AdminAuditPage() {
             ))}
           </FormSelect>
         </FormField>
+        <FormField label="Vai trò" htmlFor="audit-role-filter">
+          <FormSelect
+            id="audit-role-filter"
+            className={control}
+            value={role}
+            onChange={(e) => {
+              setPage(1);
+              setRole(e.target.value);
+            }}
+          >
+            <option value="all">Tất cả vai trò</option>
+            {Object.entries(ROLE_MAP).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </FormSelect>
+        </FormField>
         <div className="flex items-end">
           <Button
             variant="ghost"
@@ -563,6 +581,7 @@ export function AdminAuditPage() {
               setTo('');
               setTargetType('all');
               setAction('all');
+              setRole('all');
               setSortOrder('desc');
             }}
             className="inline-flex min-h-11 w-full items-center justify-center gap-2 whitespace-nowrap sm:w-auto"
@@ -590,10 +609,11 @@ export function AdminAuditPage() {
           <table className="w-full min-w-[840px] table-fixed text-left text-sm">
             <colgroup>
               <col className="w-[15%]" />
-              <col className="w-[22%]" />
               <col className="w-[20%]" />
-              <col className="w-[18%]" />
-              <col className="w-[25%]" />
+              <col className="w-[17%]" />
+              <col className="w-[12%]" />
+              <col className="w-[16%]" />
+              <col className="w-[20%]" />
             </colgroup>
             <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wide text-slate-400">
               <tr>
@@ -614,6 +634,7 @@ export function AdminAuditPage() {
                 </th>
                 <th className="px-4 py-3.5 font-medium">Thao tác</th>
                 <th className="px-4 py-3.5 font-medium">Người thực hiện</th>
+                <th className="px-4 py-3.5 font-medium">Vai trò</th>
                 <th className="px-4 py-3.5 font-medium">Nội dung</th>
                 <th className="px-5 py-3.5 font-medium">Trạng thái</th>
               </tr>
@@ -643,10 +664,14 @@ export function AdminAuditPage() {
 
                     {/* Người thực hiện */}
                     <td className="px-4 py-4">
-                      <div className="space-y-1">
-                        <span className="block font-medium text-slate-900">{r.actorName ?? 'Tài khoản đã xóa'}</span>
-                        <span className="block text-xs text-slate-500">{ROLE_MAP[r.actorRole ?? ''] ?? 'Quản trị viên'}</span>
-                      </div>
+                      <span className="block font-medium text-slate-900">{r.actorName ?? 'Tài khoản đã xóa'}</span>
+                    </td>
+
+                    {/* Vai trò */}
+                    <td className="px-4 py-4">
+                      <span className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700">
+                        {ROLE_MAP[r.actorRole ?? ''] ?? 'Quản trị viên'}
+                      </span>
                     </td>
 
                     {/* Đối tượng */}
