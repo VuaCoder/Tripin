@@ -150,17 +150,17 @@ export function AdminPromotionsPage() {
         <h2 className="text-sm font-bold text-slate-900">Danh sách voucher</h2>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[880px] table-fixed text-left text-sm">
+        <table className="w-full min-w-[980px] table-fixed text-left text-sm">
           <colgroup>
-            <col className="w-[18%]" />
-            <col className="w-[10%]" />
-            <col className="w-[11%]" />
-            <col className="w-[9%]" />
-            <col className="w-[11%]" />
-            <col className="w-[9%]" />
+            <col className="w-[14%]" />
             <col className="w-[9%]" />
             <col className="w-[10%]" />
-            <col className="w-[13%]" />
+            <col className="w-[9%]" />
+            <col className="w-[11%]" />
+            <col className="w-[12%]" />
+            <col className="w-[12%]" />
+            <col className="w-[9%]" />
+            <col className="w-[14%]" />
           </colgroup>
           <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wide text-slate-400">
             <tr>
