@@ -313,6 +313,7 @@ export class ComplaintsService {
     ticketId: string,
     agencyId: string,
     input: ResolveComplaintTicketInput,
+    actorUserId: string = agencyId,
   ): Promise<ComplaintTicketDetailDto> {
     const ticket = await this.repo.findById(ticketId);
     if (!ticket || ticket.agencyId !== agencyId) throw AppError.notFound('Phiếu khiếu nại không tồn tại');
@@ -346,7 +347,7 @@ export class ComplaintsService {
     // Add a system event message
     await this.repo.appendMessage({
       ticketId,
-      senderId: agencyId,
+      senderId: actorUserId,
       senderRole: 'SYSTEM',
       text: `Đối tác đã đề xuất giải pháp xử lý: "${input.solutionSummary}". Vui lòng xác nhận giải pháp để đóng phiếu.`,
     });
@@ -363,7 +364,7 @@ export class ComplaintsService {
       { email: true },
     );
 
-    return this.getTicketDetail(ticketId, { userId: agencyId, role: 'AGENCY', agencyId });
+    return this.getTicketDetail(ticketId, { userId: actorUserId, role: 'AGENCY', agencyId });
   }
 
   async acceptResolution(

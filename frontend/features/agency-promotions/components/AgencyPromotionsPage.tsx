@@ -23,6 +23,7 @@ import {
   ArchiveRestore,
 } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
+import { AgencyPageTitle } from '@/features/agency/components/AgencyPageTitle';
 import { AntSelect, Modal, type AntSelectOption } from '@/components/ui';
 import { getApiErrorCode, getApiErrorMessage } from '@/features/auth/utils/apiError';
 import {
@@ -396,7 +397,7 @@ export function AgencyPromotionsPage() {
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Khuyến mãi của đại lý</h1>
+            <AgencyPageTitle icon={Ticket}>Khuyến mãi của đại lý</AgencyPageTitle>
             {data && (
               <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700">
                 {data.meta.total}

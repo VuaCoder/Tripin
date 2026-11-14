@@ -12,6 +12,8 @@ import { RatingStars } from '@/features/review/components';
 import { useDisputeReviewMutation, useGetAgencyReviewsQuery, useGetMyReviewDisputesQuery } from '../api/agencyReviewsApi';
 import { DISPUTE_ERROR_MESSAGES } from '../labels';
 import type { AgencyReview, ReviewDispute } from '../types';
+import { AgencyPageTitle } from '@/features/agency/components/AgencyPageTitle';
+import { MessageSquare } from 'lucide-react';
 
 const PAGE_SIZE = 10;
 const dateTime = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
@@ -50,7 +52,7 @@ export function AgencyReviewsPage() {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
       <header>
-        <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Đánh giá về tour của tôi</h1>
+        <AgencyPageTitle icon={MessageSquare}>Đánh giá về tour của tôi</AgencyPageTitle>
         <p className="mt-1 text-sm text-slate-500">
           Đánh giá của du khách về các tour của bạn. Nếu một đánh giá sai sự thật, hãy phản ánh để kiểm duyệt viên kiểm tra.
         </p>

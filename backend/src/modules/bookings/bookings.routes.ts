@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { z } from 'zod';
+import { idSchema } from '../../utils/id';
 import { PERMISSIONS } from '@travel-platform/constants';
 import { requirePermission, requireVerifiedTraveler } from '../../middlewares/authorize';
 import { validate } from '../../middlewares/validate';
@@ -47,6 +49,12 @@ agencyBookingsRouter.get('/:id', validate({ params: bookingIdParams }), bookings
 
 /** Mounted at /api/v1/agency/tours — "Export customer PDF" (the rest of /agency/tours belongs to the tours module). */
 export const agencyCustomersExportRouter = Router();
+agencyCustomersExportRouter.get(
+  '/:tourId/departures/:departureId/customers.pdf',
+  requirePermission(P.AGENCY_EXPORT_CUSTOMERS),
+  validate({ params: z.object({ tourId: idSchema, departureId: idSchema }) }),
+  bookingsController.exportDepartureCustomers,
+);
 agencyCustomersExportRouter.get(
   '/:id/customers.pdf',
   requirePermission(P.AGENCY_EXPORT_CUSTOMERS),

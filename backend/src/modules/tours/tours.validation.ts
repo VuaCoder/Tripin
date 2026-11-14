@@ -25,6 +25,7 @@ export const tourContentShape = {
   maxGroupSize: z.number().int().min(1).max(10_000).optional(),
   categoryIds: z.array(idSchema).min(1).max(10),
   images: z.array(z.url().max(500)).max(TOUR_LIMITS.MAX_IMAGES).optional(),
+  highlights: stringList(30, 300).optional(),
   inclusions: stringList(50, 300).optional(),
   exclusions: stringList(50, 300).optional(),
 };
@@ -35,8 +36,18 @@ export const createCategoryQuickBody = z.object({
 
 export const createTourBody = z.object(tourContentShape).strict();
 
+const itineraryPatchDay = z.object({
+  day: z.number().int().min(1).max(365),
+  toDay: z.number().int().min(1).max(365).optional(),
+  title: z.string().trim().min(2).max(200),
+  description: text(5000).optional(),
+  activities: stringList(30, 300).optional(),
+}).strict().refine(d => d.toDay === undefined || d.toDay >= d.day);
+
 export const updateTourBody = z
-  .object(tourContentShape)
+  .object({ ...tourContentShape,
+    itinerary: z.array(itineraryPatchDay).max(365).optional(),
+  })
   .partial()
   .strict()
   .refine((value) => Object.keys(value).length > 0, 'Nothing to update');

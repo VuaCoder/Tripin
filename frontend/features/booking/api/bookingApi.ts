@@ -28,7 +28,7 @@ export const bookingApi = baseApi.injectEndpoints({
     downloadAgencyCustomers: build.mutation<{ downloaded: true }, { tourId: string; departureId?: string }>({
       async queryFn({ tourId, departureId }, _api, _options, baseQuery) {
         const result = await baseQuery({
-          url: `/agency/tours/${tourId}/customers.pdf`, params: departureId ? { departureId } : undefined,
+          url: departureId ? `/agency/tours/${tourId}/departures/${departureId}/customers.pdf` : `/agency/tours/${tourId}/customers.pdf`,
           cache: 'no-store',
           responseHandler: async (response) => {
             if (!response.ok) return response.json().catch(() => ({ error: { message: 'Không thể xuất danh sách khách.' } }));
@@ -43,7 +43,7 @@ export const bookingApi = baseApi.injectEndpoints({
           url = URL.createObjectURL(result.data as Blob);
           const link = document.createElement('a');
           link.href = url;
-          link.download = `customers-${tourId}.pdf`;
+          link.download = `customers-${departureId ?? tourId}.pdf`;
           document.body.appendChild(link);
           link.click();
           link.remove();

@@ -7,6 +7,14 @@ import { guestCountsSchema } from '../../utils/age-pricing';
 
 const phone = z.string().trim().regex(/^\+?[0-9 ().-]{6,20}$/, 'Invalid phone number');
 const status = z.enum(Object.values(BOOKING_STATUS) as [string, ...string[]]);
+const passengerSchema = z.object({
+  fullName: z.string().trim().min(2).max(120),
+  birthYear: z.number().int().min(1900).max(new Date().getFullYear()).optional(),
+  ageGroup: z.enum(['ADULT', 'CHILD', 'INFANT']),
+  phone: phone.optional(),
+  pickupPoint: z.string().trim().max(300).optional(),
+  specialNotes: z.string().trim().max(500).optional(),
+}).strict();
 
 export const createBookingBody = z
   .object({
@@ -14,6 +22,7 @@ export const createBookingBody = z
     departureId: idSchema,
     participants: z.number().int().min(1).max(BOOKING_POLICY.MAX_PARTICIPANTS),
     guestCounts: guestCountsSchema.optional(),
+    passengers: z.array(passengerSchema).min(1).max(BOOKING_POLICY.MAX_PARTICIPANTS).optional(),
     contact: z.object({ fullName: z.string().trim().min(2).max(120), phone }).strict(),
     notes: z.string().trim().max(500).optional(),
     promotionCode: z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,30}$/).optional(),

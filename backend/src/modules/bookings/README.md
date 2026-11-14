@@ -31,7 +31,7 @@ payment is pending, cancellation rules, the agency's view of its bookings, and t
 * `GET /bookings/me?status&page&limit`, `GET /bookings/:id` (`booking:view-own`). `BookingDto` has no commission fields.
 * `POST /bookings/:id/cancel` body `{ reason? }` → `BookingDto` (CANCELLED).
 * `GET /agency/bookings?status&tourId&departureFrom&departureTo&page&limit`, `GET /agency/bookings/:id` (`agency:bookings-view`): shows `totalAmount`, `commissionAmount`, `agencyAmount`; traveler name/phone only for CONFIRMED / COMPLETED.
-* `GET /agency/tours/:id/customers.pdf[?departureId]` (`agency:export-customers`) → `application/pdf` attachment (A4 landscape): booking code, departure date, traveler name, phone, pax, notes of the PAID bookings (CONFIRMED + COMPLETED) of that tour. 404 unless the tour belongs to the caller; capped at 5000 rows (header says when truncated). Mounted by `agencyCustomersExportRouter` under `/agency/tours`.
+* `GET /agency/tours/:tourId/departures/:departureId/customers.pdf` (`agency:export-customers`) → `application/pdf` attachment for one departure, with one row per saved passenger, birth year/age group, phone, pickup point and special notes. The tour and departure must belong to the selected agency. Old bookings without a passenger snapshot show their contact as one aggregate row with the booked head count. The legacy `GET /agency/tours/:id/customers.pdf[?departureId]` remains available. Both are capped at 5000 rows with a truncation header.
 * Errors: 409 `NOT_ENOUGH_SEATS`, `DEPARTURE_UNAVAILABLE`, `PENDING_BOOKING_EXISTS`, `PROMOTION_*`, `CANCELLATION_WINDOW_PASSED`, `INVALID_STATE_TRANSITION`, `BOOKING_NOT_PAYABLE`, `BOOKING_PAYMENT_EXPIRED`, `CONCURRENT_UPDATE`; 404 for foreign ids.
 
 ## Business rules

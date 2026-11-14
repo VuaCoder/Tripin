@@ -5,6 +5,7 @@
   "description": "Travel platform backend (Express + Prisma/PostgreSQL, layered MVC organised by domain module)",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "dev:local": "tsx src/scripts/dev-local-server.ts",
     "predev": "prisma generate",
     "pretypecheck": "prisma generate",
     "pretest": "prisma generate",
@@ -14,6 +15,8 @@
     "seed": "tsx src/scripts/seed.ts",
     "seed:premium:dev": "tsx src/scripts/seed-premium-dev.ts",
     "seed:demo-tours": "tsx src/scripts/seed-demo-tours.ts",
+    "fixture:tour-ux:create": "tsx src/scripts/dev-tour-management-fixture.ts create",
+    "fixture:tour-ux:clean": "tsx src/scripts/dev-tour-management-fixture.ts clean",
     "docs:routes": "tsx src/scripts/print-routes.ts",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",

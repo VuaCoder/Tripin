@@ -46,7 +46,7 @@ describe('Agency customer PDF download', () => {
     expect(result).toEqual({ data: { downloaded: true } });
     expect(create).toHaveBeenCalledOnce(); expect(click).toHaveBeenCalledOnce();
     const request = fetchMock.mock.calls[0]![0] as Request;
-    expect(request.url).toMatch(/\/agency\/tours\/tour-1\/customers.pdf\?departureId=dep-2$/);
+    expect(request.url).toMatch(/\/agency\/tours\/tour-1\/departures\/dep-2\/customers.pdf$/);
     expect(request.url).not.toContain('token');
     expect(request.headers.get('authorization')).toBe('Bearer fresh-token');
     expect(request.cache).toBe('no-store');

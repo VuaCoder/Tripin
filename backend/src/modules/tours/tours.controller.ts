@@ -90,7 +90,7 @@ export class ToursController {
 
   update: RequestHandler = async (req, res) => {
     const { params, body } = validated<UpdateTourBody, unknown, IdParams>(req);
-    sendOk(res, await this.service.updateTour(agencyIdOf(req), params.id, body));
+    sendOk(res, await this.service.updateTour(agencyIdOf(req), params.id, body, agencyContext(req).memberRole));
   };
 
   remove: RequestHandler = async (req, res) => {

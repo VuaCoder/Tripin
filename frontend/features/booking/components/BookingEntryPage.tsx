@@ -104,6 +104,8 @@ interface PassengerItem {
   birthYear: string;
   idCard: string;
   nationality: string;
+  pickupPoint: string;
+  specialNotes: string;
 }
 
 export function BookingEntryPage() {
@@ -180,6 +182,8 @@ export function BookingEntryPage() {
       birthYear: '',
       idCard: '',
       nationality: 'Việt Nam',
+      pickupPoint: '',
+      specialNotes: '',
     })),
   );
 
@@ -194,6 +198,8 @@ export function BookingEntryPage() {
           birthYear: '',
           idCard: '',
           nationality: 'Việt Nam',
+          pickupPoint: '',
+          specialNotes: '',
         }));
         return [...prev, ...added];
       }
@@ -641,21 +647,30 @@ export function BookingEntryPage() {
       checkedPlatform = result;
     }
 
-    // Format optional passenger roster and VAT details into notes safely (backend schema max 500 chars)
+    // Passenger details are sent as structured booking data; notes remain for general requests and VAT.
     const filledPassengers = passengers.filter((p) => p.fullName.trim());
-    const passengerSummary = filledPassengers.length > 0
-      ? `Hành khách: ${filledPassengers.map((p, i) => `${i + 1}.${p.fullName.trim()}(${p.gender})`).join(', ')}`
-      : '';
+    const roster = filledPassengers.map((p) => {
+      const idx = passengers.indexOf(p);
+      return {
+        fullName: p.fullName.trim(),
+        ...(p.birthYear.trim() ? { birthYear: Number(p.birthYear) } : {}),
+        ageGroup: (idx < guests.adults ? 'ADULT' : idx < guests.adults + guests.children ? 'CHILD' : 'INFANT') as 'ADULT' | 'CHILD' | 'INFANT',
+        phone: phone.trim(),
+        ...(p.pickupPoint.trim() ? { pickupPoint: p.pickupPoint.trim() } : {}),
+        ...(p.specialNotes.trim() ? { specialNotes: p.specialNotes.trim() } : {}),
+      };
+    });
     const vatSummary = needVatInvoice && vatCompany.trim()
       ? `VAT: ${vatCompany.trim()} - MST:${vatTaxId.trim()}${vatEmail.trim() ? ` - Email:${vatEmail.trim()}` : ''}`
       : '';
-    const combinedNotes = [notes.trim(), passengerSummary, vatSummary].filter(Boolean).join(' | ').slice(0, 500);
+    const combinedNotes = [notes.trim(), vatSummary].filter(Boolean).join(' | ').slice(0, 500);
 
     try {
       const created = await createBooking({
         tourId,
         departureId: effectiveDepartureId,
         participants,
+        ...(roster.length ? { passengers: roster } : {}),
         ...(tour.agePricing ? { guestCounts: guests } : {}),
         contact: { fullName: fullName.trim(), phone: phone.trim() },
         ...(combinedNotes ? { notes: combinedNotes } : {}),
@@ -1226,6 +1241,14 @@ export function BookingEntryPage() {
                               placeholder="Nhập quốc tịch..."
                               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-teal focus:ring-1 focus:ring-brand-teal"
                             />
+                          </div>
+                          <div className="sm:col-span-1">
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">Điểm đón</label>
+                            <input type="text" maxLength={300} value={p.pickupPoint} onChange={(e) => setPassengers((prev) => prev.map((item, i) => i === idx ? { ...item, pickupPoint: e.target.value } : item))} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">Ghi chú đặc biệt</label>
+                            <input type="text" maxLength={500} value={p.specialNotes} onChange={(e) => setPassengers((prev) => prev.map((item, i) => i === idx ? { ...item, specialNotes: e.target.value } : item))} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
                           </div>
                         </div>
                       </div>

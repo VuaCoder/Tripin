@@ -51,10 +51,11 @@ export interface TourContentInput {
   categoryIds: string[];
   images?: string[];
   inclusions?: string[];
+  highlights?: string[];
   exclusions?: string[];
 }
 
-export type UpdateTourInput = Partial<TourContentInput>;
+export type UpdateTourInput = Partial<TourContentInput> & { itinerary?: ItineraryDayInput[] };
 
 export interface DepartureInput {
   /** Present when editing an existing departure; omitted for a new one. */
@@ -146,6 +147,7 @@ export interface TourDetailDto extends TourListItemDto {
   maxGroupSize?: number;
   images: string[];
   inclusions: string[];
+  highlights: string[];
   exclusions: string[];
   itinerary: { day: number; toDay?: number; title: string; description?: string; activities: string[] }[];
   departures: DepartureDto[];

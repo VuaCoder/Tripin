@@ -57,7 +57,8 @@ describe('renderCustomersPdf', () => {
 
 function makeService(opts: { tour?: { id: string; agencyId: string; title: string } | null; bookings?: unknown[] } = {}) {
   const repo = { listPaidForTour: vi.fn(async () => (opts.bookings ?? []) as never[]) };
-  const tours = { getTourFacts: vi.fn(async () => (opts.tour === undefined ? { id: 't1', agencyId: 'a1', title: 'Ha Long' } : opts.tour)) };
+  const tours = { getTourFacts: vi.fn(async () => (opts.tour === undefined ? { id: 't1', agencyId: 'a1', title: 'Ha Long' } : opts.tour)),
+    getDepartureFacts: vi.fn(async () => new Map([['t1:d1', { departureId: 'd1' }]])) };
   return { service: new BookingsService(repo as never, tours as never), repo, tours };
 }
 
@@ -79,6 +80,18 @@ describe('BookingsService.listCustomers', () => {
       truncated: false,
       rows: [{ bookingCode: 'TRP-1', departureDate: new Date('2026-12-01'), travelerName: 'Ann', phone: '0123', participants: 2, notes: 'vegan' }],
     });
+  });
+
+  it('prints one row per saved passenger and keeps legacy bookings explicit', async () => {
+    const { service } = makeService({ bookings: [{ ...booking(1), passengerSnapshot: [
+      { fullName: 'Lan', birthYear: 1990, ageGroup: 'ADULT', pickupPoint: 'Cổng A' },
+      { fullName: 'An', ageGroup: 'CHILD', specialNotes: 'Dị ứng đậu' },
+    ] }, booking(2)] });
+    const result = await service.listDepartureCustomers('a1', 't1', 'd1');
+    expect(result.rows).toHaveLength(3);
+    expect(result.rows[0]).toMatchObject({ travelerName: 'Lan', birthYear: 1990, pickupPoint: 'Cổng A' });
+    expect(result.rows[1]).toMatchObject({ travelerName: 'An', ageGroup: 'CHILD', specialNotes: 'Dị ứng đậu' });
+    expect(result.rows[2]).toMatchObject({ travelerName: 'Ann', participants: 2 });
   });
 
   it('refuses another agency\'s tour and unknown tours with 404', async () => {

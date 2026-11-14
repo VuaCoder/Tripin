@@ -13,6 +13,7 @@ export function toTourContentInput(tour: TourDetail): TourContentInput {
     categoryIds: tour.categoryIds ? [...tour.categoryIds].sort() : [],
     images: tour.images && tour.images.length > 0 ? [...tour.images] : (tour.coverImage ? [tour.coverImage] : []),
     inclusions: tour.inclusions ? [...tour.inclusions] : [],
+    highlights: tour.highlights ? [...tour.highlights] : [],
     exclusions: tour.exclusions ? [...tour.exclusions] : [],
     agePricing: tour.agePricing ?? null,
     childPricingPolicy: tour.childPricingPolicy ?? '',

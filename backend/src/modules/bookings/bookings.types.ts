@@ -21,6 +21,7 @@ export interface CustomTourBookingInput {
 }
 
 export interface CreateBookingInput {
+  passengers?: BookingPassenger[];
   premiumVoucherId?: string;
   guestCounts?: GuestCounts;
   tourId: string;
@@ -33,6 +34,15 @@ export interface CreateBookingInput {
   platformPromotionCode?: string;
   clientRequestId?: string;
   customTour?: CustomTourBookingInput;
+}
+
+export interface BookingPassenger {
+  fullName: string;
+  birthYear?: number;
+  ageGroup: 'ADULT' | 'CHILD' | 'INFANT';
+  phone?: string;
+  pickupPoint?: string;
+  specialNotes?: string;
 }
 
 export interface ListBookingsQuery {
@@ -104,8 +114,8 @@ export interface AgencyBookingDto {
   agencyAmount: number;
   isPaid: boolean;
   traveler?: { fullName: string; phone: string };
-  /** Detail only: who is travelling, when it is a group booking. */
-  passengers?: BookingPassengerDto[];
+  /** Detail only, and shared after confirmation. */
+  passengers?: (BookingPassenger | BookingPassengerDto)[];
   notes?: string;
   createdAt: string;
   confirmedAt?: string;
@@ -187,6 +197,10 @@ export interface CustomerRow {
   phone: string;
   participants: number;
   notes?: string;
+  birthYear?: number;
+  ageGroup?: BookingPassenger['ageGroup'];
+  pickupPoint?: string;
+  specialNotes?: string;
 }
 
 export const CUSTOMER_EXPORT_LIMIT = 5000;

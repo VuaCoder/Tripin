@@ -116,6 +116,7 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
   const searchTerm = normalize(query);
   const visibleGroups = groups.map((group) => ({ ...group, items: group.items.filter((item) =>
     (!item.permission || agency?.permissions?.includes(item.permission)) &&
+    (item.href !== '/agency/settings/commission' || agency?.memberRole !== 'STAFF') &&
     (!['/agency/promotions', '/agency/complaints'].includes(item.href) || (agency?.memberRole === 'OWNER' && agency.agencyId === user?.id)) &&
     (item.href !== '/agency/notifications' || searchTerm) &&
     (!searchTerm || normalize(`${item.label} ${group.label}`).includes(searchTerm)),
@@ -164,11 +165,14 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
               <Link 
                 key={href} 
                 href={href} 
+                prefetch={false}
                 data-no-preloader={href === '/agency/notifications' ? 'true' : undefined}
                 title={label} 
                 aria-label={label} 
                 aria-current={active ? 'page' : undefined} 
                 className={styles.link} 
+                onPointerEnter={() => router.prefetch(href)}
+                onFocus={() => router.prefetch(href)}
                 onClick={(e) => {
                   if (href === '/agency/notifications') {
                     e.preventDefault();
@@ -191,6 +195,7 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
         <div className={styles.accountRow}>
           <Link
             href="/agency/settings/profile"
+            prefetch={false}
             ref={profileRef}
             className={styles.profile}
             aria-haspopup="menu"
@@ -220,6 +225,7 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
           </Link>
           <Link 
             href="/agency/notifications" 
+            prefetch={false}
             data-no-preloader="true"
             aria-haspopup="dialog"
             aria-expanded={showNotificationModal}

@@ -10,6 +10,8 @@ const mockUpdateMe = vi.fn();
 const mockRemoveAvatar = vi.fn();
 const mockLogout = vi.fn();
 const mockPush = vi.fn();
+const mockPrefetch = vi.fn();
+const mockMemberRole = vi.hoisted(() => ({ current: 'OWNER' }));
 
 vi.mock('../notifications', () => ({
   useAgencyNotifications: () => ({ count: 3, connected: true, latest: '' }),
@@ -53,12 +55,12 @@ const mockUser: UserProfile = {
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/agency',
-  useRouter: () => ({ push: mockPush, replace: vi.fn() }),
+  useRouter: () => ({ push: mockPush, prefetch: mockPrefetch, replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock('@/store/hooks', () => ({
-  useAppSelector: (selector: any) => selector({ auth: { user: mockUser, membershipsReady: true, activeAgencyId: mockUser.id, agencies: [{ agencyId: mockUser.id, memberId: 'owner-1', memberRole: 'OWNER', companyName: mockUser.agencyProfile!.companyName, verificationStatus: 'VERIFIED', permissions: mockUser.permissions }] } }),
+  useAppSelector: (selector: any) => selector({ auth: { user: mockUser, membershipsReady: true, activeAgencyId: mockUser.id, agencies: [{ agencyId: mockUser.id, memberId: 'owner-1', memberRole: mockMemberRole.current, companyName: mockUser.agencyProfile!.companyName, verificationStatus: 'VERIFIED', permissions: mockUser.permissions }] } }),
   useAppDispatch: () => vi.fn(),
 }));
 
@@ -78,6 +80,7 @@ vi.mock('@/features/traveler-account/api/profileApi', () => ({
 
 describe('AgencyRightSidebar & Partner Settings', () => {
   beforeEach(() => {
+    mockMemberRole.current = 'OWNER';
     vi.clearAllMocks();
     mockUpdateMe.mockReturnValue({
       unwrap: () => Promise.resolve({ success: true, data: { ...mockUser, fullName: 'Tên Mới' } }),
@@ -107,6 +110,12 @@ describe('AgencyRightSidebar & Partner Settings', () => {
     expect(screen.getByRole('link', { name: 'Chiết khấu hoa hồng' }).getAttribute('href')).toBe('/agency/settings/commission');
     expect(screen.queryByRole('link', { name: 'Tạo tour mới' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Thông báo, 3 chưa đọc' }).getAttribute('href')).toBe('/agency/notifications');
+  });
+
+  it('hides commission navigation from Staff', () => {
+    mockMemberRole.current = 'STAFF';
+    render(<AgencyRightSidebar initialExpanded />);
+    expect(screen.queryByRole('link', { name: 'Chiết khấu hoa hồng' })).toBeNull();
   });
 
   it('expands sidebar when expand button is clicked', () => {
@@ -211,6 +220,14 @@ describe('AgencyRightSidebar & Partner Settings', () => {
     }
     fireEvent.click(screen.getByRole('link', { name: 'Hồ sơ đối tác: Công ty Du lịch Hoàng Phúc' }));
     expect(screen.getByRole('menuitem', { name: 'Cài đặt' }).hasAttribute('data-route-preloader')).toBe(false);
+  });
+
+  it('prefetches a sidebar destination on pointer or keyboard intent', () => {
+    render(<AgencyRightSidebar initialExpanded />);
+    const bookings = screen.getByRole('link', { name: 'Đơn đặt chỗ' });
+    fireEvent.pointerEnter(bookings);
+    fireEvent.focus(bookings);
+    expect(mockPrefetch).toHaveBeenCalledWith('/agency/bookings');
   });
 
   it('offers company switching from the account menu without logging out', () => {

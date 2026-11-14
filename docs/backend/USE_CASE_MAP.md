@@ -114,6 +114,7 @@ below are historical; MANAGER has no team administration by default.
 | View dashboard | dashboards | `GET /agency/dashboard` | agency:dashboard | done |
 | View bookings status | bookings | `GET /agency/bookings`, `GET /agency/bookings/:id` | agency:bookings-view | done |
 | Export customer PDF | bookings | `GET /agency/tours/:id/customers.pdf` | agency:export-customers | done |
+| Export departure passenger PDF | bookings | `GET /agency/tours/:tourId/departures/:departureId/customers.pdf` | agency:export-customers | done |
 | Handle tour complaints | reports | `GET /agency/complaints`, `GET /agency/complaints/:id`, `POST /agency/complaints/:id/respond` | complaint:respond | done |
 | Handle complaint tickets | complaints | `GET /agency/complaint-tickets`, `GET /agency/complaint-tickets/:id`, `POST /agency/complaint-tickets/:id/messages`, `POST /agency/complaint-tickets/:id/resolve`, `POST /agency/complaint-tickets/:id/escalate`, `POST /agency/complaint-tickets/images/upload-signature` | complaint:respond | done |
 | Dispute a review | reports | `GET /agency/review-disputes`, `POST /agency/review-disputes/:reviewId` | review:dispute | done |

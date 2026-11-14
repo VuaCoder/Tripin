@@ -89,6 +89,7 @@ export function toTourDetailDto(tour: TourRecord, context: DetailContext): TourD
     maxGroupSize: tour.maxGroupSize ?? undefined,
     images: tour.images,
     inclusions: tour.inclusions,
+    highlights: tour.highlights,
     exclusions: tour.exclusions,
     itinerary: [...tour.itinerary]
       .sort((a, b) => a.day - b.day)

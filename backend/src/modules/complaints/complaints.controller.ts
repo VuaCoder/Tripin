@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { userActor } from '../../middlewares/authorize';
+import { agencyContext } from '../../middlewares/agency-context';
 import { complaintsService, type ComplaintsService } from './complaints.service';
 import {
   adjudicateComplaintTicketSchema,
@@ -52,9 +53,8 @@ export class ComplaintsController {
 
   // ================================================================== Agency
   listAgencyTickets = async (req: Request, res: Response): Promise<void> => {
-    const actor = userActor(req);
     const query = listComplaintsQuerySchema.parse(req.query);
-    const result = await this.service.listAgencyTickets(actor.userId, query as any);
+    const result = await this.service.listAgencyTickets(agencyContext(req).agencyId, query as any);
     res.json({ success: true, ...result });
   };
 
@@ -62,7 +62,7 @@ export class ComplaintsController {
     const actor = userActor(req);
     const ticketId = String(req.params.id);
     const input = resolveComplaintTicketSchema.parse(req.body);
-    const result = await this.service.resolveTicket(ticketId, actor.userId, input);
+    const result = await this.service.resolveTicket(ticketId, agencyContext(req).agencyId, input, actor.userId);
     res.json({ success: true, data: result });
   };
 

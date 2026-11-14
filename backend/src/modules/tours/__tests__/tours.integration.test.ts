@@ -60,6 +60,21 @@ const book = (token: string, tourId: string, departureId: string, participants =
   request(app).post('/api/v1/bookings').set(bearer(token)).send({ tourId, departureId, participants, contact });
 
 describe('tours (integration)', () => {
+  it('enforces STAFF field authorization and lifecycle across real HTTP routes', async () => {
+    const a = await actors();
+    const tourId = await draftTour(a.agency.token, a.categoryId);
+    await prisma.agencyMember.create({ data: { agencyId: a.agency.id, userId: a.traveler.id, role: 'STAFF' } });
+    const staff = { ...bearer(a.traveler.token), 'X-Agency-Id': a.agency.id };
+    const allowed = await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(staff).send({ title: 'Tour Staff updated', highlights: ['Sunrise'] });
+    expect(allowed.status).toBe(200);
+    const forbidden = await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(staff).send({ title: 'Blocked title', basePrice: 1 });
+    expect(forbidden.status).toBe(403);
+    expect((await loadTour(tourId))!.title).toBe('Tour Staff updated');
+    expect((await setDepartures(a.traveler.token, tourId, [{ date: inDays(20), capacity: 5, isOpen: false }])).status).toBe(403);
+    expect((await request(app).post(`/api/v1/agency/tours/${tourId}/submit`).set(staff)).status).toBe(403);
+    expect((await request(app).delete(`/api/v1/agency/tours/${tourId}`).set(staff)).status).toBe(403);
+  });
+
   it('walks the whole lifecycle: draft is private, approval publishes, an edit sends it back to review', async () => {
     const a = await actors();
     const tourId = await draftTour(a.agency.token, a.categoryId);

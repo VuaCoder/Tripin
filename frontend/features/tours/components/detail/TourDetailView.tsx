@@ -173,7 +173,10 @@ export function TourDetailView({ tour }: { tour: TourReviewContext }) {
         document.getElementById(`tab-${tabs[next][0]}`)?.focus();
       }}>{label}</button>)}</div>
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} tabIndex={0}>
-        {tab === 'lich-trinh' && <TourItinerary days={tour.itinerary ?? []} />}
+        {tab === 'lich-trinh' && <>{(tour.description || tour.highlights?.length) && <section className={styles.section} aria-label="Giới thiệu tour">
+          {tour.description && <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">{tour.description}</p>}
+          {!!tour.highlights?.length && <><h2 className="mt-5 text-lg font-bold">Điểm nổi bật</h2><ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">{tour.highlights.map((item, index) => <li key={index}>{item}</li>)}</ul></>}
+        </section>}<TourItinerary days={tour.itinerary ?? []} /></>}
         {tab === 'chinh-sach-gia' && <section id="chinh-sach-gia" className={styles.section} aria-labelledby="price-policy-heading"><h2 id="price-policy-heading">Chính sách giá</h2><TourIncludedServices items={tour.inclusions ?? []} /><TourExcludedServices items={tour.exclusions ?? []} /><TourChildPricing unitPrice={tour.basePrice} content={tour.childPricingPolicy} pricing={tour.agePricing} /></section>}
         {tab === 'huong-dan' && <section id="huong-dan" className={styles.section} aria-labelledby="travel-guidance-heading"><h2 id="travel-guidance-heading">Hướng dẫn trước chuyến đi</h2><TourTravelNotes content={tour.travelNotes} /><TourCancellationPolicy content={tour.cancellationPolicy} /><TourRequiredDocuments content={tour.requiredDocuments} /></section>}
       </div>

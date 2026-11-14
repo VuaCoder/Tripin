@@ -9,6 +9,8 @@ import { shouldRefetchAgencyDashboard } from '@/features/agency/dashboardCache';
 import { AgencyRevenueChart, rollingRevenueSeries } from '@/features/agency/components/AgencyRevenueChart';
 import { useAppSelector } from '@/store/hooks';
 import styles from '@/features/agency/components/AgencyDashboard.module.css';
+import { AgencyPageTitle } from '@/features/agency/components/AgencyPageTitle';
+import { LayoutDashboard } from 'lucide-react';
 
 const selectCachedDashboard = toursApi.endpoints.getAgencyDashboard.select();
 
@@ -40,7 +42,7 @@ export default function AgencyDashboardPage() {
   const period = points.length && data ? `${periodDate(points[0].date)} – ${periodDate(data.generatedAt.slice(0, 10))}` : 'Chưa có dữ liệu';
 
   return <main className={styles.page}>
-    <header className={styles.header}><div><h1>Tổng quan</h1><p className={styles.subtitle}>Khách hàng, đặt chỗ và doanh thu của bạn.</p></div><div className={styles.refresh}>
+    <header className={styles.header}><div><AgencyPageTitle icon={LayoutDashboard}>Tổng quan</AgencyPageTitle><p className={styles.subtitle}>Khách hàng, đặt chỗ và doanh thu của bạn.</p></div><div className={styles.refresh}>
       {data && <time dateTime={data.generatedAt}>Cập nhật {new Date(data.generatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</time>}
       <button type="button" className="grid size-10 place-items-center rounded-lg border border-slate-200 bg-white text-primary hover:bg-teal-50 disabled:opacity-50" disabled={isFetching} onClick={() => void refetch()} aria-label="Làm mới" title="Làm mới"><RotateCw size={17} className={isFetching ? 'animate-spin motion-reduce:animate-none' : ''} /></button>
     </div></header>

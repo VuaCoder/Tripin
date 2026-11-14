@@ -55,9 +55,27 @@ describe('Agency membership layout gates', () => {
   it('allows Accountant booking views using membership permissions', () => {
     mocks.pathname = '/agency/bookings'; mount([accountant]); expect(screen.getByText('Protected business screen')).toBeDefined();
   });
+  it('opens an allowed page when Staff lands on the dashboard URL', () => {
+    mocks.pathname = '/agency';
+    mount([membershipFixture({ memberRole: 'STAFF', permissions: ['agency:tour-view', 'agency:booking-monitor'] })]);
+    expect(mocks.replace).toHaveBeenCalledWith('/agency/work/tours');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+  it('keeps the dashboard as the landing page for members with dashboard access', () => {
+    mocks.pathname = '/agency';
+    mount();
+    expect(screen.getByText('Protected business screen')).toBeDefined();
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
   it('blocks Staff finance access by direct URL', () => {
     mocks.pathname = '/agency/finance'; mount([membershipFixture({ memberRole: 'STAFF', permissions: ['tour:update-own'] })]);
     expect(screen.queryByText('Protected business screen')).toBeNull(); expect(screen.getByRole('alert')).toBeDefined();
+  });
+  it('blocks Staff commission access by direct URL', () => {
+    mocks.pathname = '/agency/settings/commission';
+    mount([membershipFixture({ memberRole: 'STAFF', permissions: ['tour:update-own'] })]);
+    expect(screen.queryByText('Protected business screen')).toBeNull();
+    expect(screen.getByRole('alert')).toBeDefined();
   });
   it('uses selected-company verification, not the personal profile', () => {
     mount([membershipFixture({ verificationStatus: 'PENDING' })]);

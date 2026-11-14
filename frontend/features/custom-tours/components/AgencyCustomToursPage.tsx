@@ -10,6 +10,8 @@ import { useDecideCustomTourMutation, useListCustomToursQuery } from '../api';
 import { STATUS_LABELS, guestSummary } from '../labels';
 import { customTourHref } from '../links';
 import type { CustomTourDecision, CustomTourRequestDto, CustomTourStatus } from '../types';
+import { AgencyPageTitle } from '@/features/agency/components/AgencyPageTitle';
+import { Users } from 'lucide-react';
 
 const PAGE_SIZE = 10;
 type StatusFilter = 'ALL' | CustomTourStatus;
@@ -52,7 +54,7 @@ export function AgencyCustomToursPage() {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">Yêu cầu đoàn</h1>
+        <AgencyPageTitle icon={Users}>Yêu cầu đoàn</AgencyPageTitle>
         <AntSelect
           aria-label="Lọc theo trạng thái"
           value={status}
