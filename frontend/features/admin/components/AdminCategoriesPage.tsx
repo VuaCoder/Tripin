@@ -29,7 +29,7 @@ function CategoryForm({ category, busy, serverError, onSave, onClose }: { catego
 
 export function AdminCategoriesPage() {
   const { ready } = useAdminSession();
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [sort, setSort] = useState('order-asc');
