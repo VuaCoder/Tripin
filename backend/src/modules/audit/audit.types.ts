@@ -63,9 +63,11 @@ export interface ListAuditQuery {
   page: number;
   limit: number;
   actorId?: string;
+  actorRole?: PersistedRole;
   action?: AuditAction;
   targetType?: string;
   targetId?: string;
   from?: Date;
   to?: Date;
+  order?: 'asc' | 'desc';
 }

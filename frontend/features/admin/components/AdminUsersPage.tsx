@@ -18,6 +18,8 @@ import {
   ShieldCheck,
   UserCog,
   Search,
+  ArrowDown,
+  ArrowUp,
 } from 'lucide-react';
 
 export const ROLE_DISPLAY: Record<PersistedRole, string> = {
@@ -108,7 +110,8 @@ function RoleChangeModal({
 
 export function AdminUsersPage() {
   const { ready, user } = useAdminSession();
-  const [args, setArgs] = useState<UsersArgs>({ page: 1, limit: 10 });
+  const [args, setArgs] = useState<UsersArgs>({ page: 1, limit: 10, order: 'desc' });
+  const [order, setOrder] = useState<'asc' | 'desc'>('desc');
   const [search, setSearch] = useState('');
   const query = useGetAdminUsersQuery(args, { skip: !ready, refetchOnMountOrArgChange: true });
   const [save, { isLoading }] = useAssignAdminAccessMutation();
@@ -116,6 +119,10 @@ export function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [denied, setDenied] = useState<unknown>();
+
+  useEffect(() => {
+    setArgs((current) => (current.order === order ? current : { ...current, page: 1, order }));
+  }, [order]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -231,7 +238,20 @@ export function AdminUsersPage() {
                 <th className="px-5 py-3 font-medium">Người dùng</th>
                 <th className="px-4 py-3 font-medium">Vai trò</th>
                 <th className="px-4 py-3 font-medium">Trạng thái</th>
-                <th className="px-4 py-3 font-medium">Ngày tạo</th>
+                <th className="px-4 py-3 font-medium">
+                  <button
+                    type="button"
+                    onClick={() => setOrder((cur) => (cur === 'desc' ? 'asc' : 'desc'))}
+                    className="inline-flex items-center gap-1 uppercase tracking-wide hover:text-slate-700 transition"
+                    aria-label={order === 'desc' ? 'Ngày tạo: mới nhất trước. Bấm để đảo thứ tự.' : 'Ngày tạo: cũ nhất trước. Bấm để đảo thứ tự.'}
+                    aria-sort={order === 'desc' ? 'descending' : 'ascending'}
+                  >
+                    Ngày tạo
+                    {order === 'desc'
+                      ? <ArrowDown size={13} className="text-teal-600" />
+                      : <ArrowUp size={13} className="text-teal-600" />}
+                  </button>
+                </th>
                 <th className="px-5 py-3 text-right font-medium">Thao tác</th>
               </tr>
             </thead>

@@ -8,7 +8,7 @@ export interface AdminUser {
   id: string; fullName: string; email: string; role: PersistedRole; status: UserStatus;
   revokedPermissions?: Permission[]; staffStatus?: string; permissions: Permission[]; extraPermissions: Permission[]; createdAt: string;
 }
-export interface UsersArgs { page: number; limit: number; q?: string; role?: PersistedRole; status?: UserStatus; from?: string; to?: string }
+export interface UsersArgs { page: number; limit: number; q?: string; role?: PersistedRole; status?: UserStatus; from?: string; to?: string; order?: 'asc' | 'desc' }
 export interface DashboardArgs { from?: string; to?: string }
 export interface AccessInput { revokedPermissions?: Permission[]; id: string; role: PersistedRole; extraPermissions: Permission[] }
 export interface Category { id: string; name: string; slug: string; description?: string; sortOrder: number; isActive: boolean }

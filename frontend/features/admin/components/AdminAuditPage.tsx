@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import {
+  ArrowDown,
+  ArrowUp,
   Download,
   FileSpreadsheet,
-  Eye,
   MessageSquare,
   RotateCcw,
 } from 'lucide-react';
@@ -32,7 +33,7 @@ const api = baseApi.injectEndpoints({
   endpoints: (build) => ({
     auditList: build.query<
       { items: Audit[]; meta: { totalPages: number; total?: number } },
-      { page: number; from?: string; to?: string; targetType?: string }
+      { page: number; from?: string; to?: string; targetType?: string; action?: string; actorRole?: string; order?: 'asc' | 'desc' }
     >({
       query: (params) => ({ url: '/admin/audit-logs', params: { ...params, limit: 15 } }),
       transformResponse: (r: { data: Audit[]; meta: { totalPages: number; total?: number } }) => ({
@@ -63,6 +64,46 @@ const ACTION_MAP: Record<string, ActionConfig> = {
   'review.moderated': {
     label: 'Kiểm duyệt đánh giá',
     badgeClass: 'bg-purple-50 text-purple-700 border-purple-200/80',
+  },
+  'agency.created': {
+    label: 'Tạo công ty',
+    badgeClass: 'bg-sky-50 text-sky-700 border-sky-200/80',
+  },
+  'agency.application_saved': {
+    label: 'Lưu hồ sơ công ty',
+    badgeClass: 'bg-sky-50 text-sky-700 border-sky-200/80',
+  },
+  'agency.join_code_changed': {
+    label: 'Đổi mã gia nhập công ty',
+    badgeClass: 'bg-sky-50 text-sky-700 border-sky-200/80',
+  },
+  'agency.join_request_changed': {
+    label: 'Xử lý yêu cầu gia nhập công ty',
+    badgeClass: 'bg-sky-50 text-sky-700 border-sky-200/80',
+  },
+  'agency.role_saved': {
+    label: 'Cập nhật vai trò công ty',
+    badgeClass: 'bg-sky-50 text-sky-700 border-sky-200/80',
+  },
+  'agency.tour_scope_changed': {
+    label: 'Cập nhật phạm vi tour công ty',
+    badgeClass: 'bg-sky-50 text-sky-700 border-sky-200/80',
+  },
+  'agency.tour_content_changed': {
+    label: 'Cập nhật nội dung tour công ty',
+    badgeClass: 'bg-sky-50 text-sky-700 border-sky-200/80',
+  },
+  'agency.member_access_changed': {
+    label: 'Cập nhật quyền nhân sự',
+    badgeClass: 'bg-sky-50 text-sky-700 border-sky-200/80',
+  },
+  'agency.invitation_revoked': {
+    label: 'Thu hồi lời mời công ty',
+    badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200/80',
+  },
+  'guide_payout.transferred': {
+    label: 'Chuyển tiền thanh toán HDV',
+    badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200/80',
   },
   'report.resolved': {
     label: 'Xử lý báo cáo',
@@ -152,13 +193,22 @@ const TARGET_TYPE_MAP: Record<string, string> = {
   report: 'Báo cáo vi phạm',
   user: 'Tài khoản',
   agency: 'Công ty lữ hành',
+  'agency-role': 'Vai trò công ty',
+  'agency-member': 'Nhân sự công ty',
+  'agency-invitation': 'Lời mời công ty',
+  'agency-join-code': 'Mã gia nhập công ty',
+  'agency-join-request': 'Yêu cầu gia nhập công ty',
   category: 'Danh mục tour',
   policy: 'Chính sách',
   commission: 'Hoa hồng sàn',
   setting: 'Phí dịch vụ và chính sách',
   promotion: 'Khuyến mãi',
   support_ticket: 'Yêu cầu hỗ trợ',
+  'guide-payout': 'Thanh toán HDV',
   guide_payout: 'Thanh toán HDV',
+  Premium: 'Gói Premium',
+  'audit-logs': 'Nhật ký hoạt động',
+  moderation: 'Hoạt động kiểm duyệt',
 };
 
 const ROLE_MAP: Record<string, string> = {
@@ -238,47 +288,6 @@ function getActionInfo(action: string): ActionConfig {
    Subcomponents
    ========================================================================= */
 
-function AuditChangeSummary({ metadata, onViewDetail }: { metadata?: Record<string, unknown> | null; onViewDetail: () => void }) {
-  if (!metadata || typeof metadata !== 'object' || Object.keys(metadata).length === 0) {
-    return <span className="text-xs text-slate-400">Không có thay đổi chi tiết</span>;
-  }
-
-  const reason = (metadata.reason ?? metadata.hiddenReason ?? metadata.rejectReason) as string | undefined;
-  const before = metadata.before as Record<string, unknown> | undefined;
-  const after = metadata.after as Record<string, unknown> | undefined;
-
-  let stateChange = '';
-  if (before && after && before.status !== after.status) {
-    stateChange = `${formatValue(before.status)} → ${formatValue(after.status)}`;
-  }
-
-  return (
-    <div className="space-y-1.5 text-xs">
-      {reason && (
-        <div className="line-clamp-1 max-w-[280px] rounded-md bg-amber-50/70 border border-amber-200/50 px-2 py-0.5 text-[11px] text-amber-900">
-          <span className="font-semibold">Lý do: </span>
-          <span>{reason}</span>
-        </div>
-      )}
-      {stateChange && (
-        <div className="flex items-center gap-1.5 font-medium text-slate-800">
-          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600">Thay đổi:</span>
-          <span>{stateChange}</span>
-        </div>
-      )}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onViewDetail}
-        className="!h-7 px-2 text-xs font-semibold text-teal-800 hover:text-teal-900 hover:bg-teal-50 flex items-center gap-1"
-      >
-        <Eye size={13} />
-        <span>Xem chi tiết</span>
-      </Button>
-    </div>
-  );
-}
-
 function AuditDetailModal({ item, onClose }: { item: Audit | null; onClose: () => void }) {
   if (!item) return null;
   const actionInfo = getActionInfo(item.action);
@@ -331,7 +340,7 @@ function AuditDetailModal({ item, onClose }: { item: Audit | null; onClose: () =
             <p className="text-xs text-slate-500">{ROLE_MAP[item.actorRole ?? ''] ?? 'Quản trị viên'}</p>
           </div>
           <div>
-            <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">Liên quan đến</span>
+            <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">Nội dung</span>
             <p className="mt-1 font-semibold text-slate-800">{TARGET_TYPE_MAP[item.targetType] ?? 'Nội dung trên nền tảng'}</p>
           </div>
         </div>
@@ -417,12 +426,18 @@ export function AdminAuditPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [targetType, setTargetType] = useState('all');
+  const [action, setAction] = useState('all');
+  const [role, setRole] = useState('all');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [selectedAudit, setSelectedAudit] = useState<Audit | null>(null);
 
   const filter = {
     ...(from ? { from: `${from}T00:00:00+07:00` } : {}),
     ...(to ? { to: `${to}T23:59:59.999+07:00` } : {}),
     ...(targetType !== 'all' ? { targetType } : {}),
+    ...(action !== 'all' ? { action } : {}),
+    ...(role !== 'all' ? { actorRole: role } : {}),
+    order: sortOrder,
   };
 
   const query = api.useAuditListQuery({ page, ...filter }, { skip: !ready, refetchOnMountOrArgChange: true });
@@ -486,7 +501,7 @@ export function AdminAuditPage() {
       <Feedback error={error} />
 
       {/* Toolbar filter */}
-      <div className={`${toolbar} items-end sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.2fr_auto]`}>
+      <div className={`${toolbar} items-end sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.1fr_1.3fr_1.1fr_auto] xl:grid-cols-[1fr_1fr_1fr_1.4fr_1fr_auto]`}>
         <FormField label="Từ ngày" htmlFor="audit-from">
           <Input
             id="audit-from"
@@ -520,15 +535,41 @@ export function AdminAuditPage() {
             }}
           >
             <option value="all">Tất cả đối tượng</option>
-            <option value="review">Đánh giá</option>
-            <option value="tour">Tour du lịch</option>
-            <option value="report">Báo cáo vi phạm</option>
-            <option value="user">Tài khoản người dùng</option>
-            <option value="agency">Công ty lữ hành</option>
-            <option value="category">Danh mục tour</option>
-            <option value="setting">Phí dịch vụ và chính sách</option>
-            <option value="promotion">Voucher</option>
-            <option value="support_ticket">Yêu cầu hỗ trợ</option>
+            {Object.entries(TARGET_TYPE_MAP).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </FormSelect>
+        </FormField>
+        <FormField label="Thao tác" htmlFor="audit-action-filter">
+          <FormSelect
+            id="audit-action-filter"
+            className={control}
+            value={action}
+            onChange={(e) => {
+              setPage(1);
+              setAction(e.target.value);
+            }}
+          >
+            <option value="all">Tất cả thao tác</option>
+            {Object.entries(ACTION_MAP).map(([value, cfg]) => (
+              <option key={value} value={value}>{cfg.label}</option>
+            ))}
+          </FormSelect>
+        </FormField>
+        <FormField label="Vai trò" htmlFor="audit-role-filter">
+          <FormSelect
+            id="audit-role-filter"
+            className={control}
+            value={role}
+            onChange={(e) => {
+              setPage(1);
+              setRole(e.target.value);
+            }}
+          >
+            <option value="all">Tất cả vai trò</option>
+            {Object.entries(ROLE_MAP).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
           </FormSelect>
         </FormField>
         <div className="flex items-end">
@@ -539,6 +580,9 @@ export function AdminAuditPage() {
               setFrom('');
               setTo('');
               setTargetType('all');
+              setAction('all');
+              setRole('all');
+              setSortOrder('desc');
             }}
             className="inline-flex min-h-11 w-full items-center justify-center gap-2 whitespace-nowrap sm:w-auto"
           >
@@ -565,25 +609,45 @@ export function AdminAuditPage() {
           <table className="w-full min-w-[840px] table-fixed text-left text-sm">
             <colgroup>
               <col className="w-[15%]" />
-              <col className="w-[22%]" />
               <col className="w-[20%]" />
-              <col className="w-[18%]" />
-              <col className="w-[25%]" />
+              <col className="w-[17%]" />
+              <col className="w-[12%]" />
+              <col className="w-[16%]" />
+              <col className="w-[20%]" />
             </colgroup>
             <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wide text-slate-400">
               <tr>
-                <th className="px-5 py-3.5 font-medium">Thời gian</th>
+                <th className="px-5 py-3.5 font-medium">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPage(1);
+                      setSortOrder((cur) => (cur === 'desc' ? 'asc' : 'desc'));
+                    }}
+                    className="inline-flex items-center gap-1 uppercase tracking-wide hover:text-slate-700 transition"
+                  >
+                    Thời gian
+                    {sortOrder === 'desc'
+                      ? <ArrowDown size={13} className="text-teal-600" />
+                      : <ArrowUp size={13} className="text-teal-600" />}
+                  </button>
+                </th>
                 <th className="px-4 py-3.5 font-medium">Thao tác</th>
                 <th className="px-4 py-3.5 font-medium">Người thực hiện</th>
-                <th className="px-4 py-3.5 font-medium">Liên quan đến</th>
-                <th className="px-5 py-3.5 font-medium">Lý do và thay đổi</th>
+                <th className="px-4 py-3.5 font-medium">Vai trò</th>
+                <th className="px-4 py-3.5 font-medium">Nội dung</th>
+                <th className="px-5 py-3.5 font-medium">Trạng thái</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {query.data?.items.map((r) => {
                 const actionInfo = getActionInfo(r.action);
                 return (
-                  <tr key={r.id} className="transition hover:bg-slate-50/70 align-top">
+                  <tr
+                    key={r.id}
+                    onClick={() => setSelectedAudit(r)}
+                    className="transition cursor-pointer hover:bg-slate-50/70 align-top"
+                  >
                     {/* Thời gian */}
                     <td className="px-5 py-4 whitespace-nowrap text-xs text-slate-700 font-medium">
                       {formatSmartDateTime(r.createdAt)}
@@ -600,10 +664,14 @@ export function AdminAuditPage() {
 
                     {/* Người thực hiện */}
                     <td className="px-4 py-4">
-                      <div className="space-y-1">
-                        <span className="block font-medium text-slate-900">{r.actorName ?? 'Tài khoản đã xóa'}</span>
-                        <span className="block text-xs text-slate-500">{ROLE_MAP[r.actorRole ?? ''] ?? 'Quản trị viên'}</span>
-                      </div>
+                      <span className="block font-medium text-slate-900">{r.actorName ?? 'Tài khoản đã xóa'}</span>
+                    </td>
+
+                    {/* Vai trò */}
+                    <td className="px-4 py-4">
+                      <span className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700">
+                        {ROLE_MAP[r.actorRole ?? ''] ?? 'Quản trị viên'}
+                      </span>
                     </td>
 
                     {/* Đối tượng */}
@@ -613,12 +681,12 @@ export function AdminAuditPage() {
                       </div>
                     </td>
 
-                    {/* Thay đổi & Lý do */}
+                    {/* Trạng thái */}
                     <td className="px-5 py-4">
-                      <AuditChangeSummary
-                        metadata={r.metadata}
-                        onViewDetail={() => setSelectedAudit(r)}
-                      />
+                      <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200/80 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                        <span className="size-1.5 rounded-full bg-emerald-500" />
+                        Thành công
+                      </span>
                     </td>
                   </tr>
                 );

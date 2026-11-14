@@ -115,6 +115,7 @@ export interface ListUsersQuery {
   role?: PersistedRole;
   status?: UserStatus;
   q?: string;
+  order?: 'asc' | 'desc';
 }
 
 export interface AssignAccessInput {

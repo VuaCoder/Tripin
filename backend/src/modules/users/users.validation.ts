@@ -84,6 +84,7 @@ export const listUsersQuery = paginationQuerySchema.extend({
   role: z.enum(PERSISTED_ROLES).optional(),
   status: z.enum(Object.values(USER_STATUS) as [string, ...string[]]).optional(),
   q: z.string().trim().min(1).max(100).optional(),
+  order: z.enum(['asc', 'desc']).optional(),
 }).refine(validDateRange, 'Provide both from and to, with from <= to');
 
 export const assignAccessParams = z.object({ id: idSchema });

@@ -17,6 +17,7 @@ export interface UserListFilter {
   status?: UserStatus;
   q?: string;
   agencyVerification?: AgencyVerificationStatus;
+  order?: 'asc' | 'desc';
 }
 
 export type AgencyProfileFields = Partial<Omit<AgencyProfile, 'id' | 'userId'>>;
@@ -277,7 +278,7 @@ export class UsersRepository {
       ];
     }
     const [items, total] = await Promise.all([
-      prisma.user.findMany({ where, include, omit: omitPassword, orderBy: filter.agencyVerification ? [{ agencyProfile: { submittedAt: 'asc' } }, { id: 'asc' }] : [{ createdAt: 'desc' }, { id: 'desc' }], skip: toSkip(page), take: page.limit }),
+      prisma.user.findMany({ where, include, omit: omitPassword, orderBy: filter.agencyVerification ? [{ agencyProfile: { submittedAt: 'asc' } }, { id: 'asc' }] : [{ createdAt: filter.order ?? 'desc' }, { id: filter.order ?? 'desc' }], skip: toSkip(page), take: page.limit }),
       prisma.user.count({ where }),
     ]);
     return { items, total };
