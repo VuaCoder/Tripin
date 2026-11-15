@@ -17,6 +17,7 @@ let permissions: string[] = [];
 vi.mock('../api/moderationApi', () => ({
   useGetModerationReportsQuery: (...a: unknown[]) => mockReports(...a),
   useGetModerationReviewsQuery: (...a: unknown[]) => mockReviews(...a),
+  useGetModerationTourQuery: () => q({}),
   useGetModerationTicketsQuery: (...a: unknown[]) => mockTickets(...a),
   useGetModerationTicketQuery: (...a: unknown[]) => mockTicket(...a),
   useResolveReportMutation: () => [mockResolve, { isLoading: false }],
@@ -113,14 +114,14 @@ describe('moderator permission scope', () => {
     mockReports.mockReturnValue(q({}));
     render(<ModerationReportListPage />);
     expect(screen.getByRole('alert').textContent).toContain('không có quyền');
-    expect(mockReports.mock.calls[0][1]).toEqual({ skip: true });
+    expect(mockReports.mock.calls[0][1]).toEqual({ skip: true, refetchOnMountOrArgChange: 60 });
   });
 
   it('denies the review queue without review:moderate and skips the request', () => {
     mockReviews.mockReturnValue(q({}));
     render(<ModerationReviewListPage />);
     expect(screen.getByRole('alert').textContent).toContain('không có quyền');
-    expect(mockReviews.mock.calls[0][1]).toEqual({ skip: true });
+    expect(mockReviews.mock.calls[0][1]).toEqual({ skip: true, refetchOnMountOrArgChange: 60 });
   });
 
   it('denies the complaint queue without complaint:handle and skips the request', () => {
@@ -128,7 +129,7 @@ describe('moderator permission scope', () => {
     mockTicket.mockReturnValue(q({}));
     render(<ModerationTicketListPage />);
     expect(screen.getByRole('alert').textContent).toContain('không có quyền');
-    expect(mockTickets.mock.calls[0][1]).toEqual({ skip: true });
+    expect(mockTickets.mock.calls[0][1]).toEqual({ skip: true, refetchOnMountOrArgChange: 60 });
   });
 });
 
@@ -152,19 +153,19 @@ describe('ModerationReportListPage', () => {
     allowResolve();
     mockReports.mockReturnValue(q({ data: { items: [report()], meta: META } }));
     render(<ModerationReportListPage />);
-    expect(mockReports).toHaveBeenLastCalledWith({ page: 1, limit: 10 }, { skip: false });
+    expect(mockReports).toHaveBeenLastCalledWith({ page: 1, limit: 10 }, { skip: false, refetchOnMountOrArgChange: 60 });
 
     await selectFormValue('Lọc theo trạng thái', 'AGENCY_RESPONDED');
-    expect(mockReports).toHaveBeenLastCalledWith({ page: 1, limit: 10, status: 'AGENCY_RESPONDED' }, { skip: false });
+    expect(mockReports).toHaveBeenLastCalledWith({ page: 1, limit: 10, status: 'AGENCY_RESPONDED' }, { skip: false, refetchOnMountOrArgChange: 60 });
     await selectOption(screen.getByRole('combobox', { name: 'Lọc theo đối tượng' }), 'Tài khoản đối tác');
     expect(mockReports).toHaveBeenLastCalledWith(
       { page: 1, limit: 10, status: 'AGENCY_RESPONDED', targetType: 'USER' },
-      { skip: false },
+      { skip: false, refetchOnMountOrArgChange: 60 },
     );
     await selectOption(screen.getByRole('combobox', { name: 'Lọc theo loại vấn đề' }), 'An toàn');
     expect(mockReports).toHaveBeenLastCalledWith(
       { page: 1, limit: 10, status: 'AGENCY_RESPONDED', targetType: 'USER', category: 'SAFETY' },
-      { skip: false },
+      { skip: false, refetchOnMountOrArgChange: 60 },
     );
   });
 
@@ -324,6 +325,7 @@ describe('ModerationReviewListPage', () => {
     fireEvent.click(screen.getByText('Xem & xử lý'));
     fireEvent.click(screen.getByText('Ẩn đánh giá'));
 
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận ẩn đánh giá' }));
     expect(screen.getByText(/ít nhất 3 ký tự/)).toBeTruthy();
     expect(mockModerate).not.toHaveBeenCalled();
   });
@@ -347,9 +349,10 @@ describe('ModerationReviewListPage', () => {
     mockModerate.mockReturnValue(unwrapOk());
     render(<ModerationReviewListPage />);
     fireEvent.click(screen.getByText('Xem & xử lý'));
-    fireEvent.change(screen.getByLabelText(/Lý do ẩn đánh giá/), { target: { value: 'Ngôn từ xúc phạm' } });
     fireEvent.click(screen.getByText('Ẩn đánh giá'));
+    fireEvent.change(screen.getByLabelText(/Lý do ẩn đánh giá/), { target: { value: 'Ngôn từ xúc phạm' } });
 
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận ẩn đánh giá' }));
     await waitFor(() => expect(mockModerate).toHaveBeenCalledWith({ id: 'v1', hide: true, reason: 'Ngôn từ xúc phạm' }));
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã ẩn đánh giá'));
   });
@@ -365,7 +368,7 @@ describe('ModerationReviewListPage', () => {
 
     expect(mockModerate).not.toHaveBeenCalled();
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Review is compliant' } });
-    fireEvent.click(screen.getByRole('button', { name: /Khôi phục đánh giá/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận khôi phục đánh giá' }));
     await waitFor(() => expect(mockModerate).toHaveBeenCalledWith({ id: 'v1', hide: false, restorationReason: 'Review is compliant' }));
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã khôi phục đánh giá'));
   });
@@ -380,6 +383,7 @@ describe('ModerationReviewListPage', () => {
     const banButtons = screen.getAllByRole('button', { name: 'Khoá' });
     fireEvent.click(banButtons[banButtons.length - 1]);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận khoá' }));
     await waitFor(() => expect(mockBan).toHaveBeenCalledWith(expect.objectContaining({ id: 'u-traveler' })));
   });
 });

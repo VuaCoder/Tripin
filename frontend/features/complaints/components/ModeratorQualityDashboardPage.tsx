@@ -40,7 +40,7 @@ export function ModeratorQualityDashboardPage() {
     isError: isErrorEscalated,
     refetch: refetchEscalated,
     isFetching: isFetchingEscalated,
-  } = useGetModeratorComplaintsQuery({ status: 'ESCALATED', limit: 20 });
+  } = useGetModeratorComplaintsQuery({ status: 'ESCALATED', limit: 20 }, { refetchOnMountOrArgChange: 60 });
 
   const {
     data: qualityData,
@@ -48,7 +48,7 @@ export function ModeratorQualityDashboardPage() {
     isError: isErrorQuality,
     refetch: refetchQuality,
     isFetching: isFetchingQuality,
-  } = useGetAgencyQualityDashboardQuery();
+  } = useGetAgencyQualityDashboardQuery(undefined, { refetchOnMountOrArgChange: 60 });
 
   const isFetching = isFetchingEscalated || isFetchingQuality;
 

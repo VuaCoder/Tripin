@@ -261,4 +261,3 @@ bash .playwright-cli/agency-roles/run.sh all
 ```
 
 Tài liệu chức năng đầy đủ (17 nhóm, 23 màn hình, 27 ảnh): [AGENCY-FUNCTIONS.docx](../../agency/AGENCY-FUNCTIONS.docx) · [bản PDF](../../agency/AGENCY-FUNCTIONS.pdf).
-

@@ -71,6 +71,7 @@ export function ModerationDashboardPage() {
     skip: !allowed,
     pollingInterval: 3_600_000,
     refetchOnFocus: true,
+    refetchOnMountOrArgChange: 60,
   });
 
   const {
@@ -80,7 +81,7 @@ export function ModerationDashboardPage() {
     refetch: refetchComplaints,
   } = useGetModeratorComplaintsQuery(
     { status: 'ESCALATED', limit: 1 },
-    { skip: !canReports, pollingInterval: 3_600_000, refetchOnFocus: true },
+    { skip: !canReports, pollingInterval: 3_600_000, refetchOnFocus: true, refetchOnMountOrArgChange: 60 },
   );
 
   if (!allowed) return <ModerationDenied />;

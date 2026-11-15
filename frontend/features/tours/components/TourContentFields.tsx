@@ -1,7 +1,7 @@
 'use client';
 
 import type { TourCategory, TourContentInput } from '../types';
-import { formatCurrencyVndInput, parseCurrencyVndInput } from '../utils/format';
+import { VndPriceInput } from './VndPriceInput';
 import { TourPolicyFields } from './TourPolicyFields';
 import { TourAgePricingFields } from './TourAgePricingFields';
 
@@ -27,14 +27,12 @@ export function TourContentFields({ value, onChange, categories }: Props) {
           <input className={inputClass} type="number" min={1} max={365} required value={value.durationDays} onChange={(e) => set('durationDays', Number(e.target.value))} />
         </label>
         <label className="space-y-1.5 text-sm font-semibold text-slate-700">Giá người lớn · từ 13 tuổi trở lên (VND)
-          <input
+          <VndPriceInput
             className={inputClass}
-            type="text"
-            inputMode="numeric"
             placeholder="Ví dụ: 1.500.000"
             required
-            value={formatCurrencyVndInput(value.basePrice)}
-            onChange={(e) => set('basePrice', parseCurrencyVndInput(e.target.value))}
+            value={value.basePrice}
+            onValueChange={(price) => set('basePrice', price)}
           />
         </label>
         <label className="space-y-1.5 text-sm font-semibold text-slate-700">Số khách tối đa

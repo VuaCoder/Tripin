@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Search, RefreshCw, X, LayoutGrid, List, Compass, MapPin, Clock, Eye, AlertOctagon } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
 import { Pagination, AntSelect, Modal, type AntSelectOption } from '@/components/ui';
-import { useGetModerationToursQuery, useSuspendTourMutation, useValidateTourMutation } from '../api/moderationApi';
+import { useGetModerationTourQuery, useGetModerationToursQuery, useSuspendTourMutation, useValidateTourMutation } from '../api/moderationApi';
 import { PERMISSION, TOUR_STATUS_LABELS } from '../labels';
 import type { ModerationTour, ModerationTourStatus } from '../types';
 import { ModeratorTourDetailModal } from './ModeratorTourDetailModal';
@@ -130,12 +130,13 @@ export function ModerationTourListPage({ initialStatus = 'PENDING_REVIEW' }: Pro
 
   const { data, isLoading, isFetching, isError, refetch } = useGetModerationToursQuery(
     { page, limit: PAGE_SIZE, ...(filter === 'ALL' ? {} : { status: filter }), ...(q ? { q } : {}) },
-    { skip: !canList },
+    { skip: !canList, refetchOnMountOrArgChange: 60 },
   );
   const [validate, { isLoading: isValidating }] = useValidateTourMutation();
   const [suspend, { isLoading: isSuspending }] = useSuspendTourMutation();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { data: selectedDetail, isFetching: isLoadingDetail, isError: isDetailError, refetch: refetchDetail } = useGetModerationTourQuery(selectedId ?? '', { skip: !selectedId || !canList, refetchOnMountOrArgChange: 60 });
   const [quickActionTour, setQuickActionTour] = useState<{ id: string; action: 'suspend' | 'reject'; title: string } | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -143,7 +144,7 @@ export function ModerationTourListPage({ initialStatus = 'PENDING_REVIEW' }: Pro
   if (!canList) return <ModerationDenied />;
 
   // Always read the open tour from the cache so the dialog reflects what the backend returned.
-  const selected: ModerationTour | null = data?.items.find((t) => t.id === selectedId) ?? null;
+  const selected: ModerationTour | null = selectedDetail?.id === selectedId ? selectedDetail : null;
 
   const close = () => {
     setSelectedId(null);
@@ -327,7 +328,18 @@ export function ModerationTourListPage({ initialStatus = 'PENDING_REVIEW' }: Pro
                 return (
                   <li
                     key={t.id}
-                    className="group flex flex-col justify-between overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xs transition hover:border-slate-300 hover:shadow-md"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Xem chi tiết tour ${t.title}`}
+                    onClick={() => { setServerError(null); setSelectedId(t.id); }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setServerError(null);
+                        setSelectedId(t.id);
+                      }
+                    }}
+                    className="group flex cursor-pointer flex-col justify-between overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xs transition hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
                   >
                     <div>
                       {/* Cover Photo */}
@@ -378,17 +390,12 @@ export function ModerationTourListPage({ initialStatus = 'PENDING_REVIEW' }: Pro
                         {formatTourDate(t.updatedAt)}
                       </span>
                       <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setServerError(null);
-                            setSelectedId(t.id);
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-teal-900 shadow-2xs transition hover:bg-teal-50 cursor-pointer"
+                        <span
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-teal-900 shadow-2xs transition group-hover:bg-teal-50"
                         >
                           <Eye className="size-3.5 text-teal-700" />
                           <span>{t.status === 'PENDING_REVIEW' || t.status === 'APPROVED' ? 'Xem & xử lý' : 'Xem chi tiết'}</span>
-                        </button>
+                        </span>
                       </div>
                     </div>
                   </li>
@@ -407,7 +414,18 @@ export function ModerationTourListPage({ initialStatus = 'PENDING_REVIEW' }: Pro
                 return (
                   <li
                     key={t.id}
-                    className="group rounded-3xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-slate-300 hover:shadow-sm"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Xem chi tiết tour ${t.title}`}
+                    onClick={() => { setServerError(null); setSelectedId(t.id); }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setServerError(null);
+                        setSelectedId(t.id);
+                      }
+                    }}
+                    className="group cursor-pointer rounded-3xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-slate-300 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
                   >
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                       <div className="flex items-center gap-4 min-w-0 flex-1">
@@ -460,17 +478,12 @@ export function ModerationTourListPage({ initialStatus = 'PENDING_REVIEW' }: Pro
 
                       {/* Action */}
                       <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setServerError(null);
-                            setSelectedId(t.id);
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50/50 px-4 py-2 text-sm font-semibold text-teal-900 transition hover:bg-teal-100/80 cursor-pointer"
+                        <span
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50/50 px-4 py-2 text-sm font-semibold text-teal-900 transition group-hover:bg-teal-100/80"
                         >
                           <Eye className="size-4 text-teal-700" />
                           <span>{t.status === 'PENDING_REVIEW' || t.status === 'APPROVED' ? 'Xem & xử lý' : 'Xem chi tiết'}</span>
-                        </button>
+                        </span>
                       </div>
 
 

@@ -180,7 +180,7 @@ describe('error contract over HTTP', () => {
     expect((await request(app).post('/api/v1/auth/login').send({ email: 'agency-login@example.com', password: PASSWORD })).status).toBe(200);
     expectError(await request(app).post('/api/v1/auth/register').send({ email: 'new-agency@example.com', password: PASSWORD, fullName: 'Agency Tester', role: 'AGENCY' }), 'VALIDATION_ERROR');
     await createUser('AGENCY', 'agency-pending@example.com', { passwordHash, status: 'PENDING_VERIFICATION' });
-    expectError(await request(app).post('/api/v1/auth/agency/login').send({ email: 'agency-pending@example.com', password: PASSWORD }), 'ACCOUNT_NOT_VERIFIED');
+    expectError(await request(app).post('/api/v1/auth/agency/login').send({ email: 'agency-pending@example.com', password: PASSWORD }), 'AGENCY_ONBOARDING_REQUIRED');
     expectError(await request(app).post('/api/v1/auth/agency/verify-otp').send({ email: 'agency-pending@example.com', code: '000000', purpose: 'REGISTER' }), 'AGENCY_ONBOARDING_REQUIRED');
   });
 
