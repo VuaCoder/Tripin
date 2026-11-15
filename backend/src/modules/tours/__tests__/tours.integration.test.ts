@@ -63,9 +63,9 @@ describe('tours (integration)', () => {
   it('enforces STAFF field authorization and lifecycle across real HTTP routes', async () => {
     const a = await actors();
     const tourId = await draftTour(a.agency.token, a.categoryId);
-    await prisma.agencyMember.create({ data: { agencyId: a.agency.id, userId: a.traveler.id, role: 'STAFF' } });
+    await prisma.agencyMember.create({ data: { agencyId: a.agency.id, userId: a.traveler.id, role: 'STAFF', tourScopes: { create: { tourId, allowedFields: ['title'] } } } });
     const staff = { ...bearer(a.traveler.token), 'X-Agency-Id': a.agency.id };
-    const allowed = await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(staff).send({ title: 'Tour Staff updated', highlights: ['Sunrise'] });
+    const allowed = await request(app).patch(`/api/v1/agency/work/tours/${tourId}/content`).set(staff).send({ title: 'Tour Staff updated' });
     expect(allowed.status).toBe(200);
     const forbidden = await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(staff).send({ title: 'Blocked title', basePrice: 1 });
     expect(forbidden.status).toBe(403);

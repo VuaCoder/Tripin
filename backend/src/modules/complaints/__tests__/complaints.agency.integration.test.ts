@@ -10,13 +10,13 @@ afterAll(stopDatabase);
 beforeEach(resetDatabase);
 
 describe('agency complaint membership', () => {
-  it('lets active STAFF respond only to tickets in the selected agency', async () => {
+  it('lets an active manager respond only to tickets in the selected agency', async () => {
     captureMail();
     const agency = await createUser('AGENCY', 'agency@example.com');
     const other = await createUser('AGENCY', 'other@example.com');
     const traveler = await createUser('TRAVELER', 'traveler@example.com');
     const staff = await createUser('TRAVELER', 'staff@example.com');
-    await prisma.agencyMember.create({ data: { agencyId: agency.id, userId: staff.id, role: 'STAFF' } });
+    await prisma.agencyMember.create({ data: { agencyId: agency.id, userId: staff.id, role: 'MANAGER' } });
     const { tourId } = await createApprovedTour(agency.id);
     const ticket = await prisma.complaintTicket.create({ data: {
       ticketCode: 'CMP-STAFF-1', travelerId: traveler.id, agencyId: agency.id, tourId,

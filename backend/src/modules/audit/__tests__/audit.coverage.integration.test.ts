@@ -3,7 +3,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../../app';
 import { AUDIT_ACTIONS } from '../audit.types';
 import { bearer, createApprovedTour, createCategory, createUser, createVerifiedAgency, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
-import { decodeMailBody } from '../../notifications/mail-outbox';
 import { prisma } from '../../../config/database';
 import { randomUUID } from 'node:crypto';
 
@@ -60,6 +59,9 @@ describe('audit coverage (integration)', () => {
     const asAdmin = (r: request.Test) => r.set(bearer(a.admin.token));
 
     await expectOneAudit(AUDIT_ACTIONS.COMMISSION_UPDATED, a.admin.id, () => asAdmin(request(app).put('/api/v1/admin/settings/commission')).send({ ratePercent: 9, expectedVersion: 0 }));
+    const commissionAgency = await createVerifiedAgency('commission@example.com');
+    await expectOneAudit(AUDIT_ACTIONS.AGENCY_COMMISSION_UPDATED, a.admin.id, () =>
+      asAdmin(request(app).put(`/api/v1/admin/settings/agency-commissions/${commissionAgency.id}`)).send({ ratePercent: 8, expectedVersion: 0 }), commissionAgency.id);
     await expectOneAudit(AUDIT_ACTIONS.POLICY_UPDATED, a.admin.id, () => asAdmin(request(app).put('/api/v1/admin/policies/terms')).send({ expectedVersion: 0, reason: 'Policy reviewed and updated', title: 'Terms of use', content: 'Be nice.' }), 'policy:terms');
     await expectOneAudit(AUDIT_ACTIONS.PREMIUM_CHANGED, a.admin.id, () =>
       asAdmin(request(app).put('/api/v1/admin/premium/flags')).send({ audience: 'TRAVELER', enabled: true }),
@@ -166,10 +168,9 @@ describe('audit coverage (integration)', () => {
 
     const before = await prisma.auditLog.count();
     expect((await request(app).patch(`/api/v1/agency/members/${membership.id}`).set(bearer(owner.token)).send({ role: 'MANAGER' })).status).toBe(200);
-    expect((await request(app).post('/api/v1/agency/invitations').set(bearer(owner.token)).send({ email: 'invitee@example.com', role: 'STAFF' })).status).toBe(201);
-    const mail = await prisma.mailOutbox.findFirst({ where: { recipient: 'invitee@example.com' } });
-    const token = /token=([0-9a-f]{64})/.exec(decodeMailBody(mail!.text))![1]!;
-    expect((await request(app).post('/api/v1/agency-invitations/accept').set(bearer(invitee.token)).send({ token })).status).toBe(200);
+    const invitation = await request(app).post('/api/v1/agency/invitations').set(bearer(owner.token)).send({ email: 'invitee@example.com', role: 'STAFF' });
+    expect(invitation.status).toBe(201);
+    expect((await request(app).post(`/api/v1/agency-invitations/${invitation.body.data.id}/accept`).set(bearer(invitee.token)).send({})).status).toBe(200);
 
     const entries = await prisma.auditLog.findMany({ orderBy: { createdAt: 'asc' }, skip: before });
     expect(entries.map((entry) => entry.action)).toEqual([

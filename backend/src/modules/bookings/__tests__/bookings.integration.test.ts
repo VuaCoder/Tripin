@@ -25,10 +25,10 @@ async function setup(capacity = 10) {
 }
 
 describe('bookings (integration)', () => {
-  it('stores passenger details and exports the selected departure for agency STAFF', async () => {
+  it('stores passenger details and exports the selected departure for an agency manager', async () => {
     const { agency, traveler, tourId, departureId } = await setup();
     const staff = await createUser('TRAVELER', 'staff@example.com');
-    await prisma.agencyMember.create({ data: { agencyId: agency.id, userId: staff.id, role: 'STAFF' } });
+    await prisma.agencyMember.create({ data: { agencyId: agency.id, userId: staff.id, role: 'MANAGER' } });
     const created = await book(traveler.token, tourId, departureId, 2, { passengers: [
       { fullName: 'Nguyen Lan', birthYear: 1990, ageGroup: 'ADULT', pickupPoint: 'Gate A', phone: '0901234567' },
       { fullName: 'Tran An', ageGroup: 'CHILD', specialNotes: 'Allergy' },
