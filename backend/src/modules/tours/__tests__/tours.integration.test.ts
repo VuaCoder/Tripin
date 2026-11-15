@@ -36,7 +36,7 @@ async function draftTour(token: string, categoryId: string, overrides: object = 
   const res = await request(app)
     .post('/api/v1/agency/tours')
     .set(bearer(token))
-    .send({ title: 'Ha Long Bay 2D1N', destination: 'Quang Ninh', durationDays: 2, basePrice: 1_000_000, categoryIds: [categoryId], ...overrides });
+    .send({ title: 'Ha Long Bay 2D1N', destination: 'Quang Ninh', durationDays: 2, basePrice: 1_000_000, categoryIds: [categoryId], itinerary: [{ day: 1, toDay: 2, title: 'Explore Ha Long', description: 'Visit the bay', activities: ['Visit a cave'] }], ...overrides });
   expect(res.status).toBe(201);
   return res.body.data.id as string;
 }
@@ -63,10 +63,14 @@ describe('tours (integration)', () => {
   it('enforces STAFF field authorization and lifecycle across real HTTP routes', async () => {
     const a = await actors();
     const tourId = await draftTour(a.agency.token, a.categoryId);
-    await prisma.agencyMember.create({ data: { agencyId: a.agency.id, userId: a.traveler.id, role: 'STAFF', tourScopes: { create: { tourId, allowedFields: ['title'] } } } });
+    const member = await prisma.agencyMember.create({ data: { agencyId: a.agency.id, userId: a.traveler.id, role: 'STAFF' } });
+    await prisma.agencyMemberTourScope.create({ data: { agencyId: a.agency.id, memberId: member.id, tourId, allowedFields: ['title'] } });
     const staff = { ...bearer(a.traveler.token), 'X-Agency-Id': a.agency.id };
-    const allowed = await request(app).patch(`/api/v1/agency/work/tours/${tourId}/content`).set(staff).send({ title: 'Tour Staff updated' });
+    const scopedUrl = `/api/v1/agency/work/tours/${tourId}/content`;
+    const allowed = await request(app).patch(scopedUrl).set(staff).send({ title: 'Tour Staff updated' });
     expect(allowed.status).toBe(200);
+    expect((await request(app).patch(scopedUrl).set(staff).send({ summary: 'Not an assigned field' })).status).toBe(403);
+    expect((await request(app).patch(scopedUrl).set(staff).send({ basePrice: 1 })).status).toBe(400);
     const forbidden = await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(staff).send({ title: 'Blocked title', basePrice: 1 });
     expect(forbidden.status).toBe(403);
     expect((await loadTour(tourId))!.title).toBe('Tour Staff updated');
@@ -85,9 +89,7 @@ describe('tours (integration)', () => {
     expect((await request(app).get(`/api/v1/tours/${tourId}`).set(bearer(a.agency.token))).status).toBe(404);
     expect((await request(app).get(`/api/v1/agency/tours/${tourId}`).set(bearer(a.agency.token))).status).toBe(200);
 
-    // Cannot be submitted without a departure.
-    expect((await request(app).post(`/api/v1/agency/tours/${tourId}/submit`).set(bearer(a.agency.token))).status).toBeGreaterThanOrEqual(400);
-    await setDepartures(a.agency.token, tourId, [{ date: inDays(20), capacity: 4, isOpen: true }]);
+    // Content review is independent from scheduling and the itinerary.
     expect((await request(app).post(`/api/v1/agency/tours/${tourId}/submit`).set(bearer(a.agency.token))).status).toBe(202);
 
     // PENDING_REVIEW is locked for content edits.
@@ -97,6 +99,17 @@ describe('tours (integration)', () => {
 
     expect((await request(app).post(`/api/v1/moderation/tours/${tourId}/validate`).set(bearer(a.moderator.token)).send({ approve: true })).status).toBe(200);
     expect((await request(app).get(`/api/v1/tours/${tourId}`)).status).toBe(200);
+    const unscheduled = (await loadTour(tourId))!;
+    expect(unscheduled.departures).toHaveLength(0);
+    expect(unscheduled.itinerary).toHaveLength(1);
+    // Approval alone does not make an arbitrary departure bookable.
+    expect((await book(a.traveler.token, tourId, '00000000-0000-4000-8000-000000000000')).status).toBeGreaterThanOrEqual(400);
+    // Existing availability API can schedule the approved tour afterwards.
+    const scheduled = await setDepartures(a.agency.token, tourId, [{ date: inDays(20), capacity: 4, isOpen: true }]);
+    expect(scheduled.status).toBe(200);
+    expect((await loadTour(tourId))!.status).toBe('APPROVED');
+    const departureId = String((await loadTour(tourId))!.departures[0]!.id);
+    expect((await book(a.traveler.token, tourId, departureId)).status).toBe(201);
     const search = await request(app).get('/api/v1/tours').query({ q: 'ha long' });
     expect(search.body.data.map((t: { id: string }) => t.id)).toContain(tourId);
 

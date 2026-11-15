@@ -92,8 +92,10 @@
 .departureGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 24px; }
 .departureGrid button { border: 1px solid #d7e3e6; border-radius: 10px; padding: 11px 4px; font-size: 13px; font-weight: 700; }
 .departureGrid button small { display: block; margin-top: 6px; color: #087e8b; font-size: 10px; }
+.departureGrid button .remaining { display: block; margin-top: 4px; color: #5a6e78; font-size: 10px; font-weight: 600; }
 .departureGrid button[aria-pressed=true] { color: white; background: #087e8b; border-color: #087e8b; }
 .departureGrid button[aria-pressed=true] small { color: #e6fcff; }
+.departureGrid button[aria-pressed=true] .remaining { color: #e6fcff; }
 .guestRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 16px 0; font-size: 14px; }
 .guestRow small { display: block; font-size: 11px; color: #5a6e78; margin-top: 4px; }
 .counter { display: flex; align-items: center; gap: 12px; }

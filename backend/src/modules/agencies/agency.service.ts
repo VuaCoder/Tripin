@@ -40,10 +40,20 @@ export class AgencyService {
   }
 
   async resolve(userId: string, selected?: string): Promise<AgencyContext> {
+    const context = await this.resolveOptional(userId, selected);
+    if (!context) throw AppError.forbidden(selected ? 'Agency membership is not active' : 'Select an agency with X-Agency-Id');
+    return context;
+  }
+
+  /** Null only when the user has no active membership; a bad or ambiguous selection still throws. */
+  async resolveOptional(userId: string, selected?: string): Promise<AgencyContext | null> {
     const memberships = await this.listForUser(userId);
     const m = selected ? memberships.find(x => x.agencyId === selected)
       : memberships.length === 1 ? memberships[0] : undefined;
-    if (!m) throw AppError.forbidden(selected ? 'Agency membership is not active' : 'Select an agency with X-Agency-Id');
+    if (!m) {
+      if (!selected && memberships.length === 0) return null;
+      throw AppError.forbidden(selected ? 'Agency membership is not active' : 'Select an agency with X-Agency-Id');
+    }
     return { agencyId: m.agencyId, actorUserId: userId, memberId: m.memberId,
       memberRole: m.memberRole, isPrimaryOwner: m.isPrimaryOwner, permissions: m.permissions, roleId: m.roleId, roleName: m.roleName, permissionVersion: m.permissionVersion };
   }

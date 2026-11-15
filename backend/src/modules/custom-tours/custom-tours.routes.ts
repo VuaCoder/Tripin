@@ -1,12 +1,15 @@
 import { Router } from 'express';
 import { PERMISSIONS } from '@travel-platform/constants';
 import { requirePermission } from '../../middlewares/authorize';
+import { resolveAgencyContextIfMember } from '../../middlewares/agency-context';
 import { validate } from '../../middlewares/validate';
 import { customToursController } from './custom-tours.controller';
 import { acceptCustomTourOfferBody, createCustomTourBody, createCustomTourBookingBody, customTourParams, decideCustomTourBody, listCustomToursQuery, saveCustomTourCheckoutBody, saveCustomTourDraftBody, sendCustomTourOfferBody } from './custom-tours.validation';
 
 /** Mounted at /api/v1/custom-tours — group-booking requests (traveler creates, both sides read and answer). */
 export const customToursRouter = Router();
+// Travelers have no tenant; members are scoped to the agency they selected.
+customToursRouter.use(resolveAgencyContextIfMember);
 customToursRouter.post('/', requirePermission(PERMISSIONS.CUSTOM_TOUR_REQUEST), validate({ body: createCustomTourBody }), customToursController.create);
 customToursRouter.get('/', requirePermission(PERMISSIONS.CUSTOM_TOUR_VIEW), validate({ query: listCustomToursQuery }), customToursController.list);
 customToursRouter.get('/:id', requirePermission(PERMISSIONS.CUSTOM_TOUR_VIEW), validate({ params: customTourParams }), customToursController.get);

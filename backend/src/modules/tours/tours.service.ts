@@ -1,4 +1,4 @@
-import { GUIDE_ASSIGNMENT_STATUS, ROLES, TOUR_STATUS, TOUR_VISIBILITY, type PersistedRole, type TourStatus, type TourVisibility } from '@travel-platform/constants';
+import { GUIDE_ASSIGNMENT_STATUS, ROLES, TOUR_STATUS, TOUR_VISIBILITY, validateTourItinerary, type TourItineraryContent, type PersistedRole, type TourStatus, type TourVisibility } from '@travel-platform/constants';
 import { AppError } from '../../utils/app-error';
 import type { DbExecutor } from '../../config/database';
 import { buildPage, type Page } from '../../utils/pagination';
@@ -57,22 +57,30 @@ export class ToursService {
   }
 
   /** Use case "Create tour" — always starts as DRAFT. */
-  async createTour(agencyId: string, input: TourContentInput): Promise<TourManageDto> {
+  async createTour(agencyId: string, input: TourContentInput & { itinerary?: ItineraryDayInput[] }): Promise<TourManageDto> {
+    const itineraryIssue = validateTourItinerary(input.itinerary ?? [], input.durationDays);
+    if (itineraryIssue) throw AppError.badRequest(itineraryIssue.message, undefined, 'ITINERARY_EXCEEDS_DURATION');
     await this.categories.assertActiveIds(input.categoryIds);
     // Anti-duplicate protection: check if an identical draft was just created by this agency within the last 5 seconds
     if (this.tours.findRecentDraft) {
       const recent = await this.tours.findRecentDraft(agencyId, input.title.trim(), input.destination.trim(), 5000);
-      if (recent) return this.views.manage(recent);
+      const programTerms = (days: readonly TourItineraryContent[]) => JSON.stringify(days.map(d => [d.day, d.toDay ?? d.day, d.title.trim(), d.description ?? '', d.activities ?? []]));
+      if (recent && programTerms(input.itinerary ?? []) === programTerms(recent.itinerary ?? []) &&
+        Object.entries(input).every(([key, value]) => key === 'itinerary' || value === undefined || JSON.stringify(value) === JSON.stringify(recent[key as keyof TourRecord]))) return this.views.manage(recent);
     }
-    const created = await this.tours.create({ ...input, agencyId });
+    const created = await this.tours.create({ ...input, agencyId, itinerary: input.itinerary?.map(day => ({ ...day, activities: day.activities ?? [] })) });
     return this.views.manage(created);
   }
 
   /** Use case "Upload tours" (bulk import, DECISIONS D-11): all-or-nothing validation, every tour lands as DRAFT. */
-  async importTours(agencyId: string, inputs: TourContentInput[]): Promise<{ created: number; tours: TourManageDto[] }> {
+  async importTours(agencyId: string, inputs: Array<TourContentInput & { itinerary?: ItineraryDayInput[] }>): Promise<{ created: number; tours: TourManageDto[] }> {
+    for (const input of inputs) {
+      const issue = validateTourItinerary(input.itinerary ?? [], input.durationDays);
+      if (issue) throw AppError.badRequest(issue.message, undefined, 'ITINERARY_EXCEEDS_DURATION');
+    }
     await this.categories.assertActiveIds(inputs.flatMap((input) => input.categoryIds));
     const created = await this.tours.insertMany(
-      inputs.map((input) => ({ ...input, agencyId })),
+      inputs.map((input) => ({ ...input, agencyId, itinerary: input.itinerary?.map(day => ({ ...day, activities: day.activities ?? [] })) })),
     );
     return { created: created.length, tours: await this.views.manageMany(created) };
   }
@@ -98,9 +106,8 @@ export class ToursService {
     this.assertNotPrivateManaged(tour);
     this.assertAgencyEditable(tour);
     if (input.categoryIds) await this.categories.assertActiveIds(input.categoryIds);
-    if (input.durationDays !== undefined && tour.itinerary.some((day) => (day.toDay && day.toDay > day.day ? day.toDay : day.day) > input.durationDays!)) {
-      throw AppError.badRequest('durationDays is shorter than the configured itinerary', undefined, 'ITINERARY_EXCEEDS_DURATION');
-    }
+    const itineraryIssue = validateTourItinerary(input.itinerary ?? tour.itinerary, input.durationDays ?? tour.durationDays);
+    if (itineraryIssue) throw AppError.badRequest(itineraryIssue.message, undefined, 'ITINERARY_EXCEEDS_DURATION');
     const { itinerary: days, ...content } = input;
     if (days) {
       const duration = input.durationDays ?? tour.durationDays;
@@ -200,11 +207,13 @@ export class ToursService {
     return this.views.manage(updated);
   }
 
-  /** Use case "Config itinerary". Content change: an APPROVED tour goes back to review. */
+  /** Use case "Config itinerary". Optional content configuration; approved tours retain their status. */
   async setItinerary(agencyId: string, id: string, days: ItineraryDayInput[]): Promise<TourManageDto> {
     const tour = await this.requireOwned(agencyId, id);
     this.assertNotPrivateManaged(tour);
     this.assertAgencyEditable(tour);
+    const itineraryIssue = validateTourItinerary(days, tour.durationDays);
+    if (itineraryIssue) throw AppError.badRequest(itineraryIssue.message, undefined, 'ITINERARY_EXCEEDS_DURATION');
     if (days.some((day) => (day.toDay && day.toDay > day.day ? day.toDay : day.day) > tour.durationDays)) {
       throw AppError.badRequest(`Itinerary days cannot exceed durationDays (${tour.durationDays})`, undefined, 'ITINERARY_EXCEEDS_DURATION');
     }
@@ -254,7 +263,7 @@ export class ToursService {
     return this.views.manage(updated);
   }
 
-  /** Submits for moderator review. Needs a VERIFIED agency, a category and at least one bookable future departure (D-27, D-28). */
+  /** Review validates tour content; scheduling can happen after approval (D-27, D-28). */
   async submitForReview(agencyId: string, id: string): Promise<TourManageDto> {
     const tour = await this.requireOwned(agencyId, id);
     this.assertNotPrivateManaged(tour);
@@ -262,9 +271,8 @@ export class ToursService {
     await this.users.assertAgencyVerified(agencyId);
 
     if (tour.categoryIds.length === 0) throw AppError.badRequest('Add at least one category before submitting');
-    if (!tour.departures.some((d) => d.isOpen && d.date.getTime() > Date.now())) {
-      throw AppError.badRequest('Add at least one open future departure before submitting', undefined, 'NO_OPEN_DEPARTURE');
-    }
+    const itineraryIssue = validateTourItinerary(tour.itinerary, tour.durationDays, true);
+    if (itineraryIssue) throw AppError.badRequest(itineraryIssue.message, undefined, 'ITINERARY_INCOMPLETE');
     const updated = await this.tours.updateIfStatus(id, [tour.status as TourStatus], {
       status: TOUR_STATUS.PENDING_REVIEW,
       submittedAt: new Date(),
@@ -350,7 +358,7 @@ export class ToursService {
       {
         type: decision.approve ? NOTIFICATION_TYPE.TOUR_APPROVED : NOTIFICATION_TYPE.TOUR_REJECTED,
         title: decision.approve ? 'Tour đã được duyệt' : 'Tour cần chỉnh sửa',
-        body: decision.approve ? `Tour "${tour.title}" đã được duyệt và công khai trên hệ thống.` : `Tour "${tour.title}" chưa được duyệt: ${decision.reason}`,
+        body: decision.approve ? `Tour "${tour.title}" đã được duyệt. Bạn có thể xếp lịch khởi hành khi sẵn sàng.` : `Tour "${tour.title}" chưa được duyệt: ${decision.reason}`,
         data: { tourId: tour.id },
       },
       { email: true },
@@ -408,6 +416,8 @@ export class ToursService {
     if (!isBookable(departure)) throw AppError.conflict('This departure is closed or sold out', 'DEPARTURE_UNAVAILABLE');
     return {
       tourId: tour.id,
+      optionalServices: (tour.optionalServices ?? []) as unknown as import('@travel-platform/constants').TourExtra[],
+      meetingPoint: tour.meetingPoint ?? undefined,
       agencyId: tour.agencyId,
       title: tour.title,
       durationDays: tour.durationDays,

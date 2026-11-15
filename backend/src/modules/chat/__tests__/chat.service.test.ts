@@ -9,7 +9,7 @@ const traveler = { userId: 't1', role: ROLES.TRAVELER } as const;
 const guide = { userId: 'g1', role: ROLES.TOUR_GUIDE } as const;
 
 function conv(over: C = {}): C {
-  return { id: 'c1', travelerId: 't1', guideId: 'g1', unreadTraveler: 0, unreadGuide: 0, lastActivityAt: new Date(), ...over };
+  return { id: 'c1', travelerId: 't1', guideId: 'g1', agencyId: null, unreadTraveler: 0, unreadGuide: 0, lastActivityAt: new Date(), ...over };
 }
 
 function make(seed: C[] = []) {
@@ -17,13 +17,16 @@ function make(seed: C[] = []) {
   const messages: C[] = [];
   const repo = {
     findConversation: vi.fn(async (id: string) => db.find((c) => c.id === id) ?? null),
-    findByPair: vi.fn(async (t: string, g: string) => db.find((c) => c.travelerId === t && c.guideId === g) ?? null),
+    findByPair: vi.fn(async (t: string, g: string) => db.find((c) => c.travelerId === t && c.guideId === g && !c.agencyId) ?? null),
+    findByAgencyPair: vi.fn(async (t: string, a: string) => db.find((c) => c.travelerId === t && c.agencyId === a) ?? null),
     createConversation: vi.fn(async (data: C) => {
-      const doc = conv({ ...data, id: `c${db.length + 1}` });
+      const doc = { ...conv(), id: `c${db.length + 1}`, ...data, guideId: data.agencyId ? null : data.guideId ?? 'g1', agencyId: data.agencyId ?? null };
       db.push(doc);
       return doc;
     }),
     listConversations: vi.fn(async () => ({ items: db, total: db.length })),
+    listAgencyChatUserIds: vi.fn(async () => ['a1']),
+    isAgencyChatMember: vi.fn(async () => false),
     appendMessageAndBumpUnread: vi.fn(async (data: C, recipient: string) => {
       const m = { id: `m${messages.length + 1}`, createdAt: new Date(), ...data };
       messages.push(m);
@@ -35,12 +38,13 @@ function make(seed: C[] = []) {
       return { message: m, before };
     }),
     listMessages: vi.fn(async () => ({ items: [...messages].reverse(), hasMore: false })),
-    markReadWithWatermark: vi.fn(async (id: string, side: string) => {
+    markReadWithWatermark: vi.fn(async (id: string, side: string, _reader: string, onlySenderId?: string) => {
       const doc = db.find((c) => c.id === id);
       if (doc) {
         if (side === 'traveler') doc.unreadTraveler = 0;
         else doc.unreadGuide = 0;
       }
+      void onlySenderId;
       return { unreadCount: 0 };
     }),
   };
@@ -52,9 +56,17 @@ function make(seed: C[] = []) {
       return { id, role: role || (id.startsWith('g') ? 'TOUR_GUIDE' : id.startsWith('a') ? 'AGENCY' : 'TRAVELER') };
     }),
     assertActiveWithRoles: vi.fn(async (id: string) => ({ id, role: id.startsWith('g') ? 'TOUR_GUIDE' : id.startsWith('a') ? 'AGENCY' : 'TRAVELER' })),
-    getSummaries: vi.fn(async (ids: string[]) => new Map(ids.map((id) => [id, { id, fullName: `User ${id}`, role: id.startsWith('g') ? 'TOUR_GUIDE' : 'TRAVELER' }]))),
+    assertAgencyVerified: vi.fn(async (id: string) => {
+      if (!id.startsWith('a')) throw Object.assign(new Error('not verified'), { statusCode: 403 });
+    }),
+    getSummaries: vi.fn(async (ids: string[]) => new Map(ids.map((id) => [id, {
+      id,
+      fullName: id.startsWith('a') ? `Agency ${id}` : `User ${id}`,
+      role: id.startsWith('g') ? 'TOUR_GUIDE' : id.startsWith('a') ? 'AGENCY' : 'TRAVELER',
+      ...(id.startsWith('a') ? { companyName: `Agency ${id}` } : {}),
+    }]))),
   };
-  const notifications = { notify: vi.fn(async () => undefined) };
+  const notifications = { notify: vi.fn(async () => undefined), notifyAgency: vi.fn(async () => undefined) };
   return { service: new ChatService(repo as never, users as never, notifications), repo, users, notifications, db, messages };
 }
 
@@ -111,6 +123,22 @@ describe('startConversation', () => {
     await expect(service.startConversation(traveler, { participantId: 'ghost' })).rejects.toMatchObject({ statusCode: 404 });
     users.assertActiveWithRoles.mockResolvedValueOnce({ id: 't1', role: ROLES.TRAVELER } as never);
     await expect(service.startConversation(traveler, { participantId: 't1' })).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('a traveler opens the agency shared inbox once and sees the company name', async () => {
+    const { service, repo } = make();
+    const dto = await service.startConversation(traveler, { agencyId: 'a1', tourId: 'tour1' });
+    expect(repo.createConversation).toHaveBeenCalledWith(expect.objectContaining({ travelerId: 't1', agencyId: 'a1', tourId: 'tour1' }));
+    expect(dto.counterpart).toMatchObject({ id: 'a1', fullName: 'Agency a1', role: 'AGENCY' });
+    await service.startConversation(traveler, { agencyId: 'a1' });
+    expect(repo.createConversation).toHaveBeenCalledTimes(1);
+    await expect(service.startConversation(traveler, { agencyId: 'g1' })).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('an agency member starts the same shared thread with a traveler', async () => {
+    const { service, repo } = make();
+    await service.startConversation({ userId: 'a1', role: ROLES.AGENCY, agencyId: 'a1' }, { participantId: 't1' });
+    expect(repo.createConversation).toHaveBeenCalledWith(expect.objectContaining({ travelerId: 't1', agencyId: 'a1' }));
   });
 });
 
@@ -169,8 +197,35 @@ describe('messages', () => {
   it('marks read for the reader only and returns the counterpart id', async () => {
     const { service, repo } = make([conv({ unreadGuide: 2 })]);
     expect(await service.markRead('g1', 'c1')).toEqual({ unreadCount: 0 });
-    expect(repo.markReadWithWatermark).toHaveBeenCalledWith('c1', 'guide', 'g1');
+    expect(repo.markReadWithWatermark).toHaveBeenCalledWith('c1', 'guide', 'g1', undefined);
     expect(await service.getCounterpartId('g1', 'c1')).toBe('t1');
+  });
+
+  it('a traveler message reaches the whole agency and only notifies the agency once', async () => {
+    const { service, repo, notifications } = make([conv({ guideId: null, agencyId: 'a1' })]);
+    const publisher = vi.fn();
+    service.setPublisher(publisher);
+
+    await service.sendMessage('t1', 'c1', 'Hello agency');
+    expect(repo.listAgencyChatUserIds).toHaveBeenCalledWith('a1');
+    expect(publisher).toHaveBeenCalledWith('a1', expect.objectContaining({ message: expect.objectContaining({ isMine: false }) }));
+    expect(notifications.notifyAgency).toHaveBeenCalledWith('a1', expect.objectContaining({ data: { conversationId: 'c1' } }));
+
+    await service.sendMessage('t1', 'c1', 'Second');
+    expect(notifications.notifyAgency).toHaveBeenCalledTimes(1);
+  });
+
+  it('an agency member replies to the traveler and only counts traveler messages as unread', async () => {
+    const { service, repo, notifications } = make([conv({ guideId: null, agencyId: 'a1', unreadGuide: 3 })]);
+    const publisher = vi.fn();
+    service.setPublisher(publisher);
+
+    await service.sendMessage('a1', 'c1', 'We can help', 'a1');
+    expect(publisher).toHaveBeenCalledWith('t1', expect.objectContaining({ message: expect.objectContaining({ isMine: false }) }));
+    expect(notifications.notify).toHaveBeenCalledWith('t1', expect.objectContaining({ data: { conversationId: 'c1' } }));
+
+    await service.markRead('a1', 'c1', 'a1');
+    expect(repo.markReadWithWatermark).toHaveBeenCalledWith('c1', 'guide', 'a1', 't1');
   });
 
   it('lists the inbox with the viewer\'s unread count and the other person\'s name', async () => {

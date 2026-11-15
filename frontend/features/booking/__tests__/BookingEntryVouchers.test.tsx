@@ -6,6 +6,7 @@ vi.mock('@/features/premium/api', () => ({usePremiumVouchersQuery:() => ({curren
 const mockPush = vi.fn();
 const mockReplace = vi.fn();
 const mockCreateBooking = vi.fn();
+const mockQuoteBooking = vi.fn();
 const mockCheckoutBooking = vi.fn();
 const mockRefetchTour = vi.fn();
 const mockParams = new URLSearchParams('tourId=tour-1&departureId=dep-1&participants=2&step=3');
@@ -105,6 +106,7 @@ vi.mock('../api/bookingApi', () => ({
   useGetAvailablePromotionsQuery: () => ({ data: { platform: [], agency: [] } }),
   useGetMyVouchersQuery: () => ({ data: mockMyVouchers }),
   useCreateBookingMutation: () => [mockCreateBooking, { isLoading: false }],
+  useQuoteBookingMutation: () => [mockQuoteBooking, { isLoading: false }],
   useLazyPreviewPromotionQuery: () => [
     mockPreviewPromotion,
     { isFetching: false },
@@ -115,6 +117,7 @@ describe('BookingEntryPage Shopee-style Voucher Selector', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRefetchTour.mockReturnValue({ unwrap: async () => mockTour });
+    mockQuoteBooking.mockReturnValue({ unwrap: async () => ({ tourSubtotal: 3000000, servicesSubtotal: 0, services: [] }) });
     mockCreateBooking.mockReturnValue({ unwrap: async () => ({ id: 'new-booking' }) });
     mockCheckoutBooking.mockReturnValue({ unwrap: async () => ({ checkoutUrl: '' }) });
   });

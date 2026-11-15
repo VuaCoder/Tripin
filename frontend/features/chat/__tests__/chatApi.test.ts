@@ -11,13 +11,13 @@ afterEach(() => vi.unstubAllGlobals());
 describe('chatApi', () => {
   it('preserves inbox metadata and page parameters', async () => {
     const fetch = respond([{ id: 'c1' }], { page: 2, totalPages: 3 }); const store = makeStore();
-    const result = await store.dispatch(chatApi.endpoints.conversations.initiate(2));
+    const result = await store.dispatch(chatApi.endpoints.conversations.initiate({ page: 2 }));
     expect(result.data?.meta.totalPages).toBe(3);
     expect(fetch.mock.calls[0][0].url).toContain('page=2&limit=20'); store.dispatch(chatApi.util.resetApiState());
   });
   it('loads conversation detail and passes the history cursor', async () => {
     respond({ id: 'c1' }); const store = makeStore();
-    expect(await store.dispatch(chatApi.endpoints.conversation.initiate('c1')).unwrap()).toEqual({ id: 'c1' });
+    expect(await store.dispatch(chatApi.endpoints.conversation.initiate({ id: 'c1' })).unwrap()).toEqual({ id: 'c1' });
     const fetch = respond({ items: [], hasMore: false });
     await store.dispatch(chatApi.endpoints.messages.initiate({ id: 'c1', before: 'm1' }));
     expect(fetch.mock.calls[0][0].url).toContain('/c1/messages?limit=30&before=m1'); store.dispatch(chatApi.util.resetApiState());

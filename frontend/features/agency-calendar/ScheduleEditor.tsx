@@ -6,53 +6,13 @@ import viVN from 'antd/locale/vi_VN';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import { Banknote, CalendarDays, Clock3, LockKeyhole, Trash2, Users, Repeat2, Check, LoaderCircle } from 'lucide-react';
-import { guestTotal, resolveGuestGroupCounts, type AgePricing, type GuestCounts } from '@travel-platform/constants';
 import { Modal } from '@/components/ui/Modal';
-import { GuestGroupDropdown } from '@/components/ui/GuestGroupDropdown';
 import { TourPhoto } from './TourCatalog';
 import { atVietnam, localParts, todayVietnam, weeklyDates } from './calendarTime';
 import type { CalendarTour, DepartureEvent } from './types';
 import styles from './calendar.module.css';
 
 dayjs.locale('vi');
-
-const DEPARTURE_COUNTS_KEY_PREFIX = 'tripri_departure_guest_counts:';
-
-function readDepartureGuestCounts(event: DepartureEvent | undefined, tour: CalendarTour): GuestCounts {
-  const totalCapacity = event?.capacity ?? tour.maxGroupSize ?? 10;
-  const pricing = tour.agePricing as AgePricing | null | undefined;
-  if (event && typeof window !== 'undefined') {
-    try {
-      const raw = window.localStorage.getItem(`${DEPARTURE_COUNTS_KEY_PREFIX}${event.id}`);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { capacity?: number; counts?: GuestCounts };
-        const counts = parsed?.counts;
-        if (
-          parsed?.capacity === event.capacity &&
-          counts &&
-          Number.isInteger(counts.adults) && counts.adults >= 0 &&
-          Number.isInteger(counts.children) && counts.children >= 0 &&
-          Number.isInteger(counts.infants) && counts.infants >= 0 &&
-          guestTotal(counts) === event.capacity
-        ) {
-          return counts;
-        }
-      }
-    } catch {
-      // Ignore malformed storage entries and fall back to tour breakdown.
-    }
-  }
-  return resolveGuestGroupCounts(totalCapacity, pricing);
-}
-
-function writeDepartureGuestCounts(eventId: string, capacity: number, counts: GuestCounts) {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(`${DEPARTURE_COUNTS_KEY_PREFIX}${eventId}`, JSON.stringify({ capacity, counts }));
-  } catch {
-    // Ignore storage quota / private mode failures.
-  }
-}
 
 export interface EditorDraft { tour: CalendarTour; date: string; weekly?: boolean; event?: DepartureEvent }
 export interface EditorValues { dates: string[]; capacity: number; priceOverride: number | null; isOpen: boolean }
@@ -85,14 +45,13 @@ export function ScheduleEditor({
   const [time, setTime] = useState(parts.time);
   const [until, setUntil] = useState(new Date(Date.parse(parts.day + 'T12:00:00Z') + 28 * 86_400_000).toISOString().slice(0, 10));
   const [weekdays, setWeekdays] = useState([new Date(parts.day + 'T12:00:00Z').getUTCDay() || 7]);
-  const [guestCounts, setGuestCounts] = useState<GuestCounts>(() => readDepartureGuestCounts(draft.event, draft.tour));
+  const booked = draft.event ? draft.event.capacity - draft.event.remaining : 0;
+  const initialCapacity = draft.event?.capacity ?? draft.tour.maxGroupSize ?? 10;
+  const [capacity, setCapacity] = useState<number>(initialCapacity);
   const [price, setPrice] = useState<number | null>(draft.event?.priceOverride ?? null);
   const [isOpen, setIsOpen] = useState(draft.event?.isOpen ?? true);
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
-
-  const capacity = guestTotal(guestCounts);
-  const booked = draft.event ? draft.event.capacity - draft.event.remaining : 0;
   const past = !!draft.event && Date.parse(draft.event.date) <= Date.now();
   const readOnly = !canEdit || past;
   const minDay = todayVietnam();
@@ -121,9 +80,6 @@ export function ScheduleEditor({
     if (preview.dates.some((date) => Date.parse(date) <= Date.now()) && !draft.event) return setError('Vui lòng chọn ngày và giờ trong tương lai.');
     try {
       await onSave({ dates: preview.dates, capacity, priceOverride: price, isOpen });
-      if (draft.event) {
-        writeDepartureGuestCounts(draft.event.id, capacity, guestCounts);
-      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Không lưu được. Vui lòng thử lại.');
     }
@@ -282,18 +238,22 @@ export function ScheduleEditor({
             <div className={styles.fieldGroup}>
               <label htmlFor={capacityId} className={styles.fieldLabel}>
                 <Users size={14} />
-                <span>Số lượng khách</span>
+                <span>Số lượng khách (Sức chứa)</span>
               </label>
-              <GuestGroupDropdown
+              <InputNumber<number>
                 id={capacityId}
-                value={guestCounts}
-                onChange={(next) => {
-                  if (next) setGuestCounts(next);
-                }}
-                minTotal={Math.max(1, booked)}
-                maxTotal={10_000}
+                min={Math.max(1, booked)}
+                max={10_000}
+                step={1}
+                controls={false}
+                value={capacity}
                 disabled={readOnly || busy}
+                placeholder="Ví dụ: 20"
+                onChange={(val) => setCapacity(typeof val === 'number' ? val : Math.max(1, booked))}
               />
+              {booked > 0 && (
+                <span className={styles.fieldHint}>Đã có {booked} khách đặt chỗ (tối thiểu {booked})</span>
+              )}
             </div>
 
             <div className={styles.fieldGroup}>

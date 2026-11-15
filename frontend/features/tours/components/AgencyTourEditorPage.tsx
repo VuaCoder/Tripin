@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState, useId, useMemo, useRef, type FormEvent } from 'react';
+import { useEffect, useState, useId, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { ageUnitPrice, guestTotal, MONEY_LIMITS, resolveGuestGroupCounts, type GuestCounts } from '@travel-platform/constants';
-import { GuestGroupDropdown } from '@/components/ui/GuestGroupDropdown';
+import { ageUnitPrice, MONEY_LIMITS, validateTourItinerary } from '@travel-platform/constants';
 import { ArrowLeft, ArrowRight, Eye, CheckCircle2, X, AlertTriangle, UserX } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { 
   useCreateAgencyTourMutation, 
+  useSubmitAgencyTourMutation,
   useGetAgencyTourQuery, 
   useGetTourCategoriesQuery, 
   useUpdateAgencyTourMutation, 
@@ -19,6 +19,8 @@ import { AgencyTourLivePreview } from './AgencyTourLivePreview';
 import { TourFieldHint } from './TourFieldHint';
 import { TourPolicyFields } from './TourPolicyFields';
 import { TourAgePricingFields } from './TourAgePricingFields';
+import { TourServicesField } from './TourServicesField';
+import { TourItineraryField } from './TourItineraryField';
 import { TourDestinationCombobox } from './TourDestinationCombobox';
 import { TourCategoryCombobox } from './TourCategoryCombobox';
 import { TourItemCombobox } from './TourItemCombobox';
@@ -58,6 +60,9 @@ function serializeForm(val: TourContentInput): string {
     highlights: [...(val.highlights || [])],
     exclusions: [...(val.exclusions || [])],
     agePricing: val.agePricing || null,
+    optionalServices: val.optionalServices ?? [],
+    itinerary: val.itinerary ?? [],
+    meetingPoint: val.meetingPoint ?? '',
     childPricingPolicy: (val.childPricingPolicy || '').trim(),
     cancellationPolicy: (val.cancellationPolicy || '').trim(),
     travelNotes: (val.travelNotes || '').trim(),
@@ -96,7 +101,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
   const agency = useAgencyContext();
   const staffEdit = mode === 'edit' && agency?.memberRole === 'STAFF';
   const cannotCreate = mode === 'create' && (agency?.memberRole === 'STAFF' || agency?.memberRole === 'ACCOUNTANT');
-  const staffFields = ['title', 'description', 'images', 'highlights', 'inclusions', 'exclusions'] as const;
+  const staffFields = ['title', 'description', 'images', 'highlights', 'inclusions', 'exclusions', 'itinerary'] as const;
   const params = useParams<{ id: string }>();
   const id = mode === 'edit' ? params.id : undefined;
   const router = useRouter();
@@ -107,6 +112,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
   const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useGetTourCategoriesQuery();
   const [createTour, createState] = useCreateAgencyTourMutation();
   const [updateTour, updateState] = useUpdateAgencyTourMutation();
+  const [submitTour, submitState] = useSubmitAgencyTourMutation();
   const [uploadTourImage, uploadState] = useUploadAgencyTourImageMutation();
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -133,6 +139,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
   const [isDragging, setIsDragging] = useState(false);
   const [showMobilePreview, setShowMobilePreview] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [reviewOnSave, setReviewOnSave] = useState(false);
   const [showExitConfirmModal, setShowExitConfirmModal] = useState(false);
   const [agePricingAlert, setAgePricingAlert] = useState<string | null>(null);
   const [pendingExitUrl, setPendingExitUrl] = useState<string>('');
@@ -145,7 +152,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
 
   useEffect(() => {
     if (tour && !initialSnapshot) {
-      const initial = toTourContentInput(tour);
+      const initial = toTourContentInput(tour, true);
       setValue(initial);
       setInitialSnapshot(serializeForm(initial));
     }
@@ -160,7 +167,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
         (value.images && value.images.length > 0) ||
         value.categoryIds.length > 0 ||
         value.summary?.trim() ||
-        value.description?.trim()
+        value.description?.trim() || value.itinerary?.length
       );
     }
     if (!initialSnapshot) return false;
@@ -178,7 +185,8 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty]);
 
-  const busy = createState.isLoading || updateState.isLoading || isUploadingImage || uploadState.isLoading || isSubmitting;
+  const busy = createState.isLoading || updateState.isLoading || submitState.isLoading || isUploadingImage || uploadState.isLoading || isSubmitting;
+  const canSaveAndReview = (agency?.memberRole === 'OWNER' || agency?.memberRole === 'MANAGER') && (mode === 'create' || tour?.status === 'DRAFT' || tour?.status === 'REJECTED');
   const isArchived = tour?.status === 'ARCHIVED';
   const locked = tour?.status === 'PENDING_REVIEW' || isArchived;
 
@@ -279,11 +287,11 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
     updateField('images', images);
   };
 
-  const saveTourPayload = async (destinationUrl?: string): Promise<boolean> => {
+  const saveTourPayload = async (destinationUrl?: string, sendForReview = false): Promise<boolean> => {
     setPageError('');
     if (isSubmittingRef.current || busy || locked) return false;
-    if (!validateFields(staffEdit ? ['title'] : editorFields, true)) {
-      const first = (staffEdit ? ['title'] as const : editorFields).find((field) => validateTourEditor(value)[field]);
+    if (!validateFields(staffEdit ? ['title', 'itinerary'] : editorFields, true)) {
+      const first = (staffEdit ? ['title', 'itinerary'] as const : editorFields).find((field) => validateTourEditor(value)[field]);
       agencyNotice.error(`Chưa thể ${mode === 'create' ? 'tạo' : 'lưu'} tour: ${first ? validateTourEditor(value)[first] : 'Hãy kiểm tra các trường bắt buộc.'}`);
       return false;
     }
@@ -298,19 +306,32 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
     };
 
     try {
+      const finishReview = async (savedId: string) => {
+        try {
+          await submitTour(savedId).unwrap();
+          agencyNotice.success('Đã lưu và gửi tour để kiểm duyệt. Bạn có thể xếp lịch khởi hành sau.');
+          router.replace(`/agency/tours/${savedId}`);
+        } catch (error) {
+          agencyNotice.error(`Đã lưu tour nhưng chưa gửi duyệt: ${getTourApiMessage(error, 'Vui lòng gửi lại từ trang chi tiết tour.')}`);
+          router.replace(`/agency/tours/${savedId}?review=failed`);
+        }
+      };
       if (mode === 'create') {
         const created = await createTour(payload).unwrap();
-        agencyNotice.success('Đã tạo bản nháp tour. Tiếp tục thiết lập lịch trình và ngày khởi hành.');
+        if (sendForReview && canSaveAndReview) { await finishReview(created.id); return true; }
+        agencyNotice.success('Đã lưu bản nháp tour. Bạn có thể gửi duyệt mà chưa cần xếp lịch khởi hành.');
         router.replace(destinationUrl || `/agency/tours/${created.id}`);
         return true;
       } else if (id) {
         const body = staffEdit
           ? Object.fromEntries(staffFields.filter((field) => {
               const empty = Array.isArray(value[field]) ? [] : '';
-              return JSON.stringify(value[field] ?? empty) !== JSON.stringify(tour?.[field] ?? empty);
+              const baseline = tour ? toTourContentInput(tour, true) : undefined;
+              return JSON.stringify(value[field] ?? empty) !== JSON.stringify(baseline?.[field] ?? empty);
             }).map((field) => [field, payload[field]]))
           : payload;
         await updateTour({ id, body }).unwrap();
+        if (sendForReview && canSaveAndReview) { await finishReview(id); return true; }
         agencyNotice.success('Đã lưu nội dung tour.');
         router.push(destinationUrl || defaultExitUrl);
         return true;
@@ -339,13 +360,6 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
       agencyNotice.error(`Chưa thể ${mode === 'create' ? 'tạo' : 'lưu'} tour: ${getTourApiMessage(error, first ? fields[first] : 'Dữ liệu của bạn vẫn còn trên biểu mẫu. Hãy thử lại.')}`);
       return false;
     }
-  };
-
-  const submit = async (event?: FormEvent) => {
-    if (event) event.preventDefault();
-    if (isSubmittingRef.current || busy) return;
-    if (mode === 'edit' && !isDirty) return;
-    await saveTourPayload();
   };
 
   const handleRequestExit = (targetHref?: string) => {
@@ -379,14 +393,24 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
     }
   };
 
-  const handleOpenCompleteModal = () => {
+  const handleOpenCompleteModal = (sendForReview = false) => {
     setPageError('');
     if (isSubmittingRef.current || busy) return;
-    if (mode === 'edit' && !isDirty) {
+    if (mode === 'edit' && !isDirty && !sendForReview) {
       setPageError('Nội dung và thông tin tour chưa có thay đổi nào để lưu.');
       return;
     }
     const errors = validateTourEditor(value);
+    if (sendForReview && Object.keys(errors).length === 0) {
+      const itineraryIssue = validateTourItinerary(value.itinerary ?? [], value.durationDays, true);
+      if (itineraryIssue) {
+        setFieldErrors(current => ({ ...current, itinerary: itineraryIssue.message }));
+        setCurrentStep(1);
+        setTimeout(() => document.getElementById(fieldId('itinerary'))?.focus(), 0);
+        agencyNotice.error(itineraryIssue.message);
+        return;
+      }
+    }
     if (!staffEdit && errors.agePricing) {
       setAgePricingAlert(errors.agePricing);
       setCurrentStep(3);
@@ -394,10 +418,11 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
       agencyNotice.error(`Chưa thể ${mode === 'create' ? 'tạo' : 'lưu'} tour: ${errors.agePricing}`);
       return;
     }
-    if (validateFields(staffEdit ? ['title'] : editorFields, true)) {
+    if (validateFields(staffEdit ? ['title', 'itinerary'] : editorFields, true)) {
+      setReviewOnSave(sendForReview && canSaveAndReview);
       setShowCompleteModal(true);
     } else {
-      const first = (staffEdit ? ['title'] as const : editorFields).find((field) => errors[field]);
+      const first = (staffEdit ? ['title', 'itinerary'] as const : editorFields).find((field) => errors[field]);
       agencyNotice.error(`Chưa thể ${mode === 'create' ? 'tạo' : 'lưu'} tour: ${first ? errors[first] : 'Hãy kiểm tra các trường bắt buộc.'}`);
     }
   };
@@ -405,7 +430,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
   const handleConfirmComplete = async () => {
     if (isSubmittingRef.current || busy) return;
     setShowCompleteModal(false);
-    await submit();
+    await saveTourPayload(undefined, reviewOnSave);
   };
 
   if (cannotCreate) return <main className="mx-auto max-w-4xl p-8"><p role="alert" className="text-sm text-red-700">Chỉ Chủ đại lý hoặc Quản lý mới có quyền tạo tour.</p><Link href="/agency/tours" className="mt-4 inline-block text-primary underline">Về danh sách tour</Link></main>;
@@ -488,14 +513,14 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
           {/* Quick complete / save in header */}
           <button
             type="button"
-            onClick={handleOpenCompleteModal}
+            onClick={() => handleOpenCompleteModal()}
             disabled={busy || categoriesLoading || locked || !!categoriesError || (mode === 'edit' && !isDirty)}
             title={mode === 'edit' && !isDirty ? 'Nội dung và thông tin chưa có thay đổi nào để lưu' : undefined}
             className="inline-flex items-center gap-1.5 rounded-xl bg-[#087e8b] px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-[#00636e] transition-colors shadow-sm disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-600 cursor-pointer"
           >
             <CheckCircle2 size={18} />
             <span>
-              {busy ? 'Đang lưu...' : mode === 'edit' ? (!isDirty ? 'Chưa có thay đổi' : 'Lưu thay đổi') : 'Tạo tour & Tiếp tục'}
+              {busy ? 'Đang lưu...' : mode === 'edit' ? (!isDirty ? 'Chưa có thay đổi' : 'Lưu thay đổi') : 'Lưu bản nháp'}
             </span>
           </button>
         </div>
@@ -717,6 +742,11 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                 {categoriesError && <TourFieldHint id={`${formId}-categories-load-error`} message="Chưa tải được danh mục. Hãy tải lại trang để chọn nhé." />}
               </div>
               </fieldset>
+
+              <div>
+                <TourItineraryField id={fieldId('itinerary')} value={value.itinerary ?? []} duration={value.durationDays} onChange={days => updateField('itinerary', days)} autoOpen={mode === 'edit' && !!initialSnapshot && searchParams?.get('section') === 'itinerary'} />
+                {fieldHint('itinerary')}
+              </div>
 
               {/* Step 1 Footer */}
               <div className="flex flex-wrap items-center justify-end gap-3 pt-6 border-t border-slate-100">
@@ -995,67 +1025,25 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   <label htmlFor={fieldId('maxGroupSize')} className="text-sm font-bold text-slate-800">
                     Số khách tối đa / đoàn
                   </label>
-                  <GuestGroupDropdown
+                  <input
                     id={fieldId('maxGroupSize')}
-                    allowEmpty
-                    emptyLabel="Chưa giới hạn · Chọn người lớn, trẻ em, em bé"
-                    minTotal={1}
-                    maxTotal={10_000}
-                    invalid={Boolean(fieldErrors.maxGroupSize)}
-                    describedBy={fieldErrors.maxGroupSize ? `${fieldId('maxGroupSize')}-error` : undefined}
-                    value={
-                      value.maxGroupSize !== undefined && value.maxGroupSize !== null
-                        ? resolveGuestGroupCounts(value.maxGroupSize, value.agePricing)
-                        : null
-                    }
-                    onChange={(next: GuestCounts | null) => {
-                      setValue((prev) => {
-                        const nextMaxGroupSize = next ? guestTotal(next) : undefined;
-                        const hasPriceConfig = Boolean(
-                          prev.agePricing &&
-                          (
-                            prev.agePricing.childPrice !== null && prev.agePricing.childPrice !== undefined ||
-                            prev.agePricing.infantPrice !== null && prev.agePricing.infantPrice !== undefined ||
-                            prev.agePricing.childPercent !== 100 ||
-                            prev.agePricing.infantPercent !== 100
-                          ),
-                        );
-                        const nextAgePricing = next
-                          ? {
-                              childMinAge: prev.agePricing?.childMinAge ?? 2,
-                              adultMinAge: prev.agePricing?.adultMinAge ?? 13,
-                              childPercent: prev.agePricing?.childPercent ?? 100,
-                              infantPercent: prev.agePricing?.infantPercent ?? 100,
-                              childPrice: ageUnitPrice(prev.basePrice, prev.agePricing, 'child'),
-                              infantPrice: ageUnitPrice(prev.basePrice, prev.agePricing, 'infant'),
-                              adultMaxCount: next.adults,
-                              childMaxCount: next.children,
-                              infantMaxCount: next.infants,
-                            }
-                          : hasPriceConfig && prev.agePricing
-                            ? {
-                                ...prev.agePricing,
-                                adultMaxCount: null,
-                                childMaxCount: null,
-                                infantMaxCount: null,
-                              }
-                            : prev.agePricing;
-                        const updated: TourContentInput = {
-                          ...prev,
-                          maxGroupSize: nextMaxGroupSize,
-                          agePricing: nextAgePricing,
-                        };
-                        setFieldErrors((current) =>
-                          current.maxGroupSize || current.agePricing
-                            ? {
-                                ...current,
-                                ...(current.maxGroupSize ? { maxGroupSize: validateTourEditor(updated).maxGroupSize } : {}),
-                                ...(current.agePricing ? { agePricing: validateTourEditor(updated).agePricing } : {}),
-                              }
-                            : current,
-                        );
-                        return updated;
-                      });
+                    type="number"
+                    min={1}
+                    max={10000}
+                    step={1}
+                    disabled={staffEdit}
+                    placeholder="Chưa giới hạn (Ví dụ: 30)"
+                    className={`w-full rounded-xl border px-4 py-2.5 text-sm font-semibold outline-none transition ${
+                      fieldErrors.maxGroupSize
+                        ? 'border-red-500 bg-red-50/30 text-red-900 focus:border-red-500 focus:ring-2 focus:ring-red-200'
+                        : 'border-slate-300 bg-white text-slate-900 focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20'
+                    }`}
+                    aria-invalid={Boolean(fieldErrors.maxGroupSize)}
+                    aria-describedby={fieldErrors.maxGroupSize ? `${fieldId('maxGroupSize')}-error` : undefined}
+                    value={value.maxGroupSize ?? ''}
+                    onChange={(e) => {
+                      const next = e.target.value === '' ? undefined : Number(e.target.value);
+                      updateField('maxGroupSize', next);
                     }}
                   />
                   {fieldHint('maxGroupSize')}
@@ -1089,6 +1077,10 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                 {fieldErrors.agePricing && <p role="alert" className="text-sm font-semibold text-red-600">{fieldErrors.agePricing}</p>}
               </div>
 
+              <fieldset disabled={staffEdit}>
+                <label className="block text-sm font-semibold text-slate-700">Điểm tập trung chung<input maxLength={300} value={value.meetingPoint ?? ''} onChange={e => updateField('meetingPoint', e.target.value)} placeholder="Địa điểm và thời gian tập trung cho khách tự di chuyển" className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
+                <div id={fieldId('optionalServices')}><TourServicesField value={value.optionalServices ?? []} onChange={services => updateField('optionalServices', services)} disabled={staffEdit} />{fieldHint('optionalServices')}</div>
+              </fieldset>
               {/* Inclusions & Exclusions - Separated into full-width stacked rows */}
               <div className="space-y-6 pt-4 border-t border-slate-100">
                 <TourItemCombobox id={`${formId}-highlights`} label="Điểm nổi bật" placeholder="Ví dụ: Ngắm bình minh trên đỉnh núi" items={value.highlights ?? []} onChange={(items) => updateField('highlights', items)} suggestions={[]} tone="positive" />
@@ -1129,7 +1121,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                 <button
                   type="button"
                   onClick={() => {
-                    const ok = staffEdit || validateFields(['basePrice', 'maxGroupSize', 'agePricing'], true);
+                    const ok = staffEdit || validateFields(['basePrice', 'maxGroupSize', 'agePricing', 'optionalServices'], true);
                     if (ok) setCurrentStep(4);
                   }}
                   className="inline-flex items-center gap-2 rounded-xl bg-[#087e8b] px-6 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-[#00636e] transition-colors shadow-sm cursor-pointer"
@@ -1186,16 +1178,18 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
 
                 <button
                   type="button"
-                  onClick={handleOpenCompleteModal}
+                  onClick={() => handleOpenCompleteModal()}
                   disabled={busy || categoriesLoading || locked || !!categoriesError || (mode === 'edit' && !isDirty)}
                   title={mode === 'edit' && !isDirty ? 'Nội dung và thông tin chưa có thay đổi nào để lưu' : undefined}
                   className="inline-flex items-center gap-2 rounded-xl bg-[#087e8b] px-7 py-3 text-sm font-bold text-white hover:bg-[#00636e] transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-600 shadow-lg shadow-[#087e8b]/20 cursor-pointer"
                 >
                   <CheckCircle2 size={18} />
                   <span>
-                    {busy ? 'Đang lưu...' : mode === 'edit' ? (!isDirty ? 'Chưa có thay đổi' : 'Lưu thay đổi') : 'Tạo tour & Thiết lập lịch trình'}
+                    {busy ? 'Đang lưu...' : mode === 'edit' ? (!isDirty ? 'Chưa có thay đổi' : 'Lưu thay đổi') : 'Lưu bản nháp'}
                   </span>
                 </button>
+                {canSaveAndReview && <button type="button" onClick={() => handleOpenCompleteModal(true)} disabled={busy || categoriesLoading || locked || !!categoriesError}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#087e8b] bg-white px-5 py-3 text-sm font-bold text-[#087e8b] transition-colors hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-50">Lưu &amp; gửi duyệt</button>}
               </div>
             </section>
 
@@ -1282,7 +1276,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
             >
               <div>
                 <h3 id="complete-modal-title" className="text-lg font-bold text-slate-900">
-                  {mode === 'create' ? 'Xác nhận tạo tour mới?' : 'Xác nhận lưu thay đổi?'}
+                  {reviewOnSave ? 'Lưu và gửi tour kiểm duyệt?' : mode === 'create' ? 'Lưu bản nháp tour?' : 'Xác nhận lưu thay đổi?'}
                 </h3>
                 <p className="mt-1 text-xs text-slate-500">
                   Tour: <span className="font-semibold text-slate-700">{value.title || 'Tour mới'}</span>
@@ -1290,8 +1284,8 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
               </div>
 
               <p className="text-sm text-slate-600">
-                {mode === 'create'
-                  ? 'Thông tin tour sẽ được lưu và khởi tạo. Tiếp theo bạn sẽ được chuyển đến bước thiết lập chi tiết lịch trình và đợt khởi hành.'
+                {reviewOnSave ? 'Nội dung và lịch trình tour sẽ được lưu và gửi kiểm duyệt. Lịch khởi hành được xếp sau trong Calendar.' : mode === 'create'
+                  ? 'Thông tin tour được lưu thành bản nháp. Bạn có thể gửi kiểm duyệt và xếp lịch khởi hành sau.'
                   : 'Toàn bộ nội dung và thông tin vừa cập nhật sẽ được lưu vào hệ thống.'}
               </p>
 
@@ -1311,7 +1305,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   disabled={busy}
                   className="rounded-xl bg-[#087e8b] px-6 py-2.5 text-sm font-bold text-white hover:bg-[#00636e] transition-colors shadow-sm cursor-pointer disabled:opacity-50"
                 >
-                  {busy ? 'Đang lưu...' : mode === 'create' ? 'Xác nhận tạo tour' : 'Xác nhận lưu'}
+                  {busy ? 'Đang lưu...' : reviewOnSave ? 'Xác nhận gửi duyệt' : mode === 'create' ? 'Xác nhận lưu bản nháp' : 'Xác nhận lưu'}
                 </button>
               </div>
             </div>

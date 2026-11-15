@@ -35,6 +35,7 @@ export const TOUR_LIMITS = {
 // ---------------------------------------------------------------- inputs
 
 export interface TourContentInput {
+  optionalServices?: import('@travel-platform/constants').TourExtra[];
   agePricing?: AgePricing | null;
   childPricingPolicy?: string;
   cancellationPolicy?: string;
@@ -137,6 +138,7 @@ export interface TourListItemDto {
 
 /** "View tour details". */
 export interface TourDetailDto extends TourListItemDto {
+  optionalServices?: import('@travel-platform/constants').TourExtra[];
   agePricing?: AgePricing | null;
   childPricingPolicy?: string;
   cancellationPolicy?: string;
@@ -190,6 +192,8 @@ export interface GuideTourDto {
 
 /** Minimal facts other modules (bookings, earnings, reviews) need about a tour. */
 export interface BookableDeparture {
+  optionalServices?: import('@travel-platform/constants').TourExtra[];
+  meetingPoint?: string;
   agePricing?: AgePricing | null;
   tourId: string;
   agencyId: string;

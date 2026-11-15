@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { baseApi } from '@/store/api/baseApi';
 import { authApi } from '../api/authApi';
 import authReducer from '../store/authSlice';
+import { restoreCredentials } from '../store/authSlice';
+import { refreshSessionChecked } from '@/store/api/baseApi';
 
 /**
  * Minimal `Response` stand-in: RTK Query's fetchBaseQuery reads `text()` (and clones the
@@ -71,6 +73,15 @@ describe('authApi.loginWithGoogle', () => {
 });
 
 describe('authApi.login (email/password regression)', () => {
+  it('does not send a restored stale token or refresh on credential rejection', async () => {
+    const fetchMock = mockFetch({ success: false, error: { code: 'INVALID_CREDENTIALS' } }, false);
+    const store = createTestStore();
+    store.dispatch(restoreCredentials({ accessToken: 'expired', user: { id: 'u1', role: 'MODERATOR' } } as Parameters<typeof restoreCredentials>[0]));
+    await store.dispatch(authApi.endpoints.login.initiate({ email: 'a@b.com', password: FAKE_PASSWORD }));
+    const [request] = fetchMock.mock.calls[0] as [Request];
+    expect(request.headers.has('authorization')).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
   it('still POSTs email/password to /auth/login', async () => {
     const fetchMock = mockFetch({
       success: true,
@@ -84,5 +95,24 @@ describe('authApi.login (email/password regression)', () => {
     const [request] = fetchMock.mock.calls[0] as [Request];
     expect(request.url).toMatch(/\/auth\/login$/);
     expect(JSON.parse(await request.text())).toEqual({ email: 'a@b.com', password: FAKE_PASSWORD });
+  });
+});
+
+describe('refresh failure classification', () => {
+  it('shares concurrent refresh and reports authentication rejection as null', async () => {
+    const fetchMock = mockFetch({}, false);
+    const a = refreshSessionChecked();
+    const b = refreshSessionChecked();
+    expect(a).toBe(b);
+    expect(await a).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it('does not misclassify a network outage as revoked credentials', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+    await expect(refreshSessionChecked()).rejects.toThrow('offline');
+  });
+  it('does not misclassify server failures as revoked credentials', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }));
+    await expect(refreshSessionChecked()).rejects.toThrow('temporarily unavailable');
   });
 });

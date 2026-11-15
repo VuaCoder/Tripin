@@ -88,7 +88,7 @@ below are historical; MANAGER has no team administration by default.
 | Add wishlist / Remove tour from wishlist | wishlists | `GET /wishlist`, `POST /wishlist/:tourId`, `DELETE /wishlist/:tourId` | wishlist:manage | done |
 | Add tour to cart / view cart / update or remove an item (supports Book tour) | carts | `GET /cart`, `POST /cart/items`, `PATCH/DELETE /cart/items/:id` | cart:manage | done |
 | Request a group booking / negotiate and accept an offer / enter the members / book the group | custom-tours | `POST /custom-tours`, `GET /custom-tours`, `GET /custom-tours/:id`, `PATCH /custom-tours/:id/decision`, `PATCH /custom-tours/:id/draft`, `POST /custom-tours/:id/offers`, `POST /custom-tours/:id/acceptance`, `PATCH /custom-tours/:id/checkout-draft`, `POST /custom-tours/:id/bookings` | custom-tour:request / custom-tour:view / custom-tour:respond | done |
-| Book tour | bookings | `GET /promotions/hot`, `GET /promotions/preview`, `GET /promotions/available` (available promotions for tour), `GET /promotions/my-vouchers`, `POST /promotions/collect`, `POST /bookings`, `GET /bookings/me`, `GET /bookings/:id`, `POST /bookings/:id/cancel` | booking:* | done |
+| Book tour | bookings | `GET /promotions/hot`, `GET /promotions/preview`, `GET /promotions/available` (available promotions for tour), `GET /promotions/my-vouchers`, `POST /promotions/collect`, `POST /bookings/quote` (tour and optional-service quote), `POST /bookings`, `GET /bookings/me`, `GET /bookings/:id`, `POST /bookings/:id/cancel` | booking:* | done |
 | Complete an owned booking | bookings | `POST /bookings/:id/complete` | booking:view-own | done |
 | Make payment (Payment Gateway) | payments | `POST /payments/bookings/:bookingId/checkout`, `GET /payments/:id`, `POST /payments/webhooks/payos` (GUEST, signature) | payment:create | done |
 | Receive E-ticket | e-tickets | `GET /e-tickets`, `GET /e-tickets/:id`, `GET /e-tickets/booking/:bookingId` (+ email/notification on issue) | eticket:view-own | done |
@@ -97,6 +97,7 @@ below are historical; MANAGER has no team administration by default.
 | Tour complaint tickets | complaints | `POST /complaints`, `GET /complaints/me`, `GET /complaints/:id`, `POST /complaints/:id/messages`, `POST /complaints/:id/accept-resolution`, `POST /complaints/:id/escalate`, `POST /complaints/:id/feedback`, `POST /complaints/images/upload-signature` | report:create | done |
 | Send ticket (support) | support | `POST /support/tickets`, `GET /support/tickets/me`, `GET /support/tickets/:id`, `POST /support/tickets/:id/messages`, `POST /support/tickets/:id/close` | support:create | done |
 | Make a conversation (with Tour guide) | chat | `POST /chat/conversations`, `GET /chat/conversations`, `GET /chat/conversations/:id`, `GET /chat/conversations/:id/messages`, `POST /chat/conversations/:id/messages`, `POST /chat/conversations/:id/read`, `POST /chat/upload-image` + Socket.IO | chat:use | done |
+| Make a conversation (agency inbox) | chat | `POST /agency/chat/conversations`, `GET /agency/chat/conversations`, `GET /agency/chat/conversations/:id`, `GET /agency/chat/conversations/:id/messages`, `POST /agency/chat/conversations/:id/messages`, `POST /agency/chat/conversations/:id/read`, `POST /agency/chat/upload-image` | chat:use | done |
 | Chat with AI (AI Agent) | ai | `POST /ai/chat`, `GET /ai/conversations`, `GET /ai/conversations/:id`, `GET /ai/overview`, `POST /ai/conversations/:id/read` | ai:chat | done |
 | (supporting) notifications | notifications | `GET /notifications`, `GET /notifications/unread-count`, `PATCH /notifications/:id/read`, `POST /notifications/read-all`, `DELETE /notifications/:id` | auth; owner-scoped | done |
 
@@ -118,6 +119,7 @@ below are historical; MANAGER has no team administration by default.
 | Handle tour complaints | reports | `GET /agency/complaints`, `GET /agency/complaints/:id`, `POST /agency/complaints/:id/respond` | complaint:respond | done |
 | Handle complaint tickets | complaints | `GET /agency/complaint-tickets`, `GET /agency/complaint-tickets/:id`, `POST /agency/complaint-tickets/:id/messages`, `POST /agency/complaint-tickets/:id/resolve`, `POST /agency/complaint-tickets/:id/escalate`, `POST /agency/complaint-tickets/images/upload-signature` | complaint:respond | done |
 | Dispute a review | reports | `GET /agency/review-disputes`, `POST /agency/review-disputes/:reviewId` | review:dispute | done |
+| Request a commission share change | agency-commission | `GET /agency/commission`, `POST /agency/commission/requests`, `POST /agency/commission/requests/:id/cancel` | agency:finance-view / agency:finance-manage | done |
 | View/Update profile (+ submit for verification) | users | `GET/PATCH /users/me`, `POST /users/me/agency-verification` | profile:* | done |
 
 ## Tour guide
@@ -159,6 +161,7 @@ All `/admin/*` endpoints require the current `SUPER_ADMIN` role in addition to t
 | Use case | Module | Endpoint | Permission | Status |
 |---|---|---|---|---|
 | Set platform commission rates | system-settings | `GET/PUT /admin/settings/commission`, `GET /admin/settings/agency-commissions`, `PUT /admin/settings/agency-commissions/:id` | commission:configure | done |
+| Review agency commission share requests | agency-commission | `GET /admin/settings/agency-commission-requests`, `POST /admin/settings/agency-commission-requests/:id/approve`, `POST /admin/settings/agency-commission-requests/:id/reject` | commission:configure | done |
 | View detailed dashboards | dashboards | `GET /admin/dashboard` | admin:dashboard | done |
 | Config platform promotions | promotions | `GET/POST /admin/promotions`, `GET/PATCH /admin/promotions/:id`, `POST /admin/promotions/:id/generate-batch`, `GET /admin/promotions/:id/batch` | promotion:platform-manage | done |
 | Assign User Permissions | users | `GET /admin/users`, `DELETE /admin/users/:id`, `PATCH /admin/users/:id/access` (role + extra permissions) | user:assign-permissions | done |

@@ -53,6 +53,8 @@ model User {
   agencyJoinCodes AgencyJoinCode[]
   agencyJoinRequests AgencyJoinRequest[] @relation("JoinRequester")
   agencyJoinReviews AgencyJoinRequest[] @relation("JoinReviewer")
+  commissionRequests AgencyCommissionRequest[] @relation("CommissionRequester")
+  commissionDecisions AgencyCommissionRequest[] @relation("CommissionDecider")
   agencyCreationKeys AgencyCreationKey[]
 }
 
@@ -105,6 +107,8 @@ model AgencyProfile {
   notifications Notification[]
   joinCodes AgencyJoinCode[]
   joinRequests AgencyJoinRequest[]
+  commissionRequests AgencyCommissionRequest[]
+  conversations Conversation[]
   creationKey AgencyCreationKey?
 }
 
@@ -168,6 +172,7 @@ model Category {
 }
 
 model Tour {
+  optionalServices Json @default("[]")
   memberScopes AgencyMemberTourScope[]
   id           String     @id @default(uuid()) @db.Uuid
   @@unique([agencyId, id])
@@ -278,6 +283,10 @@ model CustomTourRequest {
 }
 
 model Booking {
+  serviceSnapshot Json @default("[]")
+  servicesSubtotal BigInt @default(0)
+  meetingPointSnapshot String?
+  requestFingerprint String?
   guestPricing Json?
   /// Passenger details captured at checkout for departure rosters.
   passengerSnapshot Json? @map("passengers")
@@ -900,7 +909,10 @@ model Notification {
 model Conversation {
   id                  String    @id @default(uuid()) @db.Uuid
   travelerId          String    @db.Uuid
-  guideId             String    @db.Uuid
+  /// Null for an agency thread; set for a traveler <-> guide thread.
+  guideId             String?   @db.Uuid
+  /// Set for a traveler <-> agency thread; null for a guide thread.
+  agencyId            String?   @db.Uuid
   tourId              String?   @db.Uuid
   lastMessageText     String?
   lastMessageSenderId String?   @db.Uuid
@@ -914,10 +926,13 @@ model Conversation {
   updatedAt           DateTime  @updatedAt
 
   messages Message[]
+  agency   AgencyProfile? @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@unique([travelerId, guideId])
+  // One thread per traveler+guide and one per traveler+agency. Partial unique indexes live in the migration because
+  // Prisma cannot express them; a plain @@unique would also block the other kind of thread.
   @@index([travelerId, lastActivityAt(sort: Desc), id(sort: Desc)])
   @@index([guideId, lastActivityAt(sort: Desc), id(sort: Desc)])
+  @@index([agencyId, lastActivityAt(sort: Desc), id(sort: Desc)])
 }
 
 model Message {
@@ -1167,6 +1182,7 @@ enum NotificationType {
   SUBSCRIPTION_EXPIRING_SOON
   AGENCY_JOIN_REQUESTED
   AGENCY_JOIN_REVIEWED
+  AGENCY_COMMISSION_DECIDED
   CUSTOM_TOUR_REQUESTED
   CUSTOM_TOUR_DECIDED
   CUSTOM_TOUR_OFFERED
@@ -1434,4 +1450,35 @@ model AgencyJoinRequest {
   assignedRole AgencyRole? @relation(fields: [agencyId, assignedRoleId], references: [agencyId, id], onDelete: Restrict, onUpdate: NoAction, map: "AgencyJoinRequest_role_fkey")
   @@index([agencyId, status, createdAt])
   @@index([userId, createdAt])
+}
+
+/// A request from an agency owner to change the share of each booking the agency keeps.
+model AgencyCommissionRequest {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agencyId          String    @db.Uuid
+  requestedByUserId String    @db.Uuid
+  /// The agency's share at request time, in basis points of the booking total (0..10000).
+  currentShareBps   Int
+  /// The requested agency share, in basis points (0..5000 = 0..50%).
+  requestedShareBps Int
+  /// AgencyProfile.commissionVersion the request was based on; approval fails if the rate moved since.
+  baseVersion       Int
+  reason            String
+  /// PENDING / APPROVED / REJECTED / CANCELLED, enforced by migration CHECKs.
+  status            String    @default("PENDING")
+  decidedByUserId   String?   @db.Uuid
+  decidedAt         DateTime?
+  decisionNote      String?
+  /// AgencyProfile.commissionVersion written by an approval.
+  appliedVersion    Int?
+  cancelledAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  agency      AgencyProfile @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  requestedBy User          @relation("CommissionRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  decidedBy   User?         @relation("CommissionDecider", fields: [decidedByUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([agencyId, status, createdAt])
+  @@index([status, createdAt])
 }

@@ -10,13 +10,13 @@ afterAll(stopDatabase);
 beforeEach(resetDatabase);
 
 describe('agency complaint membership', () => {
-  it('lets an active manager respond only to tickets in the selected agency', async () => {
+  it('requires an explicit complaint grant for STAFF and scopes tickets to the selected agency', async () => {
     captureMail();
     const agency = await createUser('AGENCY', 'agency@example.com');
     const other = await createUser('AGENCY', 'other@example.com');
     const traveler = await createUser('TRAVELER', 'traveler@example.com');
     const staff = await createUser('TRAVELER', 'staff@example.com');
-    await prisma.agencyMember.create({ data: { agencyId: agency.id, userId: staff.id, role: 'MANAGER' } });
+    const member = await prisma.agencyMember.create({ data: { agencyId: agency.id, userId: staff.id, role: 'STAFF' } });
     const { tourId } = await createApprovedTour(agency.id);
     const ticket = await prisma.complaintTicket.create({ data: {
       ticketCode: 'CMP-STAFF-1', travelerId: traveler.id, agencyId: agency.id, tourId,
@@ -24,6 +24,8 @@ describe('agency complaint membership', () => {
     } });
     const base = '/api/v1/agency/complaint-tickets';
     const headers = { ...bearer(staff.token), 'X-Agency-Id': agency.id };
+    expect((await request(app).get(base).set(headers)).status).toBe(403);
+    await prisma.agencyMemberPermissionOverride.create({ data: { agencyId: agency.id, memberId: member.id, permission: 'complaint:respond', effect: 'ALLOW' } });
     const list = await request(app).get(base).set(headers);
     expect(list.status).toBe(200);
     expect(list.body.items).toHaveLength(1);

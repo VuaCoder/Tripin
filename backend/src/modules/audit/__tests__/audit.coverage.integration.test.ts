@@ -59,9 +59,7 @@ describe('audit coverage (integration)', () => {
     const asAdmin = (r: request.Test) => r.set(bearer(a.admin.token));
 
     await expectOneAudit(AUDIT_ACTIONS.COMMISSION_UPDATED, a.admin.id, () => asAdmin(request(app).put('/api/v1/admin/settings/commission')).send({ ratePercent: 9, expectedVersion: 0 }));
-    const commissionAgency = await createVerifiedAgency('commission@example.com');
-    await expectOneAudit(AUDIT_ACTIONS.AGENCY_COMMISSION_UPDATED, a.admin.id, () =>
-      asAdmin(request(app).put(`/api/v1/admin/settings/agency-commissions/${commissionAgency.id}`)).send({ ratePercent: 8, expectedVersion: 0 }), commissionAgency.id);
+    await expectOneAudit(AUDIT_ACTIONS.AGENCY_COMMISSION_UPDATED, a.admin.id, () => asAdmin(request(app).put(`/api/v1/admin/settings/agency-commissions/${a.agency.id}`)).send({ ratePercent: 15, expectedVersion: 0 }), a.agency.id);
     await expectOneAudit(AUDIT_ACTIONS.POLICY_UPDATED, a.admin.id, () => asAdmin(request(app).put('/api/v1/admin/policies/terms')).send({ expectedVersion: 0, reason: 'Policy reviewed and updated', title: 'Terms of use', content: 'Be nice.' }), 'policy:terms');
     await expectOneAudit(AUDIT_ACTIONS.PREMIUM_CHANGED, a.admin.id, () =>
       asAdmin(request(app).put('/api/v1/admin/premium/flags')).send({ audience: 'TRAVELER', enabled: true }),
@@ -168,9 +166,9 @@ describe('audit coverage (integration)', () => {
 
     const before = await prisma.auditLog.count();
     expect((await request(app).patch(`/api/v1/agency/members/${membership.id}`).set(bearer(owner.token)).send({ role: 'MANAGER' })).status).toBe(200);
-    const invitation = await request(app).post('/api/v1/agency/invitations').set(bearer(owner.token)).send({ email: 'invitee@example.com', role: 'STAFF' });
-    expect(invitation.status).toBe(201);
-    expect((await request(app).post(`/api/v1/agency-invitations/${invitation.body.data.id}/accept`).set(bearer(invitee.token)).send({})).status).toBe(200);
+    const invite = await request(app).post('/api/v1/agency/invitations').set(bearer(owner.token)).send({ email: 'invitee@example.com', role: 'STAFF' });
+    expect(invite.status).toBe(201);
+    expect((await request(app).post(`/api/v1/agency-invitations/${invite.body.data.id}/accept`).set(bearer(invitee.token)).send({})).status).toBe(200);
 
     const entries = await prisma.auditLog.findMany({ orderBy: { createdAt: 'asc' }, skip: before });
     expect(entries.map((entry) => entry.action)).toEqual([
@@ -188,6 +186,26 @@ describe('audit coverage (integration)', () => {
     const a = await actors();
     const disposable = await createUser('TRAVELER', 'remove@example.com');
     await expectOneAudit(AUDIT_ACTIONS.USER_DELETED, a.admin.id, () => request(app).delete(`/api/v1/admin/users/${disposable.id}`).set(bearer(a.admin.token)), disposable.id);
+  });
+
+  it('agency commission requests: request, cancel, approve, reject', async () => {
+    const a = await actors();
+    const asAgency = (r: request.Test) => r.set(bearer(a.agency.token)).set('X-Agency-Id', a.agency.id);
+
+    const created = await asAgency(request(app).post('/api/v1/agency/commission/requests')).send({ requestedSharePercent: 20, reason: 'Audit coverage' });
+    expect(created.status).toBe(201);
+    const requested = await prisma.auditLog.findFirst({ where: { action: AUDIT_ACTIONS.AGENCY_COMMISSION_REQUESTED } });
+    expect(requested?.actorId).toBe(a.agency.id);
+
+    expect((await asAgency(request(app).post(`/api/v1/agency/commission/requests/${created.body.data.id}/cancel`))).status).toBe(200);
+    const cancelled = await prisma.auditLog.findFirst({ where: { action: AUDIT_ACTIONS.AGENCY_COMMISSION_REQUEST_CANCELLED } });
+    expect(cancelled?.actorId).toBe(a.agency.id);
+
+    const toApprove = await asAgency(request(app).post('/api/v1/agency/commission/requests')).send({ requestedSharePercent: 20, reason: 'Approve coverage' });
+    await expectOneAudit(AUDIT_ACTIONS.AGENCY_COMMISSION_REQUEST_APPROVED, a.admin.id, () => request(app).post(`/api/v1/admin/settings/agency-commission-requests/${toApprove.body.data.id}/approve`).set(bearer(a.admin.token)).send({ note: 'ok' }), a.agency.id);
+
+    const toReject = await asAgency(request(app).post('/api/v1/agency/commission/requests')).send({ requestedSharePercent: 30, reason: 'Reject coverage' });
+    await expectOneAudit(AUDIT_ACTIONS.AGENCY_COMMISSION_REQUEST_REJECTED, a.admin.id, () => request(app).post(`/api/v1/admin/settings/agency-commission-requests/${toReject.body.data.id}/reject`).set(bearer(a.admin.token)).send({ note: 'no' }), a.agency.id);
   });
 
   it('every action declared in AUDIT_ACTIONS is exercised by this file or the agency audit suite', () => {

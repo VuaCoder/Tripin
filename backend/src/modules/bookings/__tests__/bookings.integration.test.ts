@@ -3,6 +3,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../../app';
 import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase, loadTour } from '../../../test/integration';
 import { prisma } from '../../../config/database';
+import { randomUUID } from 'node:crypto';
+import { extraTerms, type TourExtra } from '@travel-platform/constants';
 
 // Real Express app + real PostgreSQL: seat accounting, idempotent creation and ownership under concurrency.
 const app = createApp();
@@ -25,12 +27,48 @@ async function setup(capacity = 10) {
 }
 
 describe('bookings (integration)', () => {
-  it('stores passenger details and exports the selected departure for an agency manager', async () => {
+  it('quotes and books pickup for only three of five passengers without reserving seats during the quote', async () => {
+    const { traveler, tourId, departureId } = await setup();
+    const service: TourExtra = { id: randomUUID(), name: 'Hotel pickup', description: '', kind: 'PICKUP', pricing: 'PER_PERSON',
+      unit: 'person', price: 100_000, active: true, cutoffHours: 0, maxQuantity: 10, ages: ['ADULT'],
+      pickup: { mode: 'ADDRESS', area: 'City center', points: [], instructions: 'Wait at reception' } };
+    await prisma.tour.update({ where: { id: tourId }, data: { optionalServices: [{ ...service }] } });
+    const passengers = Array.from({ length: 5 }, (_, i) => ({ passengerId: randomUUID(), fullName: `Passenger ${i + 1}`, ageGroup: 'ADULT' }));
+    const selected = passengers.slice(0, 3);
+    const services = [{ serviceId: service.id, terms: extraTerms(service), passengerIds: selected.map(p => p.passengerId), quantity: 3,
+      pickups: selected.map(p => ({ passengerId: p.passengerId, address: 'Hotel City Center' })) }];
+    const body = { tourId, departureId, participants: 5, contact, passengers, services };
+    const quote = await request(app).post('/api/v1/bookings/quote').set(bearer(traveler.token)).send(body);
+    expect(quote.status).toBe(200);
+    expect(quote.body.data).toMatchObject({ tourSubtotal: 5_000_000, servicesSubtotal: 300_000, beforeDiscount: 5_300_000 });
+    expect(await remainingOf(tourId)).toBe(10);
+    expect(await prisma.booking.count()).toBe(0);
+    const created = await book(traveler.token, tourId, departureId, 5, { passengers, services, expectedTourSubtotal: quote.body.data.tourSubtotal });
+    expect(created.status).toBe(201);
+    expect(created.body.data).toMatchObject({ servicesSubtotal: 300_000, totalAmount: 5_300_000 });
+    const stored = await prisma.booking.findUniqueOrThrow({ where: { id: created.body.data.id } });
+    expect(stored.serviceSnapshot).toMatchObject([{ quantity: 3, total: 300_000, participants: selected }]);
+    expect(await remainingOf(tourId)).toBe(5);
+  });
+
+  it('rejects free-form pickup without a selected pickup service and leaves inventory unchanged', async () => {
+    const { traveler, tourId, departureId } = await setup();
+    const res = await book(traveler.token, tourId, departureId, 1, {
+      passengers: [{ fullName: 'Nguyen Lan', ageGroup: 'ADULT', pickupPoint: 'Hotel City Center' }],
+    });
+    expect(res.status).toBe(400);
+    expect(await remainingOf(tourId)).toBe(10);
+    expect(await prisma.booking.count()).toBe(0);
+  });
+
+  it('stores passenger details and exports the selected departure for explicitly authorized agency STAFF', async () => {
     const { agency, traveler, tourId, departureId } = await setup();
     const staff = await createUser('TRAVELER', 'staff@example.com');
-    await prisma.agencyMember.create({ data: { agencyId: agency.id, userId: staff.id, role: 'MANAGER' } });
+    await prisma.agencyMember.create({ data: { agencyId: agency.id, userId: staff.id, role: 'STAFF',
+      permissionOverrides: { create: { permission: 'agency:export-customers', effect: 'ALLOW' } },
+    } });
     const created = await book(traveler.token, tourId, departureId, 2, { passengers: [
-      { fullName: 'Nguyen Lan', birthYear: 1990, ageGroup: 'ADULT', pickupPoint: 'Gate A', phone: '0901234567' },
+      { fullName: 'Nguyen Lan', birthYear: 1990, ageGroup: 'ADULT', phone: '0901234567' },
       { fullName: 'Tran An', ageGroup: 'CHILD', specialNotes: 'Allergy' },
     ] });
     expect(created.status).toBe(201);

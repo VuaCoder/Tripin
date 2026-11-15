@@ -34,6 +34,8 @@ export interface TourDeparture {
 
 /** `GET /tours/:id` (`TourDetailDto`) — only the fields used here; the response carries more. */
 export interface TourDetail extends TourListItem {
+  optionalServices?: import('@travel-platform/constants').TourExtra[];
+  meetingPoint?: string;
   agePricing?: import('@travel-platform/constants').AgePricing | null;
   childPricingPolicy?: string;
   cancellationPolicy?: string;
@@ -62,6 +64,9 @@ export interface TourDetail extends TourListItem {
 export type TourStatus = 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'ARCHIVED';
 export interface TourItineraryDay { day: number; toDay?: number; title: string; description?: string; activities: string[]; }
 export interface TourContentInput {
+  itinerary?: TourItineraryDay[];
+  optionalServices?: import('@travel-platform/constants').TourExtra[];
+  meetingPoint?: string;
   agePricing?: import('@travel-platform/constants').AgePricing | null;
   childPricingPolicy?: string;
   cancellationPolicy?: string;

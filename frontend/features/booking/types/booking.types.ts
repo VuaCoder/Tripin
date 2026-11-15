@@ -10,7 +10,9 @@ export interface BookingContact {
 }
 
 export interface CreateBookingInput {
-  passengers?: { fullName: string; birthYear?: number; ageGroup: 'ADULT' | 'CHILD' | 'INFANT'; phone?: string; pickupPoint?: string; specialNotes?: string }[];
+  services?: import('@travel-platform/constants').ExtraSelection[];
+  expectedTourSubtotal?: number;
+  passengers?: { passengerId?: string; fullName: string; birthYear?: number; ageGroup: 'ADULT' | 'CHILD' | 'INFANT'; phone?: string; pickupPoint?: string; specialNotes?: string }[];
   premiumVoucherId?: string;
   guestCounts?: import('@travel-platform/constants').GuestCounts;
   tourId: string;
@@ -96,6 +98,9 @@ export interface BookingPassenger {
 }
 
 export interface BookingDto {
+  services?: import('@travel-platform/constants').BookedExtra[];
+  servicesSubtotal?: number;
+  meetingPoint?: string;
   guestPricing?: import('@travel-platform/constants').GuestPriceBreakdown;
   id: string;
   bookingCode: string;

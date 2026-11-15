@@ -7,6 +7,7 @@ import { useGetBookingByIdQuery } from '@/features/booking';
 import { useGetETicketByBookingIdQuery, useGetETicketByIdQuery } from '../api/eTicketApi';
 import { ETicketCard } from './ETicketCard';
 import { ETicketNotEligible } from './ETicketNotEligible';
+import { BookedExtrasSummary } from '@/features/booking/components/BookedExtrasSummary';
 
 export interface ETicketViewProps {
   bookingId?: string;
@@ -56,6 +57,7 @@ export function ETicketView({ bookingId, ticketId }: ETicketViewProps) {
     return (
       <div className="py-6 sm:py-8 px-4 sm:px-6">
         <ETicketCard ticket={ticket} />
+        <div className="mx-auto max-w-3xl"><BookedExtrasSummary services={ticket.services} meetingPoint={ticket.tour.meetingPoint} /></div>
       </div>
     );
   }

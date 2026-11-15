@@ -33,7 +33,7 @@ describe('ScheduleEditor', () => {
 
   afterEach(cleanup);
 
-  it('renders Ant Design date and time pickers without native date/time inputs and initializes 3-group breakdown from tour agePricing', () => {
+  it('renders Ant Design date and time pickers and initializes capacity from tour maxGroupSize', () => {
     const { container } = render(
       <ScheduleEditor
         draft={{ tour: baseTour, date: futureIso() }}
@@ -49,16 +49,12 @@ describe('ScheduleEditor', () => {
     expect(container.querySelector('input[type="time"]')).toBeNull();
     expect(screen.getByLabelText('Ngày khởi hành')).toBeDefined();
     expect(screen.getByLabelText('Giờ khởi hành (VN)')).toBeDefined();
-    expect(screen.queryByText('Chia theo người lớn, trẻ em, em bé')).toBeNull();
 
-    const capacityTrigger = screen.getByRole('button', { name: 'Số lượng khách' });
-    expect(capacityTrigger.textContent).toContain('18 khách');
-    expect(capacityTrigger.textContent).toContain('10 người lớn');
-    expect(capacityTrigger.textContent).toContain('5 trẻ em');
-    expect(capacityTrigger.textContent).toContain('3 em bé');
+    const capacityInput = screen.getByRole('spinbutton', { name: 'Số lượng khách (Sức chứa)' }) as HTMLInputElement;
+    expect(capacityInput.value).toBe('18');
   });
 
-  it('allows adjusting adults, children, and infants via dropdown and submits summed capacity', async () => {
+  it('allows adjusting capacity and submits updated capacity', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const event: DepartureEvent = {
       id: 'dep-1',
@@ -84,25 +80,13 @@ describe('ScheduleEditor', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Số lượng khách' }));
-
-    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Số người lớn' })).toBeDefined());
-
-    fireEvent.click(screen.getByRole('button', { name: 'Tăng số người lớn' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Tăng số trẻ em' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Giảm số em bé' }));
-
-    expect(screen.getByText('Tổng: 19 khách')).toBeDefined();
+    const capacityInput = screen.getByRole('spinbutton', { name: 'Số lượng khách (Sức chứa)' });
+    fireEvent.change(capacityInput, { target: { value: '25' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
 
-    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ capacity: 19 })));
-
-    const persisted = JSON.parse(window.localStorage.getItem('tripri_departure_guest_counts:dep-1')!);
-    expect(persisted).toEqual({
-      capacity: 19,
-      counts: { adults: 11, children: 6, infants: 2 },
-    });
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ capacity: 25 })));
+    expect(window.localStorage.getItem('tripri_departure_guest_counts:dep-1')).toBeNull();
   });
 });
 

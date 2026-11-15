@@ -9,7 +9,7 @@ export function agencyRoutePermission(pathname: string): string | null {
     ['/agency/tours', 'agency:tour-view'], ['/agency/calendar', 'tour:update-own'],
     ['/agency/bookings', 'agency:bookings-view'], ['/agency/promotions', 'promotion:agency-manage'],
     ['/agency/complaints', 'complaint:respond'], ['/agency/premium', 'premium:contribute'],
-    ['/agency/finance', 'agency:finance-view'],
+    ['/agency/conversations', 'chat:use'],
     ['/agency/team', 'agency:team-view'],
     ['/agency/settings/team', 'agency:team-view'],
   ];

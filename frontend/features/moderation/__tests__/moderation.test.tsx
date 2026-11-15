@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ModerationAgency, ModerationTour } from '../types';
 
 const mockTours = vi.fn();
+const mockTourDetail = vi.fn((id: string) => ({ data: id ? mockTours()?.data?.items?.find((item: ModerationTour) => item.id === id) : undefined, isLoading: false, isFetching: false, isError: false, refetch: vi.fn() }));
 const mockAgencies = vi.fn();
 const mockDashboard = vi.fn();
 const mockValidate = vi.fn();
@@ -12,7 +13,7 @@ let permissions: string[] = [];
 
 vi.mock('../api/moderationApi', () => ({
   useGetModerationToursQuery: (...a: unknown[]) => mockTours(...a),
-  useGetModerationTourQuery: (id: string) => ({ data: id ? mockTours()?.data?.items?.find((item: ModerationTour) => item.id === id) : undefined, isFetching: false, isError: false, refetch: vi.fn() }),
+  useGetModerationTourQuery: (...a: unknown[]) => mockTourDetail(a[0] as string),
   useGetModerationAgenciesQuery: (...a: unknown[]) => mockAgencies(...a),
   useGetModerationDashboardQuery: (...a: unknown[]) => mockDashboard(...a),
   useValidateTourMutation: () => [mockValidate, { isLoading: false }],
@@ -99,10 +100,10 @@ describe('ModerationTourListPage', () => {
     render(<ModerationTourListPage />);
     const card = screen.getByRole('button', { name: /Xem chi tiết tour/ });
     fireEvent.click(card);
-    expect(screen.getByText('Agency gửi tour:')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /Đóng/ }));
+    expect(screen.getAllByText('Agency X').length).toBeGreaterThan(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
     fireEvent.keyDown(card, { key: 'Enter' });
-    expect(screen.getByText('Agency gửi tour:')).toBeTruthy();
+    expect(screen.getAllByText('Agency X').length).toBeGreaterThan(1);
   });
 
   it('renders loading, error and empty states', () => {
@@ -141,8 +142,7 @@ describe('ModerationTourListPage', () => {
     render(<ModerationTourListPage />);
     fireEvent.click(screen.getByText('Xem & xử lý'));
     fireEvent.click(screen.getByText('Từ chối'));
-    expect(screen.getByLabelText('Lý do hủy')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận từ chối' }));
+    expect(screen.getByLabelText(/Lý do.*bắt buộc khi từ chối/)).toBeTruthy();
     expect(screen.getByText(/ít nhất 3 ký tự/)).toBeTruthy();
     expect(mockValidate).not.toHaveBeenCalled();
   });
@@ -156,7 +156,8 @@ describe('ModerationTourListPage', () => {
     fireEvent.click(screen.getByText('Xem & xử lý'));
     fireEvent.click(screen.getByText('Tạm ngưng tour'));
     expect(mockSuspend).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByLabelText('Lý do tạm ngưng'), { target: { value: 'Sai thông tin' } });
+    fireEvent.change(screen.getByLabelText(/Lý do tạm ngưng/), { target: { value: 'Sai thông tin' } });
+    fireEvent.click(screen.getByText('Tạm ngưng tour'));
     fireEvent.click(screen.getByRole('button', { name: 'Xác nhận tạm ngưng tour' }));
     await waitFor(() => expect(mockSuspend).toHaveBeenCalledWith({ id: 't1', reason: 'Sai thông tin' }));
     await waitFor(() => expect(screen.getAllByRole('alert')[0].textContent).toContain('Trạng thái hiện tại không cho phép'));

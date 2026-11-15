@@ -16,6 +16,7 @@ import type {
   ModerationTicket,
   ModerationTicketSummary,
   ModerationTour,
+  ModerationTourDetail,
   ResolveReportInput,
   SuspendTourInput,
   TicketReplyInput,
@@ -62,11 +63,11 @@ export const moderationApi = baseApi.injectEndpoints({
       providesTags: [TOURS_TAG],
     }),
 
-    getModerationTour: build.query<ModerationTour, string>({
+    getModerationTour: build.query<ModerationTourDetail, string>({
       keepUnusedDataFor: MODERATOR_CACHE_SECONDS,
       query: (id) => ({ url: `/moderation/tours/${id}` }),
-      transformResponse: (r: ModerationApiResponse<ModerationTour>) => unwrap(r),
-      providesTags: [TOURS_TAG],
+      transformResponse: (r: ModerationApiResponse<ModerationTourDetail>) => unwrap(r),
+      providesTags: (result, error, id) => [TOURS_TAG, { type: 'Moderation', id: `TOUR-${id}` }],
     }),
 
     validateTour: build.mutation<ModerationTour, ValidateTourInput>({

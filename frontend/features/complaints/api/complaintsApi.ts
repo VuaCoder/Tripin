@@ -3,6 +3,7 @@ import type { ImageUploadSignature } from '@/features/traveler-account/types';
 import type {
   AdjudicateComplaintTicketInput,
   AgencyQualityStats,
+  ComplaintActorRole,
   ComplaintFeedback,
   ComplaintListResult,
   ComplaintTicketDetail,
@@ -46,6 +47,10 @@ const normalizeListResponse = (res: PaginatedApiResponse<ComplaintTicketSummary>
 
 const COMPLAINT_TAG = 'Complaint' as const;
 
+/** The agency portal has its own ticket endpoints; `/complaints` resolves traveler permissions only. */
+const complaintPath = (role: ComplaintActorRole | undefined, path: string) =>
+  role === 'AGENCY' ? `/agency/complaint-tickets${path}` : `/complaints${path}`;
+
 export const complaintsApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     // Cloudinary Signature
@@ -79,15 +84,15 @@ export const complaintsApi = baseApi.injectEndpoints({
       providesTags: [{ type: COMPLAINT_TAG, id: 'LIST_TRAVELER' }],
     }),
 
-    getComplaintDetail: build.query<ComplaintTicketDetail, string>({
-      query: (id) => `/complaints/${id}`,
+    getComplaintDetail: build.query<ComplaintTicketDetail, { ticketId: string; role?: ComplaintActorRole }>({
+      query: ({ ticketId, role }) => complaintPath(role, `/${ticketId}`),
       transformResponse: (res: ApiResponse<ComplaintTicketDetail>) => res.data,
-      providesTags: (_result, _err, id) => [{ type: COMPLAINT_TAG, id }],
+      providesTags: (_result, _err, { ticketId }) => [{ type: COMPLAINT_TAG, id: ticketId }],
     }),
 
     sendComplaintMessage: build.mutation<ComplaintTicketMessage, SendComplaintMessageInput>({
-      query: ({ ticketId, ...body }) => ({
-        url: `/complaints/${ticketId}/messages`,
+      query: ({ ticketId, role, ...body }) => ({
+        url: complaintPath(role, `/${ticketId}/messages`),
         method: 'POST',
         body,
       }),
@@ -113,8 +118,8 @@ export const complaintsApi = baseApi.injectEndpoints({
     }),
 
     escalateComplaint: build.mutation<ComplaintTicketDetail, EscalateComplaintTicketInput>({
-      query: ({ ticketId, ...body }) => ({
-        url: `/complaints/${ticketId}/escalate`,
+      query: ({ ticketId, role, ...body }) => ({
+        url: complaintPath(role, `/${ticketId}/escalate`),
         method: 'POST',
         body,
       }),

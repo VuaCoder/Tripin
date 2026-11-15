@@ -39,20 +39,63 @@ export interface ModerationDashboard {
   reviews?: { visible?: number; hidden: number };
 }
 
+export interface ModerationTourDeparture {
+  id: string;
+  date: string;
+  capacity: number;
+  bookedCount?: number;
+  remaining?: number;
+  price?: number;
+  priceOverride?: number | null;
+  isOpen?: boolean;
+}
+
+export interface ModerationTourDetail extends ModerationTour {
+  categoryIds?: string[];
+  categories?: { id: string; name: string }[];
+  ratingAvg?: number;
+  ratingCount?: number;
+  maxGroupSize?: number | null;
+  meetingPoint?: string | null;
+  highlights?: string[];
+  optionalServices?: Array<{
+    id: string;
+    kind: string;
+    name: string;
+    description?: string;
+    price: number;
+    unit: string;
+    pricing?: 'PER_PERSON' | 'PER_BOOKING';
+    active: boolean;
+    pickup?: {
+      area: string;
+      mode: 'ONE_WAY' | 'ROUND_TRIP';
+    };
+  }>;
+  childPricingPolicy?: string | null;
+  agePricing?: AgePricing | null;
+  cancellationPolicy?: string | null;
+  requiredDocuments?: string | null;
+  travelNotes?: string | null;
+  departures?: ModerationTourDeparture[];
+  visibility?: 'PUBLIC' | 'PRIVATE';
+  guide?: { id: string; fullName: string; avatarUrl?: string } | null;
+}
+
 export interface ModerationTour {
   visibility?: 'PUBLIC' | 'PRIVATE';
   categoryIds?: string[];
   categories?: { id: string; name: string }[];
   highlights?: string[];
-  maxGroupSize?: number;
-  meetingPoint?: string;
-  travelNotes?: string;
-  requiredDocuments?: string;
-  cancellationPolicy?: string;
-  childPricingPolicy?: string;
+  maxGroupSize?: number | null;
+  meetingPoint?: string | null;
+  travelNotes?: string | null;
+  requiredDocuments?: string | null;
+  cancellationPolicy?: string | null;
+  childPricingPolicy?: string | null;
   agePricing?: AgePricing | null;
-  departures?: { id: string; date: string; capacity: number; remaining: number; price: number; isOpen: boolean }[];
-  guide?: { id: string; fullName: string };
+  departures?: ModerationTourDeparture[];
+  guide?: { id: string; fullName: string; avatarUrl?: string } | null;
   guideAssignment?: { feePerBooking: number; status: string; respondedAt?: string; note?: string };
   id: string;
   title: string;

@@ -33,7 +33,9 @@ import {
   type SaveCustomTourDraftInput,
 } from './custom-tours.types';
 
-type Actor = { userId: string; role: PersistedRole };
+type Actor = { userId: string; role: PersistedRole; agencyId?: string };
+/** Legacy agencies have agencyId === userId; members carry their selected tenant on the actor. */
+const agencyOf = (actor: Actor) => actor.agencyId ?? actor.userId;
 type Repo = Pick<
   CustomToursRepository,
   'create' | 'findById' | 'findByClientRequestId' | 'setConversationId' | 'list' | 'decide' | 'accept'
@@ -111,7 +113,7 @@ export class CustomToursService {
 
   /** Traveler: their own requests. Agency: the ones addressed to it. */
   async list(actor: Actor, query: ListCustomToursQuery): Promise<Page<CustomTourRequestDto>> {
-    const scope: CustomTourScope = actor.role === ROLES.TRAVELER ? { travelerId: actor.userId } : { agencyId: actor.userId };
+    const scope: CustomTourScope = actor.role === ROLES.TRAVELER ? { travelerId: actor.userId } : { agencyId: agencyOf(actor) };
     const { items, total } = await this.requests.list(scope, query);
     const [briefs, bookings] = await Promise.all([
       this.tours.getBriefs(items.flatMap((item) => [item.sourceTourId, ...(item.privateTourId ? [item.privateTourId] : [])])),
@@ -123,7 +125,7 @@ export class CustomToursService {
   /** 404 (never 403) for anyone else's request, so ids are not revealed. */
   async get(actor: Actor, id: string): Promise<CustomTourRequestDto> {
     const record = await this.requests.findById(id);
-    const mine = record && (actor.role === ROLES.TRAVELER ? record.travelerId === actor.userId : record.agencyId === actor.userId);
+    const mine = record && (actor.role === ROLES.TRAVELER ? record.travelerId === actor.userId : record.agencyId === agencyOf(actor));
     if (!record || !mine) throw AppError.notFound('Custom tour request not found');
     return this.describe(record);
   }
@@ -135,7 +137,7 @@ export class CustomToursService {
    */
   async decide(actor: Actor, id: string, decision: CustomTourDecision): Promise<CustomTourRequestDto> {
     const record = await this.requests.findById(id);
-    const mine = record && (record.travelerId === actor.userId || record.agencyId === actor.userId);
+    const mine = record && (record.travelerId === actor.userId || record.agencyId === agencyOf(actor));
     if (!record || !mine) throw AppError.notFound('Custom tour request not found');
     const travelerActs = actor.role === ROLES.TRAVELER;
     if (travelerActs !== (decision === 'CANCEL')) throw AppError.notFound('Custom tour request not found');
@@ -360,7 +362,7 @@ export class CustomToursService {
   /** Agency only, owner only; 404 for everyone else so request ids are not revealed. */
   private async requireAgencyRequest(actor: Actor, id: string): Promise<CustomTourRecord> {
     const record = await this.requests.findById(id);
-    if (!record || actor.role !== ROLES.AGENCY || record.agencyId !== actor.userId) {
+    if (!record || actor.role !== ROLES.AGENCY || record.agencyId !== agencyOf(actor)) {
       throw AppError.notFound('Custom tour request not found');
     }
     return record;
@@ -401,7 +403,7 @@ export class CustomToursService {
     try {
       const conversation = await this.chat.startConversation(
         { userId: record.travelerId, role: ROLES.TRAVELER },
-        { participantId: record.agencyId, tourId: record.sourceTourId },
+        { agencyId: record.agencyId, tourId: record.sourceTourId },
       );
       await this.requests.setConversationId(record.id, conversation.id);
       return conversation.id;

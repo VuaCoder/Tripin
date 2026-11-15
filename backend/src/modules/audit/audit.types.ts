@@ -14,6 +14,10 @@ export const AUDIT_ACTIONS = {
   AGENCY_MEMBER_CHANGED: 'agency.member_changed',
   AGENCY_INVITATION_CREATED: 'agency.invitation_created',
   AGENCY_INVITATION_ACCEPTED: 'agency.invitation_accepted',
+  AGENCY_COMMISSION_REQUESTED: 'agency.commission_requested',
+  AGENCY_COMMISSION_REQUEST_CANCELLED: 'agency.commission_request_cancelled',
+  AGENCY_COMMISSION_REQUEST_APPROVED: 'agency.commission_request_approved',
+  AGENCY_COMMISSION_REQUEST_REJECTED: 'agency.commission_request_rejected',
   AUDIT_EXPORTED: 'audit.exported',
   PREMIUM_CHANGED: 'premium.changed',
   USER_ACCESS_ASSIGNED: 'user.access_assigned',
@@ -63,9 +67,11 @@ export interface ListAuditQuery {
   page: number;
   limit: number;
   actorId?: string;
+  actorRole?: PersistedRole;
   action?: AuditAction;
   targetType?: string;
   targetId?: string;
   from?: Date;
   to?: Date;
+  order?: 'asc' | 'desc';
 }

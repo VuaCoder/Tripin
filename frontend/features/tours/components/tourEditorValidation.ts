@@ -1,23 +1,34 @@
 import type { TourContentInput } from '../types';
-import { MONEY_LIMITS } from '@travel-platform/constants';
+import { MONEY_LIMITS, validateTourItinerary } from '@travel-platform/constants';
+import type { TourExtra } from '@travel-platform/constants';
 
-export const editorFields = ['title', 'destination', 'durationDays', 'summary', 'categoryIds', 'basePrice', 'maxGroupSize', 'agePricing'] as const;
+export const editorFields = ['title', 'destination', 'durationDays', 'summary', 'categoryIds', 'itinerary', 'basePrice', 'maxGroupSize', 'agePricing', 'optionalServices'] as const;
 export type EditorField = typeof editorFields[number];
 export type EditorErrors = Partial<Record<EditorField, string>>;
-export const fieldStep = (field: EditorField) => field === 'agePricing' || field === 'basePrice' || field === 'maxGroupSize' ? 3 : 1;
+export const fieldStep = (field: EditorField) => field === 'agePricing' || field === 'basePrice' || field === 'maxGroupSize' || field === 'optionalServices' ? 3 : 1;
+
+export function validateTourServices(services: TourExtra[]): string | undefined {
+  if (services.length > 20) return 'Mỗi tour có tối đa 20 dịch vụ bổ sung.';
+  const names = services.map(s => s.name.trim().toLowerCase()).filter(Boolean);
+  const duplicateIndex = names.findIndex((name, idx) => names.indexOf(name) !== idx);
+  if (duplicateIndex !== -1) {
+    return `Dịch vụ “${services[duplicateIndex].name}” bị trùng lặp. Mỗi dịch vụ chỉ được thêm một lần.`;
+  }
+  const invalidService = services.find(s => s.name.trim().length < 2 || s.name.length > 120 || !s.unit.trim() || !s.ages.length || !Number.isInteger(s.price) || s.price < 0 || s.price > MONEY_LIMITS.MAX_UNIT_PRICE || !Number.isInteger(s.maxQuantity) || s.maxQuantity < 1 || s.maxQuantity > 100 || !Number.isInteger(s.cutoffHours) || s.cutoffHours < 0 || s.cutoffHours > 720 || (s.kind === 'PICKUP' && (!s.pickup?.area.trim() || s.pickup.area.trim().length < 2 || (s.pickup.mode === 'POINT' && (!s.pickup.points.length || s.pickup.points.some(p => p.trim().length < 5))))));
+  if (invalidService) return `Kiểm tra tên, giá, hạn đặt và thông tin đưa đón của dịch vụ “${invalidService.name || 'chưa đặt tên'}”.`;
+}
 
 export function validateTourEditor(value: TourContentInput): EditorErrors {
   const errors: EditorErrors = {};
+  if (value.itinerary !== undefined) {
+    const issue = validateTourItinerary(value.itinerary, value.durationDays);
+    if (issue) errors.itinerary = issue.message;
+  }
+  const servicesError = validateTourServices(value.optionalServices ?? []);
+  if (servicesError) errors.optionalServices = servicesError;
   const pricing = value.agePricing;
   if (pricing) {
-    const hasChildGroup = (pricing.childMaxCount !== undefined && pricing.childMaxCount !== null && pricing.childMaxCount > 0);
-    const hasInfantGroup = (pricing.infantMaxCount !== undefined && pricing.infantMaxCount !== null && pricing.infantMaxCount > 0);
-    
-    if (hasChildGroup && pricing.childPrice === null && pricing.childPercent === 100) {
-      errors.agePricing = 'Bạn đã thiết lập nhóm Trẻ em trong đoàn. Vui lòng nhập số tiền vé hoặc bấm tick chọn "Miễn phí".';
-    } else if (hasInfantGroup && pricing.infantPrice === null && pricing.infantPercent === 100) {
-      errors.agePricing = 'Bạn đã thiết lập nhóm Em bé trong đoàn. Vui lòng nhập số tiền vé hoặc bấm tick chọn "Miễn phí".';
-    } else if (
+    if (
       !Object.entries(pricing).every(([key, n]) => {
         if (key === 'childPrice' || key === 'infantPrice') {
           return n === undefined || n === null || (Number.isInteger(n) && n >= 0 && n <= 1000000000);
@@ -49,6 +60,8 @@ export function validateTourEditor(value: TourContentInput): EditorErrors {
 }
 
 const serverHints: Record<EditorField, string> = {
+  itinerary: 'Kiểm tra ngày, tiêu đề và nội dung lịch trình.',
+  optionalServices: 'Thông tin dịch vụ chưa hợp lệ. Kiểm tra tên, giá và điểm đón.',
   agePricing: 'Khoảng tuổi hoặc tỷ lệ giá trẻ em chưa hợp lệ.',
   title: 'Tên tour chưa hợp lệ. Hãy nhập từ 5 đến 200 ký tự.',
   destination: 'Điểm đến chưa hợp lệ. Hãy nhập từ 2 đến 120 ký tự.',

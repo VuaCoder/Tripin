@@ -12,6 +12,8 @@ export function agencyNotificationPermission(type: NotificationType): AgencyPerm
     : type.startsWith('ETICKET_') ? PERMISSIONS.AGENCY_BOOKINGS_VIEW
     : type.startsWith('GUIDE_') ? PERMISSIONS.TOUR_ASSIGN_GUIDE
     : type === 'AGENCY_VERIFICATION_DECIDED' ? 'agency:team-manage'
+    : type === 'AGENCY_COMMISSION_DECIDED' ? 'agency:finance-view'
+    : type === 'CHAT_MESSAGE' ? PERMISSIONS.CHAT_USE
     : type.startsWith('CUSTOM_TOUR_') ? PERMISSIONS.CUSTOM_TOUR_VIEW
     : type.startsWith('TOUR_') ? 'agency:tour-view' : null;
 }

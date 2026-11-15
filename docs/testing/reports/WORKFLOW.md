@@ -7,7 +7,7 @@ tiền tố `[DEV-REPORTS]`.
 - Đăng nhập du khách / moderator: `/login` (ô **Email hoặc số điện thoại** và **Mật khẩu**, nút `Đăng nhập`).
 - Đăng nhập đối tác: **`/agency/login`** (ô **Email doanh nghiệp** / **Mật khẩu**, nút `Đăng nhập Agency`).
   Tài khoản AGENCY gọi `/login` thường sẽ bị `403 AGENCY_PORTAL_REQUIRED`.
-- Mật khẩu chung của cả 4 tài khoản: **`DevReports!2026`**
+- Mật khẩu chung của cả 4 tài khoản: xem fixture local `dev-reports-fixture.ts` (không commit mật khẩu).
 
 | Tài khoản | Vai trò | Dùng để |
 | --- | --- | --- |

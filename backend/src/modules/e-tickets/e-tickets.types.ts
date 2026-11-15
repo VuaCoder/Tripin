@@ -18,6 +18,7 @@ export const ETICKET_POLICY = {
 } as const;
 
 export interface ETicketDto {
+  services?: import('@travel-platform/constants').BookedExtra[];
   id: string;
   /** The value to encode in the QR code; unguessable. */
   code: string;

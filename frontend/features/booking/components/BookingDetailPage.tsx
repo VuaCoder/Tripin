@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { BookedExtrasSummary } from './BookedExtrasSummary';
 import { usePathname, useRouter } from 'next/navigation';
 import { formatDepartureDate, formatParticipants, formatVnd } from '@/lib/travel-format';
 import { useCheckoutBookingMutation } from '@/features/payment';
@@ -420,6 +421,7 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
             </div>
           </div>
 
+          <BookedExtrasSummary services={booking.services} meetingPoint={booking.meetingPoint} />
           {/* Contact Person Card */}
           <div className="space-y-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
             <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 sm:text-lg">
@@ -555,6 +557,7 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
                 {booking.guestPricing.guests.children > 0 && <div className="flex justify-between gap-3 text-slate-600"><dt>Trẻ em × {booking.guestPricing.guests.children}</dt><dd>{formatVnd(booking.guestPricing.childUnitPrice * booking.guestPricing.guests.children)}</dd></div>}
                 {booking.guestPricing.guests.infants > 0 && <div className="flex justify-between gap-3 text-slate-600"><dt>Em bé × {booking.guestPricing.guests.infants}</dt><dd>{formatVnd(booking.guestPricing.infantUnitPrice * booking.guestPricing.guests.infants)}</dd></div>}
               </>}
+              {!!booking.servicesSubtotal && <div className="flex justify-between gap-3 text-sm"><dt>Dịch vụ bổ sung</dt><dd className="font-semibold">{formatVnd(booking.servicesSubtotal)}</dd></div>}
               {booking.discountAmount > 0 && (
                 <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 rounded-xl bg-emerald-50/70 p-3 text-emerald-700">
                   <dt>Mã ưu đãi {booking.promotion ? `(${booking.promotion.code})` : ''}</dt>

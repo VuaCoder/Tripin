@@ -6,7 +6,7 @@ Ngày 14/11/2026, hai migration còn thiếu đã được áp lên Neon đang c
 
 Fixture kiểm tra cột `Tour.highlights` trước khi tạo tài khoản. Nếu DB còn thiếu migration, chuẩn bị một DB test đã migrate đầy đủ rồi chạy lại. Không chạy migration lên DB có lịch sử migration khác repo khi chưa đối chiếu.
 
-Mật khẩu mặc định của toàn bộ tài khoản test: **`TripriTourTest@2026!`**. Có thể thay bằng biến môi trường `DEV_TOUR_TEST_PASSWORD` (ít nhất 8 ký tự).
+Mật khẩu của toàn bộ tài khoản test: đặt biến môi trường `DEV_TOUR_TEST_PASSWORD` (ít nhất 8 ký tự) trước khi chạy fixture; không ghi mật khẩu vào tài liệu.
 
 Từ thư mục gốc `E:\CN\Tripin`, trỏ `DATABASE_URL` đến DB local đã migrate, rồi chạy:
 
@@ -35,6 +35,6 @@ npm.cmd --prefix backend run fixture:tour-ux:clean
 | `APPROVED` | Đã duyệt, khởi hành mở | Nội dung/lịch trình vẫn sửa được |
 | `ARCHIVED` | Lưu trữ, khởi hành đóng | Khóa sửa, khôi phục |
 | `BOOKED` | Đã duyệt, ngày khởi hành 20 chỗ, còn 18, booking xác nhận 2 khách | Không đổi/gỡ ngày; không hạ sức chứa dưới 2; vẫn đóng nhận khách |
-| `NO_OPEN_DEPARTURE` | Nháp, chỉ có ngày khởi hành đóng | Gửi duyệt báo cần ngày mở bán |
+| `NO_OPEN_DEPARTURE` (tên fixture cũ) | Nháp, chỉ có ngày khởi hành đóng | Vẫn gửi duyệt được; lịch mở bán không còn là điều kiện gửi duyệt |
 
 Các lỗi nhập liệu cần tạo trực tiếp trên form (fixture chỉ lưu data hợp lệ): tiêu đề ngày 1 ký tự, ngày vượt 3, khoảng ngày chồng nhau, ngày khởi hành trùng/quá khứ, sức chứa 0 hoặc trên 10.000, giá ngoài giới hạn. Lỗi cập nhật đồng thời cần mở cùng một tour trong hai phiên và lưu lần lượt.
