@@ -1,0 +1,94 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. Click "Export customers PDF" on a departure
+    activate Frontend
+    Frontend->>Server: 2. GET /api/v1/agency/tours/{tourId}/departures/{departureId}/customers.pdf
+    activate Server
+    Server->>App: 3. createApp() handles the request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency/tours', resolveAgencyContext, requireVerifiedAgency, agencyCustomersExportRouter)
+    activate Route
+    Route->>Middlewares: 5. resolveAgencyContext -> requireVerifiedAgency -> requirePermission(agency:export-customers) -> validate(params)
+    activate Middlewares
+    alt Missing agency:export-customers
+        Middlewares-->>Frontend: 6. 403 FORBIDDEN
+    else Valid
+        Middlewares-->>Route: 7. next()
+        deactivate Middlewares
+        Route->>Controller: 8. bookingsController.exportDepartureCustomers(req, res)
+        activate Controller
+        Controller->>Service: 9. bookingsService.listDepartureCustomers(agencyId, tourId, departureId)
+        activate Service
+        Service->>DAO: 10. bookingsRepository.listPaidForTour(agencyId, tourId, departureId)
+        activate DAO
+        DAO->>Database: 11. SELECT paid "Booking" + "Passenger" for the agency's departure
+        activate Database
+        Database-->>DAO: 12. bookings + passengers
+        deactivate Database
+        DAO-->>Service: 13. rows
+        deactivate DAO
+        alt No bookings
+            Service-->>Controller: 14. AppError 404 "No customers"
+            Controller-->>Frontend: 15. 404 NOT_FOUND
+            Frontend-->>User: 16. Show the departure has no customers
+        else Data present
+            Service-->>Controller: 17. { tourTitle, rows, truncated }
+            deactivate Service
+            Controller->>Service: 18. renderCustomersPdf(): PDFKit + DejaVu font (Vietnamese)
+            activate Service
+            Service-->>Controller: 19. PDF stream
+            deactivate Service
+            Controller-->>Frontend: 20. 200 OK, Content-Type application/pdf
+            deactivate Controller
+            Frontend-->>User: 21. Download {tour}-{date}-customers.pdf
+            deactivate Frontend
+        end
+        deactivate Route
+        deactivate App
+        deactivate Server
+    end

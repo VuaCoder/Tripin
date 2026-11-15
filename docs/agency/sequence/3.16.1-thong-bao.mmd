@@ -1,0 +1,116 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. Open notification bell (or /agency/notifications)
+    activate Frontend
+    Frontend->>Server: 2. GET /api/v1/agency/notifications?page=1
+    activate Server
+    Server->>App: 3. createApp() handles request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency', resolveAgencyContext, requireVerifiedAgency, agencyFoundationRouter) -> '/notifications'
+    activate Route
+    Route->>Middlewares: 5. resolveAgencyContext -> requireAgencyPermission(agency:context-view) -> validate(query)
+    activate Middlewares
+    alt Missing agency:context-view / no agency selected
+        Middlewares-->>Frontend: 6. 403 FORBIDDEN
+    else Valid
+        Middlewares-->>Route: 7. next()
+        deactivate Middlewares
+        Route->>Controller: 8. notificationsController.list(req, res)
+        activate Controller
+        Controller->>Service: 9. notificationsService.list(userId, query, agencyId)
+        activate Service
+        Service->>DAO: 10. notificationsRepository.list(userId, unreadOnly, page, agencyId)
+        activate DAO
+        DAO->>Database: 11. SELECT "Notification" WHERE userId AND agencyId, ORDER BY createdAt DESC
+        activate Database
+        Database-->>DAO: 12. items + total
+        deactivate Database
+        DAO-->>Service: 13. notifications
+        deactivate DAO
+        Service-->>Controller: 14. Page<NotificationDto> + unreadCount
+        deactivate Service
+        Controller-->>Frontend: 15. 200 OK
+        deactivate Controller
+        Frontend-->>User: 16. Render popover/inbox, unread badge per agency
+    end
+    User->>Frontend: 17. Click "Mark as read" on a notification
+    Frontend->>Server: 18. PATCH /api/v1/agency/notifications/{id}/read
+    Server->>App: 19. createApp() handles request
+    App->>Route: 20. agencyFoundationRouter -> notificationsRouter
+    Route->>Middlewares: 21. requireAgencyPermission(agency:context-view) -> validate(params)
+    activate Middlewares
+    Middlewares-->>Route: 22. next()
+    deactivate Middlewares
+    Route->>Controller: 23. notificationsController.markRead(req, res)
+    activate Controller
+    Controller->>Service: 24. notificationsService.markRead(userId, id, agencyId)
+    activate Service
+    Service->>DAO: 25. notificationsRepository.markRead(id, userId, agencyId)
+    activate DAO
+    DAO->>Database: 26. UPDATE "Notification" SET readAt WHERE id AND userId AND agencyId
+    activate Database
+    Database-->>DAO: 27. notification or null
+    deactivate Database
+    alt Notification of another user / another agency
+        DAO-->>Service: 28. null
+        Service-->>Controller: 29. AppError 404
+        Controller-->>Frontend: 30. 404
+        Frontend-->>User: 31. Ignore, reload the list
+    else Own user in this agency
+        DAO-->>Service: 32. notification
+        deactivate DAO
+        Service-->>Controller: 33. NotificationDto
+        deactivate Service
+        Controller-->>Frontend: 34. 200 OK
+        deactivate Controller
+        Frontend-->>User: 35. Badge drops, notification becomes read
+        deactivate Frontend
+    end
+    deactivate Route
+    deactivate App
+    deactivate Server

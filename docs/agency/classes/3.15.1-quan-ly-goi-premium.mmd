@@ -1,0 +1,69 @@
+classDiagram
+%% 3.15.1 Quan ly goi premium
+%% GET /agency/premium/contributions, POST /agency/premium/contributions, GET /agency/premium/usage
+
+class PremiumController {
+  <<Controller>>
+  +listContributions(AgencyContext ctx) List~PremiumContributionDto~
+  +createContribution(AgencyContext ctx, ContributionInput body) PremiumContributionDto
+  +stopContribution(AgencyContext ctx, UUID id) PremiumContributionDto
+  +usage(AgencyContext ctx) PremiumUsageDto
+}
+
+class PremiumService {
+  <<Service>>
+  +requireGuide(UUID userId) void
+}
+
+class PremiumRepository {
+  <<Repository>>
+  +contribute(UUID agencyId, ContributionInput input) PremiumContributionRecord
+  +contributions(UUID agencyId) List~PremiumContributionRecord~
+  +stopContribution(UUID id, UUID agencyId) PremiumContributionRecord
+  +pending(UUID agencyId) List~PremiumReservationRecord~
+}
+
+class PrismaClient {
+  <<DAO>>
+  +PremiumContribution premiumContribution
+  +PremiumReservation premiumReservation
+}
+
+class PremiumContribution {
+  +UUID id
+  +UUID agencyId
+  +String title
+  +List~String~ tourIds
+  +DiscountType discountType
+  +int discountValue
+  +int capacity
+  +int reserved
+  +String status
+  +boolean acceptingNew
+}
+
+class PremiumReservation {
+  +UUID id
+  +UUID contributionId
+  +UUID bookingId
+  +String status
+}
+
+class PremiumContributionDto {
+  <<DTO>>
+  +UUID id
+  +String title
+  +int capacity
+  +int reserved
+  +String status
+  +boolean acceptingNew
+}
+
+PremiumController "1" ..> "1" PremiumRepository : delegates
+PremiumController "1" ..> "1" PremiumService : guide gates
+PremiumController "1" ..> "1" PremiumContributionDto : returns
+PremiumRepository "1" --> "*" PremiumContribution : manages
+PremiumRepository ..> "1" PrismaClient : queries
+PremiumService ..> "1" PrismaClient : checks plan
+PremiumContribution "1" *-- "*" PremiumReservation : reserves
+PremiumContribution ..> "1" PremiumContributionDto : projected to

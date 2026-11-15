@@ -1,0 +1,95 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. Click "Join" on an invitation
+    activate Frontend
+    Frontend->>Server: 2. POST /api/v1/agency-invitations/{id}/accept
+    activate Server
+    Server->>App: 3. createApp() handles the request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency-invitations', agencyInvitationAcceptanceRouter)
+    activate Route
+    Route->>Middlewares: 5. requireAuth -> rateLimit 30/15' -> validate(params)
+    activate Middlewares
+    alt Not signed in / malformed id
+        Middlewares-->>Frontend: 6. 401 UNAUTHORIZED
+    else Valid
+        Middlewares-->>Route: 7. next()
+        deactivate Middlewares
+        Route->>Controller: 8. handler(req, res) - inline controller
+        activate Controller
+        Controller->>Service: 9. agencyService.acceptById(userId, invitationId)
+        activate Service
+        Service->>DAO: 10. acceptInvitation() inside prisma.$transaction
+        activate DAO
+        DAO->>Database: 11. Lock "AgencyProfile" FOR UPDATE, re-read "User", "AgencyInvitation"
+        activate Database
+        Database-->>DAO: 12. inviter, role, invitation status
+        deactivate Database
+        alt User verified + invitation still PENDING
+            DAO->>Database: 13. INSERT "AgencyMember", close "AgencyJoinRequest", bump "AgencyProfile.permissionVersion", write "AuditLog"
+            activate Database
+            Database-->>DAO: 14. new membership
+            deactivate Database
+            DAO-->>Service: 15. AgencyMember
+            Service-->>Controller: 16. { invitationId, agencyId, memberId }
+            Controller-->>Frontend: 17. 200 OK
+            Frontend-->>User: 18. Redirect to /agency of the agency just joined
+        else Invitation expired / revoked / already handled, or email unverified
+            DAO-->>Service: 19. AppError 409 CONFLICT
+            deactivate DAO
+            Service-->>Controller: 20. 409 "Invitation expired, revoked or already handled"
+            deactivate Service
+            Controller-->>Frontend: 21. 409 with the message
+            deactivate Controller
+            Frontend-->>User: 22. Show the error and reload the invitation list
+            deactivate Frontend
+        end
+        deactivate Route
+        deactivate App
+        deactivate Server
+    end

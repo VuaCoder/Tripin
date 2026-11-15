@@ -1,0 +1,68 @@
+classDiagram
+%% 3.15.2 Dong gop va hoan tien premium
+%% POST /agency/premium/contributions/:id/stop, POST /admin/premium/contributions/:id, POST /premium/refunds
+
+class PremiumController {
+  <<Controller>>
+  +stopContribution(AgencyContext ctx, UUID id) PremiumContributionDto
+  +decideContribution(AdminActor actor, UUID id, String status) PremiumContributionDto
+  +requestRefund(UUID userId, UUID subscriptionId, String reason) PremiumRefundDto
+}
+
+class PremiumRepository {
+  <<Repository>>
+  +stopContribution(UUID id, UUID agencyId) PremiumContributionRecord
+  +decideContribution(UUID id, String status) PremiumContributionRecord
+  +requestRefund(UUID userId, UUID subscriptionId, String reason) PremiumRefundRecord
+  +decideRefund(UUID id, String status, String note) PremiumRefundRecord
+  +releaseExpiredHolds(Date now) int
+}
+
+class PrismaClient {
+  <<DAO>>
+  +PremiumContribution premiumContribution
+  +PremiumRefund premiumRefund
+  +PremiumPlanVoucher premiumPlanVoucher
+}
+
+class PremiumContribution {
+  +UUID id
+  +UUID agencyId
+  +String status
+  +boolean acceptingNew
+  +int capacity
+  +int reserved
+}
+
+class PremiumRefund {
+  +UUID id
+  +UUID subscriptionId
+  +UUID userId
+  +String reason
+  +String status
+  +Date decidedAt
+}
+
+class PremiumPlanVoucher {
+  +UUID id
+  +UUID contributionId
+  +String code
+  +String status
+}
+
+class PremiumContributionDto {
+  <<DTO>>
+  +UUID id
+  +String status
+  +boolean acceptingNew
+  +int reserved
+}
+
+PremiumController "1" ..> "1" PremiumRepository : delegates
+PremiumController "1" ..> "1" PremiumContributionDto : returns
+PremiumRepository "1" --> "*" PremiumContribution : stops and decides
+PremiumRepository "1" --> "*" PremiumRefund : refunds
+PremiumRepository ..> "1" PrismaClient : transacts
+PremiumContribution "1" o-- "*" PremiumPlanVoucher : issues
+PremiumContribution ..> "1" PremiumContributionDto : projected to
+PremiumRefund ..> "1" PremiumContributionDto : releases hold

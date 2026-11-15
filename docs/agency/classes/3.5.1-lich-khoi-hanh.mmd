@@ -1,0 +1,60 @@
+classDiagram
+%% 3.5.1 Lich khoi hanh
+%% GET /agency/calendar, POST /agency/tours/:tourId/departures
+
+class AgencyCalendarController {
+  <<Controller>>
+  +list(AgencyContext ctx, CalendarQuery query) List~CalendarEntry~
+  +create(AgencyContext ctx, UUID tourId, List~CreateDeparture~ body) TourManageDto
+  +update(AgencyContext ctx, UUID tourId, UUID departureId, UpdateDeparture body) TourManageDto
+  +remove(AgencyContext ctx, UUID tourId, UUID departureId) void
+}
+
+class AgencyCalendarRepository {
+  <<Repository>>
+  +list(UUID agencyId, CalendarQuery query) List~CalendarEntry~
+  +create(UUID agencyId, UUID tourId, List~CreateDeparture~ inputs) List~TourDeparture~
+  +update(UUID agencyId, UUID tourId, UUID departureId, UpdateDeparture input) TourDeparture
+  +remove(UUID agencyId, UUID tourId, UUID departureId, Date expectedDate) void
+}
+
+class ToursService {
+  <<Service>>
+  +setAvailability(UUID agencyId, UUID id, List~DepartureInput~ inputs) TourManageDto
+}
+
+class PrismaClient {
+  <<DAO>>
+  +TourDeparture tourDeparture
+  +Booking booking
+}
+
+class Tour {
+  +UUID id
+  +UUID agencyId
+  +String title
+}
+
+class TourDeparture {
+  +UUID id
+  +UUID tourId
+  +Date date
+  +int capacity
+  +int remaining
+  +boolean isOpen
+}
+
+class Booking {
+  +UUID id
+  +UUID departureId
+  +String status
+  +int participants
+}
+
+AgencyCalendarController "1" ..> "1" AgencyCalendarRepository : delegates
+AgencyCalendarController "1" ..> "1" ToursService : seat writes
+AgencyCalendarRepository ..> "1" PrismaClient : queries
+ToursService ..> "1" PrismaClient : queries
+Tour "1" *-- "1..*" TourDeparture : schedules
+TourDeparture "1" --> "*" Booking : holds seats
+AgencyCalendarController ..> "1" TourDeparture : returns

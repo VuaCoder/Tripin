@@ -1,0 +1,81 @@
+classDiagram
+%% 3.8.3 Yeu cau tham gia bang ma moi
+%% POST /workplaces/join-requests, GET /agency/join-requests, POST /agency/join-requests/:id/approve
+
+class WorkplacesController {
+  <<Controller>>
+  +rotateCode(AgencyContext ctx) AgencyJoinCode
+  +revokeCode(AgencyContext ctx, UUID codeId) boolean
+  +request(UUID userId, String code) AgencyJoinRequest
+  +mine(UUID userId, int page) List~AgencyJoinRequest~
+  +queue(AgencyContext ctx, int page) List~AgencyJoinRequest~
+  +review(AgencyContext ctx, UUID requestId, UUID roleId) AgencyMember
+  +cancel(UUID userId, UUID requestId) boolean
+}
+
+class WorkplacesService {
+  <<Service>>
+  -User activeUser(DbExecutor tx, UUID userId)
+  +currentCode(AgencyContext ctx) AgencyJoinCode
+  +rotateCode(AgencyContext ctx) AgencyJoinCode
+  +request(UUID userId, String code) AgencyJoinRequest
+  +queue(AgencyContext ctx, int page) List~AgencyJoinRequest~
+  +review(AgencyContext ctx, UUID requestId, UUID roleId) AgencyMember
+  +cancel(UUID userId, UUID requestId) boolean
+}
+
+class AgencyGuard {
+  <<Utility>>
+  +lockWorkplaceOwner(DbExecutor tx, AgencyContext ctx)$
+  +joinOrRestoreAgencyMember(DbExecutor tx, UUID agencyId, UUID userId)$
+}
+
+class PrismaClient {
+  <<DAO>>
+  +AgencyJoinCode agencyJoinCode
+  +AgencyJoinRequest agencyJoinRequest
+  +AgencyMember agencyMember
+}
+
+class AgencyJoinCode {
+  +UUID id
+  +UUID agencyId
+  +String codeHash
+  +UUID createdByUserId
+  +Date expiresAt
+  +Date revokedAt
+}
+
+class AgencyJoinRequest {
+  +UUID id
+  +UUID agencyId
+  +UUID userId
+  +UUID joinCodeId
+  +String status
+  +UUID assignedRoleId
+}
+
+class AgencyMember {
+  +UUID id
+  +UUID agencyId
+  +UUID userId
+  +AgencyMemberRole role
+  +AgencyMemberStatus status
+}
+
+class JoinRequestDTO {
+  <<DTO>>
+  +UUID id
+  +UUID agencyId
+  +String status
+  +Date createdAt
+}
+
+WorkplacesController "1" ..> "1" WorkplacesService : delegates
+WorkplacesService ..> "1" AgencyGuard : locks owner
+WorkplacesService "1" --> "*" AgencyJoinCode : rotates
+WorkplacesService "1" --> "*" AgencyJoinRequest : reviews
+WorkplacesService ..> "1" PrismaClient : queries
+AgencyJoinCode "1" *-- "*" AgencyJoinRequest : issued by
+AgencyJoinRequest "*" --> "1" AgencyMember : creates
+AgencyJoinRequest ..> "1" JoinRequestDTO : projected to

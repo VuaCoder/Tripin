@@ -1,0 +1,121 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. OWNER enters email + role, clicks "Invite"
+    activate Frontend
+    Frontend->>Server: 2. POST /api/v1/agency/invitations { email, role, roleId? }
+    activate Server
+    Server->>App: 3. createApp() handles the request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency', resolveAgencyContext, requireVerifiedAgency, agencyFoundationRouter)
+    activate Route
+    Route->>Middlewares: 5. resolveAgencyContext -> requireVerifiedAgency -> requireAgencyPermission(agency:team-invite) -> validate(body)
+    activate Middlewares
+    alt Missing agency:team-invite or invalid email
+        Middlewares-->>Frontend: 6. 403/400
+    else Valid
+        Middlewares-->>Route: 7. next()
+        deactivate Middlewares
+        Route->>Controller: 8. handler(req, res)
+        activate Controller
+        Controller->>Service: 9. agencyService.invite(ctx, { email, role, roleId })
+        activate Service
+        Service->>DAO: 10. Check role is valid + inviter still has permission
+        activate DAO
+        DAO->>Database: 11. SELECT "AgencyRole", "AgencyMember" of inviter, duplicate invitation
+        activate Database
+        Database-->>DAO: 12. role + inviter
+        deactivate Database
+        alt Invalid role / not delegable / invitation already exists
+            DAO-->>Service: 13. AppError 400/403/409
+            Service-->>Controller: 14. Business error
+            Controller-->>Frontend: 15. 4xx with message
+            Frontend-->>User: 16. Show error on the form
+        else Valid
+            DAO->>Database: 16. INSERT "AgencyInvitation" (tokenHash, 7-day expiry, PENDING)
+            activate Database
+            Database-->>DAO: 17. invitation
+            deactivate Database
+            DAO-->>Service: 18. invitation
+            deactivate DAO
+            Service->>Service: 19. Queue invitation email in mail outbox (token never returned by API)
+            Service-->>Controller: 20. { id, email, role, expiresAt, status }
+            deactivate Service
+            Controller-->>Frontend: 21. 201 Created
+            deactivate Controller
+            Frontend-->>User: 22. Invitation appears in the list, "Revoke" button
+        end
+    end
+    User->>Frontend: 23. OWNER clicks "Revoke" on a pending invitation
+    Frontend->>Server: 24. POST /api/v1/agency/invitations/{id}/revoke
+    Server->>App: 25. createApp() handles the request
+    App->>Route: 26. agencyFoundationRouter
+    Route->>Middlewares: 27. requireAgencyPermission(agency:team-manage) -> validate(params)
+    activate Middlewares
+    Middlewares-->>Route: 28. next()
+    deactivate Middlewares
+    Route->>Controller: 29. handler(req, res)
+    activate Controller
+    Controller->>Service: 30. agencyService.revoke(ctx, id)
+    activate Service
+    Service->>DAO: 31. UPDATE "AgencyInvitation" SET status = REVOKED WHERE agencyId + PENDING
+    activate DAO
+    DAO->>Database: 32. UPDATE + audit
+    activate Database
+    Database-->>DAO: 33. invitation
+    deactivate Database
+    DAO-->>Service: 34. invitation
+    deactivate DAO
+    Service-->>Controller: 35. OK
+    deactivate Service
+    Controller-->>Frontend: 36. 200 OK
+    deactivate Controller
+    Frontend-->>User: 37. Invitation disappears, old token stops working
+    deactivate Frontend
+    deactivate Route
+    deactivate App
+    deactivate Server

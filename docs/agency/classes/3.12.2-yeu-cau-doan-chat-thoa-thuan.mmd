@@ -1,0 +1,78 @@
+classDiagram
+%% 3.12.2 Yeu cau doan chat va thoa thuan
+%% PATCH /custom-tours/:id/draft, POST /custom-tours/:id/offers, POST /custom-tours/:id/accept-offer
+
+class CustomToursController {
+  <<Controller>>
+  +saveDraft(Actor actor, UUID id, SaveCustomTourDraftInput body) CustomTourRequestDto
+  +sendOffer(Actor actor, UUID id, int revision) CustomTourRequestDto
+  +acceptOffer(Actor actor, UUID id, int revision) CustomTourRequestDto
+}
+
+class CustomToursService {
+  <<Service>>
+  +saveDraft(Actor actor, UUID id, SaveCustomTourDraftInput input) CustomTourRequestDto
+  +sendOffer(Actor actor, UUID id, int revision) CustomTourRequestDto
+  +acceptOffer(Actor actor, UUID id, int revision) CustomTourRequestDto
+}
+
+class CustomToursRepository {
+  <<Repository>>
+  +offer(UUID id, int expectedRevision, CustomTourOffer snapshot) CustomTourRecord
+  +acceptOffer(UUID id, int expectedRevision, Date acceptedAt) CustomTourRecord
+  +setConversationId(UUID id, UUID conversationId) void
+}
+
+class ChatService {
+  <<Service>>
+  +startConversation(ChatActor actor, StartConversationInput input) ConversationDto
+  +sendMessage(UUID userId, UUID conversationId, String text, UUID agencyId) MessageDto
+}
+
+class ChatRepository {
+  <<Repository>>
+  +findByAgencyPair(UUID travelerId, UUID agencyId) ConversationRecord
+  +createConversation(NewConversation data) ConversationRecord
+}
+
+class PrismaClient {
+  <<DAO>>
+  +CustomTourRequest customTourRequest
+  +Conversation conversation
+}
+
+class CustomTourRequest {
+  +UUID id
+  +UUID travelerId
+  +UUID agencyId
+  +CustomTourStatus status
+  +int revision
+  +Json offerSnapshot
+  +UUID conversationId
+}
+
+class Conversation {
+  +UUID id
+  +UUID travelerId
+  +UUID agencyId
+  +Date lastActivityAt
+}
+
+class CustomTourRequestDto {
+  <<DTO>>
+  +UUID id
+  +CustomTourStatus status
+  +int revision
+  +Json offerSnapshot
+  +UUID conversationId
+}
+
+CustomToursController "1" ..> "1" CustomToursService : delegates
+CustomToursService "1" --> "1" CustomTourRequest : negotiates
+CustomToursService ..> "1" CustomToursRepository : persists
+CustomToursService ..> "1" ChatService : opens thread
+CustomToursService ..> "1" CustomTourRequestDto : maps
+CustomToursRepository ..> "1" PrismaClient : uses
+ChatService ..> "1" ChatRepository : queries
+CustomTourRequest "1" --> "0..1" Conversation : linked to
+CustomTourRequest ..> "1" CustomTourRequestDto : projected to

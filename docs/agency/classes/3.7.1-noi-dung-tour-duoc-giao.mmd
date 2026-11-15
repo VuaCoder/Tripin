@@ -1,0 +1,71 @@
+classDiagram
+%% 3.7.1 Noi dung tour duoc giao
+%% GET /agency/work/tours, PATCH /agency/work/tours/:id/content
+
+class AgencyController {
+  <<Controller>>
+  +workTours(AgencyContext ctx) List~ScopedTourView~
+  +updateScopedContent(AgencyContext ctx, UUID id, ContentPatchDTO body) Tour
+}
+
+class AgencyWorkService {
+  <<Service>>
+  +updateScopedContent(AgencyContext ctx, UUID tourId, ContentPatchDTO patch) Tour
+  +setTourScopes(AgencyContext ctx, UUID memberId, List~TourScopeRequestDTO~ scopes) AgencyMember
+}
+
+class AgencyGuard {
+  <<Utility>>
+  +lockAgencyAccess(DbExecutor tx, AgencyContext ctx, AgencyPermission permission)$
+}
+
+class AgencyPolicy {
+  <<Utility>>
+  +effectiveAgencyPermissions(PermissionSource member) List~AgencyPermission~$
+}
+
+class PrismaClient {
+  <<DAO>>
+  +Tour tour
+  +AgencyMemberTourScope agencyMemberTourScope
+}
+
+class Tour {
+  +UUID id
+  +UUID agencyId
+  +String title
+  +String summary
+  +String description
+  +String status
+}
+
+class AgencyMemberTourScope {
+  +UUID memberId
+  +UUID tourId
+  +List~String~ allowedFields
+}
+
+class ScopedTourView {
+  <<DTO>>
+  +UUID id
+  +String title
+  +List~String~ allowedFields
+}
+
+class ContentPatchDTO {
+  <<DTO>>
+  +String title
+  +String summary
+  +String description
+}
+
+AgencyController "1" ..> "1" AgencyWorkService : delegates
+AgencyController "1" --> "*" ScopedTourView : reads chain of custody
+AgencyController ..> "1" PrismaClient : lists scoped tours
+AgencyWorkService ..> "1" AgencyGuard : locks member
+AgencyWorkService ..> "1" AgencyPolicy : checks permission
+AgencyWorkService ..> "1" PrismaClient : updates
+AgencyWorkService ..> "1" ContentPatchDTO : applies
+AgencyWorkService "1" --> "*" AgencyMemberTourScope : enforces
+AgencyMemberTourScope "*" --> "1" Tour : scopes
+ContentPatchDTO ..> "1" Tour : patches

@@ -1,0 +1,85 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. Open /agency/reviews
+    activate Frontend
+    Frontend->>Server: 2. GET /api/v1/reviews?agencyId={activeAgencyId}&page=1
+    activate Server
+    Server->>App: 3. createApp() handles request
+    activate App
+    App->>Route: 4. apiRouter.use('/reviews', reviewsRouter)
+    activate Route
+    Route->>Middlewares: 5. validate(query: exactly one of tourId/agencyId/guideId)
+    activate Middlewares
+    alt Invalid filter (0 or more than 1 parameter)
+        Middlewares-->>Frontend: 6. 400 VALIDATION_ERROR
+    else Valid
+        Middlewares-->>Route: 7. next()
+        deactivate Middlewares
+        Route->>Controller: 8. reviewsController.listPublic(req, res)
+        activate Controller
+        Controller->>Service: 9. reviewsService.listPublic(query)
+        activate Service
+        Service->>DAO: 10. reviewsRepository.listPublic({ agencyId, page })
+        activate DAO
+        DAO->>Database: 11. SELECT "Review" WHERE status = VISIBLE AND tour.agencyId = ... ORDER BY createdAt DESC
+        activate Database
+        Database-->>DAO: 12. items + total
+        deactivate Database
+        DAO-->>Service: 13. ReviewRecord[]
+        deactivate DAO
+        Service->>Service: 14. Mask author name, attach tour info
+        Service-->>Controller: 15. Page<ReviewDto>
+        deactivate Service
+        Controller-->>Frontend: 16. 200 OK
+        deactivate Controller
+        Frontend-->>User: 17. Render stars, content, time, "Review dispute" button
+        deactivate Frontend
+        deactivate Route
+        deactivate App
+        deactivate Server
+    end

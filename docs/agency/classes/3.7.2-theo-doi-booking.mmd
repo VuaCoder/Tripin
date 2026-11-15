@@ -1,0 +1,55 @@
+classDiagram
+%% 3.7.2 Theo doi booking cua agency
+%% GET /agency/work/bookings
+
+class AgencyController {
+  <<Controller>>
+  +workBookings(AgencyContext ctx, int page) List~AgencyBookingRow~
+}
+
+class AgencyPolicy {
+  <<Utility>>
+  +effectiveAgencyPermissions(PermissionSource member) List~AgencyPermission~$
+}
+
+class PrismaClient {
+  <<DAO>>
+  +Booking booking
+}
+
+class AgencyContext {
+  <<DTO>>
+  +UUID agencyId
+  +UUID memberId
+  +List~AgencyPermission~ permissions
+}
+
+class Booking {
+  +UUID id
+  +String bookingCode
+  +UUID agencyId
+  +String tourTitle
+  +Date departureDate
+  +String status
+  +int participants
+  +String contactName
+  +String contactPhone
+}
+
+class AgencyBookingRow {
+  <<DTO>>
+  +UUID id
+  +String bookingCode
+  +String tourTitle
+  +Date departureDate
+  +String status
+  +int participants
+}
+
+AgencyController "1" ..> "1" PrismaClient : queries inline
+AgencyController ..> "1" AgencyContext : scopes by agency
+AgencyController ..> "1" AgencyPolicy : checks BOOKING_MONITOR
+AgencyController "1" --> "*" AgencyBookingRow : maps
+PrismaClient "1" --> "*" Booking : reads
+Booking ..> "1" AgencyBookingRow : projected to
+AgencyContext ..> "*" Booking : filters by agencyId

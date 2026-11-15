@@ -113,7 +113,9 @@ export class CustomToursService {
 
   /** Traveler: their own requests. Agency: the ones addressed to it. */
   async list(actor: Actor, query: ListCustomToursQuery): Promise<Page<CustomTourRequestDto>> {
-    const scope: CustomTourScope = actor.role === ROLES.TRAVELER ? { travelerId: actor.userId } : { agencyId: agencyOf(actor) };
+    // The side comes from the workspace the caller is in, not the global role: a workplace owner keeps TRAVELER.
+    const side = query.side ?? (actor.role === ROLES.TRAVELER ? 'traveler' : 'agency');
+    const scope: CustomTourScope = side === 'agency' ? { agencyId: agencyOf(actor) } : { travelerId: actor.userId };
     const { items, total } = await this.requests.list(scope, query);
     const [briefs, bookings] = await Promise.all([
       this.tours.getBriefs(items.flatMap((item) => [item.sourceTourId, ...(item.privateTourId ? [item.privateTourId] : [])])),
@@ -125,22 +127,21 @@ export class CustomToursService {
   /** 404 (never 403) for anyone else's request, so ids are not revealed. */
   async get(actor: Actor, id: string): Promise<CustomTourRequestDto> {
     const record = await this.requests.findById(id);
-    const mine = record && (actor.role === ROLES.TRAVELER ? record.travelerId === actor.userId : record.agencyId === agencyOf(actor));
+    const mine = record && (record.travelerId === actor.userId || record.agencyId === agencyOf(actor));
     if (!record || !mine) throw AppError.notFound('Custom tour request not found');
     return this.describe(record);
   }
 
   /**
    * The agency answers a fresh request (accept/decline) or the traveler withdraws it. Both roles hold
-   * `custom-tour:respond`, so the role check lives here: only the receiving agency answers, only its owner withdraws.
-   * Accepting clones the source into the one private tour (D-85); declining never does.
+   * `custom-tour:respond`, so the relation to the request decides: only the receiving agency answers, only the
+   * requester withdraws. The global role cannot decide it, a workplace owner keeps TRAVELER.
    */
   async decide(actor: Actor, id: string, decision: CustomTourDecision): Promise<CustomTourRequestDto> {
     const record = await this.requests.findById(id);
-    const mine = record && (record.travelerId === actor.userId || record.agencyId === agencyOf(actor));
-    if (!record || !mine) throw AppError.notFound('Custom tour request not found');
-    const travelerActs = actor.role === ROLES.TRAVELER;
-    if (travelerActs !== (decision === 'CANCEL')) throw AppError.notFound('Custom tour request not found');
+    const travelerActs = decision === 'CANCEL';
+    const owns = record && (travelerActs ? record.travelerId === actor.userId : record.agencyId === agencyOf(actor));
+    if (!record || !owns) throw AppError.notFound('Custom tour request not found');
 
     const from = record.status as CustomTourStatus;
     const to = decision === 'ACCEPT' ? S.NEGOTIATING : decision === 'DECLINE' ? S.DECLINED : S.CANCELLED;
@@ -235,7 +236,7 @@ export class CustomToursService {
   /** Use case "Accept the offer". Only the traveler, only the exact revision they reviewed. */
   async acceptOffer(actor: Actor, id: string, revision: number): Promise<CustomTourRequestDto> {
     const record = await this.requests.findById(id);
-    if (!record || actor.role !== ROLES.TRAVELER || record.travelerId !== actor.userId) {
+    if (!record || record.travelerId !== actor.userId) {
       throw AppError.notFound('Custom tour request not found');
     }
     const from = record.status as CustomTourStatus;
@@ -267,7 +268,7 @@ export class CustomToursService {
    */
   async saveCheckoutDraft(actor: Actor, id: string, input: SaveCustomTourCheckoutInput): Promise<CustomTourRequestDto> {
     const record = await this.requests.findById(id);
-    if (!record || actor.role !== ROLES.TRAVELER || record.travelerId !== actor.userId) {
+    if (!record || record.travelerId !== actor.userId) {
       throw AppError.notFound('Custom tour request not found');
     }
     const from = record.status as CustomTourStatus;
@@ -290,7 +291,7 @@ export class CustomToursService {
    */
   async createBooking(actor: Actor, id: string, clientRequestId?: string): Promise<CustomTourBookingResult> {
     const record = await this.requests.findById(id);
-    if (!record || actor.role !== ROLES.TRAVELER || record.travelerId !== actor.userId) {
+    if (!record || record.travelerId !== actor.userId) {
       throw AppError.notFound('Custom tour request not found');
     }
     const from = record.status as CustomTourStatus;
@@ -362,7 +363,7 @@ export class CustomToursService {
   /** Agency only, owner only; 404 for everyone else so request ids are not revealed. */
   private async requireAgencyRequest(actor: Actor, id: string): Promise<CustomTourRecord> {
     const record = await this.requests.findById(id);
-    if (!record || actor.role !== ROLES.AGENCY || record.agencyId !== agencyOf(actor)) {
+    if (!record || record.agencyId !== agencyOf(actor)) {
       throw AppError.notFound('Custom tour request not found');
     }
     return record;

@@ -1,0 +1,72 @@
+classDiagram
+%% 3.17.3 Tach cong dang nhap
+%% POST /auth/login (traveler) vs POST /auth/agency/login
+
+class AuthController {
+  <<Controller>>
+  +login(LoginInput body, RequestContext ctx) LoginResult
+  +loginAgency(LoginInput body, RequestContext ctx) LoginResult
+}
+
+class AuthService {
+  <<Service>>
+  -UserRecord validateCredentials(LoginInput input)
+  -LoginResult loginUser(UserRecord user, RequestContext ctx, boolean rememberMe)
+  +login(LoginInput input, RequestContext ctx) LoginResult
+  +loginAgency(LoginInput input, RequestContext ctx) LoginResult
+}
+
+class AuthPolicy {
+  <<Utility>>
+  +Map AUTH_POLICY$
+}
+
+class RefreshTokenRepository {
+  <<Repository>>
+  +create(NewRefreshToken data) RefreshTokenRecord
+  +revoke(String hash) void
+}
+
+class UsersRepository {
+  <<Repository>>
+  +findByEmailWithPassword(String email) UserRecord
+}
+
+class PrismaClient {
+  <<DAO>>
+  +User user
+  +RefreshToken refreshToken
+}
+
+class User {
+  +UUID id
+  +String email
+  +String passwordHash
+  +String role
+  +String status
+  +String staffStatus
+  +boolean twoFactorEnabled
+}
+
+class LoginInput {
+  <<DTO>>
+  +String email
+  +String password
+  +boolean rememberMe
+}
+
+class LoginResult {
+  <<DTO>>
+  +boolean twoFactorRequired
+  +Session session
+}
+
+AuthController "1" ..> "1" AuthService : delegates
+AuthController ..> "1" LoginInput : validates
+AuthController "1" ..> "1" LoginResult : returns
+AuthService ..> "1" UsersRepository : loads credentials
+AuthService ..> "1" AuthPolicy : applies rules
+AuthService ..> "1" RefreshTokenRepository : issues session
+AuthService ..> "1" PrismaClient : queries
+UsersRepository --> "1" User : finds
+User ..> "1" LoginResult : becomes session

@@ -1,0 +1,60 @@
+classDiagram
+%% 3.9.2 Batch ma dung mot lan
+%% POST /agency/promotions/:id/generate-batch, GET /agency/promotions/:id/batch
+
+class PromotionsController {
+  <<Controller>>
+  +generateBatchAgency(AgencyContext ctx, UUID id, int count) List~String~
+  +listBatchAgency(AgencyContext ctx, UUID id, int page) Page~PromotionCodeInstanceDto~
+}
+
+class PromotionsService {
+  <<Service>>
+  +generateCodeBatch(Actor actor, UUID promotionId, int count, String prefix) List~String~
+  +listCodeInstances(Actor actor, UUID promotionId, PageRequest page) Page~PromotionCodeInstanceDto~
+}
+
+class PromotionsRepository {
+  <<Repository>>
+  +isUniqueBatch(UUID id, DbExecutor db) boolean
+  +createCodeInstances(UUID promotionId, List~String~ codes) List~PromotionCodeInstanceRecord~
+  +listCodeInstances(UUID promotionId, PageRequest page) Page
+}
+
+class PrismaClient {
+  <<DAO>>
+  +PromotionCodeInstance promotionCodeInstance
+}
+
+class Promotion {
+  +UUID id
+  +UUID ownerId
+  +PromotionCodeType codeType
+  +String code
+}
+
+class PromotionCodeInstance {
+  +UUID id
+  +UUID promotionId
+  +String code
+  +boolean isUsed
+  +UUID usedById
+  +UUID bookingId
+}
+
+class PromotionCodeInstanceDto {
+  <<DTO>>
+  +UUID id
+  +String code
+  +boolean isUsed
+  +Date usedAt
+}
+
+PromotionsController "1" ..> "1" PromotionsService : delegates
+PromotionsController "1" ..> "1" PromotionCodeInstanceDto : returns
+PromotionsService "1" --> "1" Promotion : checks code type
+PromotionsService ..> "1" PromotionsRepository : writes batch
+PromotionsService ..> "1" PromotionCodeInstanceDto : maps
+PromotionsRepository ..> "1" PrismaClient : uses
+Promotion "1" *-- "*" PromotionCodeInstance : issues
+PromotionCodeInstance ..> "1" PromotionCodeInstanceDto : projected to

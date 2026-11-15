@@ -1,0 +1,83 @@
+classDiagram
+%% 3.8.4 Role va ma tran quyen
+%% GET /agency/roles, POST /agency/roles, PUT /agency/members/:id/access
+
+class AgencyController {
+  <<Controller>>
+  +listRoles(AgencyContext ctx) List~AgencyRole~
+  +createRole(AgencyContext ctx, RoleRequestDTO body) AgencyRole
+  +updateRole(AgencyContext ctx, UUID roleId, RoleRequestDTO body) AgencyRole
+  +setMemberAccess(AgencyContext ctx, UUID memberId, MemberAccessRequestDTO body) AgencyMember
+}
+
+class AgencyAccessService {
+  <<Service>>
+  +listRoles(AgencyContext ctx) List~AgencyRole~
+  +saveRole(AgencyContext ctx, RoleRequestDTO input, UUID roleId) AgencyRole
+  +setMemberAccess(AgencyContext ctx, UUID memberId, MemberAccessRequestDTO input) AgencyMember
+}
+
+class AgencyGuard {
+  <<Utility>>
+  +lockAgencyAccess(DbExecutor tx, AgencyContext ctx, AgencyPermission permission)$
+  +assertDelegable(AgencyMember actor, List~AgencyPermission~ permissions)$
+  +bumpAgencyPermissions(DbExecutor tx, UUID agencyId)$
+}
+
+class AgencyPolicy {
+  <<Utility>>
+  +List~AgencyPermission~ AGENCY_PERMISSION_CATALOG$
+  +effectiveAgencyPermissions(PermissionSource member) List~AgencyPermission~$
+}
+
+class PrismaClient {
+  <<DAO>>
+  +AgencyRole agencyRole
+  +AgencyMember agencyMember
+}
+
+class AgencyRole {
+  +UUID id
+  +UUID agencyId
+  +String name
+  +AgencyMemberRole systemRole
+  +List~AgencyPermission~ permissions
+}
+
+class AgencyMember {
+  +UUID id
+  +UUID agencyId
+  +UUID userId
+  +AgencyMemberRole role
+  +UUID roleId
+  +AgencyMemberStatus status
+}
+
+class AgencyMemberPermissionOverride {
+  +UUID memberId
+  +AgencyPermission permission
+  +String effect
+}
+
+class RoleRequestDTO {
+  <<DTO>>
+  +String name
+  +List~AgencyPermission~ permissions
+}
+
+class MemberAccessRequestDTO {
+  <<DTO>>
+  +UUID roleId
+  +List~Object~ overrides
+}
+
+AgencyController "1" ..> "1" AgencyAccessService : delegates
+AgencyAccessService ..> "1" AgencyGuard : locks and re-checks
+AgencyAccessService ..> "1" AgencyPolicy : validates catalog
+AgencyAccessService "1" --> "*" AgencyRole : writes
+AgencyAccessService "1" --> "*" AgencyMember : grants
+AgencyAccessService ..> "1" PrismaClient : transacts
+AgencyRole "1" --> "*" AgencyMember : assigned to
+AgencyMember "1" *-- "*" AgencyMemberPermissionOverride : overrides
+RoleRequestDTO ..> "1" AgencyRole : becomes
+MemberAccessRequestDTO ..> "1" AgencyMember : applies to

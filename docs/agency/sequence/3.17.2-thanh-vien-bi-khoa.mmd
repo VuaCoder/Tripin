@@ -1,0 +1,93 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. SUSPENDED/REMOVED member opens /agency
+    activate Frontend
+    Frontend->>Server: 2. GET /api/v1/agency/dashboard (old X-Agency-Id)
+    activate Server
+    Server->>App: 3. createApp() handles request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency/dashboard', resolveAgencyContext, requireVerifiedAgency, agencyDashboardRouter)
+    activate Route
+    Route->>Middlewares: 5. resolveAgencyContext
+    activate Middlewares
+    Middlewares->>DAO: 6. agencyService.resolve(userId, X-Agency-Id)
+    activate DAO
+    DAO->>Database: 7. SELECT "AgencyMember" WHERE userId AND status = ACTIVE
+    activate Database
+    Database-->>DAO: 8. no rows (SUSPENDED/REMOVED excluded)
+    deactivate Database
+    DAO-->>Middlewares: 9. null
+    deactivate DAO
+    alt No ACTIVE membership left
+        Middlewares-->>Frontend: 10. 403 FORBIDDEN "Agency membership is not active"
+        Frontend-->>User: 11. Clear activeAgency, redirect to /workplaces
+    else ACTIVE membership exists
+        Middlewares-->>Route: 12. next() with agencyContext
+        deactivate Middlewares
+        Route->>Controller: 13. dashboardsController.agency(req, res)
+        activate Controller
+        Controller->>Service: 14. dashboardsService.agencyDashboard(agencyId)
+        activate Service
+        Service->>DAO: 15. Aggregate booking/tour/report by agencyId
+        activate DAO
+        DAO->>Database: 16. Aggregate "Booking", "Tour", "Report"
+        activate Database
+        Database-->>DAO: 17. KPI
+        deactivate Database
+        DAO-->>Service: 18. stats
+        deactivate DAO
+        Service-->>Controller: 19. AgencyDashboardDto
+        deactivate Service
+        Controller-->>Frontend: 20. 200 OK
+        deactivate Controller
+        Frontend-->>User: 21. Render dashboard
+        deactivate Frontend
+        deactivate Route
+        deactivate App
+        deactivate Server
+    end

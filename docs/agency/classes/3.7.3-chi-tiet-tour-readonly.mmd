@@ -1,0 +1,62 @@
+classDiagram
+%% 3.7.3 Chi tiet tour chi doc cho thanh vien duoc giao
+%% GET /agency/tours/:id
+
+class ToursController {
+  <<Controller>>
+  +getOwn(AgencyContext ctx, UUID id) TourManageDto
+}
+
+class ToursService {
+  <<Service>>
+  +getOwn(UUID agencyId, UUID id) TourManageDto
+}
+
+class ToursRepository {
+  <<Repository>>
+  +findById(UUID id) TourRecord
+}
+
+class AgencyPolicy {
+  <<Utility>>
+  +effectiveAgencyPermissions(PermissionSource member) List~AgencyPermission~$
+}
+
+class PrismaClient {
+  <<DAO>>
+  +Tour tour
+  +AgencyMemberTourScope agencyMemberTourScope
+}
+
+class Tour {
+  +UUID id
+  +UUID agencyId
+  +String title
+  +String description
+  +String status
+}
+
+class AgencyMemberTourScope {
+  +UUID memberId
+  +UUID tourId
+  +List~String~ allowedFields
+}
+
+class TourManageDto {
+  <<DTO>>
+  +UUID id
+  +String title
+  +String status
+  +List~String~ allowedFields
+  +boolean readOnly
+}
+
+ToursController "1" ..> "1" ToursService : delegates
+ToursController "1" ..> "1" TourManageDto : returns
+ToursService "1" --> "1" Tour : reads
+ToursService ..> "1" ToursRepository : queries
+ToursService ..> "1" AgencyPolicy : resolves scope
+ToursService ..> "1" TourManageDto : maps
+ToursRepository ..> "1" PrismaClient : uses
+AgencyMemberTourScope "*" --> "1" Tour : limits
+Tour ..> "1" TourManageDto : projected to

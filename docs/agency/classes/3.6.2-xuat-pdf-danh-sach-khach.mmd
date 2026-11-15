@@ -1,0 +1,58 @@
+classDiagram
+%% 3.6.2 Xuat PDF danh sach khach
+%% GET /agency/tours/:tourId/departures/:departureId/customers.pdf
+
+class BookingsController {
+  <<Controller>>
+  +exportDepartureCustomers(AgencyContext ctx, UUID tourId, UUID departureId) void
+  +exportCustomers(AgencyContext ctx, UUID tourId) void
+}
+
+class BookingsService {
+  <<Service>>
+  +listDepartureCustomers(UUID agencyId, UUID tourId, UUID departureId) List~CustomerRow~
+  +listCustomers(UUID agencyId, UUID tourId, UUID departureId) CustomersResult
+}
+
+class BookingsRepository {
+  <<Repository>>
+  +listPaidForTour(UUID agencyId, UUID tourId, UUID departureId, int limit) List~BookingRecord~
+}
+
+class BookingsExport {
+  <<Utility>>
+  +renderCustomersPdf(CustomersPdfInput input) PDFDocument$
+}
+
+class PrismaClient {
+  <<DAO>>
+  +Booking booking
+  +Tour tour
+}
+
+class Booking {
+  +UUID id
+  +UUID agencyId
+  +UUID tourId
+  +UUID departureId
+  +String status
+  +boolean isPaid
+  +Json passengerSnapshot
+}
+
+class CustomerRow {
+  <<DTO>>
+  +String fullName
+  +String phone
+  +String documentId
+  +int participants
+}
+
+BookingsController "1" ..> "1" BookingsService : delegates
+BookingsController "1" ..> "1" BookingsExport : renders
+BookingsService "1" --> "*" Booking : reads
+BookingsService ..> "1" BookingsRepository : queries
+BookingsService ..> "*" CustomerRow : projects
+BookingsRepository ..> "1" PrismaClient : uses
+BookingsExport ..> "*" CustomerRow : prints
+Booking ..> "*" CustomerRow : snapshot of

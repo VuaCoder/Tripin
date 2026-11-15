@@ -1,0 +1,86 @@
+classDiagram
+%% 3.2.1 Chon noi lam viec
+%% GET /users/me/agencies, header X-Agency-Id
+
+class AgencyController {
+  <<Controller>>
+  +listMyAgencies(UUID userId) List~AgencyMembershipDto~
+}
+
+class AgencyContextMiddleware {
+  <<Middleware>>
+  +resolveAgencyContext(Request req) void
+  +agencyContext(Request req) AgencyContext
+}
+
+class AgencyService {
+  <<Service>>
+  +listForUser(UUID userId) List~AgencyMembershipDto~
+  +resolve(UUID userId, UUID selectedAgencyId) AgencyContext
+  +resolveOptional(UUID userId, UUID selectedAgencyId) AgencyContext
+}
+
+class AgencyPolicy {
+  <<Utility>>
+  +effectiveAgencyPermissions(PermissionSource member) List~AgencyPermission~$
+}
+
+class PrismaClient {
+  <<DAO>>
+  +AgencyMember agencyMember
+  +AgencyProfile agencyProfile
+}
+
+class AgencyProfile {
+  +UUID id
+  +String companyName
+  +AgencyVerificationStatus verificationStatus
+  +int permissionVersion
+}
+
+class AgencyMember {
+  +UUID id
+  +UUID agencyId
+  +UUID userId
+  +AgencyMemberRole role
+  +UUID roleId
+  +AgencyMemberStatus status
+}
+
+class AgencyRole {
+  +UUID id
+  +String name
+  +AgencyMemberRole systemRole
+  +List~AgencyPermission~ permissions
+}
+
+class AgencyMembershipDto {
+  <<DTO>>
+  +UUID agencyId
+  +UUID memberId
+  +String companyName
+  +String roleName
+  +List~AgencyPermission~ permissions
+}
+
+class AgencyContext {
+  <<DTO>>
+  +UUID agencyId
+  +UUID actorUserId
+  +UUID memberId
+  +AgencyMemberRole memberRole
+  +List~AgencyPermission~ permissions
+}
+
+AgencyController "1" ..> "1" AgencyService : delegates
+AgencyController "1" ..> "1" AgencyMembershipDto : returns
+AgencyContextMiddleware "1" ..> "1" AgencyService : resolves tenant
+AgencyContextMiddleware ..> "1" AgencyContext : attaches
+AgencyService "1" --> "*" AgencyMember : reads
+AgencyService ..> "1" AgencyPolicy : expands permissions
+AgencyService ..> "1" PrismaClient : queries
+AgencyService ..> "1" AgencyMembershipDto : maps
+AgencyService ..> "1" AgencyContext : produces
+AgencyProfile "1" *-- "1..*" AgencyMember : employs
+AgencyMember "*" --> "1" AgencyRole : assignedRole
+AgencyContext ..> "1" AgencyMember : derived from

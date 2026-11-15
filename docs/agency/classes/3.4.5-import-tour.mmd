@@ -1,0 +1,62 @@
+classDiagram
+%% 3.4.5 Import tour tu tai lieu
+%% POST /agency/tours/extract-document, POST /agency/tours/import
+
+class TourDocumentExtractionController {
+  <<Controller>>
+  +extract(Request req) ExtractedToursResult
+}
+
+class TourDocumentExtractionService {
+  <<Service>>
+  +extract(UploadedDocument file) ExtractedToursResult
+}
+
+class ToursController {
+  <<Controller>>
+  +importTours(AgencyContext ctx, List~TourContentInput~ body) ImportResult
+}
+
+class ToursService {
+  <<Service>>
+  +importTours(UUID agencyId, List~TourContentInput~ inputs) ImportResult
+}
+
+class ToursRepository {
+  <<Repository>>
+  +insertMany(List~NewTour~ data) List~TourRecord~
+}
+
+class PrismaClient {
+  <<DAO>>
+  +Tour tour
+}
+
+class Tour {
+  +UUID id
+  +UUID agencyId
+  +String title
+  +String status
+}
+
+class TourContentInput {
+  <<DTO>>
+  +String title
+  +String destination
+  +int durationDays
+}
+
+class ExtractedToursResult {
+  <<DTO>>
+  +List~TourContentInput~ tours
+  +List~String~ warnings
+}
+
+ToursController "1" ..> "1" ToursService : delegates
+TourDocumentExtractionController "1" ..> "1" TourDocumentExtractionService : delegates
+TourDocumentExtractionService ..> "1" ExtractedToursResult : produces
+ExtractedToursResult ..> "*" TourContentInput : yields
+ToursService "1" --> "*" Tour : creates
+ToursService ..> "1" ToursRepository : bulk inserts
+ToursRepository ..> "1" PrismaClient : uses
+TourContentInput ..> "1" Tour : becomes

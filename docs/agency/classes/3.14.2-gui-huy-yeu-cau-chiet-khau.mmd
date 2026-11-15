@@ -1,0 +1,64 @@
+classDiagram
+%% 3.14.2 Gui va huy yeu cau chiet khau
+%% POST /agency/commission/requests, POST /agency/commission/requests/:id/cancel
+
+class AgencyCommissionController {
+  <<Controller>>
+  +create(AgencyContext ctx, CreateCommissionRequestBody body) AgencyCommissionRequestDto
+  +cancel(AgencyContext ctx, UUID id) AgencyCommissionRequestDto
+}
+
+class AgencyCommissionService {
+  <<Service>>
+  +create(CommissionActor ctx, CreateCommissionRequestBody input) AgencyCommissionRequestDto
+  +cancel(UUID agencyId, UUID actorUserId, UUID id) AgencyCommissionRequestDto
+}
+
+class AgencyCommissionRepository {
+  <<Repository>>
+  +create(CreateCommissionRequestInput input) CommissionRequestRow
+  +cancel(CancelCommissionRequestInput input) CommissionRequestRow
+  +findPending(UUID agencyId) CommissionRequestRow
+}
+
+class PrismaClient {
+  <<DAO>>
+  +AgencyCommissionRequest agencyCommissionRequest
+  +AgencyProfile agencyProfile
+}
+
+class AgencyCommissionRequest {
+  +UUID id
+  +UUID agencyId
+  +UUID requestedByUserId
+  +int currentShareBps
+  +int requestedShareBps
+  +int baseVersion
+  +String status
+  +String reason
+  +Date cancelledAt
+}
+
+class CreateCommissionRequestBody {
+  <<DTO>>
+  +int requestedShareBps
+  +String reason
+}
+
+class AgencyCommissionRequestDto {
+  <<DTO>>
+  +UUID id
+  +String status
+  +int currentShareBps
+  +int requestedShareBps
+  +Date createdAt
+}
+
+AgencyCommissionController "1" ..> "1" AgencyCommissionService : delegates
+AgencyCommissionController ..> "1" CreateCommissionRequestBody : validates
+AgencyCommissionController "1" ..> "1" AgencyCommissionRequestDto : returns
+AgencyCommissionService "1" --> "*" AgencyCommissionRequest : creates and cancels
+AgencyCommissionService ..> "1" AgencyCommissionRepository : persists
+AgencyCommissionService ..> "1" AgencyCommissionRequestDto : maps
+AgencyCommissionRepository ..> "1" PrismaClient : uses
+AgencyCommissionRequest ..> "1" AgencyCommissionRequestDto : projected to
