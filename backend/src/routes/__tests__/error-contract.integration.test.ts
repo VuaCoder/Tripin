@@ -44,6 +44,7 @@ function expectError(res: Response, code: string): void {
 
 // Codes covered by focused service/provider tests or requiring a specific concurrent failure.
 const COVERED_ELSEWHERE: Record<string, string> = {
+  AGENCY_PORTAL_REQUIRED: 'auth.service.test.ts covers the customer registration service guard; the HTTP schema rejects agency roles before it.',
   PAYOUT_NOT_CONFIGURED: 'payout-account.crypto.test.ts verifies missing encryption keys fail closed',
   PAYOUT_ACCOUNT_UNAVAILABLE: 'payout-account.crypto.test.ts verifies tampered and wrong-owner envelopes fail closed',
   BOOKING_NOT_CONFIRMED: 'e-tickets.lifecycle.integration.test.ts verifies issuance after cancellation is rejected',
@@ -170,13 +171,12 @@ describe('error contract over HTTP', () => {
     // AGENCY_NOT_VERIFIED is now unreachable over HTTP: every /agency/* mount checks the profile first
     // and answers a plain 403. The service guard stays covered by tours.service.test.ts (see COVERED_ELSEWHERE).
 
-    // Agency portal separation: an agency account cannot use the traveler login, and an unfinished agency
-    // registration cannot sign in through the agency portal.
+    // Shared login accepts an active agency account. Agency OTP completion still requires a full profile.
     const passwordHash = await bcrypt.hash(PASSWORD, 4);
     await createUser('AGENCY', 'agency-login@example.com', { passwordHash });
-    expectError(await request(app).post('/api/v1/auth/login').send({ email: 'agency-login@example.com', password: PASSWORD }), 'AGENCY_PORTAL_REQUIRED');
+    expect((await request(app).post('/api/v1/auth/login').send({ email: 'agency-login@example.com', password: PASSWORD })).status).toBe(200);
     await createUser('AGENCY', 'agency-pending@example.com', { passwordHash, status: 'PENDING_VERIFICATION' });
-    expectError(await request(app).post('/api/v1/auth/agency/login').send({ email: 'agency-pending@example.com', password: PASSWORD }), 'AGENCY_ONBOARDING_REQUIRED');
+    expectError(await request(app).post('/api/v1/auth/agency/verify-otp').send({ email: 'agency-pending@example.com', code: '000000', purpose: 'REGISTER' }), 'AGENCY_ONBOARDING_REQUIRED');
   });
 
   it('tours, categories and promotions', async () => {

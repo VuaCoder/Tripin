@@ -66,9 +66,9 @@ describe('moderation (integration)', () => {
       agencyProfile: { companyName: 'Sunrise Travel', licenseNumber: 'LIC-001', verificationStatus: 'UNVERIFIED' },
     });
 
-    // A legacy user without an agency/membership has no authority to submit one.
+    // An agency fixture without the required application fields cannot submit one.
     const incomplete = await createUser('AGENCY', 'bare@example.com');
-    expect((await request(app).post('/api/v1/users/me/agency-verification').set(bearer(incomplete.token)).send({})).status).toBe(403);
+    expect((await request(app).post('/api/v1/users/me/agency-verification').set(bearer(incomplete.token)).send({})).status).toBe(400);
     const submit = await request(app).post('/api/v1/users/me/agency-verification').set(bearer(agency.token)).send({});
     expect(submit.status).toBeLessThan(300);
 

@@ -169,6 +169,12 @@ describe('AuthService.login', () => {
 });
 
 describe('AuthService.register', () => {
+  it('rejects an agency role passed directly to the customer registration service', async () => {
+    const ctx = makeDeps(null);
+    await expect(new AuthService(ctx.deps).register({
+      email: 'agency@b.com', password: fixturePassword, fullName: 'Agency User', role: ROLES.AGENCY as never,
+    })).rejects.toMatchObject({ code: 'AGENCY_PORTAL_REQUIRED' });
+  });
   it('creates a PENDING account and sends an OTP', async () => {
     const ctx = makeDeps(null);
     ctx.mocks.users.findByEmail.mockResolvedValueOnce(null);
