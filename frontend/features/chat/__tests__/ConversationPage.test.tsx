@@ -26,7 +26,9 @@ vi.mock('../api', () => ({
 vi.mock('../api/aiChatApi', () => ({ useGetAiOverviewQuery: () => ({ data: { latest: null, unreadCount: 0 }, refetch: vi.fn() }) }));
 // The pinned group-booking card has its own suite in features/custom-tours; here it only needs to mount.
 vi.mock('@/features/custom-tours/components/CustomTourChatSection', () => ({
-  CustomTourChatSection: ({ conversationId }: { conversationId: string }) => <p>Thỏa thuận đoàn {conversationId}</p>,
+  CustomTourChatSection: ({ conversationId, isAgency }: { conversationId: string; isAgency: boolean }) => (
+    <p>Thỏa thuận đoàn {conversationId} {isAgency ? 'agency' : 'traveler'}</p>
+  ),
 }));
 vi.mock('../ChatProvider', () => ({ useChat: () => ({ connected: mocks.connected, delivered: new Set(), revision: mocks.revision, reconnect: vi.fn(), send: mocks.send,
   typing: vi.fn(), subscribeTyping: mocks.subscribeTyping,
@@ -36,7 +38,7 @@ vi.mock('@/features/complaints/api/complaintsApi', () => ({
   useGetMyComplaintsQuery: () => ({ data: { items: [], meta: { page: 1, limit: 10, total: 0, totalPages: 1 } }, isLoading: false }),
   useGetAgencyComplaintsQuery: () => ({ data: { items: [], meta: { page: 1, limit: 10, total: 0, totalPages: 1 } }, isLoading: false }),
 }));
-import { ConversationPage } from '../ConversationPage';
+import { AgencyConversationPage, ConversationPage } from '../ConversationPage';
 const message = (id: string, mine = false) => ({ id, conversationId: 'c1', senderId: mine ? 't1' : 'g1', text: `Tin ${id}`, isMine: mine, createdAt: `2026-10-18T10:00:${id.padStart(2, '0')}Z` });
 beforeEach(() => {
   vi.clearAllMocks(); mocks.connected = true; mocks.detailError = undefined; mocks.revision = 0; mocks.isListLoading = false;
@@ -154,6 +156,13 @@ describe('ConversationPage', () => {
     expect((await screen.findAllByText(/Khi khách gửi yêu cầu booking đoàn/)).length).toBeGreaterThan(0);
   });
 
+  // A workplace owner keeps the traveler account role, so the pinned agreement must follow the route.
+  it('pins the group agreement as the agency side even when the account role is TRAVELER', async () => {
+    mocks.role = 'TRAVELER';
+    render(<AgencyConversationPage id="c1" />);
+    expect(await screen.findByText('Thỏa thuận đoàn c1 agency')).toBeTruthy();
+  });
+
   it('does not display complaints tab in inbox and renders counterpart avatar', () => {
     render(<ConversationPage />);
     expect(screen.queryByText('Phiếu khiếu nại')).toBeNull();
@@ -201,7 +210,7 @@ describe('Typing bubble', () => {
   it('pins the group-booking card above a real conversation', async () => {
     render(<ConversationPage id="c1" />);
     await screen.findByText('Bắt đầu tin nhắn cùng Guide A');
-    expect(screen.getByText('Thỏa thuận đoàn c1')).toBeTruthy();
+    expect(screen.getByText('Thỏa thuận đoàn c1 traveler')).toBeTruthy();
   });
 });
 

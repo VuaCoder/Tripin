@@ -154,7 +154,8 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
   const activeId = id ?? (autoOpenNewest ? data?.data?.[0]?.id : undefined);
 
   return (
-    <section aria-label="Tin nhắn" className="w-full flex-1 flex flex-col min-h-0">
+    // The agency shell has no page padding of its own (traveler chat sits in AppShell's Container).
+    <section aria-label="Tin nhắn" className={`w-full flex-1 flex flex-col min-h-0${agency ? ' p-4 sm:p-6' : ''}`}>
       <div className="mb-2.5 flex items-center justify-between gap-2 shrink-0">
         <h1 className="text-xl font-bold text-slate-900">Hộp thư &amp; Tin nhắn</h1>
       </div>
@@ -408,7 +409,6 @@ function renderMessageContent(text: string, isMine: boolean) {
 
 function Thread({ id, agency = false, basePath = '/conversations' }: { id: string; agency?: boolean; basePath?: string }) {
   const now = useChatClock();
-  const isAgency = useAppSelector(selectUser)?.role === 'AGENCY';
   const dispatch = useAppDispatch();
   const chat = useChat();
   const detail = useConversationQuery({ id, agency }, { pollingInterval: 30_000 });
@@ -931,7 +931,7 @@ function Thread({ id, agency = false, basePath = '/conversations' }: { id: strin
         </div>
       )}
       <div className="relative flex min-h-0 flex-1 flex-col">
-        {id && id !== 'ai' && <CustomTourChatSection conversationId={id} isAgency={isAgency} />}
+        {id && id !== 'ai' && <CustomTourChatSection conversationId={id} isAgency={agency} />}
         <div
           ref={scroll}
           role="log"
