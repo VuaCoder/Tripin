@@ -409,7 +409,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/moderation/support-tickets/:id/reply` | `complaint:handle` |
 | PATCH | `/api/v1/moderation/support-tickets/:id/status` | `complaint:handle` |
 | GET | `/api/v1/moderation/tours` | `tour:list-all` |
-| GET | `/api/v1/moderation/tours/:id` | `tour:list-all` |
+| GET | `/api/v1/moderation/tours/:id` | `tour:list-all`, `review:moderate` |
 | POST | `/api/v1/moderation/tours/:id/suspend` | `tour:suspend` |
 | POST | `/api/v1/moderation/tours/:id/validate` | `tour:validate` |
 | POST | `/api/v1/moderation/users/:id/ban` | `account:ban` |
