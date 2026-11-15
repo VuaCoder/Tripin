@@ -40,6 +40,7 @@ async function clean() {
   await prisma.$transaction([
     prisma.earning.deleteMany({ where: { guideId: { in: userIds } } }),
     prisma.agencyMember.deleteMany({ where: { userId: { in: userIds } } }),
+    prisma.agencyRole.deleteMany({ where: { agencyId: { in: userIds } } }),
     prisma.agencyProfile.deleteMany({ where: { userId: { in: userIds } } }),
     prisma.payment.deleteMany({
       where: { userId: { in: userIds }, purpose: 'SUBSCRIPTION' },
