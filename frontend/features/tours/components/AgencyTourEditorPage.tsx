@@ -23,7 +23,8 @@ import { TourDestinationCombobox } from './TourDestinationCombobox';
 import { TourCategoryCombobox } from './TourCategoryCombobox';
 import { TourItemCombobox } from './TourItemCombobox';
 import { editorFields, fieldStep, validateTourEditor, tourEditorServerErrors, type EditorField, type EditorErrors } from './tourEditorValidation';
-import { formatCurrencyVndInput, parseCurrencyVndInput, toTourContentInput } from '../utils';
+import { toTourContentInput } from '../utils';
+import { VndPriceInput } from './VndPriceInput';
 import editorStyles from './AgencyTourEditor.module.css';
 import { useAgencyContext } from '@/features/agency/agencyContext';
 import { agencyNotice } from '@/features/agency/agencyNotice';
@@ -1065,18 +1066,12 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                     Giá người lớn · từ 13 tuổi trở lên (VND)
                   </label>
                   <div className="relative">
-                    <input
-                      type="text"
-                      inputMode="numeric"
+                    <VndPriceInput
                       required
                       {...fieldProps('basePrice')}
-                      value={formatCurrencyVndInput(value.basePrice)}
-                      onChange={(e) => {
-                        const parsed = parseCurrencyVndInput(e.target.value);
-                        if (parsed <= MONEY_LIMITS.MAX_UNIT_PRICE) {
-                          updateField('basePrice', parsed);
-                        }
-                      }}
+                      value={value.basePrice}
+                      maxValue={MONEY_LIMITS.MAX_UNIT_PRICE}
+                      onValueChange={(price) => updateField('basePrice', price)}
                       placeholder="Ví dụ: 1.500.000"
                       className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 pr-10 text-sm font-medium text-slate-900 outline-none transition focus:border-[#087e8b] focus:ring-2 focus:ring-[#087e8b]/20 placeholder:font-normal placeholder:text-slate-400"
                     />
