@@ -1,0 +1,66 @@
+classDiagram
+%% 3.11.2 Phan anh danh gia
+%% GET /agency/review-disputes, POST /agency/review-disputes/:reviewId
+
+class ReportsController {
+  <<Controller>>
+  +listDisputes(AgencyContext ctx, ListReportsQuery query) Page~MyReportDto~
+  +disputeReview(AgencyContext ctx, UUID reviewId, DisputeReviewInput body) MyReportDto
+}
+
+class ReportsService {
+  <<Service>>
+  +listDisputes(UUID agencyId, ListReportsQuery query) Page~MyReportDto~
+  +disputeReview(UUID agencyId, UUID reviewId, DisputeReviewInput input) MyReportDto
+}
+
+class ReportsRepository {
+  <<Repository>>
+  +create(NewReport data) ReportRecord
+  +findOpenDuplicate(UUID reporterId, ReportTarget targetType, UUID targetId) ReportRecord
+  +listByAgency(UUID agencyId, ReportStatus status, PageRequest page) Page
+}
+
+class PrismaClient {
+  <<DAO>>
+  +Report report
+  +Review review
+}
+
+class Review {
+  +UUID id
+  +UUID agencyId
+  +UUID tourId
+  +int rating
+  +String comment
+  +ReviewStatus status
+}
+
+class Report {
+  +UUID id
+  +UUID reporterId
+  +ReportTarget targetType
+  +UUID targetId
+  +ReportCategory category
+  +String description
+  +UUID agencyId
+  +ReportStatus status
+}
+
+class MyReportDto {
+  <<DTO>>
+  +UUID id
+  +String code
+  +ReportStatus status
+  +Date createdAt
+}
+
+ReportsController "1" ..> "1" ReportsService : delegates
+ReportsController "1" ..> "1" MyReportDto : returns
+ReportsService "1" --> "*" Report : creates
+ReportsService ..> "1" Review : disputes
+ReportsService ..> "1" ReportsRepository : persists
+ReportsService ..> "1" MyReportDto : maps
+ReportsRepository ..> "1" PrismaClient : uses
+Report "*" --> "1" Review : targets
+Report ..> "1" MyReportDto : projected to

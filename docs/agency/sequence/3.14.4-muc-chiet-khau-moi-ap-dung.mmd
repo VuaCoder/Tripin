@@ -1,0 +1,119 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. Agency reopens /agency/settings/commission after approval
+    activate Frontend
+    Frontend->>Server: 2. GET /api/v1/agency/commission
+    activate Server
+    Server->>App: 3. createApp() handles the request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency/commission', resolveAgencyContext, requireVerifiedAgency, agencyCommissionRouter)
+    activate Route
+    Route->>Middlewares: 5. requireAgencyPermission(agency:context-view)
+    activate Middlewares
+    Middlewares-->>Route: 6. next()
+    deactivate Middlewares
+    Route->>Controller: 7. agencyCommissionController.overview(req, res)
+    activate Controller
+    Controller->>Service: 8. agencyCommissionService.overview(agencyId)
+    activate Service
+    Service->>DAO: 9. repo.profile + settings.getCommissionBps(agencyId) + repo.findPending + repo.recent
+    activate DAO
+    DAO->>Database: 10. SELECT "AgencyProfile" (new override commissionRateBps), approved "AgencyCommissionRequest"
+    activate Database
+    Database-->>DAO: 11. profile + history
+    deactivate Database
+    DAO-->>Service: 12. data
+    deactivate DAO
+    Service->>Service: 13. effectiveSharePercent = (10000 - commissionRateBps)/100, overrideSharePercent
+    Service-->>Controller: 14. Overview with the new rate + APPROVED status history
+    deactivate Service
+    Controller-->>Frontend: 15. 200 OK
+    deactivate Controller
+    Frontend-->>User: 16. Rate card updated, "pending" banner disappears
+    User->>Frontend: 17. Traveler books a new tour of the agency
+    Frontend->>Server: 18. POST /api/v1/bookings
+    Server->>App: 19. createApp() handles the request
+    App->>Route: 20. apiRouter.use('/bookings', bookingsRouter)
+    Route->>Middlewares: 21. requirePermission(booking:create) -> validate(body)
+    activate Middlewares
+    Middlewares-->>Route: 22. next()
+    deactivate Middlewares
+    Route->>Controller: 23. bookingsController.create(req, res)
+    activate Controller
+    Controller->>Service: 24. bookingsService.createBooking(travelerId, body)
+    activate Service
+    Service->>DAO: 25. settings.getCommissionBps(agencyId) + toursRepository.getBookableDeparture
+    activate DAO
+    DAO->>Database: 26. SELECT "AgencyProfile".commissionRateBps (new override) / "SystemSetting"
+    activate Database
+    Database-->>DAO: 27. new commissionBps
+    deactivate Database
+    DAO-->>Service: 28. bps
+    deactivate DAO
+    alt No override
+        Service->>Service: 29. Use the default platform rate
+    else Override exists
+        Service->>Service: 29. Use the newly approved rate
+    end
+    Service->>DAO: 30. bookingsRepository.create({ commissionAmount = ratioVnd(total, bps), agencyAmount, commissionBps })
+    activate DAO
+    DAO->>Database: 31. INSERT "Booking" with the commission snapshot
+    activate Database
+    Database-->>DAO: 32. booking
+    deactivate Database
+    DAO-->>Service: 33. booking
+    deactivate DAO
+    Service-->>Controller: 34. BookingDto
+    deactivate Service
+    Controller-->>Frontend: 35. 201 Created
+    deactivate Controller
+    Frontend-->>User: 36. Booking keeps the commission rate from creation time
+    deactivate Frontend
+    deactivate Route
+    deactivate App
+    deactivate Server

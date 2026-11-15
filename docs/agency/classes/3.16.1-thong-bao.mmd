@@ -1,0 +1,64 @@
+classDiagram
+%% 3.16.1 Thong bao
+%% GET /agency/notifications, PATCH /agency/notifications/:id/read
+
+class NotificationsController {
+  <<Controller>>
+  +list(AgencyContext ctx, ListNotificationsQuery query) Page~NotificationDto~
+  +unreadCount(AgencyContext ctx) int
+  +markRead(AgencyContext ctx, UUID id) NotificationDto
+  +markAllRead(AgencyContext ctx) int
+  +remove(AgencyContext ctx, UUID id) boolean
+}
+
+class NotificationsService {
+  <<Service>>
+  +notifyAgency(UUID agencyId, NotifyInput input, NotifyOptions options) void
+  +notify(UUID userId, NotifyInput input, NotifyOptions options) void
+  +list(UUID userId, ListNotificationsQuery query, UUID agencyId) Page~NotificationDto~
+  +markRead(UUID userId, UUID id, UUID agencyId) NotificationDto
+  +markAllRead(UUID userId, UUID agencyId) int
+}
+
+class NotificationsRepository {
+  <<Repository>>
+  +insertMany(List~NewNotification~ data) List~NotificationRecord~
+  +list(UUID userId, boolean unreadOnly, PageRequest page, UUID agencyId) Page
+  +countUnread(UUID userId, UUID agencyId) int
+  +markRead(UUID id, UUID userId, UUID agencyId) NotificationRecord
+  +deleteOwned(UUID id, UUID userId, UUID agencyId) boolean
+}
+
+class PrismaClient {
+  <<DAO>>
+  +Notification notification
+}
+
+class Notification {
+  +UUID id
+  +UUID userId
+  +UUID agencyId
+  +NotificationType type
+  +String title
+  +String body
+  +Json data
+  +Date readAt
+}
+
+class NotificationDto {
+  <<DTO>>
+  +UUID id
+  +NotificationType type
+  +String title
+  +String body
+  +boolean isRead
+  +Date createdAt
+}
+
+NotificationsController "1" ..> "1" NotificationsService : delegates
+NotificationsController "1" ..> "1" NotificationDto : returns
+NotificationsService "1" --> "*" Notification : delivers and reads
+NotificationsService ..> "1" NotificationsRepository : persists
+NotificationsService ..> "1" NotificationDto : maps
+NotificationsRepository ..> "1" PrismaClient : uses
+Notification ..> "1" NotificationDto : projected to

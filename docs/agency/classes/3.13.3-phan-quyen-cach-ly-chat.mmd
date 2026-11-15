@@ -1,0 +1,62 @@
+classDiagram
+%% 3.13.3 Phan quyen va cach ly chat
+%% Moi request chat cua agency deu kem X-Agency-Id
+
+class ChatController {
+  <<Controller>>
+  +list(AgencyContext ctx, PageRequest page) Page~ConversationDto~
+  +messages(AgencyContext ctx, UUID id, ListMessagesQuery query) MessagesPageDto
+}
+
+class ChatService {
+  <<Service>>
+  +getConversation(UUID userId, UUID conversationId, UUID agencyId) ConversationDto
+  +sendMessage(UUID userId, UUID conversationId, String text, UUID agencyId) MessageDto
+  +getCounterpartId(UUID userId, UUID conversationId, UUID agencyId) UUID
+}
+
+class ChatRepository {
+  <<Repository>>
+  +isAgencyChatMember(UUID userId, UUID agencyId) boolean
+  +listAgencyChatUserIds(UUID agencyId) List~UUID~
+}
+
+class AgencyPolicy {
+  <<Utility>>
+  +effectiveAgencyPermissions(PermissionSource member) List~AgencyPermission~$
+}
+
+class ChatPolicy {
+  <<Utility>>
+  +assertParticipant(UUID userId, ConversationRecord conversation) void$
+}
+
+class PrismaClient {
+  <<DAO>>
+  +Conversation conversation
+  +AgencyMember agencyMember
+}
+
+class Conversation {
+  +UUID id
+  +UUID travelerId
+  +UUID guideId
+  +UUID agencyId
+}
+
+class AgencyContext {
+  <<DTO>>
+  +UUID agencyId
+  +UUID memberId
+  +List~AgencyPermission~ permissions
+}
+
+ChatController "1" ..> "1" ChatService : delegates
+ChatService ..> "1" ChatPolicy : authorizes
+ChatService ..> "1" ChatRepository : scopes by agency
+ChatService ..> "1" PrismaClient : reads
+ChatRepository ..> "1" PrismaClient : uses
+ChatController ..> "1" AgencyContext : carries tenant
+AgencyContext ..> "1" AgencyPolicy : resolved permissions
+AgencyContext ..> "*" Conversation : filters by agencyId
+ChatPolicy ..> "1" Conversation : validates participant

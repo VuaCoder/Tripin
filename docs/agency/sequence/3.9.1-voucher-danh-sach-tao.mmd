@@ -1,0 +1,91 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. OWNER/MANAGER saves the voucher form
+    activate Frontend
+    Frontend->>Server: 2. POST /api/v1/agency/promotions
+    activate Server
+    Server->>App: 3. createApp() handles the request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency/promotions', resolveAgencyContext, requireVerifiedAgency, agencyPromotionsRouter)
+    activate Route
+    Route->>Middlewares: 5. router: requirePermission(promotion:agency-manage) -> validate(body)
+    activate Middlewares
+    alt STAFF/ACCOUNTANT or invalid body
+        Middlewares-->>Frontend: 6. 403/400
+    else Valid
+        Middlewares-->>Route: 7. next()
+        deactivate Middlewares
+        Route->>Controller: 8. promotionsController.createAgency(req, res)
+        activate Controller
+        Controller->>Service: 9. promotionsService.createForAgency(actor, body)
+        activate Service
+        Service->>DAO: 10. promotionsRepository.create({ scope: AGENCY, ownerId: agencyId, ... })
+        activate DAO
+        DAO->>Database: 11. INSERT "Promotion" (type, discount, period, status)
+        activate Database
+        Database-->>DAO: 12. PromotionRecord
+        deactivate Database
+        alt CODE duplicated in the agency
+            DAO-->>Service: 13. Unique violation
+            Service-->>Controller: 14. AppError 409
+            Controller-->>Frontend: 15. 409 CONFLICT
+            Frontend-->>User: 16. Report the code already exists
+        else Created
+            DAO-->>Service: 17. PromotionRecord
+            deactivate DAO
+            Service-->>Controller: 18. PromotionDto
+            deactivate Service
+            Controller-->>Frontend: 19. 201 Created
+            deactivate Controller
+            Frontend-->>User: 20. Voucher appears in the list, can enable/disable/archive
+            deactivate Frontend
+        end
+        deactivate Route
+        deactivate App
+        deactivate Server
+    end

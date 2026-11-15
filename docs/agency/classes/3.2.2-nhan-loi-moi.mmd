@@ -1,0 +1,80 @@
+classDiagram
+%% 3.2.2 Nhan loi moi
+%% GET /invitations/:token, POST /invitations/accept, POST /agency-invitations/:id/accept
+
+class AgencyInvitationStatus {
+  <<Enumeration>>
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+class AgencyController {
+  <<Controller>>
+  +validateInvitation(String token, String emailHint) InvitationValidationResult
+  +acceptInvitation(UUID userId, String token) AgencyMember
+  +acceptInvitationById(UUID userId, UUID invitationId) AgencyMember
+}
+
+class AgencyService {
+  <<Service>>
+  -String digest(String token)
+  -String maskEmail(String email)
+  +validateInvitationToken(String token, String emailHint) InvitationValidationResult
+  +accept(UUID userId, String token) AgencyMember
+  +acceptById(UUID userId, UUID invitationId) AgencyMember
+}
+
+class AgencyGuard {
+  <<Utility>>
+  +joinOrRestoreAgencyMember(DbExecutor tx, UUID agencyId, UUID userId)$
+}
+
+class AgencyInvitationMail {
+  <<Utility>>
+  +buildAgencyInvitationMail(String companyName, String roleName, Date expiresAt)$
+}
+
+class PrismaClient {
+  <<DAO>>
+  +AgencyInvitation agencyInvitation
+  +AgencyMember agencyMember
+}
+
+class AgencyInvitation {
+  +UUID id
+  +UUID agencyId
+  +String email
+  +AgencyMemberRole role
+  +String tokenHash
+  +AgencyInvitationStatus status
+  +Date expiresAt
+}
+
+class AgencyMember {
+  +UUID id
+  +UUID agencyId
+  +UUID userId
+  +AgencyMemberRole role
+  +AgencyMemberStatus status
+}
+
+class InvitationValidationResult {
+  <<DTO>>
+  +String status
+  +String email
+  +boolean emailMatched
+  +AgencyMemberRole role
+  +Date expiresAt
+}
+
+AgencyController "1" ..> "1" AgencyService : delegates
+AgencyController "1" ..> "1" InvitationValidationResult : returns
+AgencyService "1" --> "*" AgencyInvitation : validates
+AgencyService "1" --> "0..1" AgencyMember : activates
+AgencyService ..> "1" AgencyGuard : restores membership
+AgencyService ..> "1" AgencyInvitationMail : renders
+AgencyService ..> "1" PrismaClient : queries
+AgencyInvitation --> "1" AgencyInvitationStatus : status
+AgencyInvitation ..> "1" AgencyMember : converts to

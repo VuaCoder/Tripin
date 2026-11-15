@@ -1,0 +1,63 @@
+classDiagram
+%% 3.10.2 Quy trinh xu ly khieu nai
+%% POST /agency/complaint-tickets/:id/resolve, POST /:id/escalate
+
+class ComplaintsController {
+  <<Controller>>
+  +resolveTicket(AgencyContext ctx, UUID id, String resolution) ComplaintTicketSummaryDto
+  +escalateTicket(AgencyContext ctx, UUID id, String reason) ComplaintTicketSummaryDto
+}
+
+class ComplaintsService {
+  <<Service>>
+  +resolveTicket(UUID agencyId, UUID id, String resolution) ComplaintTicketSummaryDto
+  +escalateTicket(UUID agencyId, UUID id, String reason) ComplaintTicketSummaryDto
+  +acceptResolution(UUID travelerId, UUID id) ComplaintTicketSummaryDto
+  +autoCloseResolvedTickets() int
+}
+
+class ComplaintsRepository {
+  <<Repository>>
+  +findById(UUID id) ComplaintTicketWithRelations
+  +updateStatus(UUID id, String expectedStatus, String nextStatus) ComplaintTicketRecord
+  +findStaleResolved(Date cutoff) List~ComplaintTicketRecord~
+}
+
+class PrismaClient {
+  <<DAO>>
+  +ComplaintTicket complaintTicket
+  +ComplaintFeedback complaintFeedback
+}
+
+class ComplaintTicket {
+  +UUID id
+  +String ticketCode
+  +UUID agencyId
+  +ComplaintTicketStatus status
+  +Date slaDeadlineAt
+  +Date escalationDeadlineAt
+  +Date resolvedAt
+}
+
+class ComplaintFeedback {
+  +UUID id
+  +UUID ticketId
+  +int rating
+  +String comment
+}
+
+class ComplaintTicketSummaryDto {
+  <<DTO>>
+  +UUID id
+  +String status
+  +String priority
+  +Date slaDeadlineAt
+}
+
+ComplaintsController "1" ..> "1" ComplaintsService : delegates
+ComplaintsService "1" --> "*" ComplaintTicket : transitions
+ComplaintsService ..> "1" ComplaintsRepository : persists
+ComplaintsService ..> "1" ComplaintTicketSummaryDto : maps
+ComplaintsRepository ..> "1" PrismaClient : uses
+ComplaintTicket "1" --> "0..1" ComplaintFeedback : rated by
+ComplaintTicket ..> "1" ComplaintTicketSummaryDto : projected to

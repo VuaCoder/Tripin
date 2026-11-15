@@ -1,0 +1,52 @@
+classDiagram
+%% 3.11.1 Danh sach danh gia
+%% GET /reviews?agencyId=... (public read)
+
+class ReviewsController {
+  <<Controller>>
+  +listPublic(ListPublicReviewsQuery query) Page~PublicReviewDto~
+}
+
+class ReviewsService {
+  <<Service>>
+  +listPublic(ListPublicReviewsQuery query) Page~PublicReviewDto~
+  +countByStatus() Map
+}
+
+class ReviewsRepository {
+  <<Repository>>
+  +listPublic(ListPublicReviewsQuery query) Page
+}
+
+class PrismaClient {
+  <<DAO>>
+  +Review review
+}
+
+class Review {
+  +UUID id
+  +UUID bookingId
+  +UUID tourId
+  +UUID agencyId
+  +UUID travelerId
+  +int rating
+  +String comment
+  +ReviewStatus status
+}
+
+class PublicReviewDto {
+  <<DTO>>
+  +UUID id
+  +int rating
+  +String comment
+  +String travelerName
+  +Date createdAt
+}
+
+ReviewsController "1" ..> "1" ReviewsService : delegates
+ReviewsController "1" ..> "1" PublicReviewDto : returns
+ReviewsService "1" --> "*" Review : reads
+ReviewsService ..> "1" ReviewsRepository : queries
+ReviewsService ..> "1" PublicReviewDto : maps
+ReviewsRepository ..> "1" PrismaClient : uses
+Review ..> "1" PublicReviewDto : projected to

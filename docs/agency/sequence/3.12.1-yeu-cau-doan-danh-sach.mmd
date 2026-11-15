@@ -1,0 +1,84 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. Open /agency/custom-tours
+    activate Frontend
+    Frontend->>Server: 2. GET /api/v1/custom-tours?page=1&status=...
+    activate Server
+    Server->>App: 3. createApp() handles request
+    activate App
+    App->>Route: 4. apiRouter.use('/custom-tours', customToursRouter)
+    activate Route
+    Route->>Middlewares: 5. resolveAgencyContextIfMember, requirePermission(custom-tour:view), validate(query)
+    activate Middlewares
+    alt ACCOUNTANT (no custom-tour:view) or no agency selected
+        Middlewares-->>Frontend: 6. 403 FORBIDDEN
+    else Valid
+        Middlewares-->>Route: 7. next() (req.agencyContext if member)
+        deactivate Middlewares
+        Route->>Controller: 8. customToursController.list(req, res)
+        activate Controller
+        Controller->>Service: 9. customToursService.list(actor, query)
+        activate Service
+        Service->>DAO: 10. customToursRepository.listForAgency(agencyId, query) or listForTraveler
+        activate DAO
+        DAO->>Database: 11. SELECT "CustomTourRequest" WHERE agencyId/sender + filters
+        activate Database
+        Database-->>DAO: 12. items + total
+        deactivate Database
+        DAO-->>Service: 13. requests
+        deactivate DAO
+        Service-->>Controller: 14. Page<CustomTourRequestDto>
+        deactivate Service
+        Controller-->>Frontend: 15. 200 OK
+        deactivate Controller
+        Frontend-->>User: 16. Render list + detail (destination, dates, budget, status)
+        deactivate Frontend
+        deactivate Route
+        deactivate App
+        deactivate Server
+    end

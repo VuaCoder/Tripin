@@ -1,0 +1,105 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. Super Admin opens /super-admin/settings/commission, clicks "Approve"
+    activate Frontend
+    Frontend->>Server: 2. POST /api/v1/admin/settings/agency-commission-requests/{id}/approve { note? }
+    activate Server
+    Server->>App: 3. createApp() handles the request
+    activate App
+    App->>Route: 4. apiRouter.use('/admin/settings/agency-commission-requests', adminAgencyCommissionRequestsRouter)
+    activate Route
+    Route->>Middlewares: 5. requireSuperAdmin -> requirePermission(commission:configure) -> validate(params, body)
+    activate Middlewares
+    alt Not Super Admin
+        Middlewares-->>Frontend: 6. 403 FORBIDDEN
+    else Valid
+        Middlewares-->>Route: 7. next()
+        deactivate Middlewares
+        Route->>Controller: 8. agencyCommissionController.approve(req, res)
+        activate Controller
+        Controller->>Service: 9. agencyCommissionService.approve(actor, id, note)
+        activate Service
+        Service->>DAO: 10. repo.approve(): prisma.$transaction
+        activate DAO
+        DAO->>Database: 11. Lock "AgencyProfile" FOR UPDATE, read "AgencyCommissionRequest" + profile
+        activate Database
+        Database-->>DAO: 12. request + commissionVersion
+        deactivate Database
+        alt Request no longer PENDING
+            DAO-->>Service: 13. AppError 409 NOT_PENDING
+            Service-->>Controller: 14. 409
+            Controller-->>Frontend: 15. 409 CONFLICT
+            Frontend-->>User: 16. Reload the queue
+        else commissionVersion differs from baseVersion
+            DAO-->>Service: 17. AppError 409 SETTINGS_CONFLICT
+            Service-->>Controller: 18. 409 "Commission rate has changed..."
+            Controller-->>Frontend: 19. 409 with error code
+            Frontend-->>User: 20. Reject and ask to submit again
+        else Valid
+            DAO->>Database: 21. UPDATE "AgencyProfile" commissionRateBps = 10000 - requestedShareBps, commissionVersion + 1
+            activate Database
+            Database-->>DAO: 22. new version
+            deactivate Database
+            DAO->>Database: 23. UPDATE "AgencyCommissionRequest" status APPROVED, appliedVersion, decidedBy/At, INSERT "AuditLog"
+            activate Database
+            Database-->>DAO: 24. approved request
+            deactivate Database
+            DAO-->>Service: 25. CommissionRequestRow
+            deactivate DAO
+            Service->>Service: 26. notificationsService.notifyAgency(AGENCY_COMMISSION_DECIDED)
+            Service-->>Controller: 27. AgencyCommissionRequestDto
+            deactivate Service
+            Controller-->>Frontend: 28. 200 OK
+            deactivate Controller
+            Frontend-->>User: 29. Queue refreshed, agency gets a notification
+            deactivate Frontend
+        end
+        deactivate Route
+        deactivate App
+        deactivate Server
+    end

@@ -9,12 +9,14 @@ import {
   Flag,
   User,
   ShieldCheck,
+  Users,
 } from 'lucide-react';
 
 const navItems = [
   { name: 'Hồ sơ', href: '/settings/profile', Icon: User },
   { name: 'Ví voucher', href: '/settings/vouchers', Icon: TicketPercent },
   { name: 'Chuyến đi', href: '/settings/history', Icon: CalendarCheck },
+  { name: 'Yêu cầu đoàn của tôi', href: '/traveler/custom-tours', Icon: Users },
   { name: 'Danh sách yêu thích', href: '/settings/wishlist', Icon: Heart },
   { name: 'Báo cáo của tôi', href: '/settings/reports', Icon: Flag },
   { name: 'Bảo mật & 2FA', href: '/settings/profile/security', Icon: ShieldCheck },

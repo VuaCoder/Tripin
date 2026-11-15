@@ -1,0 +1,63 @@
+classDiagram
+%% 3.14.4 Muc chiet khau moi duoc ap dung
+%% Sau khi duyet, booking moi snapshot commissionBps + commissionVersion
+
+class AgencyCommissionRepository {
+  <<Repository>>
+  +approve(ApproveCommissionRequestInput input) CommissionRequestRow
+}
+
+class BookingsService {
+  <<Service>>
+  +createBooking(UUID travelerId, CreateBookingInput input) BookingDto
+}
+
+class BookingsRepository {
+  <<Repository>>
+  +create(NewBooking data, DbExecutor db) BookingRecord
+}
+
+class PrismaClient {
+  <<DAO>>
+  +AgencyProfile agencyProfile
+  +Booking booking
+}
+
+class AgencyProfile {
+  +UUID id
+  +int commissionRateBps
+  +int commissionVersion
+}
+
+class AgencyCommissionRequest {
+  +UUID id
+  +UUID agencyId
+  +int requestedShareBps
+  +int baseVersion
+  +String status
+  +int appliedVersion
+}
+
+class Booking {
+  +UUID id
+  +UUID agencyId
+  +int commissionBps
+  +BigInt commissionAmount
+  +BigInt agencyAmount
+}
+
+class BookingDto {
+  <<DTO>>
+  +UUID id
+  +BigInt subtotal
+  +BigInt agencyAmount
+}
+
+AgencyCommissionRepository ..> "1" AgencyProfile : writes rate and version
+AgencyProfile "1" *-- "*" AgencyCommissionRequest : history
+BookingsService ..> "1" AgencyProfile : reads effective rate
+BookingsService "1" --> "1" Booking : creates snapshot
+BookingsService ..> "1" BookingsRepository : persists
+BookingsService ..> "1" BookingDto : returns
+BookingsRepository ..> "1" PrismaClient : uses
+Booking ..> "1" BookingDto : projected to

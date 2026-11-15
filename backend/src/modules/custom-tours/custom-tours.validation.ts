@@ -53,6 +53,7 @@ export const createCustomTourBody = z
 export const listCustomToursQuery = paginationQuerySchema.extend({
   status: z.nativeEnum(CUSTOM_TOUR_STATUS).optional(),
   conversationId: idSchema.optional(),
+  side: z.enum(['traveler', 'agency']).optional(),
 });
 
 export const decideCustomTourBody = z.object({ decision: z.enum(['ACCEPT', 'DECLINE', 'CANCEL']) }).strict();

@@ -1,0 +1,55 @@
+classDiagram
+%% 3.6.1 Danh sach booking
+%% GET /agency/bookings, GET /agency/bookings/:id
+
+class BookingsController {
+  <<Controller>>
+  +listForAgency(AgencyContext ctx, ListAgencyBookingsQuery query) Page~AgencyBookingDto~
+  +getForAgency(AgencyContext ctx, UUID id) AgencyBookingDto
+}
+
+class BookingsService {
+  <<Service>>
+  +listForAgency(UUID agencyId, ListAgencyBookingsQuery query) Page~AgencyBookingDto~
+  +getForAgency(UUID agencyId, UUID id) AgencyBookingDto
+}
+
+class BookingsRepository {
+  <<Repository>>
+  +listByAgency(UUID agencyId, ListAgencyBookingsQuery query) Page
+  +findById(UUID id) BookingRecord
+}
+
+class PrismaClient {
+  <<DAO>>
+  +Booking booking
+}
+
+class Booking {
+  +UUID id
+  +String bookingCode
+  +UUID agencyId
+  +UUID tourId
+  +String status
+  +int participants
+  +String contactName
+  +BigInt subtotal
+}
+
+class AgencyBookingDto {
+  <<DTO>>
+  +UUID id
+  +String bookingCode
+  +String tourTitle
+  +Date departureDate
+  +String status
+  +int participants
+}
+
+BookingsController "1" ..> "1" BookingsService : delegates
+BookingsController "1" ..> "1" AgencyBookingDto : returns
+BookingsService "1" --> "*" Booking : reads
+BookingsService ..> "1" BookingsRepository : queries
+BookingsService ..> "1" AgencyBookingDto : maps
+BookingsRepository ..> "1" PrismaClient : uses
+Booking ..> "1" AgencyBookingDto : projected to

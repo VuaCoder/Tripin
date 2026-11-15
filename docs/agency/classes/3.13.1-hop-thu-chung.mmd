@@ -1,0 +1,55 @@
+classDiagram
+%% 3.13.1 Hop thu chung
+%% GET /agency/chat/conversations, GET /agency/chat/conversations/:id
+
+class ChatController {
+  <<Controller>>
+  +list(AgencyContext ctx, PageRequest page) Page~ConversationDto~
+  +detail(AgencyContext ctx, UUID id) ConversationDto
+}
+
+class ChatService {
+  <<Service>>
+  +listConversations(ChatActor actor, PageRequest page) Page~ConversationDto~
+  +getConversation(UUID userId, UUID conversationId, UUID agencyId) ConversationDto
+}
+
+class ChatRepository {
+  <<Repository>>
+  +listConversations(ConversationWhereInput where, PageRequest page) Page
+  +findByAgencyPair(UUID travelerId, UUID agencyId) ConversationRecord
+}
+
+class PrismaClient {
+  <<DAO>>
+  +Conversation conversation
+}
+
+class Conversation {
+  +UUID id
+  +UUID travelerId
+  +UUID guideId
+  +UUID agencyId
+  +UUID tourId
+  +String lastMessageText
+  +int unreadTraveler
+  +int unreadGuide
+  +Date lastActivityAt
+}
+
+class ConversationDto {
+  <<DTO>>
+  +UUID id
+  +String counterpartName
+  +String lastMessageText
+  +int unreadCount
+  +Date lastActivityAt
+}
+
+ChatController "1" ..> "1" ChatService : delegates
+ChatController "1" ..> "1" ConversationDto : returns
+ChatService "1" --> "*" Conversation : reads
+ChatService ..> "1" ChatRepository : queries
+ChatService ..> "1" ConversationDto : maps
+ChatRepository ..> "1" PrismaClient : uses
+Conversation ..> "1" ConversationDto : projected to

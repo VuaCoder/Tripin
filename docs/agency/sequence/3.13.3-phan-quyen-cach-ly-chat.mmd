@@ -1,0 +1,117 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. Call /agency/chat/conversations with an agency that is not theirs
+    activate Frontend
+    Frontend->>Server: 2. GET /api/v1/agency/chat/conversations (X-Agency-Id: another agency)
+    activate Server
+    Server->>App: 3. createApp() handles the request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency/chat', resolveAgencyContext, requireVerifiedAgency, agencyChatRouter)
+    activate Route
+    Route->>Middlewares: 5. resolveAgencyContext: read the ACTIVE "AgencyMember" by userId + header
+    activate Middlewares
+    Middlewares->>DAO: 6. agencyService.resolveOptional(userId, X-Agency-Id)
+    activate DAO
+    DAO->>Database: 7. SELECT "AgencyMember" WHERE userId AND agencyId AND status ACTIVE
+    activate Database
+    Database-->>DAO: 8. no membership
+    deactivate Database
+    DAO-->>Middlewares: 9. null
+    deactivate DAO
+    alt No ACTIVE membership for that agency
+        Middlewares-->>Frontend: 10. 403 FORBIDDEN "Agency membership is not active"
+    else Has membership
+        Middlewares-->>Route: 11. next()
+        deactivate Middlewares
+        Route->>Controller: 12. chatController.list(req, res)
+        activate Controller
+        Controller->>Service: 13. chatService.listConversations(actor, query)
+        activate Service
+        Service->>DAO: 14. chatRepository.listConversations({ agencyId })
+        activate DAO
+        DAO->>Database: 15. SELECT "Conversation" WHERE agencyId = ctx.agencyId
+        activate Database
+        Database-->>DAO: 16. only this agency's threads
+        deactivate Database
+        DAO-->>Service: 17. rows
+        deactivate DAO
+        Service-->>Controller: 18. Page<ConversationDto>
+        deactivate Service
+        Controller-->>Frontend: 19. 200 OK (no other agency's threads leaked)
+        deactivate Controller
+        Frontend-->>User: 20. Empty inbox or only its own threads
+    end
+    User->>Frontend: 21. Open another agency's thread by id
+    Frontend->>Server: 22. GET /api/v1/agency/chat/conversations/{id}
+    Server->>App: 23. createApp() handles the request
+    App->>Route: 24. agencyChatRouter
+    Route->>Middlewares: 25. resolveAgencyContext -> requireAgencyPermission(chat:use)
+    activate Middlewares
+    Middlewares-->>Route: 26. next()
+    deactivate Middlewares
+    Route->>Controller: 27. chatController.detail(req, res)
+    activate Controller
+    Controller->>Service: 28. chatService.getConversation(userId, id, agencyId)
+    activate Service
+    Service->>DAO: 29. chatRepository.findConversation(id)
+    activate DAO
+    DAO->>Database: 30. SELECT "Conversation" WHERE id
+    activate Database
+    Database-->>DAO: 31. conversation
+    deactivate Database
+    DAO-->>Service: 32. conversation
+    deactivate DAO
+    Service-->>Controller: 33. AppError 404 (agencyId mismatch)
+    deactivate Service
+    Controller-->>Frontend: 34. 404 NOT_FOUND
+    deactivate Controller
+    Frontend-->>User: 35. No cross-tenant read
+    deactivate Frontend
+    deactivate Route
+    deactivate App
+    deactivate Server

@@ -1,0 +1,71 @@
+classDiagram
+%% 3.16.2 Ho so doanh nghiep
+%% PATCH /users/me, POST /users/me/agency-verification
+
+class UsersController {
+  <<Controller>>
+  +updateMe(UUID userId, UpdateProfileInput body) PrivateUserDto
+  +requestAgencyVerification(UUID userId) PrivateUserDto
+}
+
+class UsersService {
+  <<Service>>
+  +updateMe(UUID userId, UpdateProfileInput input) PrivateUserDto
+  +requestAgencyVerification(UUID userId) PrivateUserDto
+}
+
+class UsersRepository {
+  <<Repository>>
+  +updateById(UUID id, UserPatch patch) UserRecord
+}
+
+class PrismaClient {
+  <<DAO>>
+  +User user
+  +AgencyProfile agencyProfile
+}
+
+class User {
+  +UUID id
+  +String email
+  +String fullName
+  +String phone
+  +String role
+  +String status
+}
+
+class AgencyProfile {
+  +UUID id
+  +String companyName
+  +String address
+  +String licenseNumber
+  +String taxId
+  +String businessLicenseUrl
+  +AgencyVerificationStatus verificationStatus
+  +Date submittedAt
+}
+
+class UpdateProfileInput {
+  <<DTO>>
+  +String fullName
+  +String phone
+  +AgencyProfileInput agencyProfile
+}
+
+class PrivateUserDto {
+  <<DTO>>
+  +UUID id
+  +String email
+  +String fullName
+  +AgencyProfileDto agencyProfile
+}
+
+UsersController "1" ..> "1" UsersService : delegates
+UsersController ..> "1" UpdateProfileInput : validates
+UsersController "1" ..> "1" PrivateUserDto : returns
+UsersService "1" --> "1" User : updates
+UsersService "1" --> "0..1" AgencyProfile : upserts
+UsersService ..> "1" UsersRepository : persists
+UsersService ..> "1" PrivateUserDto : maps
+UsersRepository ..> "1" PrismaClient : uses
+User "1" --> "0..1" AgencyProfile : owns

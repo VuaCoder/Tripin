@@ -1,0 +1,58 @@
+classDiagram
+%% 3.4.4 Luu tru va khoi phuc tour
+%% DELETE /agency/tours/:id, POST /agency/tours/:id/restore
+
+class ToursController {
+  <<Controller>>
+  +remove(AgencyContext ctx, UUID id) void
+  +restore(AgencyContext ctx, UUID id) TourManageDto
+}
+
+class ToursService {
+  <<Service>>
+  +deleteTour(UUID agencyId, UUID id) void
+  +restoreTour(UUID agencyId, UUID id) TourManageDto
+}
+
+class ToursRepository {
+  <<Repository>>
+  +findById(UUID id) TourRecord
+  +updateIfStatus(UUID id, List~TourStatus~ expected, TourPatch patch, AuditEntry audit) TourRecord
+  +countBookings(UUID tourId) int
+}
+
+class PrismaClient {
+  <<DAO>>
+  +Tour tour
+  +Booking booking
+}
+
+class Tour {
+  +UUID id
+  +UUID agencyId
+  +String title
+  +String status
+  +Date archivedAt
+}
+
+class Booking {
+  +UUID id
+  +UUID tourId
+  +String status
+  +int participants
+}
+
+class TourManageDto {
+  <<DTO>>
+  +UUID id
+  +String title
+  +String status
+}
+
+ToursController "1" ..> "1" ToursService : delegates
+ToursService "1" --> "1" Tour : archives
+ToursService ..> "1" ToursRepository : persists
+ToursService ..> "1" TourManageDto : maps
+ToursRepository ..> "1" PrismaClient : uses
+Tour "1" --> "*" Booking : referenced by
+Tour ..> "1" TourManageDto : projected to

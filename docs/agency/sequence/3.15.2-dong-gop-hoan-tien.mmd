@@ -1,0 +1,123 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. OWNER clicks "Stop new vouchers" on a contribution
+    activate Frontend
+    Frontend->>Server: 2. POST /api/v1/agency/premium/contributions/{id}/stop
+    activate Server
+    Server->>App: 3. createApp() handles the request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency/premium', resolveAgencyContext, requireVerifiedAgency, agencyPremiumRouter)
+    activate Route
+    Route->>Middlewares: 5. requireAuth -> role('AGENCY') -> requirePermission(premium:contribute) -> validate(params)
+    activate Middlewares
+    alt Not OWNER
+        Middlewares-->>Frontend: 6. 403 FORBIDDEN
+    else Valid
+        Middlewares-->>Route: 7. next()
+        deactivate Middlewares
+        Route->>Controller: 8. handler(req, res)
+        activate Controller
+        Controller->>Service: 9. premiumRepository.stopContribution(id, agencyId)
+        activate Service
+        Service->>DAO: 10. prisma.premiumContribution.updateMany({ id, agencyId })
+        activate DAO
+        DAO->>Database: 11. UPDATE "PremiumContribution" SET acceptingNew = false
+        activate Database
+        Database-->>DAO: 12. updated row count
+        deactivate Database
+        alt Contribution of the agency not found
+            DAO-->>Service: 13. count = 0
+            Service-->>Controller: 14. AppError 404
+            Controller-->>Frontend: 15. 404 NOT_FOUND
+            Frontend-->>User: 16. Reload the list
+        else Found
+            DAO-->>Service: 17. OK
+            deactivate DAO
+            Service-->>Controller: 18. { stopped: true }
+            deactivate Service
+            Controller-->>Frontend: 19. 200 OK
+            deactivate Controller
+            Frontend-->>User: 20. Contribution stops accepting vouchers, issued vouchers still valid
+        end
+    end
+    User->>Frontend: 21. Super Admin approves the contribution in /admin/premium
+    Frontend->>Server: 22. PATCH /api/v1/admin/premium/contributions/{id} { status: APPROVED }
+    Server->>App: 23. createApp() handles the request
+    App->>Route: 24. apiRouter.use('/admin/premium', adminPremiumRouter)
+    Route->>Middlewares: 25. requireSuperAdmin -> requirePermission(premium:manage) -> validate(params, body)
+    activate Middlewares
+    Middlewares-->>Route: 26. next()
+    deactivate Middlewares
+    Route->>Controller: 27. handler(req, res)
+    activate Controller
+    Controller->>Service: 28. premiumRepository.decideContribution(id, status)
+        activate Service
+        Service->>DAO: 29. prisma.premiumContribution.update({ id, status: PENDING })
+        activate DAO
+        DAO->>Database: 30. UPDATE "PremiumContribution", INSERT "AuditLog"
+        activate Database
+        Database-->>DAO: 31. contribution
+        deactivate Database
+        alt Contribution no longer PENDING
+            DAO-->>Service: 32. Prisma error P2025
+            Service-->>Controller: 33. 404/409
+            Controller-->>Frontend: 34. 4xx
+            Frontend-->>User: 35. Reload the queue
+        else Success
+            DAO-->>Service: 36. contribution
+            deactivate DAO
+            Service-->>Controller: 37. contribution DTO
+            deactivate Service
+            Controller-->>Frontend: 38. 200 OK
+            deactivate Controller
+            Frontend-->>User: 39. Contribution moves to APPROVED/REJECTED
+            deactivate Frontend
+        end
+        deactivate Route
+        deactivate App
+        deactivate Server

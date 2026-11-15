@@ -34,6 +34,7 @@ export function AgencyCustomToursPage() {
   const { data, isLoading, isError, refetch } = useListCustomToursQuery({
     page,
     limit: PAGE_SIZE,
+    side: 'agency',
     ...(status === 'ALL' ? {} : { status }),
   });
   const [decide] = useDecideCustomTourMutation();

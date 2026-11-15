@@ -1,0 +1,93 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. Agency member UNVERIFIED/PENDING opens /agency/tours
+    activate Frontend
+    Frontend->>Server: 2. GET /api/v1/agency/tours?page=1 (X-Agency-Id)
+    activate Server
+    Server->>App: 3. createApp() handles request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency/tours', resolveAgencyContext, requireVerifiedAgency, agencyToursRouter)
+    activate Route
+    Route->>Middlewares: 5. resolveAgencyContext -> requireVerifiedAgency
+    activate Middlewares
+    Middlewares->>DAO: 6. prisma.agencyProfile.findUnique(agencyId)
+    activate DAO
+    DAO->>Database: 7. SELECT "AgencyProfile".verificationStatus
+    activate Database
+    Database-->>DAO: 8. UNVERIFIED / PENDING
+    deactivate Database
+    DAO-->>Middlewares: 9. profile
+    deactivate DAO
+    alt verificationStatus is not VERIFIED
+        Middlewares-->>Frontend: 10. 403 FORBIDDEN "Agency must be verified"
+        Frontend-->>User: 11. Render "Business is unverified" notice
+    else Already VERIFIED
+        Middlewares-->>Route: 12. next()
+        deactivate Middlewares
+        Route->>Controller: 13. toursController.listOwn(req, res)
+        activate Controller
+        Controller->>Service: 14. toursService.listOwn(agencyId, query)
+        activate Service
+        Service->>DAO: 15. toursRepository.listByAgency(agencyId, query)
+        activate DAO
+        DAO->>Database: 16. SELECT "Tour" of the agency
+        activate Database
+        Database-->>DAO: 17. items + total
+        deactivate Database
+        DAO-->>Service: 18. TourRecord[]
+        deactivate DAO
+        Service-->>Controller: 19. Page<TourManageDto>
+        deactivate Service
+        Controller-->>Frontend: 20. 200 OK
+        deactivate Controller
+        Frontend-->>User: 21. Open full features by role
+        deactivate Frontend
+        deactivate Route
+        deactivate App
+        deactivate Server
+    end

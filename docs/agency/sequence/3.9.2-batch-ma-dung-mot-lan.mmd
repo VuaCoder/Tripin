@@ -1,0 +1,100 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. Voucher UNIQUE_BATCH -> enter count, prefix -> "Generate codes"
+    activate Frontend
+    Frontend->>Server: 2. POST /api/v1/agency/promotions/{id}/generate-batch { count, prefix }
+    activate Server
+    Server->>App: 3. createApp() handles the request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency/promotions', resolveAgencyContext, requireVerifiedAgency, agencyPromotionsRouter)
+    activate Route
+    Route->>Middlewares: 5. requirePermission(promotion:agency-manage) -> validate(params, body)
+    activate Middlewares
+    alt Missing permission or invalid count
+        Middlewares-->>Frontend: 6. 403/400
+    else Valid
+        Middlewares-->>Route: 7. next()
+        deactivate Middlewares
+        Route->>Controller: 8. promotionsController.generateBatchAgency(req, res)
+        activate Controller
+        Controller->>Service: 9. promotionsService.generateCodeBatch(actor, id, count, prefix)
+        activate Service
+        Service->>DAO: 10. promotionsRepository.findById(id)
+        activate DAO
+        DAO->>Database: 11. SELECT "Promotion" WHERE id
+        activate Database
+        Database-->>DAO: 12. promotion
+        deactivate Database
+        alt Voucher belongs to another agency or does not exist
+            DAO-->>Service: 13. null / other ownerId
+            Service-->>Controller: 14. AppError 403/404
+            Controller-->>Frontend: 15. 403/404
+            Frontend-->>User: 16. Report no permission
+        else Voucher of the agency
+            DAO-->>Service: 17. promotion
+            deactivate DAO
+            Service->>Service: 18. Build a set of unique codes in memory (prefix + 6 chars)
+            Service->>DAO: 19. promotionsRepository.createCodeInstances(id, codes)
+            activate DAO
+            DAO->>Database: 20. INSERT "PromotionCodeInstance" (single-use code each)
+            activate Database
+            Database-->>DAO: 21. instances
+            deactivate Database
+            DAO-->>Service: 22. OK
+            deactivate DAO
+            Service-->>Controller: 23. string[] of new codes
+            deactivate Service
+            Controller-->>Frontend: 24. 200 OK
+            deactivate Controller
+            Frontend-->>User: 25. Show code list + export button to send guests
+            deactivate Frontend
+        end
+        deactivate Route
+        deactivate App
+        deactivate Server
+    end

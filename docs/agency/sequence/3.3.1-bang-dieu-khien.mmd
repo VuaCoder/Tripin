@@ -1,0 +1,84 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. Open /agency (agency overview)
+    activate Frontend
+    Frontend->>Server: 2. GET /api/v1/agency/dashboard
+    activate Server
+    Server->>App: 3. createApp() handles the request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency/dashboard', resolveAgencyContext, requireVerifiedAgency, agencyDashboardRouter)
+    activate Route
+    Route->>Middlewares: 5. resolveAgencyContext -> requireVerifiedAgency -> requirePermission(agency:dashboard)
+    activate Middlewares
+    alt Agency not VERIFIED or missing permission
+        Middlewares-->>Frontend: 6. 403 FORBIDDEN
+    else Valid
+        Middlewares-->>Route: 7. next() with req.agencyContext
+        deactivate Middlewares
+        Route->>Controller: 8. dashboardsController.agency(req, res)
+        activate Controller
+        Controller->>Service: 9. dashboardsService.agencyDashboard(agencyId)
+        activate Service
+        Service->>DAO: 10. agencyCache.getOrCompute(agencyId) -> bookings.getAgencyStats, tours.countByStatus, reports.countOpenForAgency
+        activate DAO
+        DAO->>Database: 11. Aggregate "Booking" (revenue, top tour), "Tour" (status), "Report" (open complaints)
+        activate Database
+        Database-->>DAO: 12. Aggregated result per agencyId
+        deactivate Database
+        DAO-->>Service: 13. stats + tourCounts + openComplaints
+        deactivate DAO
+        Service-->>Controller: 14. AgencyDashboardDto (cache TTL)
+        deactivate Service
+        Controller-->>Frontend: 15. 200 OK + KPIs, chart, top tours
+        deactivate Controller
+        Frontend-->>User: 16. Render the dashboard, switch 7/30 day, 6 month period
+        deactivate Frontend
+        deactivate Route
+        deactivate App
+        deactivate Server
+    end

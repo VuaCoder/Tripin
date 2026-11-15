@@ -1,0 +1,105 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. OWNER edits the business profile at /agency/settings/profile
+    activate Frontend
+    Frontend->>Server: 2. PATCH /api/v1/users/me { agencyProfile: { companyName, taxId, address, ... } }
+    activate Server
+    Server->>App: 3. createApp() handles request
+    activate App
+    App->>Route: 4. apiRouter.use('/users', usersRouter)
+    activate Route
+    Route->>Middlewares: 5. requirePermission(profile:update-own) -> validate(body)
+    activate Middlewares
+    alt Missing profile:update-own
+        Middlewares-->>Frontend: 6. 403 FORBIDDEN
+    else Valid
+        Middlewares-->>Route: 7. next()
+        deactivate Middlewares
+        Route->>Controller: 8. usersController.updateMe(req, res)
+        activate Controller
+        Controller->>Service: 9. usersService.updateMe(userId, body)
+        activate Service
+        Service->>DAO: 10. requireUser + assertLegacyAgencyOwner(userId)
+        activate DAO
+        DAO->>Database: 11. SELECT "User" + "AgencyMember" WHERE agency.userId = userId AND role OWNER AND ACTIVE
+        activate Database
+        Database-->>DAO: 12. user + membership
+        deactivate Database
+        alt Not a legacy business owner
+            DAO-->>Service: 13. null
+            Service-->>Controller: 14. AppError 403 "Active agency OWNER membership required"
+            Controller-->>Frontend: 15. 403 FORBIDDEN
+            Frontend-->>User: 16. Switch form to read-only + permission notice
+        else Is the business owner
+            DAO-->>Service: 17. user + membership
+            deactivate DAO
+            alt Legal details changed while VERIFIED
+                Service-->>Controller: 18. AppError 409 AGENCY_REVERIFICATION_REQUIRED
+                Controller-->>Frontend: 19. 409 reverification required
+                Frontend-->>User: 20. Show warning, do not save
+            else Valid
+                Service->>DAO: 21. usersRepository.update(userId, patch) + agencyProfile update
+                activate DAO
+                DAO->>Database: 22. UPDATE "User", UPDATE "AgencyProfile" (description, address, license)
+                activate Database
+                Database-->>DAO: 23. user + agencyProfile
+                deactivate Database
+                DAO-->>Service: 24. new data
+                deactivate DAO
+                Service-->>Controller: 25. PrivateUserDto
+                deactivate Service
+                Controller-->>Frontend: 26. 200 OK
+                deactivate Controller
+                Frontend-->>User: 27. Saved toast, verification status unchanged
+                deactivate Frontend
+            end
+        end
+        deactivate Route
+        deactivate App
+        deactivate Server
+    end

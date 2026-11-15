@@ -1,0 +1,58 @@
+classDiagram
+%% 3.4.1 Danh sach tour
+%% GET /agency/tours
+
+class ToursController {
+  <<Controller>>
+  +listOwn(AgencyContext ctx) Page~TourManageDto~
+}
+
+class ToursService {
+  <<Service>>
+  +listOwn(UUID agencyId, ListToursQuery query) Page~TourManageDto~
+}
+
+class ToursRepository {
+  <<Repository>>
+  +listByAgency(UUID agencyId, String status, PageRequest page) Page
+}
+
+class PrismaClient {
+  <<DAO>>
+  +Tour tour
+}
+
+class Tour {
+  +UUID id
+  +UUID agencyId
+  +String title
+  +String destination
+  +String status
+  +BigInt basePrice
+  +int durationDays
+}
+
+class TourManageDto {
+  <<DTO>>
+  +UUID id
+  +String title
+  +String status
+  +String coverImage
+  +BigInt basePrice
+}
+
+class PageMeta {
+  <<DTO>>
+  +int page
+  +int limit
+  +int total
+}
+
+ToursController "1" ..> "1" ToursService : delegates
+ToursController "1" ..> "1" PageMeta : returns
+ToursService "1" --> "*" Tour : reads
+ToursService ..> "1" ToursRepository : queries
+ToursService ..> "1" TourManageDto : maps
+ToursRepository ..> "1" PrismaClient : uses
+Tour ..> "1" TourManageDto : projected to
+PageMeta ..> "*" TourManageDto : paginates
