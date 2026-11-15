@@ -41,19 +41,31 @@ const AGENCIES_TAG = { type: 'Moderation', id: 'AGENCIES' } as const;
 const REPORTS_TAG = { type: 'Report', id: 'MODERATION' } as const;
 const REVIEWS_TAG = { type: 'Review', id: 'MODERATION' } as const;
 const TICKETS_TAG = { type: 'SupportTicket', id: 'MODERATION' } as const;
+// Keep previously visited moderator queues available across route changes.
+// Mutations still invalidate their tags and refresh affected data immediately.
+const MODERATOR_CACHE_SECONDS = 10 * 60;
 
 /** Moderator endpoints mounted at `/api/v1/moderation` (dashboard, tours, agencies, disputes, reviews, complaints, bans). */
 export const moderationApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     getModerationDashboard: build.query<ModerationDashboard, void>({
+      keepUnusedDataFor: MODERATOR_CACHE_SECONDS,
       query: () => ({ url: '/moderation/dashboard' }),
       transformResponse: (r: ModerationApiResponse<ModerationDashboard>) => unwrap(r),
       providesTags: [DASHBOARD_TAG],
     }),
 
     getModerationTours: build.query<ModerationListResult<ModerationTour>, ListModerationToursArgs | void>({
+      keepUnusedDataFor: MODERATOR_CACHE_SECONDS,
       query: (args) => ({ url: '/moderation/tours', params: { page: 1, limit: 10, ...(args ?? {}) } }),
       transformResponse: (r: ModerationApiResponse<ModerationTour[]>) => toList(r),
+      providesTags: [TOURS_TAG],
+    }),
+
+    getModerationTour: build.query<ModerationTour, string>({
+      keepUnusedDataFor: MODERATOR_CACHE_SECONDS,
+      query: (id) => ({ url: `/moderation/tours/${id}` }),
+      transformResponse: (r: ModerationApiResponse<ModerationTour>) => unwrap(r),
       providesTags: [TOURS_TAG],
     }),
 
@@ -74,6 +86,7 @@ export const moderationApi = baseApi.injectEndpoints({
     }),
 
     getModerationAgencies: build.query<ModerationListResult<ModerationAgency>, ListModerationAgenciesArgs | void>({
+      keepUnusedDataFor: MODERATOR_CACHE_SECONDS,
       query: (args) => ({ url: '/moderation/agencies', params: { page: 1, limit: 10, ...(args ?? {}) } }),
       transformResponse: (r: ModerationApiResponse<ModerationAgency[]>) => toList(r),
       providesTags: [AGENCIES_TAG],
@@ -91,6 +104,7 @@ export const moderationApi = baseApi.injectEndpoints({
 
     /** Use case "Resolve disputes": the reports queue, open items first (the backend decides the order). */
     getModerationReports: build.query<ModerationListResult<ModerationReport>, ListModerationReportsArgs | void>({
+      keepUnusedDataFor: MODERATOR_CACHE_SECONDS,
       query: (args) => ({ url: '/moderation/reports', params: { page: 1, limit: 10, ...(args ?? {}) } }),
       transformResponse: (r: ModerationApiResponse<ModerationReport[]>) => toList(r),
       providesTags: [REPORTS_TAG],
@@ -104,6 +118,7 @@ export const moderationApi = baseApi.injectEndpoints({
 
     /** Use case "Moderate reviews". */
     getModerationReviews: build.query<ModerationListResult<ModerationReview>, ListModerationReviewsArgs | void>({
+      keepUnusedDataFor: MODERATOR_CACHE_SECONDS,
       query: (args) => ({ url: '/moderation/reviews', params: { page: 1, limit: 10, ...(args ?? {}) } }),
       transformResponse: (r: ModerationApiResponse<ModerationReview[]>) => toList(r),
       providesTags: [REVIEWS_TAG],
@@ -126,6 +141,7 @@ export const moderationApi = baseApi.injectEndpoints({
 
     /** Use case "Handle complaints": the support queue. */
     getModerationTickets: build.query<ModerationListResult<ModerationTicketSummary>, ListModerationTicketsArgs | void>({
+      keepUnusedDataFor: MODERATOR_CACHE_SECONDS,
       query: (args) => ({ url: '/moderation/support-tickets', params: { page: 1, limit: 10, ...(args ?? {}) } }),
       transformResponse: (r: ModerationApiResponse<ModerationTicketSummary[]>) => toList(r),
       providesTags: [TICKETS_TAG],
@@ -133,6 +149,7 @@ export const moderationApi = baseApi.injectEndpoints({
 
     /** The list row has no conversation, so the detail is read on selection. */
     getModerationTicket: build.query<ModerationTicket, string>({
+      keepUnusedDataFor: MODERATOR_CACHE_SECONDS,
       query: (id) => ({ url: `/moderation/support-tickets/${id}` }),
       transformResponse: (r: ModerationApiResponse<ModerationTicket>) => unwrap(r),
       providesTags: (result, error, id) => [{ type: 'SupportTicket', id }],
@@ -167,6 +184,7 @@ export const moderationApi = baseApi.injectEndpoints({
 export const {
   useGetModerationDashboardQuery,
   useGetModerationToursQuery,
+  useGetModerationTourQuery,
   useValidateTourMutation,
   useSuspendTourMutation,
   useGetModerationAgenciesQuery,

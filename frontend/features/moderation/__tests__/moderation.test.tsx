@@ -12,6 +12,7 @@ let permissions: string[] = [];
 
 vi.mock('../api/moderationApi', () => ({
   useGetModerationToursQuery: (...a: unknown[]) => mockTours(...a),
+  useGetModerationTourQuery: (id: string) => ({ data: id ? mockTours()?.data?.items?.find((item: ModerationTour) => item.id === id) : undefined, isFetching: false, isError: false, refetch: vi.fn() }),
   useGetModerationAgenciesQuery: (...a: unknown[]) => mockAgencies(...a),
   useGetModerationDashboardQuery: (...a: unknown[]) => mockDashboard(...a),
   useValidateTourMutation: () => [mockValidate, { isLoading: false }],
@@ -85,12 +86,24 @@ describe('permissions', () => {
       unmount();
     }
     // The queries are skipped so no request is sent.
-    expect(mockTours.mock.calls[0][1]).toEqual({ skip: true });
+    expect(mockTours.mock.calls[0][1]).toEqual({ skip: true, refetchOnMountOrArgChange: 60 });
   });
 });
 
 describe('ModerationTourListPage', () => {
   const allowAll = () => (permissions = ['tour:list-all', 'tour:validate', 'tour:suspend']);
+
+  it('opens the tour detail from the card and with the keyboard', () => {
+    allowAll();
+    mockTours.mockReturnValue(q({ data: { items: [tour()], meta: META } }));
+    render(<ModerationTourListPage />);
+    const card = screen.getByRole('button', { name: /Xem chi tiết tour/ });
+    fireEvent.click(card);
+    expect(screen.getByText('Agency gửi tour:')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Đóng/ }));
+    fireEvent.keyDown(card, { key: 'Enter' });
+    expect(screen.getByText('Agency gửi tour:')).toBeTruthy();
+  });
 
   it('renders loading, error and empty states', () => {
     allowAll();
@@ -112,6 +125,12 @@ describe('ModerationTourListPage', () => {
     render(<ModerationTourListPage />);
     fireEvent.click(screen.getByText('Xem & xử lý'));
     fireEvent.click(screen.getByText('Duyệt tour'));
+    expect(mockValidate).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Xác nhận duyệt tour' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    expect(mockValidate).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText('Duyệt tour'));
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận duyệt tour' }));
     await waitFor(() => expect(mockValidate).toHaveBeenCalledWith({ id: 't1', approve: true }));
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã duyệt tour'));
   });
@@ -122,6 +141,8 @@ describe('ModerationTourListPage', () => {
     render(<ModerationTourListPage />);
     fireEvent.click(screen.getByText('Xem & xử lý'));
     fireEvent.click(screen.getByText('Từ chối'));
+    expect(screen.getByLabelText('Lý do hủy')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận từ chối' }));
     expect(screen.getByText(/ít nhất 3 ký tự/)).toBeTruthy();
     expect(mockValidate).not.toHaveBeenCalled();
   });
@@ -133,8 +154,10 @@ describe('ModerationTourListPage', () => {
     mockSuspend.mockReturnValue(unwrapFail('INVALID_STATE_TRANSITION', 'nope'));
     render(<ModerationTourListPage />);
     fireEvent.click(screen.getByText('Xem & xử lý'));
-    fireEvent.change(screen.getByLabelText(/Lý do tạm ngưng/), { target: { value: 'Sai thông tin' } });
     fireEvent.click(screen.getByText('Tạm ngưng tour'));
+    expect(mockSuspend).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Lý do tạm ngưng'), { target: { value: 'Sai thông tin' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận tạm ngưng tour' }));
     await waitFor(() => expect(mockSuspend).toHaveBeenCalledWith({ id: 't1', reason: 'Sai thông tin' }));
     await waitFor(() => expect(screen.getAllByRole('alert')[0].textContent).toContain('Trạng thái hiện tại không cho phép'));
     expect(screen.queryByText(/Đã tạm ngưng tour/)).toBeNull();
@@ -213,6 +236,8 @@ describe('ModerationAgencyListPage', () => {
     expect(document.activeElement).toBe(screen.getByLabelText('Ghi chú xử lý'));
     fireEvent.change(screen.getByLabelText('Ghi chú xử lý'), { target: { value: '  Bổ sung giấy phép rõ nét  ' } });
     fireEvent.click(screen.getByText('Yêu cầu bổ sung'));
+    expect(mockVerify).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận yêu cầu bổ sung' }));
     await waitFor(() => expect(mockVerify).toHaveBeenCalledWith({ id: 'u1', approve: false, requestInformation: true, note: 'Bổ sung giấy phép rõ nét' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
@@ -235,6 +260,11 @@ describe('ModerationAgencyListPage', () => {
     render(<ModerationAgencyListPage />);
     fireEvent.click(screen.getByText('Xem & xử lý'));
     fireEvent.click(screen.getByText('Xác minh'));
+    expect(mockVerify).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    expect(mockVerify).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText('Xác minh'));
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận xác minh' }));
     await waitFor(() => expect(mockVerify).toHaveBeenCalledWith({ id: 'u1', approve: true }));
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã xác minh agency'));
   });
@@ -249,6 +279,19 @@ describe('ModerationAgencyListPage', () => {
     expect(mockVerify).not.toHaveBeenCalled();
   });
 
+  it('confirms rejection before sending the note', async () => {
+    permissions = ['agency:verify'];
+    mockAgencies.mockReturnValue(q({ data: { items: [agency()], meta: META } }));
+    mockVerify.mockReturnValue(unwrapOk());
+    render(<ModerationAgencyListPage />);
+    fireEvent.click(screen.getByText('Xem & xử lý'));
+    fireEvent.change(screen.getByLabelText('Ghi chú xử lý'), { target: { value: 'Giấy phép không hợp lệ' } });
+    fireEvent.click(screen.getByText('Từ chối'));
+    expect(mockVerify).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận từ chối' }));
+    await waitFor(() => expect(mockVerify).toHaveBeenCalledWith({ id: 'u1', approve: false, note: 'Giấy phép không hợp lệ' }));
+  });
+
   it('shows the backend error on failure and no success message', async () => {
     permissions = ['agency:verify'];
     mockAgencies.mockReturnValue(q({ data: { items: [agency()], meta: META } }));
@@ -256,6 +299,7 @@ describe('ModerationAgencyListPage', () => {
     render(<ModerationAgencyListPage />);
     fireEvent.click(screen.getByText('Xem & xử lý'));
     fireEvent.click(screen.getByText('Xác minh'));
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận xác minh' }));
     await waitFor(() => expect(screen.getAllByRole('alert')[0].textContent).toContain('không có quyền'));
     expect(screen.queryByText(/Đã xác minh agency/)).toBeNull();
   });

@@ -167,6 +167,7 @@ export const complaintsApi = baseApi.injectEndpoints({
 
     // Moderator
     getModeratorComplaints: build.query<ComplaintListResult, ListComplaintsArgs | void>({
+      keepUnusedDataFor: 10 * 60,
       query: (args) => ({
         url: '/moderation/complaint-tickets',
         params: { page: 1, limit: 10, ...(args ?? {}) },
@@ -191,6 +192,7 @@ export const complaintsApi = baseApi.injectEndpoints({
     }),
 
     getAgencyQualityDashboard: build.query<AgencyQualityStats[], void>({
+      keepUnusedDataFor: 10 * 60,
       query: () => '/moderation/complaint-tickets/dashboard/agency-quality',
       transformResponse: (res: ApiResponse<AgencyQualityStats[]>) => res.data,
       providesTags: [{ type: COMPLAINT_TAG, id: 'DASHBOARD_QUALITY' }],

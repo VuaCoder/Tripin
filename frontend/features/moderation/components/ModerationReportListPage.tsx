@@ -34,6 +34,11 @@ import { DecisionDialog, type DecisionAction } from './DecisionDialog';
 import { dateTime, FeedbackBanner, ModerationDenied, moderationErrorMessage, useModerationPermission, type Feedback } from './ModerationUi';
 
 const PAGE_SIZE = 10;
+const reportDateTime = (value: string) => {
+  const date = new Date(value);
+  const formatted = dateTime.format(date);
+  return date.getFullYear() === new Date().getFullYear() ? formatted.replace(/\/\d{2}$/, '') : formatted;
+};
 type StatusFilter = 'ALL' | ReportStatus;
 type TargetFilter = 'ALL' | ReportTarget;
 type CategoryFilter = 'ALL' | ReportCategory;
@@ -67,7 +72,7 @@ export function ModerationReportListPage() {
       ...(targetType === 'ALL' ? {} : { targetType }),
       ...(category === 'ALL' ? {} : { category }),
     },
-    { skip: !canResolve },
+    { skip: !canResolve, refetchOnMountOrArgChange: 60 },
   );
   const [resolveReport, { isLoading: isResolving }] = useResolveReportMutation();
   const [banAccount, { isLoading: isBanning }] = useBanAccountMutation();
@@ -650,7 +655,7 @@ export function ModerationReportListPage() {
                     {/* Right side: Date and Action */}
                     <div className="flex items-center justify-between sm:flex-col sm:items-end sm:justify-center shrink-0 gap-1.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                       <span className="text-[11px] text-slate-400 font-medium">
-                        {dateTime.format(new Date(r.createdAt))}
+                        {reportDateTime(r.createdAt)}
                       </span>
                       <button
                         type="button"
@@ -757,7 +762,7 @@ export function ModerationReportListPage() {
             {selected.agencyResponse && (
               <div className="rounded-xl border border-teal-200/80 bg-teal-50/60 p-3.5">
                 <p className="text-xs font-bold text-teal-800">
-                  Phản hồi của đối tác · {dateTime.format(new Date(selected.agencyResponse.respondedAt))}
+                  Phản hồi của đối tác · {reportDateTime(selected.agencyResponse.respondedAt)}
                 </p>
                 <p className="mt-1 whitespace-pre-wrap text-slate-800">{selected.agencyResponse.text}</p>
               </div>
@@ -765,7 +770,7 @@ export function ModerationReportListPage() {
             {selected.resolution && (
               <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
                 <p className="text-xs font-bold text-emerald-800">
-                  Quyết định trước đó ({selected.resolution.decision === 'RESOLVED' ? 'chấp nhận' : 'bác bỏ'}) · {dateTime.format(new Date(selected.resolution.resolvedAt))}
+                  Quyết định trước đó ({selected.resolution.decision === 'RESOLVED' ? 'chấp nhận' : 'bác bỏ'}) · {reportDateTime(selected.resolution.resolvedAt)}
                 </p>
                 <p className="mt-1 whitespace-pre-wrap text-slate-800">{selected.resolution.note}</p>
               </div>
@@ -830,7 +835,7 @@ export function ModerationReportListPage() {
                             </span>
                             <span>({m.senderRole})</span>
                             <span>·</span>
-                            <span>{dateTime.format(new Date(m.createdAt))}</span>
+                            <span>{reportDateTime(m.createdAt)}</span>
                           </div>
                           <div
                             className={`max-w-[85%] rounded-2xl p-2.5 text-xs shadow-2xs whitespace-pre-wrap ${
@@ -880,7 +885,7 @@ export function ModerationReportListPage() {
                             {isReporter ? (selected.reporterName || 'Du khách') : (selected.agencyName || 'Đối tác')}
                           </span>
                           {' · '}
-                          {dateTime.format(new Date(m.createdAt))}
+                          {reportDateTime(m.createdAt)}
                         </div>
                         <div
                           className={`max-w-[85%] rounded-2xl p-2.5 text-xs ${

@@ -1,6 +1,7 @@
 /** Wire shapes of `/moderation/*` (see backend `moderation`, `tours`, `users`, `reports`, `reviews`, `support` and `dashboards` modules). */
 
 import type { MyReport, ReportCategory, ReportStatus, ReportTarget } from '@/features/report/types';
+import type { AgePricing } from '@travel-platform/constants';
 
 export type ModerationTourStatus = 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'ARCHIVED';
 export type AgencyVerificationStatus = 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'INFORMATION_REQUESTED';
@@ -39,6 +40,20 @@ export interface ModerationDashboard {
 }
 
 export interface ModerationTour {
+  visibility?: 'PUBLIC' | 'PRIVATE';
+  categoryIds?: string[];
+  categories?: { id: string; name: string }[];
+  highlights?: string[];
+  maxGroupSize?: number;
+  meetingPoint?: string;
+  travelNotes?: string;
+  requiredDocuments?: string;
+  cancellationPolicy?: string;
+  childPricingPolicy?: string;
+  agePricing?: AgePricing | null;
+  departures?: { id: string; date: string; capacity: number; remaining: number; price: number; isOpen: boolean }[];
+  guide?: { id: string; fullName: string };
+  guideAssignment?: { feePerBooking: number; status: string; respondedAt?: string; note?: string };
   id: string;
   title: string;
   summary?: string;

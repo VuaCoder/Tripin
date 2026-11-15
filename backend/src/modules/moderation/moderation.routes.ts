@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PERMISSIONS } from '@travel-platform/constants';
-import { requirePermission, requireSuperAdmin } from '../../middlewares/authorize';
+import { requireAnyPermission, requirePermission, requireSuperAdmin } from '../../middlewares/authorize';
 import { validate } from '../../middlewares/validate';
 import { moderationController as c } from './moderation.controller';
 import {
@@ -31,7 +31,7 @@ export const moderationRouter = Router();
 
 // Tour lists, validation, suspension
 moderationRouter.get('/tours', requirePermission(P.TOUR_LIST_ALL), validate({ query: listToursQuery }), c.listTours);
-moderationRouter.get('/tours/:id', requirePermission(P.TOUR_LIST_ALL), validate({ params: idParams }), c.getTour);
+moderationRouter.get('/tours/:id', requireAnyPermission(P.TOUR_LIST_ALL, P.REVIEW_MODERATE), validate({ params: idParams }), c.getTour);
 moderationRouter.post('/tours/:id/validate', requirePermission(P.TOUR_VALIDATE), validate({ params: idParams, body: validateTourBody }), c.validateTour);
 moderationRouter.post('/tours/:id/suspend', requirePermission(P.TOUR_SUSPEND), validate({ params: idParams, body: suspendTourBody }), c.suspendTour);
 

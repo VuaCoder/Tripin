@@ -5,9 +5,9 @@ import {
   AlertTriangle,
   Ban,
   ChevronDown,
-  Compass,
   Eye,
   EyeOff,
+  FileText,
   RefreshCw,
   Search,
   User,
@@ -16,12 +16,13 @@ import {
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
 import { Pagination, AntSelect, type AntSelectOption } from '@/components/ui';
 import { RatingStars } from '@/features/review/components';
-import { useBanAccountMutation, useGetModerationReviewsQuery, useModerateReviewMutation } from '../api/moderationApi';
+import { useBanAccountMutation, useGetModerationTourQuery, useGetModerationReviewsQuery, useModerateReviewMutation } from '../api/moderationApi';
 import { PERMISSION, REVIEW_STATUS_LABELS } from '../labels';
 import type { ModerationReview, ReviewStatus } from '../types';
 import { DecisionDialog, type DecisionAction } from './DecisionDialog';
 import { FeedbackBanner, ModerationDenied, moderationErrorMessage, useModerationPermission, type Feedback } from './ModerationUi';
 import { ReviewModerationQueue } from './ReviewModerationQueue';
+import { ModerationTourDetails } from './ModerationTourDetails';
 
 const PAGE_SIZE = 10;
 type StatusFilter = 'ALL' | ReviewStatus;
@@ -64,7 +65,7 @@ export function ModerationReviewListPage({ hideTitle = false }: Props = {}) {
 
   const { data, isLoading, isFetching, isError, refetch } = useGetModerationReviewsQuery(
     { page, limit: PAGE_SIZE, ...(filter === 'ALL' ? {} : { status: filter }) },
-    { skip: !canModerate },
+    { skip: !canModerate, refetchOnMountOrArgChange: 60 },
   );
 
   const reportedCount = useMemo(() => {
@@ -82,6 +83,8 @@ export function ModerationReviewListPage({ hideTitle = false }: Props = {}) {
 
   const [banDuration, setBanDuration] = useState('7 ngày');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedTourId, setSelectedTourId] = useState<string | null>(null);
+  const { data: selectedTour, isFetching: isLoadingTour, isError: isTourError, refetch: refetchTour } = useGetModerationTourQuery(selectedTourId ?? '', { skip: !selectedTourId, refetchOnMountOrArgChange: 60 });
   const [dialogAction, setDialogAction] = useState<'moderate' | 'ban'>('moderate');
   const [serverError, setServerError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -92,6 +95,7 @@ export function ModerationReviewListPage({ hideTitle = false }: Props = {}) {
 
   const close = () => {
     setSelectedId(null);
+    setSelectedTourId(null);
     setServerError(null);
   };
 
@@ -115,6 +119,7 @@ export function ModerationReviewListPage({ hideTitle = false }: Props = {}) {
       tone: 'negative',
       requiresReason: false,
       hideIcon: true,
+      confirmationMessage: `Bạn có chắc chắn muốn khoá tài khoản của "${selected.travelerName || 'người dùng'}"?${selected.status === 'VISIBLE' ? ' Đánh giá đang hiển thị cũng sẽ được ẩn.' : ''}`,
       onConfirm: () =>
         void decide(
           async () => {
@@ -152,6 +157,7 @@ export function ModerationReviewListPage({ hideTitle = false }: Props = {}) {
         label: 'Ẩn đánh giá',
         tone: 'negative',
         requiresReason: true,
+        confirmationMessage: `Bạn có chắc chắn muốn ẩn đánh giá của "${selected.travelerName || 'người dùng'}" khỏi tour "${selected.tourTitle}"?`,
         onConfirm: (reason) =>
           void decide(
             () => moderateReview({ id: selected.id, contentVersion: selected.contentVersion, hide: true, reason }).unwrap(),
@@ -166,6 +172,7 @@ export function ModerationReviewListPage({ hideTitle = false }: Props = {}) {
         label: 'Khôi phục đánh giá',
         tone: 'positive',
         requiresReason: true,
+        confirmationMessage: `Bạn có chắc chắn muốn khôi phục đánh giá của "${selected.travelerName || 'người dùng'}" trên tour "${selected.tourTitle}"?`,
         onConfirm: (restorationReason) =>
           void decide(
             () => moderateReview({ id: selected.id, contentVersion: selected.contentVersion, hide: false, restorationReason }).unwrap(),
@@ -178,8 +185,8 @@ export function ModerationReviewListPage({ hideTitle = false }: Props = {}) {
 
   const dialogTitle =
     dialogAction === 'ban'
-      ? 'Xác nhận khoá tài khoản'
-      : 'Xác nhận xử lý đánh giá';
+      ? 'Chi tiết đánh giá và tài khoản'
+      : 'Chi tiết đánh giá';
 
   const reasonLabel =
     dialogAction === 'ban'
@@ -446,16 +453,12 @@ export function ModerationReviewListPage({ hideTitle = false }: Props = {}) {
                       className="flex items-center justify-between gap-3 bg-slate-100/90 px-4 py-3 border-b border-slate-200/80 hover:bg-slate-200/70 transition cursor-pointer select-none"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        {group.tourImage ? (
+                        {group.tourImage && (
                           <img
                             src={group.tourImage}
                             alt={group.tourTitle}
                             className="size-9 rounded-xl object-cover shrink-0 border border-slate-200 shadow-2xs"
                           />
-                        ) : (
-                          <div className="flex size-9 items-center justify-center rounded-xl bg-teal-600 text-white shrink-0 shadow-2xs font-bold text-xs">
-                            <Compass className="size-5" />
-                          </div>
                         )}
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="shrink-0 rounded-md bg-teal-700 px-2 py-0.5 text-[10px] font-bold text-white tracking-wide uppercase">
@@ -562,6 +565,18 @@ export function ModerationReviewListPage({ hideTitle = false }: Props = {}) {
                               <p className="mt-1.5 text-sm text-slate-800 leading-relaxed font-normal">
                                 {r.comment}
                               </p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setServerError(null);
+                                  setSelectedId(r.id);
+                                  setDialogAction('moderate');
+                                }}
+                                className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-teal-800 underline underline-offset-2 hover:text-teal-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                              >
+                                <FileText className="size-3.5" aria-hidden="true" />
+                                Xem chi tiết đánh giá
+                              </button>
 
                               {/* Lý do ẩn: nằm dưới nội dung, chữ nhỏ màu xám */}
                               {r.hiddenReason && (
@@ -615,7 +630,7 @@ export function ModerationReviewListPage({ hideTitle = false }: Props = {}) {
           role="dialog"
           aria-label="Xem ảnh phóng to"
           onClick={() => setLightboxImage(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-in fade-in"
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-in fade-in"
         >
           <div className="relative max-h-[90vh] max-w-4xl" onClick={(e) => e.stopPropagation()}>
             <button
@@ -639,16 +654,51 @@ export function ModerationReviewListPage({ hideTitle = false }: Props = {}) {
       {/* Decision Dialog Modal */}
       <DecisionDialog
         open={Boolean(selected)}
-        title={dialogTitle}
+        title={selectedTourId ? 'Chi tiết tour' : dialogTitle}
         reasonLabel={reasonLabel}
         hideReasonInput={dialogAction === 'ban'}
-        actions={actions}
+        className="max-h-[90vh] max-w-2xl overflow-y-auto"
+        actions={selectedTourId ? [] : actions}
         isSubmitting={isModerating || isBanning}
         serverError={serverError}
-        onClose={close}
+        onClose={selectedTourId ? () => setSelectedTourId(null) : close}
       >
-        {selected && (
+        {selectedTourId ? (
+          <div className="space-y-4">
+            <button type="button" onClick={() => setSelectedTourId(null)} className="text-sm font-semibold text-teal-800 underline underline-offset-2 hover:text-teal-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">
+              Quay lại đánh giá
+            </button>
+            {isLoadingTour && <p className="py-6 text-center text-slate-600">Đang tải chi tiết tour...</p>}
+            {isTourError && <div role="alert" className="rounded-xl bg-rose-50 p-4 text-rose-800">Không tải được chi tiết tour. <button type="button" className="font-semibold underline" onClick={() => void refetchTour()}>Thử lại</button></div>}
+            {selectedTour?.id === selectedTourId && !isLoadingTour && <ModerationTourDetails tour={selectedTour} />}
+          </div>
+        ) : selected && (
           <>
+            <section className="space-y-4 rounded-xl bg-slate-50 p-4 text-slate-800" aria-label="Thông tin đánh giá">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div><p className="text-xs font-semibold text-slate-500">Tour</p><button type="button" onClick={() => setSelectedTourId(selected.tourId)} className="text-left font-semibold text-teal-800 underline underline-offset-2 hover:text-teal-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">{selected.tourTitle}<span className="sr-only"> — xem chi tiết tour</span></button></div>
+                <div><p className="text-xs font-semibold text-slate-500">Đơn vị tổ chức</p><p>{selected.agencyName || 'Chưa có thông tin'}</p></div>
+                <div><p className="text-xs font-semibold text-slate-500">Người đánh giá</p><p>{selected.travelerName || 'Người dùng'}</p></div>
+                <div><p className="text-xs font-semibold text-slate-500">Thời gian</p><p>{formatReviewDate(selected.createdAt)}</p></div>
+                <div><p className="text-xs font-semibold text-slate-500">Số sao</p><RatingStars value={selected.rating} size="sm" /></div>
+                <div><p className="text-xs font-semibold text-slate-500">Trạng thái</p><p>{REVIEW_STATUS_LABELS[selected.status].label}</p></div>
+              </div>
+              <div><p className="text-xs font-semibold text-slate-500">Nội dung đánh giá</p><p className="mt-1 whitespace-pre-wrap break-words">{selected.comment || 'Không có nội dung'}</p></div>
+              {selected.images && selected.images.length > 0 && (
+                <div>
+                  <p className="mb-2 text-xs font-semibold text-slate-500">Ảnh đính kèm</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selected.images.map((img, index) => (
+                      <button key={`${img}-${index}`} type="button" onClick={() => setLightboxImage(img)} className="size-20 overflow-hidden rounded-lg border border-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={img} alt={`Ảnh đánh giá ${index + 1}`} className="size-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {selected.hiddenReason && <p className="text-sm"><span className="font-semibold">Lý do ẩn:</span> {selected.hiddenReason}</p>}
+            </section>
             {dialogAction === 'ban' ? (
               <div className="space-y-4">
                 <p className="font-bold text-sm sm:text-base text-slate-900 leading-snug">

@@ -35,7 +35,7 @@ export function ModerationTicketListPage() {
       ...(status === 'ALL' ? {} : { status }),
       ...(category === 'ALL' ? {} : { category }),
     },
-    { skip: !canHandle },
+    { skip: !canHandle, refetchOnMountOrArgChange: 60 },
   );
   const [reply, { isLoading: isReplying }] = useReplyToModerationTicketMutation();
   const [changeTicketStatus, { isLoading: isSettingStatus }] = useSetModerationTicketStatusMutation();
@@ -52,6 +52,7 @@ export function ModerationTicketListPage() {
     refetch: refetchTicket,
   } = useGetModerationTicketQuery(selectedId ?? '', {
     skip: !canHandle || !selectedId,
+    refetchOnMountOrArgChange: 60,
   });
 
   if (!canHandle) return <ModerationDenied />;

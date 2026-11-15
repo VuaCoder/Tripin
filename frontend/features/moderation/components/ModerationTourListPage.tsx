@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Search, RefreshCw, X, LayoutGrid, List, Compass, MapPin, Clock, Eye, AlertOctagon } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
 import { Pagination, AntSelect, Modal, type AntSelectOption } from '@/components/ui';
-import { useGetModerationToursQuery, useSuspendTourMutation, useValidateTourMutation } from '../api/moderationApi';
+import { useGetModerationTourQuery, useGetModerationToursQuery, useSuspendTourMutation, useValidateTourMutation } from '../api/moderationApi';
 import { PERMISSION, TOUR_STATUS_LABELS } from '../labels';
 import type { ModerationTour, ModerationTourStatus } from '../types';
 import { DecisionDialog, type DecisionAction } from './DecisionDialog';
+import { ModerationTourDetails } from './ModerationTourDetails';
 import { dateTime, FeedbackBanner, ModerationDenied, money, moderationErrorMessage, useModerationPermission, type Feedback } from './ModerationUi';
 
 const PAGE_SIZE = 12;
@@ -130,12 +131,13 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
 
   const { data, isLoading, isFetching, isError, refetch } = useGetModerationToursQuery(
     { page, limit: PAGE_SIZE, ...(filter === 'ALL' ? {} : { status: filter }), ...(q ? { q } : {}) },
-    { skip: !canList },
+    { skip: !canList, refetchOnMountOrArgChange: 60 },
   );
   const [validate, { isLoading: isValidating }] = useValidateTourMutation();
   const [suspend, { isLoading: isSuspending }] = useSuspendTourMutation();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { data: selectedDetail, isFetching: isLoadingDetail, isError: isDetailError, refetch: refetchDetail } = useGetModerationTourQuery(selectedId ?? '', { skip: !selectedId || !canList, refetchOnMountOrArgChange: 60 });
   const [quickActionTour, setQuickActionTour] = useState<{ id: string; action: 'suspend' | 'reject'; title: string } | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -143,7 +145,7 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
   if (!canList) return <ModerationDenied />;
 
   // Always read the open tour from the cache so the dialog reflects what the backend returned.
-  const selected: ModerationTour | null = data?.items.find((t) => t.id === selectedId) ?? null;
+  const selected: ModerationTour | null = selectedDetail?.id === selectedId ? selectedDetail : null;
 
   const close = () => {
     setSelectedId(null);
@@ -171,6 +173,7 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
         label: 'Duyệt tour',
         tone: 'positive',
         requiresReason: false,
+        confirmationMessage: `Bạn có chắc chắn muốn duyệt tour "${selected.title}" không?`,
         onConfirm: (reason) =>
           void decide(() => validate({ id: selected.id, approve: true, ...(reason ? { reason } : {}) }).unwrap(), `Đã duyệt tour "${selected.title}".`, 'Không thể duyệt tour lúc này. Vui lòng thử lại.'),
       },
@@ -179,6 +182,8 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
         label: 'Từ chối',
         tone: 'negative',
         requiresReason: true,
+        confirmationMessage: `Bạn có chắc chắn muốn từ chối tour "${selected.title}" không?`,
+        confirmationReasonLabel: 'Lý do hủy',
         onConfirm: (reason) =>
           void decide(() => validate({ id: selected.id, approve: false, reason }).unwrap(), `Đã từ chối tour "${selected.title}".`, 'Không thể từ chối tour lúc này. Vui lòng thử lại.'),
       },
@@ -190,6 +195,8 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
       label: 'Tạm ngưng tour',
       tone: 'negative',
       requiresReason: true,
+      confirmationMessage: `Bạn có chắc chắn muốn tạm ngưng tour "${selected.title}" không?`,
+      confirmationReasonLabel: 'Lý do tạm ngưng',
       onConfirm: (reason) =>
         void decide(() => suspend({ id: selected.id, reason }).unwrap(), `Đã tạm ngưng tour "${selected.title}".`, 'Không thể tạm ngưng tour lúc này. Vui lòng thử lại.'),
     });
@@ -360,7 +367,18 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
                 return (
                   <li
                     key={t.id}
-                    className="group flex flex-col justify-between overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xs transition hover:border-slate-300 hover:shadow-md"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Xem chi tiết tour ${t.title}`}
+                    onClick={() => { setServerError(null); setSelectedId(t.id); }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setServerError(null);
+                        setSelectedId(t.id);
+                      }
+                    }}
+                    className="group flex cursor-pointer flex-col justify-between overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xs transition hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
                   >
                     <div>
                       {/* Cover Photo */}
@@ -411,17 +429,12 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
                         {formatTourDate(t.updatedAt)}
                       </span>
                       <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setServerError(null);
-                            setSelectedId(t.id);
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-teal-900 shadow-2xs transition hover:bg-teal-50 cursor-pointer"
+                        <span
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-teal-900 shadow-2xs transition group-hover:bg-teal-50"
                         >
                           <Eye className="size-3.5 text-teal-700" />
                           <span>{t.status === 'PENDING_REVIEW' || t.status === 'APPROVED' ? 'Xem & xử lý' : 'Xem chi tiết'}</span>
-                        </button>
+                        </span>
                       </div>
                     </div>
                   </li>
@@ -440,7 +453,18 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
                 return (
                   <li
                     key={t.id}
-                    className="group rounded-3xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-slate-300 hover:shadow-sm"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Xem chi tiết tour ${t.title}`}
+                    onClick={() => { setServerError(null); setSelectedId(t.id); }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setServerError(null);
+                        setSelectedId(t.id);
+                      }
+                    }}
+                    className="group cursor-pointer rounded-3xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-slate-300 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
                   >
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                       <div className="flex items-center gap-4 min-w-0 flex-1">
@@ -493,17 +517,12 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
 
                       {/* Action */}
                       <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setServerError(null);
-                            setSelectedId(t.id);
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50/50 px-4 py-2 text-sm font-semibold text-teal-900 transition hover:bg-teal-100/80 cursor-pointer"
+                        <span
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50/50 px-4 py-2 text-sm font-semibold text-teal-900 transition group-hover:bg-teal-100/80"
                         >
                           <Eye className="size-4 text-teal-700" />
                           <span>{t.status === 'PENDING_REVIEW' || t.status === 'APPROVED' ? 'Xem & xử lý' : 'Xem chi tiết'}</span>
-                        </button>
+                        </span>
                       </div>
 
 
@@ -529,47 +548,18 @@ export function ModerationTourListPage({ initialStatus = 'ALL' }: Props) {
 
       {/* Decision Dialog Modal */}
       <DecisionDialog
-        open={Boolean(selected)}
+        open={Boolean(selectedId)}
         title="Chi tiết tour"
         reasonLabel={reasonLabel}
-        actions={actions}
+        actions={selected && !isLoadingDetail ? actions : []}
         isSubmitting={isValidating || isSuspending}
         serverError={serverError}
+        className="max-h-[90vh] max-w-3xl overflow-y-auto"
         onClose={close}
       >
-        {selected && (
-          <>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${TOUR_STATUS_LABELS[selected.status].className}`}>{TOUR_STATUS_LABELS[selected.status].label}</span>
-              <span className="text-slate-600">{selected.agency?.name ?? 'Không rõ agency'}</span>
-            </div>
-            <h3 className="text-base font-bold text-slate-900">{selected.title}</h3>
-            <p className="text-xs text-slate-500">
-              {selected.destination} · {selected.durationDays} ngày · {money.format(selected.basePrice)}
-              {selected.submittedAt ? ` · Gửi duyệt ${formatTourDate(selected.submittedAt)}` : ''}
-            </p>
-            {selected.description || selected.summary ? (
-              <p className="whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-slate-800">{selected.description || selected.summary}</p>
-            ) : null}
-            {selected.itinerary && selected.itinerary.length > 0 && (
-              <ol className="list-none space-y-1 pl-0 text-slate-700">
-                {selected.itinerary.map((d, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm">
-                    <span className="font-semibold text-slate-800 shrink-0">
-                      {d.toDay && d.toDay > d.day ? `Ngày ${d.day} – ${d.toDay}:` : `Ngày ${d.day}:`}
-                    </span>
-                    <span>{d.title}</span>
-                  </li>
-                ))}
-              </ol>
-            )}
-            {selected.statusReason && (
-              <p className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-amber-900">
-                <span className="font-bold">Lý do gần nhất:</span> {selected.statusReason}
-              </p>
-            )}
-          </>
-        )}
+        {isLoadingDetail && <p className="py-6 text-center text-slate-600">Đang tải chi tiết tour...</p>}
+        {isDetailError && <div role="alert" className="py-6 text-center text-rose-700">Không tải được chi tiết tour. <button type="button" className="font-semibold underline" onClick={() => void refetchDetail()}>Thử lại</button></div>}
+        {selected && !isLoadingDetail && <ModerationTourDetails tour={selected} />}
       </DecisionDialog>
 
       {/* Quick Confirmation Modal */}
