@@ -1,4 +1,4 @@
-import { baseApi } from '@/store/api/baseApi';
+import { baseApi, singlePageMeta } from '@/store/api/baseApi';
 import type { AgencyDashboard, AgencyGuide } from '@/features/agency/types';
 import type { AgencyTourListResult, ExtractedTourCandidate, ListToursArgs, TourApiError, TourApiResponse, TourCategory, TourContentInput, TourDestination, TourDetail, TourListItem, TourListResult, TourStatus } from '../types';
 
@@ -92,7 +92,7 @@ export const toursApi = baseApi.injectEndpoints({
     }),
     getAgencyGuides: build.query<{ items: AgencyGuide[]; meta: import('../types').TourListMeta }, { q?: string; page: number }>({
       query: (args) => ({ url: '/agency/guides', params: { ...args, limit: 20 } }),
-      transformResponse: (response: TourApiResponse<AgencyGuide[]>) => ({ items: response.data, meta: response.meta! }),
+      transformResponse: (response: TourApiResponse<AgencyGuide[]>) => ({ items: response.data, meta: response.meta ?? singlePageMeta(response.data.length, 20) }),
     }),
     assignAgencyTourGuide: build.mutation<TourDetail, { id: string; guideId: string | null; feePerBooking?: number }>({
       query: ({ id, ...body }) => ({ url: `/agency/tours/${id}/guide`, method: 'PUT', body }),

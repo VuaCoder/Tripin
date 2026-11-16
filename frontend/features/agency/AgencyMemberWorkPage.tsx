@@ -6,6 +6,7 @@ import { AgencyPageTitle } from './components/AgencyPageTitle';
 import { useTeamWorkToursQuery, useTeamWorkBookingsQuery, useSaveScopedTourContentMutation, type WorkTour } from './teamApi';
 import { agencyButton, agencyInput, agencyPanel, bookingStatusNames, dateTime } from './AgencyCommon';
 import { Pagination } from '@/components/ui/Pagination';
+import { Modal } from '@/components/ui/Modal';
 
 const statusTone: Record<string, string> = { CONFIRMED: 'bg-sky-50 text-sky-700 border border-sky-200/80', COMPLETED: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80', CANCELLED: 'bg-rose-50 text-rose-700 border border-rose-200/80', PENDING: 'bg-amber-50 text-amber-700 border border-amber-200/80' };
 const fieldNames: Record<string, string> = { title: 'Tiêu đề', summary: 'Tóm tắt', description: 'Mô tả' };
@@ -31,7 +32,7 @@ export function AgencyMemberWorkPage({ kind }: { kind: 'tours' | 'bookings' }) {
   const tourPage = (tours.data ?? []).slice(tourPageIndex * TOURS_PER_PAGE, (tourPageIndex + 1) * TOURS_PER_PAGE);
   return <main className="mx-auto max-w-6xl space-y-6 p-4 text-slate-900 sm:p-6">
     <header>{kind === 'tours' ? <AgencyPageTitle icon={Compass}>Nội dung tour được giao</AgencyPageTitle> : <AgencyPageTitle icon={CalendarCheck}>Theo dõi booking</AgencyPageTitle>}</header>
-    {error && <p role="alert" className="text-red-800">{error}</p>}{notice && <p role="status" className="text-teal-800">{notice}</p>}
+    {notice && <p role="status" className="text-teal-800">{notice}</p>}
     {active.isLoading ? <p role="status">Đang tải dữ liệu…</p> : active.isError ? <div role="alert"><p>Không tải được dữ liệu. Kiểm tra quyền truy cập và thử lại.</p><button className={agencyButton} onClick={() => void active.refetch()}>Thử lại</button></div>
       : kind === 'tours' ? <>
         <section className={agencyPanel}>{!tours.data?.length ? <p className="text-sm text-slate-600">Chưa có tour để hiển thị.</p> : <div className="overflow-x-auto"><table className="w-full text-left text-sm">
@@ -45,11 +46,13 @@ export function AgencyMemberWorkPage({ kind }: { kind: 'tours' | 'bookings' }) {
           </tr>)}</tbody>
         </table></div>}</section>
         <Pagination currentPage={tourPageIndex + 1} totalPages={tourTotalPages} totalItems={tours.data?.length} pageSize={TOURS_PER_PAGE} itemLabel="tour" onPageChange={setPage} />
-        {editing && <form className="space-y-4 rounded-xl bg-white p-5" onSubmit={async event => { event.preventDefault(); setError(''); try { await save({ id: editing.id, patch: draft }).unwrap(); setEditing(null); setNotice('Đã lưu nội dung tour.'); await tours.refetch(); } catch { setError('Không thể lưu. Tour có thể đã đổi trạng thái hoặc phạm vi của bạn đã thay đổi. Tải lại dữ liệu và thử lại.'); } }}>
-          <h2 className="text-xl font-semibold">Chỉnh nội dung: {editing.title}</h2>{Object.keys(draft).map(field => <label key={field} className="block space-y-1"><span>{field === 'title' ? 'Tiêu đề' : field === 'summary' ? 'Tóm tắt' : 'Mô tả'}</span>
+        {editing && <Modal open onClose={() => setEditing(null)} title="Chỉnh nội dung tour" className="max-w-xl"><form className="space-y-4" onSubmit={async event => { event.preventDefault(); setError(''); try { await save({ id: editing.id, patch: draft }).unwrap(); setEditing(null); setNotice('Đã lưu nội dung tour.'); await tours.refetch(); } catch { setError('Không thể lưu. Tour có thể đã đổi trạng thái hoặc phạm vi của bạn đã thay đổi. Tải lại dữ liệu và thử lại.'); } }}>
+          <p className="break-words text-sm font-medium text-slate-600">{editing.title}</p>
+          {Object.keys(draft).map(field => <label key={field} className="block space-y-1"><span>{field === 'title' ? 'Tiêu đề' : field === 'summary' ? 'Tóm tắt' : 'Mô tả'}</span>
             <textarea className={agencyInput} rows={field === 'description' ? 7 : 2} required={field === 'title'} minLength={field === 'title' ? 5 : undefined} maxLength={field === 'title' ? 200 : field === 'summary' ? 500 : 20000} value={draft[field]} onChange={e => setDraft({ ...draft, [field]: e.target.value })} /></label>)}
+          {error && <p role="alert" className="text-sm text-red-800">{error}</p>}
           <div className="flex gap-3"><button disabled={request.isLoading} className={agencyButton}>Lưu nội dung</button><button type="button" disabled={request.isLoading} className={agencyButton} onClick={() => setEditing(null)}>Hủy</button></div>
-        </form>}
+        </form></Modal>}
       </> : <>
         <section className={agencyPanel}>{!bookings.data?.items.length ? <p className="text-sm text-slate-600">Không có booking ở trang này.</p> : <div className="overflow-x-auto"><table className="w-full text-left text-sm">
           <thead><tr className="border-b text-xs font-bold uppercase tracking-wider text-slate-500">{['Chuyến đi', 'Trạng thái', 'Khách', 'Ngày khởi hành'].map(label => <th key={label} scope="col" className="whitespace-nowrap px-3 py-3 font-semibold">{label}</th>)}</tr></thead>
