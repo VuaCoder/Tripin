@@ -705,9 +705,6 @@ export function PromotionFormDialog({
           <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting} className="h-11 px-5">
             Hủy
           </Button>
-          <Button type="button" variant="outline" className="h-11 px-5" onClick={() => {}}>
-            Tiếp theo
-          </Button>
           <Button type="submit" loading={isSubmitting} loadingLabel="Đang lưu..." className="h-11 px-7 font-bold shadow-md">
             {isEdit ? 'Lưu thay đổi' : 'Tạo khuyến mãi'}
           </Button>
