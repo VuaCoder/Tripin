@@ -90,7 +90,7 @@ async function storeDocument(req:Parameters<typeof upload>[0],agencyId:string){
   const f=req.file;if(!f)throw AppError.badRequest('Chọn chứng từ cần tải lên.');
   const mimeType=detectMime(f.buffer),actorId=userActor(req).userId;
   return prisma.$transaction(async tx=>{
-    const doc=await tx.agencyFinanceDocument.create({data:{agencyId,actorId,name:f.originalname.replace(/[^\p{L}\p{N}_. -]/gu,'_').slice(0,150),mimeType,data:f.buffer,sha256:documentHash(f.buffer)},select:{id:true,name:true,mimeType:true}});
+    const doc=await tx.agencyFinanceDocument.create({data:{agencyId,actorId,name:f.originalname.replace(/[^\p{L}\p{N}_. -]/gu,'_').slice(0,150),mimeType,data:new Uint8Array(f.buffer),sha256:documentHash(f.buffer)},select:{id:true,name:true,mimeType:true}});
     await auditFinance(tx,agencyId,actorId,'DOCUMENT_UPLOADED',doc.id);return doc;
   });
 }
