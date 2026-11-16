@@ -4,12 +4,17 @@ import { reviewContentVersion } from './reviews.revision';
 
 const createdAtOf = (review: ReviewRecord) => review.createdAt.toISOString();
 
-/** "Nguyen Van An" -> "Nguyen A." — enough for trust, not enough to identify someone. */
+/** "Nguyen Van An" -> "Nguyen A." — kept for legacy helpers. */
 export function maskName(fullName: string | undefined): string {
   const parts = (fullName ?? '').trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return 'Traveler';
   if (parts.length === 1) return parts[0]!;
   return `${parts[0]} ${parts[parts.length - 1]![0]!.toUpperCase()}.`;
+}
+
+export function formatAuthorName(fullName: string | undefined): string {
+  const cleaned = (fullName ?? '').trim().replace(/\s+/g, ' ');
+  return cleaned || 'Traveler';
 }
 
 export function toPublicReviewDto(review: ReviewRecord, author?: { fullName: string; avatarUrl?: string }): PublicReviewDto {
@@ -19,7 +24,7 @@ export function toPublicReviewDto(review: ReviewRecord, author?: { fullName: str
     comment: review.comment,
     images: review.images ?? [],
     tourId: review.tourId,
-    author: { name: maskName(author?.fullName), avatarUrl: author?.avatarUrl },
+    author: { name: formatAuthorName(author?.fullName), avatarUrl: author?.avatarUrl },
     createdAt: createdAtOf(review),
   };
 }

@@ -176,6 +176,7 @@ export function RoutePreloader() {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const target = event.target;
       if (!(target instanceof Element)) return;
+      if (target.closest('[data-no-preloader="true"]')) return;
       const link = target.closest('a[href]');
       if (!(link instanceof HTMLAnchorElement) || link.hasAttribute('download') || link.closest('[data-no-preloader="true"]') || link.rel.includes('external') || (link.target && link.target !== '_self')) return;
       let url: URL;

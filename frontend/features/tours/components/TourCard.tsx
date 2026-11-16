@@ -28,9 +28,13 @@ export function TourCard({ tour, categoryName, href = `/tours/${tour.id}`, view 
 
   const renderWishlistButton = (placement: 'image' | 'content') => (
     <div
+      data-no-preloader="true"
       className={placement === 'image' ? 'absolute right-2.5 top-2.5 z-10' : 'shrink-0'}
       onClick={(e) => {
         e.preventDefault();
+        e.stopPropagation();
+      }}
+      onPointerDown={(e) => {
         e.stopPropagation();
       }}
     >
