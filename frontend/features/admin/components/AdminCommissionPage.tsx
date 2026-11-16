@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Building2, Edit3, Search } from 'lucide-react';
 import { Button, FormField, Input, Modal } from '@/components/ui';
+import { FormSelect } from '@/components/ui/FormSelect';
 import { useApproveAgencyCommissionRequestMutation, useGetAdminCommissionQuery, useGetAgencyCommissionRequestsQuery, useGetAgencyCommissionsQuery, useRejectAgencyCommissionRequestMutation, useSetAdminCommissionMutation, useSetAgencyCommissionMutation } from '../api/adminApi';
 import type { AgencyCommission, AgencyCommissionRequest, Commission } from '../types';
 import { commissionValue } from '../validation';
@@ -44,6 +45,9 @@ export function AdminCommissionPage() {
   const agenciesQuery = useGetAgencyCommissionsQuery(undefined, { skip: !ready, refetchOnMountOrArgChange: true });
   const [denied, setDenied] = useState<unknown>();
   const [agencySearch, setAgencySearch] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'common' | 'specific'>('all');
+  const [sortKey, setSortKey] = useState<'name' | 'rate'>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [editingAgency, setEditingAgency] = useState<AgencyCommission | null>(null);
   const [agencyRate, setAgencyRate] = useState('');
   const [agencyError, setAgencyError] = useState<string | null>(null);
@@ -56,7 +60,28 @@ export function AdminCommissionPage() {
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [requestsOpen, setRequestsOpen] = useState(false);
   if (!ready) return null;
-  const visibleAgencies = (agenciesQuery.currentData ?? []).filter((agency) => `${agency.companyName} ${agency.contactName} ${agency.email}`.toLocaleLowerCase('vi').includes(agencySearch.toLocaleLowerCase('vi')));
+  const defaultRate = query.currentData?.ratePercent ?? 0;
+  const effectiveRateOf = (agency: AgencyCommission) => agency.ratePercent ?? defaultRate;
+  const visibleAgencies = (agenciesQuery.currentData ?? [])
+    .filter((agency) => `${agency.companyName} ${agency.contactName} ${agency.email}`.toLocaleLowerCase('vi').includes(agencySearch.toLocaleLowerCase('vi')))
+    .filter((agency) => sourceFilter === 'all' || (sourceFilter === 'common' ? agency.ratePercent === null : agency.ratePercent !== null))
+    .sort((a, b) => {
+      const aV = sortKey === 'name' ? a.companyName.toLocaleLowerCase('vi') : effectiveRateOf(a);
+      const bV = sortKey === 'name' ? b.companyName.toLocaleLowerCase('vi') : effectiveRateOf(b);
+      if (aV === bV) return a.id.localeCompare(b.id);
+      const cmp = aV > bV ? 1 : -1;
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  const toggleSort = (key: 'name' | 'rate') => {
+    if (sortKey === key) { setSortDir((d) => (d === 'asc' ? 'desc' : 'asc')); }
+    else { setSortKey(key); setSortDir('asc'); }
+  };
+  const SortHeader = ({ label, k }: { label: string; k: 'name' | 'rate' }) => (
+    <button type="button" onClick={() => toggleSort(k)} className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-slate-500 hover:text-slate-700">
+      {label}
+      <span className="text-slate-400">{sortKey === k ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
+    </button>
+  );
   const saveAgencyRate = async () => {
     if (!editingAgency) return;
     const parsed = agencyRate.trim() === '' ? null : commissionValue(agencyRate);
@@ -93,9 +118,12 @@ export function AdminCommissionPage() {
       <section className={`${panel} !p-0 overflow-hidden`}>
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 px-5 py-4">
           <div><h2 className="font-semibold text-slate-900">Mức phí theo agency</h2></div>
-          <label className="relative block w-full sm:w-72"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><span className="sr-only">Tìm agency</span><Input value={agencySearch} onChange={(event) => setAgencySearch(event.target.value)} placeholder="Tìm agency..." className="pl-9" /></label>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="relative block w-40 sm:w-48"><FormSelect value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value as 'all' | 'common' | 'specific')}><option value="all">Nguồn mức phí: Tất cả</option><option value="common">Mức chung</option><option value="specific">Mức riêng</option></FormSelect></label>
+            <label className="relative block w-full sm:w-72"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><span className="sr-only">Tìm agency</span><Input value={agencySearch} onChange={(event) => setAgencySearch(event.target.value)} placeholder="Tìm agency..." className="pl-9" /></label>
+          </div>
         </div>
-        <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-5 py-3">Agency</th><th className="px-4 py-3">Mức đang áp dụng</th><th className="px-4 py-3">Nguồn mức phí</th><th className="px-5 py-3 text-right">Thao tác</th></tr></thead><tbody className="divide-y divide-slate-100">{visibleAgencies.map((agency) => <tr key={agency.id}><td className="px-5 py-4"><strong className="block text-slate-900">{agency.companyName}</strong><span className="text-xs text-slate-500">{agency.contactName}{agency.email ? ` · ${agency.email}` : ''}</span></td><td className="px-4 py-4 font-semibold">{agency.ratePercent ?? query.currentData!.ratePercent}%</td><td className="px-4 py-4 text-slate-600">{agency.ratePercent === null ? 'Mức chung' : 'Mức riêng'}</td><td className="px-5 py-4 text-right"><Button variant="outline" size="sm" className="inline-flex items-center gap-2" onClick={() => { setEditingAgency(agency); setAgencyRate(agency.ratePercent === null ? '' : String(agency.ratePercent)); setAgencyError(null); }}><Edit3 size={15}/>{agency.ratePercent === null ? 'Đặt mức riêng' : 'Điều chỉnh'}</Button></td></tr>)}{visibleAgencies.length === 0 && <tr><td className="px-5 py-8 text-center text-slate-500" colSpan={4}>Không tìm thấy agency phù hợp.</td></tr>}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-5 py-3"><SortHeader label="Agency" k="name" /></th><th className="px-4 py-3"><SortHeader label="Mức đang áp dụng" k="rate" /></th><th className="px-4 py-3">Nguồn mức phí</th><th className="px-5 py-3 text-right">Thao tác</th></tr></thead><tbody className="divide-y divide-slate-100">{visibleAgencies.map((agency) => <tr key={agency.id}><td className="px-5 py-4"><strong className="block text-slate-900">{agency.companyName}</strong><span className="text-xs text-slate-500">{agency.contactName}{agency.email ? ` · ${agency.email}` : ''}</span></td><td className="px-4 py-4 font-semibold">{effectiveRateOf(agency)}%</td><td className="px-4 py-4 text-slate-600">{agency.ratePercent === null ? 'Mức chung' : 'Mức riêng'}</td><td className="px-5 py-4 text-right"><Button variant="outline" size="sm" className="inline-flex items-center gap-2" onClick={() => { setEditingAgency(agency); setAgencyRate(agency.ratePercent === null ? '' : String(agency.ratePercent)); setAgencyError(null); }}><Edit3 size={15}/>Sửa</Button></td></tr>)}{visibleAgencies.length === 0 && <tr><td className="px-5 py-8 text-center text-slate-500" colSpan={4}>Không tìm thấy agency phù hợp.</td></tr>}</tbody></table></div>
       </section>
       {requestsOpen && <Modal open title="Yêu cầu điều chỉnh chiết khấu" className="max-w-6xl" onClose={() => { if (!approveState.isLoading && !rejectState.isLoading && !reviewing) setRequestsOpen(false); }}>
         <div className="mb-3 flex items-center justify-between gap-3">
