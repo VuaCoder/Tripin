@@ -1,5 +1,5 @@
 'use client';
-import { baseApi } from '@/store/api/baseApi';
+import { baseApi, singlePageMeta } from '@/store/api/baseApi';
 import type { BookingApiResponse, BookingPaginationMeta } from '@/features/booking/types';
 
 export type TeamRole = { id: string; name: string; systemRole: 'OWNER' | 'MANAGER' | 'STAFF' | 'ACCOUNTANT' | null; permissions: string[] };
@@ -18,7 +18,7 @@ export const agencyTeamApi = baseApi.injectEndpoints({ endpoints: build => ({
   teamRoles: build.query<TeamRole[], string>({ query: () => '/agency/roles', transformResponse: unwrap<TeamRole[]> }),
   teamPermissions: build.query<string[], string>({ query: () => '/agency/permissions', transformResponse: unwrap<string[]> }),
   teamWorkTours: build.query<WorkTour[], string>({ query: () => '/agency/work/tours', transformResponse: unwrap<WorkTour[]> }),
-  teamWorkBookings: build.query<{ items: WorkBooking[]; meta: BookingPaginationMeta }, { agencyId: string; page: number }>({ query: ({ page }) => `/agency/work/bookings?page=${page}`, transformResponse: (response: BookingApiResponse<WorkBooking[]>) => ({ items: response.data, meta: response.meta! }) }),
+  teamWorkBookings: build.query<{ items: WorkBooking[]; meta: BookingPaginationMeta }, { agencyId: string; page: number }>({ query: ({ page }) => `/agency/work/bookings?page=${page}`, transformResponse: (response: BookingApiResponse<WorkBooking[]>) => ({ items: response.data, meta: response.meta ?? singlePageMeta(response.data.length, 50) }) }),
   saveMemberTourScopes: build.mutation<unknown, { id: string; scopes: TourScope[] }>({ query: ({ id, ...body }) => ({ url: `/agency/members/${id}/tour-scopes`, method: 'PUT', body }) }),
   saveScopedTourContent: build.mutation<unknown, { id: string; patch: Record<string, string> }>({ query: ({ id, patch }) => ({ url: `/agency/work/tours/${id}/content`, method: 'PATCH', body: patch }) }),
   teamInvitations: build.query<TeamInvitation[], string>({ query: () => '/agency/invitations', transformResponse: unwrap<TeamInvitation[]> }),

@@ -1,4 +1,4 @@
-import { baseApi } from '@/store/api/baseApi';
+import { baseApi, singlePageMeta } from '@/store/api/baseApi';
 import type { AgencyBooking, AgencyBookingFilters } from '@/features/agency/types';
 import type {
   AvailablePromotions,
@@ -17,7 +17,7 @@ export const bookingApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     getAgencyBookings: build.query<{ items: AgencyBooking[]; meta: import('../types').BookingPaginationMeta }, AgencyBookingFilters>({
       query: (params) => ({ url: '/agency/bookings', params }),
-      transformResponse: (response: BookingApiResponse<AgencyBooking[]>) => ({ items: response.data, meta: response.meta! }),
+      transformResponse: (response: BookingApiResponse<AgencyBooking[]>) => ({ items: response.data, meta: response.meta ?? singlePageMeta(response.data.length, 20) }),
       providesTags: (result) => [{ type: 'Booking', id: 'AGENCY_LIST' }, ...(result?.items ?? []).map(({ id }) => ({ type: 'Booking' as const, id }))],
     }),
     getAgencyBooking: build.query<AgencyBooking, string>({
