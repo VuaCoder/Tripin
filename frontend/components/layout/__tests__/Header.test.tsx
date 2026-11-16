@@ -164,4 +164,27 @@ describe('Header Traveler Dropdown & Premium', () => {
     expect(markAllReadBtn).toBeTruthy();
     fireEvent.click(markAllReadBtn);
   });
+
+  it('gives a traveler account that works in an agency a way back to that workplace', () => {
+    const store = createTestStore({
+      user: { id: 'owner-1', email: 'owner@tripri.com', fullName: 'Chu Doanh Nghiep', role: 'TRAVELER' as const, avatarUrl: null },
+      accessToken: 'valid-token',
+      status: 'authenticated',
+      membershipsReady: true,
+      activeAgencyId: 'a1',
+      agencies: [{
+        agencyId: 'a1', companyName: 'Golden', memberRole: 'OWNER', verificationStatus: 'VERIFIED',
+        permissions: ['agency:dashboard', 'chat:use'],
+      }],
+    });
+
+    render(
+      <Provider store={store}>
+        <Header />
+      </Provider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /chu doanh nghiep/i }));
+    expect(screen.getByRole('link', { name: /trang làm việc/i }).getAttribute('href')).toBe('/agency');
+  });
 });
