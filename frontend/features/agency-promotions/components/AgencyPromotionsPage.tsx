@@ -404,9 +404,6 @@ export function AgencyPromotionsPage() {
               </span>
             )}
           </div>
-          <p className="mt-1 text-sm text-slate-500">
-            Quản lý mã ưu đãi, voucher và khuyến mãi tự động áp dụng cho các tour của bạn.
-          </p>
         </div>
 
         <button

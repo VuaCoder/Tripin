@@ -53,9 +53,6 @@ export function AgencyReviewsPage() {
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
       <header>
         <AgencyPageTitle icon={MessageSquare}>Đánh giá về tour của tôi</AgencyPageTitle>
-        <p className="mt-1 text-sm text-slate-500">
-          Đánh giá của du khách về các tour của bạn. Nếu một đánh giá sai sự thật, hãy phản ánh để kiểm duyệt viên kiểm tra.
-        </p>
       </header>
 
       {feedback && (

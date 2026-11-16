@@ -28,7 +28,7 @@ export function weeklyRevenueBuckets(points: Point[]) {
   return buckets;
 }
 
-const shortDate = (date: string) => new Date(`${date}T00:00:00Z`).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', timeZone: 'UTC' });
+const shortDate = (date: string) => `${date.slice(8, 10)}/${date.slice(5, 7)}`;
 const axisMoney = (value: number) => {
   const [unit, label] = value >= 1e9 ? [1e9, 'tỷ'] : value >= 1e6 ? [1e6, 'tr'] : value >= 1e3 ? [1e3, 'nghìn'] : [1, ''];
   return `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(value / Number(unit))} ${label}`.trim();
@@ -51,6 +51,24 @@ export function AgencyRevenueChart({ points, monthly = false }: { points: Point[
         </div>)}</div>
       </div>
     </div>
-    <details className="mt-3 text-sm"><summary className="cursor-pointer font-medium text-primary">Xem số liệu</summary><div className="mt-3 max-h-64 overflow-auto"><table className="w-full text-left text-sm"><thead><tr><th scope="col" className="py-2">{monthly ? 'Tháng' : 'Ngày'}</th><th scope="col">Lượt đặt</th><th scope="col">Thực nhận</th></tr></thead><tbody>{points.map((point) => <tr key={point.date} className="border-t border-slate-100"><td className="py-2">{monthly ? point.date.slice(0, 7) : point.date}</td><td>{point.bookings}</td><td className="tabular-nums">{money(point.net)}</td></tr>)}</tbody></table></div></details>
+    <details className="mt-4 text-sm">
+      <summary className="cursor-pointer font-semibold text-primary">Xem số liệu</summary>
+      <div className="mt-3 max-h-64 overflow-auto rounded-xl border border-slate-200">
+        <table className="w-full text-sm">
+          <thead className="text-sm text-slate-800">
+            <tr>
+              <th scope="col" className="sticky top-0 bg-slate-50 px-4 py-2.5 text-left font-semibold">{monthly ? 'Tháng' : 'Ngày'}</th>
+              <th scope="col" className="sticky top-0 bg-slate-50 px-4 py-2.5 text-right font-semibold">Lượt đặt</th>
+              <th scope="col" className="sticky top-0 bg-slate-50 px-4 py-2.5 text-right font-semibold">Thực nhận</th>
+            </tr>
+          </thead>
+          <tbody>{points.map((point) => <tr key={point.date} className="border-t border-slate-100 even:bg-slate-50/60">
+            <td className="whitespace-nowrap px-4 py-2 text-slate-600">{monthly ? `${point.date.slice(5, 7)}/${point.date.slice(0, 4)}` : `${point.date.slice(8, 10)}/${point.date.slice(5, 7)}/${point.date.slice(0, 4)}`}</td>
+            <td className="px-4 py-2 text-right tabular-nums text-slate-600">{point.bookings.toLocaleString('vi-VN')}</td>
+            <td className="px-4 py-2 text-right font-medium tabular-nums text-slate-800">{money(point.net)}</td>
+          </tr>)}</tbody>
+        </table>
+      </div>
+    </details>
   </>;
 }

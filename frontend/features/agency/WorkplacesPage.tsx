@@ -5,7 +5,7 @@ import { useStore } from 'react-redux';
 import type { RootState } from '@/store';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Building2, Copy, Search, Users } from 'lucide-react';
+import { ArrowRight, Building2, Copy, Plus, Search, Users } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectAgency } from '@/features/auth/store/authSlice';
 import { authNextPath } from '@/features/auth/utils/safeNextPath';
@@ -98,7 +98,7 @@ export function WorkplacesPage({ nextPath, openJoin = false }: { nextPath?: stri
   };
   return <WorkplaceFrame>
     <header className={styles.heading}><div><h1 className={styles.title}>Chọn nơi làm việc</h1><p className={styles.description}>Mỗi doanh nghiệp có dữ liệu và quyền truy cập riêng.</p></div>
-      <div className={styles.actions}><button ref={joinTrigger} type="button" className={styles.button} onClick={() => setShowJoin(true)}>Nhập mã mời</button><Link className={styles.primary} href="/workplaces/new"><Building2 size={17} aria-hidden="true" />Tạo doanh nghiệp</Link></div>
+      <div className={styles.actions}><button ref={joinTrigger} type="button" className={styles.button} onClick={() => setShowJoin(true)}>Nhập mã mời</button><Link className={styles.primary} href="/workplaces/new" aria-label="Tạo doanh nghiệp"><Plus size={18} aria-hidden="true" /></Link></div>
     </header>
     {error && <p role="alert" className={styles.error}>{error}</p>}
     {notice && <p role="status" className={styles.notice}>{notice}</p>}
