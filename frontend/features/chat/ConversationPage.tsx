@@ -5,8 +5,6 @@ import { useSearchParams } from 'next/navigation';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
   MessageSquare,
   Send,
   X,
@@ -85,9 +83,8 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
   const paramTab = searchParams?.get('tab') ?? null;
   const paramTicketId = searchParams?.get('ticketId') ?? null;
 
-  const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const { data, isLoading, error, refetch, isFetching } = useConversationsQuery({ page, agency }, {
+  const { data, isLoading, error, refetch } = useConversationsQuery({ page: 1, agency }, {
     refetchOnFocus: true,
     refetchOnReconnect: true,
     pollingInterval: 30_000,
@@ -142,15 +139,18 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
         'bot'.includes(searchQuery.toLowerCase())),
   );
 
-  const filteredItems = (data?.data ?? []).filter(
+  // Hidden (unavailable) agencies/travelers return a null counterpart; those threads must not
+  // surface as "Tài khoản không còn khả dụng" in the inbox, so filter them out everywhere the list is walked.
+  const activeConversations = (data?.data ?? []).filter((item) => item.counterpart != null);
+  const filteredItems = activeConversations.filter(
     (item) =>
       !searchQuery.trim() ||
       item.counterpart?.fullName?.toLowerCase().includes(searchQuery.trim().toLowerCase()),
   );
 
   // When the page is a landing inbox (no :id) and autoOpenNewest is set, treat the
-  // most recent conversation as active so the thread opens immediately on the right.
-  const activeId = id ?? (autoOpenNewest ? data?.data?.[0]?.id : undefined);
+  // most recent available conversation as active so the thread opens immediately on the right.
+  const activeId = id ?? (autoOpenNewest ? activeConversations[0]?.id : undefined);
 
   return (
     // The agency shell has no page padding of its own (traveler chat sits in AppShell's Container).
@@ -171,7 +171,7 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
         </div>
       )}
 
-      <div className="grid h-[calc(100dvh-8.5rem)] min-h-[460px] overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[360px_minmax(0,1fr)]">
+      <div className="grid h-[calc(100dvh-6rem)] min-h-[460px] overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[360px_minmax(0,1fr)]">
         {/* Sidebar danh sách */}
         <aside
           aria-label="Danh sách hộp thư"
@@ -315,32 +315,6 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
               })}
             </nav>
           )}
-
-          {Boolean(data && data.meta.totalPages > 1) && (
-                <div className="flex items-center justify-between border-t border-slate-200/80 bg-white p-3 text-sm">
-                  <button
-                    type="button"
-                    aria-label="Trang trước"
-                    disabled={page <= 1 || isFetching}
-                    onClick={() => setPage((value) => value - 1)}
-                    className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
-                  >
-                    <ChevronLeft size={16} />
-                    <span className="sr-only">Trước</span>
-                  </button>
-                  <span className="text-xs font-semibold text-slate-600">Trang {page}</span>
-                  <button
-                    type="button"
-                    aria-label="Trang sau"
-                    disabled={!data || page >= data.meta.totalPages || isFetching}
-                    onClick={() => setPage((value) => value + 1)}
-                    className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
-                  >
-                    <ChevronRight size={16} />
-                    <span className="sr-only">Sau</span>
-                  </button>
-                </div>
-              )}
         </aside>
 
         {/* Khung nội dung bên phải */}
@@ -354,8 +328,8 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
               <ConversationWelcome
                 audience={audience}
                 recent={
-                  data?.data[0]
-                    ? { id: data.data[0].id, name: data.data[0].counterpart?.fullName || 'người đồng hành' }
+                  activeConversations[0]
+                    ? { id: activeConversations[0].id, name: activeConversations[0].counterpart?.fullName || 'người đồng hành' }
                     : undefined
                 }
               />

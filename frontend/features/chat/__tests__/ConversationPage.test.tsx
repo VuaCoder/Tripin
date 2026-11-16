@@ -49,11 +49,11 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe('ConversationPage', () => {
-  it('shows inbox preview, unread count and pagination', () => {
+  it('shows inbox preview and unread count', () => {
     render(<ConversationPage />);
     expect(screen.getByText('Guide A: Xin chào')).toBeTruthy();
     expect(screen.getByLabelText('2 tin chưa đọc')).toBeTruthy();
-    fireEvent.click(screen.getByText('Sau')); expect(screen.getByText('Trang 2')).toBeTruthy();
+    expect(screen.queryByText('Trang 1')).toBeNull();
   });
   it('sends by REST when the socket is disconnected and renders backend text safely', async () => {
     mocks.sendRest.mockResolvedValue({ ...message('1', true), text: '<script>hello</script>' });

@@ -6,7 +6,27 @@ const root = (agency?: boolean) => (agency ? '/agency/chat' : '/chat');
 export const chatApi = baseApi.enhanceEndpoints({ addTagTypes: ['Conversation'] }).injectEndpoints({
   endpoints: build => ({
     conversations: build.query<{ data: Conversation[]; meta: { page: number; totalPages: number } }, { page: number; agency?: boolean }>({
-      query: ({ page, agency }) => ({ url: `${root(agency)}/conversations`, params: { page, limit: 20 } }), providesTags: ['Conversation'],
+      // Loads every conversation in one go: pages of up to the backend's max page size (100) are
+      // fetched and merged so the inbox shows the complete set instead of forcing the user to paginate.
+      queryFn: async ({ agency }, _api, _extra, baseQuery) => {
+        const root = agency ? '/agency/chat' : '/chat';
+        const limit = 100;
+        const all: Conversation[] = [];
+        let currentPage = 1;
+        let totalPages = 1;
+        for (;;) {
+          const result = await baseQuery({ url: `${root}/conversations`, params: { page: currentPage, limit } });
+          if (result.error) return { error: result.error };
+          const body = result.data as { data?: Conversation[]; meta?: { page?: number; totalPages?: number } };
+          const items: Conversation[] = body?.data ?? [];
+          all.push(...items);
+          totalPages = body?.meta?.totalPages ?? 1;
+          if (currentPage >= totalPages || items.length < limit) break;
+          currentPage += 1;
+        }
+        return { data: { data: all, meta: { page: 1, totalPages: 1 } } };
+      },
+      providesTags: ['Conversation'],
     }),
     conversation: build.query<Conversation, { id: string; agency?: boolean }>({
       query: ({ id, agency }) => `${root(agency)}/conversations/${encodeURIComponent(id)}`,
