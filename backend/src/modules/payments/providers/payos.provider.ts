@@ -105,17 +105,23 @@ export class PayosProvider implements PaymentProvider {
   }
 
   async getPaymentStatus(orderCode: number): Promise<ProviderPaymentStatus> {
-    const response = await this.request<{ code: string; data?: { status?: string; amountPaid?: number } }>(
+    const response = await this.request<{ code: string; data?: { id?: string; status?: string; amountPaid?: number; transactions?: { reference: string; amount: number; currency?: string; transactionDateTime?: string }[] } }>(
       'GET',
       `/v2/payment-requests/${orderCode}`,
     );
+    if (response.code !== '00' || !response.data) throw AppError.unavailable('The payment provider rejected the status request');
     const status = response.data?.status;
     const state = status === 'PAID' ? 'PAID' : status === 'CANCELLED' ? 'CANCELLED' : status === 'EXPIRED' ? 'EXPIRED' : 'PENDING';
     const amountPaid = response.data?.amountPaid ?? 0;
     if (!Number.isSafeInteger(amountPaid) || amountPaid < 0) {
       throw AppError.unavailable('The payment provider returned an invalid amount');
     }
-    return { state, amountPaid };
+    const transactions = response.data.transactions?.map(t => {
+      if (!Number.isSafeInteger(t.amount) || t.amount <= 0 || typeof t.reference !== 'string')
+        throw AppError.unavailable('The payment provider returned invalid transaction evidence');
+      return { reference: t.reference, amount: t.amount, currency: t.currency ?? 'VND', transactionDateTime: t.transactionDateTime };
+    });
+    return { state, amountPaid, paymentLinkId: response.data.id, transactions };
   }
 
   private requireCredentials(): PayosCredentials {

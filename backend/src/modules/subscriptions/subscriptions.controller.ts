@@ -15,7 +15,8 @@ export class SubscriptionsController {
 
   subscribe: RequestHandler = async (req, res) => {
     const { body } = validated<SubscribeBody>(req);
-    sendCreated(res, await this.service.subscribe(userActor(req).userId, body.planId));
+    const clientOrigin = req.get('origin') || req.get('referer');
+    sendCreated(res, await this.service.subscribe(userActor(req).userId, body.planId, clientOrigin));
   };
 
   listMine: RequestHandler = async (req, res) => {

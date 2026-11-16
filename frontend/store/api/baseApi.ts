@@ -17,6 +17,12 @@ export const isAgencyRequest = (args: FetchArgs | string) => {
   return /^\/?agency(?:\/|$)/.test(url);
 };
 
+/**
+ * A backend older than the paginated contract answers without `meta`; showing one page of what
+ * arrived beats a white screen on a deploy where only the frontend has been updated.
+ */
+export const singlePageMeta = (count: number, limit: number) => ({ page: 1, limit, total: count, totalPages: 1 });
+
 type RetryableArgs = string | (FetchArgs & { _retried?: boolean });
 
 const isObjectArgs = (args: unknown): args is FetchArgs & { _retried?: boolean } =>

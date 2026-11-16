@@ -15,6 +15,9 @@ export interface DecisionAction {
   maxReason?: number;
   /** Hide the icon on the action button */
   hideIcon?: boolean;
+  /** Show a final confirmation before submitting this action. */
+  confirmationMessage?: string;
+  confirmationReasonLabel?: string;
   onConfirm: (reason: string) => void;
 }
 
@@ -68,31 +71,38 @@ export function DecisionDialog({
 }: DecisionDialogProps) {
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ action: DecisionAction; reason: string } | null>(null);
 
   useEffect(() => {
     if (open) {
       setReason('');
       setError(null);
+      setPendingAction(null);
     }
   }, [open]);
 
   const run = (action: DecisionAction) => {
-    if (action.requiresReason) {
+    if (action.requiresReason && !action.confirmationMessage) {
       const found = validateReason(reason, action.maxReason);
       setError(found);
       if (found) return;
     } else {
       setError(null);
     }
-    action.onConfirm(reason.trim());
+    if (action.confirmationMessage) {
+      setPendingAction({ action, reason: reason.trim() });
+    } else {
+      action.onConfirm(reason.trim());
+    }
   };
 
   // The textarea accepts whatever the most permissive action of this dialog allows.
   const reasonMax = actions.reduce((max, action) => Math.max(max, action.maxReason ?? REASON_MAX), REASON_MAX);
-  const showTextarea = !hideReasonInput && actions.some((a) => a.requiresReason);
+  const showTextarea = !hideReasonInput && actions.some((a) => a.requiresReason && !a.confirmationMessage);
 
   return (
-    <Modal open={open} onClose={onClose} closeOnBackdrop={!isSubmitting} title={title} className={className ?? "max-h-[90vh] max-w-xl overflow-y-auto"}>
+    <>
+    <Modal open={open && !pendingAction} onClose={onClose} closeOnBackdrop={!isSubmitting} title={title} className={className ?? "max-h-[90vh] max-w-xl overflow-y-auto"}>
       <div className="space-y-3 text-sm">
         {serverError && (
           <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
@@ -156,5 +166,56 @@ export function DecisionDialog({
         </div>
       )}
     </Modal>
+    <Modal
+      open={open && Boolean(pendingAction)}
+      onClose={() => { if (!isSubmitting) setPendingAction(null); }}
+      closeOnBackdrop={!isSubmitting}
+      title={pendingAction ? `Xác nhận ${pendingAction.action.label.toLowerCase()}` : ''}
+      className="max-w-md"
+    >
+      {pendingAction && (
+        <div className="space-y-5 text-sm">
+          {serverError && (
+            <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
+              {serverError}
+            </div>
+          )}
+          <p className="text-slate-700">{pendingAction.action.confirmationMessage}</p>
+          {pendingAction.action.requiresReason && (
+            <div className="space-y-2">
+              <label htmlFor="confirmation-reason" className="block font-semibold text-slate-700">
+                {pendingAction.action.confirmationReasonLabel ?? reasonLabel}
+              </label>
+              <textarea
+                id="confirmation-reason"
+                value={pendingAction.reason}
+                onChange={(event) => {
+                  setPendingAction({ ...pendingAction, reason: event.target.value });
+                  setError(null);
+                }}
+                rows={3}
+                maxLength={pendingAction.action.maxReason ?? REASON_MAX}
+                disabled={isSubmitting}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? 'confirmation-reason-error' : undefined}
+                className="w-full rounded-2xl border border-slate-200/90 p-3 text-sm text-slate-800 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15 focus:outline-none"
+              />
+              {error && <p id="confirmation-reason-error" role="alert" className="text-xs font-semibold text-red-600">{error}</p>}
+            </div>
+          )}
+          <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+            <button type="button" disabled={isSubmitting} onClick={() => setPendingAction(null)} className={CLOSE_CLASS}>Hủy</button>
+            <button type="button" disabled={isSubmitting} onClick={() => {
+              const found = pendingAction.action.requiresReason ? validateReason(pendingAction.reason, pendingAction.action.maxReason) : null;
+              setError(found);
+              if (!found) pendingAction.action.onConfirm(pendingAction.reason.trim());
+            }} className={`${ACTION_CLASS} ${TONE[pendingAction.action.tone].className}`}>
+              {isSubmitting ? 'Đang xử lý...' : `Xác nhận ${pendingAction.action.label.toLowerCase()}`}
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
+    </>
   );
 }

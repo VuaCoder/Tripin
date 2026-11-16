@@ -1,0 +1,59 @@
+classDiagram
+%% 3.17.1 Doanh nghiep chua xac minh
+%% Moi route /agency/* co requireVerifiedAgency deu tra 403
+
+class AgencyVerificationStatus {
+  <<Enumeration>>
+  UNVERIFIED
+  PENDING
+  INFORMATION_REQUESTED
+  VERIFIED
+  REJECTED
+}
+
+class AgencyContextMiddleware {
+  <<Middleware>>
+  +resolveAgencyContext(Request req) void
+  +requireVerifiedAgency(Request req) void
+  +requireAgencyPermission(AgencyPermission permission) RequestHandler
+}
+
+class AgencyService {
+  <<Service>>
+  +resolve(UUID userId, UUID selectedAgencyId) AgencyContext
+}
+
+class PrismaClient {
+  <<DAO>>
+  +AgencyProfile agencyProfile
+}
+
+class AgencyProfile {
+  +UUID id
+  +String companyName
+  +AgencyVerificationStatus verificationStatus
+  +Date submittedAt
+  +Date verifiedAt
+}
+
+class AgencyContext {
+  <<DTO>>
+  +UUID agencyId
+  +UUID memberId
+  +AgencyMemberRole memberRole
+  +List~AgencyPermission~ permissions
+}
+
+class AppError {
+  +String code
+  +int status
+  +forbidden(String message, String code) AppError$
+}
+
+AgencyContextMiddleware "1" ..> "1" AgencyService : resolves tenant
+AgencyContextMiddleware ..> "1" PrismaClient : reads verification
+AgencyContextMiddleware ..> "1" AgencyContext : attaches
+AgencyContextMiddleware ..> "1" AppError : throws 403
+AgencyService ..> "1" AgencyProfile : reads membership agency
+PrismaClient --> "1" AgencyProfile : loads
+AgencyProfile --> "1" AgencyVerificationStatus : gate

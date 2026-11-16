@@ -51,11 +51,12 @@ const sampleTourDetail: ModerationTourDetail = {
     },
   ],
   agePricing: {
-    adultPrice: 2500000,
+    childMinAge: 2,
+    adultMinAge: 13,
+    childPercent: 60,
+    infantPercent: 0,
     childPrice: 1500000,
-    childPricePercentage: null,
     infantPrice: 0,
-    infantPricePercentage: null,
   },
   childPricingPolicy: 'Trẻ em dưới 2 tuổi miễn phí 100%, từ 2-12 tuổi tính 60% vé.',
   departures: [
@@ -196,11 +197,14 @@ describe('ModeratorTourDetailModal', () => {
     const textarea = screen.getByLabelText(/Lý do/);
     fireEvent.change(textarea, { target: { value: 'Chưa đủ giấy phép yêu cầu' } });
     fireEvent.click(screen.getByText('Từ chối'));
+    expect(onReject).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận từ chối' }));
     await waitFor(() => expect(onReject).toHaveBeenCalledWith('Chưa đủ giấy phép yêu cầu'));
 
     // Approve tour
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
     fireEvent.click(screen.getByText('Duyệt tour'));
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận duyệt tour' }));
     await waitFor(() => expect(onApprove).toHaveBeenCalled());
   });
 });
-

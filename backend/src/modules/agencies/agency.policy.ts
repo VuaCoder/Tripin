@@ -12,6 +12,10 @@ export const AGENCY_PERMISSIONS = {
   BOOKING_MONITOR: 'agency:booking-monitor',
   FINANCE_VIEW: 'agency:finance-view',
   FINANCE_MANAGE: 'agency:finance-manage',
+  FINANCE_EXPORT: 'agency:finance-export',
+  FINANCE_RECONCILE: 'agency:finance-reconcile',
+  FINANCE_REFUND_RECORD: 'agency:finance-refund-record',
+  FINANCE_BANK_MANAGE: 'agency:finance-bank-manage',
 } as const;
 export type AgencyPermission = Permission | (typeof AGENCY_PERMISSIONS)[keyof typeof AGENCY_PERMISSIONS];
 const tour: Permission[] = [P.TOUR_CREATE, P.TOUR_UPDATE_OWN, P.TOUR_DELETE_OWN, P.TOUR_IMPORT,

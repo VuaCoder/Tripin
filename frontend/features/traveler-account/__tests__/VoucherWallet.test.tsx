@@ -171,6 +171,12 @@ describe('VoucherWalletPage', () => {
     expect(screen.getByRole('link', { name: 'Ví voucher' }).getAttribute('href')).toBe('/settings/vouchers');
     expect(screen.queryByText('Ví voucher & Ưu đãi')).toBeNull();
   });
+  it('links to the traveler group request list', () => {
+    render(<TravelerAccountNav />);
+    expect(screen.getByRole('link', { name: 'Yêu cầu đoàn của tôi' }).getAttribute('href')).toBe(
+      '/traveler/custom-tours',
+    );
+  });
   it('renders clean wallet interface without displaying reminder banner or setup buttons', async () => {
     mockGetMyVouchersQuery.mockReturnValue({ data: { data: [] }, isLoading: false, refetch: vi.fn() });
     mockCollectVoucherMutation.mockReturnValue(vi.fn());

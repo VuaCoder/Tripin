@@ -9,7 +9,7 @@ const COPY: Record<WelcomeAudience, { title: string; body: string }> = {
   guide: { title: 'Chờ một lời chào, đón hành trình mới', body: 'Khi du khách liên hệ từ tour bạn phụ trách, cuộc trò chuyện sẽ xuất hiện tại đây để bạn tư vấn và đồng hành cùng họ.' },
 };
 
-export function ConversationWelcome({ audience, recent }: { audience: WelcomeAudience; recent?: { id: string; name: string } }) {
+export function ConversationWelcome({ audience, recent, basePath = '/conversations' }: { audience: WelcomeAudience; recent?: { id: string; name: string }; basePath?: string }) {
   const copy = recent ? { title: 'Tiếp nối câu chuyện, sẵn sàng lên đường', body: 'Lịch trình, điểm hẹn hay những điều bạn muốn biết — mọi trao đổi cho chuyến đi đều ở đây.' } : COPY[audience];
   return <div className="flex h-full flex-col items-center justify-center px-6 py-10 text-center sm:px-10">
     <div className={styles.scene} aria-hidden="true">

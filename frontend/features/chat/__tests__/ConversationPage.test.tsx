@@ -9,7 +9,13 @@ const mocks = vi.hoisted(() => ({
   detailError: undefined as unknown, revision: 0,
   isListLoading: false,
   role: 'TRAVELER', permissions: ['chat:use'],
-  convList: [{ id: 'c1', counterpart: { fullName: 'Guide A' }, lastMessage: { text: 'Xin chào' }, updatedAt: '2026-10-18T10:00:00Z', unreadCount: 2 }],
+  convList: [{ id: 'c1', counterpart: { fullName: 'Guide A' }, lastMessage: { text: 'Xin chào' }, updatedAt: '2026-10-18T10:00:00Z', unreadCount: 2 }] as {
+    id: string;
+    counterpart: { fullName: string; avatarUrl?: string } | null;
+    lastMessage?: { text: string; senderId?: string; sentAt?: string };
+    updatedAt: string;
+    unreadCount: number;
+  }[],
 }));
 vi.mock('next/link', () => ({ default: ({ href, children, ...props }: any) => <a href={href} {...props}>{children}</a> }));
 vi.mock('@/store/hooks', () => ({
@@ -19,14 +25,22 @@ vi.mock('@/store/hooks', () => ({
 vi.mock('../api', () => ({
   chatApi: { endpoints: { messages: { initiate: (args: unknown) => ({ unwrap: () => mocks.fetch(args), abort: vi.fn() }) } }, util: { invalidateTags: vi.fn() } },
   useConversationsQuery: () => ({ data: { data: mocks.convList, meta: { totalPages: 2 } }, isLoading: mocks.isListLoading, refetch: vi.fn() }),
-  useConversationQuery: () => ({ data: { counterpart: { fullName: 'Guide A' } }, error: mocks.detailError, refetch: vi.fn() }),
+  useConversationQuery: ({ id }: { id: string }) => {
+    const detail =
+      id === 'gone'
+        ? (mocks.convList.find((c: any) => c.id === 'gone') ?? { counterpart: null })
+        : { counterpart: { fullName: 'Guide A' } };
+    return { data: detail, error: mocks.detailError, refetch: vi.fn() };
+  },
   useReadConversationMutation: () => [(id: string) => ({ unwrap: () => mocks.read(id) })],
   useSendMessageMutation: () => [(args: unknown) => ({ unwrap: () => mocks.sendRest(args) })],
 }));
 vi.mock('../api/aiChatApi', () => ({ useGetAiOverviewQuery: () => ({ data: { latest: null, unreadCount: 0 }, refetch: vi.fn() }) }));
 // The pinned group-booking card has its own suite in features/custom-tours; here it only needs to mount.
 vi.mock('@/features/custom-tours/components/CustomTourChatSection', () => ({
-  CustomTourChatSection: ({ conversationId }: { conversationId: string }) => <p>Thỏa thuận đoàn {conversationId}</p>,
+  CustomTourChatSection: ({ conversationId, isAgency }: { conversationId: string; isAgency: boolean }) => (
+    <p>Thỏa thuận đoàn {conversationId} {isAgency ? 'agency' : 'traveler'}</p>
+  ),
 }));
 vi.mock('../ChatProvider', () => ({ useChat: () => ({ connected: mocks.connected, delivered: new Set(), revision: mocks.revision, reconnect: vi.fn(), send: mocks.send,
   typing: vi.fn(), subscribeTyping: mocks.subscribeTyping,
@@ -36,7 +50,7 @@ vi.mock('@/features/complaints/api/complaintsApi', () => ({
   useGetMyComplaintsQuery: () => ({ data: { items: [], meta: { page: 1, limit: 10, total: 0, totalPages: 1 } }, isLoading: false }),
   useGetAgencyComplaintsQuery: () => ({ data: { items: [], meta: { page: 1, limit: 10, total: 0, totalPages: 1 } }, isLoading: false }),
 }));
-import { ConversationPage } from '../ConversationPage';
+import { AgencyConversationPage, ConversationPage } from '../ConversationPage';
 const message = (id: string, mine = false) => ({ id, conversationId: 'c1', senderId: mine ? 't1' : 'g1', text: `Tin ${id}`, isMine: mine, createdAt: `2026-10-18T10:00:${id.padStart(2, '0')}Z` });
 beforeEach(() => {
   vi.clearAllMocks(); mocks.connected = true; mocks.detailError = undefined; mocks.revision = 0; mocks.isListLoading = false;
@@ -47,11 +61,11 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe('ConversationPage', () => {
-  it('shows inbox preview, unread count and pagination', () => {
+  it('shows inbox preview and unread count', () => {
     render(<ConversationPage />);
     expect(screen.getByText('Guide A: Xin chào')).toBeTruthy();
     expect(screen.getByLabelText('2 tin chưa đọc')).toBeTruthy();
-    fireEvent.click(screen.getByText('Sau')); expect(screen.getByText('Trang 2')).toBeTruthy();
+    expect(screen.queryByText('Trang 1')).toBeNull();
   });
   it('sends by REST when the socket is disconnected and renders backend text safely', async () => {
     mocks.sendRest.mockResolvedValue({ ...message('1', true), text: '<script>hello</script>' });
@@ -154,11 +168,46 @@ describe('ConversationPage', () => {
     expect((await screen.findAllByText(/Khi khách gửi yêu cầu booking đoàn/)).length).toBeGreaterThan(0);
   });
 
+  // A workplace owner keeps the traveler account role, so the pinned agreement must follow the route.
+  it('pins the group agreement as the agency side even when the account role is TRAVELER', async () => {
+    mocks.role = 'TRAVELER';
+    render(<AgencyConversationPage id="c1" />);
+    expect(await screen.findByText('Thỏa thuận đoàn c1 agency')).toBeTruthy();
+  });
+
+  // A workplace owner keeps the traveler role, so the pinned AI entry must follow the route too.
+  it('keeps the pinned AI entry in the inbox being browsed', async () => {
+    const traveler = render(<ConversationPage />);
+    expect(screen.getByText('Trợ lý AI Tripri').closest('a')?.getAttribute('href')).toBe('/conversations/ai');
+    traveler.unmount();
+    render(<AgencyConversationPage />);
+    expect((await screen.findByText('Trợ lý AI Tripri')).closest('a')?.getAttribute('href')).toBe('/agency/conversations/ai');
+  });
+
   it('does not display complaints tab in inbox and renders counterpart avatar', () => {
     render(<ConversationPage />);
     expect(screen.queryByText('Phiếu khiếu nại')).toBeNull();
     expect(screen.queryByText('Trò chuyện trực tiếp')).toBeNull();
     expect(screen.getByText('Guide A')).toBeTruthy();
+  });
+
+  it('keeps an unavailable counterpart thread visible with title and locks the composer', async () => {
+    mocks.convList = [{
+      id: 'gone', counterpart: null,
+      lastMessage: { text: 'Bắt đầu tin nhắn cùng Guide A', senderId: 'g1', sentAt: '2026-10-18T10:00:00Z' },
+      updatedAt: '2026-10-18T10:00:00Z', unreadCount: 0,
+    }];
+    render(<ConversationPage id="gone" />);
+    // Sidebar keeps the thread labelled as unavailable + open detail shows the locked title & banner.
+    expect(screen.getAllByText('Tài khoản không còn khả dụng').length).toBeGreaterThanOrEqual(1);
+    expect(await screen.findByText('Tài khoản này đã bị khóa. Bạn không thể gửi tin nhắn cho tài khoản này.')).toBeTruthy();
+    expect(screen.queryByLabelText('Nội dung tin nhắn')).toBeNull();
+  });
+
+  it('stays inside the super-admin shell when a thread is opened', () => {
+    mocks.convList = [{ id: 'c1', counterpart: { fullName: 'Guide A' }, updatedAt: '2026-10-18T10:00:00Z', unreadCount: 0 }];
+    const { container } = render(<ConversationPage id="c1" autoOpenNewest basePath="/super-admin/agency-chat" />);
+    expect(container.querySelector('a[href="/super-admin/agency-chat/c1"]')).toBeTruthy();
   });
 });
 
@@ -201,7 +250,7 @@ describe('Typing bubble', () => {
   it('pins the group-booking card above a real conversation', async () => {
     render(<ConversationPage id="c1" />);
     await screen.findByText('Bắt đầu tin nhắn cùng Guide A');
-    expect(screen.getByText('Thỏa thuận đoàn c1')).toBeTruthy();
+    expect(screen.getByText('Thỏa thuận đoàn c1 traveler')).toBeTruthy();
   });
 });
 

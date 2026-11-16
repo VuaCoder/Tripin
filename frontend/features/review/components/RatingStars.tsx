@@ -1,4 +1,5 @@
 import { cn } from '@/components/ui';
+import { Star } from 'lucide-react';
 import { REVIEW_RATING_MAX } from '../types';
 
 export interface RatingStarsProps {
@@ -12,7 +13,7 @@ export interface RatingStarsProps {
 
 const SIZES = { sm: 'text-base', md: 'text-xl', lg: 'text-2xl' } as const;
 
-/** Read-only star rating. Material Symbols is loaded globally (`globals.css`). */
+/** Read-only star rating using SVG icons so it does not depend on a web font. */
 export function RatingStars({ value, count, size = 'md', className }: RatingStarsProps) {
   const safeValue = Number.isFinite(value) ? Math.min(Math.max(value, 0), REVIEW_RATING_MAX) : 0;
   const rounded = Math.round(safeValue * 2) / 2;
@@ -27,13 +28,11 @@ export function RatingStars({ value, count, size = 'md', className }: RatingStar
         const filled = rounded >= star;
         const half = !filled && rounded >= star - 0.5;
         return (
-          <span
-            key={star}
-            aria-hidden="true"
-            className={cn('material-symbols-outlined leading-none', SIZES[size], filled || half ? 'text-amber-500' : 'text-slate-300')}
-            style={filled || half ? { fontVariationSettings: "'FILL' 1" } : undefined}
-          >
-            {half ? 'star_half' : 'star'}
+          <span key={star} aria-hidden="true" className={cn('relative inline-flex size-[1em] shrink-0', SIZES[size])}>
+            <Star className={cn('size-full', filled ? 'fill-amber-500 text-amber-500' : 'fill-slate-300 text-slate-300')} />
+            {half && (
+              <Star className="absolute inset-0 size-full fill-amber-500 text-amber-500" style={{ clipPath: 'inset(0 50% 0 0)' }} />
+            )}
           </span>
         );
       })}

@@ -1,0 +1,74 @@
+classDiagram
+%% 3.13.2 Hoi thoai va tra loi
+%% GET /agency/chat/conversations/:id/messages, POST /:id/messages, POST /:id/read
+
+class ChatController {
+  <<Controller>>
+  +messages(AgencyContext ctx, UUID id, ListMessagesQuery query) MessagesPageDto
+  +send(AgencyContext ctx, UUID id, String text) MessageDto
+  +read(AgencyContext ctx, UUID id) int
+}
+
+class ChatService {
+  <<Service>>
+  +listMessages(UUID userId, UUID conversationId, ListMessagesQuery query, UUID agencyId) MessagesPageDto
+  +sendMessage(UUID userId, UUID conversationId, String text, UUID agencyId) MessageDto
+  +markRead(UUID userId, UUID conversationId, UUID agencyId) int
+  +getTypingRecipientIds(UUID userId, UUID conversationId, UUID agencyId) List~UUID~
+}
+
+class ChatRepository {
+  <<Repository>>
+  +appendMessageAndBumpUnread(UUID conversationId, ChatSide recipient, LastMessage last) ConversationRecord
+  +listMessages(UUID conversationId, int limit, UUID before) MessagesPage
+  +markReadWithWatermark(UUID conversationId, UUID readerId) int
+}
+
+class ChatGateway {
+  <<Gateway>>
+  +emitMessage(UUID recipientId, MessageDto message) void
+  +emitTyping(UUID recipientId, UUID conversationId) void
+}
+
+class PrismaClient {
+  <<DAO>>
+  +Message message
+  +Conversation conversation
+}
+
+class Conversation {
+  +UUID id
+  +UUID travelerId
+  +UUID agencyId
+  +int unreadTraveler
+  +int unreadGuide
+  +Date lastActivityAt
+}
+
+class Message {
+  +UUID id
+  +UUID conversationId
+  +UUID senderId
+  +String text
+  +Date readAt
+  +Date createdAt
+}
+
+class MessageDto {
+  <<DTO>>
+  +UUID id
+  +UUID senderId
+  +String text
+  +Date createdAt
+}
+
+ChatController "1" ..> "1" ChatService : delegates
+ChatController "1" ..> "1" MessageDto : returns
+ChatService "1" --> "1" Conversation : guards membership
+ChatService "1" --> "*" Message : reads and writes
+ChatService ..> "1" ChatRepository : persists
+ChatService ..> "1" ChatGateway : publishes
+ChatService ..> "1" MessageDto : maps
+ChatRepository ..> "1" PrismaClient : uses
+Conversation "1" *-- "*" Message : contains
+Message ..> "1" MessageDto : projected to

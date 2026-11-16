@@ -83,4 +83,3 @@ export function validatePassengerAge(
 
   return null;
 }
-

@@ -93,8 +93,8 @@ export function TourAgePricingFields({ value, onChange }: { value: TourContentIn
               role="checkbox"
               aria-checked={isChildFree}
               className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-0.5 text-xs font-bold transition-all cursor-pointer ${
-                isChildFree 
-                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
+                isChildFree
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
               }`}
             >
@@ -167,8 +167,8 @@ export function TourAgePricingFields({ value, onChange }: { value: TourContentIn
               role="checkbox"
               aria-checked={isInfantFree}
               className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-0.5 text-xs font-bold transition-all cursor-pointer ${
-                isInfantFree 
-                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
+                isInfantFree
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
               }`}
             >

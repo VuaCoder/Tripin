@@ -1,4 +1,4 @@
-import { baseApi } from '@/store/api/baseApi';
+import { baseApi, singlePageMeta } from '@/store/api/baseApi';
 import type { AgencyDashboard, AgencyGuide } from '@/features/agency/types';
 import type { AgencyTourListResult, ExtractedTourCandidate, ListToursArgs, TourApiError, TourApiResponse, TourCategory, TourContentInput, TourDestination, TourDetail, TourListItem, TourListResult, TourStatus } from '../types';
 
@@ -6,7 +6,13 @@ import type { AgencyTourListResult, ExtractedTourCandidate, ListToursArgs, TourA
 export const toursApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     getTours: build.query<TourListResult, ListToursArgs | void>({
-      query: (args) => ({ url: '/tours', params: { page: 1, limit: 12, ...(args ?? {}) } }),
+      query: (args) => {
+        const raw = { page: 1, limit: 12, ...(args ?? {}) };
+        const params = Object.fromEntries(
+          Object.entries(raw).filter(([, value]) => value !== undefined && value !== null && value !== '')
+        );
+        return { url: '/tours', params };
+      },
       transformResponse: (response: TourApiResponse<TourListItem[]>) => ({
         items: response.data,
         meta: response.meta ?? { page: 1, limit: response.data.length || 12, total: response.data.length, totalPages: 1 },
@@ -92,7 +98,7 @@ export const toursApi = baseApi.injectEndpoints({
     }),
     getAgencyGuides: build.query<{ items: AgencyGuide[]; meta: import('../types').TourListMeta }, { q?: string; page: number }>({
       query: (args) => ({ url: '/agency/guides', params: { ...args, limit: 20 } }),
-      transformResponse: (response: TourApiResponse<AgencyGuide[]>) => ({ items: response.data, meta: response.meta! }),
+      transformResponse: (response: TourApiResponse<AgencyGuide[]>) => ({ items: response.data, meta: response.meta ?? singlePageMeta(response.data.length, 20) }),
     }),
     assignAgencyTourGuide: build.mutation<TourDetail, { id: string; guideId: string | null; feePerBooking?: number }>({
       query: ({ id, ...body }) => ({ url: `/agency/tours/${id}/guide`, method: 'PUT', body }),

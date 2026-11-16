@@ -50,4 +50,19 @@ describe('custom-tours tenant scope (integration)', () => {
     expect(response.status).toBe(200);
     expect(response.body.data.map((item: { id: string }) => item.id)).toContain(requestId);
   });
+
+  // Creating a workplace keeps the TRAVELER role, so the global role cannot say which side is asking.
+  it('lets a workplace owner who is still a TRAVELER read the agency side, and only that side', async () => {
+    const dual = await createUser('TRAVELER', 'dual@scope.test');
+    await prisma.agencyMember.create({ data: { agencyId: owner.id, userId: dual.id, role: 'OWNER' } });
+
+    const agencySide = await request(app).get('/api/v1/custom-tours?side=agency').set(scope(dual.token, owner.id));
+    expect(agencySide.status).toBe(200);
+    expect(agencySide.body.data.map((item: { id: string }) => item.id)).toContain(requestId);
+    expect((await request(app).get(`/api/v1/custom-tours/${requestId}`).set(scope(dual.token, owner.id))).status).toBe(200);
+
+    const travelerSide = await request(app).get('/api/v1/custom-tours?side=traveler').set(bearer(dual.token));
+    expect(travelerSide.status).toBe(200);
+    expect(travelerSide.body.data).toEqual([]);
+  });
 });

@@ -106,6 +106,8 @@ export interface ListCustomToursArgs {
   limit?: number;
   status?: CustomTourStatus;
   conversationId?: string;
+  /** The workspace asking; a workplace owner still has the TRAVELER role, so the API cannot infer it. */
+  side?: 'traveler' | 'agency';
 }
 
 /** The fields the agency may negotiate; `maxGroupSize` is always the head count, so the API refuses it. */

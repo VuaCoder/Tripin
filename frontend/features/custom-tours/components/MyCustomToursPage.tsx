@@ -22,7 +22,7 @@ function ctaLabel(request: CustomTourRequestDto): string {
 
 export function MyCustomToursPage() {
   const [page, setPage] = useState(1);
-  const { data, isLoading, isError, refetch } = useListCustomToursQuery({ page, limit: PAGE_SIZE });
+  const { data, isLoading, isError, refetch } = useListCustomToursQuery({ page, limit: PAGE_SIZE, side: 'traveler' });
   const items = data?.items ?? [];
 
   return (

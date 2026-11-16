@@ -1,6 +1,7 @@
 /** Wire shapes of `/moderation/*` (see backend `moderation`, `tours`, `users`, `reports`, `reviews`, `support` and `dashboards` modules). */
 
 import type { MyReport, ReportCategory, ReportStatus, ReportTarget } from '@/features/report/types';
+import type { AgePricing } from '@travel-platform/constants';
 
 export type ModerationTourStatus = 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'ARCHIVED';
 export type AgencyVerificationStatus = 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'INFORMATION_REQUESTED';
@@ -72,22 +73,30 @@ export interface ModerationTourDetail extends ModerationTour {
     };
   }>;
   childPricingPolicy?: string | null;
-  agePricing?: {
-    adultPrice?: number;
-    childPrice?: number | null;
-    childPricePercentage?: number | null;
-    infantPrice?: number | null;
-    infantPricePercentage?: number | null;
-  } | null;
+  agePricing?: AgePricing | null;
   cancellationPolicy?: string | null;
   requiredDocuments?: string | null;
   travelNotes?: string | null;
   departures?: ModerationTourDeparture[];
-  visibility?: string;
+  visibility?: 'PUBLIC' | 'PRIVATE';
   guide?: { id: string; fullName: string; avatarUrl?: string } | null;
 }
 
 export interface ModerationTour {
+  visibility?: 'PUBLIC' | 'PRIVATE';
+  categoryIds?: string[];
+  categories?: { id: string; name: string }[];
+  highlights?: string[];
+  maxGroupSize?: number | null;
+  meetingPoint?: string | null;
+  travelNotes?: string | null;
+  requiredDocuments?: string | null;
+  cancellationPolicy?: string | null;
+  childPricingPolicy?: string | null;
+  agePricing?: AgePricing | null;
+  departures?: ModerationTourDeparture[];
+  guide?: { id: string; fullName: string; avatarUrl?: string } | null;
+  guideAssignment?: { feePerBooking: number; status: string; respondedAt?: string; note?: string };
   id: string;
   title: string;
   summary?: string;

@@ -116,6 +116,17 @@ describe('tenant-owned roles and member overrides', () => {
     expect(rows.length).toBeGreaterThan(0);
     expect(rows.every(row => row.actorId === owner.id && (row.metadata as { agencyId: string }).agencyId === owner.id)).toBe(true);
   });
+  it('scoped editing of images needs the delegated field and accepts only URLs', async () => {
+    const tour = await createApprovedTour(other.id);
+    const ctx = await agencyService.resolve(traveler.id, other.id);
+    const endpoint = `/api/v1/agency/work/tours/${tour.tourId}/content`;
+    await request(app).put(`/api/v1/agency/members/${ctx.memberId}/tour-scopes`).set(scope(other.token, other.id))
+      .send({ scopes: [{ tourId: tour.tourId, allowedFields: ['images'] }] });
+    expect((await request(app).patch(endpoint).set(scope(traveler.token, other.id)).send({ images: ['not-a-url'] })).status).toBe(400);
+    expect((await request(app).patch(endpoint).set(scope(traveler.token, other.id)).send({ title: 'Not delegated' })).status).toBe(403);
+    expect((await request(app).patch(endpoint).set(scope(traveler.token, other.id)).send({ images: ['https://cdn.test/a.jpg'] })).status).toBe(200);
+    expect((await prisma.tour.findUniqueOrThrow({ where: { id: tour.tourId } })).images).toEqual(['https://cdn.test/a.jpg']);
+  });
   it('scoped editing rejects unassigned tours, undelegated fields and price/status writes', async () => {
     const tour = await createApprovedTour(other.id);
     const ctx = await agencyService.resolve(traveler.id, other.id);

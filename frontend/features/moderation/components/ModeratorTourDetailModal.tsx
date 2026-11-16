@@ -61,6 +61,7 @@ export function ModeratorTourDetailModal({
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [reason, setReason] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ action: 'approve' | 'reject' | 'suspend'; reason: string } | null>(null);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
 
   const status: ModerationTourStatus = tour?.status ?? 'PENDING_REVIEW';
@@ -83,15 +84,17 @@ export function ModeratorTourDetailModal({
       setValidationError(null);
     }
 
-    const trimmedReason = reason.trim();
-    if (action === 'approve') {
-      await onApprove(trimmedReason || undefined);
-    } else if (action === 'reject') {
-      await onReject(trimmedReason);
-    } else if (action === 'suspend') {
-      await onSuspend(trimmedReason);
-    }
+    setPendingAction({ action, reason: reason.trim() });
   };
+
+  const confirmAction = async () => {
+    if (!pendingAction || isSubmitting) return;
+    if (pendingAction.action === 'approve') await onApprove(pendingAction.reason || undefined);
+    else if (pendingAction.action === 'reject') await onReject(pendingAction.reason);
+    else await onSuspend(pendingAction.reason);
+  };
+
+  const actionLabel = pendingAction?.action === 'approve' ? 'duyệt tour' : pendingAction?.action === 'reject' ? 'từ chối' : 'tạm ngưng tour';
 
   const images: string[] = [];
   if (tour?.coverImage) images.push(tour.coverImage);
@@ -112,8 +115,9 @@ export function ModeratorTourDetailModal({
   ];
 
   return (
+    <>
     <Modal
-      open
+      open={!pendingAction}
       onClose={onClose}
       closeOnBackdrop={!isSubmitting}
       title="Chi tiết kiểm duyệt tour"
@@ -490,8 +494,8 @@ export function ModeratorTourDetailModal({
                     Người lớn (từ 13 tuổi)
                   </span>
                   <p className="text-xl sm:text-2xl font-extrabold text-teal-950">
-                    {tourDetail?.agePricing?.adultPrice || tour?.basePrice
-                      ? money.format(tourDetail?.agePricing?.adultPrice ?? tour!.basePrice)
+                    {tour?.basePrice
+                      ? money.format(tour.basePrice)
                       : 'Chưa đặt'}
                   </p>
                   <p className="text-xs text-slate-500">Giá vé tiêu chuẩn / người</p>
@@ -507,8 +511,8 @@ export function ModeratorTourDetailModal({
                       ? tourDetail.agePricing.childPrice === 0
                         ? 'Miễn phí'
                         : money.format(tourDetail.agePricing.childPrice)
-                      : typeof tourDetail?.agePricing?.childPricePercentage === 'number'
-                      ? `${tourDetail.agePricing.childPricePercentage}% vé người lớn`
+                      : typeof tourDetail?.agePricing?.childPercent === 'number'
+                      ? `${tourDetail.agePricing.childPercent}% vé người lớn`
                       : 'Theo thỏa thuận'}
                   </p>
                   <p className="text-xs text-slate-500">Giá vé trẻ em / người</p>
@@ -524,8 +528,8 @@ export function ModeratorTourDetailModal({
                       ? tourDetail.agePricing.infantPrice === 0
                         ? 'Miễn phí'
                         : money.format(tourDetail.agePricing.infantPrice)
-                      : typeof tourDetail?.agePricing?.infantPricePercentage === 'number'
-                      ? `${tourDetail.agePricing.infantPricePercentage}% vé người lớn`
+                      : typeof tourDetail?.agePricing?.infantPercent === 'number'
+                      ? `${tourDetail.agePricing.infantPercent}% vé người lớn`
                       : 'Miễn phí'}
                   </p>
                   <p className="text-xs text-slate-500">Giá vé em bé / người</p>
@@ -746,5 +750,25 @@ export function ModeratorTourDetailModal({
         )}
       </div>
     </Modal>
+    <Modal
+      open={Boolean(pendingAction)}
+      onClose={() => { if (!isSubmitting) setPendingAction(null); }}
+      closeOnBackdrop={!isSubmitting}
+      title={`Xác nhận ${actionLabel}`}
+      className="max-w-md"
+    >
+      {pendingAction && (
+        <div className="space-y-5 text-sm">
+          {serverError && <p role="alert" className="rounded-xl bg-rose-50 p-3 font-semibold text-rose-700">{serverError}</p>}
+          <p>Bạn có chắc chắn muốn {actionLabel} "{tour?.title}" không?</p>
+          {pendingAction.reason && <p className="rounded-xl bg-slate-50 p-3 text-slate-700">Lý do: {pendingAction.reason}</p>}
+          <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+            <button type="button" disabled={isSubmitting} onClick={() => setPendingAction(null)} className="rounded-xl border border-slate-300 px-4 py-2.5 font-semibold">Hủy</button>
+            <button type="button" disabled={isSubmitting} onClick={() => void confirmAction()} className="rounded-xl bg-brand-teal px-4 py-2.5 font-semibold text-white disabled:opacity-50">{isSubmitting ? 'Đang xử lý...' : `Xác nhận ${actionLabel}`}</button>
+          </div>
+        </div>
+      )}
+    </Modal>
+    </>
   );
 }

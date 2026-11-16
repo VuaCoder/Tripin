@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { baseApi } from '@/store/api/baseApi';
 import authReducer, { setCredentials } from '@/features/auth/store/authSlice';
 import { bookingApi } from '@/features/booking/api/bookingApi';
+import { agencyTeamApi } from '@/features/agency/teamApi';
 import type { SessionData } from '@/features/auth/types';
 import { withAgencyMembership } from '@/test/agencySession';
 import { identityIsolation } from '@/store/api/identityIsolation';
@@ -39,6 +40,16 @@ describe('Agency customer PDF download', () => {
     expect(bookingApi.endpoints.getAgencyBookings.select({})(store.getState()).data?.items[0]?.id).toBe('private-booking-a');
     store.dispatch(setCredentials({ ...session, user: { ...session.user, id: 'agency-b' } }));
     expect(bookingApi.endpoints.getAgencyBookings.select({})(store.getState()).data).toBeUndefined();
+  });
+  it('reads a list answered without meta as one page instead of crashing on meta.page', async () => {
+    const { store } = setup(
+      Response.json({ success: true, data: [{ id: 'booking-a' }] }),
+      Response.json({ success: true, data: [{ id: 'work-booking-a' }] }),
+    );
+    const agency = await store.dispatch(bookingApi.endpoints.getAgencyBookings.initiate({}, { subscribe: false }));
+    expect(agency.data?.meta).toEqual({ page: 1, limit: 20, total: 1, totalPages: 1 });
+    const work = await store.dispatch(agencyTeamApi.endpoints.teamWorkBookings.initiate({ agencyId: 'a1', page: 1 }, { subscribe: false }));
+    expect(work.data?.meta).toEqual({ page: 1, limit: 50, total: 1, totalPages: 1 });
   });
   it('downloads a complete PDF with bearer auth, sends only departureId and returns serializable metadata', async () => {
     const { store, fetchMock, create, click } = setup(pdfResponse());

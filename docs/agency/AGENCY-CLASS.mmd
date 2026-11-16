@@ -1,0 +1,396 @@
+classDiagram
+%% Agency Management - monolith module `agencies`
+%% Mirrors backend/src/modules/agencies, backend/src/middlewares/agency-context.ts, prisma/schema.prisma
+
+class AgencyController {
+  <<Controller>>
+  +Router identityRouter
+  +Router invitationRouter
+  +Router foundationRouter
+  +List~AgencyMembershipDto~ listMyAgencies(UUID userId)
+  +AgencyContext getContext(AgencyContext ctx)
+  +List~AgencyMemberView~ listMembers(AgencyContext ctx)
+  +List~AgencyRole~ listRoles(AgencyContext ctx)
+  +AgencyRole createRole(AgencyContext ctx, RoleRequestDTO body)
+  +AgencyRole updateRole(AgencyContext ctx, UUID roleId, RoleRequestDTO body)
+  +AgencyMember setMemberAccess(AgencyContext ctx, UUID memberId, MemberAccessRequestDTO body)
+  +AgencyMember setTourScopes(AgencyContext ctx, UUID memberId, List~TourScopeRequestDTO~ body)
+  +AgencyInvitation inviteMember(AgencyContext ctx, InviteRequestDTO body)
+  +boolean revokeInvitation(AgencyContext ctx, UUID invitationId)
+  +AgencyMember changeMember(AgencyContext ctx, UUID memberId, String role, String status)
+  +InvitationValidationResult validateInvitation(String token, String emailHint)
+  +AgencyMember acceptInvitation(UUID userId, String token)
+  +AgencyMember acceptInvitationById(UUID userId, UUID invitationId)
+  -void validationErrorHandler(Error error)
+}
+
+class AgencyService {
+  <<Service>>
+  -String digest(String token)
+  -String maskEmail(String email)
+  +List~AgencyMembershipDto~ listForUser(UUID userId)
+  +AgencyContext resolve(UUID userId, UUID selectedAgencyId)
+  +AgencyContext resolveOptional(UUID userId, UUID selectedAgencyId)
+  +AgencyMember changeMember(AgencyContext ctx, UUID memberId, String role, String status)
+  +AgencyInvitation invite(AgencyContext ctx, InviteRequestDTO input)
+  +AgencyMember accept(UUID userId, String token)
+  +List~AgencyInvitation~ myInvitations(UUID userId, int page)
+  +AgencyMember acceptById(UUID userId, UUID invitationId)
+  +InvitationValidationResult validateInvitationToken(String token, String emailHint)
+  +boolean revoke(AgencyContext ctx, UUID invitationId)
+}
+
+class AgencyAccessService {
+  <<Service>>
+  +List~AgencyRole~ listRoles(AgencyContext ctx)
+  +AgencyRole saveRole(AgencyContext ctx, RoleRequestDTO input, UUID roleId)
+  +AgencyMember setMemberAccess(AgencyContext ctx, UUID memberId, MemberAccessRequestDTO input)
+}
+
+class AgencyWorkService {
+  <<Service>>
+  +AgencyMember setTourScopes(AgencyContext ctx, UUID memberId, List~TourScopeRequestDTO~ scopes)
+  +Tour updateScopedContent(AgencyContext ctx, UUID tourId, ContentPatchDTO patch)
+}
+
+class WorkplacesService {
+  <<Service>>
+  -User activeUser(DbExecutor tx, UUID userId)
+  +AgencyProfile create(UUID userId, AgencyApplicationInput input, UUID requestId)
+  +AgencyProfile application(AgencyContext ctx)
+  +AgencyProfile saveApplication(AgencyContext ctx, AgencyApplicationInput input, boolean submit)
+  +AgencyJoinCode currentCode(AgencyContext ctx)
+  +AgencyJoinCode rotateCode(AgencyContext ctx)
+  +boolean revokeCode(AgencyContext ctx, UUID codeId)
+  +AgencyJoinRequest request(UUID userId, String code)
+  +List~AgencyJoinRequest~ mine(UUID userId, int page)
+  +List~AgencyJoinRequest~ queue(AgencyContext ctx, int page)
+  +boolean cancel(UUID userId, UUID requestId)
+  +AgencyMember review(AgencyContext ctx, UUID requestId, UUID roleId)
+}
+
+class AgencyGuard {
+  <<Utility>>
+  +AgencyMember lockAgencyAccess(DbExecutor tx, AgencyContext ctx, AgencyPermission permission)$
+  +void assertDelegable(AgencyMember actor, List~AgencyPermission~ permissions)$
+  +void bumpAgencyPermissions(DbExecutor tx, UUID agencyId)$
+  +AgencyMember lockWorkplaceOwner(DbExecutor tx, AgencyContext ctx)$
+  +AgencyMember joinOrRestoreAgencyMember(DbExecutor tx, UUID agencyId, UUID userId)$
+}
+
+class AgencyPolicy {
+  <<Utility>>
+  +List~AgencyPermission~ AGENCY_PERMISSION_CATALOG$
+  +Map AGENCY_ROLE_PERMISSIONS$
+  +List~AgencyPermission~ effectiveAgencyPermissions(PermissionSource member)$
+}
+
+class AgencyProfileRepository {
+  <<Repository>>
+  +AgencyPublicProfileDto publicProfile(UUID agencyId)
+  +Page~AgencyModerationDto~ list(String status, PageQuery page)
+  +AgencyModerationDto decide(ModeratorActor actor, UUID agencyId, DecisionDTO decision)
+}
+
+class PrismaClient {
+  <<DAO>>
+  +AgencyProfile agencyProfile
+  +AgencyMember agencyMember
+  +AgencyRole agencyRole
+  +AgencyInvitation agencyInvitation
+  +AgencyJoinCode agencyJoinCode
+  +AgencyJoinRequest agencyJoinRequest
+  +Object transaction(Function fn)
+}
+
+class AgencyProfile {
+  +UUID id
+  +String companyName
+  +String licenseNumber
+  +String taxId
+  +String businessLicenseUrl
+  +AgencyVerificationStatus verificationStatus
+  +int permissionVersion
+  +int commissionRateBps
+  +int commissionVersion
+  +Date submittedAt
+  +Date verifiedAt
+}
+
+class AgencyMember {
+  +UUID id
+  +UUID agencyId
+  +UUID userId
+  +AgencyMemberRole role
+  +UUID roleId
+  +AgencyMemberStatus status
+  +Date createdAt
+}
+
+class AgencyRole {
+  +UUID id
+  +UUID agencyId
+  +String name
+  +AgencyMemberRole systemRole
+  +List~AgencyPermission~ permissions
+  +Date createdAt
+}
+
+class AgencyInvitation {
+  +UUID id
+  +UUID agencyId
+  +String email
+  +AgencyMemberRole role
+  +UUID roleId
+  +AgencyInvitationStatus status
+  +String tokenHash
+  +UUID invitedByUserId
+  +Date expiresAt
+  +Date acceptedAt
+  +Date revokedAt
+}
+
+class AgencyJoinCode {
+  +UUID id
+  +UUID agencyId
+  +String codeHash
+  +UUID createdByUserId
+  +Date expiresAt
+  +Date revokedAt
+}
+
+class AgencyJoinRequest {
+  +UUID id
+  +UUID agencyId
+  +UUID userId
+  +UUID joinCodeId
+  +String status
+  +UUID assignedRoleId
+  +Date reviewedAt
+  +Date cancelledAt
+}
+
+class AgencyMemberPermissionOverride {
+  +UUID memberId
+  +AgencyPermission permission
+  +String effect
+}
+
+class AgencyMemberTourScope {
+  +UUID memberId
+  +UUID tourId
+  +List~String~ allowedFields
+}
+
+class User {
+  <<External>>
+  +UUID id
+  +String email
+  +String fullName
+  +String status
+  +String staffStatus
+  +Date emailVerifiedAt
+}
+
+class Tour {
+  <<External>>
+  +UUID id
+  +UUID agencyId
+  +String title
+  +String status
+}
+
+class AgencyContext {
+  <<DTO>>
+  +UUID agencyId
+  +UUID actorUserId
+  +UUID memberId
+  +AgencyMemberRole memberRole
+  +boolean isPrimaryOwner
+  +List~AgencyPermission~ permissions
+  +UUID roleId
+  +String roleName
+  +int permissionVersion
+}
+
+class AgencyMembershipDto {
+  <<DTO>>
+  +UUID agencyId
+  +UUID memberId
+  +String companyName
+  +AgencyVerificationStatus verificationStatus
+  +String roleName
+  +List~AgencyPermission~ permissions
+}
+
+class AgencyMemberView {
+  <<DTO>>
+  +UUID id
+  +UUID userId
+  +AgencyMemberRole role
+  +String roleName
+  +AgencyMemberStatus status
+  +boolean isPrimaryOwner
+  +List~AgencyPermission~ permissions
+  +List~AgencyMemberTourScope~ tourScopes
+}
+
+class InvitationValidationResult {
+  <<DTO>>
+  +String status
+  +String email
+  +boolean emailMatched
+  +AgencyMemberRole role
+  +Date expiresAt
+  +String agencyName
+}
+
+class RoleRequestDTO {
+  <<DTO>>
+  +String name
+  +List~AgencyPermission~ permissions
+}
+
+class MemberAccessRequestDTO {
+  <<DTO>>
+  +UUID roleId
+  +List~Object~ overrides
+}
+
+class InviteRequestDTO {
+  <<DTO>>
+  +String email
+  +AgencyMemberRole role
+  +UUID roleId
+}
+
+class TourScopeRequestDTO {
+  <<DTO>>
+  +UUID tourId
+  +List~String~ allowedFields
+}
+
+class ContentPatchDTO {
+  <<DTO>>
+  +String title
+  +String summary
+  +String description
+}
+
+class AgencyApplicationInput {
+  <<DTO>>
+  +String companyName
+  +String address
+  +String licenseNumber
+  +String taxId
+  +String businessLicenseUrl
+  +String description
+  +String website
+}
+
+class AgencyMemberRole {
+  <<Enumeration>>
+  OWNER
+  MANAGER
+  STAFF
+  ACCOUNTANT
+}
+
+class AgencyMemberStatus {
+  <<Enumeration>>
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+
+class AgencyInvitationStatus {
+  <<Enumeration>>
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+class AgencyVerificationStatus {
+  <<Enumeration>>
+  UNVERIFIED
+  PENDING
+  INFORMATION_REQUESTED
+  VERIFIED
+  REJECTED
+}
+
+AgencyController "1" ..> "1" AgencyService : delegates
+AgencyController "1" ..> "1" AgencyAccessService : delegates
+AgencyController "1" ..> "1" AgencyWorkService : delegates
+AgencyController "1" ..> "1" WorkplacesService : delegates
+AgencyController "1" ..> "*" AgencyContext : reads request context
+AgencyController "1" ..> "1" AgencyMembershipDto : returns
+AgencyController "1" ..> "1" InvitationValidationResult : returns
+AgencyController "1" ..> "1" RoleRequestDTO : binds
+AgencyController "1" ..> "1" MemberAccessRequestDTO : binds
+AgencyController "1" ..> "1" InviteRequestDTO : binds
+
+AgencyService "1" --> "*" AgencyMember : manages
+AgencyService "1" --> "*" AgencyInvitation : issues
+AgencyService ..> "1" AgencyGuard : locks with
+AgencyService ..> "1" AgencyPolicy : evaluates
+AgencyService ..> "1" PrismaClient : queries
+AgencyService ..> "1" AgencyContext : produces
+AgencyService ..> "1" AgencyMembershipDto : maps
+
+AgencyAccessService "1" --> "*" AgencyRole : owns
+AgencyAccessService "1" --> "*" AgencyMember : grants
+AgencyAccessService ..> "1" AgencyGuard : locks with
+AgencyAccessService ..> "1" AgencyPolicy : evaluates
+AgencyAccessService ..> "1" PrismaClient : queries
+
+AgencyWorkService "1" --> "*" AgencyMemberTourScope : writes
+AgencyWorkService "1" --> "*" Tour : edits
+AgencyWorkService ..> "1" AgencyGuard : locks with
+AgencyWorkService ..> "1" AgencyPolicy : evaluates
+AgencyWorkService ..> "1" PrismaClient : queries
+
+WorkplacesService "1" --> "1" AgencyProfile : creates
+WorkplacesService "1" --> "*" AgencyJoinCode : rotates
+WorkplacesService "1" --> "*" AgencyJoinRequest : reviews
+WorkplacesService ..> "1" AgencyGuard : locks with
+WorkplacesService ..> "1" PrismaClient : queries
+WorkplacesService ..> "1" AgencyApplicationInput : parses
+
+AgencyProfileRepository "1" --> "*" AgencyProfile : reads
+AgencyProfileRepository ..> "1" PrismaClient : queries
+
+AgencyGuard "1" --> "*" AgencyMember : rechecks
+AgencyGuard ..> "1" PrismaClient : locks
+AgencyPolicy ..> "*" AgencyMemberRole : defaults per role
+
+AgencyProfile "1" *-- "1..*" AgencyMember : employs
+AgencyProfile "1" *-- "*" AgencyRole : defines
+AgencyProfile "1" *-- "*" AgencyInvitation : sends
+AgencyProfile "1" *-- "*" AgencyJoinCode : issues
+AgencyProfile "1" *-- "*" AgencyJoinRequest : receives
+AgencyProfile "1" o-- "*" Tour : owns
+
+AgencyMember "1" *-- "*" AgencyMemberPermissionOverride : overrides
+AgencyMember "1" *-- "*" AgencyMemberTourScope : scopes
+AgencyMember "*" --> "1" AgencyRole : assignedRole
+AgencyMember "*" --> "1" User : belongs to
+AgencyMember --> "1" AgencyMemberRole : role
+AgencyMember --> "1" AgencyMemberStatus : status
+
+AgencyRole --> "1" AgencyMemberRole : systemRole
+AgencyInvitation "*" --> "0..1" AgencyRole : assignedRole
+AgencyInvitation --> "1" AgencyInvitationStatus : status
+AgencyJoinRequest "*" --> "0..1" AgencyRole : assignedRole
+AgencyJoinRequest "*" --> "1" AgencyJoinCode : consumed
+AgencyMemberTourScope "*" --> "1" Tour : targets
+
+AgencyProfile --> "1" AgencyVerificationStatus : status
+AgencyContext ..> "1" AgencyMember : derived from
+AgencyContext ..> "1" AgencyRole : carries
+AgencyMemberView ..> "1" AgencyMemberTourScope : embeds
+
+note for AgencyController "Express Router with inline handlers in agency.routes.ts, no separate controller class"
+note for AgencyService "Issues Prisma queries inline today, only agency profiles go through AgencyProfileRepository"
+note for PrismaClient "Shared singleton from config/database.ts, also injected as DbExecutor inside transactions"

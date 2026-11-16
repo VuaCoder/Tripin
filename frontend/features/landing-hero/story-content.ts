@@ -44,9 +44,9 @@ export const STORY_CHAPTERS = [
   {
     number: '04',
     kicker: 'Đi cùng người đáng tin',
-    title: 'Kết nối với những người hiểu nơi họ dẫn bạn đến.',
-    body: 'TRIPRI kết nối bạn với các công ty du lịch và hướng dẫn viên đáng tin cậy — những đối tác tạo ra trải nghiệm thật, vận hành chuyến đi và chăm sóc bạn trên đường.',
-    side: 'Một nền tảng chung cho người đi, người tổ chức và người dẫn đường.',
+    title: 'Kết nối với những đối tác hiểu nơi họ đưa bạn đến.',
+    body: 'TRIPRI kết nối bạn với các công ty du lịch đáng tin cậy — những đối tác tạo ra trải nghiệm thật, vận hành chuyến đi và chăm sóc bạn trên đường.',
+    side: 'Một nền tảng chung cho người đi và đơn vị tổ chức đồng hành.',
     image: 'https://res.cloudinary.com/zal9vrxu/image/upload/v1793898297/tripri_story/story_ch4_local_culture.jpg',
   },
 ];

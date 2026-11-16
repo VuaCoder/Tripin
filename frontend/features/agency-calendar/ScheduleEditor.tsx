@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ConfigProvider, DatePicker, InputNumber, Switch, TimePicker } from 'antd';
 import viVN from 'antd/locale/vi_VN';
 import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import 'dayjs/locale/vi';
 import { Banknote, CalendarDays, Clock3, LockKeyhole, Trash2, Users, Repeat2, Check, LoaderCircle } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
@@ -13,6 +14,9 @@ import { atVietnam, localParts, todayVietnam, weeklyDates } from './calendarTime
 import type { CalendarTour, DepartureEvent } from './types';
 import styles from './calendar.module.css';
 
+// The pickers below parse 'HH:mm' / 'YYYY-MM-DD' strings; without this plugin
+// dayjs returns Invalid Date and the time column silently refuses every edit.
+dayjs.extend(customParseFormat);
 dayjs.locale('vi');
 
 export interface EditorDraft { tour: CalendarTour; date: string; weekly?: boolean; event?: DepartureEvent }
@@ -59,11 +63,12 @@ export function ScheduleEditor({
   const formattedBasePrice = new Intl.NumberFormat('vi-VN').format(draft.tour.basePrice);
 
   const lockBanner = useMemo(() => {
+    if (draft.tour.visibility === 'PRIVATE') return 'Tour riêng của đoàn · Sửa ngày và giờ trong thỏa thuận booking đoàn';
     if (past && booked > 0) return `Đã khởi hành · Có ${booked} khách đã đặt · Chế độ chỉ xem`;
     if (past) return 'Đã khởi hành · Chế độ chỉ xem';
     if (booked > 0) return `Đã có ${booked} khách đặt · Không thể thay đổi ngày và giờ khởi hành`;
     return '';
-  }, [past, booked]);
+  }, [past, booked, draft.tour.visibility]);
 
   const preview = useMemo(() => {
     try {
@@ -157,7 +162,8 @@ export function ScheduleEditor({
                 id={timeId}
                 format="HH:mm"
                 allowClear={false}
-                needConfirm={false}
+                // antd v6 dropped needConfirm={false}: hiding the OK button leaves
+                // the panel's picked time uncommitted, so every edit was discarded.
                 placeholder="Chọn giờ"
                 value={dayjs(time, 'HH:mm')}
                 disabled={readOnly || booked > 0 || busy}

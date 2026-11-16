@@ -146,6 +146,21 @@ describe('CustomTourChatSection', () => {
     expect(within(panel).getByText(/Đã gửi thỏa thuận, khách đang xem/)).toBeTruthy();
   });
 
+  // The agreed departure is an instant, so the agency sets the hour too; it used to be pinned to 07:00 VN.
+  it('saves the departure hour the agency negotiates', async () => {
+    mocks.list.data = { items: [negotiable()] };
+    render(<CustomTourChatSection conversationId="c1" isAgency />);
+    open();
+
+    const hour = screen.getByLabelText('Giờ (VN)') as HTMLInputElement;
+    expect(hour.value).toBe('07:00');
+    fireEvent.change(hour, { target: { value: '08:30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
+
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1));
+    expect(mocks.save.mock.calls[0][0].departure.date).toBe('2099-05-20T01:30:00.000Z');
+  });
+
   it('saves the draft with the request revision and never sends the fixed head count', async () => {
     mocks.list.data = { items: [negotiable()] };
     render(<CustomTourChatSection conversationId="c1" isAgency />);

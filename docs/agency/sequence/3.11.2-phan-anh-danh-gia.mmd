@@ -1,0 +1,113 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. Pick issue category + description, click "Send dispute"
+    activate Frontend
+    Frontend->>Server: 2. POST /api/v1/agency/review-disputes/{reviewId}
+    activate Server
+    Server->>App: 3. createApp() handles request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency/review-disputes', resolveAgencyContext, requireVerifiedAgency, agencyReviewDisputesRouter)
+    activate Route
+    Route->>Middlewares: 5. router: requirePermission(review:dispute), rateLimit, validate(params, body)
+    activate Middlewares
+    alt Missing review:dispute or description too short
+        Middlewares-->>Frontend: 6. 403/400
+    else Valid
+        Middlewares-->>Route: 7. next()
+        deactivate Middlewares
+        Route->>Controller: 8. reportsController.disputeReview(req, res)
+        activate Controller
+        Controller->>Service: 9. reportsService.disputeReview(agencyId, reviewId, body)
+        activate Service
+        Service->>DAO: 10. reviewsService.getFacts(reviewId)
+        activate DAO
+        DAO->>Database: 11. SELECT "Review" JOIN "Tour" to get agencyId
+        activate Database
+        Database-->>DAO: 12. review facts
+        deactivate Database
+        DAO-->>Service: 13. review or null
+        deactivate DAO
+        alt Review of another agency / not found
+            Service-->>Controller: 14. AppError 404
+            Controller-->>Frontend: 15. 404 NOT_FOUND
+            Frontend-->>User: 16. Show review not found
+        else Owned by agency
+            Service->>DAO: 16. reportsRepository.findOpenDuplicate(agencyId, REVIEW, reviewId)
+            activate DAO
+            DAO->>Database: 17. SELECT open "Report" for the same review
+            activate Database
+            Database-->>DAO: 18. duplicate report or null
+            deactivate Database
+            alt Open dispute already exists
+                DAO-->>Service: 19. existing report
+                Service-->>Controller: 20. AppError 409
+                Controller-->>Frontend: 21. 409 "One open dispute per review"
+                Frontend-->>User: 22. Show error, switch to "Sent disputes" tab
+            else None yet
+                DAO-->>Service: 23. null
+                deactivate DAO
+                Service->>DAO: 24. reportsRepository.create({ targetType: REVIEW, targetId, category, description })
+                activate DAO
+                DAO->>Database: 25. INSERT "Report" (status OPEN, reporter = agency)
+                activate Database
+                Database-->>DAO: 26. ReportRecord
+                deactivate Database
+                DAO-->>Service: 27. report
+                deactivate DAO
+                Service-->>Controller: 28. MyReportDto
+                deactivate Service
+                Controller-->>Frontend: 29. 201 Created
+                deactivate Controller
+                Frontend-->>User: 30. "Sent disputes" tab shows open state
+                deactivate Frontend
+            end
+            deactivate Route
+            deactivate App
+            deactivate Server
+        end
+    end

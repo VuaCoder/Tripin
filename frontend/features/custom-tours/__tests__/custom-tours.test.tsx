@@ -237,6 +237,22 @@ describe('AgencyCustomToursPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Từ chối' }));
     await waitFor(() => expect(mocks.decide).toHaveBeenLastCalledWith({ id: 'r5', decision: 'DECLINE' }));
   });
+
+  it('mở đúng hội thoại của đại lý kể cả khi bước tiếp theo là của khách', () => {
+    mocks.list.data = {
+      items: [
+        request({ id: 'r6', status: 'ACCEPTED', nextStep: 'ENTER_PASSENGERS', conversationId: 'c6' }),
+        request({ id: 'r7', status: 'ACCEPTED', nextStep: 'ENTER_PASSENGERS' }),
+      ],
+      meta: { page: 1, limit: 10, total: 2, totalPages: 1 },
+    };
+
+    render(<AgencyCustomToursPage />);
+
+    const links = screen.getAllByRole('link', { name: 'Vào chat' });
+    expect(links).toHaveLength(1);
+    expect(links[0].getAttribute('href')).toBe('/agency/conversations/c6?request=r6');
+  });
 });
 
 describe('links', () => {

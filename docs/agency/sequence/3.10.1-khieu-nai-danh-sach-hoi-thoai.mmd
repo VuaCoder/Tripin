@@ -1,0 +1,115 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. Open /agency/complaints
+    activate Frontend
+    Frontend->>Server: 2. GET /api/v1/agency/complaint-tickets?page=1&status=OPEN
+    activate Server
+    Server->>App: 3. createApp() handles the request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency/complaint-tickets', resolveAgencyContext, requireVerifiedAgency, agencyComplaintTicketsRouter)
+    activate Route
+    Route->>Middlewares: 5. requirePermission(complaint:respond) -> validate(query)
+    activate Middlewares
+    alt Missing complaint:respond
+        Middlewares-->>Frontend: 6. 403 FORBIDDEN
+    else Valid
+        Middlewares-->>Route: 7. next()
+        deactivate Middlewares
+        Route->>Controller: 8. complaintsController.listAgencyTickets(req, res)
+        activate Controller
+        Controller->>Service: 9. complaintsService.listAgencyTickets(agencyId, query)
+        activate Service
+        Service->>DAO: 10. complaintsRepository.listByAgency(agencyId, query)
+        activate DAO
+        DAO->>Database: 11. SELECT "ComplaintTicket" WHERE agencyId + filters, COUNT
+        activate Database
+        Database-->>DAO: 12. items + total
+        deactivate Database
+        DAO-->>Service: 13. tickets
+        deactivate DAO
+        Service-->>Controller: 14. Page<ComplaintTicketSummaryDto> + stats
+        deactivate Service
+        Controller-->>Frontend: 15. 200 OK
+        deactivate Controller
+        Frontend-->>User: 16. Render stats + list + conversation
+        User->>Frontend: 17. Pick a ticket
+        Frontend->>Server: 18. GET /api/v1/agency/complaint-tickets/{id}
+        Server->>App: 19. createApp() handles the request
+        App->>Route: 20. agencyComplaintTicketsRouter
+        Route->>Middlewares: 21. requirePermission(complaint:respond) -> validate(params)
+        activate Middlewares
+        Middlewares-->>Route: 22. next()
+        deactivate Middlewares
+        Route->>Controller: 23. complaintsController.getTicketDetail(req, res)
+        activate Controller
+        Controller->>Service: 24. complaintsService.getTicketDetail(id, { userId, role, agencyId })
+        activate Service
+        Service->>DAO: 25. complaintsRepository.findById(id)
+        activate DAO
+        DAO->>Database: 26. SELECT "ComplaintTicket" + messages + images
+        activate Database
+        Database-->>DAO: 27. ticket
+        deactivate Database
+        DAO-->>Service: 28. ticket or null
+        deactivate DAO
+        alt Ticket of another agency / does not exist
+            Service-->>Controller: 29. AppError 404
+            Controller-->>Frontend: 30. 404
+            Frontend-->>User: 31. Report not found
+        else Belongs to the agency
+            Service-->>Controller: 32. ComplaintTicketDetailDto
+            deactivate Service
+            Controller-->>Frontend: 33. 200 OK
+            deactivate Controller
+            Frontend-->>User: 34. Render the full conversation, reply box
+            deactivate Frontend
+        end
+        deactivate Route
+        deactivate App
+        deactivate Server
+    end

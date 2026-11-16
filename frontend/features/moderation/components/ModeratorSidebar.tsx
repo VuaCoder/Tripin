@@ -260,7 +260,6 @@ export function ModeratorSidebar({ initialExpanded = true }: ModeratorSidebarPro
                   <Link
                     key={href}
                     href={href}
-                    title={label}
                     aria-label={label}
                     aria-current={active ? 'page' : undefined}
                     className={styles.link}

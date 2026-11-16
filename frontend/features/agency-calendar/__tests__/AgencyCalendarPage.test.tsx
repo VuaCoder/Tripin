@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => {
       basePrice: 1500000,
       coverImage: null,
       status: 'APPROVED',
+      visibility: 'PUBLIC' as 'PUBLIC' | 'PRIVATE',
       maxGroupSize: 20,
       agePricing: null,
     },
@@ -66,8 +67,36 @@ vi.mock('../api', () => ({
   useDeleteDepartureMutation: () => [() => ({ unwrap: mocks.deleteUnwrap })],
 }));
 
+const originalEvents = mocks.events;
+
 describe('AgencyCalendarPage', () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    mocks.events = originalEvents;
+    cleanup();
+  });
+
+  // A group's private tour is negotiated in its agreement; the calendar only shows the departure.
+  it('opens a group-booking departure read-only', async () => {
+    vi.stubGlobal('matchMedia', () => ({
+      matches: false,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    const base = mocks.events[0];
+    mocks.events = [{ ...base, tour: { ...base.tour, visibility: 'PRIVATE' } }];
+
+    render(<AgencyCalendarPage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Tháng' })).toBeDefined());
+
+    fireEvent.click(document.querySelector('[data-departure-id="1"]') as HTMLElement);
+
+    await waitFor(() => expect(screen.getByText(/Sửa ngày và giờ trong thỏa thuận booking đoàn/)).toBeDefined());
+    expect(screen.queryByRole('button', { name: 'Lưu' })).toBeNull();
+    expect((screen.getByLabelText('Giờ khởi hành (VN)') as HTMLInputElement).disabled).toBe(true);
+  });
 
   it('switches across Month, Week, and Day views cleanly without scrollgrid or removeChild errors and opens/saves ScheduleEditor', async () => {
     vi.stubGlobal('matchMedia', () => ({

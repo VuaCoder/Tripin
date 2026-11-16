@@ -13,7 +13,8 @@ export class PaymentsController {
 
   checkoutBooking: RequestHandler = async (req, res) => {
     const { params } = validated<unknown, unknown, BookingParams>(req);
-    sendCreated(res, await this.service.createBookingCheckout(userActor(req).userId, params.bookingId));
+    const clientOrigin = req.get('origin') || req.get('referer');
+    sendCreated(res, await this.service.createBookingCheckout(userActor(req).userId, params.bookingId, clientOrigin));
   };
 
   getMine: RequestHandler = async (req, res) => {

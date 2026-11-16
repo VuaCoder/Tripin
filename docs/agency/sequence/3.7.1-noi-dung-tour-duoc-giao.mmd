@@ -1,0 +1,116 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. STAFF opens /agency/work/tours
+    activate Frontend
+    Frontend->>Server: 2. GET /api/v1/agency/work/tours
+    activate Server
+    Server->>App: 3. createApp() handles the request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency', resolveAgencyContext, requireVerifiedAgency, agencyFoundationRouter)
+    activate Route
+    Route->>Middlewares: 5. resolveAgencyContext -> requireVerifiedAgency -> requireAgencyPermission(agency:tour-view)
+    activate Middlewares
+    Middlewares-->>Route: 6. next()
+    deactivate Middlewares
+    Route->>Controller: 7. handler(req, res) - controller inline
+    activate Controller
+    Controller->>Service: 8. prisma.tour.findMany(agencyId, status <> ARCHIVED, memberScopes of the member)
+    activate Service
+    Service->>DAO: 9. Query tours + assigned scopes
+    activate DAO
+    DAO->>Database: 10. SELECT "Tour" + "AgencyMemberTourScope" WHERE memberId
+    activate Database
+    Database-->>DAO: 11. tours + allowedFields
+    deactivate Database
+    DAO-->>Service: 12. rows
+    deactivate DAO
+    Service-->>Controller: 13. Tour list + allowedFields
+    deactivate Service
+    Controller-->>Frontend: 14. 200 OK
+    deactivate Controller
+    Frontend-->>User: 15. Show only assigned tours, lock fields outside scope
+    User->>Frontend: 16. Edit content within the allowed scope, click "Save"
+    Frontend->>Server: 17. PATCH /api/v1/agency/work/tours/{id}/content
+    Server->>App: 18. createApp() handles the request
+    App->>Route: 19. agencyFoundationRouter
+    Route->>Middlewares: 20. resolveAgencyContext -> requireVerifiedAgency -> requireAgencyPermission(agency:tour-content-update) -> validate(body)
+    activate Middlewares
+    Middlewares-->>Route: 21. next()
+    deactivate Middlewares
+    Route->>Controller: 22. handler(req, res)
+    activate Controller
+    Controller->>Service: 23. agencyWorkService.updateScopedContent(ctx, tourId, patch)
+    activate Service
+    Service->>DAO: 24. prisma.$transaction: lockAgencyAccess + scope + tour
+    activate DAO
+    DAO->>Database: 25. SELECT "AgencyMemberTourScope", "Tour" inside the transaction
+    activate Database
+    Database-->>DAO: 26. scope + tour
+    deactivate Database
+    alt Field outside scope / tour locked (PENDING_REVIEW, ARCHIVED)
+        DAO-->>Service: 27. AppError 403/409 TOUR_LOCKED
+        Service-->>Controller: 28. Business rule error
+        Controller-->>Frontend: 29. 403/409 with an error code
+        Frontend-->>User: 30. Show a notification, no save
+    else Within scope
+        DAO->>Database: 31. UPDATE "Tour" WHERE id AND status AND updatedAt (optimistic)
+        activate Database
+        Database-->>DAO: 32. Row count
+        deactivate Database
+        DAO-->>Service: 33. TourRecord or null
+        deactivate DAO
+        Service-->>Controller: 34. TourManageDto
+        deactivate Service
+        Controller-->>Frontend: 35. 200 OK
+        deactivate Controller
+        Frontend-->>User: 36. Saved toast shown
+        deactivate Frontend
+        deactivate Route
+        deactivate App
+        deactivate Server
+    end

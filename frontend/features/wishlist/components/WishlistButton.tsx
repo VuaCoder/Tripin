@@ -63,14 +63,16 @@ export function WishlistButton({
     };
 
     return (
-      <div className={className}>
+      <div className={className} data-no-preloader="true">
         <button
           type="button"
+          data-no-preloader="true"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             handleGuestPrompt();
           }}
+          onPointerDown={(e) => e.stopPropagation()}
           aria-label="Lưu tour yêu thích"
           title="Đăng nhập để lưu tour"
           className={
@@ -110,14 +112,16 @@ export function WishlistButton({
 
   if (status === 'error') {
     return (
-      <div className={className}>
+      <div className={className} data-no-preloader="true">
         <button
           type="button"
+          data-no-preloader="true"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             retry();
           }}
+          onPointerDown={(e) => e.stopPropagation()}
           aria-label="Không tải được trạng thái yêu thích. Thử lại"
           title="Không tải được trạng thái yêu thích. Thử lại"
           className={
@@ -185,13 +189,15 @@ export function WishlistButton({
   };
 
   return (
-    <div className={className}>
+    <div className={className} data-no-preloader="true">
       <button
         type="button"
+        data-no-preloader="true"
         aria-pressed={isSaved}
         aria-label={isSaved ? 'Bỏ lưu tour' : 'Lưu tour yêu thích'}
         title={isSaved ? 'Bỏ lưu tour' : 'Lưu tour yêu thích'}
         onClick={handleClick}
+        onPointerDown={(e) => e.stopPropagation()}
         className={
           isPill
             ? `${PILL_BASE} ${

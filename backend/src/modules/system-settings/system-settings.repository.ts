@@ -13,7 +13,6 @@ export class SystemSettingsRepository {
 
   listAgencyCommissions() {
     return prisma.agencyProfile.findMany({
-      where: { OR: [{ user: { role: 'AGENCY', status: 'ACTIVE' } }, { members: { some: { status: 'ACTIVE', user: { role: 'AGENCY', status: 'ACTIVE' } } } }] },
       select: { id: true, companyName: true, commissionRateBps: true, commissionVersion: true, user: { select: { fullName: true, email: true } }, members: { where: { status: 'ACTIVE' }, select: { role: true, user: { select: { fullName: true, email: true } } } } },
       orderBy: [{ companyName: 'asc' }, { id: 'asc' }],
     });

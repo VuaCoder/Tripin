@@ -1,0 +1,66 @@
+classDiagram
+%% 3.10.1 Khieu nai danh sach va hoi thoai
+%% GET /agency/complaint-tickets, GET /agency/complaint-tickets/:id, POST /:id/messages
+
+class ComplaintsController {
+  <<Controller>>
+  +listAgencyTickets(AgencyContext ctx, ListComplaintsQuery query) Page~ComplaintTicketSummaryDto~
+  +getTicketDetail(AgencyContext ctx, UUID id) ComplaintTicketDetailDto
+  +sendMessage(AgencyContext ctx, UUID id, String body) ComplaintMessageDto
+}
+
+class ComplaintsService {
+  <<Service>>
+  +listAgencyTickets(UUID agencyId, ListComplaintsQuery query) Page~ComplaintTicketSummaryDto~
+  +getTicketDetail(UUID agencyId, UUID id) ComplaintTicketDetailDto
+  +sendMessage(AgencyContext ctx, UUID id, String body) ComplaintMessageDto
+}
+
+class ComplaintsRepository {
+  <<Repository>>
+  +listByAgency(UUID agencyId, ListComplaintsQuery query) Page
+  +findById(UUID id) ComplaintTicketWithRelations
+  +appendMessage(NewComplaintMessage data) ComplaintMessageRecord
+}
+
+class PrismaClient {
+  <<DAO>>
+  +ComplaintTicket complaintTicket
+  +ComplaintMessage complaintMessage
+}
+
+class ComplaintTicket {
+  +UUID id
+  +String ticketCode
+  +UUID travelerId
+  +UUID agencyId
+  +UUID tourId
+  +ComplaintTicketStatus status
+  +ComplaintTicketPriority priority
+  +Date slaDeadlineAt
+}
+
+class ComplaintMessage {
+  +UUID id
+  +UUID ticketId
+  +UUID senderId
+  +String body
+  +Date createdAt
+}
+
+class ComplaintTicketSummaryDto {
+  <<DTO>>
+  +UUID id
+  +String ticketCode
+  +String subject
+  +String status
+  +String priority
+}
+
+ComplaintsController "1" ..> "1" ComplaintsService : delegates
+ComplaintsController "1" ..> "1" ComplaintTicketSummaryDto : returns
+ComplaintsService "1" --> "*" ComplaintTicket : reads
+ComplaintsService ..> "1" ComplaintsRepository : queries
+ComplaintsService ..> "1" ComplaintTicketSummaryDto : maps
+ComplaintsRepository ..> "1" PrismaClient : uses
+ComplaintTicket "1" *-- "*" ComplaintMessage : thread

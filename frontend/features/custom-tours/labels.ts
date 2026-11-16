@@ -9,8 +9,7 @@ export const STATUS_LABELS: Record<CustomTourStatus, { label: string; className:
   CANCELLED: { label: 'Đã hủy', className: 'border-slate-200 bg-slate-100 text-slate-600' },
 };
 
-/** "6 người · 3 người lớn, 3 trẻ em" — the composition the traveler entered, when it is known. */
-export function guestSummary(request: Pick<CustomTourRequestDto, 'participants' | 'guestCounts'>): string {
+/** "6 người · 3 người lớn, 3 trẻ em" — the composition the traveler entered, when it is known. */export function guestSummary(request: Pick<CustomTourRequestDto, 'participants' | 'guestCounts'>): string {
   const total = `${request.participants} người`;
   const counts = request.guestCounts;
   if (!counts) return total;
@@ -19,3 +18,14 @@ export function guestSummary(request: Pick<CustomTourRequestDto, 'participants' 
   if (counts.infants) parts.push(`${counts.infants} em bé`);
   return `${total} · ${parts.join(', ')}`;
 }
+
+const vnDay = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric' });
+const vnTime = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hour12: false });
+
+export const dayLabel = (iso?: string): string | undefined => (iso ? vnDay.format(new Date(iso)) : undefined);
+
+/** "20/05/2026 · 08:30" on the Vietnam clock: the departure both sides agreed on. */
+export const departureLabel = (iso?: string): string | undefined => {
+  const day = dayLabel(iso);
+  return day ? `${day} · ${vnTime.format(new Date(iso!))}` : undefined;
+};

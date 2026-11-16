@@ -1,0 +1,139 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. OWNER enters the desired rate + reason, clicks "Submit request"
+    activate Frontend
+    Frontend->>Server: 2. POST /api/v1/agency/commission/requests { requestedSharePercent, reason }
+    activate Server
+    Server->>App: 3. createApp() handles the request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency/commission', resolveAgencyContext, requireVerifiedAgency, agencyCommissionRouter)
+    activate Route
+    Route->>Middlewares: 5. requireAgencyPermission(agency:finance-manage) -> validate(body 0-50%)
+    activate Middlewares
+    alt MANAGER/ACCOUNTANT submits or rate outside 0-50
+        Middlewares-->>Frontend: 6. 403/400
+    else OWNER + valid
+        Middlewares-->>Route: 7. next()
+        deactivate Middlewares
+        Route->>Controller: 8. agencyCommissionController.create(req, res)
+        activate Controller
+        Controller->>Service: 9. agencyCommissionService.create({ agencyId, actorUserId }, body)
+        activate Service
+        Service->>DAO: 10. repo.profile + settings.getCommissionBps(agencyId)
+        activate DAO
+        DAO->>Database: 11. SELECT "AgencyProfile" (commissionVersion) + platform rate
+        activate Database
+        Database-->>DAO: 12. profile + bps
+        deactivate Database
+        alt Agency does not exist
+            DAO-->>Service: 13. null
+            Service-->>Controller: 14. AppError 404
+            Controller-->>Frontend: 15. 404
+            Frontend-->>User: 16. Show error
+        else Profile exists
+            DAO-->>Service: 17. profile
+            deactivate DAO
+            Service->>DAO: 18. repo.create({ currentShareBps, requestedShareBps, baseVersion, reason })
+            activate DAO
+            DAO->>Database: 19. INSERT "AgencyCommissionRequest" (PENDING, unique while pending)
+            activate Database
+            Database-->>DAO: 20. request
+            deactivate Database
+            alt PENDING request already exists (unique violation)
+                DAO-->>Service: 21. unique error
+                Service-->>Controller: 22. AppError 409
+                Controller-->>Frontend: 23. 409 "A commission request is already pending"
+                Frontend-->>User: 24. Disable submit button
+            else Created
+                DAO-->>Service: 25. request
+                deactivate DAO
+                Service->>Service: 26. notificationsService.notifyAdmins(AGENCY_COMMISSION_REQUEST)
+                Service-->>Controller: 27. AgencyCommissionRequestDto
+                deactivate Service
+                Controller-->>Frontend: 28. 201 Created
+                deactivate Controller
+                Frontend-->>User: 29. "Pending approval" banner, Cancel button appears
+                User->>Frontend: 30. Click "Cancel request"
+                Frontend->>Server: 31. POST /api/v1/agency/commission/requests/{id}/cancel
+                Server->>App: 32. createApp() handles the request
+                App->>Route: 33. agencyCommissionRouter
+                Route->>Middlewares: 34. requireAgencyPermission(agency:finance-manage) -> validate(params)
+                activate Middlewares
+                Middlewares-->>Route: 35. next()
+                deactivate Middlewares
+                Route->>Controller: 36. agencyCommissionController.cancel(req, res)
+                activate Controller
+                Controller->>Service: 37. agencyCommissionService.cancel(agencyId, actorUserId, id)
+                activate Service
+                Service->>DAO: 38. repo.cancel(): UPDATE status = CANCELLED WHERE id AND agencyId AND PENDING
+                activate DAO
+                DAO->>Database: 39. UPDATE "AgencyCommissionRequest"
+                activate Database
+                Database-->>DAO: 40. request
+                deactivate Database
+                alt No longer PENDING (approved/rejected)
+                    DAO-->>Service: 41. AppError 409/404
+                    Service-->>Controller: 42. Error
+                    Controller-->>Frontend: 43. 409/404
+                    Frontend-->>User: 44. Reload the screen
+                else Cancelled
+                    DAO-->>Service: 45. request
+                    deactivate DAO
+                    Service-->>Controller: 46. DTO with status CANCELLED
+                    deactivate Service
+                    Controller-->>Frontend: 47. 200 OK
+                    deactivate Controller
+                    Frontend-->>User: 48. Pending banner disappears
+                    deactivate Frontend
+                end
+            end
+            deactivate Route
+            deactivate App
+            deactivate Server
+        end
+    end

@@ -188,11 +188,6 @@ function ManagementContent({ admin }: { admin: boolean }) {
         <h1 className="text-3xl font-bold">
           {admin ? 'Quản lý Premium' : 'Đóng góp voucher Premium'}
         </h1>
-        {!admin && (
-          <p className="mt-3 max-w-prose text-sm leading-6 text-slate-600">
-            Agency chịu khoản giảm giá và cam kết hạn mức cho các kỳ đã bán. Ngừng đóng góp chỉ chặn giao dịch mới.
-          </p>
-        )}
       </header>
       {feedback && (
         <p

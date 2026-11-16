@@ -16,7 +16,7 @@ export function TourGallery({ images, title }: { images: string[]; title: string
   return <>
     <div className={`${styles.gallery} ${photos.length === 1 ? styles.singlePhoto : ''} ${photos.length === 2 ? styles.twoPhotos : ''}`}>
       {photos.slice(0, 3).map((src, index) => <button type="button" key={src} className={styles.photo} onClick={() => open(index)} aria-label={`Xem ảnh ${index + 1} của ${title}`}><img src={src} alt={`${title} — ảnh ${index + 1}`} loading={index ? 'lazy' : 'eager'} /></button>)}
-      {photos.length > 1 && <button type="button" className={styles.allPhotos} onClick={() => open(0)}><Images size={17} /> Xem tất cả {photos.length} ảnh</button>}
+      {photos.length > 3 && <button type="button" className={styles.allPhotos} onClick={() => open(0)}><Images size={17} /> Xem tất cả {photos.length} ảnh</button>}
     </div>
     <dialog ref={dialog} className={styles.galleryDialog} aria-label={`Hình ảnh ${title}`} onClick={event => { if (event.target === dialog.current) dialog.current.close(); }}>
       <div className={styles.lightbox}>

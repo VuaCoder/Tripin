@@ -1,0 +1,71 @@
+classDiagram
+%% 3.17.2 Thanh vien bi khoa
+%% lockAgencyAccess re-checks member and user status after waiting for the lock
+
+class AgencyMemberStatus {
+  <<Enumeration>>
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+
+class AgencyGuard {
+  <<Utility>>
+  +AgencyMember lockAgencyAccess(DbExecutor tx, AgencyContext ctx, AgencyPermission permission)$
+  +void assertDelegable(AgencyMember actor, List~AgencyPermission~ permissions)$
+}
+
+class AgencyPolicy {
+  <<Utility>>
+  +effectiveAgencyPermissions(PermissionSource member) List~AgencyPermission~$
+  +List~AgencyPermission~ OWNER_CONTROL_PERMISSIONS$
+}
+
+class AgencyAccessService {
+  <<Service>>
+  +AgencyMember setMemberAccess(AgencyContext ctx, UUID memberId, MemberAccessRequestDTO input) AgencyMember
+}
+
+class PrismaClient {
+  <<DAO>>
+  +AgencyProfile agencyProfile
+  +AgencyMember agencyMember
+}
+
+class AgencyMember {
+  +UUID id
+  +UUID agencyId
+  +UUID userId
+  +AgencyMemberRole role
+  +AgencyMemberStatus status
+}
+
+class User {
+  +UUID id
+  +String email
+  +String status
+  +String staffStatus
+}
+
+class AgencyContext {
+  <<DTO>>
+  +UUID agencyId
+  +UUID memberId
+  +List~AgencyPermission~ permissions
+}
+
+class AppError {
+  +String code
+  +int status
+  +forbidden(String message) AppError$
+}
+
+AgencyGuard "1" --> "1" AgencyMember : locks row
+AgencyGuard "1" --> "1" User : checks status
+AgencyGuard ..> "1" AgencyPolicy : recomputes grants
+AgencyGuard ..> "1" PrismaClient : SELECT FOR UPDATE
+AgencyGuard ..> "1" AppError : throws 403
+AgencyAccessService ..> "1" AgencyGuard : calls guard
+AgencyContext ..> "1" AgencyMember : identifies actor
+AgencyMember "*" --> "1" User : belongs to
+AgencyMember --> "1" AgencyMemberStatus : status

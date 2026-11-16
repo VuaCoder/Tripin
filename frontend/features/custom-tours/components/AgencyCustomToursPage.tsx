@@ -8,7 +8,7 @@ import { getApiErrorMessage } from '@/features/auth/utils/apiError';
 import { formatVnd } from '@/features/review';
 import { useDecideCustomTourMutation, useListCustomToursQuery } from '../api';
 import { STATUS_LABELS, guestSummary } from '../labels';
-import { customTourHref } from '../links';
+import { customTourChatHref } from '../links';
 import type { CustomTourDecision, CustomTourRequestDto, CustomTourStatus } from '../types';
 import { AgencyPageTitle } from '@/features/agency/components/AgencyPageTitle';
 import { Users } from 'lucide-react';
@@ -34,6 +34,7 @@ export function AgencyCustomToursPage() {
   const { data, isLoading, isError, refetch } = useListCustomToursQuery({
     page,
     limit: PAGE_SIZE,
+    side: 'agency',
     ...(status === 'ALL' ? {} : { status }),
   });
   const [decide] = useDecideCustomTourMutation();
@@ -88,8 +89,9 @@ export function AgencyCustomToursPage() {
           <ul className="space-y-3">
             {items.map((request: CustomTourRequestDto) => {
               const chip = STATUS_LABELS[request.status];
-              const href = customTourHref(request, 'AGENCY');
-              const showChat = Boolean(href) && (request.nextStep === 'NEGOTIATING' || Boolean(request.conversationId));
+              // "Vào chat" goes to the chat at every step; the step itself is the traveler's page, not ours.
+              const chatHref = customTourChatHref(request, 'AGENCY');
+              const showChat = Boolean(request.conversationId) || request.nextStep === 'NEGOTIATING';
               const busy = pendingId === request.id;
               return (
                 <li key={request.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs">
@@ -136,9 +138,9 @@ export function AgencyCustomToursPage() {
                         </Button>
                       </>
                     )}
-                    {showChat && href && (
+                    {showChat && (
                       <Link
-                        href={href}
+                        href={chatHref}
                         className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                       >
                         Vào chat

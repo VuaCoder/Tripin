@@ -31,7 +31,7 @@ BEGIN
       WHEN 'OWNER' THEN base || tour || ops || ARRAY['promotion:agency-manage','premium:contribute','agency:dashboard','agency:finance-view','agency:team-view','agency:team-invite','agency:team-manage','agency:permissions-manage','agency:finance-manage']
       WHEN 'MANAGER' THEN base || ARRAY['tour:create','tour:update-own','tour:set-availability','tour:configure-itinerary','tour:assign-guide'] || ops || ARRAY['promotion:agency-manage','agency:dashboard']
       ELSE base END;
-    IF r.permissions @> previous AND r.permissions <@ previous THEN
+    IF r.permissions @> previous AND r.permissions <@ (previous || ARRAY['chat:use']) THEN
       UPDATE "AgencyRole" SET permissions = permissions || ARRAY['custom-tour:view','custom-tour:respond'], "updatedAt" = CURRENT_TIMESTAMP
         WHERE id = r.id AND permissions = r.permissions AND "updatedAt" = "createdAt";
       IF FOUND THEN changed_agencies := array_append(changed_agencies, r."agencyId"); END IF;

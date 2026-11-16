@@ -11,7 +11,7 @@ import { CustomTourPanel } from './CustomTourPanel';
  * and the `?request=` deep link from notifications picks which request the card shows.
  */
 export function CustomTourChatSection({ conversationId, isAgency }: { conversationId: string; isAgency: boolean }) {
-  const { data, isError, refetch } = useListCustomToursQuery({ conversationId, limit: 10 });
+  const { data, isError, refetch } = useListCustomToursQuery({ conversationId, limit: 10, side: isAgency ? 'agency' : 'traveler' });
   const requestedId = useSearchParams()?.get('request') ?? null;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);

@@ -1,0 +1,95 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. STAFF opens /agency/tours/{id}
+    activate Frontend
+    Frontend->>Server: 2. GET /api/v1/agency/tours/{id}
+    activate Server
+    Server->>App: 3. createApp() handles the request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency/tours', resolveAgencyContext, requireVerifiedAgency, agencyToursRouter)
+    activate Route
+    Route->>Middlewares: 5. resolveAgencyContext -> requireVerifiedAgency -> requireAgencyPermission(agency:tour-view) -> validate(params)
+    activate Middlewares
+    Middlewares-->>Route: 6. next()
+    deactivate Middlewares
+    Route->>Controller: 7. toursController.getOwn(req, res)
+    activate Controller
+    Controller->>Service: 8. toursService.getOwn(agencyId, id)
+    activate Service
+    Service->>DAO: 9. requireOwned(agencyId, id, true)
+    activate DAO
+    DAO->>Database: 10. SELECT "Tour" + images + itinerary + departures WHERE id AND agencyId
+    activate Database
+    Database-->>DAO: 11. TourRecord or null
+    deactivate Database
+    alt Tour not in the selected agency
+        DAO-->>Service: 12. null
+        Service-->>Controller: 13. AppError 404
+        Controller-->>Frontend: 14. 404 NOT_FOUND
+        Frontend-->>User: 15. Show tour not found
+    else Owned by the agency
+        DAO-->>Service: 16. TourRecord
+        deactivate DAO
+        Service-->>Controller: 17. TourManageDto
+        deactivate Service
+        Controller-->>Frontend: 18. 200 OK
+        deactivate Controller
+        Frontend-->>User: 19. Render the tour workspace in read-only mode
+        User->>Frontend: 20. Try to edit (via a manual request)
+        Frontend->>Server: 21. PATCH /api/v1/agency/tours/{id}
+        Server->>App: 22. createApp() handles the request
+        App->>Route: 23. agencyToursRouter
+        Route->>Middlewares: 24. requirePermission(tour:update-own)
+        activate Middlewares
+        Middlewares-->>Frontend: 25. 403 FORBIDDEN
+        deactivate Middlewares
+        deactivate Route
+        deactivate App
+        deactivate Server
+        deactivate Frontend
+    end

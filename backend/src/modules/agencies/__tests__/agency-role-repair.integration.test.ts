@@ -47,3 +47,20 @@ it('repairs untouched legacy templates once, preserving customized roles and exp
   expect(effectiveAgencyPermissions(updatedMember)).toContain('custom-tour:respond');
   expect((await prisma.agencyProfile.findUniqueOrThrow({ where: { id: owner.id } })).permissionVersion).toBe(version + 1);
 });
+
+it('restores chat:use on templates seeded by the older function that won in production', async () => {
+  const sql = (name: string) => readFileSync(path.resolve(`../prisma/migrations/${name}/migration.sql`), 'utf8');
+  const client = new Client({ connectionString: databaseUrl });
+  await client.connect();
+  try {
+    // Production applied the custom-tour defaults after the chat migration, so its pre-chat copy of the seed
+    // function was the one agencies were created with. Reproduce that, then run the repair migration.
+    await client.query(sql('20261114000200_agency_custom_tour_role_defaults'));
+    const owner = await createUser('AGENCY', 'role-seed-order@example.com');
+    const seeded = await prisma.agencyRole.findFirstOrThrow({ where: { agencyId: owner.id, systemRole: 'OWNER' } });
+    expect(seeded.permissions).not.toContain('chat:use');
+    await client.query(sql('20261115000100_agency_seed_chat_permissions'));
+    const repaired = await prisma.agencyRole.findFirstOrThrow({ where: { agencyId: owner.id, systemRole: 'OWNER' } });
+    expect(repaired.permissions).toContain('chat:use');
+  } finally { await client.end(); }
+});

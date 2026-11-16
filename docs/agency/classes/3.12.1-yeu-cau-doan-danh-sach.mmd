@@ -1,0 +1,54 @@
+classDiagram
+%% 3.12.1 Yeu cau doan danh sach
+%% GET /custom-tours (agency scope), GET /custom-tours/:id
+
+class CustomToursController {
+  <<Controller>>
+  +list(Actor actor, ListCustomToursQuery query) Page~CustomTourRequestDto~
+  +get(Actor actor, UUID id) CustomTourRequestDto
+}
+
+class CustomToursService {
+  <<Service>>
+  +list(Actor actor, ListCustomToursQuery query) Page~CustomTourRequestDto~
+  +get(Actor actor, UUID id) CustomTourRequestDto
+}
+
+class CustomToursRepository {
+  <<Repository>>
+  +list(CustomTourScope scope, ListCustomToursFilter filter) Page
+  +findById(UUID id) CustomTourRecord
+}
+
+class PrismaClient {
+  <<DAO>>
+  +CustomTourRequest customTourRequest
+}
+
+class CustomTourRequest {
+  +UUID id
+  +UUID travelerId
+  +UUID agencyId
+  +UUID sourceTourId
+  +CustomTourStatus status
+  +int revision
+  +int participants
+  +Date startDate
+}
+
+class CustomTourRequestDto {
+  <<DTO>>
+  +UUID id
+  +CustomTourStatus status
+  +int participants
+  +int revision
+  +Json offerSnapshot
+}
+
+CustomToursController "1" ..> "1" CustomToursService : delegates
+CustomToursController "1" ..> "1" CustomTourRequestDto : returns
+CustomToursService "1" --> "*" CustomTourRequest : reads
+CustomToursService ..> "1" CustomToursRepository : queries
+CustomToursService ..> "1" CustomTourRequestDto : maps
+CustomToursRepository ..> "1" PrismaClient : uses
+CustomTourRequest ..> "1" CustomTourRequestDto : projected to

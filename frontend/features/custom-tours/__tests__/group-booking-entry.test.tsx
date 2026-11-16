@@ -133,6 +133,71 @@ describe('GroupBookingEntry', () => {
     expect(mocks.save).not.toHaveBeenCalled();
   });
 
+  it('accepts the phone formats travelers paste and stores digits only', async () => {
+    mocks.query.data = request();
+    render(<GroupBookingEntry requestId="ct1" />);
+    await screen.findByRole('heading', { name: 'Nhập thông tin hành khách' });
+
+    fireEvent.change(document.querySelector('#contact-fullName')!, { target: { value: 'Nguyễn Văn A' } });
+    fireEvent.change(document.querySelector('#contact-phone')!, { target: { value: '+84 912 345 678' } });
+    // A copy from Zalo/Word arrives with non-breaking spaces, which the API's own rule rejects.
+    fireEvent.change(document.querySelector('#passenger-0-fullName')!, { target: { value: 'Khách 1' } });
+    fireEvent.change(document.querySelector('#passenger-0-phone')!, { target: { value: '0912\u00a0345\u00a0678' } });
+    fireEvent.change(document.querySelector('#passenger-0-idCard')!, { target: { value: idCard(1) } });
+    fireEvent.change(document.querySelector('#passenger-1-fullName')!, { target: { value: 'Khách 2' } });
+    fireEvent.change(document.querySelector('#passenger-1-phone')!, { target: { value: '0912.345.678' } });
+    fireEvent.change(document.querySelector('#passenger-1-idCard')!, { target: { value: idCard(2) } });
+    fireEvent.change(document.querySelector('#passenger-2-fullName')!, { target: { value: 'Khách 3' } });
+    fireEvent.change(document.querySelector('#passenger-2-phone')!, { target: { value: '0912-345-678' } });
+    fireEvent.change(document.querySelector('#passenger-2-idCard')!, { target: { value: idCard(3) } });
+
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1), { timeout: 3000 });
+    const sent = mocks.save.mock.calls[0]![0];
+    expect(sent.contact.phone).toBe('+84912345678');
+    expect(sent.passengers.map((row: { phone: string }) => row.phone)).toEqual(['0912345678', '0912345678', '0912345678']);
+  });
+
+  // Password managers fill the DOM without firing React's onChange; the value must reach the form anyway.
+  it('adopts an autofilled value the browser never reported', async () => {
+    mocks.query.data = request();
+    render(<GroupBookingEntry requestId="ct1" />);
+    await screen.findByRole('heading', { name: 'Nhập thông tin hành khách' });
+
+    fillForm({ partial: true });
+    const phone = document.querySelector('#contact-phone') as HTMLInputElement;
+    phone.value = '0912345678';
+    fireEvent.blur(phone);
+
+    expect(screen.getByText(/Chưa lưu — còn thiếu/).textContent).not.toContain('SĐT người liên hệ');
+  });
+
+  // A summary at the bottom is what made "checkout blocked" look like "fields empty"; the message belongs on the field.
+  it('reports a bad value on the field itself, and drops it once the value is usable', async () => {
+    mocks.query.data = request();
+    render(<GroupBookingEntry requestId="ct1" />);
+    await screen.findByRole('heading', { name: 'Nhập thông tin hành khách' });
+
+    const phone = document.querySelector('#passenger-0-phone') as HTMLInputElement;
+    fireEvent.change(phone, { target: { value: 'abc' } });
+    const error = screen.getByText('Số điện thoại chưa hợp lệ (cần 9–15 số).');
+    expect(error.id).toBe('passenger-0-phone-error');
+    expect(phone.getAttribute('aria-invalid')).toBe('true');
+    expect(phone.getAttribute('aria-describedby')).toBe('passenger-0-phone-error');
+
+    fireEvent.change(phone, { target: { value: '0912345678' } });
+    expect(screen.queryByText('Số điện thoại chưa hợp lệ (cần 9–15 số).')).toBeNull();
+  });
+
+  it('marks both rows that share one ID card', async () => {
+    mocks.query.data = request();
+    render(<GroupBookingEntry requestId="ct1" />);
+    await screen.findByRole('heading', { name: 'Nhập thông tin hành khách' });
+
+    fireEvent.change(document.querySelector('#passenger-0-idCard')!, { target: { value: idCard(1) } });
+    fireEvent.change(document.querySelector('#passenger-1-idCard')!, { target: { value: idCard(1) } });
+    expect(screen.getAllByText('CCCD bị trùng với hành khách khác.')).toHaveLength(2);
+  });
+
   it('never saves a half-typed form, but warns before the page is left', async () => {
     mocks.query.data = request();
     render(<GroupBookingEntry requestId="ct1" />);

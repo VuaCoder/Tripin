@@ -1,8 +1,8 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { ConfigProvider, Select } from 'antd';
 import { Users, Wallet, ReceiptText, CalendarCheck, ArrowRight, RotateCw, Map, CalendarDays } from 'lucide-react';
+import { AntSelect, type AntSelectOption } from '@/components/ui/AntSelect';
 import { toursApi, useGetAgencyDashboardQuery, getTourApiMessage } from '@/features/tours/api/toursApi';
 import { AgencyDenied, AgencyError, AgencyLoading, bookingStatusNames, dateTime, money, useAgencyPermission } from '@/features/agency/AgencyCommon';
 import { shouldRefetchAgencyDashboard } from '@/features/agency/dashboardCache';
@@ -19,10 +19,17 @@ function TourCover({ src, title }: { src?: string | null; title: string }) {
   return <span className={styles.tourMark}>{src && !failed ? <img src={src} alt={`Ảnh tour ${title}`} width={48} height={48} loading="lazy" onError={() => setFailed(true)} className={styles.tourImage} /> : <Map size={22} aria-label="Tour chưa có ảnh đại diện" />}</span>;
 }
 
-const periodDate = (value: string) => new Date(`${value}T00:00:00Z`).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+const periodDate = (value: string) => `${value.slice(8, 10)}/${value.slice(5, 7)}`;
+
+type Range = 7 | 30 | '6m';
+const rangeOptions: AntSelectOption<Range>[] = [
+  { value: 7, label: '7 ngày gần đây' },
+  { value: 30, label: '30 ngày gần đây' },
+  { value: '6m', label: '6 tháng gần đây' },
+];
 
 export default function AgencyDashboardPage() {
-  const [range, setRange] = useState<7 | 30 | '6m'>(30);
+  const [range, setRange] = useState<Range>(30);
   const canView = useAgencyPermission('agency:dashboard');
   const canViewBookings = useAgencyPermission('agency:bookings-view');
   const canViewTours = useAgencyPermission('tour:update-own');
@@ -42,7 +49,7 @@ export default function AgencyDashboardPage() {
   const period = points.length && data ? `${periodDate(points[0].date)} – ${periodDate(data.generatedAt.slice(0, 10))}` : 'Chưa có dữ liệu';
 
   return <main className={styles.page}>
-    <header className={styles.header}><div><AgencyPageTitle icon={LayoutDashboard}>Tổng quan</AgencyPageTitle><p className={styles.subtitle}>Khách hàng, đặt chỗ và doanh thu của bạn.</p></div><div className={styles.refresh}>
+    <header className={styles.header}><AgencyPageTitle icon={LayoutDashboard}>Tổng quan</AgencyPageTitle><div className={styles.refresh}>
       {data && <time dateTime={data.generatedAt}>Cập nhật {new Date(data.generatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</time>}
       <button type="button" className="grid size-10 place-items-center rounded-lg border border-slate-200 bg-white text-primary hover:bg-teal-50 disabled:opacity-50" disabled={isFetching} onClick={() => void refetch()} aria-label="Làm mới" title="Làm mới"><RotateCw size={17} className={isFetching ? 'animate-spin motion-reduce:animate-none' : ''} /></button>
     </div></header>
@@ -57,12 +64,11 @@ export default function AgencyDashboardPage() {
         ].map(({ label, value, icon: Icon, tone, note, help }) => <article key={label} className={styles.metric} data-tone={tone} title={help}><span className={styles.metricIcon}><Icon size={21} aria-hidden="true" /></span><h2>{label}</h2><p className={styles.value}>{value}</p><p>{note}</p></article>)}</section>
 
         <section className={`${styles.panel} ${styles.chart} ${styles.revenuePanel}`} aria-label="Biểu đồ doanh thu">
-          <div className={styles.panelHeader}><h2>Tổng doanh thu</h2><ConfigProvider theme={{ token: { colorPrimary: '#087e8b', colorText: '#143b40', borderRadius: 8, controlHeight: 40, fontFamily: 'inherit' } }}><Select aria-label="Khoảng thời gian doanh thu" value={range} style={{ width: 170, maxWidth: '100%' }} onChange={setRange} options={[{ value: 7, label: '7 ngày gần đây' }, { value: 30, label: '30 ngày gần đây' }, { value: '6m', label: '6 tháng gần đây' }]} /></ConfigProvider></div>
+          <div className={styles.panelHeader}><h2>Tổng doanh thu</h2><AntSelect aria-label="Khoảng thời gian doanh thu" value={range} onChange={setRange} options={rangeOptions} className="w-[170px] max-w-full" /></div>
           <div className={styles.revenueContent}>
             <div className={styles.revenueSummary}><div><p className={styles.chartTotal}>{periodAvailable ? money(periodNet) : '—'}</p><p className={styles.note}>Sau hoa hồng</p></div><div className={styles.period}><CalendarDays size={16} aria-hidden="true" /><span>{period}</span></div></div>
             <div className={styles.chartCanvas}>{!periodAvailable ? <p role="alert" className={styles.note}>Chưa tải được số liệu. Hãy thử làm mới.</p> : points.every((point) => point.bookings === 0) ? <div className={styles.empty}><span className={styles.emptyMark}><CalendarCheck size={29} aria-hidden="true" /></span><h3>Chưa có doanh thu</h3><p>Số liệu sẽ xuất hiện khi có đơn đã xác nhận hoặc hoàn thành.</p>{canViewTours && <Link href="/agency/tours" className={styles.textLink}>Xem lịch tour <ArrowRight size={15} /></Link>}</div> : <AgencyRevenueChart points={points} monthly={range === '6m'} />}</div>
           </div>
-          <p className={styles.note}>{range === '6m' ? 'Theo tháng; tháng hiện tại chưa kết thúc.' : range === 30 ? 'Theo tuần; ngày đầu có thể chưa trọn vẹn.' : 'Theo tuần; gồm 7 ngày gần nhất.'} Ngày thống kê theo giờ quốc tế.</p>
         </section>
 
         <section className={`${styles.panel} ${styles.topTours}`} aria-label="Tour bán chạy"><div className={styles.panelHeader}><h2>Tour bán chạy</h2>{canViewTours && <Link href="/agency/tours" className={styles.textLink}>Xem tất cả <ArrowRight size={14} /></Link>}</div><p className={styles.note}>Theo doanh thu tích lũy.</p>

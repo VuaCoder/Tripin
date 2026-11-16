@@ -34,7 +34,7 @@ export function IncompleteBookingBanner() {
   const router = useRouter();
   const { data: bookingsData, isLoading } = useGetMyBookingsQuery({ limit: 5 });
   // An accepted group offer without a booking has no row in the booking list yet; resume it at the passenger form.
-  const { data: customTours, isLoading: isLoadingCustomTours } = useListCustomToursQuery({ status: 'ACCEPTED', limit: 5 });
+  const { data: customTours, isLoading: isLoadingCustomTours } = useListCustomToursQuery({ status: 'ACCEPTED', limit: 5, side: 'traveler' });
 
   if (isLoading || isLoadingCustomTours || !bookingsData?.items) return null;
 

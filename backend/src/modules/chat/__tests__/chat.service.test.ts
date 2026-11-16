@@ -234,4 +234,11 @@ describe('messages', () => {
     expect(page.items[0]).toMatchObject({ unreadCount: 3, counterpart: { id: 'g1' } });
     await expect(service.listConversations({ userId: 'm1', role: ROLES.MODERATOR }, { page: 1, limit: 20 })).rejects.toMatchObject({ statusCode: 403 });
   });
+
+  it('the agency tenant wins over the account role: a TRAVELER-role owner still sees the agency inbox', async () => {
+    const { service, repo } = make([conv({ guideId: null, agencyId: 'a1', unreadGuide: 2 })]);
+    const page = await service.listConversations({ userId: 'o1', role: ROLES.TRAVELER, agencyId: 'a1' }, { page: 1, limit: 20 });
+    expect(repo.listConversations).toHaveBeenCalledWith({ agencyId: 'a1' }, { page: 1, limit: 20 });
+    expect(page.items[0]).toMatchObject({ unreadCount: 2, counterpart: { id: 't1' } });
+  });
 });

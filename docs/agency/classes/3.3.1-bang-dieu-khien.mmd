@@ -1,0 +1,74 @@
+classDiagram
+%% 3.3.1 Bang dieu khien
+%% GET /agency/dashboard
+
+class DashboardsController {
+  <<Controller>>
+  +agencyDashboard(AgencyContext ctx) AgencyDashboardDto
+}
+
+class DashboardsService {
+  <<Service>>
+  -TtlCache agencyCache
+  +agencyDashboard(UUID agencyId) AgencyDashboardDto
+}
+
+class BookingsService {
+  <<Service>>
+  +getAgencyStats(UUID agencyId) AgencyBookingStats
+}
+
+class ToursService {
+  <<Service>>
+  +countByStatus(UUID agencyId) Map
+}
+
+class ReviewsService {
+  <<Service>>
+  +countByStatus() Map
+}
+
+class ReportsService {
+  <<Service>>
+  +countOpenForAgency(UUID agencyId) int
+}
+
+class Booking {
+  +UUID id
+  +UUID agencyId
+  +String status
+  +BigInt agencyAmount
+}
+
+class Tour {
+  +UUID id
+  +UUID agencyId
+  +String status
+}
+
+class Review {
+  +UUID id
+  +UUID agencyId
+  +int rating
+  +String status
+}
+
+class AgencyDashboardDto {
+  <<DTO>>
+  +AgencyBookingStats bookings
+  +Map tourCounts
+  +Map reviewCounts
+  +int openComplaints
+}
+
+DashboardsController "1" ..> "1" DashboardsService : delegates
+DashboardsController "1" ..> "1" AgencyDashboardDto : returns
+DashboardsService ..> "1" BookingsService : aggregates
+DashboardsService ..> "1" ToursService : aggregates
+DashboardsService ..> "1" ReviewsService : aggregates
+DashboardsService ..> "1" ReportsService : aggregates
+DashboardsService ..> "1" AgencyDashboardDto : composes
+BookingsService --> "*" Booking : reads
+ToursService --> "*" Tour : counts
+ReviewsService --> "*" Review : counts
+AgencyDashboardDto ..> "*" Booking : summarizes

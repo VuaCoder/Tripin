@@ -1,0 +1,60 @@
+classDiagram
+%% 3.14.1 Tong quan chiet khau
+%% GET /agency/commission
+
+class AgencyCommissionController {
+  <<Controller>>
+  +overview(AgencyContext ctx) AgencyCommissionOverviewDto
+}
+
+class AgencyCommissionService {
+  <<Service>>
+  +overview(UUID agencyId) AgencyCommissionOverviewDto
+}
+
+class AgencyCommissionRepository {
+  <<Repository>>
+  +profile(UUID agencyId) AgencyCommissionProfile
+  +findPending(UUID agencyId) CommissionRequestRow
+  +recent(UUID agencyId, int take) List~CommissionRequestRow~
+}
+
+class PrismaClient {
+  <<DAO>>
+  +AgencyProfile agencyProfile
+  +AgencyCommissionRequest agencyCommissionRequest
+}
+
+class AgencyProfile {
+  +UUID id
+  +String companyName
+  +int commissionRateBps
+  +int commissionVersion
+}
+
+class AgencyCommissionRequest {
+  +UUID id
+  +UUID agencyId
+  +int currentShareBps
+  +int requestedShareBps
+  +String status
+  +String reason
+  +Date createdAt
+}
+
+class AgencyCommissionOverviewDto {
+  <<DTO>>
+  +int currentRateBps
+  +int commissionVersion
+  +CommissionRequestRow pending
+  +List~CommissionRequestRow~ history
+}
+
+AgencyCommissionController "1" ..> "1" AgencyCommissionService : delegates
+AgencyCommissionController "1" ..> "1" AgencyCommissionOverviewDto : returns
+AgencyCommissionService "1" --> "1" AgencyProfile : reads rate
+AgencyCommissionService "1" --> "*" AgencyCommissionRequest : reads history
+AgencyCommissionService ..> "1" AgencyCommissionRepository : queries
+AgencyCommissionService ..> "1" AgencyCommissionOverviewDto : composes
+AgencyCommissionRepository ..> "1" PrismaClient : uses
+AgencyProfile "1" *-- "*" AgencyCommissionRequest : negotiation

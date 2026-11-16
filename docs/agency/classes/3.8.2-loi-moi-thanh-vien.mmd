@@ -1,0 +1,64 @@
+classDiagram
+%% 3.8.2 Loi moi thanh vien
+%% POST /agency/invitations, POST /agency/invitations/:id/revoke
+
+class AgencyInvitationStatus {
+  <<Enumeration>>
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+class AgencyController {
+  <<Controller>>
+  +inviteMember(AgencyContext ctx, InviteRequestDTO body) AgencyInvitation
+  +revokeInvitation(AgencyContext ctx, UUID invitationId) boolean
+}
+
+class AgencyService {
+  <<Service>>
+  +invite(AgencyContext ctx, InviteRequestDTO input) AgencyInvitation
+  +revoke(AgencyContext ctx, UUID invitationId) boolean
+}
+
+class AgencyGuard {
+  <<Utility>>
+  +lockAgencyAccess(DbExecutor tx, AgencyContext ctx, AgencyPermission permission)$
+}
+
+class AgencyInvitationMail {
+  <<Utility>>
+  +buildAgencyInvitationMail(String companyName, String roleName, Date expiresAt)$
+}
+
+class PrismaClient {
+  <<DAO>>
+  +AgencyInvitation agencyInvitation
+}
+
+class AgencyInvitation {
+  +UUID id
+  +UUID agencyId
+  +String email
+  +AgencyMemberRole role
+  +String tokenHash
+  +AgencyInvitationStatus status
+  +Date expiresAt
+}
+
+class InviteRequestDTO {
+  <<DTO>>
+  +String email
+  +AgencyMemberRole role
+  +UUID roleId
+}
+
+AgencyController "1" ..> "1" AgencyService : delegates
+AgencyController ..> "1" InviteRequestDTO : validates
+AgencyService ..> "1" AgencyGuard : locks TEAM_INVITE
+AgencyService "1" --> "*" AgencyInvitation : creates and revokes
+AgencyService ..> "1" AgencyInvitationMail : renders
+AgencyService ..> "1" PrismaClient : persists
+InviteRequestDTO ..> "1" AgencyInvitation : becomes
+AgencyInvitation --> "1" AgencyInvitationStatus : status

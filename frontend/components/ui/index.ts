@@ -7,6 +7,7 @@ export * from './Modal';
 export * from './Pagination';
 export * from './AntSelect';
 export * from './AntDatePicker';
+export * from './SmartDatePicker';
 export * from './AntDateRangePicker';
 export * from './Checkbox';
 export * from './ViewModeToggle';

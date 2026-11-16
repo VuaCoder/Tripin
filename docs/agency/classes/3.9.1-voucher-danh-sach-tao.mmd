@@ -1,0 +1,71 @@
+classDiagram
+%% 3.9.1 Voucher danh sach va tao moi
+%% GET /agency/promotions, POST /agency/promotions, PATCH /agency/promotions/:id
+
+class PromotionsController {
+  <<Controller>>
+  +createAgency(AgencyContext ctx, CreatePromotionInput body) PromotionDto
+  +listAgency(AgencyContext ctx, ListPromotionsQuery query) Page~PromotionDto~
+  +getAgency(AgencyContext ctx, UUID id) PromotionDto
+  +updateAgency(AgencyContext ctx, UUID id, UpdatePromotionInput body) PromotionDto
+}
+
+class PromotionsService {
+  <<Service>>
+  +createForAgency(Actor agency, CreatePromotionInput input) PromotionDto
+  +listForAgency(UUID agencyId, ListPromotionsQuery query) Page~PromotionDto~
+  +getForAgency(UUID agencyId, UUID id) PromotionDto
+  +updateForAgency(Actor agency, UUID id, UpdatePromotionInput input) PromotionDto
+}
+
+class PromotionsRepository {
+  <<Repository>>
+  +create(NewPromotion data) PromotionRecord
+  +findById(UUID id) PromotionRecord
+  +updateById(UUID id, PromotionPatch patch) PromotionRecord
+  +list(PromotionScope scope, UUID ownerId, PageRequest page) Page
+}
+
+class PrismaClient {
+  <<DAO>>
+  +Promotion promotion
+}
+
+class Promotion {
+  +UUID id
+  +PromotionScope scope
+  +UUID ownerId
+  +String title
+  +String code
+  +DiscountType discountType
+  +BigInt discountValue
+  +Date startsAt
+  +Date endsAt
+}
+
+class PromotionDto {
+  <<DTO>>
+  +UUID id
+  +String title
+  +String code
+  +String status
+  +BigInt discountValue
+}
+
+class CreatePromotionInput {
+  <<DTO>>
+  +String title
+  +DiscountType discountType
+  +BigInt discountValue
+  +Date startsAt
+  +Date endsAt
+}
+
+PromotionsController "1" ..> "1" PromotionsService : delegates
+PromotionsController ..> "1" CreatePromotionInput : validates
+PromotionsController "1" ..> "1" PromotionDto : returns
+PromotionsService "1" --> "*" Promotion : manages
+PromotionsService ..> "1" PromotionsRepository : persists
+PromotionsService ..> "1" PromotionDto : maps
+PromotionsRepository ..> "1" PrismaClient : uses
+CreatePromotionInput ..> "1" Promotion : becomes

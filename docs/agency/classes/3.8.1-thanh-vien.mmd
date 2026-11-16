@@ -1,0 +1,73 @@
+classDiagram
+%% 3.8.1 Thanh vien
+%% GET /agency/members, PATCH /agency/members/:id
+
+class AgencyController {
+  <<Controller>>
+  +listMembers(AgencyContext ctx) List~AgencyMemberView~
+  +changeMember(AgencyContext ctx, UUID memberId, String role, String status) AgencyMember
+}
+
+class AgencyService {
+  <<Service>>
+  +changeMember(AgencyContext ctx, UUID memberId, String role, String status) AgencyMember
+}
+
+class AgencyGuard {
+  <<Utility>>
+  +lockAgencyAccess(DbExecutor tx, AgencyContext ctx, AgencyPermission permission)$
+  +assertDelegable(AgencyMember actor, List~AgencyPermission~ permissions)$
+}
+
+class AgencyPolicy {
+  <<Utility>>
+  +effectiveAgencyPermissions(PermissionSource member) List~AgencyPermission~$
+}
+
+class PrismaClient {
+  <<DAO>>
+  +AgencyMember agencyMember
+  +AgencyRole agencyRole
+}
+
+class AgencyProfile {
+  +UUID id
+  +String companyName
+  +int permissionVersion
+}
+
+class AgencyMember {
+  +UUID id
+  +UUID agencyId
+  +UUID userId
+  +AgencyMemberRole role
+  +UUID roleId
+  +AgencyMemberStatus status
+}
+
+class AgencyRole {
+  +UUID id
+  +String name
+  +List~AgencyPermission~ permissions
+}
+
+class AgencyMemberView {
+  <<DTO>>
+  +UUID id
+  +UUID userId
+  +AgencyMemberRole role
+  +AgencyMemberStatus status
+  +boolean isPrimaryOwner
+  +List~AgencyPermission~ permissions
+}
+
+AgencyController "1" ..> "1" AgencyService : delegates
+AgencyController ..> "1" PrismaClient : lists members
+AgencyController "1" --> "*" AgencyMemberView : maps
+AgencyService ..> "1" AgencyGuard : locks and re-checks
+AgencyService ..> "1" AgencyPolicy : evaluates
+AgencyService "1" --> "*" AgencyMember : updates
+AgencyService ..> "1" AgencyRole : reassigns
+AgencyProfile "1" *-- "1..*" AgencyMember : employs
+AgencyMember "*" --> "1" AgencyRole : assignedRole
+AgencyMember ..> "1" AgencyMemberView : projected to

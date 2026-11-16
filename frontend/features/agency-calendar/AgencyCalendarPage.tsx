@@ -17,6 +17,7 @@ import { selectActiveAgency } from '@/features/auth/store/authSlice';
 import { AgencyDenied } from '@/features/agency/AgencyCommon';
 import { agencyNotice } from '@/features/agency/agencyNotice';
 import { getTourApiMessage } from '@/features/tours/api/toursApi';
+import { departureLabel } from '@/features/custom-tours/labels';
 import { TourCatalog, TourPhoto } from './TourCatalog';
 import { ScheduleEditor, type EditorDraft, type EditorValues } from './ScheduleEditor';
 import { useAgencyCalendarQuery, useCreateDeparturesMutation, useUpdateDepartureMutation, useDeleteDepartureMutation } from './api';
@@ -48,6 +49,7 @@ export default function AgencyCalendarPage() {
   };
   const [draft, setDraft] = useState<EditorDraft | null>(null);
   const [chooser, setChooser] = useState<Chooser | null>(null);
+  const [confirmMove, setConfirmMove] = useState<{ event: DepartureEvent; date: string } | null>(null);
   const retry = useRef<{ signature: string; departures: NewDeparture[] }>();
   const savedTime = () => readRememberedTime(agency!.agencyId);
   const defaultDate = () => atVietnam(tomorrowVietnam(), savedTime());
@@ -93,7 +95,7 @@ export default function AgencyCalendarPage() {
     } catch (caught) { setOptimistic({}); throw fail(caught); }
     finally { setSaving(false); setPending([]); }
   };
-  const move = async (info: EventDropInfo) => {
+  const move = (info: EventDropInfo) => {
     const current = records.get(info.event.id);
     if (!current || saving || !canEdit) { info.revert(); return; }
     let date: string;
@@ -104,7 +106,17 @@ export default function AgencyCalendarPage() {
         localParts(current.date).time,
       );
     } catch { info.revert(); return; }
-    setOptimistic({ [current.id]: { ...current, date, end: endOfTour(date, current.tour.durationDays) } });
+    // FullCalendar's eventAllow would revert a past drop silently; letting it through is the only way to say why.
+    if (Date.parse(date) <= Date.now()) { info.revert(); setNotice({ error: true, message: 'Vui lòng chọn ngày và giờ trong tương lai.' }); return; }
+    // A drag is easy to mis-drop and the event is what the whole schedule points at, so the old slot stays until the
+    // agency confirms and the backend accepts; only then is the event redrawn at the new date.
+    info.revert();
+    if (date !== current.date) setConfirmMove({ event: current, date });
+  };
+  const applyMove = async () => {
+    if (!confirmMove) return;
+    const { event: current, date } = confirmMove;
+    setConfirmMove(null);
     setSaving(true); setPending([current.id]); setNotice(null);
     try {
       const result = await updateDeparture({ tourId: current.tourId, id: current.id, body: { expectedDate: current.date, date } }).unwrap();
@@ -112,7 +124,7 @@ export default function AgencyCalendarPage() {
       rememberTime(agency!.agencyId, localParts(date).time);
       await refresh();
       setNotice({ error: false, message: 'Đã cập nhật ngày và giờ khởi hành.' });
-    } catch (caught) { info.revert(); setOptimistic({}); fail(caught); }
+    } catch (caught) { setOptimistic({}); fail(caught); }
     finally { setSaving(false); setPending([]); }
   };
   const pick = (tour: CalendarTour) => {
@@ -175,7 +187,7 @@ export default function AgencyCalendarPage() {
             eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }} datesSet={datesSet}
             events={values.map((row) => {
               const color = tourColor(row.tourId);
-              const editable = canEdit && row.capacity === row.remaining && Date.parse(row.date) > Date.now() && !saving;
+              const editable = canEdit && row.tour.visibility !== 'PRIVATE' && row.capacity === row.remaining && Date.parse(row.date) > Date.now() && !saving;
               return { id: row.id, title: row.tour.title, start: row.date, end: row.end, allDay: false, startEditable: editable, durationEditable: false, color: row.isOpen ? color.background : '#eff1f2', contrastColor: row.isOpen ? color.text : '#536269', className: styles.calendarEvent, extendedProps: { record: row } };
             })}
             eventDidMount={(info) => {
@@ -186,8 +198,8 @@ export default function AgencyCalendarPage() {
                 info.el.setAttribute('aria-label', `${row.tour.title}, ${localParts(row.date).day} ${localParts(row.date).time}, ${row.capacity - row.remaining}/${row.capacity} khách`);
               }
             }}
-            eventAllow={(dropInfo, event) => !!event && Date.parse(event.startStr) > Date.now() && dropInfo.start.getTime() > Date.now() && !saving}
-            eventDrop={(info) => { void move(info); }}
+            eventAllow={(_dropInfo, event) => !!event && (event.extendedProps.record as DepartureEvent | undefined)?.tour.visibility !== 'PRIVATE' && !saving}
+            eventDrop={move}
             drop={(info) => {
               if (!canEdit || saving || !info.draggedEl.dataset.tour) return;
               const tour = JSON.parse(info.draggedEl.dataset.tour) as CalendarTour;
@@ -246,6 +258,15 @@ export default function AgencyCalendarPage() {
       </section>
     </div>
     {chooser && <Modal open title={chooser.mode === 'weekly' ? 'Chọn tour tạo lịch lặp' : 'Chọn tour khởi hành'} onClose={() => setChooser(null)} className={styles.pickerModal}><TourCatalog onPick={pick} canDrag={false} agencyId={agency!.agencyId} /></Modal>}
-    {draft && <ScheduleEditor key={`${draft.tour.id}-${draft.event?.id ?? draft.date}-${draft.weekly}`} draft={draft} busy={saving} canEdit={canEdit} onClose={() => setDraft(null)} onSave={saveDraft} onDelete={removeDraft} />}
+    {draft && <ScheduleEditor key={`${draft.tour.id}-${draft.event?.id ?? draft.date}-${draft.weekly}`} draft={draft} busy={saving} canEdit={canEdit && draft.tour.visibility !== 'PRIVATE'} onClose={() => setDraft(null)} onSave={saveDraft} onDelete={removeDraft} />}
+    {confirmMove && <Modal open title="Dời đợt khởi hành?" onClose={() => setConfirmMove(null)}
+      footer={<div className="flex justify-end gap-3">
+        <button type="button" className={styles.secondaryButton} disabled={saving} onClick={() => setConfirmMove(null)}>Hủy</button>
+        <button type="button" className={styles.primaryButton} disabled={saving} onClick={() => void applyMove()}><Check size={16} />Đồng ý dời</button>
+      </div>}>
+      <p className="font-semibold text-slate-900">{confirmMove.event.tour.title}</p>
+      <p className="mt-2 text-sm text-slate-700">Từ <strong>{departureLabel(confirmMove.event.date)}</strong> sang <strong>{departureLabel(confirmMove.date)}</strong>.</p>
+      <p className="mt-1 text-xs text-slate-500">Lịch chỉ đổi sau khi máy chủ lưu xong.</p>
+    </Modal>}
   </main>;
 }

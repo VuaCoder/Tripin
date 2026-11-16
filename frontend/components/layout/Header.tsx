@@ -13,6 +13,7 @@ import { useAppSelector } from '@/store/hooks';
 import { selectUser, selectRole, selectIsAuthenticated, useLogout } from '@/features/auth';
 import { selectActiveAgency } from '@/features/auth/store/authSlice';
 import { homeForRole } from '@/features/auth/utils/roles';
+import { workplaceHome } from '@/features/agency/workplaceHome';
 import { notificationHref } from '@/features/custom-tours/links';
 import { Dropdown } from '@/components/shared/Dropdown';
 import { OwnPremiumIdentity, PremiumStatusText, useOwnPremium } from '@/features/premium/PremiumIdentity';
@@ -92,6 +93,8 @@ export function Header({ role }: { role?: AppRole }) {
 
   // Tin nhắn: Đếm số lượng tin nhắn chưa đọc (agency users read their tenant inbox, not a personal thread)
   const activeAgency = useAppSelector(selectActiveAgency);
+  // Survives a reload (memberships are not restored), so it is what tells a traveler account it belongs to a workplace.
+  const activeAgencyId = useAppSelector((state) => state.auth.activeAgencyId);
   const isAgencyUser = user?.role === 'AGENCY';
   const { data: conversationsData } = useConversationsQuery(
     { page: 1, agency: isAgencyUser && Boolean(activeAgency) },
@@ -404,6 +407,16 @@ export function Header({ role }: { role?: AppRole }) {
                     <div className="p-1.5">
                       {effectiveRole === 'TRAVELER' ? (
                         <>
+                          {activeAgencyId && (
+                            <Link
+                              href={activeAgency ? workplaceHome(activeAgency) : '/workplaces'}
+                              onClick={() => setAccountMenuOpen(false)}
+                              className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-surface-container-low"
+                            >
+                              <span className="material-symbols-outlined text-[19px] text-primary-container">business</span>
+                              <span>Trang làm việc</span>
+                            </Link>
+                          )}
                           <Link
                             href="/settings/profile"
                             onClick={() => setAccountMenuOpen(false)}

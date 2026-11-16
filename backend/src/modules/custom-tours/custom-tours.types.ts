@@ -138,4 +138,6 @@ export interface ListCustomToursQuery {
   limit: number;
   status?: CustomTourStatus;
   conversationId?: string;
+  /** Which workspace asks: a workplace owner keeps the TRAVELER role, so the global role cannot answer this. */
+  side?: 'traveler' | 'agency';
 }

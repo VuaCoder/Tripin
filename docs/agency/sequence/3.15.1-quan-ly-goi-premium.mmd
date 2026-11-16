@@ -1,0 +1,124 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. OWNER opens /agency/premium, configures the plan and clicks "Create contribution"
+    activate Frontend
+    Frontend->>Server: 2. POST /api/v1/agency/premium/contributions { title, gift, tourIds, capacity }
+    activate Server
+    Server->>App: 3. createApp() handles the request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency/premium', resolveAgencyContext, requireVerifiedAgency, agencyPremiumRouter)
+    activate Route
+    Route->>Middlewares: 5. requireAuth -> role('AGENCY') -> requirePermission(premium:contribute) -> validate(body)
+    activate Middlewares
+    alt Not OWNER (MANAGER/STAFF/ACCOUNTANT lack premium:contribute)
+        Middlewares-->>Frontend: 6. 403 FORBIDDEN
+    else Valid
+        Middlewares-->>Route: 7. next()
+        deactivate Middlewares
+        Route->>Controller: 8. handler(req, res) - controller inline
+        activate Controller
+        Controller->>Service: 9. premiumRepository.contribute(agencyId, input)
+        activate Service
+        Service->>DAO: 10. prisma.tour.count({ id IN tourIds, agencyId })
+        activate DAO
+        DAO->>Database: 11. SELECT COUNT(*) FROM "Tour" WHERE id IN (...) AND agencyId = ...
+        activate Database
+        Database-->>DAO: 12. count of valid tours
+        deactivate Database
+        alt Tour not owned by the agency
+            DAO-->>Service: 13. count < number of tourIds
+            Service-->>Controller: 14. AppError 404 "Tour does not belong to the Agency"
+            Controller-->>Frontend: 15. 404 NOT_FOUND
+            Frontend-->>User: 16. Highlight the invalid tour
+        else All tours valid
+            DAO-->>Service: 17. valid count
+            deactivate DAO
+            Service->>DAO: 18. prisma.premiumContribution.create({ ...terms, agencyId })
+            activate DAO
+            DAO->>Database: 19. INSERT "PremiumContribution" (PENDING, acceptingNew = true)
+            activate Database
+            Database-->>DAO: 20. contribution
+            deactivate Database
+            DAO-->>Service: 21. contribution
+            deactivate DAO
+            Service-->>Controller: 22. contribution DTO
+            deactivate Service
+            Controller-->>Frontend: 23. 201 Created
+            deactivate Controller
+            Frontend-->>User: 24. Contribution appears with PENDING status
+        end
+    end
+    User->>Frontend: 25. Open the plan's "Usage" tab
+    Frontend->>Server: 26. GET /api/v1/agency/premium/usage
+    Server->>App: 27. createApp() handles the request
+    App->>Route: 28. agencyPremiumRouter
+    Route->>Middlewares: 29. requireAuth -> role('AGENCY') -> requirePermission(premium:contribute)
+    activate Middlewares
+    Middlewares-->>Route: 30. next()
+    deactivate Middlewares
+    Route->>Controller: 31. handler(req, res)
+    activate Controller
+    Controller->>Service: 32. repo.contributions(agencyId) + prisma.premiumVoucher.groupBy(contributionId)
+    activate Service
+    Service->>DAO: 33. Query capacity and vouchers used
+    activate DAO
+    DAO->>Database: 34. SELECT "PremiumContribution", GROUP BY "PremiumVoucher".contributionId
+    activate Database
+    Database-->>DAO: 35. rows + usage
+    deactivate Database
+    DAO-->>Service: 36. data
+    deactivate DAO
+    Service-->>Controller: 37. [{ capacity, committed, used }]
+    deactivate Service
+    Controller-->>Frontend: 38. 200 OK
+    deactivate Controller
+    Frontend-->>User: 39. Render usage progress and plan version
+    deactivate Frontend
+    deactivate Route
+    deactivate App
+    deactivate Server

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../config/database';
 import { requireAuth, userActor } from '../../middlewares/authorize';
 import { agencyContext, requireAgencyPermission, resolveAgencyContext, requireVerifiedAgency } from '../../middlewares/agency-context';
-import { sendOk } from '../../utils/api-response';
+import { sendOk, sendPaginated } from '../../utils/api-response';
 import { agencyService } from './agency.service';
 import { agencyOwnershipSelect, primaryAgencyOwnerId, agencyOwnerLabel } from './agency-ownership';
 import { agencyAccessInclude, AGENCY_PERMISSION_CATALOG, AGENCY_PERMISSIONS as P, effectiveAgencyPermissions } from './agency.policy';
@@ -18,8 +18,8 @@ const id = z.string().uuid();
 const roleBody = z.object({ name: z.string().trim().min(1).max(80), permissions: z.array(z.string().max(100)).max(100) }).strict();
 const accessBody = z.object({ roleId: id, overrides: z.array(z.object({ permission: z.string().max(100), effect: z.enum(['ALLOW','DENY']) }).strict()).max(100) }).strict();
 const inviteBody = z.object({ email: z.email().max(254), role: z.enum(['MANAGER','STAFF','ACCOUNTANT']), roleId: id.optional() }).strict();
-const tourScopesBody = z.object({ scopes: z.array(z.object({ tourId: id, allowedFields: z.array(z.enum(['title','summary','description'])).max(3) }).strict()).max(200) }).strict();
-const scopedContentBody = z.object({ title: z.string().trim().min(5).max(200).optional(), summary: z.string().trim().max(500).optional(), description: z.string().trim().max(20000).optional() }).strict().refine(v => Object.keys(v).length > 0);
+const tourScopesBody = z.object({ scopes: z.array(z.object({ tourId: id, allowedFields: z.array(z.enum(['title','summary','description','images'])).max(4) }).strict()).max(200) }).strict();
+const scopedContentBody = z.object({ title: z.string().trim().min(5).max(200).optional(), summary: z.string().trim().max(500).optional(), description: z.string().trim().max(20000).optional(), images: z.array(z.url().max(500)).max(10).optional() }).strict().refine(v => Object.keys(v).length > 0);
 export const agencyIdentityRouter = Router();
 agencyIdentityRouter.get('/me/agencies', requireAuth, async (req,res) => sendOk(res, await agencyService.listForUser(userActor(req).userId)));
 agencyIdentityRouter.get('/me/agency-invitations', requireAuth, validate({ query: z.object({ page: z.coerce.number().int().min(1).max(10000).default(1) }).strict() }), async (req,res) =>
@@ -57,13 +57,18 @@ agencyFoundationRouter.put('/members/:id/tour-scopes', resolveAgencyContext, req
 agencyFoundationRouter.get('/work/tours', resolveAgencyContext, requireVerifiedAgency, requireAgencyPermission(P.TOUR_VIEW), validate({ query: z.object({}).strict() }), async (req,res) => {
   const ctx = agencyContext(req);
   sendOk(res, await prisma.tour.findMany({ where: { agencyId: ctx.agencyId, status: { not: 'ARCHIVED' } },
-    select: { id: true, title: true, summary: true, description: true, status: true, memberScopes: { where: { memberId: ctx.memberId }, select: { allowedFields: true } } }, orderBy: { title: 'asc' }, take: 200 }));
+    select: { id: true, title: true, summary: true, description: true, status: true, images: true, memberScopes: { where: { memberId: ctx.memberId }, select: { allowedFields: true } } }, orderBy: { title: 'asc' }, take: 200 }));
 });
 agencyFoundationRouter.patch('/work/tours/:id/content', resolveAgencyContext, requireVerifiedAgency, requireAgencyPermission(P.TOUR_CONTENT_UPDATE), validate({ params: z.object({ id }), body: scopedContentBody }), async (req,res) => sendOk(res, await agencyWorkService.updateScopedContent(agencyContext(req), id.parse(req.params.id), scopedContentBody.parse(req.body))));
 agencyFoundationRouter.get('/work/bookings', resolveAgencyContext, requireVerifiedAgency, requireAgencyPermission(P.BOOKING_MONITOR), validate({ query: z.object({ page: z.coerce.number().int().min(1).max(100000).default(1) }).strict() }), async (req,res) => {
   const page = z.coerce.number().int().min(1).max(100000).default(1).parse(req.query.page);
-  sendOk(res, await prisma.booking.findMany({ where: { agencyId: agencyContext(req).agencyId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: (page - 1) * 50, take: 50,
-    select: { id: true, bookingCode: true, tourTitle: true, departureDate: true, status: true, participants: true, contactName: true, contactPhone: true } }));
+  const where = { agencyId: agencyContext(req).agencyId };
+  const [items, total] = await Promise.all([
+    prisma.booking.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: (page - 1) * 50, take: 50,
+      select: { id: true, bookingCode: true, tourTitle: true, departureDate: true, status: true, participants: true, contactName: true, contactPhone: true } }),
+    prisma.booking.count({ where }),
+  ]);
+  sendPaginated(res, items, { page, limit: 50, total, totalPages: Math.max(1, Math.ceil(total / 50)) });
 });
 agencyFoundationRouter.get('/roles', resolveAgencyContext, requireAgencyPermission(P.TEAM_VIEW), async (req,res) => sendOk(res, await agencyAccessService.listRoles(agencyContext(req))));
 agencyFoundationRouter.post('/roles', resolveAgencyContext, requireAgencyPermission(P.PERMISSIONS_MANAGE), validate({ body: roleBody }), async (req,res) => sendOk(res, await agencyAccessService.saveRole(agencyContext(req), roleBody.parse(req.body)), 201));

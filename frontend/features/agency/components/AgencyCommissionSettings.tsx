@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { BadgePercent, Check, Clock3, Info, Percent, Send, SlidersHorizontal, TrendingUp, Wallet } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { BadgePercent, Check, Clock3, Send, SlidersHorizontal } from 'lucide-react';
 import { Modal } from '@/components/ui';
 import { useAgencyPermission } from '../AgencyCommon';
 import {
@@ -11,7 +11,6 @@ import {
   type CommissionRequestStatus,
 } from '../commissionApi';
 
-const formatMoney = (val: number) => `${new Intl.NumberFormat('vi-VN').format(Math.round(val))} ₫`;
 const formatDate = (value: string) => new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short' }).format(new Date(value));
 const STATUS_LABEL: Record<CommissionRequestStatus, { label: string; className: string }> = {
   PENDING: { label: 'Đang chờ duyệt', className: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -20,19 +19,35 @@ const STATUS_LABEL: Record<CommissionRequestStatus, { label: string; className: 
   CANCELLED: { label: 'Đã huỷ', className: 'bg-slate-100 text-slate-600 border-slate-200' },
 };
 
+// Bánh xe chọn mức: mỗi vòng 1% (0–50), cao 36px, hiện 5 dòng nên pad 2 dòng mỗi đầu.
+const RATE_VALUES = Array.from({ length: 51 }, (_, index) => index);
+const RATE_ROW = 36;
+const RATE_PAD = RATE_ROW * 2;
+
 export function AgencyCommissionSettings() {
   const { data, isLoading, isError, refetch } = useGetAgencyCommissionQuery();
   const [createRequest, createState] = useCreateAgencyCommissionRequestMutation();
   const [cancelRequest, cancelState] = useCancelAgencyCommissionRequestMutation();
   const canRequest = useAgencyPermission('agency:finance-manage');
 
-  const [samplePrice, setSamplePrice] = useState<number>(3_500_000);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [requestedRate, setRequestedRate] = useState('10');
   const [requestReason, setRequestReason] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const rateListRef = useRef<HTMLDivElement>(null);
+  const pickedRateRef = useRef<number | null>(null);
+
+  // Đồng bộ bánh xe khi mức đổi từ ô nhập số; bỏ qua khi chính bánh xe vừa đổi để không giành scroll.
+  useEffect(() => {
+    const list = rateListRef.current;
+    if (!isModalOpen || !list) return;
+    const target = Math.min(50, Math.max(0, Math.round(Number(requestedRate) || 0)));
+    if (pickedRateRef.current === target) return;
+    pickedRateRef.current = target;
+    list.scrollTop = target * RATE_ROW;
+  }, [isModalOpen, requestedRate]);
 
   const notify = (message: string) => {
     setToastMessage(message);
@@ -53,13 +68,13 @@ export function AgencyCommissionSettings() {
 
   const sharePercent = data.effectiveSharePercent;
   const pending = data.pendingRequest;
-  const agencyEarning = (samplePrice * sharePercent) / 100;
-  const platformPart = samplePrice - agencyEarning;
 
   const openRequest = () => {
-    setRequestedRate(String(sharePercent));
+    // Mức đang hưởng có thể vượt trần 50%: mở sẵn ở mức cao nhất được yêu cầu.
+    setRequestedRate(String(Math.min(50, Math.max(0, sharePercent))));
     setRequestReason('');
     setFormError(null);
+    pickedRateRef.current = null;
     setIsModalOpen(true);
   };
 
@@ -72,6 +87,10 @@ export function AgencyCommissionSettings() {
     }
     if (!requestReason.trim()) {
       setFormError('Vui lòng nhập lý do điều chỉnh.');
+      return;
+    }
+    if (requestReason.trim().length < 10) {
+      setFormError('Lý do điều chỉnh cần tối thiểu 10 ký tự.');
       return;
     }
     setFormError(null);
@@ -106,7 +125,7 @@ export function AgencyCommissionSettings() {
       )}
 
       <div className="rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-slate-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div>
             <span className="text-xs font-bold uppercase tracking-wider text-teal-700 bg-teal-50 px-3 py-1 rounded-full border border-teal-200/60 inline-block mb-2">
               Mức chiết khấu doanh nghiệp hưởng
@@ -115,13 +134,6 @@ export function AgencyCommissionSettings() {
               <span className="text-5xl sm:text-6xl font-black tracking-tight text-slate-900">{sharePercent.toFixed(1)}</span>
               <span className="text-3xl font-extrabold text-teal-600">%</span>
             </div>
-            <p className="mt-2 text-sm text-slate-500 max-w-xl">
-              Đây là tỷ lệ doanh nghiệp của bạn được hưởng trên mỗi đơn tour thành công; phần còn lại là phí nền tảng.
-              Mức mới chỉ áp dụng cho booking tạo sau khi yêu cầu được duyệt.
-            </p>
-            <p className="mt-2 text-xs text-slate-400">
-              Mức chung: {data.defaultSharePercent}% · {data.overrideSharePercent === null ? 'Đang dùng mức chung' : `Mức riêng: ${data.overrideSharePercent}%`}
-            </p>
           </div>
 
           <div className="flex flex-col items-start sm:items-end gap-3 shrink-0">
@@ -147,48 +159,6 @@ export function AgencyCommissionSettings() {
                 )}
               </div>
             )}
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Wallet size={18} className="text-teal-700" />
-              <h3 className="text-sm font-bold text-slate-900">Mô phỏng mức chiết khấu thu về</h3>
-            </div>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs text-slate-500 font-medium mr-1">Giá tour:</span>
-              {[2_000_000, 5_000_000, 10_000_000, 20_000_000].map((preset) => (
-                <button key={preset} type="button" onClick={() => setSamplePrice(preset)}
-                  className={`rounded-xl px-2.5 py-1 text-xs font-bold transition cursor-pointer ${samplePrice === preset ? 'bg-teal-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                  {preset / 1_000_000} triệu
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3 pt-2">
-            <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Giá tour niêm yết</span>
-              <p className="mt-2 text-2xl font-black text-slate-900">{formatMoney(samplePrice)}</p>
-              <p className="mt-1 text-xs text-slate-400">Giá bán gốc của tour</p>
-            </div>
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
-              <div className="flex items-center justify-between text-emerald-800">
-                <span className="text-xs font-bold uppercase tracking-wider">Doanh nghiệp nhận ({sharePercent}%)</span>
-                <Percent size={15} />
-              </div>
-              <p className="mt-2 text-2xl font-black text-emerald-800">{formatMoney(agencyEarning)}</p>
-              <p className="mt-1 text-xs text-emerald-700/80">Khoản doanh nghiệp được hưởng</p>
-            </div>
-            <div className="rounded-2xl border border-teal-200 bg-teal-50/60 p-4">
-              <div className="flex items-center justify-between text-teal-800">
-                <span className="text-xs font-bold uppercase tracking-wider">Phần nền tảng</span>
-                <TrendingUp size={15} />
-              </div>
-              <p className="mt-2 text-2xl font-black text-teal-900">{formatMoney(platformPart)}</p>
-              <p className="mt-1 text-xs text-teal-700/80">Phần còn lại của đơn hàng</p>
-            </div>
           </div>
         </div>
       </div>
@@ -222,27 +192,58 @@ export function AgencyCommissionSettings() {
       )}
 
       <Modal open={isModalOpen} title="Yêu cầu điều chỉnh mức chiết khấu" onClose={() => { if (!createState.isLoading) setIsModalOpen(false); }}>
-        <form onSubmit={sendRequest} className="space-y-5 pt-2">
-          <div className="rounded-2xl bg-slate-50 border border-slate-200/80 p-4 text-xs text-slate-600 flex items-start gap-2.5">
-            <Info size={18} className="text-teal-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-slate-800">Yêu cầu sẽ được ban quản trị duyệt.</p>
-              <p className="mt-1 text-slate-600">Mức hiện tại: {sharePercent}%. Mức mới chỉ áp dụng cho booking tạo sau khi được duyệt; booking cũ giữ nguyên.</p>
-            </div>
-          </div>
-
+        <form onSubmit={sendRequest} noValidate className="space-y-5 pt-2">
           <div>
-            <label htmlFor="desired-discount" className="block text-xs font-bold text-slate-700 mb-1.5">Mức chiết khấu mong muốn (%):</label>
+            <label htmlFor="desired-discount" className="block text-xs font-bold text-slate-700 mb-1.5">Mức chiết khấu mong muốn</label>
             <div className="flex items-center gap-3">
-              <input id="desired-discount" type="number" min="0" max="50" step="0.5" required value={requestedRate}
-                onChange={(event) => setRequestedRate(event.target.value)}
-                className="w-32 rounded-xl border border-slate-300 px-3.5 py-2.5 text-base font-black text-slate-900 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20" />
-              <span className="text-sm font-semibold text-slate-500">Giới hạn từ 0% đến 50%</span>
+              <div className="relative w-24 shrink-0">
+                <div
+                  ref={rateListRef}
+                  onScroll={(event) => {
+                    const list = event.currentTarget;
+                    const next = Math.min(50, Math.max(0, Math.round(list.scrollTop / RATE_ROW)));
+                    pickedRateRef.current = next;
+                    setRequestedRate(String(next));
+                  }}
+                  style={{ paddingTop: RATE_PAD, paddingBottom: RATE_PAD, scrollPaddingTop: RATE_PAD }}
+                  role="listbox"
+                  aria-label="Chọn mức chiết khấu"
+                  className="h-[180px] snap-y snap-mandatory overflow-y-auto rounded-2xl border border-slate-200 bg-white [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {RATE_VALUES.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      role="option"
+                      aria-selected={Math.round(Number(requestedRate) || 0) === option}
+                      onClick={() => {
+                        pickedRateRef.current = option;
+                        setRequestedRate(String(option));
+                      }}
+                      style={{ height: RATE_ROW }}
+                      className={`flex w-full snap-start items-center justify-center text-sm transition-colors ${Math.round(Number(requestedRate) || 0) === option ? 'font-black text-teal-700' : 'font-semibold text-slate-400'}`}>
+                      {option}%
+                    </button>
+                  ))}
+                </div>
+                <div aria-hidden="true" style={{ top: RATE_PAD, height: RATE_ROW }}
+                  className="pointer-events-none absolute inset-x-1 rounded-lg border-y-2 border-teal-500/50 bg-teal-50/40" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-1.5 rounded-xl border border-slate-300 px-3.5 py-2.5 focus-within:border-teal-600 focus-within:ring-2 focus-within:ring-teal-600/20">
+                  <input id="desired-discount" type="number" inputMode="decimal" min="0" max="50" step="0.5" required value={requestedRate}
+                    onChange={(event) => setRequestedRate(event.target.value)}
+                    className="w-full bg-transparent text-lg font-black text-slate-900 focus:outline-none" />
+                  <span className="text-base font-black text-slate-400">%</span>
+                </div>
+              </div>
             </div>
           </div>
 
           <div>
-            <label htmlFor="request-reason" className="block text-xs font-bold text-slate-700 mb-1.5">Lý do điều chỉnh:</label>
+            <label htmlFor="request-reason" className="block text-xs font-bold text-slate-700 mb-1.5">
+              Lý do điều chỉnh <span aria-hidden="true" className="text-rose-600">*</span>
+              <span className="ml-1 font-normal text-slate-400">(tối thiểu 10 ký tự)</span>
+            </label>
             <textarea id="request-reason" rows={3} required maxLength={1000} value={requestReason}
               onChange={(event) => setRequestReason(event.target.value)}
               placeholder="Ví dụ: Tăng lượng booking dự kiến vào mùa cao điểm, mở thêm nhiều tuyến tour mới..."

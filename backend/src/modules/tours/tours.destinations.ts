@@ -125,6 +125,16 @@ const PROVINCE_VISUALS: Record<string, ProvinceVisual> = {
     colorClass: 'text-emerald-800',
     iconBgClass: 'bg-emerald-50 border-emerald-200 text-emerald-800',
   },
+  'binh dinh': {
+    icon: 'sailing',
+    colorClass: 'text-sky-700',
+    iconBgClass: 'bg-sky-50 border-sky-200 text-sky-700',
+  },
+  'phu yen': {
+    icon: 'wb_twilight',
+    colorClass: 'text-amber-700',
+    iconBgClass: 'bg-amber-50 border-amber-200 text-amber-700',
+  },
 };
 
 function normalizeKey(str: string): string {

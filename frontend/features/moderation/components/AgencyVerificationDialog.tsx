@@ -25,7 +25,11 @@ export function agencySubmittedAt(agency: ModerationAgency) {
   const profile = agency.agencyProfile;
   const date = new Date(profile?.submittedAt ?? agency.createdAt);
   if (Number.isNaN(date.getTime())) return 'Chưa có thời gian nộp';
-  return `${dateTime.format(date)}${!profile?.submittedAt || profile.submissionDateEstimated ? ' (ước lượng)' : ''}`;
+  const formatted = dateTime.format(date);
+  const submittedAt = date.getFullYear() === new Date().getFullYear()
+    ? formatted.replace(/\/\d{2}$/, '')
+    : formatted;
+  return `${submittedAt}${!profile?.submittedAt || profile.submissionDateEstimated ? ' (ước lượng)' : ''}`;
 }
 
 function Field({ label, children }: { label: string; children?: ReactNode }) {
@@ -44,6 +48,7 @@ interface Props {
 export function AgencyVerificationDialog({ agency, isSubmitting, serverError, onClose, onDecide }: Props) {
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [pendingDecision, setPendingDecision] = useState<{ approve: boolean; requestInformation: boolean; note: string } | null>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const sending = useRef(false);
   const profile = agency.agencyProfile;
@@ -56,14 +61,20 @@ export function AgencyVerificationDialog({ agency, isSubmitting, serverError, on
     const validation = !approve ? validateReason(note) : null;
     setError(validation);
     if (validation) { noteRef.current?.focus(); return; }
+    setPendingDecision({ approve, requestInformation, note: note.trim() });
+  };
+  const confirmDecision = async () => {
+    if (!pendingDecision || isSubmitting || sending.current) return;
     sending.current = true;
-    try { await onDecide(approve, note.trim(), requestInformation); }
+    try { await onDecide(pendingDecision.approve, pendingDecision.note, pendingDecision.requestInformation); }
     finally { sending.current = false; }
   };
+  const decisionLabel = pendingDecision?.requestInformation ? 'Yêu cầu bổ sung' : pendingDecision?.approve ? 'Xác minh' : 'Từ chối';
   const buttonClass = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
 
   return (
-    <Modal open onClose={close} closeOnBackdrop={!isSubmitting} title="Hồ sơ agency" className="max-w-5xl" contentClassName="!p-0"
+    <>
+    <Modal open={!pendingDecision} onClose={close} closeOnBackdrop={!isSubmitting} title="Hồ sơ agency" className="max-w-5xl" contentClassName="!p-0"
       footer={<div className="flex flex-wrap items-center justify-end gap-2">
         <button type="button" disabled={isSubmitting} onClick={close} className={`${buttonClass} border-slate-200 bg-white text-slate-700 hover:bg-slate-100 sm:mr-auto`}>{canDecide ? 'Hủy' : 'Đóng'}</button>
         {canDecide && <>
@@ -120,5 +131,17 @@ export function AgencyVerificationDialog({ agency, isSubmitting, serverError, on
         </>}
       </div>}
     </Modal>
+    <Modal open={Boolean(pendingDecision)} onClose={() => { if (!isSubmitting && !sending.current) setPendingDecision(null); }} closeOnBackdrop={!isSubmitting} title={`Xác nhận ${decisionLabel.toLowerCase()} agency`} className="max-w-md">
+      {pendingDecision && <div className="space-y-5 text-sm">
+        {serverError && <p role="alert" className="rounded-xl bg-rose-50 p-4 font-medium text-rose-800">{serverError}</p>}
+        <p className="text-slate-700">Bạn có chắc chắn muốn {decisionLabel.toLowerCase()} hồ sơ agency "{profile?.companyName || agency.fullName}" không?</p>
+        {pendingDecision.note && <p className="rounded-xl bg-slate-50 p-3 text-slate-600"><span className="font-semibold">Ghi chú:</span> {pendingDecision.note}</p>}
+        <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+          <button type="button" disabled={isSubmitting} onClick={() => setPendingDecision(null)} className={`${buttonClass} border-slate-200 bg-white text-slate-700 hover:bg-slate-100`}>Hủy</button>
+          <button type="button" disabled={isSubmitting} onClick={() => void confirmDecision()} className={`${buttonClass} ${pendingDecision.approve ? 'border-brand-teal bg-brand-teal text-white hover:bg-teal-800' : pendingDecision.requestInformation ? 'border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100' : 'border-rose-600 bg-rose-600 text-white hover:bg-rose-700'}`}>{isSubmitting ? 'Đang xử lý...' : `Xác nhận ${decisionLabel.toLowerCase()}`}</button>
+        </div>
+      </div>}
+    </Modal>
+    </>
   );
 }

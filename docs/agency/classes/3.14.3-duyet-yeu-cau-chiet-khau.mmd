@@ -1,0 +1,67 @@
+classDiagram
+%% 3.14.3 Duyet yeu cau chiet khau
+%% POST /admin/settings/agency-commission-requests/:id/approve, POST /:id/reject
+
+class AdminCommissionController {
+  <<Controller>>
+  +list(SystemSettingsActor actor, ListCommissionRequestsQuery query) Page~AgencyCommissionRequestDto~
+  +approve(SystemSettingsActor actor, UUID id, String note) AgencyCommissionRequestDto
+  +reject(SystemSettingsActor actor, UUID id, String note) AgencyCommissionRequestDto
+}
+
+class AgencyCommissionService {
+  <<Service>>
+  +listAdmin(ListCommissionRequestsQuery query) Page~AgencyCommissionRequestDto~
+  +approve(Actor actor, UUID id, String note) AgencyCommissionRequestDto
+  +reject(Actor actor, UUID id, String note) AgencyCommissionRequestDto
+}
+
+class AgencyCommissionRepository {
+  <<Repository>>
+  +listAdmin(ListCommissionRequestsQuery query) Page
+  +approve(ApproveCommissionRequestInput input) CommissionRequestRow
+  +reject(RejectCommissionRequestInput input) CommissionRequestRow
+}
+
+class PrismaClient {
+  <<DAO>>
+  +AgencyCommissionRequest agencyCommissionRequest
+  +AgencyProfile agencyProfile
+}
+
+class AgencyProfile {
+  +UUID id
+  +int commissionRateBps
+  +int commissionVersion
+}
+
+class AgencyCommissionRequest {
+  +UUID id
+  +UUID agencyId
+  +int currentShareBps
+  +int requestedShareBps
+  +int baseVersion
+  +String status
+  +UUID decidedByUserId
+  +Date decidedAt
+  +String decisionNote
+  +int appliedVersion
+}
+
+class AgencyCommissionRequestDto {
+  <<DTO>>
+  +UUID id
+  +UUID agencyId
+  +String status
+  +int requestedShareBps
+  +int appliedVersion
+}
+
+AdminCommissionController "1" ..> "1" AgencyCommissionService : delegates
+AdminCommissionController "1" ..> "1" AgencyCommissionRequestDto : returns
+AgencyCommissionService "1" --> "*" AgencyCommissionRequest : decides
+AgencyCommissionService ..> "1" AgencyCommissionRepository : persists
+AgencyCommissionService ..> "1" AgencyCommissionRequestDto : maps
+AgencyCommissionRepository ..> "1" PrismaClient : transacts
+AgencyCommissionRequest "*" --> "1" AgencyProfile : applies rate to
+AgencyCommissionRequest ..> "1" AgencyCommissionRequestDto : projected to
