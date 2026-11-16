@@ -143,46 +143,11 @@ export class ETicketsService {
   }
 
   /**
-   * Complete trip for the tour: transitions all CONFIRMED bookings of this tour to COMPLETED,
-   * emits completion events which triggers earnings creation for the tour guide and notifies travelers.
+   * Legacy guide endpoint. Agency report submission now owns the completion transition.
    */
-  async completeTripForGuide(guideId: string, tourId: string, departureId?: string): Promise<{ completedCount: number }> {
+  async completeTripForGuide(guideId: string, tourId: string, _departureId?: string): Promise<{ completedCount: number }> {
     await this.assertGuideTour(guideId, tourId);
-    const tickets = await this.tickets.listByTour(tourId);
-    const bookingIds = [...new Set(tickets.map((t) => t.bookingId))];
-
-    let count = 0;
-    const { bookingsRepository } = await import('../bookings/bookings.repository');
-    const { bookingEvents } = await import('../bookings/bookings.events');
-    const { toBookingFacts } = await import('../bookings/bookings.mapper');
-
-    const bookings = (await Promise.all(bookingIds.map((id) => bookingsRepository.findById(id))))
-      .filter((booking) => booking && booking.status === 'CONFIRMED' && (!departureId || booking.departureId === departureId));
-    const ended = bookings.filter((booking) => booking!.endDate.getTime() <= Date.now());
-    if (bookings.length && !ended.length) throw AppError.conflict('Chuyến đi chưa kết thúc', 'TRIP_NOT_ENDED');
-    if (!departureId && new Set(ended.map((booking) => booking!.departureId)).size > 1) {
-      throw AppError.conflict('Choose the departure to complete', 'DEPARTURE_REQUIRED');
-    }
-    for (const booking of ended) {
-      if (booking && booking.status === 'CONFIRMED') {
-        const done = await bookingsRepository.transition(booking.id, ['CONFIRMED'], {
-          status: 'COMPLETED',
-          completedAt: new Date(),
-        });
-        if (done) {
-          count++;
-          const facts = toBookingFacts(done);
-          await this.notifications.notify(facts.travelerId, {
-            type: NOTIFICATION_TYPE.BOOKING_COMPLETED,
-            title: 'Chuyến đi đã hoàn thành!',
-            body: `Chuyến đi "${facts.tourTitle}" của bạn đã hoàn tất. Cảm ơn bạn đã đồng hành cùng HDV!`,
-            data: { bookingId: facts.id, tourId: facts.tourId },
-          });
-          await bookingEvents.emitCompleted(facts);
-        }
-      }
-    }
-    return { completedCount: count };
+    throw AppError.conflict('Agency cần gửi báo cáo để hoàn tất chuyến đi.', 'AGENCY_COMPLETION_REQUIRED');
   }
 
   // ----------------------------------------------------- helpers

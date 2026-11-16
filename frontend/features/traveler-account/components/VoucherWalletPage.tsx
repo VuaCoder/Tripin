@@ -9,6 +9,7 @@ import { RefreshButton } from '@/components/ui/RefreshButton';
 import { useGetMyVouchersQuery } from '../api/voucherWalletApi';
 import { VoucherCard } from './VoucherCard';
 import { PremiumWalletSection } from '@/features/premium/PremiumWalletSection';
+import { HotVouchersSection } from '@/features/tours/components/HotVouchersSection';
 
 type FilterTab = 'active' | 'used' | 'expired';
 
@@ -45,7 +46,7 @@ export function VoucherWalletPage() {
   const currentList = categorized[activeTab];
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 pb-4 border-b border-slate-100">
         <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Ví voucher</h1>
@@ -147,6 +148,7 @@ export function VoucherWalletPage() {
 
       {/* Kết thúc danh sách voucher */}
       <PremiumWalletSection />
+      <HotVouchersSection compact />
     </div>
   );
 }

@@ -11,6 +11,7 @@ export type ReviewEligibilityStatus =
   | 'guest'
   | 'not-traveler'
   | 'not-completed'
+  | 'not-attended'
   | 'eligible'
   | 'already-reviewed'
   | 'error';
@@ -64,7 +65,7 @@ export function useTourReviewEligibility(tourId: string): ReviewEligibility {
   // One review per booking: any existing review (visible or hidden) takes its booking out of the running.
   const eligibleBookings = useMemo(() => {
     const reviewed = new Set(myReviews.map((review) => review.bookingId));
-    return completedBookings.filter((booking) => !reviewed.has(booking.id));
+    return completedBookings.filter((booking) => booking.attendedParticipants !== 0 && !reviewed.has(booking.id));
   }, [completedBookings, myReviews]);
 
   const retry = useCallback(() => {
@@ -79,7 +80,8 @@ export function useTourReviewEligibility(tourId: string): ReviewEligibility {
     if (bookingsQuery.isError || reviewsQuery.isError) return 'error';
     if (bookingsQuery.isLoading || reviewsQuery.isLoading) return 'loading';
     if (eligibleBookings.length > 0) return 'eligible';
-    if (completedBookings.length > 0) return 'already-reviewed';
+    if (completedBookings.some(b => b.attendedParticipants !== 0)) return 'already-reviewed';
+    if (completedBookings.length > 0) return 'not-attended';
     return 'not-completed';
   }, [
     authStatus,
@@ -91,6 +93,7 @@ export function useTourReviewEligibility(tourId: string): ReviewEligibility {
     reviewsQuery.isLoading,
     eligibleBookings.length,
     completedBookings.length,
+    completedBookings,
   ]);
 
   return { userId, status, eligibleBookings, completedBookings, myReviews, retry };

@@ -7,7 +7,7 @@ import {
 } from '@reduxjs/toolkit/query/react';
 import type { RootState } from '..';
 import { clearCredentials, selectActiveAgency, setAgencyMemberships, setCredentials } from '@/features/auth/store/authSlice';
-import type { AgencyMembership, SessionData } from '@/features/auth/types';
+import type { AgencyMembership, SessionData, UserProfile } from '@/features/auth/types';
 import { isPublicAuthRequest } from '@travel-platform/constants';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
@@ -56,6 +56,20 @@ async function requestRefresh(): Promise<SessionData | null> {
 }
 
 let refreshPromise: Promise<SessionData | null> | null = null;
+
+/** Validate a stored, unexpired token without rotating a refresh cookie in every tab. */
+export async function verifyStoredSessionChecked(accessToken: string): Promise<SessionData | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const res = await fetch(`${API_BASE_URL}/users/me`, { credentials: 'include', headers: { Authorization: `Bearer ${accessToken}` }, signal: controller.signal });
+    if (res.status === 401) return refreshSessionChecked();
+    if (!res.ok) throw new Error('Session service temporarily unavailable');
+    const body = await res.json() as { success?: boolean; data?: UserProfile };
+    if (!body.success || !body.data?.id) throw new Error('Invalid session response');
+    return { user: body.data, accessToken };
+  } finally { clearTimeout(timeout); }
+}
 
 export function refreshSessionChecked(): Promise<SessionData | null> {
   if (!refreshPromise) {

@@ -70,7 +70,7 @@ Subscribes to `bookingEvents.onConfirmed / onCancelled / onCompleted` in `index.
 End-to-end (Playwright, real Postgres + HTTP + traveler web ticket): `docs/testing/guide-check-in/README.md`.
 
 ## Not implemented / follow-ups
-* A separate trip-state entity is not implemented. Starting a trip remains local UI state; completing a departure persists its eligible bookings as COMPLETED after the end-time guard.
+* Agency departure reports now own trip completion (`../tour-completion/README.md`). The legacy guide completion endpoint returns `AGENCY_COMPLETION_REQUIRED`; starting a trip remains local UI state.
 * PDF/QR image generation – the frontend renders the QR from `code`.
 * Ticket delivery is repaired by `eTickets.retryFulfillment` every minute after a paid booking has lacked a ticket for three minutes. Creation and cancellation serialize on the booking row; the worker also repairs completed trips as USED. See `e-tickets.lifecycle.integration.test.ts`.
 

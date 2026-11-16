@@ -7,12 +7,10 @@ import { useCheckoutBookingMutation } from '@/features/payment';
 import { LoadingState } from '@/components/shared';
 import {
   useCancelBookingMutation,
-  useCompleteBookingMutation,
   useGetBookingByIdQuery,
 } from '../api/bookingApi';
 import { BookingStatusBadge } from './BookingStatusBadge';
 import { CancelBookingModal } from './CancelBookingModal';
-import { CompleteBookingModal } from './CompleteBookingModal';
 import { ETicketModal, useGetETicketByBookingIdQuery } from '@/features/e-ticket';
 import { WriteReviewDialog } from '@/features/review/components';
 import { useGetMyReviewsQuery } from '@/features/review/api/reviewApi';
@@ -40,10 +38,8 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
   const coverImage = failedCover ? undefined : (booking?.tour?.coverImage || tour?.coverImage || tour?.images?.[0]);
   const [checkoutBooking, { isLoading: isPaying }] = useCheckoutBookingMutation();
   const [cancelBooking, { isLoading: isCancelling }] = useCancelBookingMutation();
-  const [completeBooking, { isLoading: isCompleting }] = useCompleteBookingMutation();
 
   const [openCancelModal, setOpenCancelModal] = useState(false);
-  const [openCompleteModal, setOpenCompleteModal] = useState(false);
   const [openTicketModal, setOpenTicketModal] = useState(false);
   const [openReviewDialog, setOpenReviewDialog] = useState(false);
   const [notice, setNotice] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -89,23 +85,6 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
     }
   };
 
-  const handleConfirmComplete = async (id: string) => {
-    try {
-      await completeBooking(id).unwrap();
-      setOpenCompleteModal(false);
-      setNotice({
-        message: 'Tuyệt vời! Chuyến đi đã được ghi nhận hoàn thành. Bạn có thể viết đánh giá ngay bây giờ!',
-        type: 'success',
-      });
-      // Proactively open review dialog for seamless UX
-      setOpenReviewDialog(true);
-    } catch (err: unknown) {
-      const errorMsg =
-        (err as { data?: { error?: { message?: string } } })?.data?.error?.message ||
-        'Không thể cập nhật trạng thái hoàn thành lúc này.';
-      setNotice({ message: errorMsg, type: 'error' });
-    }
-  };
 
   const handleReviewCreated = (_review: MyReview) => {
     setOpenReviewDialog(false);
@@ -167,6 +146,7 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
   const isPending = booking.status === 'PENDING';
   const isConfirmed = booking.status === 'CONFIRMED';
   const isCompleted = booking.status === 'COMPLETED';
+  const canReview = isCompleted && booking.attendedParticipants !== 0;
   const isCancelled = booking.status === 'CANCELLED';
 
   const depStr = formatDepartureDate(booking.departureDate);
@@ -252,20 +232,8 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
               </button>
             )}
 
-            {/* Traveler Proactive Complete Action */}
-            {isConfirmed && (
-              <button
-                type="button"
-                onClick={() => setOpenCompleteModal(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 text-xs font-bold shadow-sm shadow-emerald-600/20 transition-all"
-              >
-                <span className="material-symbols-outlined text-[18px]">task_alt</span>
-                <span>Hoàn thành chuyến đi</span>
-              </button>
-            )}
-
             {/* Review Button when COMPLETED */}
-            {isCompleted && !hasReviewedThisBooking && (
+            {canReview && !hasReviewedThisBooking && (
               <button
                 type="button"
                 onClick={() => setOpenReviewDialog(true)}
@@ -621,20 +589,8 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
               </button>
             )}
 
-            {/* Sidebar Proactive Complete Action */}
-            {isConfirmed && (
-              <button
-                type="button"
-                onClick={() => setOpenCompleteModal(true)}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 font-bold text-xs shadow-md shadow-emerald-600/20 transition-all"
-              >
-                <span className="material-symbols-outlined text-base">task_alt</span>
-                <span>Xác nhận hoàn thành chuyến đi</span>
-              </button>
-            )}
-
             {/* Sidebar Write Review Action */}
-            {isCompleted && !hasReviewedThisBooking && (
+            {canReview && !hasReviewedThisBooking && (
               <button
                 type="button"
                 onClick={() => setOpenReviewDialog(true)}
@@ -652,6 +608,10 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
               </div>
             )}
 
+            {isConfirmed && (
+              <p className="text-sm text-amber-800">{new Date(booking.endDate).getTime() <= Date.now() ? 'Chờ Agency gửi báo cáo và hoàn tất chuyến đi.' : 'Agency sẽ xác nhận hoàn tất sau khi chuyến đi kết thúc.'}</p>
+            )}
+            {booking.attendedParticipants === 0 && <p className="text-sm text-slate-600">Agency ghi nhận nhóm của bạn không tham gia. Liên hệ Agency nếu thông tin chưa đúng.</p>}
             {isConfirmed && (
               <Link
                 href="/tours"
@@ -674,15 +634,6 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
         onConfirm={handleConfirmCancel}
       />
 
-      {/* Complete Trip Confirmation Modal */}
-      <CompleteBookingModal
-        open={openCompleteModal}
-        booking={booking}
-        isLoading={isCompleting}
-        onClose={() => setOpenCompleteModal(false)}
-        onConfirm={handleConfirmComplete}
-      />
-
       {/* E-Ticket Modal */}
       <ETicketModal
         open={openTicketModal}
@@ -691,7 +642,7 @@ export function BookingDetailPage({ bookingId }: BookingDetailPageProps) {
       />
 
       {/* Write Review Dialog */}
-      {isCompleted && (
+      {canReview && (
         <WriteReviewDialog
           open={openReviewDialog}
           onClose={() => setOpenReviewDialog(false)}

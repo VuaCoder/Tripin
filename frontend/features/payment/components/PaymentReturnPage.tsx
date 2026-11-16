@@ -232,15 +232,6 @@ function PaymentResult({
 
       {/* Transaction Details Card */}
       <div className="rounded-2xl border border-slate-100 bg-slate-50/90 p-5 space-y-3.5 mb-7">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 pb-3 border-b border-slate-200/60">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            Mã giao dịch
-          </span>
-          <span className="font-mono text-xs font-bold text-slate-800 break-all select-all sm:text-right">
-            {payment.id}
-          </span>
-        </div>
-
         <div className="flex items-center justify-between gap-3">
           <span className="text-sm font-semibold text-slate-600">Số tiền thanh toán</span>
           <span className="text-lg font-black text-teal-800 tracking-tight" style={{ fontVariantNumeric: 'tabular-nums' }}>

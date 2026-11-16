@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import Link from 'next/link';
+import { useState, useMemo, useId } from 'react';
 import {
   Ticket,
   Check,
@@ -18,17 +17,23 @@ import { selectIsAuthenticated } from '@/features/auth';
 import { GuestLoginPromptModal } from '@/components/shared';
 import { formatVnd } from '../utils/format';
 
-export function HotVouchersSection() {
+export function HotVouchersSection({ compact = false }: { compact?: boolean }) {
+  const headingId = useId();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const { data: response, isLoading: isLoadingHot } = useGetHotPromotionsQuery();
+  const { data: response, isLoading: isLoadingHot } = useGetHotPromotionsQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+  });
   const { data: myVouchersData, isLoading: isLoadingMine } = useGetMyVouchersQuery(undefined, {
     skip: !isAuthenticated,
+    refetchOnMountOrArgChange: true,
   });
   const [collectVoucher] = useCollectVoucherMutation();
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [collectedMap, setCollectedMap] = useState<Record<string, boolean>>({});
   const [flyingVoucherId, setFlyingVoucherId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState('');
 
   const allVouchers = response?.data || [];
 
@@ -54,17 +59,17 @@ export function HotVouchersSection() {
   }, [allVouchers, collectedPromoIds, collectedMap]);
 
   const handleCopyCode = async (code: string) => {
+    setActionError('');
     try {
       await navigator.clipboard.writeText(code);
       setCopiedCode(code);
       setTimeout(() => setCopiedCode(null), 2500);
     } catch {
-      setCopiedCode(code);
-      setTimeout(() => setCopiedCode(null), 2500);
+      setActionError('Không thể sao chép mã. Vui lòng thử lại.');
     }
   };
 
-  const handleCollect = async (voucherId: string, _code?: string) => {
+  const handleCollect = async (voucherId: string) => {
     if (!isAuthenticated) {
       setShowLoginModal(true);
       return;
@@ -72,23 +77,21 @@ export function HotVouchersSection() {
 
     // Trigger the floating + 🎟️ animation right at the clicked button
     setFlyingVoucherId(voucherId);
+    setActionError('');
 
     try {
       await collectVoucher({ promotionId: voucherId }).unwrap();
-    } catch {
-      // Continue gracefully even if network hiccup
-    }
-
-    // Allow user to delight in the + 🎟️ floating effect and confirmation before voucher transitions to wallet
-    setTimeout(() => {
       setCollectedMap((prev) => ({ ...prev, [voucherId]: true }));
+    } catch {
+      setActionError('Không thể lưu voucher. Vui lòng thử lại.');
+    } finally {
       setFlyingVoucherId(null);
-    }, 750);
+    }
   };
 
   if (isLoadingHot || (isAuthenticated && isLoadingMine)) {
     return (
-      <section className="mb-14">
+      <section className={compact ? 'min-w-0' : 'mb-14 min-w-0'}>
         <div className="flex items-center justify-between mb-4">
           <div className="h-7 w-48 bg-slate-200 rounded-lg animate-pulse" />
           <div className="h-4 w-28 bg-slate-100 rounded animate-pulse" />
@@ -107,36 +110,23 @@ export function HotVouchersSection() {
     return null;
   }
 
-  const count = uncollectedVouchers.length;
-
-  // Responsive Grid class depending on how many uncollected vouchers exist
-  // Left-aligned grid naturally matching the page layout
-  const gridLayoutClass =
-    count === 1
-      ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-md sm:max-w-none'
-      : count === 2
-        ? 'grid grid-cols-1 md:grid-cols-2 gap-5'
-        : count === 3
-          ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5'
-          : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5';
-
   return (
-    <section className="mb-14">
+    <section className={compact ? 'min-w-0' : 'mb-14 min-w-0'} aria-labelledby={headingId}>
       {/* Header */}
       <div className="flex items-center justify-between gap-4 mb-5">
-        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+        <h2 id={headingId} className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
           Mã ưu đãi đang áp dụng
         </h2>
-        <Link
-          href="/settings/vouchers"
-          className="text-xs sm:text-sm font-semibold text-primary-container hover:underline whitespace-nowrap"
-        >
-          Ví voucher của tôi
-        </Link>
       </div>
 
       {/* Vouchers Layout */}
-      <div className={gridLayoutClass}>
+      {actionError && <p role="alert" className="mb-3 text-sm text-red-700">{actionError}</p>}
+      <div
+        role="region"
+        aria-label="Danh sách mã ưu đãi"
+        tabIndex={0}
+        className="flex max-w-full gap-4 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+      >
         {uncollectedVouchers.map((voucher) => (
           <TicketCard
             key={voucher.id}
@@ -144,7 +134,7 @@ export function HotVouchersSection() {
             isCopied={copiedCode === voucher.code}
             isCollecting={flyingVoucherId === voucher.id}
             onCopyCode={() => voucher.code && handleCopyCode(voucher.code)}
-            onCollect={() => handleCollect(voucher.id, voucher.code)}
+            onCollect={() => handleCollect(voucher.id)}
             isAuthenticated={isAuthenticated}
           />
         ))}
@@ -202,7 +192,7 @@ function TicketCard({
   }).format(new Date(voucher.endsAt));
 
   return (
-    <div className="relative group select-none">
+    <div className="relative group w-[min(100%,360px)] sm:w-[380px] shrink-0 snap-start">
       {/* ================= TICKET MAIN BODY ================= */}
       <div
         className={`relative flex rounded-2xl transition-all duration-200 overflow-hidden shadow-2xs hover:shadow-md ${
@@ -279,7 +269,7 @@ function TicketCard({
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold text-teal-800 border border-teal-200/60">
-                  <span>Toàn sàn</span>
+                  <span>{voucher.scope === 'PLATFORM' ? 'Toàn sàn' : 'Đại lý'}</span>
                 </span>
               )}
             </div>
@@ -300,21 +290,22 @@ function TicketCard({
             }`}
           >
             {/* Promo Code with Copy */}
-            <div className="min-w-0 flex items-center gap-1.5">
+            {voucher.code ? <div className="min-w-0 flex items-center gap-1.5">
               <span
+                title={voucher.code}
                 className={`inline-block font-mono text-xs font-bold px-2 py-0.5 rounded-lg border truncate max-w-[110px] sm:max-w-[130px] ${
                   isPremium
                     ? 'bg-amber-100/80 text-amber-950 border-amber-300'
                     : 'text-slate-800 bg-slate-100 border-slate-200'
                 }`}
               >
-                {voucher.code || 'TRIPRI'}
+                {voucher.code}
               </span>
               <button
                 type="button"
                 onClick={onCopyCode}
                 title="Sao chép mã"
-                aria-label={`Sao chép mã ${voucher.code}`}
+                aria-label={`${isCopied ? 'Đã sao chép mã' : 'Sao chép mã'} ${voucher.code}`}
                 className={`p-1 rounded-md transition-colors cursor-pointer ${
                   isPremium
                     ? 'text-amber-700 hover:text-amber-950 hover:bg-amber-100'
@@ -327,7 +318,11 @@ function TicketCard({
                   <Copy className="size-3.5" />
                 )}
               </button>
-            </div>
+            </div> : (
+              <span className="text-xs font-medium text-slate-600">
+                {voucher.applyType === 'AUTO_APPLY' ? 'Tự động áp dụng' : 'Không cần nhập mã'}
+              </span>
+            )}
 
             {/* Floating + 🎟️ Ticket Animation when user clicks save */}
             {isCollecting && (
@@ -360,7 +355,7 @@ function TicketCard({
               {isCollecting ? (
                 <span className="inline-flex items-center gap-1">
                   <Check className="size-3" />
-                  <span>Đã lưu!</span>
+                  <span>Đang lưu…</span>
                 </span>
               ) : isAuthenticated ? (
                 'Lưu mã'

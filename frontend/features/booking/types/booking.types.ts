@@ -98,6 +98,7 @@ export interface BookingPassenger {
 }
 
 export interface BookingDto {
+  attendedParticipants?: number | null;
   services?: import('@travel-platform/constants').BookedExtra[];
   servicesSubtotal?: number;
   meetingPoint?: string;

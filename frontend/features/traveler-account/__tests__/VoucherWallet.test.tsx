@@ -4,6 +4,9 @@ import { PremiumVoucherCard, VoucherCard } from '../components/VoucherCard';
 import { TravelerAccountNav } from '../components/TravelerAccountNav';
 vi.mock('next/navigation', () => ({ usePathname: () => '/settings/vouchers' }));
 vi.mock('@/features/premium/PremiumWalletSection',() => ({PremiumWalletSection:() => null}));
+vi.mock('@/features/tours/components/HotVouchersSection', () => ({
+  HotVouchersSection: () => <h2>Mã ưu đãi đang áp dụng</h2>,
+}));
 import type { UserVoucherItem } from '../api/voucherWalletApi';
 import type { PremiumVoucher } from '@/features/premium/api';
 
@@ -175,6 +178,7 @@ describe('VoucherWalletPage', () => {
     render(<VoucherWalletPage />);
 
     expect(screen.getByRole('heading', { name: 'Ví voucher' })).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Mã ưu đãi đang áp dụng' })).toBeDefined();
     expect(screen.queryByText('Ví voucher & Ưu đãi')).toBeNull();
     expect(screen.getByText('Khả dụng')).toBeDefined();
     expect(screen.getByText('Đã sử dụng')).toBeDefined();

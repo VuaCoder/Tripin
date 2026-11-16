@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { REVIEW_COMMENT_MAX, REVIEW_COMMENT_MIN, type ReviewableBooking } from '../types';
+import { REVIEW_COMMENT_MAX, type ReviewableBooking } from '../types';
 import { hasReviewFormErrors, validateReviewForm } from '../utils/validation';
 
 const BOOKING: ReviewableBooking = {
@@ -38,11 +38,8 @@ describe('validateReviewForm (mirrors the backend createReviewBody)', () => {
     }
   });
 
-  it('measures the comment after trimming', () => {
-    expect(validateReviewForm({ ...VALID, comment: '' }, [BOOKING]).comment).toBeTruthy();
-    expect(validateReviewForm({ ...VALID, comment: '   ' }, [BOOKING]).comment).toBeTruthy();
-    expect(validateReviewForm({ ...VALID, comment: 'a'.repeat(REVIEW_COMMENT_MIN - 1) }, [BOOKING]).comment).toBeTruthy();
-    expect(validateReviewForm({ ...VALID, comment: `  ${'a'.repeat(REVIEW_COMMENT_MIN)}  ` }, [BOOKING]).comment).toBeUndefined();
+  it('accepts star-only reviews and short comments', () => {
+    for (const comment of ['', '   ', 'Hay lắm', '  Hay  ']) expect(validateReviewForm({ ...VALID, comment }, [BOOKING]).comment).toBeUndefined();
   });
 
   it('rejects a comment longer than the backend maximum', () => {

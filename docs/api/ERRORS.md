@@ -23,6 +23,9 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `CONFLICT` | 409 | Duplicate (unique index) or generic state conflict |
 | `INVALID_STATE_TRANSITION` | 409 | The record is in a state from which the requested change is not allowed |
 | `CONCURRENT_UPDATE` | 409 | Somebody changed the record between read and write; reload and retry |
+| `AGENCY_COMPLETION_REQUIRED` | 409 | Traveler/guide completion is retired; Agency must submit the departure report |
+| `BOOKING_NOT_ATTENDED` | 409 | An entirely absent group cannot review; contact the Agency to dispute attendance |
+| `TRIP_NOT_STARTED` | 409 | Departure reports open only after departure; a future departure has no completion snapshot yet |
 | `RATE_LIMITED` | 429 | Too many requests from this client |
 | `SERVICE_UNAVAILABLE` | 503 | A required provider (payment, mail, AI, Google) is not configured or not reachable |
 | `PAYOUT_NOT_CONFIGURED` | 503 | The server payout encryption keyring or required key version is unavailable |

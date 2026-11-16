@@ -5,6 +5,7 @@ export function agencyRoutePermission(pathname: string): string | null {
   if (pathname === '/agency/tours/import') return 'tour:import';
   if (/^\/agency\/tours\/[^/]+\/edit(?:\/|$)/.test(pathname)) return 'tour:update-own';
   const routes: [string, string][] = [
+    ['/agency/completions', 'tour:update-own'],
     ['/agency/work/tours', 'agency:tour-view'], ['/agency/work/bookings', 'agency:booking-monitor'],
     ['/agency/tours', 'agency:tour-view'], ['/agency/calendar', 'tour:update-own'],
     ['/agency/bookings', 'agency:bookings-view'], ['/agency/promotions', 'promotion:agency-manage'],

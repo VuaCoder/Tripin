@@ -29,7 +29,7 @@ describe('Partner account auth without an existing workplace', () => {
     const requests: any[] = [];
     vi.stubGlobal('fetch', vi.fn(async (req: Request) => { requests.push({ url: req.url, body: await req.json() }); return Response.json({ success: true, data: { ...session, twoFactorRequired: false } }); }));
     const store = mount(); fillLogin();
-    fireEvent.click(screen.getByLabelText('Ghi nhớ đăng nhập'));
+    fireEvent.click(screen.getByLabelText('Ghi nhớ tôi'));
     fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập' }));
     await waitFor(() => expect(nav.push).toHaveBeenCalledWith('/workplaces'));
     expect(requests[0].url).toMatch(/\/auth\/agency\/login$/);
@@ -59,7 +59,7 @@ describe('Partner account auth without an existing workplace', () => {
   it('keeps an invitation destination through a 2FA challenge without creating a session early', async () => {
     const next = '/agency/invitations/accept?token=' + 'a'.repeat(64); nav.params.set('next', next);
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ success: true, data: { twoFactorRequired: true, email: session.user.email } })));
-    const store = mount(); fillLogin(); fireEvent.click(screen.getByLabelText('Ghi nhớ đăng nhập'));
+    const store = mount(); fillLogin(); fireEvent.click(screen.getByLabelText('Ghi nhớ tôi'));
     fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập' }));
     await waitFor(() => expect(nav.push).toHaveBeenCalled());
     const target = new URL(nav.push.mock.calls[0][0], 'https://local.test');

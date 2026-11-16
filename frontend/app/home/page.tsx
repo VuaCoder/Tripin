@@ -1181,6 +1181,7 @@ export default function Home() {
               badgeText="Được khách yêu thích"
               viewAllHref="/tours?sort=rating"
               tours={favoriteTours}
+              total={favoritesRes?.meta.total}
               isLoading={isLoadingFavorites}
             />
           </Container>
@@ -1194,6 +1195,7 @@ export default function Home() {
               badgeText="Mới ra mắt"
               viewAllHref="/tours?sort=newest"
               tours={recentTours}
+              total={recentRes?.meta.total}
               isLoading={isLoadingRecent}
             />
           </Container>
@@ -1208,6 +1210,7 @@ export default function Home() {
               badgeText: 'Đà Nẵng',
               destination: 'Đà Nẵng',
               tours: daNangTours,
+              total: daNangRes?.meta.total,
               isLoading: isLoadingDaNang,
             },
             {
@@ -1216,6 +1219,7 @@ export default function Home() {
               badgeText: 'Hà Nội',
               destination: 'Hà Nội',
               tours: haNoiTours,
+              total: haNoiRes?.meta.total,
               isLoading: isLoadingHaNoi,
             },
             {
@@ -1224,6 +1228,7 @@ export default function Home() {
               badgeText: 'TP. Hồ Chí Minh',
               destination: 'Hồ Chí Minh',
               tours: hcmTours,
+              total: hcmRes?.meta.total,
               isLoading: isLoadingHcm,
             },
           ].map(
@@ -1235,6 +1240,7 @@ export default function Home() {
                     badgeText={citySection.badgeText}
                     viewAllHref={`/tours?destination=${encodeURIComponent(citySection.destination)}`}
                     tours={citySection.tours}
+                    total={citySection.total}
                     isLoading={citySection.isLoading}
                   />
                 </Container>

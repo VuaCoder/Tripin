@@ -111,6 +111,7 @@ export interface TourReviewContext {
 
 /** The subset of `BookingDto` the eligibility check needs (`GET /bookings/me`). */
 export interface ReviewableBooking {
+  attendedParticipants?: number | null;
   id: string;
   bookingCode: string;
   status: string;
@@ -139,7 +140,7 @@ export interface MyReviewsPage {
 
 export const REVIEW_RATING_MIN = 1;
 export const REVIEW_RATING_MAX = 5;
-export const REVIEW_COMMENT_MIN = 10;
+export const REVIEW_COMMENT_MIN = 0;
 export const REVIEW_COMMENT_MAX = 2000;
 
 export const REVIEW_PAGE_SIZE = 10;

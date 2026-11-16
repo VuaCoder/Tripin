@@ -8,6 +8,7 @@ import { AuthContainer } from './AuthContainer';
 import { LoginResultData, RegisterResultData } from '../types';
 import { homeForRole } from '../utils/roles';
 import { safeNextPath } from '../utils/safeNextPath';
+import { SessionEntryGate } from './SessionEntryGate';
 
 export const LoginPage: React.FC = () => {
   const router = useRouter();
@@ -29,7 +30,7 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen text-slate-800 bg-desk-travel flex flex-col items-center justify-center selection:bg-brand-teal selection:text-white relative overflow-hidden px-4 sm:px-6 py-6 sm:py-10">
+    <SessionEntryGate target={nextPath}><div className="min-h-screen text-slate-800 bg-desk-travel flex flex-col items-center justify-center selection:bg-brand-teal selection:text-white relative overflow-hidden px-4 sm:px-6 py-6 sm:py-10">
       {/* Background visual layers */}
       <AuthBackground />
 
@@ -44,6 +45,6 @@ export const LoginPage: React.FC = () => {
           onRegisterSuccess={handleRegisterSuccess}
         />
       </section>
-    </div>
+    </div></SessionEntryGate>
   );
 };

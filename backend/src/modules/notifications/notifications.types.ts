@@ -1,5 +1,7 @@
 /** Every kind of in-app notification. Add new kinds here, never inline strings in other modules. */
 export const NOTIFICATION_TYPE = {
+  TOUR_COMPLETION_DUE: 'TOUR_COMPLETION_DUE',
+  TOUR_COMPLETION_OVERDUE: 'TOUR_COMPLETION_OVERDUE',
   ADMIN_REQUEST_RECEIVED: 'ADMIN_REQUEST_RECEIVED',
   ACCOUNT_UNBANNED: 'ACCOUNT_UNBANNED',
   TOUR_APPROVED: 'TOUR_APPROVED',

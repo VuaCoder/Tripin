@@ -57,7 +57,7 @@ Stacked agency/platform vouchers each have a `PromotionRedemption` snapshot (who
 4. A PENDING booking holds its seats for `PENDING_PAYMENT_MINUTES` (15). `expirePendingBookings()` cancels it afterwards (compare-and-set on PENDING only: a booking paid a moment earlier stays CONFIRMED) (`PAYMENT_EXPIRED`) and frees seats/promotion.
 5. Cancel: PENDING any time; CONFIRMED only if the departure is further away than `cancellation.cancellationWindowHours` (policy, default 24h). A paid booking that is cancelled gets `refundRequired=true` (no money movement here, D-15).
 6. `confirmPayment()` is idempotent; a payment arriving for a CANCELLED booking never revives it – it sets `isPaid` + `refundRequired` and returns `REFUND_REQUIRED`.
-7. `completeFinishedBookings()` moves CONFIRMED → COMPLETED once `endDate = departureDate + durationDays` has passed, notifies the traveler (review invitation) and emits `completed`.
+7. Agency submits a departure completion report after the end time; this atomically completes its CONFIRMED bookings and enqueues ticket/earning/notification delivery. Time alone no longer completes bookings; the legacy `completeFinishedBookings()` is a no-op. See `../tour-completion/README.md`.
 8. Ownership: traveler routes answer 404 for bookings of others; the agency sees only its own bookings.
 9. The customer list contains only paid bookings of the agency's own tour and is never cached (`Cache-Control: no-store`); the PDF font is DejaVu Sans (package `dejavu-fonts-ttf`), with a logged fallback to Helvetica.
 10. Booking codes (`TRP-XXXXXXXX`, no ambiguous characters) are unique; collisions are retried.

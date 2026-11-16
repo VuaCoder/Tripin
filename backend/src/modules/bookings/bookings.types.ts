@@ -98,6 +98,7 @@ export interface BookingDto {
   paymentExpiresAt?: string;
   confirmedAt?: string;
   completedAt?: string;
+  attendedParticipants?: number | null;
   cancelledAt?: string;
   cancelReason?: BookingCancelReason;
   /** Set when the booking came from an accepted group offer; the detail page can offer to book again from it. */
@@ -133,6 +134,7 @@ export interface AgencyBookingDto {
 
 /** Minimal immutable facts other modules (payments, e-tickets, earnings, reviews) need about a booking. */
 export interface BookingFacts {
+  attendedParticipants?: number | null;
   services?: import('@travel-platform/constants').BookedExtra[];
   meetingPoint?: string;
   id: string;

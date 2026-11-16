@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { HotVouchersSection } from '../components/HotVouchersSection';
 import type { PromotionDto, UserVoucherItem } from '@/features/traveler-account/api/voucherWalletApi';
@@ -146,39 +146,13 @@ describe('HotVouchersSection on Home page', () => {
     expect(screen.getByText('VIP100')).toBeDefined();
   });
 
-  it('adapts layout for exactly 1 voucher (left-aligned grid card)', () => {
-    mocks.hotVouchers = [sampleVouchers[0]];
-    const { container } = render(<HotVouchersSection />);
-
-    expect(screen.getByText('GIAM10')).toBeDefined();
-    expect(container.querySelector('.grid')).not.toBeNull();
-  });
-
-  it('adapts layout for exactly 2 vouchers (2-column grid)', () => {
-    mocks.hotVouchers = [sampleVouchers[0], sampleVouchers[1]];
-    const { container } = render(<HotVouchersSection />);
-
-    expect(screen.getByText('GIAM10')).toBeDefined();
-    expect(screen.getByText('GIAM50K')).toBeDefined();
-    expect(container.querySelector('.grid.grid-cols-1.md\\:grid-cols-2')).not.toBeNull();
-  });
-
-  it('adapts layout for 3 vouchers (3-column grid)', () => {
-    mocks.hotVouchers = [sampleVouchers[0], sampleVouchers[1], sampleVouchers[2]];
-    const { container } = render(<HotVouchersSection />);
-
-    expect(screen.getByText('GIAM10')).toBeDefined();
-    expect(screen.getByText('GIAM50K')).toBeDefined();
-    expect(screen.getByText('HE2026')).toBeDefined();
-    expect(container.querySelector('.lg\\:grid-cols-3')).not.toBeNull();
-  });
-
-  it('adapts layout for 4+ vouchers (responsive 4-column grid)', () => {
-    mocks.hotVouchers = [...sampleVouchers];
-    const { container } = render(<HotVouchersSection />);
-
-    expect(screen.getByText('VIP100')).toBeDefined();
-    expect(container.querySelector('.xl\\:grid-cols-4')).not.toBeNull();
+  it.each([1, 2, 3, 4])('keeps %i vouchers in a locally scrollable row without a wallet shortcut', (count) => {
+    mocks.hotVouchers = sampleVouchers.slice(0, count);
+    render(<HotVouchersSection compact />);
+    const region = screen.getByRole('region', { name: 'Danh sách mã ưu đãi' });
+    expect(region.className).toContain('overflow-x-auto');
+    expect(region.children.length).toBe(count);
+    expect(screen.queryByText('Ví voucher của tôi')).toBeNull();
   });
 
   it('hides the voucher section when user has collected all available vouchers', () => {
@@ -197,7 +171,7 @@ describe('HotVouchersSection on Home page', () => {
     expect(screen.queryByText(/Bạn đã thu thập toàn bộ voucher ưu đãi/i)).toBeNull();
   });
 
-  it('triggers floating + ticket animation and marks collected on click', async () => {
+  it('moves a successfully collected voucher out of the discovery list', async () => {
     mocks.hotVouchers = [sampleVouchers[0]];
     render(<HotVouchersSection />);
 
@@ -206,7 +180,45 @@ describe('HotVouchersSection on Home page', () => {
 
     expect(mocks.collect).toHaveBeenCalledWith({ promotionId: 'promo-1' });
 
-    // Check button indicates saving / saved
-    expect(screen.getByText('Đã lưu!')).toBeDefined();
+    await waitFor(() => expect(screen.queryByText('GIAM10')).toBeNull());
+  });
+
+  it('copies the complete actual code returned for the promotion', async () => {
+    const code = 'ACTUAL-CREATED-VOUCHER-2026-LONG-CODE';
+    mocks.hotVouchers = [{ ...sampleVouchers[0], code }];
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    render(<HotVouchersSection />);
+    expect(screen.getByText(code)).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: `Sao chép mã ${code}` }));
+    await waitFor(() => expect(screen.getByRole('button', { name: `Đã sao chép mã ${code}` })).toBeDefined());
+    expect(writeText).toHaveBeenCalledWith(code);
+  });
+
+  it('does not invent a code or copy action for an automatic promotion', () => {
+    mocks.hotVouchers = [{ ...sampleVouchers[0], code: undefined, applyType: 'AUTO_APPLY' }];
+    render(<HotVouchersSection />);
+    expect(screen.getByText('Tự động áp dụng')).toBeDefined();
+    expect(screen.queryByText('TRIPRI')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Sao chép mã/ })).toBeNull();
+  });
+
+  it('keeps the voucher visible and reports a failed collection', async () => {
+    mocks.hotVouchers = [sampleVouchers[0]];
+    mocks.collect.mockReturnValue({ unwrap: () => Promise.reject(new Error('offline')) });
+    render(<HotVouchersSection />);
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu mã' }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Không thể lưu voucher'));
+    expect(screen.getByText('GIAM10')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Lưu mã' })).toHaveProperty('disabled', false);
+  });
+
+  it('does not report clipboard success when writing fails', async () => {
+    mocks.hotVouchers = [sampleVouchers[0]];
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } });
+    render(<HotVouchersSection />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sao chép mã GIAM10' }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Không thể sao chép'));
+    expect(screen.queryByRole('button', { name: /Đã sao chép/ })).toBeNull();
   });
 });

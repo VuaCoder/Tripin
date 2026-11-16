@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
       'tour:list-all',
       'agency:verify',
       'review:moderate',
+      'tour-completion:view',
       'dispute:resolve',
       'complaint:handle',
     ],
@@ -57,6 +58,7 @@ describe('ModeratorSidebar', () => {
     expect(screen.getByText('Duyệt tour')).toBeTruthy();
     expect(screen.getByText('Xác minh agency')).toBeTruthy();
     expect(screen.getByText('Kiểm duyệt đánh giá')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Tổng kết tour' }).getAttribute('href')).toBe('/moderator/tour-completions');
     expect(screen.getByText('Báo cáo vi phạm')).toBeTruthy();
     expect(screen.getByText('Khiếu nại dịch vụ tour')).toBeTruthy();
     expect(screen.getByText('Yêu cầu hỗ trợ sàn')).toBeTruthy();

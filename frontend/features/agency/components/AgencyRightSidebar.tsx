@@ -89,6 +89,7 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
     { label: 'Vận hành', items: [
       { href: '/agency', label: 'Tổng quan', icon: LayoutDashboard, permission: 'agency:dashboard' },
       { href: '/agency/bookings', label: 'Đơn đặt chỗ', icon: CalendarCheck, permission: 'agency:bookings-view' },
+      ...(['OWNER', 'MANAGER'].includes(agency?.memberRole ?? '') ? [{ href: '/agency/completions', label: 'Hoàn tất chuyến đi', icon: CalendarCheck, permission: 'tour:update-own' }] : []),
       { href: '/agency/work/bookings', label: 'Theo dõi booking', icon: CalendarCheck, permission: 'agency:booking-monitor' },
     ] },
     { label: 'Trao đổi', items: [

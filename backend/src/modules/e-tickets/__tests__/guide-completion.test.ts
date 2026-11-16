@@ -22,20 +22,19 @@ function make(bookings: ReturnType<typeof booking>[]) {
 
 describe('guide completion scope (BOOK-012)', () => {
   it('rejects a future departure without transitions or events', async () => {
-    await expect(make([booking('b1', 'd1', false)]).completeTripForGuide('guide', 'tour')).rejects.toMatchObject({ code: 'TRIP_NOT_ENDED' });
+    await expect(make([booking('b1', 'd1', false)]).completeTripForGuide('guide', 'tour')).rejects.toMatchObject({ code: 'AGENCY_COMPLETION_REQUIRED' });
     expect(mocks.transition).not.toHaveBeenCalled();
     expect(mocks.emitCompleted).not.toHaveBeenCalled();
   });
   it('does not complete future departures of the same tour', async () => {
-    expect(await make([booking('b1', 'd1', true), booking('b2', 'd2', false)]).completeTripForGuide('guide', 'tour')).toEqual({ completedCount: 1 });
-    expect(mocks.transition).toHaveBeenCalledTimes(1);
-    expect(mocks.transition.mock.calls[0]?.[0]).toBe('b1');
+    await expect(make([booking('b1', 'd1', true), booking('b2', 'd2', false)]).completeTripForGuide('guide', 'tour')).rejects.toMatchObject({ code: 'AGENCY_COMPLETION_REQUIRED' });
+    expect(mocks.transition).not.toHaveBeenCalled();
   });
   it('requires an explicit choice when several ended departures exist', async () => {
     const service = make([booking('b1', 'd1', true), booking('b2', 'd2', true)]);
-    await expect(service.completeTripForGuide('guide', 'tour')).rejects.toMatchObject({ code: 'DEPARTURE_REQUIRED' });
+    await expect(service.completeTripForGuide('guide', 'tour')).rejects.toMatchObject({ code: 'AGENCY_COMPLETION_REQUIRED' });
     expect(mocks.transition).not.toHaveBeenCalled();
-    expect(await service.completeTripForGuide('guide', 'tour', 'd2')).toEqual({ completedCount: 1 });
-    expect(mocks.transition.mock.calls[0]?.[0]).toBe('b2');
+    await expect(service.completeTripForGuide('guide', 'tour', 'd2')).rejects.toMatchObject({ code: 'AGENCY_COMPLETION_REQUIRED' });
+    expect(mocks.transition).not.toHaveBeenCalled();
   });
 });

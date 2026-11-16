@@ -191,7 +191,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             onChange={handleInputChange}
             className="h-4 w-4 rounded border-slate-300 accent-brand-teal cursor-pointer"
           />
-          <span>Remember me</span>
+          <span>Ghi nhớ tôi</span>
         </label>
         <Link
           href="/forgot-password"

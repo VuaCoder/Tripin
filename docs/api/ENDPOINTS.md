@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 302 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 309 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -211,6 +211,12 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | GET | `/api/v1/agency/complaints/:id` | `complaint:respond` |
 | POST | `/api/v1/agency/complaints/:id/respond` | `complaint:respond` |
 
+## `/agency/completions`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/agency/completions` | `tour:update-own` |
+
 ## `/agency/dashboard`
 
 | Method | Path | Access |
@@ -268,6 +274,9 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/agency/tours/:tourId/departures` | `tour:set-availability` |
 | DELETE | `/api/v1/agency/tours/:tourId/departures/:departureId` | `tour:set-availability` |
 | PATCH | `/api/v1/agency/tours/:tourId/departures/:departureId` | `tour:set-availability` |
+| GET | `/api/v1/agency/tours/:tourId/departures/:departureId/completion` | `tour:update-own` |
+| POST | `/api/v1/agency/tours/:tourId/departures/:departureId/completion/draft` | `tour:update-own` |
+| POST | `/api/v1/agency/tours/:tourId/departures/:departureId/completion/submit` | `tour:update-own` |
 | GET | `/api/v1/agency/tours/:tourId/departures/:departureId/customers.pdf` | `agency:export-customers` |
 | POST | `/api/v1/agency/tours/categories` | `tour:create` |
 | POST | `/api/v1/agency/tours/extract-document` | `tour:import` |
@@ -473,6 +482,16 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | Method | Path | Access |
 |---|---|---|
 | GET | `/api/v1/moderation/sla` | `dispute:resolve` |
+
+## `/moderation/tour-completions`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/moderation/tour-completions` | `tour-completion:view` |
+| GET | `/api/v1/moderation/tour-completions/agencies` | `tour-completion:view` |
+| GET | `/api/v1/moderation/tour-completions/agencies/:id` | `tour-completion:view` |
+| GET | `/api/v1/moderation/tour-completions/:id` | `tour-completion:view` |
+| GET | `/api/v1/moderation/tour-completions/by-booking/:id` | `tour-completion:view` |
 
 ## `/notifications`
 

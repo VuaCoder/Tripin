@@ -4,6 +4,7 @@ import type { AgencyMemberRole } from '../../generated/prisma/client';
 import type { NotificationType } from './notifications.types';
 
 export function agencyNotificationPermission(type: NotificationType): AgencyPermission | null {
+  if (type === 'TOUR_COMPLETION_DUE' || type === 'TOUR_COMPLETION_OVERDUE') return PERMISSIONS.TOUR_UPDATE_OWN;
   if (type === 'AGENCY_JOIN_REQUESTED') return 'agency:team-view';
   return type.startsWith('COMPLAINT_') ? PERMISSIONS.COMPLAINT_RESPOND
     : type.startsWith('BOOKING_') ? PERMISSIONS.AGENCY_BOOKINGS_VIEW

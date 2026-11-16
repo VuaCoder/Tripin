@@ -48,6 +48,8 @@ export type ProviderPaymentState = 'PENDING' | 'PAID' | 'CANCELLED' | 'EXPIRED';
 export interface ProviderPaymentStatus {
   state: ProviderPaymentState;
   amountPaid: number;
+  paymentLinkId?: string;
+  transactions?: { reference: string; amount: number; currency: string; transactionDateTime?: string }[];
 }
 
 export interface PaymentProvider {

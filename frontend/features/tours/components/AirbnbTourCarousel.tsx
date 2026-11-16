@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { formatDuration, formatVnd } from '../utils';
@@ -14,6 +14,7 @@ interface AirbnbTourCarouselProps {
   viewAllHref: string;
   badgeText?: string;
   isLoading?: boolean;
+  total?: number;
 }
 
 const FALLBACK_IMAGE =
@@ -26,14 +27,16 @@ export function AirbnbTourCarousel({
   viewAllHref,
   badgeText = 'Được khách yêu thích',
   isLoading = false,
+  total,
 }: AirbnbTourCarouselProps) {
   const router = useRouter();
   const sliderRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   // Airbnb limit: maximum 9 tours per section
-  const displayTours = (tours || []).slice(0, 9);
+  const displayTours = useMemo(() => (tours || []).slice(0, 9), [tours]);
+  const showViewAll = (total ?? tours.length) > displayTours.length;
 
   // Extract up to 3 real tour images for the stacked "Xem tất cả" end card
   const previewImages = displayTours
@@ -52,8 +55,13 @@ export function AirbnbTourCarousel({
     updateScrollState();
     const handleResize = () => updateScrollState();
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [displayTours]);
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(updateScrollState);
+    if (sliderRef.current) observer?.observe(sliderRef.current);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      observer?.disconnect();
+    };
+  }, [displayTours, isLoading, showViewAll]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (!sliderRef.current) return;
@@ -100,7 +108,7 @@ export function AirbnbTourCarousel({
       {/* 1. Header with title link and 60fps prev/next buttons */}
       <div className="flex items-center justify-between gap-4 mb-4">
         <div className="min-w-0">
-          <Link
+          {showViewAll ? <Link
             href={viewAllHref}
             className="group inline-flex items-center gap-2 hover:opacity-85 transition-opacity"
           >
@@ -110,14 +118,16 @@ export function AirbnbTourCarousel({
             <span className="material-symbols-outlined text-[20px] text-slate-700 transition-transform duration-200 group-hover:translate-x-1 shrink-0">
               arrow_forward
             </span>
-          </Link>
+          </Link> : (
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">{title}</h2>
+          )}
           {subtitle && (
             <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{subtitle}</p>
           )}
         </div>
 
         {/* Carousel Arrow Controls */}
-        <div className="flex items-center gap-2 shrink-0">
+        {(canScrollLeft || canScrollRight) && <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={() => scroll('left')}
@@ -136,7 +146,7 @@ export function AirbnbTourCarousel({
           >
             <span className="material-symbols-outlined text-[18px]">chevron_right</span>
           </button>
-        </div>
+        </div>}
       </div>
 
       {/* 2. Smooth 60fps Carousel Container */}
@@ -221,7 +231,7 @@ export function AirbnbTourCarousel({
         })}
 
         {/* 3. End Card: "Xem tất cả" (Clean Airbnb Style, no heavy hover shadow) */}
-        <div
+        {showViewAll && <div
           onClick={() => router.push(viewAllHref)}
           className="w-[200px] sm:w-[220px] shrink-0 snap-start flex flex-col justify-center items-center text-center rounded-2xl border border-slate-200 bg-white p-5 hover:border-slate-400 transition-colors duration-200 group cursor-pointer"
         >
@@ -260,7 +270,7 @@ export function AirbnbTourCarousel({
           <div className="mt-3 flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-700 group-hover:bg-primary-container group-hover:text-white transition-colors">
             <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
           </div>
-        </div>
+        </div>}
       </div>
     </section>
   );

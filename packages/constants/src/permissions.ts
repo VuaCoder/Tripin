@@ -54,6 +54,7 @@ export const PERMISSIONS = {
 
   // Moderator
   MODERATION_DASHBOARD_VIEW: 'moderation:dashboard',
+  TOUR_COMPLETION_VIEW: 'tour-completion:view',
   TOUR_LIST_ALL: 'tour:list-all',
   TOUR_VALIDATE: 'tour:validate',
   TOUR_SUSPEND: 'tour:suspend',
@@ -115,6 +116,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   [ROLES.MODERATOR]: [
     ...ACCOUNT,
     P.MODERATION_DASHBOARD_VIEW,
+    P.TOUR_COMPLETION_VIEW,
     P.TOUR_LIST_ALL,
     P.TOUR_VALIDATE,
     P.TOUR_SUSPEND,

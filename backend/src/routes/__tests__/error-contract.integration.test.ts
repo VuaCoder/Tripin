@@ -44,6 +44,10 @@ function expectError(res: Response, code: string): void {
 
 // Codes covered by focused service/provider tests or requiring a specific concurrent failure.
 const COVERED_ELSEWHERE: Record<string, string> = {
+  PHONE_ALREADY_REGISTERED: 'phone-registration.integration.test.ts verifies duplicate phone registration and updates',
+  AGENCY_COMPLETION_REQUIRED: 'completion.integration.test.ts rejects the legacy traveler completion endpoint',
+  BOOKING_NOT_ATTENDED: 'reviews.service.test.ts rejects reviews and signatures for absent groups',
+  TRIP_NOT_STARTED: 'completion.integration.test.ts rejects reports for departures that have not started',
   AGENCY_PORTAL_REQUIRED: 'auth.service.test.ts verifies the legacy customer-registration portal guard; HTTP validation rejects AGENCY earlier',
   PAYOUT_NOT_CONFIGURED: 'payout-account.crypto.test.ts verifies missing encryption keys fail closed',
   PAYOUT_ACCOUNT_UNAVAILABLE: 'payout-account.crypto.test.ts verifies tampered and wrong-owner envelopes fail closed',
@@ -180,7 +184,7 @@ describe('error contract over HTTP', () => {
     expect((await request(app).post('/api/v1/auth/login').send({ email: 'agency-login@example.com', password: PASSWORD })).status).toBe(200);
     expectError(await request(app).post('/api/v1/auth/register').send({ email: 'new-agency@example.com', password: PASSWORD, fullName: 'Agency Tester', role: 'AGENCY' }), 'VALIDATION_ERROR');
     await createUser('AGENCY', 'agency-pending@example.com', { passwordHash, status: 'PENDING_VERIFICATION' });
-    expectError(await request(app).post('/api/v1/auth/agency/login').send({ email: 'agency-pending@example.com', password: PASSWORD }), 'ACCOUNT_NOT_VERIFIED');
+    expectError(await request(app).post('/api/v1/auth/login').send({ email: 'agency-pending@example.com', password: PASSWORD }), 'ACCOUNT_NOT_VERIFIED');
     expectError(await request(app).post('/api/v1/auth/agency/verify-otp').send({ email: 'agency-pending@example.com', code: '000000', purpose: 'REGISTER' }), 'AGENCY_ONBOARDING_REQUIRED');
   });
 

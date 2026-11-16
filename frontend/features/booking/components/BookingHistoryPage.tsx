@@ -3,13 +3,11 @@ import { ErrorState } from '@/components/shared';
 import Link from 'next/link';
 import {
   useCancelBookingMutation,
-  useCompleteBookingMutation,
   useGetMyBookingsQuery,
 } from '../api/bookingApi';
 import { BookingHistoryCard } from './BookingHistoryCard';
 import { BookingHistorySkeleton } from './BookingHistorySkeleton';
 import { CancelBookingModal } from './CancelBookingModal';
-import { CompleteBookingModal } from './CompleteBookingModal';
 import { WriteReviewDialog } from '@/features/review/components';
 import { useGetMyReviewsQuery } from '@/features/review/api/reviewApi';
 import type { BookingDto, BookingStatus } from '../types';
@@ -28,7 +26,6 @@ export function BookingHistoryPage() {
   const [selectedStatus, setSelectedStatus] = useState<BookingStatus | 'ALL'>('ALL');
   const [page, setPage] = useState(1);
   const [cancellingBooking, setCancellingBooking] = useState<BookingDto | null>(null);
-  const [completingBooking, setCompletingBooking] = useState<BookingDto | null>(null);
   const [reviewingBooking, setReviewingBooking] = useState<BookingDto | null>(null);
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -43,7 +40,6 @@ export function BookingHistoryPage() {
   const reviewedBookingIds = new Set(myReviewsData?.items?.map((r) => r.bookingId) || []);
 
   const [cancelBooking, { isLoading: isCancelling }] = useCancelBookingMutation();
-  const [completeBooking, { isLoading: isCompleting }] = useCompleteBookingMutation();
 
   const handleConfirmCancel = async (bookingId: string, reason?: string) => {
     try {
@@ -62,24 +58,6 @@ export function BookingHistoryPage() {
     }
   };
 
-  const handleConfirmComplete = async (bookingId: string) => {
-    try {
-      const res = await completeBooking(bookingId).unwrap();
-      setCompletingBooking(null);
-      setFeedback({
-        message: 'Tuyệt vời! Chuyến đi đã được xác nhận hoàn thành. Hãy chia sẻ cảm nhận bằng một đánh giá nhé!',
-        type: 'success',
-      });
-      // Automatically prompt review dialog
-      setReviewingBooking(res);
-      setTimeout(() => setFeedback(null), 6000);
-    } catch (err: unknown) {
-      const errorMsg =
-        (err as { data?: { error?: { message?: string } } })?.data?.error?.message ||
-        'Không thể xác nhận hoàn thành chuyến đi lúc này. Vui lòng thử lại sau.';
-      setFeedback({ message: errorMsg, type: 'error' });
-    }
-  };
 
   const handleReviewCreated = (review: MyReview) => {
     setReviewingBooking(null);
@@ -199,7 +177,6 @@ export function BookingHistoryPage() {
                 booking={booking}
                 hasReviewed={reviewedBookingIds.has(booking.id)}
                 onOpenCancel={(item) => setCancellingBooking(item)}
-                onOpenComplete={(item) => setCompletingBooking(item)}
                 onOpenReview={(item) => setReviewingBooking(item)}
               />
             ))}
@@ -225,15 +202,6 @@ export function BookingHistoryPage() {
         isLoading={isCancelling}
         onClose={() => setCancellingBooking(null)}
         onConfirm={handleConfirmCancel}
-      />
-
-      {/* Complete Trip Confirmation Modal */}
-      <CompleteBookingModal
-        open={Boolean(completingBooking)}
-        booking={completingBooking}
-        isLoading={isCompleting}
-        onClose={() => setCompletingBooking(null)}
-        onConfirm={handleConfirmComplete}
       />
 
       {/* Write Review Dialog */}

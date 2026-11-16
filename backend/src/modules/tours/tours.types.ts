@@ -6,7 +6,8 @@ import type { AgePricing } from '@travel-platform/constants';
 const T = TOUR_STATUS;
 /**
  * Tour lifecycle (DECISIONS D-14). Only the service changes `status`, always through assertTransition.
- *  agency:    DRAFT/REJECTED/SUSPENDED -> PENDING_REVIEW (submit), APPROVED -> PENDING_REVIEW (material edit), * -> ARCHIVED (delete)
+ *  agency:    DRAFT/REJECTED/SUSPENDED -> PENDING_REVIEW (submit), * -> ARCHIVED (delete).
+ *             APPROVED -> PENDING_REVIEW on content or itinerary edits; hidden until approved again.
  *  moderator: PENDING_REVIEW -> APPROVED | REJECTED, APPROVED -> SUSPENDED
  */
 export const TOUR_TRANSITIONS: TransitionMap<TourStatus> = {

@@ -8,6 +8,7 @@ import {
   Compass,
   Building2,
   Star,
+  FileText,
   Flag,
   ShieldAlert,
   LifeBuoy,
@@ -101,6 +102,7 @@ export function ModeratorSidebar({ initialExpanded = true }: ModeratorSidebarPro
       label: 'Chất lượng & Nội dung',
       items: [
         { href: '/moderator/reviews', label: 'Kiểm duyệt đánh giá', icon: Star, permission: 'review:moderate' },
+        { href: '/moderator/tour-completions', label: 'Tổng kết tour', icon: FileText, permission: 'tour-completion:view' },
         { href: '/moderator/reports', label: 'Báo cáo vi phạm', icon: Flag, permission: 'dispute:resolve' },
       ],
     },

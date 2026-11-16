@@ -75,6 +75,14 @@ afterEach(() => {
 });
 
 describe('payment callbacks', () => {
+  it('hides the internal transaction ID while retaining the amount and payment deadline', () => {
+    mocks.payment.mockReturnValue(queryResult({ ...payment, status: 'CANCELLED' }));
+    render(<PaymentReturnContent cancelled />);
+    expect(screen.queryByText('Mã giao dịch')).toBeNull();
+    expect(screen.queryByText(payment.id)).toBeNull();
+    expect(screen.getByText('Số tiền thanh toán')).toBeTruthy();
+    expect(screen.getByText('Hạn thanh toán')).toBeTruthy();
+  });
   it('reads the exact Premium period and waits for verified activation before announcing it', () => {
     mocks.payment.mockReturnValue(
       queryResult({ ...payment, premium: true, status: 'PAID' }),

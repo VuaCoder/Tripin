@@ -9,6 +9,7 @@ import { AccessCheckLoader } from './AccessCheckLoader';
 import { selectAuthStatus, selectIsAuthenticated, selectRole } from '../store/authSlice';
 import type { UserRole } from '../types';
 import { homeForRole } from '../utils/roles';
+import { SessionRecovery } from './SessionEntryGate';
 
 interface RoleGuardProps {
   allowedRoles: UserRole[];
@@ -47,7 +48,7 @@ export const RoleGuard = ({
   }, [mounted, status, isAuthenticated, role, allowedRoles, loginPath, showForbidden, router]);
 
   if (!mounted || status === 'idle') {
-    return <>{loadingFallback ?? <AccessCheckLoader />}</>;
+    return <>{loadingFallback ?? (mounted ? <SessionRecovery /> : <AccessCheckLoader />)}</>;
   }
 
   if (isAuthenticated && role && !allowedRoles.includes(role)) {

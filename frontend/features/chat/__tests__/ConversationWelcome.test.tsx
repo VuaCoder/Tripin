@@ -6,6 +6,12 @@ import { ConversationWelcome } from '../ConversationWelcome';
 afterEach(cleanup);
 
 describe('ConversationWelcome', () => {
+  it('does not show a shortcut to a recent conversation in the welcome panel', () => {
+    render(<ConversationWelcome audience="traveler" recent={{ id: 'conversation-1', name: 'Bánh Giò' }} />);
+    expect(screen.getByText('Tiếp nối câu chuyện, sẵn sàng lên đường')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Trò chuyện với/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Khám phá tour' })).toBeNull();
+  });
   it('explains the group-booking thread to an agency', () => {
     render(<ConversationWelcome audience="agency" />);
     expect(screen.getByText('Một yêu cầu đoàn, mở ra lịch trình riêng')).toBeTruthy();

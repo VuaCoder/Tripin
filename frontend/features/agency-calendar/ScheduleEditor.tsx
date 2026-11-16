@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, useMemo, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { ConfigProvider, DatePicker, InputNumber, Switch, TimePicker } from 'antd';
 import viVN from 'antd/locale/vi_VN';
 import dayjs from 'dayjs';
@@ -326,6 +327,7 @@ export function ScheduleEditor({
           )}
 
           <div className={styles.editorActions}>
+            {draft.event && past && canEdit && <Link href={`/agency/completions?tourId=${draft.event.tourId}&departureId=${draft.event.id}`} className={styles.primaryButton}>Báo cáo & hoàn tất</Link>}
             {draft.event && !booked && !readOnly && (
               <button
                 type="button"

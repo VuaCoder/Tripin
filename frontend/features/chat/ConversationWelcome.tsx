@@ -21,6 +21,6 @@ export function ConversationWelcome({ audience, recent }: { audience: WelcomeAud
     </div>
     <h2 className="max-w-sm [text-wrap:balance] text-xl font-bold leading-snug tracking-tight text-slate-900 sm:text-2xl">{copy.title}</h2>
     <p className="mt-3 max-w-sm [text-wrap:pretty] text-sm leading-7 text-slate-600">{copy.body}</p>
-    {recent ? <Link href={`/conversations/${recent.id}`} className="mt-6 inline-flex max-w-full items-center gap-2 rounded-xl bg-primary-container px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-teal"><span className="truncate">Trò chuyện với {recent.name}</span><ArrowRight size={17} className="shrink-0" /></Link> : audience === 'traveler' && <Link href="/tours" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary-container px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-teal">Khám phá tour<ArrowRight size={17} /></Link>}
+    {!recent && audience === 'traveler' && <Link href="/tours" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary-container px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-teal">Khám phá tour<ArrowRight size={17} /></Link>}
   </div>;
 }

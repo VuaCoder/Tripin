@@ -128,6 +128,13 @@ describe('useTourReviewEligibility', () => {
     expect(result.current.status).toBe('not-completed');
     expect(result.current.eligibleBookings).toEqual([]);
   });
+  it('does not claim an absent group already wrote a review', () => {
+    givenBookings([{ ...BOOKING, attendedParticipants: 0 }]);
+    givenReviews([]);
+    const { result } = renderEligibility('t1', 'traveler');
+    expect(result.current.status).toBe('not-attended');
+    expect(result.current.eligibleBookings).toEqual([]);
+  });
 
   it('reports an already-reviewed booking and keeps the review for display', () => {
     givenBookings([BOOKING]);

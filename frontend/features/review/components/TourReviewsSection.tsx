@@ -131,6 +131,9 @@ export function TourReviewsSection({ tourId, tourTitle, ratingAvg, ratingCount }
           </div>
         );
 
+      case 'not-attended':
+        return <p className="text-sm text-slate-600">Agency ghi nhận nhóm của bạn không tham gia chuyến đi. Liên hệ Agency nếu thông tin chưa đúng.</p>;
+
       case 'already-reviewed':
         return (
           <div className="space-y-3">

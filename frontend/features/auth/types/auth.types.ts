@@ -157,6 +157,7 @@ export interface GoogleAuthPayload {
 export type AuthStatus = 'idle' | 'authenticated' | 'unauthenticated';
 
 export interface AuthState {
+  bootstrapError?: string | null;
   user: UserProfile | null;
   accessToken: string | null;
   status: AuthStatus;

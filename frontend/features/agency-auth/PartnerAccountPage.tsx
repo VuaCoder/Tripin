@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, type ChangeEvent } from 'react';
+import { type ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAppSelector } from '@/store/hooks';
+import { SessionEntryGate } from '@/features/auth/components/SessionEntryGate';
 import { GoogleLoginButton } from '@/features/auth/components/GoogleLoginButton';
 import { AuthBackground } from '@/features/auth/components/AuthBackground';
 import { useLoginForm } from '@/features/auth/hooks/useLoginForm';
@@ -16,7 +16,6 @@ import styles from '@/features/agency/Workplace.module.css';
 export function PartnerAccountPage({ mode = 'login', initialEmail = '', registered = false }: { mode?: 'login' | 'register'; initialEmail?: string; registered?: boolean }) {
   const router = useRouter();
   const params = useSearchParams();
-  const status = useAppSelector(s => s.auth.status);
   const next = authNextPath(params.get('next'), '/workplaces');
   const verified = (data: LoginResultData) => {
     if (data.twoFactorRequired) router.push(`/verify-otp?email=${encodeURIComponent(data.email)}&purpose=LOGIN_2FA&next=${encodeURIComponent(next)}${login.formData.rememberMe ? '&rememberMe=true' : ''}`);
@@ -24,7 +23,6 @@ export function PartnerAccountPage({ mode = 'login', initialEmail = '', register
   };
   const login = useLoginForm({ onSuccess: verified, continuation: next, initialEmail, portal: 'agency' });
   const registration = useRegisterForm({ onSuccess: data => router.push(`/verify-otp?email=${encodeURIComponent(data.email)}&purpose=REGISTER&next=${encodeURIComponent(next)}`) });
-  useEffect(() => { if (status === 'authenticated') router.replace(next); }, [status, next, router]);
   const isRegister = mode === 'register';
   const busy = isRegister ? registration.isLoading : login.isLoading;
   const error = isRegister ? registration.errors.general : login.errors.general;
@@ -32,7 +30,7 @@ export function PartnerAccountPage({ mode = 'login', initialEmail = '', register
     if (isRegister) registration.handleInputChange(event as ChangeEvent<HTMLInputElement>);
     else login.handleInputChange(event as ChangeEvent<HTMLInputElement>);
   };
-  return <main className={`${styles.auth} bg-desk-travel`}>
+  return <SessionEntryGate target={next}><main className={`${styles.auth} bg-desk-travel`}>
     <AuthBackground />
     <section className={styles.authCard} aria-labelledby="partner-account-title">
       <aside className={styles.authAside}>
@@ -53,7 +51,7 @@ export function PartnerAccountPage({ mode = 'login', initialEmail = '', register
             <FormField label="Mật khẩu" name="password" type="password" value={isRegister ? registration.formData.password : login.formData.password} onChange={inputChange} autoComplete={isRegister ? 'new-password' : 'current-password'} required error={isRegister ? registration.errors.password : login.errors.password} />
             {isRegister && <FormField label="Xác nhận mật khẩu" name="confirmPassword" type="password" value={registration.formData.confirmPassword} onChange={inputChange} autoComplete="new-password" required error={registration.errors.confirmPassword} />}
           </fieldset>
-          {!isRegister && <div className={styles.authOptions}><label><input type="checkbox" name="rememberMe" checked={Boolean(login.formData.rememberMe)} onChange={login.handleInputChange} disabled={busy} />Ghi nhớ đăng nhập</label><Link href="/forgot-password">Quên mật khẩu?</Link></div>}
+          {!isRegister && <div className={styles.authOptions}><label><input type="checkbox" name="rememberMe" checked={Boolean(login.formData.rememberMe)} onChange={login.handleInputChange} disabled={busy} />Ghi nhớ tôi</label><Link href="/forgot-password">Quên mật khẩu?</Link></div>}
           {error && <p role="alert" className={styles.error}>{error}</p>}
           <button type="submit" className={`${styles.primary} ${styles.full}`} style={isRegister ? { marginTop: 24 } : undefined} disabled={busy}>{busy ? 'Đang xử lý…' : isRegister ? 'Tạo tài khoản' : 'Đăng nhập'}</button>
         </form>
@@ -63,5 +61,5 @@ export function PartnerAccountPage({ mode = 'login', initialEmail = '', register
         <p className={styles.authSwitch}><Link href="/">Về Tripri</Link></p>
       </div>
     </section>
-  </main>;
+  </main></SessionEntryGate>;
 }

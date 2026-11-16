@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({ params: new URLSearchParams(), push: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push }), useSearchParams: () => state.params }));
 vi.mock('../components/AuthBackground', () => ({ AuthBackground: () => null }));
+vi.mock('../components/SessionEntryGate', () => ({ SessionEntryGate: ({ children }: any) => children }));
 vi.mock('../components/BackButton', () => ({ BackButton: () => null }));
 vi.mock('../components/AuthContainer', () => ({ AuthContainer: ({ onLoginSuccess }: any) => <>
   <button onClick={() => onLoginSuccess({ twoFactorRequired: false, user: { role: 'TRAVELER' } })}>Login</button>

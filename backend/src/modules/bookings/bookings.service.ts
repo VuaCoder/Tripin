@@ -414,32 +414,11 @@ export class BookingsService {
   }
 
   /**
-   * Mark trip as completed by the traveler. Allows traveler to proactively confirm they completed the tour
-   * and unlocks review eligibility. Transitions CONFIRMED -> COMPLETED and notifies agency/event listeners.
+   * Legacy endpoint retained for older clients. Only an Agency report may complete a booking.
    */
   async completeMine(travelerId: string, id: string): Promise<BookingDto> {
-    const booking = await this.requireOwnedByTraveler(travelerId, id);
-    assertTransition(BOOKING_TRANSITIONS, booking.status as BookingStatus, BOOKING_STATUS.COMPLETED, ENTITY);
-    if (booking.endDate.getTime() > Date.now()) {
-      throw AppError.conflict('Chuyến đi chưa kết thúc', 'TRIP_NOT_ENDED');
-    }
-
-    const done = await this.bookings.transition(booking.id, [BOOKING_STATUS.CONFIRMED], {
-      status: BOOKING_STATUS.COMPLETED,
-      completedAt: new Date(),
-    });
-    if (!done) throw AppError.conflict('The booking changed, please retry', 'CONCURRENT_UPDATE');
-
-    const facts = toBookingFacts(done);
-    await this.notifications.notify(facts.travelerId, {
-      type: NOTIFICATION_TYPE.BOOKING_COMPLETED,
-      title: 'Chuyến đi đã hoàn thành!',
-      body: `Chuyến đi "${facts.tourTitle}" của bạn đã hoàn tất. Hãy chia sẻ cảm nhận bằng một đánh giá nhé.`,
-      data: { bookingId: facts.id, tourId: facts.tourId },
-    });
-    await bookingEvents.emitCompleted(facts);
-
-    return toBookingDto(done);
+    await this.requireOwnedByTraveler(travelerId, id);
+    throw AppError.conflict('Agency cần gửi báo cáo để hoàn tất chuyến đi.', 'AGENCY_COMPLETION_REQUIRED');
   }
 
   // ================================================================ Agency
@@ -569,31 +548,10 @@ export class BookingsService {
     return expired;
   }
 
-  /** CONFIRMED -> COMPLETED for tours that have ended; emits `completed` for earnings / reviews. Returns the count. */
-  async completeFinishedBookings(now = new Date()): Promise<number> {
-    const due = await this.bookings.findDueForCompletion(now, BOOKING_POLICY.MAINTENANCE_BATCH);
-    let completed = 0;
-    for (const booking of due) {
-      try {
-        const done = await this.bookings.transition(booking.id, [BOOKING_STATUS.CONFIRMED], {
-          status: BOOKING_STATUS.COMPLETED,
-          completedAt: new Date(),
-        });
-        if (!done) continue;
-        completed += 1;
-        const facts = toBookingFacts(done);
-        await this.notifications.notify(facts.travelerId, {
-          type: NOTIFICATION_TYPE.BOOKING_COMPLETED,
-          title: 'How was your trip?',
-          body: `Your trip "${facts.tourTitle}" is over. Share your experience with a review.`,
-          data: { bookingId: facts.id, tourId: facts.tourId },
-        });
-        await bookingEvents.emitCompleted(facts);
-      } catch (error) {
-        logger.error(`Could not complete booking ${booking.bookingCode}`, { message: (error as Error).message });
-      }
-    }
-    return completed;
+  /** Legacy no-op: elapsed time alone never completes a booking. */
+  async completeFinishedBookings(_now = new Date()): Promise<number> {
+    // Compatibility only: the scheduled transition was replaced by Agency reports.
+    return 0;
   }
 
   // ======================================================= Customer export
