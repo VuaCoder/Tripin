@@ -73,15 +73,18 @@ export function AdminCategoriesPage() {
     <AdminFrame
       title="Danh mục tour"
       actions={
-        <Button
-          disabled={busy || query.isFetching}
-          onClick={() => { setError(null); setSuccess(null); setDialog({ category: null }); }}
-          className="flex items-center gap-1.5"
-          aria-label="Thêm mới"
-        >
-          <Plus size={16} />
-          <span>Thêm mới</span>
-        </Button>
+        <>
+          <ViewModeToggle value={viewMode} onChange={setViewMode} size="sm" />
+          <Button
+            disabled={busy || query.isFetching}
+            onClick={() => { setError(null); setSuccess(null); setDialog({ category: null }); }}
+            className="flex items-center gap-1.5"
+            aria-label="Thêm mới"
+          >
+            <Plus size={16} />
+            <span>Thêm mới</span>
+          </Button>
+        </>
       }
       error={denied || query.error}
       loading={!query.currentData}
@@ -90,13 +93,6 @@ export function AdminCategoriesPage() {
       onRefresh={() => query.refetch()}
     >
       <Feedback error={!dialog && !toggle ? error : null} success={success} />
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-slate-500">
-          Hiển thị <strong className="text-slate-800">{visible.length}</strong> / {query.currentData?.length ?? 0} danh mục
-        </p>
-        <ViewModeToggle value={viewMode} onChange={setViewMode} size="sm" />
-      </div>
 
       <div className={`${toolbar} sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr]`}>
         <FormField label="Tìm danh mục" htmlFor="category-search" className="min-w-0">
