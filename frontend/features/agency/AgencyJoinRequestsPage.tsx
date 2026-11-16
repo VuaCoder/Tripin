@@ -33,7 +33,7 @@ export function AgencyJoinRequestsPage() {
   }
   return <main className="mx-auto max-w-5xl space-y-6 p-4 text-slate-900 sm:p-6">
     <header className="flex flex-wrap items-start justify-between gap-4">
-      <div><h1 className="text-3xl font-bold tracking-tight">Yêu cầu tham gia</h1><p className="mt-2 text-slate-600">Xem thông tin người đăng ký, chọn role rồi duyệt hoặc từ chối.</p></div>
+      <div><h1 className="text-3xl font-bold tracking-tight">Yêu cầu tham gia</h1></div>
       <Link className={agencyButton} href="/agency/team">Quay lại thành viên</Link>
     </header>
     {notice && <p role="status" className="rounded-lg bg-teal-50 p-3 text-teal-900">{notice}</p>}

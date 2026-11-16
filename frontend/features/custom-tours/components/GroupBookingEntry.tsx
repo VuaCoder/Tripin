@@ -15,7 +15,12 @@ import type { CustomTourCheckoutDraft, CustomTourPassengerDraft, CustomTourReque
 
 const GUEST_LABEL: Record<PassengerType, string> = { ADULT: 'Người lớn', CHILD: 'Trẻ em', INFANT: 'Em bé' };
 const GUEST_ORDER: PassengerType[] = ['ADULT', 'CHILD', 'INFANT'];
-const PHONE_PATTERN = /^\+?[0-9 ().-]{6,20}$/;
+const PHONE_PATTERN = /^\+?\d{9,15}$/;
+/** Pasted numbers carry NBSP, dots, dashes or slashes that the API refuses; keep the digits and one leading +. */
+function cleanPhone(value: string) {
+  const digits = value.replace(/\D/g, '');
+  return value.trim().startsWith('+') ? `+${digits}` : digits;
+}
 const ID_CARD_PATTERN = /^\d{12}$/;
 const AUTOSAVE_MS = 800;
 /** The server refuses these after the offer went stale; the traveler needs the reason and a way to renegotiate. */
@@ -70,11 +75,11 @@ function seedForm(request: CustomTourRequestDto): Form {
 function toDraft(form: Form): CustomTourCheckoutDraft {
   const notes = form.notes.trim();
   return {
-    contact: { fullName: form.contact.fullName.trim(), phone: form.contact.phone.trim() },
+    contact: { fullName: form.contact.fullName.trim(), phone: cleanPhone(form.contact.phone) },
     passengers: form.passengers.map(({ guestType, fullName, phone, idCard }) => ({
       guestType,
       fullName: fullName.trim(),
-      phone: phone.trim(),
+      phone: cleanPhone(phone),
       idCard: idCard.trim(),
     })),
     ...(notes ? { notes } : {}),
@@ -94,25 +99,53 @@ function fingerprint(draft?: CustomTourCheckoutDraft | null): string {
   });
 }
 
+interface Problem {
+  /** The input the message belongs under, so the traveler sees it on the field instead of only in the summary. */
+  field: string;
+  /** Short name for the summary line. */
+  label: string;
+  message: string;
+}
+
+const PHONE_HINT = 'Số điện thoại chưa hợp lệ (cần 9–15 số).';
+
 /** What still stops a save; empty means the form is complete enough for the API. */
-function problems(form: Form): string[] {
-  const found: string[] = [];
-  if (form.contact.fullName.trim().length < 2) found.push('họ tên người liên hệ');
-  if (!PHONE_PATTERN.test(form.contact.phone.trim())) found.push('SĐT người liên hệ');
-  const ids: string[] = [];
-  for (const row of form.passengers) {
-    if (row.fullName.trim().length < 2) found.push(`họ tên ${row.label}`);
-    if (!PHONE_PATTERN.test(row.phone.trim())) found.push(`SĐT ${row.label}`);
-    const idCard = row.idCard.trim();
-    if (!ID_CARD_PATTERN.test(idCard)) found.push(idCard ? `CCCD ${row.label} (cần 12 số)` : `CCCD ${row.label}`);
-    ids.push(idCard);
+function problems(form: Form): Problem[] {
+  const found: Problem[] = [];
+  if (form.contact.fullName.trim().length < 2) {
+    found.push({ field: 'contact-fullName', label: 'họ tên người liên hệ', message: 'Cần họ tên người liên hệ.' });
   }
-  const filled = ids.filter(Boolean);
-  if (new Set(filled).size !== filled.length) found.push('CCCD bị trùng');
+  if (!PHONE_PATTERN.test(cleanPhone(form.contact.phone))) {
+    found.push({ field: 'contact-phone', label: 'SĐT người liên hệ', message: PHONE_HINT });
+  }
+  form.passengers.forEach((row, index) => {
+    if (row.fullName.trim().length < 2) {
+      found.push({ field: `passenger-${index}-fullName`, label: `họ tên ${row.label}`, message: 'Cần họ tên hành khách.' });
+    }
+    if (!PHONE_PATTERN.test(cleanPhone(row.phone))) {
+      found.push({ field: `passenger-${index}-phone`, label: `SĐT ${row.label}`, message: PHONE_HINT });
+    }
+    const idCard = row.idCard.trim();
+    if (!ID_CARD_PATTERN.test(idCard)) {
+      found.push({
+        field: `passenger-${index}-idCard`,
+        label: `CCCD ${row.label}${idCard ? ' (cần 12 số)' : ''}`,
+        message: idCard ? 'CCCD phải đủ 12 số.' : 'Cần CCCD 12 số.',
+      });
+    }
+  });
+  // A shared card is the fault of both rows, so both fields say so.
+  const cards = form.passengers.map((row) => row.idCard.trim()).filter(Boolean);
+  form.passengers.forEach((row, index) => {
+    const card = row.idCard.trim();
+    if (card && cards.indexOf(card) !== cards.lastIndexOf(card)) {
+      found.push({ field: `passenger-${index}-idCard`, label: 'CCCD bị trùng', message: 'CCCD bị trùng với hành khách khác.' });
+    }
+  });
   return found;
 }
 
-function Field({ id, label, value, onChange, placeholder, inputMode, maxLength }: {
+function Field({ id, label, value, onChange, placeholder, inputMode, maxLength, error }: {
   id: string;
   label: string;
   value: string;
@@ -120,7 +153,10 @@ function Field({ id, label, value, onChange, placeholder, inputMode, maxLength }
   placeholder: string;
   inputMode?: 'numeric' | 'tel';
   maxLength?: number;
+  error?: string;
 }) {
+  // A field only turns red once it holds something: an empty required field stays in the bottom summary.
+  const shown = value.trim() ? error : undefined;
   return (
     <div>
       <label htmlFor={id} className="mb-1 block text-xs font-semibold text-slate-600">{label}</label>
@@ -128,11 +164,24 @@ function Field({ id, label, value, onChange, placeholder, inputMode, maxLength }
         id={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        // Autofill writes the DOM without a React event, so the field would claim a value the form never got.
+        onBlur={(event) => {
+          if (event.target.value !== value) onChange(event.target.value);
+        }}
         placeholder={placeholder}
         inputMode={inputMode}
         maxLength={maxLength}
-        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-teal focus:ring-1 focus:ring-brand-teal"
+        aria-invalid={shown ? true : undefined}
+        aria-describedby={shown ? `${id}-error` : undefined}
+        className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:ring-1 ${
+          shown
+            ? 'border-red-300 focus:border-red-400 focus:ring-red-200'
+            : 'border-slate-200 focus:border-brand-teal focus:ring-brand-teal'
+        }`}
       />
+      {shown && (
+        <p id={`${id}-error`} role="alert" className="mt-1 text-xs font-medium text-red-600">{shown}</p>
+      )}
     </div>
   );
 }
@@ -216,8 +265,10 @@ export function GroupBookingEntry({ requestId }: { requestId: string }) {
   }, [requestId, save, refetch]);
 
   const current = form ? fingerprint(toDraft(form)) : '';
-  const missing = form ? problems(form) : [];
-  const complete = Boolean(form) && missing.length === 0;
+  const problemsFound = form ? problems(form) : [];
+  const missing = problemsFound.map((problem) => problem.label);
+  const problemOn = (field: string) => problemsFound.find((problem) => problem.field === field)?.message;
+  const complete = Boolean(form) && problemsFound.length === 0;
   const dirty = Boolean(form) && current !== baseline;
 
   // Debounce only a complete form: the API stores the whole roster or nothing, so half-typed rows cannot be saved.
@@ -346,6 +397,7 @@ export function GroupBookingEntry({ requestId }: { requestId: string }) {
                 onChange={(value) => update((item) => ({ ...item, contact: { ...item.contact, fullName: value } }))}
                 placeholder="VD: Nguyễn Văn A"
                 maxLength={120}
+                error={problemOn('contact-fullName')}
               />
               <Field
                 id="contact-phone"
@@ -355,6 +407,7 @@ export function GroupBookingEntry({ requestId }: { requestId: string }) {
                 placeholder="VD: 0912 345 678"
                 inputMode="tel"
                 maxLength={20}
+                error={problemOn('contact-phone')}
               />
             </div>
           </section>
@@ -381,6 +434,7 @@ export function GroupBookingEntry({ requestId }: { requestId: string }) {
                         }))}
                         placeholder="VD: Nguyễn Văn B"
                         maxLength={120}
+                        error={problemOn(`passenger-${index}-fullName`)}
                       />
                     </div>
                     <Field
@@ -394,6 +448,7 @@ export function GroupBookingEntry({ requestId }: { requestId: string }) {
                       placeholder="VD: 0912 345 678"
                       inputMode="tel"
                       maxLength={20}
+                      error={problemOn(`passenger-${index}-phone`)}
                     />
                     <Field
                       id={`passenger-${index}-idCard`}
@@ -406,6 +461,7 @@ export function GroupBookingEntry({ requestId }: { requestId: string }) {
                       placeholder="VD: 001204012345"
                       inputMode="numeric"
                       maxLength={12}
+                      error={problemOn(`passenger-${index}-idCard`)}
                     />
                   </div>
                 </div>

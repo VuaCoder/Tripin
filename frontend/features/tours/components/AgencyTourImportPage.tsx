@@ -62,7 +62,7 @@ export function AgencyTourImportPage() {
   };
 
   return <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-    <div className="mb-6 mt-4"><AgencyPageTitle icon={FileUp}>Nhập nhiều tour</AgencyPageTitle><p className="mt-1 text-sm text-slate-600">Tối đa 50 tour mỗi lần. Tất cả tour được tạo thành bản nháp và cần gửi duyệt riêng.</p></div>
+    <div className="mb-6 mt-4"><AgencyPageTitle icon={FileUp}>Nhập nhiều tour</AgencyPageTitle></div>
     <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
       <h2 className="text-lg font-bold text-slate-900">Đọc từ tài liệu</h2>
       <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">Chọn DOCX hoặc PDF có lớp văn bản (tối đa 10 MB, PDF tối đa 40 trang). Văn bản sẽ được gửi tới AI provider đang cấu hình để tạo bản nháp; hệ thống không lưu tài liệu. PDF scan không hỗ trợ OCR.</p>

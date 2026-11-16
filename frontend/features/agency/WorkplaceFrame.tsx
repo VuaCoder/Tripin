@@ -23,7 +23,7 @@ export function WorkplaceFrame({ children, narrow = false }: { children: ReactNo
   return <main className={styles.page}>
     <header className={styles.topbar}>
       <Link className={styles.brand} href="/workplaces" aria-label="Tripri Partner — Nơi làm việc"><img src="/images/tripri-logo.png" alt="Tripri" /><span>PARTNER</span></Link>
-      {status === 'authenticated' && <div className={styles.account}><span title={user?.email}>{user?.email}</span><button type="button" data-workplace-leave disabled={state.isLoading} className={styles.actions} onClick={async () => {
+      {status === 'authenticated' && <div className={styles.account}><span title={user?.email}>{user?.email}</span><button type="button" data-workplace-leave disabled={state.isLoading} className={styles.primary} onClick={async () => {
         setError('');
         try { await logout().unwrap(); dispatch(clearCredentials()); dispatch(baseApi.util.resetApiState()); router.replace('/agency/login'); }
         catch { setError('Chưa đăng xuất được. Vui lòng thử lại.'); }

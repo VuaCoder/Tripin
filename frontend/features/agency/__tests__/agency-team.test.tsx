@@ -23,22 +23,28 @@ vi.mock('../teamApi', () => ({
   useTeamRolesQuery: () => ({ data: [mocks.ownerRole, mocks.role, mocks.basicRole], refetch: mocks.refetch }),
   useTeamPermissionsQuery: () => ({ data: mocks.permissions }),
   useTeamInvitationsQuery: () => ({ data: mocks.invitations, refetch: mocks.refetch }),
-  useTeamWorkToursQuery: () => ({ data: [] }),
   useSaveTeamRoleMutation: () => [mocks.mutate, {}], useSaveMemberAccessMutation: () => [mocks.mutate, {}],
   useChangeTeamMemberMutation: () => [mocks.mutate, {}], useInviteTeamMemberMutation: () => [mocks.mutate, {}],
-  useRevokeTeamInvitationMutation: () => [mocks.mutate, {}], useSaveMemberTourScopesMutation: () => [mocks.mutate, {}],
+  useRevokeTeamInvitationMutation: () => [mocks.mutate, {}],
 }));
-beforeEach(() => { mocks.invitations.length = 0; mocks.agency.permissions = [...mocks.permissions]; mocks.agency.memberRole = 'OWNER'; mocks.agency.isPrimaryOwner = true; mocks.agency.memberId = 'member-owner'; Object.assign(mocks.members[1], { status: 'ACTIVE', role: 'STAFF', roleId: mocks.role.id, roleName: mocks.role.name }); vi.clearAllMocks(); });
+beforeEach(() => {
+  mocks.invitations.length = 0;
+  mocks.agency.permissions = [...mocks.permissions];
+  mocks.agency.memberRole = 'OWNER';
+  mocks.agency.isPrimaryOwner = true;
+  mocks.agency.memberId = 'member-owner';
+  Object.assign(mocks.members[1], { status: 'ACTIVE', role: 'STAFF', roleId: mocks.role.id, roleName: mocks.role.name, permissions: mocks.role.permissions, overrides: [] });
+  vi.clearAllMocks();
+});
 afterEach(cleanup);
-function openAccess() {
+function openMember(name = 'Traveler Accountant') {
   render(<AgencyTeamPage />);
-  fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa Traveler Accountant' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa quyền' }));
+  fireEvent.click(screen.getByRole('button', { name: `Phân quyền ${name}` }));
 }
 function selectRole(label: string) {
   fireEvent.click(screen.getByRole('radio', { name: label }));
 }
-describe('team permission editor', () => {
+describe('team page', () => {
   it('hides removed members without mutating their saved membership', () => {
     mocks.members[1].status = 'REMOVED';
     render(<AgencyTeamPage />);
@@ -54,78 +60,72 @@ describe('team permission editor', () => {
     expect(screen.getByRole('heading', { name: 'Traveler Accountant' })).toBeDefined();
     expect(screen.getByText('Tạm đình chỉ')).toBeDefined();
   });
-  it('moves invitation history and revocation to a separate full-width view', async () => {
+  it('invites straight from the page instead of a popup', async () => {
+    render(<AgencyTeamPage />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'new@test.local' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Vai trò' }), { target: { value: mocks.basicRole.id } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi lời mời' }));
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalledWith({ email: 'new@test.local', roleId: mocks.basicRole.id, role: 'STAFF' }));
+  });
+  it('lists pending invitations in the same screen and revokes them there', async () => {
     mocks.invitations.push({ id: 'invite-a', email: 'invitee@test.local', roleId: mocks.basicRole.id, role: 'STAFF', status: 'PENDING', expiresAt: new Date(Date.now() + 86400000).toISOString() });
     render(<AgencyTeamPage />);
-    expect(screen.queryByText('invitee@test.local')).toBeNull();
-    expect(screen.queryByRole('heading', { name: 'Lời mời đã gửi' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Lời mời' }));
-    expect(screen.getByRole('button', { name: 'Lời mời' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('heading', { name: 'Lời mời đã gửi' })).toBeDefined();
-    expect(screen.queryByRole('heading', { name: 'Đội ngũ hiện tại' })).toBeNull();
     expect(screen.getByText('invitee@test.local')).toBeDefined();
     expect(screen.getByText('1 đang chờ')).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: 'Thu hồi' }));
     await waitFor(() => expect(mocks.mutate).toHaveBeenCalledWith('invite-a'));
   });
-  it('keeps invitation creation available and shows the empty state in its own tab', () => {
+  it('shows the empty invitation state without asking for a tab switch', () => {
     render(<AgencyTeamPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Lời mời' }));
     expect(screen.getByText('Chưa có lời mời nào.')).toBeDefined();
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm thành viên' }));
-    expect(screen.getByRole('dialog', { name: 'Thêm thành viên' })).toBeDefined();
-    fireEvent.click(screen.getByRole('button', { name: 'Đóng hộp thoại' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Thành viên' }));
     expect(screen.getByRole('heading', { name: 'Đội ngũ hiện tại' })).toBeDefined();
-    expect(screen.queryByText('Chưa có lời mời nào.')).toBeNull();
   });
-  it('shows actual contact, verification and workplace dates in the employee profile', () => {
-    render(<AgencyTeamPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa Traveler Accountant' }));
-    expect(screen.getByRole('dialog', { name: 'Hồ sơ nhân viên' })).toBeDefined();
+  it('shows contact, verification and workplace dates inline on the member', () => {
+    openMember();
+    expect(screen.getByText('traveler@test.local')).toBeDefined();
     expect(screen.getByText('0901234567')).toBeDefined();
     expect(screen.getByText('Đã xác minh')).toBeDefined();
     expect(screen.getByText('Ngày tham gia')).toBeDefined();
-    expect(screen.getByText('Cập nhật gần nhất')).toBeDefined();
-    expect(screen.getByText('Agency A', { selector: 'dd' })).toBeDefined();
   });
-  it.each(['close', 'escape', 'cancel'])('returns from the separate permission popup via %s and discards unsaved edits', action => {
-    openAccess();
-    const accessDialog = screen.getByRole('dialog', { name: 'Chỉnh sửa phân quyền' });
+  it('keeps member emails out of the collapsed list', () => {
+    render(<AgencyTeamPage />);
+    expect(screen.getByRole('heading', { name: 'Traveler Accountant' })).toBeDefined();
+    expect(screen.queryByText('traveler@test.local')).toBeNull();
+  });
+  it('discards unsaved permission edits when the member block is closed', () => {
+    openMember();
     selectRole('Nhân viên');
-    if (action === 'escape') fireEvent.keyDown(document, { key: 'Escape' });
-    else fireEvent.click(screen.getByRole('button', { name: action === 'cancel' ? 'Hủy' : 'Đóng hộp thoại' }));
-    expect(screen.getByRole('dialog', { name: 'Hồ sơ nhân viên' })).not.toBe(accessDialog);
-    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    expect(screen.queryByRole('radio')).toBeNull();
     expect(mocks.mutate).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa quyền' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Phân quyền Traveler Accountant' }));
     expect((screen.getByRole('radio', { name: 'Finance reader' }) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByRole('checkbox', { name: 'Xem tổng quan tài chính' }) as HTMLInputElement).checked).toBe(true);
   });
-  it('returns to the employee profile after saving and only keeps one selected role', async () => {
-    openAccess();
+  it('saves the edited member and reopens on the saved role', async () => {
+    openMember();
     selectRole('Nhân viên');
     expect(screen.getAllByRole('radio').filter(input => (input as HTMLInputElement).checked)).toHaveLength(1);
-    mocks.refetch.mockReturnValueOnce({ unwrap: () => Promise.resolve(mocks.members.map(member => member.id === 'member-traveler' ? { ...member, roleId: mocks.basicRole.id, roleName: mocks.basicRole.name, permissions: mocks.basicRole.permissions } : member)) });
-    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật quyền' }));
-    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Hồ sơ nhân viên' })).toBeDefined());
-    expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa phân quyền' })).toBeNull();
-    expect(screen.getByText('Nhân viên')).toBeDefined();
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa quyền' }));
+    mocks.refetch.mockReturnValueOnce({ unwrap: () => { Object.assign(mocks.members[1], { roleId: mocks.basicRole.id, roleName: mocks.basicRole.name, permissions: mocks.basicRole.permissions }); return Promise.resolve(mocks.members); } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalledWith({ id: 'member-traveler', roleId: 'role-basic', overrides: [] }));
+    await waitFor(() => expect(screen.queryByRole('radio')).toBeNull());
+    fireEvent.click(screen.getByRole('button', { name: 'Phân quyền Traveler Accountant' }));
     expect((screen.getByRole('radio', { name: 'Nhân viên' }) as HTMLInputElement).checked).toBe(true);
   });
-  it('keeps the permission popup and selections open if saving fails', async () => {
-    openAccess();
+  it('keeps the member block and its selections open if saving fails', async () => {
+    openMember();
     selectRole('Nhân viên');
     mocks.mutate.mockReturnValueOnce({ unwrap: () => Promise.reject({ data: { error: { message: 'Không lưu được quyền. Thử lại.' } } }) });
-    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật quyền' }));
-    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Chỉnh sửa phân quyền' }).textContent).toContain('Không lưu được quyền. Thử lại.'));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Không lưu được quyền. Thử lại.'));
     expect((screen.getByRole('radio', { name: 'Nhân viên' }) as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByRole('button', { name: 'Cập nhật quyền' }) as HTMLButtonElement).disabled).toBe(false);
-    expect(screen.queryByRole('dialog', { name: 'Hồ sơ nhân viên' })).toBeNull();
+    expect((screen.getByRole('button', { name: 'Lưu thay đổi' }) as HTMLButtonElement).disabled).toBe(false);
   });
   it('keeps the editor copy compact with roles as single-choice ticks and no helper notes', () => {
-    openAccess();
+    openMember();
     expect(screen.queryByText('Đổi vai trò sẽ đặt lại các quyền bên dưới.')).toBeNull();
     expect(screen.queryByText('Tick để cấp quyền, bỏ tick để tắt.')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Thông tin nhân viên' })).toBeNull();
@@ -133,7 +133,6 @@ describe('team permission editor', () => {
     expect(screen.getByRole('radio', { name: 'Finance reader' }).getAttribute('type')).toBe('radio');
     expect(screen.queryByText('Quyền bắt buộc')).toBeNull();
     expect(screen.queryByText(/Một số tính năng/)).toBeNull();
-    expect(screen.queryByText(/quyền hiện tại/)).toBeNull();
     expect(screen.queryByText(/Chọn vai trò để áp dụng/)).toBeNull();
   });
   it('uses concise permission names without parenthetical implementation notes', () => {
@@ -142,10 +141,10 @@ describe('team permission editor', () => {
     }
   });
   it('adds a co-owner only after explicit confirmation and uses the ownership API', async () => {
-    openAccess();
+    openMember();
     selectRole('Co_Owner');
     expect(screen.getAllByRole('checkbox').every(input => (input as HTMLInputElement).disabled)).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật quyền' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     expect(mocks.mutate).not.toHaveBeenCalled();
     expect(screen.getByRole('alert').textContent).toContain('Bạn vẫn là Owner');
     fireEvent.click(screen.getByRole('button', { name: 'Xác nhận thêm Co_Owner' }));
@@ -153,127 +152,105 @@ describe('team permission editor', () => {
   });
   it('does not offer ownership to a manager even with team and permission management grants', () => {
     mocks.agency.memberRole = 'MANAGER';
-    openAccess();
+    openMember();
     expect(screen.queryByText('Co_Owner')).toBeNull();
   });
   it('does not offer ownership to a suspended member', () => {
     mocks.members[1].status = 'SUSPENDED';
-    openAccess();
+    openMember();
     expect(screen.queryByText('Co_Owner')).toBeNull();
   });
   it('clears the ownership confirmation when a different role is selected', () => {
-    openAccess();
+    openMember();
     selectRole('Co_Owner');
-    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật quyền' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     selectRole('Finance reader');
     expect(screen.queryByRole('button', { name: 'Xác nhận thêm Co_Owner' })).toBeNull();
     expect(mocks.mutate).not.toHaveBeenCalled();
   });
   it('lets the primary owner downgrade a co-owner through the ownership API', async () => {
     Object.assign(mocks.members[1], { role: 'OWNER', roleId: mocks.ownerRole.id, roleName: 'Co_Owner' });
-    openAccess();
-    expect((screen.getByRole('button', { name: 'Cập nhật quyền' }) as HTMLButtonElement).disabled).toBe(true);
+    openMember();
+    expect((screen.getByRole('button', { name: 'Lưu thay đổi' }) as HTMLButtonElement).disabled).toBe(true);
     selectRole('Nhân viên');
     expect((screen.getByRole('radio', { name: 'Nhân viên' }) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByRole('radio', { name: 'Co_Owner' }) as HTMLInputElement).checked).toBe(false);
     expect(screen.getAllByRole('checkbox').every(input => (input as HTMLInputElement).disabled)).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật quyền' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     await waitFor(() => expect(mocks.mutate).toHaveBeenCalledWith({ id: 'member-traveler', role: 'STAFF' }));
   });
-  it('keeps the primary owner read-only for a co-owner and hides ownership promotion', () => {
+  it('keeps the primary owner read-only for a co-owner actor and hides ownership promotion', () => {
     mocks.agency.isPrimaryOwner = false;
     mocks.agency.memberId = 'coowner-actor';
     render(<AgencyTeamPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Xem thông tin Owner' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xem quyền Owner' }));
     expect(screen.queryByRole('button', { name: 'Đình chỉ thành viên' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Xem quyền' }));
-    expect(screen.queryByRole('combobox', { name: 'Vai trò' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Lưu thay đổi' })).toBeNull();
+    expect((screen.getByRole('radio', { name: 'Owner' }) as HTMLInputElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa Traveler Accountant' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa quyền' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Phân quyền Traveler Accountant' }));
     expect(screen.queryByText('Co_Owner')).toBeNull();
-  });
-  it('aligns member columns with an equal-width action for view and edit labels', () => {
-    render(<AgencyTeamPage />);
-    const owner = screen.getByRole('heading', { name: 'Owner (bạn)' }).closest('li')!;
-    const staff = screen.getByRole('heading', { name: 'Traveler Accountant' }).closest('li')!;
-    expect(owner.className).toBe(staff.className);
-    expect(owner.className).toContain('sm:grid-cols-[minmax(0,1fr)_10rem_12rem_9rem]');
-    const viewButton = screen.getByRole('button', { name: 'Xem thông tin Owner' });
-    const editButton = screen.getByRole('button', { name: 'Chỉnh sửa Traveler Accountant' });
-    expect(viewButton.className).toBe(editButton.className);
-    expect(editButton.className).toContain('w-full whitespace-nowrap');
-    fireEvent.click(editButton);
-    expect(screen.getByRole('dialog')).toBeDefined();
   });
   it('shows organization-local members and never assumes a global AGENCY role', () => {
     render(<AgencyTeamPage />);
     expect(screen.getByRole('heading', { name: 'Traveler Accountant' })).toBeDefined();
-    expect(screen.queryByText('traveler@test.local')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa Traveler Accountant' }));
-    expect(screen.getByText('traveler@test.local')).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Thêm thành viên' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Gửi lời mời' })).toBeDefined();
   });
   it('persists a DENY override independently from the selected role', async () => {
-    openAccess();
+    openMember();
     const finance = screen.getByRole('checkbox', { name: 'Xem tổng quan tài chính' }) as HTMLInputElement;
     expect(finance.checked).toBe(true);
     fireEvent.click(finance);
     expect(finance.checked).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật quyền' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     await waitFor(() => expect(mocks.mutate).toHaveBeenCalledWith({ id: 'member-traveler', roleId: 'role-finance', overrides: [{ permission: 'agency:finance-view', effect: 'DENY' }] }));
   });
   it('grants an extra permission by ticking it', async () => {
-    openAccess();
+    openMember();
     const tour = screen.getByRole('checkbox', { name: 'Xem tour và lịch chỗ' }) as HTMLInputElement;
     expect(tour.checked).toBe(false);
     fireEvent.click(tour);
     expect(tour.checked).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật quyền' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     await waitFor(() => expect(mocks.mutate).toHaveBeenCalledWith({ id: 'member-traveler', roleId: 'role-finance', overrides: [{ permission: 'agency:tour-view', effect: 'ALLOW' }] }));
   });
   it('removes an extra grant when unticked and restores a role permission when reticked', async () => {
-    openAccess();
+    openMember();
     const tour = screen.getByRole('checkbox', { name: 'Xem tour và lịch chỗ' });
     const finance = screen.getByRole('checkbox', { name: 'Xem tổng quan tài chính' });
     fireEvent.click(tour); fireEvent.click(tour);
     fireEvent.click(finance); fireEvent.click(finance);
-    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật quyền' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     await waitFor(() => expect(mocks.mutate).toHaveBeenCalledWith({ id: 'member-traveler', roleId: 'role-finance', overrides: [] }));
   });
   it('keeps the current owner view-only even though permissions are shown as checkboxes', () => {
     render(<AgencyTeamPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Xem thông tin Owner' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Xem quyền' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xem quyền Owner' }));
     expect(screen.getAllByRole('checkbox').every(input => (input as HTMLInputElement).disabled)).toBe(true);
-    expect(screen.queryByRole('button', { name: 'Cập nhật quyền' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Lưu thay đổi' })).toBeNull();
   });
   it('uses the selected role as the new checkbox preset and clears previous customizations', async () => {
-    openAccess();
+    openMember();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Xem tổng quan tài chính' }));
     selectRole('Nhân viên');
     expect((screen.getByRole('checkbox', { name: 'Xem tour và lịch chỗ' }) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByRole('checkbox', { name: 'Xem tổng quan tài chính' }) as HTMLInputElement).checked).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật quyền' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     await waitFor(() => expect(mocks.mutate).toHaveBeenCalledWith({ id: 'member-traveler', roleId: 'role-basic', overrides: [] }));
   });
-  it('keeps all permission sections open, preserves changes through search and allows reset to the role', () => {
-    openAccess();
+  it('keeps all permission sections open and allows reset to the role', () => {
+    openMember();
     expect(screen.getByRole('group', { name: 'Tài chính' })).toBeDefined();
     expect(screen.getByRole('group', { name: 'Tour và lịch khởi hành' })).toBeDefined();
-    expect(screen.getByRole('dialog').querySelector('details')).toBeNull();
+    expect(document.querySelector('details')).toBeNull();
     expect(screen.queryByRole('option', { name: 'Kế thừa' })).toBeNull();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Xem tổng quan tài chính' }));
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm quyền' }), { target: { value: 'tour' } });
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm quyền' }), { target: { value: '' } });
-    expect((screen.getByRole('checkbox', { name: 'Xem tổng quan tài chính' }) as HTMLInputElement).checked).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'Đặt lại theo vai trò' }));
     expect((screen.getByRole('checkbox', { name: 'Xem tổng quan tài chính' }) as HTMLInputElement).checked).toBe(true);
   });
   it('locks mandatory access and prevents granting permissions the actor does not hold', () => {
     mocks.agency.permissions = mocks.permissions.filter(p => p !== 'tour:update-own');
-    openAccess();
+    openMember();
     const mandatory = screen.getByRole('checkbox', { name: 'Truy cập doanh nghiệp' }) as HTMLInputElement;
     expect(mandatory.checked).toBe(true); expect(mandatory.disabled).toBe(true);
     const restricted = screen.getByRole('checkbox', { name: 'Chỉnh sửa toàn bộ nội dung tour' }) as HTMLInputElement;
@@ -294,12 +271,9 @@ describe('team permission editor', () => {
     expect(screen.getByRole('alert').textContent).toContain('không có quyền');
     expect(screen.queryByRole('button', { name: 'Gửi lời mời' })).toBeNull();
   });
-  it('uses separate read, create, import, edit and team route gates', () => {
+  it('gates the single team entry and no longer the removed settings page', () => {
     expect(agencyRoutePermission('/agency/team')).toBe('agency:team-view');
-    expect(agencyRoutePermission('/agency/tours')).toBe('agency:tour-view');
-    expect(agencyRoutePermission('/agency/tours/new')).toBe('tour:create');
-    expect(agencyRoutePermission('/agency/tours/import')).toBe('tour:import');
-    expect(agencyRoutePermission('/agency/tours/123/edit')).toBe('tour:update-own');
-    expect(agencyRoutePermission('/agency/work/bookings')).toBe('agency:booking-monitor');
+    expect(agencyRoutePermission('/agency/settings/team')).toBeNull();
+    expect(agencyRoutePermission('/agency/settings/commission')).toBeNull();
   });
 });

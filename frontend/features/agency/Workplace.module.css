@@ -6,7 +6,7 @@
 .brand span { border-left:1px solid #cddbd6; padding-left:16px; font-size:12px; font-weight:600; letter-spacing:.12em; }
 .account { display:flex; align-items:center; gap:20px; font-size:13px; }
 .account > span { max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--wp-muted); }
-.account button,.textButton { min-height:44px; color:#00636e; font-weight:600; background:none; border:0; cursor:pointer; }
+.textButton { min-height:44px; color:#00636e; font-weight:600; background:none; border:0; cursor:pointer; }
 .content { max-width:1120px; margin:52px auto 0; }
 .narrow { max-width:780px; }
 .formWidth { max-width:540px; margin-inline:auto; }

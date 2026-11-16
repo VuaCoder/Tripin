@@ -1,17 +1,11 @@
 'use client';
 
-import { FormSelect } from '@/components/ui/FormSelect';
 import { useMemo, useState } from 'react';
 import {
-  AlertCircle,
   ArrowRight,
-  BarChart2,
   CheckCircle2,
-  Clock,
   Compass,
   Flame,
-  Inbox,
-  LifeBuoy,
   MessageSquare,
   RefreshCw,
   Search,
@@ -23,7 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
-import { Pagination } from '@/components/ui';
+import { Pagination, AntSelect, type AntSelectOption } from '@/components/ui';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth';
 import { useGetAgencyComplaintsQuery } from '../api/complaintsApi';
@@ -40,6 +34,23 @@ const dateTime = new Intl.DateTimeFormat('vi-VN', {
   timeStyle: 'short',
 });
 
+const statusOptions: AntSelectOption<StatusFilter>[] = [
+  { value: 'ALL', label: 'Tất cả trạng thái' },
+  ...(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'ESCALATED', 'CLOSED'] as ComplaintTicketStatus[]).map(
+    (status) => ({ value: status, label: STATUS_LABELS[status].label }),
+  ),
+];
+const priorityOptions: AntSelectOption<PriorityFilter>[] = [
+  { value: 'ALL', label: 'Mọi mức độ' },
+  { value: 'URGENT', label: PRIORITY_LABELS.URGENT.label },
+  { value: 'HIGH', label: PRIORITY_LABELS.HIGH.label },
+  { value: 'NORMAL', label: PRIORITY_LABELS.NORMAL.label },
+];
+const categoryOptions: AntSelectOption<string>[] = [
+  { value: 'ALL', label: 'Tất cả danh mục' },
+  ...COMPLAINT_TAXONOMY.map((cat) => ({ value: cat.id as string, label: cat.label })),
+];
+
 export function AgencyComplaintsTicketPage() {
   const user = useAppSelector(selectUser);
   const [page, setPage] = useState(1);
@@ -48,7 +59,6 @@ export function AgencyComplaintsTicketPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [search, setSearch] = useState('');
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
-  const [showStats, setShowStats] = useState(true);
 
   const { data, isLoading, isFetching, isError, refetch } = useGetAgencyComplaintsQuery({
     page,
@@ -67,33 +77,6 @@ export function AgencyComplaintsTicketPage() {
       return true;
     });
   }, [rawItems, priorityFilter, categoryFilter]);
-
-  // Compute KPI statistics
-  const stats = useMemo(() => {
-    const total = data?.meta?.total ?? rawItems.length;
-    const openCount = rawItems.filter((t) => t.status === 'OPEN').length;
-    const inProgressCount = rawItems.filter(
-      (t) => t.status === 'IN_PROGRESS' || t.status === 'RESOLVED',
-    ).length;
-    const escalatedCount = rawItems.filter((t) => t.status === 'ESCALATED').length;
-    const closedCount = rawItems.filter((t) => t.status === 'CLOSED').length;
-
-    const ratedTickets = rawItems.filter((t) => t.hasFeedback && typeof t.rating === 'number');
-    const avgRating =
-      ratedTickets.length > 0
-        ? (ratedTickets.reduce((acc, t) => acc + (t.rating || 0), 0) / ratedTickets.length).toFixed(1)
-        : null;
-
-    return {
-      total,
-      openCount,
-      inProgressCount,
-      escalatedCount,
-      closedCount,
-      avgRating,
-      ratedCount: ratedTickets.length,
-    };
-  }, [data?.meta?.total, rawItems]);
 
   const hasActiveFilters =
     filter !== 'ALL' || priorityFilter !== 'ALL' || categoryFilter !== 'ALL' || search.trim() !== '';
@@ -127,251 +110,21 @@ export function AgencyComplaintsTicketPage() {
       {/* Header Banner - Polished executive look with Tripin teal theme */}
       <div className="relative overflow-hidden rounded-3xl border border-slate-200/90 bg-gradient-to-br from-white via-slate-50/50 to-teal-50/20 p-6 sm:p-7 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1.5 max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-teal-200/70 bg-teal-50/80 px-3 py-0.5 text-xs font-bold text-teal-800">
-              <LifeBuoy className="size-3.5 text-brand-teal" />
-              <span>Đối tác Lữ hành • CSKH &amp; Giải quyết khiếu nại</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-              Khiếu nại &amp; Hỗ trợ dịch vụ tour
-            </h1>
-            <p className="text-sm text-slate-500">
-              Tiếp nhận khiếu nại và trao đổi trực tiếp với du khách để giải quyết thỏa đáng.
-            </p>
-          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+            Khiếu nại &amp; Hỗ trợ dịch vụ tour
+          </h1>
 
-          <div className="flex items-center gap-2.5 shrink-0 self-start md:self-auto">
-            {/* Toggle show/hide stats */}
-            <button
-              type="button"
-              onClick={() => setShowStats((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-50 hover:border-slate-300 cursor-pointer"
-              title="Ẩn / hiện phần báo cáo thống kê"
-            >
-              <BarChart2 className="size-3.5 text-slate-500" />
-              <span>{showStats ? 'Ẩn thống kê' : 'Hiện thống kê'}</span>
-            </button>
-
-            <button
-              type="button"
-              disabled={isFetching}
-              onClick={() => void refetch()}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 cursor-pointer"
-            >
-              <RefreshCw className={`size-3.5 text-slate-500 ${isFetching ? 'animate-spin text-brand-teal' : ''}`} />
-              <span>{isFetching ? 'Đang tải...' : 'Làm mới'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 4 Metric Cards - Clean, refined, bright white surfaces with subtle icons */}
-        {showStats && (
-          <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-3.5 pt-5 border-t border-slate-200/60">
-            {/* Card 1: Tổng số phiếu */}
-            <div
-              onClick={() => {
-                setFilter('ALL');
-                setPage(1);
-              }}
-              className="cursor-pointer rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs transition-all hover:border-slate-300 hover:shadow-xs"
-            >
-              <div className="flex items-center justify-between text-slate-500">
-                <span className="text-xs font-semibold">Tổng khiếu nại</span>
-                <div className="size-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
-                  <Inbox className="size-3.5" />
-                </div>
-              </div>
-              <div className="mt-1.5 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-slate-900">{stats.total}</span>
-                <span className="text-xs text-slate-400 font-medium">vụ việc</span>
-              </div>
-            </div>
-
-            {/* Card 2: Chờ tiếp nhận */}
-            <div
-              onClick={() => {
-                setFilter('OPEN');
-                setPage(1);
-              }}
-              className={`cursor-pointer rounded-2xl border p-4 transition-all ${
-                stats.openCount > 0
-                  ? 'border-amber-300 bg-amber-50/50 hover:border-amber-400 shadow-2xs'
-                  : 'border-slate-200/90 bg-white hover:border-slate-300 shadow-2xs'
-              }`}
-            >
-              <div className="flex items-center justify-between text-slate-500">
-                <span className={`text-xs font-semibold ${stats.openCount > 0 ? 'text-amber-900' : 'text-slate-500'}`}>
-                  Chờ tiếp nhận
-                </span>
-                <div
-                  className={`size-7 rounded-lg flex items-center justify-center ${
-                    stats.openCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  <AlertCircle className="size-3.5" />
-                </div>
-              </div>
-              <div className="mt-1.5 flex items-baseline gap-1.5">
-                <span className={`text-2xl font-black ${stats.openCount > 0 ? 'text-amber-700' : 'text-slate-900'}`}>
-                  {stats.openCount}
-                </span>
-                <span className={`text-xs font-medium ${stats.openCount > 0 ? 'text-amber-700 font-semibold' : 'text-slate-400'}`}>
-                  {stats.openCount > 0 ? 'cần xử lý' : 'ổn định'}
-                </span>
-              </div>
-            </div>
-
-            {/* Card 3: Đang giải quyết */}
-            <div
-              onClick={() => {
-                setFilter('IN_PROGRESS');
-                setPage(1);
-              }}
-              className="cursor-pointer rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs transition-all hover:border-slate-300 hover:shadow-xs"
-            >
-              <div className="flex items-center justify-between text-slate-500">
-                <span className="text-xs font-semibold">Đang đối thoại</span>
-                <div className="size-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
-                  <Clock className="size-3.5" />
-                </div>
-              </div>
-              <div className="mt-1.5 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-slate-900">
-                  {stats.inProgressCount + stats.escalatedCount}
-                </span>
-                <span className="text-xs text-slate-400 font-medium">đang trao đổi</span>
-              </div>
-            </div>
-
-            {/* Card 4: Điểm CSAT */}
-            <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs">
-              <div className="flex items-center justify-between text-slate-500">
-                <span className="text-xs font-semibold">Đánh giá CSAT</span>
-                <div className="size-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-                  <Star className="size-3.5 fill-amber-400 text-amber-500" />
-                </div>
-              </div>
-              <div className="mt-1.5 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-slate-900">
-                  {stats.avgRating ? `${stats.avgRating}/5` : '—'}
-                </span>
-                <span className="text-xs text-slate-400 font-medium">
-                  {stats.ratedCount > 0 ? `(${stats.ratedCount} đánh giá)` : 'chưa có điểm'}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Tabs Navigation - Elevated brand teal active states with count badges */}
-      <div className="flex items-center gap-1.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pb-px border-b border-slate-200 text-sm">
-        <button
-          type="button"
-          onClick={() => {
-            setFilter('ALL');
-            setPage(1);
-          }}
-          className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs sm:text-sm whitespace-nowrap border-b-2 transition-all cursor-pointer ${
-            filter === 'ALL'
-              ? 'border-brand-teal text-brand-teal'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <span>Tất cả</span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-              filter === 'ALL' ? 'bg-teal-100 text-teal-800' : 'bg-slate-100 text-slate-600'
-            }`}
+          <button
+            type="button"
+            disabled={isFetching}
+            onClick={() => void refetch()}
+            aria-label="Làm mới"
+            title="Làm mới"
+            className="inline-flex size-10 shrink-0 items-center justify-center self-start rounded-xl border border-slate-200 bg-white text-slate-600 shadow-2xs transition hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 cursor-pointer md:self-auto"
           >
-            {stats.total}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setFilter('OPEN');
-            setPage(1);
-          }}
-          className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs sm:text-sm whitespace-nowrap border-b-2 transition-all cursor-pointer ${
-            filter === 'OPEN'
-              ? 'border-brand-teal text-brand-teal'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <span>Chờ tiếp nhận</span>
-          {stats.openCount > 0 && (
-            <span className="rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-xs font-bold animate-pulse">
-              {stats.openCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setFilter('IN_PROGRESS');
-            setPage(1);
-          }}
-          className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs sm:text-sm whitespace-nowrap border-b-2 transition-all cursor-pointer ${
-            filter === 'IN_PROGRESS'
-              ? 'border-brand-teal text-brand-teal'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <span>Đang xử lý</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setFilter('RESOLVED');
-            setPage(1);
-          }}
-          className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs sm:text-sm whitespace-nowrap border-b-2 transition-all cursor-pointer ${
-            filter === 'RESOLVED'
-              ? 'border-brand-teal text-brand-teal'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <span>Đã đề xuất</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setFilter('ESCALATED');
-            setPage(1);
-          }}
-          className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs sm:text-sm whitespace-nowrap border-b-2 transition-all cursor-pointer ${
-            filter === 'ESCALATED'
-              ? 'border-brand-teal text-brand-teal'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <span>Sàn phân xử</span>
-          {stats.escalatedCount > 0 && (
-            <span className="rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">
-              {stats.escalatedCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setFilter('CLOSED');
-            setPage(1);
-          }}
-          className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs sm:text-sm whitespace-nowrap border-b-2 transition-all cursor-pointer ${
-            filter === 'CLOSED'
-              ? 'border-brand-teal text-brand-teal'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <span>Đã đóng</span>
-        </button>
+            <RefreshCw className={`size-4 ${isFetching ? 'animate-spin text-brand-teal' : 'text-slate-500'}`} />
+          </button>
+        </div>
       </div>
 
       {/* Search and Secondary Filter Controls */}
@@ -405,31 +158,38 @@ export function AgencyComplaintsTicketPage() {
 
         {/* Priority & Category Dropdowns */}
         <div className="flex flex-wrap items-center gap-2">
-          <FormSelect
-            aria-label="Lọc theo mức độ ưu tiên"
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value as PriorityFilter)}
-            className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 outline-none transition focus:border-brand-teal shadow-2xs cursor-pointer"
-          >
-            <option value="ALL">Mọi mức độ</option>
-            <option value="URGENT">Khẩn cấp</option>
-            <option value="HIGH">Ưu tiên cao</option>
-            <option value="NORMAL">Bình thường</option>
-          </FormSelect>
+          <AntSelect
+            aria-label="Lọc theo trạng thái"
+            className="w-[180px]"
+            value={filter}
+            onChange={(next) => {
+              setFilter(next);
+              setPage(1);
+            }}
+            options={statusOptions}
+          />
 
-          <FormSelect
+          <AntSelect
+            aria-label="Lọc theo mức độ ưu tiên"
+            className="w-[150px]"
+            value={priorityFilter}
+            onChange={(next) => {
+              setPriorityFilter(next);
+              setPage(1);
+            }}
+            options={priorityOptions}
+          />
+
+          <AntSelect
             aria-label="Lọc theo danh mục khiếu nại"
+            className="w-[190px]"
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 outline-none transition focus:border-brand-teal shadow-2xs max-w-[190px] truncate cursor-pointer"
-          >
-            <option value="ALL">Tất cả danh mục</option>
-            {COMPLAINT_TAXONOMY.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.label}
-              </option>
-            ))}
-          </FormSelect>
+            onChange={(next) => {
+              setCategoryFilter(next);
+              setPage(1);
+            }}
+            options={categoryOptions}
+          />
 
           {hasActiveFilters && (
             <button
