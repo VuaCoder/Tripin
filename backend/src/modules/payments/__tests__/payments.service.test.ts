@@ -89,6 +89,22 @@ describe('checkout', () => {
     expect(repo.create.mock.calls[0]![0]).toMatchObject({ purpose: 'BOOKING', userId: 'u1', referenceId: 'b1', amount: 2_000_000 });
   });
 
+  it('dynamically adapts return and cancel URLs when caller origin is deployed', async () => {
+    const { service, provider } = make();
+    await service.createBookingCheckout('u1', 'b1', 'https://travel-app.vercel.app');
+    const sent = provider.createPaymentLink.mock.calls[0]![0] as P;
+    expect(sent.returnUrl).toBe('https://travel-app.vercel.app/payment/success?paymentId=pay1');
+    expect(sent.cancelUrl).toBe('https://travel-app.vercel.app/payment/cancel?paymentId=pay1');
+  });
+
+  it('dynamically adapts return and cancel URLs to localhost when caller is local dev', async () => {
+    const { service, provider } = make();
+    await service.createBookingCheckout('u1', 'b1', 'http://localhost:3000');
+    const sent = provider.createPaymentLink.mock.calls[0]![0] as P;
+    expect(sent.returnUrl).toBe('http://localhost:3000/payment/success?paymentId=pay1');
+    expect(sent.cancelUrl).toBe('http://localhost:3000/payment/cancel?paymentId=pay1');
+  });
+
   it('reuses the live link on a double click instead of creating a second payment', async () => {
     const { service, provider } = make([payment()]);
     const checkout = await service.createBookingCheckout('u1', 'b1');

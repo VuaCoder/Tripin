@@ -185,6 +185,7 @@ premiumRouter.post(
           z.object({ planId: z.string().uuid() }).strict().parse(req.body)
             .planId,
         ),
+        req.get('origin') || req.get('referer'),
       ),
     ),
 );

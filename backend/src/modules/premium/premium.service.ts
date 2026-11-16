@@ -5,7 +5,7 @@ import { notificationsService, NOTIFICATION_TYPE } from '../notifications';
 import { premiumRepository } from './premium.repository';
 
 export const premiumService = {
-  async subscribe(userId: string, planId: string) {
+  async subscribe(userId: string, planId: string, clientOrigin?: string | null) {
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (user.role !== 'TRAVELER' && user.role !== 'TOUR_GUIDE')
       throw AppError.forbidden();
@@ -26,6 +26,7 @@ export const premiumService = {
       amount: subscription.price,
       description: 'TRIPRI PREMIUM',
       expiresAt: new Date(subscription.createdAt.getTime() + 30 * 60_000),
+      clientOrigin,
     });
     return { subscription, checkout };
   },

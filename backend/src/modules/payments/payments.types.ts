@@ -61,6 +61,7 @@ export interface CreateCheckoutInput {
   amount: number;
   description: string;
   expiresAt: Date;
+  clientOrigin?: string | null;
 }
 
 /** Immutable facts handed to `paymentEvents` handlers after a payment became PAID. */

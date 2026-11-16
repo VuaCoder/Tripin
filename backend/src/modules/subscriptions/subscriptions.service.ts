@@ -43,10 +43,10 @@ export class SubscriptionsService {
    * Use case "Subscribe to plan" (+ Make payment). Price and duration come from the plan on the server. Pressing the
    * button twice reuses the same unpaid subscription and the same payment link.
    */
-  async subscribe(userId: string, planId: string): Promise<SubscribeResultDto> {
+  async subscribe(userId: string, planId: string, clientOrigin?: string | null): Promise<SubscribeResultDto> {
     const plan = await this.subscriptions.findPlanById(planId);
     if (!plan || !plan.isActive) throw AppError.notFound('Plan not found');
-    if (plan.isPremium) return (await import('../premium/premium.service')).premiumService.subscribe(userId, planId).then(result => ({ subscription: toSubscriptionDto(result.subscription), checkout: result.checkout }));
+    if (plan.isPremium) return (await import('../premium/premium.service')).premiumService.subscribe(userId, planId, clientOrigin).then(result => ({ subscription: toSubscriptionDto(result.subscription), checkout: result.checkout }));
 
     const subscription = (await this.subscriptions.findPending(userId, planId)) ?? (await this.createPending(userId, plan));
 
@@ -57,6 +57,7 @@ export class SubscriptionsService {
       amount: subscription.price,
       description: plan.code,
       expiresAt: new Date(Date.now() + SUBSCRIPTION_POLICY.PAYMENT_WINDOW_MINUTES * MINUTE_MS),
+      clientOrigin,
     });
     return { subscription: toSubscriptionDto(subscription), checkout };
   }

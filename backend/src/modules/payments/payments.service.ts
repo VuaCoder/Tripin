@@ -58,7 +58,7 @@ export class PaymentsService {
   // ============================================================== Checkout
 
   /** Use case "Make payment" for a booking. The amount comes from the booking on the server; the client sends nothing. */
-  async createBookingCheckout(travelerId: string, bookingId: string): Promise<CheckoutDto> {
+  async createBookingCheckout(travelerId: string, bookingId: string, clientOrigin?: string | null): Promise<CheckoutDto> {
     const payable = await this.bookings.getPayable(travelerId, bookingId);
     return this.createCheckout({
       purpose: PAYMENT_PURPOSE.BOOKING,
@@ -67,6 +67,7 @@ export class PaymentsService {
       amount: payable.amount,
       description: payable.description,
       expiresAt: payable.expiresAt,
+      clientOrigin,
     });
   }
 
@@ -102,8 +103,8 @@ export class PaymentsService {
         orderCode,
         amount: input.amount,
         description: payment.description,
-        returnUrl: withPaymentId(returnUrl(), payment.id),
-        cancelUrl: withPaymentId(cancelUrl(), payment.id),
+        returnUrl: withPaymentId(resolvePaymentReturnUrl(input.clientOrigin), payment.id),
+        cancelUrl: withPaymentId(resolvePaymentCancelUrl(input.clientOrigin), payment.id),
         expiresAt: input.expiresAt,
       });
       const updated = await this.payments.updateById(payment.id, {
@@ -366,11 +367,61 @@ function isUncertainProviderError(error: unknown): boolean {
   return /timeout|AbortError|ECONNRESET|ETIMEDOUT|ECONNREFUSED|fetch failed|socket hang up/i.test(haystack);
 }
 
-function baseClientUrl(): string {
-  return (env.CLIENT_URL.split(',')[0] ?? 'http://localhost:3000').trim().replace(/\/$/, '');
+export function resolveClientOrigin(originHeader?: string | null): string {
+  if (originHeader) {
+    try {
+      const parsed = new URL(originHeader);
+      const clean = `${parsed.protocol}//${parsed.host}`.replace(/\/$/, '');
+      const allowedOrigins = env.CLIENT_URL.split(',')
+        .map((o) => o.trim().replace(/\/$/, ''))
+        .filter(Boolean);
+      const isLoopback = parsed.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]', '::1'].includes(parsed.hostname);
+      if (isLoopback || clean.endsWith('.vercel.app') || allowedOrigins.includes(clean)) {
+        return clean;
+      }
+    } catch {
+      // not a valid URL
+    }
+  }
+
+  const allowedOrigins = env.CLIENT_URL.split(',')
+    .map((o) => o.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+
+  if (env.NODE_ENV === 'production') {
+    const prod = allowedOrigins.find((o) => !o.includes('localhost') && !o.includes('127.0.0.1'));
+    if (prod) return prod;
+  }
+
+  return allowedOrigins[0] ?? 'http://localhost:3000';
 }
-const returnUrl = () => env.PAYMENT_RETURN_URL ?? `${baseClientUrl()}/payment/success`;
-const cancelUrl = () => env.PAYMENT_CANCEL_URL ?? `${baseClientUrl()}/payment/cancel`;
+
+function resolvePaymentReturnUrl(clientOrigin?: string | null): string {
+  if (clientOrigin) {
+    return `${resolveClientOrigin(clientOrigin)}/payment/success`;
+  }
+  if (env.PAYMENT_RETURN_URL) {
+    if (env.NODE_ENV === 'production' && env.PAYMENT_RETURN_URL.includes('localhost')) {
+      return `${resolveClientOrigin()}/payment/success`;
+    }
+    return env.PAYMENT_RETURN_URL;
+  }
+  return `${resolveClientOrigin()}/payment/success`;
+}
+
+function resolvePaymentCancelUrl(clientOrigin?: string | null): string {
+  if (clientOrigin) {
+    return `${resolveClientOrigin(clientOrigin)}/payment/cancel`;
+  }
+  if (env.PAYMENT_CANCEL_URL) {
+    if (env.NODE_ENV === 'production' && env.PAYMENT_CANCEL_URL.includes('localhost')) {
+      return `${resolveClientOrigin()}/payment/cancel`;
+    }
+    return env.PAYMENT_CANCEL_URL;
+  }
+  return `${resolveClientOrigin()}/payment/cancel`;
+}
+
 const withPaymentId = (url: string, paymentId: string) => `${url}${url.includes('?') ? '&' : '?'}paymentId=${paymentId}`;
 
 export const paymentsService = new PaymentsService();
