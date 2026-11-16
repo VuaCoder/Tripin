@@ -1,0 +1,59 @@
+classDiagram
+%% 3.3.2 Dashboard tai chinh cho ke toan
+%% GET /agency/finance/summary
+
+class AgencyRoutes {
+  <<Controller>>
+  +financeSummary(AgencyContext ctx, Response res) FinanceSummaryDto
+}
+
+class AgencyContextMiddleware {
+  <<Middleware>>
+  +resolveAgencyContext(Request req) void
+  +requireVerifiedAgency(Request req) void
+  +requireAgencyPermission(AgencyPermission permission) RequestHandler
+}
+
+class AgencyPolicy {
+  <<Utility>>
+  +effectiveAgencyPermissions(PermissionSource member) List~AgencyPermission~$
+}
+
+class PrismaClient {
+  <<DAO>>
+  +Booking booking
+}
+
+class Booking {
+  +UUID id
+  +UUID agencyId
+  +String status
+  +boolean isPaid
+  +BigInt agencyAmount
+}
+
+class AgencyContext {
+  <<DTO>>
+  +UUID agencyId
+  +UUID memberId
+  +String memberRole
+  +List~AgencyPermission~ permissions
+}
+
+class FinanceSummaryDto {
+  <<DTO>>
+  +UUID agencyId
+  +int paidBookingCount
+  +String bookingNetAmount
+  +String currency
+  +boolean reconciledBalance
+}
+
+AgencyRoutes ..> AgencyContext : scopes every read
+AgencyRoutes ..> AgencyContextMiddleware : guarded by
+AgencyRoutes ..> PrismaClient : aggregates inline
+AgencyRoutes ..> FinanceSummaryDto : returns
+AgencyContextMiddleware ..> AgencyPolicy : resolves permissions
+AgencyContextMiddleware ..> AgencyContext : attaches tenant
+PrismaClient ..> Booking : aggregates
+FinanceSummaryDto ..> Booking : summarizes

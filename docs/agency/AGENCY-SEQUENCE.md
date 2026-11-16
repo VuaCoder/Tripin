@@ -21,6 +21,7 @@ Sequence diagram for each Agency partner portal feature, following the monolith 
 | 3.2.1 | Select workplace | [`3.2.1-chon-noi-lam-viec.mmd`](./sequence/3.2.1-chon-noi-lam-viec.mmd) |
 | 3.2.2 | Accept invitation | [`3.2.2-nhan-loi-moi.mmd`](./sequence/3.2.2-nhan-loi-moi.mmd) |
 | 3.3.1 | Dashboard | [`3.3.1-bang-dieu-khien.mmd`](./sequence/3.3.1-bang-dieu-khien.mmd) |
+| 3.3.2 | Accountant financial dashboard & KPI | [`3.3.2-dashboard-tai-chinh.mmd`](./sequence/3.3.2-dashboard-tai-chinh.mmd) |
 | 3.4.1 | Tour list | [`3.4.1-danh-sach-tour.mmd`](./sequence/3.4.1-danh-sach-tour.mmd) |
 | 3.4.2 | Create tour | [`3.4.2-tao-tour.mmd`](./sequence/3.4.2-tao-tour.mmd) |
 | 3.4.3 | Tour detail & edit | [`3.4.3-chi-tiet-chinh-sua-tour.mmd`](./sequence/3.4.3-chi-tiet-chinh-sua-tour.mmd) |
@@ -342,6 +343,101 @@ sequenceDiagram
         deactivate Route
         deactivate App
         deactivate Server
+    end
+```
+
+## 3.3.2 Accountant financial dashboard & KPI
+
+File: [`sequence/3.3.2-dashboard-tai-chinh.mmd`](./sequence/3.3.2-dashboard-tai-chinh.mmd)
+
+```mermaid
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "activationBkgColor": "#ffffff",
+    "activationBorderColor": "#000000",
+    "noteBkgColor": "#ffffff",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "sequenceNumberColor": "#000000"
+  },
+  "sequence": {
+    "mirrorActors": false,
+    "showSequenceNumbers": false,
+    "useMaxWidth": true,
+    "curve": "linear"
+  }
+}}%%
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Server as server.ts
+    participant App as app.ts
+    participant Route as Routes
+    participant Middlewares
+    participant Controller
+    participant Service
+    participant DAO
+    participant Database
+
+    User->>Frontend: 1. ACCOUNTANT opens /agency/finance
+    activate Frontend
+    Frontend->>Server: 2. GET /api/v1/agency/finance/summary (X-Agency-Id)
+    activate Server
+    Server->>App: 3. createApp() handles the request
+    activate App
+    App->>Route: 4. apiRouter.use('/agency', resolveAgencyContext, requireVerifiedAgency, agencyFoundationRouter)
+    activate Route
+    Route->>Middlewares: 5. resolveAgencyContext -> requireVerifiedAgency -> requireAgencyPermission(agency:finance-view)
+    activate Middlewares
+    alt Agency not VERIFIED
+        Middlewares-->>Frontend: 6. 403 "Agency must be verified"
+    else Verified member
+        alt Missing agency:finance-view (role grant or member DENY override)
+            Middlewares-->>Frontend: 7. 403 FORBIDDEN
+        else Granted
+            Middlewares-->>Route: 8. next() with req.agencyContext (memberRole ACCOUNTANT)
+            deactivate Middlewares
+            Route->>Controller: 9. route handler(req, res)
+            activate Controller
+            Controller->>Service: 10. prisma.booking.aggregate({ agencyId, isPaid: true, status: [CONFIRMED, COMPLETED] })
+            activate Service
+            Service->>DAO: 11. SUM(agencyAmount) + COUNT(*) over paid bookings
+            activate DAO
+            DAO->>Database: 12. SELECT SUM("agencyAmount"), COUNT(*) FROM "Booking" WHERE ...
+            activate Database
+            Database-->>DAO: 13. sum + count
+            deactivate Database
+            DAO-->>Service: 14. { _sum.agencyAmount, _count }
+            deactivate DAO
+            Service-->>Controller: 15. paidBookingCount, bookingNetAmount (BigInt -> string)
+            deactivate Service
+            Controller-->>Frontend: 16. 200 OK: paidBookingCount, bookingNetAmount (VND), reconciledBalance false
+            deactivate Controller
+            Frontend-->>User: 17. Render KPI: paid bookings, net received, "not reconciled" badge
+            deactivate Frontend
+            deactivate Route
+            deactivate App
+            deactivate Server
+        end
     end
 ```
 

@@ -5,12 +5,12 @@
 | [`AGENCY-FUNCTIONS.docx`](./AGENCY-FUNCTIONS.docx) | 16 nhóm chức năng (`3.2`–`3.17`), 41 chức năng (không gồm đăng nhập Agency), 41 ảnh nhúng; nội dung tiếng Anh, nhãn UI tiếng Việt đặt trong ngoặc kép; format theo tài liệu Super Admin: heading Calibri xanh, thân bài đen, bullet `•`, ảnh full-width, mỗi chức năng một trang (41 trang). |
 | [`AGENCY-FUNCTIONS.pdf`](./AGENCY-FUNCTIONS.pdf) | Bản xem nhanh cùng nội dung, 41 trang. |
 | [`build_agency_doc.py`](./build_agency_doc.py) | Script sinh lại DOCX từ nội dung trong script và ảnh tại `docs/testing/agency-roles/screenshots/` |
-| [`AGENCY-SEQUENCE.md`](./AGENCY-SEQUENCE.md) | 41 sequence diagram (mục `3.2.1`–`3.17.4`), nội dung tiếng Anh, ở dạng đọc nhanh, render được trên GitHub/IDE. |
+| [`AGENCY-SEQUENCE.md`](./AGENCY-SEQUENCE.md) | 42 sequence diagram (mục `3.2.1`–`3.17.4`), nội dung tiếng Anh, ở dạng đọc nhanh, render được trên GitHub/IDE. |
 | [`sequence/`](./sequence/) | Nguồn Mermaid thuần: mỗi chức năng một tệp `.mmd`, không code fence, dán trực tiếp vào draw.io. |
 | `sequence/png/` | Bản PNG xuất từ `sequence/` (nền trắng, rộng 2400px, đen–trắng) để chèn vào tài liệu/báo cáo. |
 | [`build_sequence_doc.py`](./build_sequence_doc.py) | Sinh lại `AGENCY-SEQUENCE.md` từ `sequence/`; kiểm tra đánh số mũi tên, cân bằng khối `alt`/`opt`/`loop` và luồng `activate`/`deactivate`. Kiểm tra riêng vài tệp: `python3 docs/agency/build_sequence_doc.py --check 3.4.2-tao-tour.mmd`. |
 | [`AGENCY-CLASS.mmd`](./AGENCY-CLASS.mmd) | Class diagram (Monolith) cho module `agencies`: controller → service → repository → model/DTO, kèm quan hệ và multiplicity. Bắt đầu bằng `classDiagram`, dán trực tiếp vào draw.io. |
-| [`classes/`](./classes/) | 41 class diagram, mỗi chức năng một tệp `.mmd` trùng tên với tệp trong `sequence/`. |
+| [`classes/`](./classes/) | 42 class diagram, mỗi chức năng một tệp `.mmd` trùng tên với tệp trong `sequence/`. |
 | `classes/png/` | Bản PNG xuất từ `classes/` (nền trắng, bề ngang tự nhiên, không co chữ) để chèn vào tài liệu/báo cáo. |
 | [`check_class_diagrams.py`](./check_class_diagrams.py) | Kiểm tra `classes/`: mở đầu `classDiagram`, không code fence, không `;`, quan hệ hợp lệ, và đủ tệp so với `sequence/`. |
 
@@ -47,7 +47,7 @@ npx -y @mermaid-js/mermaid-cli@11.4.2 \
   -o docs/agency/sequence/png/3.4.2-tao-tour.png -w 2400
 ```
 
-Xuất cả 41 tệp: lặp lệnh trên cho mọi `docs/agency/sequence/*.mmd` (cùng tên đầu ra trong `sequence/png/`).
+Xuất cả 42 tệp: lặp lệnh trên cho mọi `docs/agency/sequence/*.mmd` (cùng tên đầu ra trong `sequence/png/`).
 
 Class diagram rộng hơn nên xuất ở `-w 4800` để Mermaid không thu nhỏ chữ:
 
