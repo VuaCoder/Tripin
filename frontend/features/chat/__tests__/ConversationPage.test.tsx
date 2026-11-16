@@ -9,7 +9,13 @@ const mocks = vi.hoisted(() => ({
   detailError: undefined as unknown, revision: 0,
   isListLoading: false,
   role: 'TRAVELER', permissions: ['chat:use'],
-  convList: [{ id: 'c1', counterpart: { fullName: 'Guide A' }, lastMessage: { text: 'Xin chào' }, updatedAt: '2026-10-18T10:00:00Z', unreadCount: 2 }],
+  convList: [{ id: 'c1', counterpart: { fullName: 'Guide A' }, lastMessage: { text: 'Xin chào' }, updatedAt: '2026-10-18T10:00:00Z', unreadCount: 2 }] as {
+    id: string;
+    counterpart: { fullName: string; avatarUrl?: string } | null;
+    lastMessage?: { text: string; senderId?: string; sentAt?: string };
+    updatedAt: string;
+    unreadCount: number;
+  }[],
 }));
 vi.mock('next/link', () => ({ default: ({ href, children, ...props }: any) => <a href={href} {...props}>{children}</a> }));
 vi.mock('@/store/hooks', () => ({
@@ -19,7 +25,13 @@ vi.mock('@/store/hooks', () => ({
 vi.mock('../api', () => ({
   chatApi: { endpoints: { messages: { initiate: (args: unknown) => ({ unwrap: () => mocks.fetch(args), abort: vi.fn() }) } }, util: { invalidateTags: vi.fn() } },
   useConversationsQuery: () => ({ data: { data: mocks.convList, meta: { totalPages: 2 } }, isLoading: mocks.isListLoading, refetch: vi.fn() }),
-  useConversationQuery: () => ({ data: { counterpart: { fullName: 'Guide A' } }, error: mocks.detailError, refetch: vi.fn() }),
+  useConversationQuery: ({ id }: { id: string }) => {
+    const detail =
+      id === 'gone'
+        ? (mocks.convList.find((c: any) => c.id === 'gone') ?? { counterpart: null })
+        : { counterpart: { fullName: 'Guide A' } };
+    return { data: detail, error: mocks.detailError, refetch: vi.fn() };
+  },
   useReadConversationMutation: () => [(id: string) => ({ unwrap: () => mocks.read(id) })],
   useSendMessageMutation: () => [(args: unknown) => ({ unwrap: () => mocks.sendRest(args) })],
 }));
@@ -177,6 +189,25 @@ describe('ConversationPage', () => {
     expect(screen.queryByText('Phiếu khiếu nại')).toBeNull();
     expect(screen.queryByText('Trò chuyện trực tiếp')).toBeNull();
     expect(screen.getByText('Guide A')).toBeTruthy();
+  });
+
+  it('keeps an unavailable counterpart thread visible with title and locks the composer', async () => {
+    mocks.convList = [{
+      id: 'gone', counterpart: null,
+      lastMessage: { text: 'Bắt đầu tin nhắn cùng Guide A', senderId: 'g1', sentAt: '2026-10-18T10:00:00Z' },
+      updatedAt: '2026-10-18T10:00:00Z', unreadCount: 0,
+    }];
+    render(<ConversationPage id="gone" />);
+    // Sidebar keeps the thread labelled as unavailable + open detail shows the locked title & banner.
+    expect(screen.getAllByText('Tài khoản không còn khả dụng').length).toBeGreaterThanOrEqual(1);
+    expect(await screen.findByText('Tài khoản này đã bị khóa. Bạn không thể gửi tin nhắn cho tài khoản này.')).toBeTruthy();
+    expect(screen.queryByLabelText('Nội dung tin nhắn')).toBeNull();
+  });
+
+  it('stays inside the super-admin shell when a thread is opened', () => {
+    mocks.convList = [{ id: 'c1', counterpart: { fullName: 'Guide A' }, updatedAt: '2026-10-18T10:00:00Z', unreadCount: 0 }];
+    const { container } = render(<ConversationPage id="c1" autoOpenNewest basePath="/super-admin/agency-chat" />);
+    expect(container.querySelector('a[href="/super-admin/agency-chat/c1"]')).toBeTruthy();
   });
 });
 

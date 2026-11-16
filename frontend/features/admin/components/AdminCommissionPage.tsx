@@ -5,7 +5,7 @@ import { Button, FormField, Input, Modal } from '@/components/ui';
 import { useApproveAgencyCommissionRequestMutation, useGetAdminCommissionQuery, useGetAgencyCommissionRequestsQuery, useGetAgencyCommissionsQuery, useRejectAgencyCommissionRequestMutation, useSetAdminCommissionMutation, useSetAgencyCommissionMutation } from '../api/adminApi';
 import type { AgencyCommission, AgencyCommissionRequest, Commission } from '../types';
 import { commissionValue } from '../validation';
-import { AdminFrame, adminError, Feedback, forbidden, panel, timestamp, useAdminSession } from './AdminUi';
+import { AdminFrame, adminError, Feedback, forbidden, panel, useAdminSession } from './AdminUi';
 import { AdminCommissionSkeleton } from './AdminSkeletons';
 
 function CommissionForm({ saved, onDenied }: { saved: Commission; onDenied: (error: unknown) => void }) {
@@ -97,7 +97,7 @@ export function AdminCommissionPage() {
         </div>
         <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-5 py-3">Agency</th><th className="px-4 py-3">Mức đang áp dụng</th><th className="px-4 py-3">Nguồn mức phí</th><th className="px-5 py-3 text-right">Thao tác</th></tr></thead><tbody className="divide-y divide-slate-100">{visibleAgencies.map((agency) => <tr key={agency.id}><td className="px-5 py-4"><strong className="block text-slate-900">{agency.companyName}</strong><span className="text-xs text-slate-500">{agency.contactName}{agency.email ? ` · ${agency.email}` : ''}</span></td><td className="px-4 py-4 font-semibold">{agency.ratePercent ?? query.currentData!.ratePercent}%</td><td className="px-4 py-4 text-slate-600">{agency.ratePercent === null ? 'Mức chung' : 'Mức riêng'}</td><td className="px-5 py-4 text-right"><Button variant="outline" size="sm" className="inline-flex items-center gap-2" onClick={() => { setEditingAgency(agency); setAgencyRate(agency.ratePercent === null ? '' : String(agency.ratePercent)); setAgencyError(null); }}><Edit3 size={15}/>{agency.ratePercent === null ? 'Đặt mức riêng' : 'Điều chỉnh'}</Button></td></tr>)}{visibleAgencies.length === 0 && <tr><td className="px-5 py-8 text-center text-slate-500" colSpan={4}>Không tìm thấy agency phù hợp.</td></tr>}</tbody></table></div>
       </section>
-      {requestsOpen && <Modal open title="Yêu cầu điều chỉnh chiết khấu" className="max-w-3xl" onClose={() => { if (!approveState.isLoading && !rejectState.isLoading && !reviewing) setRequestsOpen(false); }}>
+      {requestsOpen && <Modal open title="Yêu cầu điều chỉnh chiết khấu" className="max-w-6xl" onClose={() => { if (!approveState.isLoading && !rejectState.isLoading && !reviewing) setRequestsOpen(false); }}>
         <div className="mb-3 flex items-center justify-between gap-3">
           <p className="text-sm text-slate-600">Agency gửi mức % doanh nghiệp hưởng; duyệt sẽ đổi phí nền tảng cho booking tạo sau.</p>
           <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">{requestsQuery.currentData?.meta.total ?? 0} đang chờ</span>
@@ -111,10 +111,10 @@ export function AdminCommissionPage() {
               {pendingRequests.map((request) => (
                 <tr key={request.id}>
                   <td className="px-5 py-4"><strong className="block text-slate-900">{request.agencyName}</strong><span className="text-xs text-slate-500">{request.requestedByName}</span></td>
-                  <td className="px-4 py-4 font-semibold">{request.currentSharePercent}%</td>
-                  <td className="px-4 py-4 font-semibold text-teal-700">{request.requestedSharePercent}%</td>
+                  <td className="px-4 py-4"><span className="font-semibold text-slate-400 line-through">{request.currentSharePercent}%</span></td>
+                  <td className="px-4 py-4"><span className="text-base font-bold text-teal-700">{request.requestedSharePercent}%</span></td>
                   <td className="max-w-xs px-4 py-4 text-slate-600">{request.reason}</td>
-                  <td className="px-4 py-4 text-slate-500">{timestamp(request.createdAt)}</td>
+                  <td className="whitespace-nowrap px-4 py-4 text-slate-500">{(() => { const d = new Date(request.createdAt); const p = (n: number) => String(n).padStart(2, '0'); return `${p(d.getHours())}:${p(d.getMinutes())} - ${p(d.getDate())}/${p(d.getMonth() + 1)}`; })()}</td>
                   <td className="px-5 py-4 text-right">
                     <div className="flex justify-end gap-2">
                       <Button size="sm" onClick={() => { setReviewing({ request, action: 'approve' }); setReviewNote(''); setReviewError(null); }}>Duyệt</Button>

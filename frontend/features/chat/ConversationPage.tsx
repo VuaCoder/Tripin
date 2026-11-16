@@ -59,12 +59,12 @@ const denied = (error: unknown) =>
   [403, 404].includes((error as { status?: number })?.status ?? 0) ||
   ['FORBIDDEN', 'NOT_FOUND'].includes((error as { code?: string })?.code ?? '');
 
-export function ConversationPage({ id, autoOpenNewest }: { id?: string; autoOpenNewest?: boolean }) {
+export function ConversationPage({ id, autoOpenNewest, basePath = '/conversations' }: { id?: string; autoOpenNewest?: boolean; basePath?: string }) {
   const user = useAppSelector(selectUser);
   if (!user || !user.permissions.includes('chat:use')) {
     return <p role="alert">Bạn không có quyền sử dụng tin nhắn.</p>;
   }
-  return <ChatWorkspace key={user.id} id={id} autoOpenNewest={autoOpenNewest} />;
+  return <ChatWorkspace key={user.id} id={id} autoOpenNewest={autoOpenNewest} basePath={basePath} />;
 }
 
 /** The agency's shared inbox: every member with chat:use sees the same threads under the agency shell. */
@@ -139,13 +139,14 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
         'bot'.includes(searchQuery.toLowerCase())),
   );
 
-  // Hidden (unavailable) agencies/travelers return a null counterpart; those threads must not
-  // surface as "Tài khoản không còn khả dụng" in the inbox, so filter them out everywhere the list is walked.
-  const activeConversations = (data?.data ?? []).filter((item) => item.counterpart != null);
+  // Unavailable (deleted/banned) counterparts return a null counterpart. Messenger-style UX: those
+  // threads must stay visible in the inbox (shown as "Tài khoản không còn khả dụng") and, when opened,
+  // keep the conversation on screen with the input locked — never silently dropped from the list.
+  const activeConversations = data?.data ?? [];
   const filteredItems = activeConversations.filter(
     (item) =>
       !searchQuery.trim() ||
-      item.counterpart?.fullName?.toLowerCase().includes(searchQuery.trim().toLowerCase()),
+      (item.counterpart?.fullName ?? '').toLowerCase().includes(searchQuery.trim().toLowerCase()),
   );
 
   // When the page is a landing inbox (no :id) and autoOpenNewest is set, treat the
@@ -205,7 +206,7 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
               <p className="hidden md:block">Chưa có cuộc trò chuyện nào.</p>
               {!id && (
                 <div className="h-full md:hidden">
-                  <ConversationWelcome audience={audience} />
+                  <ConversationWelcome audience={audience} basePath={basePath} />
                 </div>
               )}
             </div>
@@ -327,6 +328,7 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
             {!isLoading && !error && (
               <ConversationWelcome
                 audience={audience}
+                basePath={basePath}
                 recent={
                   activeConversations[0]
                     ? { id: activeConversations[0].id, name: activeConversations[0].counterpart?.fullName || 'người đồng hành' }
@@ -387,6 +389,10 @@ function Thread({ id, agency = false, basePath = '/conversations' }: { id: strin
   const detail = useConversationQuery({ id, agency }, { pollingInterval: 30_000 });
   const [sendRest] = useSendMessageMutation();
   const [markRead] = useReadConversationMutation();
+  // Available counterpart has a name; a null counterpart means the opposite account was deleted or banned.
+  const counterpart = detail.data?.counterpart ?? null;
+  const unavailable = Boolean(detail.data && !counterpart);
+  const conversationTitle = counterpart?.fullName ?? (unavailable ? 'Tài khoản không còn khả dụng' : 'Cuộc trò chuyện');
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesRef = useRef<Message[]>([]);
   // Only REST-confirmed history is a safe reconnect boundary. A live event
@@ -839,13 +845,18 @@ function Thread({ id, agency = false, basePath = '/conversations' }: { id: strin
               className="size-full object-cover"
             />
           ) : (
-            <span>{(detail.data?.counterpart?.fullName || 'U').charAt(0).toUpperCase()}</span>
+            <span>{conversationTitle.charAt(0).toUpperCase()}</span>
           )}
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="truncate font-bold text-slate-900 text-sm sm:text-base leading-tight">
-            {detail.data?.counterpart?.fullName || 'Cuộc trò chuyện'}
+            {conversationTitle}
           </h2>
+          {unavailable && (
+            <p className="flex items-center gap-1 text-[11px] font-semibold text-rose-600">
+              <ShieldAlert size={12} /> Tài khoản này đã bị khóa
+            </p>
+          )}
           {isLocallyBlocked && (
             <p className="flex items-center gap-1 text-[11px] font-semibold text-rose-600">
               <ShieldAlert size={12} /> Đã chặn tin nhắn
@@ -1002,7 +1013,13 @@ function Thread({ id, agency = false, basePath = '/conversations' }: { id: strin
           </button>
         )}
       </div>
-      {isLocallyBlocked ? (
+      {unavailable ? (
+        <div className="border-t border-slate-200/90 bg-slate-50 p-4 text-center">
+          <p className="flex items-center justify-center gap-1.5 text-sm font-medium text-rose-600">
+            <ShieldAlert size={15} /> Tài khoản này đã bị khóa. Bạn không thể gửi tin nhắn cho tài khoản này.
+          </p>
+        </div>
+      ) : isLocallyBlocked ? (
         <div className="border-t border-slate-200/90 bg-slate-50 p-4 text-center">
           <p className="text-sm font-medium text-slate-600">
             Bạn đã chặn cuộc trò chuyện này. Bạn không thể gửi hoặc nhận tin nhắn mới.
