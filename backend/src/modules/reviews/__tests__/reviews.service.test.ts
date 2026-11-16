@@ -123,10 +123,10 @@ describe('createReview', () => {
 });
 
 describe('public list', () => {
-  it('masks the author name and exposes no traveler id', async () => {
+  it('returns the author full name and exposes no traveler id', async () => {
     const { service } = make({ seed: [{ id: 'r1', rating: 5, comment: 'Great', tourId: 't1', travelerId: 'u1', createdAt: new Date('2026-01-01') }] });
     const page = await service.listPublic({ page: 1, limit: 20, tourId: 't1', sort: 'newest' });
-    expect(page.items[0]!.author).toEqual({ name: 'Nguyen A.', avatarUrl: 'http://x/a.png' });
+    expect(page.items[0]!.author).toEqual({ name: 'Nguyen Van An', avatarUrl: 'http://x/a.png' });
     expect(JSON.stringify(page.items[0])).not.toContain('u1');
   });
 

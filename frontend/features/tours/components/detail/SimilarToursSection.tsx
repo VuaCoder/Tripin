@@ -10,15 +10,40 @@ export interface SimilarToursSectionProps {
 }
 
 export function SimilarToursSection({ currentTourId, destination, categoryId }: SimilarToursSectionProps) {
-  const { data, isLoading } = useGetToursQuery({
-    destination: destination || undefined,
-    categoryId: categoryId || undefined,
-    limit: 8,
+  const { data: destData, isLoading: isDestLoading } = useGetToursQuery({
+    ...(destination ? { destination } : {}),
+    limit: 12,
   });
 
-  const similarTours = (data?.items || [])
-    .filter((t) => t.id !== currentTourId)
-    .slice(0, 4);
+  const destItems = (destData?.items || []).filter((t) => t.id !== currentTourId);
+  const needFallback = !isDestLoading && destItems.length < 4;
+
+  const { data: fallbackData, isLoading: isFallbackLoading } = useGetToursQuery(
+    { limit: 8 },
+    { skip: !needFallback }
+  );
+
+  const isLoading = isDestLoading || (needFallback && isFallbackLoading);
+
+  // Prioritize tours that share the same category within the same destination
+  const sortedDestItems = [...destItems].sort((a, b) => {
+    if (!categoryId) return 0;
+    const aHasCat = a.categoryIds?.includes(categoryId) ? 1 : 0;
+    const bHasCat = b.categoryIds?.includes(categoryId) ? 1 : 0;
+    return bHasCat - aHasCat;
+  });
+
+  const combined = [...sortedDestItems];
+  if (combined.length < 4 && fallbackData?.items) {
+    for (const item of fallbackData.items) {
+      if (item.id !== currentTourId && !combined.some((existing) => existing.id === item.id)) {
+        combined.push(item);
+      }
+      if (combined.length >= 4) break;
+    }
+  }
+
+  const similarTours = combined.slice(0, 4);
 
   if (!isLoading && similarTours.length === 0) {
     return null;

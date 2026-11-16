@@ -178,8 +178,15 @@ export function AirbnbTourCarousel({
 
                 {/* Top-Right Heart Wishlist Button: Red heart when saved */}
                 <div
+                  data-no-preloader="true"
                   className="absolute top-2.5 right-2.5 z-10"
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                  }}
                 >
                   <WishlistButton
                     tourId={tour.id}

@@ -66,7 +66,7 @@ describe('reviews (integration)', () => {
       expect(result.body.data).toHaveLength(1);
       expect(result.body.meta.total).toBe(1);
       expect(result.body.data[0]).not.toHaveProperty('travelerId');
-      expect(result.body.data[0].author.name).not.toBe('Tran Thi B');
+      expect(result.body.data[0].author.name).toBe('Tran Thi B');
     }
     expect((await request(app).get('/api/v1/reviews').query({ guideId: otherGuide.id })).body.data).toEqual([]);
     for (const sort of ['newest', 'rating_asc']) {
@@ -140,7 +140,7 @@ describe('reviews (integration)', () => {
     const publicList = await request(app).get('/api/v1/reviews').query({ tourId });
     expect(publicList.body.data).toHaveLength(1);
     expect(JSON.stringify(publicList.body.data)).not.toContain('traveler@example.com');
-    expect(JSON.stringify(publicList.body.data)).not.toContain('Tran Thi B'); // masked, not the full name
+    expect(publicList.body.data[0].author.name).toBe('Tran Thi B');
     expect((await loadTour(tourId))!.ratingCount).toBe(1);
 
     const moderate = (body: object, token = moderator.token) =>
