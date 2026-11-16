@@ -18,8 +18,8 @@ const id = z.string().uuid();
 const roleBody = z.object({ name: z.string().trim().min(1).max(80), permissions: z.array(z.string().max(100)).max(100) }).strict();
 const accessBody = z.object({ roleId: id, overrides: z.array(z.object({ permission: z.string().max(100), effect: z.enum(['ALLOW','DENY']) }).strict()).max(100) }).strict();
 const inviteBody = z.object({ email: z.email().max(254), role: z.enum(['MANAGER','STAFF','ACCOUNTANT']), roleId: id.optional() }).strict();
-const tourScopesBody = z.object({ scopes: z.array(z.object({ tourId: id, allowedFields: z.array(z.enum(['title','summary','description'])).max(3) }).strict()).max(200) }).strict();
-const scopedContentBody = z.object({ title: z.string().trim().min(5).max(200).optional(), summary: z.string().trim().max(500).optional(), description: z.string().trim().max(20000).optional() }).strict().refine(v => Object.keys(v).length > 0);
+const tourScopesBody = z.object({ scopes: z.array(z.object({ tourId: id, allowedFields: z.array(z.enum(['title','summary','description','images'])).max(4) }).strict()).max(200) }).strict();
+const scopedContentBody = z.object({ title: z.string().trim().min(5).max(200).optional(), summary: z.string().trim().max(500).optional(), description: z.string().trim().max(20000).optional(), images: z.array(z.url().max(500)).max(10).optional() }).strict().refine(v => Object.keys(v).length > 0);
 export const agencyIdentityRouter = Router();
 agencyIdentityRouter.get('/me/agencies', requireAuth, async (req,res) => sendOk(res, await agencyService.listForUser(userActor(req).userId)));
 agencyIdentityRouter.get('/me/agency-invitations', requireAuth, validate({ query: z.object({ page: z.coerce.number().int().min(1).max(10000).default(1) }).strict() }), async (req,res) =>

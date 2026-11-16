@@ -7,8 +7,8 @@ import { lockAgencyAccess, bumpAgencyPermissions } from './agency-access.service
 import { primaryAgencyOwnerId } from './agency-ownership';
 import { AGENCY_PERMISSIONS as P, effectiveAgencyPermissions, type AgencyContext } from './agency.policy';
 
-export const SCOPED_TOUR_FIELDS = ['title','summary','description'] as const;
-type ContentPatch = { title?: string; summary?: string; description?: string };
+export const SCOPED_TOUR_FIELDS = ['title','summary','description','images'] as const;
+type ContentPatch = { title?: string; summary?: string; description?: string; images?: string[] };
 export class AgencyWorkService {
   async setTourScopes(ctx: AgencyContext, memberId: string, scopes: { tourId: string; allowedFields: string[] }[]) {
     return prisma.$transaction(async tx => {
@@ -35,7 +35,7 @@ export class AgencyWorkService {
     return prisma.$transaction(async tx => {
       const actor = await lockAgencyAccess(tx, ctx, P.TOUR_CONTENT_UPDATE);
       const fields = Object.keys(patch);
-      if (!fields.length || fields.some(f => !(SCOPED_TOUR_FIELDS as readonly string[]).includes(f))) throw AppError.badRequest('Only title, summary and description can be changed');
+      if (!fields.length || fields.some(f => !(SCOPED_TOUR_FIELDS as readonly string[]).includes(f))) throw AppError.badRequest('Only title, summary, description and images can be changed');
       const scope = await tx.agencyMemberTourScope.findUnique({ where: { memberId_tourId: { memberId: actor.id, tourId } } });
       if (!effectiveAgencyPermissions(actor).includes(PERMISSIONS.TOUR_UPDATE_OWN) &&
         (!scope || scope.agencyId !== ctx.agencyId || fields.some(f => !scope.allowedFields.includes(f)))) throw AppError.forbidden('Tour or fields are not assigned to this member');
