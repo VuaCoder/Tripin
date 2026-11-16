@@ -38,7 +38,7 @@ export function TourCatalog({ onPick, canDrag, agencyId }: { onPick: (tour: Cale
     <div className={styles.catalogHeading}><h2>Tour của bạn</h2><span className={styles.count}>{tours.currentData?.meta.total ?? '—'}</span></div>
     <label className={styles.search}><Search size={17} aria-hidden="true" /><input type="search" aria-label="Tìm tour để xếp lịch" placeholder="Tìm tên tour…" value={search} maxLength={100} onChange={(event) => setSearch(event.target.value)} />{tours.isFetching && <RotateCw size={15} className={styles.spin} />}</label>
     <div ref={host} className={styles.tourList} aria-busy={tours.isFetching}>
-      {tours.isLoading ? Array.from({ length: 4 }, (_, index) => <div key={index} className={styles.tourSkeleton} />) : tours.isError ? <div role="alert" className={styles.inlineError}>Không tải được tour.<button type="button" onClick={() => void tours.refetch()}>Thử lại</button></div> : !tours.currentData?.items.length ? <div className={styles.catalogEmpty}><Search size={28} /><h3>Không tìm thấy tour</h3></div> : tours.currentData.items.filter((tour) => tour.status !== 'ARCHIVED').map((tour) => {
+      {tours.isLoading ? Array.from({ length: 4 }, (_, index) => <div key={index} className={styles.tourSkeleton} />) : tours.isError ? <div role="alert" className={styles.inlineError}>Không tải được tour.<button type="button" onClick={() => void tours.refetch()}>Thử lại</button></div> : !tours.currentData?.items.length ? <div className={styles.catalogEmpty}><Search size={28} /><h3>Không tìm thấy tour</h3></div> : tours.currentData.items.filter((tour) => tour.status !== 'ARCHIVED' && tour.visibility !== 'PRIVATE').map((tour) => {
         const data: CalendarTour = {
           id: tour.id,
           title: tour.title,
@@ -48,6 +48,7 @@ export function TourCatalog({ onPick, canDrag, agencyId }: { onPick: (tour: Cale
           agePricing: tour.agePricing,
           coverImage: tour.coverImage || tour.images?.[0],
           status: tour.status,
+          visibility: tour.visibility,
         };
         const color = tourColor(tour.id);
         return <button key={tour.id} type="button" data-tour={JSON.stringify(data)} className={styles.tourCard} onClick={() => onPick(data)} aria-label={`Xếp lịch ${tour.title}`}>

@@ -116,6 +116,15 @@ describe('agencyCalendarRepository unit tests', () => {
     });
   });
 
+  // The group's clone has one departure and the agreement owns it: accepted means the time is frozen.
+  it('refuses to touch a group-booking private tour, whose departure belongs to the agreement', async () => {
+    (prisma.$queryRaw as any).mockResolvedValueOnce([{ ...mockTour, visibility: 'PRIVATE' }]);
+
+    await expect(
+      agencyCalendarRepository.update(agencyId, tourId, 'dep-booked', { expectedDate: futureDate, date: futureDate2 }),
+    ).rejects.toMatchObject({ code: 'TOUR_PRIVATE_MANAGED_BY_CUSTOM_TOUR' });
+  });
+
   it('blocks deleting a departure that already has bookings', async () => {
     const bookedDeparture = {
       id: 'dep-booked',

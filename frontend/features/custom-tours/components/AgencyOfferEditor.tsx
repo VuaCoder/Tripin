@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { guestTotal, type GuestCounts } from '@travel-platform/constants';
 import { Button, cn } from '@/components/ui';
 import { getApiErrorCode, getApiErrorMessage } from '@/features/auth/utils/apiError';
+import { atVietnam, localParts } from '@/features/agency-calendar/calendarTime';
 import { TourContentFields } from '@/features/tours/components/TourContentFields';
 import { validateTourEditor } from '@/features/tours/components/tourEditorValidation';
 import { TourGuestSelector } from '@/features/tours/components/detail/TourGuestSelector';
@@ -15,8 +16,8 @@ import type { CustomTourRequestDto } from '../types';
 
 type SaveState = { state: 'idle' | 'saving' | 'saved' | 'error'; message?: string };
 
-// Date-only convention everywhere else in the app: a `YYYY-MM-DD` day is UTC midnight.
-const dayValue = (value?: string | Date) => (value ? new Date(value).toISOString().slice(0, 10) : '');
+// Departures are instants, shown and edited on the Vietnam clock like the agency calendar.
+const vnParts = (iso?: string) => (iso ? localParts(iso) : { day: '', time: '08:00' });
 const defaultGuests = (participants: number): GuestCounts => ({ adults: participants, children: 0, infants: 0 });
 
 /**
@@ -33,7 +34,8 @@ export function AgencyOfferEditor({ request, onRefetch }: { request: CustomTourR
 
   const [form, setForm] = useState<TourContentInput | null>(null);
   const [guests, setGuests] = useState<GuestCounts>(request.guestCounts ?? defaultGuests(request.participants));
-  const [date, setDate] = useState(dayValue(request.startDate ? new Date(request.startDate) : undefined));
+  const [date, setDate] = useState(() => vnParts(request.startDate).day);
+  const [time, setTime] = useState(() => vnParts(request.startDate).time);
   const [baseline, setBaseline] = useState<{ content: string; guests: string; date: string } | null>(null);
   const [status, setStatus] = useState<SaveState>({ state: 'idle' });
 
@@ -41,28 +43,30 @@ export function AgencyOfferEditor({ request, onRefetch }: { request: CustomTourR
   useEffect(() => {
     if (form || !tour.data) return;
     const next = toTourContentInput(tour.data);
-    const nextDate = dayValue(tour.data.departures[0]?.date ?? (request.startDate ? new Date(request.startDate) : undefined));
+    const nextDate = vnParts(tour.data.departures[0]?.date ?? request.startDate);
     setForm(next);
-    setDate(nextDate);
-    setBaseline({ content: JSON.stringify(next), guests: JSON.stringify(guests), date: nextDate });
+    setDate(nextDate.day);
+    setTime(nextDate.time);
+    setBaseline({ content: JSON.stringify(next), guests: JSON.stringify(guests), date: `${nextDate.day} ${nextDate.time}` });
   }, [form, tour.data, request.startDate, guests]);
 
   const draft = useMemo(() => {
     if (!form) return null;
     const { maxGroupSize: _headCountIsFixed, ...content } = form;
-    return { content, guestCounts: guests, departure: date ? { date: new Date(date).toISOString() } : undefined };
-  }, [form, guests, date]);
+    return { content, guestCounts: guests, departure: date && time ? { date: new Date(atVietnam(date, time)).toISOString() } : undefined };
+  }, [form, guests, date, time]);
 
   const errors = form ? Object.values(validateTourEditor(form)).filter((message): message is string => Boolean(message)) : [];
   const missingForm = !form || tour.isError;
   const countsMismatch = guestTotal(guests) !== request.participants;
   const dateMissing = !date || new Date(date).getTime() <= Date.now();
+  const timeMissing = !/^\d{2}:\d{2}$/.test(time);
   const dirty = Boolean(
-    form && baseline && (JSON.stringify(form) !== baseline.content || JSON.stringify(guests) !== baseline.guests || date !== baseline.date),
+    form && baseline && (JSON.stringify(form) !== baseline.content || JSON.stringify(guests) !== baseline.guests || `${date} ${time}` !== baseline.date),
   );
   const editable = request.status === 'NEGOTIATING' || request.status === 'OFFERED';
   const saving = saveState.isLoading || offerState.isLoading || decideState.isLoading;
-  const canSave = editable && !missingForm && errors.length === 0 && !countsMismatch && !dateMissing && !saving;
+  const canSave = editable && !missingForm && errors.length === 0 && !countsMismatch && !dateMissing && !timeMissing && !saving;
   const canSend = canSave && request.status === 'NEGOTIATING' && !dirty;
 
   const failed = (error: unknown, fallback: string) => {
@@ -80,7 +84,7 @@ export function AgencyOfferEditor({ request, onRefetch }: { request: CustomTourR
     try {
       await saveDraft({ id: request.id, revision: request.revision, ...draft }).unwrap();
       setStatus({ state: 'saved' });
-      setBaseline({ content: JSON.stringify(form), guests: JSON.stringify(guests), date });
+      setBaseline({ content: JSON.stringify(form), guests: JSON.stringify(guests), date: `${date} ${time}` });
     } catch (error) {
       failed(error, 'Không lưu được thỏa thuận. Vui lòng thử lại.');
     }
@@ -155,18 +159,34 @@ export function AgencyOfferEditor({ request, onRefetch }: { request: CustomTourR
       </p>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <label className="block space-y-1.5 text-sm font-semibold text-slate-700" htmlFor="custom-tour-panel-date">
-          Ngày khởi hành
-          <input
-            id="custom-tour-panel-date"
-            type="date"
-            value={date}
-            onChange={(event) => { setDate(event.target.value); setStatus({ state: 'idle' }); }}
-            aria-invalid={dateMissing || undefined}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20"
-          />
+        <div className="space-y-1.5">
+          <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
+            <label className="block space-y-1.5 text-sm font-semibold text-slate-700" htmlFor="custom-tour-panel-date">
+              Ngày khởi hành
+              <input
+                id="custom-tour-panel-date"
+                type="date"
+                value={date}
+                onChange={(event) => { setDate(event.target.value); setStatus({ state: 'idle' }); }}
+                aria-invalid={dateMissing || undefined}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20"
+              />
+            </label>
+            <label className="block space-y-1.5 text-sm font-semibold text-slate-700" htmlFor="custom-tour-panel-time">
+              Giờ (VN)
+              <input
+                id="custom-tour-panel-time"
+                type="time"
+                value={time}
+                onChange={(event) => { setTime(event.target.value); setStatus({ state: 'idle' }); }}
+                aria-invalid={timeMissing || undefined}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20"
+              />
+            </label>
+          </div>
           {dateMissing && <span className="block text-xs font-medium text-red-600">Chọn ngày khởi hành ở tương lai.</span>}
-        </label>
+          {timeMissing && <span className="block text-xs font-medium text-red-600">Chọn giờ khởi hành.</span>}
+        </div>
 
         <div className="space-y-1.5">
           <p className="text-sm font-semibold text-slate-700">Cơ cấu đoàn</p>

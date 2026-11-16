@@ -7,9 +7,9 @@ import { ageUnitPrice } from '@travel-platform/constants';
 import { Button } from '@/components/ui';
 import { ErrorState, LoadingState } from '@/components/shared';
 import { getApiErrorCode, getApiErrorMessage } from '@/features/auth';
-import { formatDepartureDate, formatVnd } from '@/lib/travel-format';
+import { formatVnd } from '@/lib/travel-format';
 import { useCreateCustomTourBookingMutation, useGetCustomTourQuery, useSaveCustomTourCheckoutDraftMutation } from '../api';
-import { guestSummary } from '../labels';
+import { departureLabel, guestSummary } from '../labels';
 import { customTourChatHref, customTourHref } from '../links';
 import type { CustomTourCheckoutDraft, CustomTourPassengerDraft, CustomTourRequestDto, GuestCounts, PassengerType } from '../types';
 
@@ -307,7 +307,7 @@ export function GroupBookingEntry({ requestId }: { requestId: string }) {
         <p className="text-xs font-semibold uppercase tracking-wide text-brand-teal">Booking đoàn đã chốt</p>
         <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Nhập thông tin hành khách</h1>
         <p className="mt-1 text-sm text-slate-600">
-          {guestSummary(request)} · Khởi hành {formatDepartureDate(offer.departureDate)}
+          {guestSummary(request)} · Khởi hành {departureLabel(offer.departureDate) ?? 'chưa chốt ngày'}
         </p>
       </header>
 
@@ -322,7 +322,7 @@ export function GroupBookingEntry({ requestId }: { requestId: string }) {
               </div>
               <div>
                 <dt className="text-xs font-semibold text-slate-500">Ngày khởi hành</dt>
-                <dd className="text-slate-800">{formatDepartureDate(offer.departureDate)}</dd>
+                <dd className="text-slate-800">{departureLabel(offer.departureDate) ?? 'Chưa chốt'}</dd>
               </div>
             </dl>
             <p className="mt-3 text-xs text-slate-500">

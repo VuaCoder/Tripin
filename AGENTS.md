@@ -11,3 +11,6 @@
    - A request to commit in a previous turn applies **strictly to that single turn only**. Never carry over a "commit when done" instruction to subsequent turns or follow-up fixes.
    - Avoid creating unnecessary or repetitive commits across iterations.
 
+3. **Never Push to `main`**:
+   - The user pushes `main` themselves. Even when told to push, push only the working branch (e.g. `fix-ui-agency`) and leave `main` alone.
+

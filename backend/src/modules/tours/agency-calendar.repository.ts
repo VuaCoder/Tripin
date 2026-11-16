@@ -10,6 +10,7 @@ export type CalendarDeparture = TourDeparture & {
   basePrice: bigint;
   coverImage: string | null;
   tourStatus: string;
+  tourVisibility: string;
   maxGroupSize: number | null;
   agePricing: Prisma.JsonValue | null;
 };
@@ -28,6 +29,7 @@ function eventDto(row: CalendarDeparture) {
       basePrice: Number(row.basePrice),
       coverImage: row.coverImage,
       status: row.tourStatus,
+      visibility: row.tourVisibility,
       maxGroupSize: row.maxGroupSize,
       agePricing: row.agePricing,
     },
@@ -41,6 +43,7 @@ function enriched(row: TourDeparture, tour: Tour): CalendarDeparture {
     basePrice: tour.basePrice,
     coverImage: tour.images[0] ?? null,
     tourStatus: tour.status,
+    tourVisibility: tour.visibility,
     maxGroupSize: tour.maxGroupSize,
     agePricing: tour.agePricing,
   };
@@ -48,6 +51,9 @@ function enriched(row: TourDeparture, tour: Tour): CalendarDeparture {
 async function lockOwned(tx: Tx, agencyId: string, tourId: string) {
   const [tour] = await tx.$queryRaw<Tour[]>`SELECT * FROM "Tour" WHERE "id" = ${tourId}::uuid AND "agencyId" = ${agencyId}::uuid FOR UPDATE`;
   if (!tour || tour.status === 'ARCHIVED') throw AppError.notFound('Không tìm thấy tour đang hoạt động của bạn.');
+  // A group's private tour has one departure — the one in its agreement, frozen once the customer accepts — so the
+  // calendar must not move it. The offer editor (revision-guarded) is the only way in.
+  if (tour.visibility === 'PRIVATE') throw AppError.conflict('Tour riêng của đoàn được sửa trong thỏa thuận booking đoàn, không sửa ở lịch khởi hành.', 'TOUR_PRIVATE_MANAGED_BY_CUSTOM_TOUR');
   const rows = await tx.$queryRaw<TourDeparture[]>`SELECT * FROM "TourDeparture" WHERE "tourId" = ${tourId}::uuid ORDER BY "id" FOR UPDATE`;
   return { tour, rows };
 }
@@ -63,7 +69,7 @@ function assertFuture(date: Date) {
 export const agencyCalendarRepository = {
   async list(agencyId: string, query: CalendarQuery) {
     const rows = await prisma.$queryRaw<CalendarDeparture[]>(Sql.sql`
-      SELECT d.*, t."title" AS "tourTitle", t."durationDays", t."basePrice", t."images"[1] AS "coverImage", t."status"::text AS "tourStatus", t."maxGroupSize", t."agePricing"
+      SELECT d.*, t."title" AS "tourTitle", t."durationDays", t."basePrice", t."images"[1] AS "coverImage", t."status"::text AS "tourStatus", t."visibility"::text AS "tourVisibility", t."maxGroupSize", t."agePricing"
       FROM "TourDeparture" d JOIN "Tour" t ON t."id" = d."tourId"
       WHERE t."agencyId" = ${agencyId}::uuid AND t."status" <> 'ARCHIVED'
         AND d."date" < ${query.to} AND d."date" + t."durationDays" * INTERVAL '1 day' > ${query.from}
