@@ -175,7 +175,7 @@ export default function AgencyCalendarPage() {
             eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }} datesSet={datesSet}
             events={values.map((row) => {
               const color = tourColor(row.tourId);
-              const editable = canEdit && row.capacity === row.remaining && Date.parse(row.date) > Date.now() && !saving;
+              const editable = canEdit && row.tour.visibility !== 'PRIVATE' && row.capacity === row.remaining && Date.parse(row.date) > Date.now() && !saving;
               return { id: row.id, title: row.tour.title, start: row.date, end: row.end, allDay: false, startEditable: editable, durationEditable: false, color: row.isOpen ? color.background : '#eff1f2', contrastColor: row.isOpen ? color.text : '#536269', className: styles.calendarEvent, extendedProps: { record: row } };
             })}
             eventDidMount={(info) => {
@@ -186,7 +186,7 @@ export default function AgencyCalendarPage() {
                 info.el.setAttribute('aria-label', `${row.tour.title}, ${localParts(row.date).day} ${localParts(row.date).time}, ${row.capacity - row.remaining}/${row.capacity} khách`);
               }
             }}
-            eventAllow={(dropInfo, event) => !!event && Date.parse(event.startStr) > Date.now() && dropInfo.start.getTime() > Date.now() && !saving}
+            eventAllow={(dropInfo, event) => !!event && (event.extendedProps.record as DepartureEvent | undefined)?.tour.visibility !== 'PRIVATE' && Date.parse(event.startStr) > Date.now() && dropInfo.start.getTime() > Date.now() && !saving}
             eventDrop={(info) => { void move(info); }}
             drop={(info) => {
               if (!canEdit || saving || !info.draggedEl.dataset.tour) return;
@@ -246,6 +246,6 @@ export default function AgencyCalendarPage() {
       </section>
     </div>
     {chooser && <Modal open title={chooser.mode === 'weekly' ? 'Chọn tour tạo lịch lặp' : 'Chọn tour khởi hành'} onClose={() => setChooser(null)} className={styles.pickerModal}><TourCatalog onPick={pick} canDrag={false} agencyId={agency!.agencyId} /></Modal>}
-    {draft && <ScheduleEditor key={`${draft.tour.id}-${draft.event?.id ?? draft.date}-${draft.weekly}`} draft={draft} busy={saving} canEdit={canEdit} onClose={() => setDraft(null)} onSave={saveDraft} onDelete={removeDraft} />}
+    {draft && <ScheduleEditor key={`${draft.tour.id}-${draft.event?.id ?? draft.date}-${draft.weekly}`} draft={draft} busy={saving} canEdit={canEdit && draft.tour.visibility !== 'PRIVATE'} onClose={() => setDraft(null)} onSave={saveDraft} onDelete={removeDraft} />}
   </main>;
 }

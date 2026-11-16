@@ -44,6 +44,8 @@ export interface TourDetail extends TourListItem {
   summary?: string;
   description?: string;
   maxGroupSize?: number;
+  /** Manage DTOs only: PRIVATE tours exist for one group-booking request and are edited from it. */
+  visibility?: 'PUBLIC' | 'PRIVATE';
   images: string[];
   inclusions: string[];
   highlights?: string[];
