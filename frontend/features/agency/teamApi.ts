@@ -20,7 +20,7 @@ export const agencyTeamApi = baseApi.injectEndpoints({ endpoints: build => ({
   teamWorkTours: build.query<WorkTour[], string>({ query: () => '/agency/work/tours', transformResponse: unwrap<WorkTour[]> }),
   teamWorkBookings: build.query<{ items: WorkBooking[]; meta: BookingPaginationMeta }, { agencyId: string; page: number }>({ query: ({ page }) => `/agency/work/bookings?page=${page}`, transformResponse: (response: BookingApiResponse<WorkBooking[]>) => ({ items: response.data, meta: response.meta ?? singlePageMeta(response.data.length, 50) }) }),
   saveMemberTourScopes: build.mutation<unknown, { id: string; scopes: TourScope[] }>({ query: ({ id, ...body }) => ({ url: `/agency/members/${id}/tour-scopes`, method: 'PUT', body }) }),
-  saveScopedTourContent: build.mutation<unknown, { id: string; patch: Record<string, string> }>({ query: ({ id, patch }) => ({ url: `/agency/work/tours/${id}/content`, method: 'PATCH', body: patch }) }),
+  saveScopedTourContent: build.mutation<unknown, { id: string; patch: Record<string, string | string[]> }>({ query: ({ id, patch }) => ({ url: `/agency/work/tours/${id}/content`, method: 'PATCH', body: patch }) }),
   teamInvitations: build.query<TeamInvitation[], string>({ query: () => '/agency/invitations', transformResponse: unwrap<TeamInvitation[]> }),
   saveTeamRole: build.mutation<TeamRole, { id?: string; name: string; permissions: string[] }>({
     query: ({ id, ...body }) => ({ url: '/agency/roles' + (id ? '/' + id : ''), method: id ? 'PATCH' : 'POST', body }), transformResponse: unwrap<TeamRole>,

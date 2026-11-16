@@ -1,15 +1,16 @@
 'use client';
 import { useState } from 'react';
-import { CalendarCheck, Compass, ImageOff, Pencil } from 'lucide-react';
+import { CalendarCheck, Compass, ImageOff, Pencil, Star, Trash2, Upload } from 'lucide-react';
 import { useAgencyContext } from './agencyContext';
 import { AgencyPageTitle } from './components/AgencyPageTitle';
 import { useTeamWorkToursQuery, useTeamWorkBookingsQuery, useSaveScopedTourContentMutation, type WorkTour } from './teamApi';
+import { useUploadAgencyTourImageMutation } from '@/features/tours/api/toursApi';
 import { agencyButton, agencyInput, agencyPanel, bookingStatusNames, dateTime } from './AgencyCommon';
 import { Pagination } from '@/components/ui/Pagination';
 import { Modal } from '@/components/ui/Modal';
 
 const statusTone: Record<string, string> = { CONFIRMED: 'bg-sky-50 text-sky-700 border border-sky-200/80', COMPLETED: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80', CANCELLED: 'bg-rose-50 text-rose-700 border border-rose-200/80', PENDING: 'bg-amber-50 text-amber-700 border border-amber-200/80' };
-const fieldNames: Record<string, string> = { title: 'Tiêu đề', summary: 'Tóm tắt', description: 'Mô tả' };
+const fieldNames: Record<string, string> = { title: 'Tiêu đề', summary: 'Tóm tắt', description: 'Mô tả', images: 'Hình ảnh' };
 const tourStatusTone: Record<string, string> = { APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200', PENDING_REVIEW: 'bg-amber-50 text-amber-700 border-amber-200', REJECTED: 'bg-rose-50 text-rose-700 border-rose-200', DRAFT: 'bg-slate-100 text-slate-700 border-slate-200', SUSPENDED: 'bg-slate-100 text-slate-600 border-slate-200', ARCHIVED: 'bg-slate-100 text-slate-500 border-slate-200' };
 const tourStatusLabel: Record<string, string> = { APPROVED: 'Đã duyệt', PENDING_REVIEW: 'Chờ duyệt', REJECTED: 'Cần chỉnh sửa', DRAFT: 'Bản nháp', SUSPENDED: 'Tạm ẩn', ARCHIVED: 'Đã lưu trữ' };
 const TOURS_PER_PAGE = 10;
@@ -20,12 +21,16 @@ export function AgencyMemberWorkPage({ kind }: { kind: 'tours' | 'bookings' }) {
   const tours = useTeamWorkToursQuery(agency?.agencyId ?? '', { skip: kind !== 'tours' || !agency?.permissions.includes('agency:tour-view') });
   const bookings = useTeamWorkBookingsQuery({ agencyId: agency?.agencyId ?? '', page }, { skip: kind !== 'bookings' || !agency?.permissions.includes('agency:booking-monitor') });
   const [save, request] = useSaveScopedTourContentMutation();
+  const [uploadImage, upload] = useUploadAgencyTourImageMutation();
   const [editing, setEditing] = useState<WorkTour | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [imageDraft, setImageDraft] = useState<string[]>([]);
+  const [imageUrl, setImageUrl] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const active = kind === 'tours' ? tours : bookings;
-  const fieldsFor = (tour: WorkTour) => agency?.permissions.includes('tour:update-own') ? ['title','summary','description'] : tour.memberScopes[0]?.allowedFields ?? [];
+  const fieldsFor = (tour: WorkTour) => agency?.permissions.includes('tour:update-own') ? ['title','summary','description','images'] : tour.memberScopes[0]?.allowedFields ?? [];
+  const textFieldsFor = (tour: WorkTour) => fieldsFor(tour).filter(field => field !== 'images');
   const canEdit = (tour: WorkTour) => !!agency?.permissions.includes('agency:tour-content-update') && fieldsFor(tour).length > 0 && !['ARCHIVED','PENDING_REVIEW'].includes(tour.status);
   const tourTotalPages = Math.max(1, Math.ceil((tours.data?.length ?? 0) / TOURS_PER_PAGE));
   const tourPageIndex = Math.min(page, tourTotalPages) - 1;
@@ -42,14 +47,49 @@ export function AgencyMemberWorkPage({ kind }: { kind: 'tours' | 'bookings' }) {
             <td className="px-3 py-4 font-medium break-words text-slate-800">{tour.title}</td>
             <td className="whitespace-nowrap px-3 py-4"><span className={`inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold ${tourStatusTone[tour.status] ?? 'bg-slate-100 text-slate-700 border-slate-200'}`}>{tourStatusLabel[tour.status] ?? tour.status}</span></td>
             <td className="px-3 py-4 text-slate-600">{fieldsFor(tour).map(field => fieldNames[field] ?? field).join(', ') || 'Chỉ xem'}</td>
-            <td className="px-3 py-4 text-right">{canEdit(tour) && <button type="button" title="Chỉnh nội dung" aria-label={`Chỉnh nội dung ${tour.title}`} className="inline-flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" onClick={() => { setEditing(tour); setError(''); setNotice(''); setDraft(Object.fromEntries(fieldsFor(tour).map(f => [f, tour[f as 'title' | 'summary' | 'description'] ?? '']))); }}><Pencil size={16} aria-hidden="true" /></button>}</td>
+            <td className="px-3 py-4 text-right">{canEdit(tour) && <button type="button" title="Chỉnh nội dung" aria-label={`Chỉnh nội dung ${tour.title}`} className="inline-flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" onClick={() => { setEditing(tour); setError(''); setNotice(''); setImageUrl(''); setImageDraft(tour.images ?? []); setDraft(Object.fromEntries(textFieldsFor(tour).map(f => [f, tour[f as 'title' | 'summary' | 'description'] ?? '']))); }}><Pencil size={16} aria-hidden="true" /></button>}</td>
           </tr>)}</tbody>
         </table></div>}</section>
         <Pagination currentPage={tourPageIndex + 1} totalPages={tourTotalPages} totalItems={tours.data?.length} pageSize={TOURS_PER_PAGE} itemLabel="tour" onPageChange={setPage} />
-        {editing && <Modal open onClose={() => setEditing(null)} title="Chỉnh nội dung tour" className="max-w-xl"><form className="space-y-4" onSubmit={async event => { event.preventDefault(); setError(''); try { await save({ id: editing.id, patch: draft }).unwrap(); setEditing(null); setNotice('Đã lưu nội dung tour.'); await tours.refetch(); } catch { setError('Không thể lưu. Tour có thể đã đổi trạng thái hoặc phạm vi của bạn đã thay đổi. Tải lại dữ liệu và thử lại.'); } }}>
+        {editing && <Modal open onClose={() => setEditing(null)} title="Chỉnh nội dung tour" className="max-w-xl"><form className="space-y-4" onSubmit={async event => {
+          event.preventDefault(); setError('');
+          const patch: Record<string, string | string[]> = { ...draft };
+          if (fieldsFor(editing).includes('images') && imageDraft.join('\n') !== (editing.images ?? []).join('\n')) patch.images = imageDraft;
+          try { await save({ id: editing.id, patch }).unwrap(); setEditing(null); setNotice('Đã lưu nội dung tour.'); await tours.refetch(); } catch { setError('Không thể lưu. Tour có thể đã đổi trạng thái hoặc phạm vi của bạn đã thay đổi. Tải lại dữ liệu và thử lại.'); }
+        }}>
           <p className="break-words text-sm font-medium text-slate-600">{editing.title}</p>
           {Object.keys(draft).map(field => <label key={field} className="block space-y-1"><span>{field === 'title' ? 'Tiêu đề' : field === 'summary' ? 'Tóm tắt' : 'Mô tả'}</span>
             <textarea className={agencyInput} rows={field === 'description' ? 7 : 2} required={field === 'title'} minLength={field === 'title' ? 5 : undefined} maxLength={field === 'title' ? 200 : field === 'summary' ? 500 : 20000} value={draft[field]} onChange={e => setDraft({ ...draft, [field]: e.target.value })} /></label>)}
+          {fieldsFor(editing).includes('images') && <fieldset className="space-y-2">
+            <legend className="text-sm font-medium text-slate-700">Hình ảnh ({imageDraft.length})</legend>
+            {imageDraft.length > 0 && <ul className="grid grid-cols-4 gap-2">{imageDraft.map((url, index) => <li key={url} className="group relative aspect-[4/3] overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+              <img src={url} alt="" className="size-full object-cover" />
+              {index === 0 && <span className="absolute left-1 top-1 rounded bg-teal-700 px-1.5 py-0.5 text-[10px] font-semibold text-white">Ảnh bìa</span>}
+              <div className="absolute inset-0 flex items-center justify-center gap-1 bg-slate-900/60 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                {index > 0 && <button type="button" title="Đặt làm ảnh bìa" aria-label={`Đặt ảnh ${index + 1} làm ảnh bìa`} className="rounded-lg bg-white/90 p-1.5 text-slate-800" onClick={() => setImageDraft([url, ...imageDraft.filter(image => image !== url)])}><Star size={14} aria-hidden="true" /></button>}
+                <button type="button" title="Xoá ảnh" aria-label={`Xoá ảnh ${index + 1}`} className="rounded-lg bg-rose-600 p-1.5 text-white" onClick={() => setImageDraft(imageDraft.filter(image => image !== url))}><Trash2 size={14} aria-hidden="true" /></button>
+              </div>
+            </li>)}</ul>}
+            <div className="flex flex-wrap items-center gap-2">
+              <input className={`${agencyInput} flex-1`} aria-label="Đường dẫn ảnh" placeholder="Dán đường dẫn ảnh (https://…)" value={imageUrl} onChange={event => setImageUrl(event.target.value)} />
+              <button type="button" className={agencyButton} disabled={!imageUrl.trim()} onClick={() => {
+                try {
+                  const url = new URL(imageUrl.trim()).toString();
+                  if (imageDraft.includes(url)) setError('Ảnh này đã có trong danh sách.');
+                  else { setImageDraft([...imageDraft, url]); setImageUrl(''); setError(''); }
+                } catch { setError('Đường dẫn ảnh chưa đúng. Bạn kiểm tra lại nhé.'); }
+              }}>Thêm ảnh</button>
+              <label className={`${agencyButton} cursor-pointer gap-2`}><Upload size={16} aria-hidden="true" />{upload.isLoading ? 'Đang tải ảnh…' : 'Tải ảnh lên'}
+                <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={async event => {
+                  const file = event.target.files?.[0];
+                  event.target.value = '';
+                  if (!file) return;
+                  try { setImageDraft([...imageDraft, (await uploadImage(file).unwrap()).url]); setError(''); }
+                  catch { setError('Không thể tải ảnh lên. Ảnh cần là JPG, PNG hoặc WebP dưới 5 MB.'); }
+                }} />
+              </label>
+            </div>
+          </fieldset>}
           {error && <p role="alert" className="text-sm text-red-800">{error}</p>}
           <div className="flex gap-3"><button disabled={request.isLoading} className={agencyButton}>Lưu nội dung</button><button type="button" disabled={request.isLoading} className={agencyButton} onClick={() => setEditing(null)}>Hủy</button></div>
         </form></Modal>}
