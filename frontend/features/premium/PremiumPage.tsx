@@ -137,23 +137,7 @@ function PremiumContent() {
         )}
       </div>
 
-      {/* Role audience switcher for guests */}
-      {!eligible && (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4">
-          <label htmlFor="premium-audience" className="text-sm font-bold text-slate-800">
-            Khám phá quyền lợi
-          </label>
-          <select
-            id="premium-audience"
-            className={premiumInput + ' max-w-xs cursor-pointer font-medium'}
-            value={audience}
-            onChange={(e) => setAudience(e.target.value)}
-          >
-            <option value="TRAVELER">Khách du lịch</option>
-            <option value="TOUR_GUIDE">Hướng dẫn viên</option>
-          </select>
-        </div>
-      )}
+      {/* Role audience switcher for guests - removed for clean UI */}
 
       {/* Alerts */}
       {error && (

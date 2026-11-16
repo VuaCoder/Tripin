@@ -109,7 +109,7 @@
 .primaryButton { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; background: #087e8b; color: white; padding: 15px 12px; font-size: 14px; font-weight: 750; }
 .primaryButton:hover { background: #0b5963; }
 .primaryButton:disabled { opacity: .5; cursor: not-allowed; }
-.booking .outlineButton { width: 100%; margin-top: 10px; }
+.booking .outlineButton { width: 100%; margin-top: 10px; border-radius: 10px; }
 .feedback { margin-top: 12px; font-size: 12px; line-height: 1.7; color: #9a3425; }
 @media (max-width: 1100px) { .bodyGrid { grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; } .titleActions { flex-wrap: wrap; justify-content: end; } }
 @media (max-width: 800px) { .bodyGrid { display: flex; flex-direction: column; } .mainContent { width: 100%; } .booking { position: static; width: 100%; order: -1; } .titleRow { display: block; } .titleActions { justify-content: start; margin-top: 16px; } .gallery { height: 320px; } .priceHeader strong { font-size: 30px; } .departureGrid { grid-template-columns: repeat(4, 1fr); } }

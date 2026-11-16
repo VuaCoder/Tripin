@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppSelector } from '@/store/hooks';
 import { GoogleLoginButton } from '@/features/auth/components/GoogleLoginButton';
 import { AuthBackground } from '@/features/auth/components/AuthBackground';
+import { BackButton } from '@/features/auth/components/BackButton';
 import { useLoginForm } from '@/features/auth/hooks/useLoginForm';
 import { useRegisterForm } from '@/features/auth/hooks/useRegisterForm';
 import { authNextPath } from '@/features/auth/utils/safeNextPath';
@@ -34,6 +35,7 @@ export function PartnerAccountPage({ mode = 'login', initialEmail = '', register
   };
   return <main className={`${styles.auth} bg-desk-travel`}>
     <AuthBackground />
+    <BackButton onClick={() => router.push('/home')} />
     <section className={styles.authCard} aria-labelledby="partner-account-title">
       <aside className={styles.authAside}>
         <Link href="/" aria-label="Về Tripri"><img src="/images/tripri-logo.png" alt="Tripri" /></Link>
@@ -43,7 +45,7 @@ export function PartnerAccountPage({ mode = 'login', initialEmail = '', register
       <div className={styles.authBody}>
         <div className={styles.eyebrow}>Tripri Partner</div>
         <h1 id="partner-account-title">{isRegister ? 'Tạo tài khoản của bạn' : 'Đăng nhập để tiếp tục'}</h1>
-        <p>{isRegister ? 'Bắt đầu với tài khoản cá nhân. Bạn sẽ chọn doanh nghiệp sau khi xác minh email.' : 'Dùng tài khoản Tripri của bạn, kể cả khi chưa tham gia doanh nghiệp nào.'}</p>
+        {isRegister && <p>Bắt đầu với tài khoản cá nhân. Bạn sẽ chọn doanh nghiệp sau khi xác minh email.</p>}
         {registered && <p className={styles.notice}>Tài khoản đã được tạo. Đăng nhập để tiếp tục xác minh email nếu cần.</p>}
         <form onSubmit={isRegister ? registration.handleSubmit : login.handleSubmit} noValidate>
           <fieldset disabled={busy} className={styles.authFields}>
@@ -57,10 +59,10 @@ export function PartnerAccountPage({ mode = 'login', initialEmail = '', register
           {error && <p role="alert" className={styles.error}>{error}</p>}
           <button type="submit" className={`${styles.primary} ${styles.full}`} style={isRegister ? { marginTop: 24 } : undefined} disabled={busy}>{busy ? 'Đang xử lý…' : isRegister ? 'Tạo tài khoản' : 'Đăng nhập'}</button>
         </form>
-        <div className={styles.divider}>hoặc</div>
-        <GoogleLoginButton onSuccess={verified} disabled={busy} rememberMe={Boolean(login.formData.rememberMe)} label="Tiếp tục với Google" />
+        <div className="mt-4">
+          <GoogleLoginButton onSuccess={verified} disabled={busy} rememberMe={Boolean(login.formData.rememberMe)} label="Tiếp tục với Google" />
+        </div>
         <p className={styles.authSwitch}>{isRegister ? 'Đã có tài khoản? ' : 'Chưa có tài khoản? '}<Link href={`${isRegister ? '/agency/login' : '/agency/register'}${params.get('next') ? '?next=' + encodeURIComponent(next) : ''}`}>{isRegister ? 'Đăng nhập' : 'Tạo tài khoản'}</Link></p>
-        <p className={styles.authSwitch}><Link href="/">Về Tripri</Link></p>
       </div>
     </section>
   </main>;
