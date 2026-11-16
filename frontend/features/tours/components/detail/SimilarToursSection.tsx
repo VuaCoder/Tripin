@@ -56,9 +56,6 @@ export function SimilarToursSection({ currentTourId, destination, categoryId }: 
           <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
             Có thể bạn sẽ thích
           </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Các hành trình tương tự khám phá {destination || 'Việt Nam'} được nhiều du khách quan tâm.
-          </p>
         </div>
       </div>
 
