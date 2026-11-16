@@ -135,6 +135,11 @@ describe('Chat with AI Integration', () => {
     expect(screen.getByText('Hướng Dẫn Viên Tuấn')).toBeTruthy();
   });
 
+  it('sends the AI thread back to the inbox it was opened from', () => {
+    render(<AiThread basePath="/agency/conversations" />);
+    expect(screen.getByLabelText('Về danh sách').getAttribute('href')).toBe('/agency/conversations');
+  });
+
   it('renders AiThread when id="ai" with welcome banner and quick prompt chips', () => {
     render(<ConversationPage id="ai" />);
     expect(screen.getByText('Xin chào! Tôi có thể giúp gì cho chuyến đi của bạn?')).toBeTruthy();

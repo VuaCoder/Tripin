@@ -27,7 +27,7 @@ const QUICK_PROMPTS = [
   'Kinh nghiệm du lịch Phú Quốc tự túc tiết kiệm',
 ];
 
-export function AiThread() {
+export function AiThread({ basePath = '/conversations' }: { basePath?: string }) {
   const chat = useChat();
   const now = useChatClock();
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -353,7 +353,7 @@ export function AiThread() {
       <header className="flex items-center justify-between gap-2 border-b border-slate-200/90 px-4 py-3 sm:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
           <Link
-            href="/conversations"
+            href={basePath}
             aria-label="Về danh sách"
             className="shrink-0 rounded-lg p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 md:hidden"
           >

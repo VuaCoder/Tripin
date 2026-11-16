@@ -148,7 +148,6 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
       item.counterpart?.fullName?.toLowerCase().includes(searchQuery.trim().toLowerCase()),
   );
 
-  const isAgency = user?.role === 'AGENCY';
   // When the page is a landing inbox (no :id) and autoOpenNewest is set, treat the
   // most recent conversation as active so the thread opens immediately on the right.
   const activeId = id ?? (autoOpenNewest ? data?.data?.[0]?.id : undefined);
@@ -214,7 +213,7 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
             <nav className="flex-1 overflow-y-auto ant-scrollbar">
               {matchesAi && (
                 <Link
-                  href="/conversations/ai"
+                  href={`${basePath}/ai`}
                   onClick={() => setAiEntryVersion((value) => value + 1)}
                   aria-current={id === 'ai' ? 'page' : undefined}
                   className={`block border-b border-slate-100 p-3.5 transition-colors hover:bg-slate-100/70 ${
@@ -346,7 +345,7 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
 
         {/* Khung nội dung bên phải */}
         {id === 'ai' ? (
-          <AiThread key={aiEntryVersion} />
+          <AiThread key={aiEntryVersion} basePath={basePath} />
         ) : activeId ? (
           <Thread key={activeId} id={activeId} agency={agency} basePath={basePath} />
         ) : (

@@ -163,6 +163,15 @@ describe('ConversationPage', () => {
     expect(await screen.findByText('Thỏa thuận đoàn c1 agency')).toBeTruthy();
   });
 
+  // A workplace owner keeps the traveler role, so the pinned AI entry must follow the route too.
+  it('keeps the pinned AI entry in the inbox being browsed', async () => {
+    const traveler = render(<ConversationPage />);
+    expect(screen.getByText('Trợ lý AI Tripri').closest('a')?.getAttribute('href')).toBe('/conversations/ai');
+    traveler.unmount();
+    render(<AgencyConversationPage />);
+    expect((await screen.findByText('Trợ lý AI Tripri')).closest('a')?.getAttribute('href')).toBe('/agency/conversations/ai');
+  });
+
   it('does not display complaints tab in inbox and renders counterpart avatar', () => {
     render(<ConversationPage />);
     expect(screen.queryByText('Phiếu khiếu nại')).toBeNull();
