@@ -8,7 +8,7 @@ export const validateCredential = (value: string): ValidationResult => {
     return { isValid: false, error: 'Vui lòng nhập email hoặc số điện thoại.' };
   }
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/;
+  const phoneRegex = /^(?:0|84)[35789][0-9]{8}$/;
 
   if (!emailRegex.test(value.trim()) && !phoneRegex.test(value.trim())) {
     return {
@@ -51,9 +51,9 @@ export const validatePhone = (phone: string): ValidationResult => {
   if (!phone || !phone.trim()) {
     return { isValid: false, error: 'Vui lòng nhập số điện thoại.' };
   }
-  const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/;
+  const phoneRegex = /^(?:0|84)[35789][0-9]{8}$/;
   if (!phoneRegex.test(phone.trim())) {
-    return { isValid: false, error: 'Số điện thoại 10 chữ số không hợp lệ.' };
+    return { isValid: false, error: 'Nhập số điện thoại 10 chữ số hoặc bắt đầu bằng 84.' };
   }
   return { isValid: true };
 };

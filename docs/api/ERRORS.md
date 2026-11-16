@@ -38,6 +38,7 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `ACCOUNT_NOT_VERIFIED` | 403 | The email has not been verified yet (a new code is sent) |
 | `ACCOUNT_NOT_FOUND` | 401 | The authenticated account no longer exists or is banned |
 | `EMAIL_ALREADY_REGISTERED` | 409 | The email belongs to an active account |
+| `PHONE_ALREADY_REGISTERED` | 409 | The phone number belongs to another account, including equivalent Vietnamese local/international formats |
 | `AGENCY_PORTAL_REQUIRED` | 403 | Agency accounts must use the dedicated Agency authentication portal |
 | `AGENCY_ONBOARDING_REQUIRED` | 403 | Agency account is missing the required onboarding profile |
 | `OTP_INVALID` | 400 | Wrong, used, or unknown one-time code |

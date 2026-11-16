@@ -69,7 +69,7 @@ describe('VoucherCard', () => {
     expect(screen.getByText('Khuyến mãi mùa hè 2026')).toBeDefined();
     expect(screen.getByText('DISCOUNT20')).toBeDefined();
     expect(screen.getByText(/Đơn tối thiểu 1.000.000 ₫/)).toBeDefined();
-    expect(screen.getByText('Dùng ngay')).toBeDefined();
+    expect(screen.queryByText('Dùng ngay')).toBeNull();
   });
 
   it('displays urgent warning when voucher expires within 3 hours', () => {
@@ -115,7 +115,7 @@ const samplePremiumVoucher = (overrides: Partial<PremiumVoucher> = {}): PremiumV
 });
 
 describe('PremiumVoucherCard', () => {
-  it('uses the same ticket layout as normal vouchers, with a gold theme and correct tour link', () => {
+  it('uses the same ticket layout as normal vouchers, with a gold background and no use button', () => {
     const { container } = render(<PremiumVoucherCard voucher={samplePremiumVoucher()} />);
     expect(screen.getByText('10%')).toBeDefined();
     expect(screen.getByText('Premium')).toBeDefined();
@@ -124,7 +124,8 @@ describe('PremiumVoucherCard', () => {
     expect(screen.getByText(/HSD:/)).toBeDefined();
     expect(container.firstElementChild?.className).toContain('sm:flex-row');
     expect(container.firstElementChild?.className).toContain('border-amber-300');
-    expect(screen.getByRole('link', { name: 'Dùng ngay' }).getAttribute('href')).toBe('/tours/tour-1');
+    expect(container.firstElementChild?.className).toContain('bg-amber-50');
+    expect(screen.queryByRole('link', { name: 'Dùng ngay' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Sao chép/ })).toBeNull();
     const details = screen.getByRole('button', { name: 'Điều kiện' });
     expect(details.getAttribute('aria-expanded')).toBe('false');

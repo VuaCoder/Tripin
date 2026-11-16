@@ -99,7 +99,7 @@ export function ConfirmDialog({
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs transition-opacity animate-fadeIn"
+        className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm transition-opacity animate-fadeIn"
         onClick={() => {
           if (closeOnBackdrop && !isLoading) onClose();
         }}

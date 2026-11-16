@@ -28,7 +28,7 @@ export interface AgencyBooking {
   agencyAmount: number;
   isPaid: boolean;
   traveler?: { fullName: string; phone: string };
-  passengers?: (BookingPassenger | { fullName: string; birthYear?: number; ageGroup: 'ADULT' | 'CHILD' | 'INFANT'; phone?: string; pickupPoint?: string; specialNotes?: string })[];
+  passengers?: (BookingPassenger | { passengerId?: string; fullName: string; birthYear?: number; ageGroup: 'ADULT' | 'CHILD' | 'INFANT'; phone?: string; pickupPoint?: string; specialNotes?: string })[];
   notes?: string;
   createdAt: string;
   confirmedAt?: string;

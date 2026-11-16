@@ -51,6 +51,20 @@ describe('custom-tours (integration)', () => {
     expect((await send(traveler.token, { sourceTourId: tourId, participants: 3, guestCounts: { adults: 0, children: 3, infants: 0 } })).status).toBe(400);
   });
 
+  it('retries a dated group request with age counts after jsonb reorders its keys', async () => {
+    const { traveler, tourId } = await setup();
+    const payload = { sourceTourId: tourId, participants: 26, guestCounts: { adults: 18, children: 8, infants: 0 }, startDate: new Date(Date.now() + 21 * 86_400_000).toISOString(), clientRequestId: 'group-age-count-retry' };
+    const first = await send(traveler.token, payload);
+    const second = await send(traveler.token, payload);
+    expect(first.status).toBe(201);
+    expect(second.status, JSON.stringify(second.body)).toBe(201);
+    expect(second.body.data.id).toBe(first.body.data.id);
+    expect(await prisma.customTourRequest.count()).toBe(1);
+    const changed = await send(traveler.token, { ...payload, guestCounts: { adults: 19, children: 7, infants: 0 } });
+    expect(changed.status).toBe(409);
+    expect(changed.body.error.code).toBe('IDEMPOTENCY_KEY_REUSED');
+  });
+
   it('keeps the start date the group asked for and opens the clone on it', async () => {
     const { agency, traveler, tourId } = await setup();
     const startDate = new Date(Date.now() + 21 * 86_400_000);

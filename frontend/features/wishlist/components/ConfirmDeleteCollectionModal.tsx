@@ -27,8 +27,13 @@ export function ConfirmDeleteCollectionModal({
         onConfirm();
         onClose();
       }}
-      title="Xóa Danh sách yêu thích này?"
-      description={`Danh sách "${collectionName}" cũng sẽ bị xóa vĩnh viễn đối với tất cả những người mà bạn đã chia sẻ danh sách này.`}
+      title="Xóa danh sách yêu thích này?"
+      description={
+        <>
+          Danh sách <strong className="font-bold text-slate-900 break-words">{collectionName}</strong> sẽ bị xóa.
+          {' '}Bạn có thể tạo danh sách mới và lưu lại các tour bất cứ lúc nào.
+        </>
+      }
       cancelText="Hủy"
       confirmText="Xóa"
       variant="danger"

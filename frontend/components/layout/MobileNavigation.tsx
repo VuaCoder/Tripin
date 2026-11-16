@@ -182,7 +182,7 @@ export function MobileNavigation({
                         >
                           workspace_premium
                         </span>
-                        <span className="flex-1">{premium.premium?.active ? <PremiumStatusText status={premium.premium} /> : <span className="font-bold">Premium</span>}</span>
+                        <span className="flex-1 font-bold whitespace-nowrap">Premium</span>
                         <span className="material-symbols-outlined text-[14px] text-amber-500">auto_awesome</span>
                       </button>
                     )}

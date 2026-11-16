@@ -20,12 +20,13 @@ describe('ConfirmDeleteCollectionModal', () => {
       />,
     );
 
-    expect(screen.getByText('Xóa Danh sách yêu thích này?')).toBeDefined();
-    expect(
-      screen.getByText(
-        'Danh sách "HUẾ" cũng sẽ bị xóa vĩnh viễn đối với tất cả những người mà bạn đã chia sẻ danh sách này.',
-      ),
-    ).toBeDefined();
+    expect(screen.getByText('Xóa danh sách yêu thích này?')).toBeDefined();
+    const name = screen.getByText('HUẾ');
+    expect(name.tagName).toBe('STRONG');
+    expect(name.parentElement?.textContent).toBe(
+      'Danh sách HUẾ sẽ bị xóa. Bạn có thể tạo danh sách mới và lưu lại các tour bất cứ lúc nào.',
+    );
+    expect(screen.queryByText(/đã chia sẻ/)).toBeNull();
 
     const cancelButton = screen.getByRole('button', { name: 'Hủy' });
     expect(cancelButton).toBeDefined();
@@ -53,11 +54,7 @@ describe('ConfirmDeleteCollectionModal', () => {
       />,
     );
 
-    expect(screen.getByText('Xóa Danh sách yêu thích này?')).toBeDefined();
-    expect(
-      screen.getByText(
-        'Danh sách "ĐÀ NẴNG" cũng sẽ bị xóa vĩnh viễn đối với tất cả những người mà bạn đã chia sẻ danh sách này.',
-      ),
-    ).toBeDefined();
+    expect(screen.getByText('Xóa danh sách yêu thích này?')).toBeDefined();
+    expect(screen.getByText('ĐÀ NẴNG').tagName).toBe('STRONG');
   });
 });

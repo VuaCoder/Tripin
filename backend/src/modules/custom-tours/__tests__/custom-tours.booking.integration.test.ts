@@ -159,7 +159,9 @@ describe('custom-tours booking (integration)', () => {
     const { traveler, id } = await acceptedRequest();
 
     const [first, second] = await Promise.all([book(traveler.token, id), book(traveler.token, id)]);
-    expect([first.status, second.status].every((status) => status === 200 || status === 201)).toBe(true);
+    for (const response of [first, second]) {
+      expect([200, 201], JSON.stringify(response.body)).toContain(response.status);
+    }
     expect(first.body.data.id).toBe(second.body.data.id);
     expect(await prisma.booking.count({ where: { customTourRequestId: id } })).toBe(1);
     expect(await prisma.bookingPassenger.count({ where: { bookingId: first.body.data.id } })).toBe(3);
