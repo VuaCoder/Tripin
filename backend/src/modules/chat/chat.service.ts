@@ -131,15 +131,17 @@ export class ChatService {
   async listConversations(actor: ChatActor, page: { page: number; limit: number }): Promise<Page<ConversationDto>> {
     let side: ChatSide;
     let where: Prisma.ConversationWhereInput;
-    if (actor.role === 'TRAVELER' || actor.role === 'SUPER_ADMIN') {
+    if (actor.agencyId) {
+      // The tenant wins over the global role: an agency's owner keeps the personal TRAVELER role.
+      side = 'guide';
+      where = { agencyId: actor.agencyId };
+    } else if (actor.role === 'TRAVELER' || actor.role === 'SUPER_ADMIN') {
       side = 'traveler';
       where = { travelerId: actor.userId };
     } else if (actor.role === 'AGENCY') {
       side = 'guide';
-      // The tenant route always passes an agency; a direct /chat visit keeps the old personal threads.
-      where = actor.agencyId
-        ? { agencyId: actor.agencyId }
-        : { guideId: actor.userId, agencyId: null };
+      // A direct /chat visit keeps the old personal threads.
+      where = { guideId: actor.userId, agencyId: null };
     } else if (actor.role === 'TOUR_GUIDE') {
       side = 'guide';
       where = { guideId: actor.userId, agencyId: null };
