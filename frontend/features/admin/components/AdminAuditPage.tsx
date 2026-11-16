@@ -10,7 +10,8 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { baseApi } from '@/store/api/baseApi';
-import { Button, FormField, Input, Modal, Pagination } from '@/components/ui';
+import { Button, FormField, Modal, Pagination } from '@/components/ui';
+import { SmartDatePicker } from '@/components/ui/SmartDatePicker';
 import { FormSelect } from '@/components/ui/FormSelect';
 import { EmptyState } from '@/components/shared';
 import { formatSmartDateTime } from '@/lib/travel-format';
@@ -519,24 +520,24 @@ export function AdminAuditPage() {
       {/* Toolbar filter */}
       <div className={`${toolbar} items-end sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.1fr_1.3fr_1.1fr_auto] xl:grid-cols-[1fr_1fr_1fr_1.4fr_1fr_auto]`}>
         <FormField label="Từ ngày" htmlFor="audit-from">
-          <Input
+          <SmartDatePicker
             id="audit-from"
-            type="date"
             value={from}
-            onChange={(e) => {
+            max={to || undefined}
+            onChange={(v) => {
               setPage(1);
-              setFrom(e.target.value);
+              setFrom(v);
             }}
           />
         </FormField>
         <FormField label="Đến ngày" htmlFor="audit-to">
-          <Input
+          <SmartDatePicker
             id="audit-to"
-            type="date"
             value={to}
-            onChange={(e) => {
+            min={from || undefined}
+            onChange={(v) => {
               setPage(1);
-              setTo(e.target.value);
+              setTo(v);
             }}
           />
         </FormField>
@@ -600,7 +601,7 @@ export function AdminAuditPage() {
               setRole('all');
               setSortOrder('desc');
             }}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-2 whitespace-nowrap sm:w-auto"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 sm:w-auto"
           >
             <RotateCcw size={15} />
             Đặt lại
@@ -613,11 +614,6 @@ export function AdminAuditPage() {
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
           <h2 className="text-sm font-bold text-slate-900">
             Hoạt động gần đây
-            {query.data?.items && (
-              <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal text-slate-600">
-                {query.data.items.length} bản ghi trang này
-              </span>
-            )}
           </h2>
         </div>
 
