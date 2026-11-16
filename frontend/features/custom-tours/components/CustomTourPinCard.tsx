@@ -3,16 +3,12 @@
 import { ChevronRight, Handshake } from 'lucide-react';
 import type { RefObject } from 'react';
 import { cn } from '@/components/ui';
-import { STATUS_LABELS, guestSummary } from '../labels';
+import { STATUS_LABELS, dayLabel, departureLabel, guestSummary } from '../labels';
 import type { CustomTourRequestDto } from '../types';
 
-const dayLabel = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
 /** The request's planned day: the agreed departure once offered, else the date the traveler asked for. */
-export const requestDate = (request: Pick<CustomTourRequestDto, 'offer' | 'startDate'>): string | undefined => {
-  const iso = request.offer?.departureDate ?? request.startDate;
-  return iso ? dayLabel.format(new Date(iso)) : undefined;
-};
+export const requestDate = (request: Pick<CustomTourRequestDto, 'offer' | 'startDate'>): string | undefined =>
+  request.offer?.departureDate ? departureLabel(request.offer.departureDate) : dayLabel(request.startDate);
 
 export interface CustomTourPinCardProps {
   requests: CustomTourRequestDto[];
