@@ -18,7 +18,6 @@ import {
   Search,
   X,
   Command,
-  Home,
   Bell,
   MessageSquare,
 } from 'lucide-react';
@@ -364,15 +363,7 @@ export function AdminSidebar({ initialExpanded = true }: AdminSidebarProps) {
               aria-label="Menu cá nhân"
               className={styles.profileMenu}
             >
-              <Link
-                href="/home"
-                role="menuitem"
-                className={styles.profileMenuItem}
-                onClick={() => setShowProfileMenu(false)}
-              >
-                <Home size={16} />
-                <span>Trang chủ Tripri</span>
-              </Link>
+              
               <button
                 type="button"
                 role="menuitem"

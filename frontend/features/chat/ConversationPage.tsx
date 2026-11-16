@@ -5,8 +5,6 @@ import { useSearchParams } from 'next/navigation';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
   MessageSquare,
   Send,
   X,
@@ -61,12 +59,12 @@ const denied = (error: unknown) =>
   [403, 404].includes((error as { status?: number })?.status ?? 0) ||
   ['FORBIDDEN', 'NOT_FOUND'].includes((error as { code?: string })?.code ?? '');
 
-export function ConversationPage({ id, autoOpenNewest }: { id?: string; autoOpenNewest?: boolean }) {
+export function ConversationPage({ id, autoOpenNewest, basePath = '/conversations' }: { id?: string; autoOpenNewest?: boolean; basePath?: string }) {
   const user = useAppSelector(selectUser);
   if (!user || !user.permissions.includes('chat:use')) {
     return <p role="alert">Bạn không có quyền sử dụng tin nhắn.</p>;
   }
-  return <ChatWorkspace key={user.id} id={id} autoOpenNewest={autoOpenNewest} />;
+  return <ChatWorkspace key={user.id} id={id} autoOpenNewest={autoOpenNewest} basePath={basePath} />;
 }
 
 /** The agency's shared inbox: every member with chat:use sees the same threads under the agency shell. */
@@ -85,9 +83,8 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
   const paramTab = searchParams?.get('tab') ?? null;
   const paramTicketId = searchParams?.get('ticketId') ?? null;
 
-  const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const { data, isLoading, error, refetch, isFetching } = useConversationsQuery({ page, agency }, {
+  const { data, isLoading, error, refetch } = useConversationsQuery({ page: 1, agency }, {
     refetchOnFocus: true,
     refetchOnReconnect: true,
     pollingInterval: 30_000,
@@ -142,15 +139,19 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
         'bot'.includes(searchQuery.toLowerCase())),
   );
 
-  const filteredItems = (data?.data ?? []).filter(
+  // Unavailable (deleted/banned) counterparts return a null counterpart. Messenger-style UX: those
+  // threads must stay visible in the inbox (shown as "Tài khoản không còn khả dụng") and, when opened,
+  // keep the conversation on screen with the input locked — never silently dropped from the list.
+  const activeConversations = data?.data ?? [];
+  const filteredItems = activeConversations.filter(
     (item) =>
       !searchQuery.trim() ||
-      item.counterpart?.fullName?.toLowerCase().includes(searchQuery.trim().toLowerCase()),
+      (item.counterpart?.fullName ?? '').toLowerCase().includes(searchQuery.trim().toLowerCase()),
   );
 
   // When the page is a landing inbox (no :id) and autoOpenNewest is set, treat the
-  // most recent conversation as active so the thread opens immediately on the right.
-  const activeId = id ?? (autoOpenNewest ? data?.data?.[0]?.id : undefined);
+  // most recent available conversation as active so the thread opens immediately on the right.
+  const activeId = id ?? (autoOpenNewest ? activeConversations[0]?.id : undefined);
 
   return (
     // The agency shell has no page padding of its own (traveler chat sits in AppShell's Container).
@@ -171,7 +172,7 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
         </div>
       )}
 
-      <div className="grid h-[calc(100dvh-8.5rem)] min-h-[460px] overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[360px_minmax(0,1fr)]">
+      <div className="grid h-[calc(100dvh-6rem)] min-h-[460px] overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[360px_minmax(0,1fr)]">
         {/* Sidebar danh sách */}
         <aside
           aria-label="Danh sách hộp thư"
@@ -205,7 +206,7 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
               <p className="hidden md:block">Chưa có cuộc trò chuyện nào.</p>
               {!id && (
                 <div className="h-full md:hidden">
-                  <ConversationWelcome audience={audience} />
+                  <ConversationWelcome audience={audience} basePath={basePath} />
                 </div>
               )}
             </div>
@@ -315,32 +316,6 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
               })}
             </nav>
           )}
-
-          {Boolean(data && data.meta.totalPages > 1) && (
-                <div className="flex items-center justify-between border-t border-slate-200/80 bg-white p-3 text-sm">
-                  <button
-                    type="button"
-                    aria-label="Trang trước"
-                    disabled={page <= 1 || isFetching}
-                    onClick={() => setPage((value) => value - 1)}
-                    className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
-                  >
-                    <ChevronLeft size={16} />
-                    <span className="sr-only">Trước</span>
-                  </button>
-                  <span className="text-xs font-semibold text-slate-600">Trang {page}</span>
-                  <button
-                    type="button"
-                    aria-label="Trang sau"
-                    disabled={!data || page >= data.meta.totalPages || isFetching}
-                    onClick={() => setPage((value) => value + 1)}
-                    className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
-                  >
-                    <ChevronRight size={16} />
-                    <span className="sr-only">Sau</span>
-                  </button>
-                </div>
-              )}
         </aside>
 
         {/* Khung nội dung bên phải */}
@@ -353,9 +328,10 @@ function ChatWorkspace({ id, autoOpenNewest, agency = false, basePath = '/conver
             {!isLoading && !error && (
               <ConversationWelcome
                 audience={audience}
+                basePath={basePath}
                 recent={
-                  data?.data[0]
-                    ? { id: data.data[0].id, name: data.data[0].counterpart?.fullName || 'người đồng hành' }
+                  activeConversations[0]
+                    ? { id: activeConversations[0].id, name: activeConversations[0].counterpart?.fullName || 'người đồng hành' }
                     : undefined
                 }
               />
@@ -413,6 +389,10 @@ function Thread({ id, agency = false, basePath = '/conversations' }: { id: strin
   const detail = useConversationQuery({ id, agency }, { pollingInterval: 30_000 });
   const [sendRest] = useSendMessageMutation();
   const [markRead] = useReadConversationMutation();
+  // Available counterpart has a name; a null counterpart means the opposite account was deleted or banned.
+  const counterpart = detail.data?.counterpart ?? null;
+  const unavailable = Boolean(detail.data && !counterpart);
+  const conversationTitle = counterpart?.fullName ?? (unavailable ? 'Tài khoản không còn khả dụng' : 'Cuộc trò chuyện');
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesRef = useRef<Message[]>([]);
   // Only REST-confirmed history is a safe reconnect boundary. A live event
@@ -865,13 +845,18 @@ function Thread({ id, agency = false, basePath = '/conversations' }: { id: strin
               className="size-full object-cover"
             />
           ) : (
-            <span>{(detail.data?.counterpart?.fullName || 'U').charAt(0).toUpperCase()}</span>
+            <span>{conversationTitle.charAt(0).toUpperCase()}</span>
           )}
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="truncate font-bold text-slate-900 text-sm sm:text-base leading-tight">
-            {detail.data?.counterpart?.fullName || 'Cuộc trò chuyện'}
+            {conversationTitle}
           </h2>
+          {unavailable && (
+            <p className="flex items-center gap-1 text-[11px] font-semibold text-rose-600">
+              <ShieldAlert size={12} /> Tài khoản này đã bị khóa
+            </p>
+          )}
           {isLocallyBlocked && (
             <p className="flex items-center gap-1 text-[11px] font-semibold text-rose-600">
               <ShieldAlert size={12} /> Đã chặn tin nhắn
@@ -1028,7 +1013,13 @@ function Thread({ id, agency = false, basePath = '/conversations' }: { id: strin
           </button>
         )}
       </div>
-      {isLocallyBlocked ? (
+      {unavailable ? (
+        <div className="border-t border-slate-200/90 bg-slate-50 p-4 text-center">
+          <p className="flex items-center justify-center gap-1.5 text-sm font-medium text-rose-600">
+            <ShieldAlert size={15} /> Tài khoản này đã bị khóa. Bạn không thể gửi tin nhắn cho tài khoản này.
+          </p>
+        </div>
+      ) : isLocallyBlocked ? (
         <div className="border-t border-slate-200/90 bg-slate-50 p-4 text-center">
           <p className="text-sm font-medium text-slate-600">
             Bạn đã chặn cuộc trò chuyện này. Bạn không thể gửi hoặc nhận tin nhắn mới.

@@ -92,12 +92,41 @@ export function AdminPoliciesPage() {
   if (!ready) return null;
   return <AdminFrame title="Chính sách hệ thống" description="Chính sách có lịch sử phiên bản và thời điểm có hiệu lực. Nội dung công khai; chỉ Super Admin được cập nhật." error={denied || query.error} loading={!query.currentData} loadingSkeleton={<AdminPoliciesSkeleton />} refreshing={query.isFetching && !!query.currentData} onRefresh={() => query.refetch()}>
     <Feedback error={!editing ? error : null} success={success} />
-    <div className={`${toolbar} sm:grid-cols-[2fr_1fr_auto]`}><FormField label="Tìm chính sách" htmlFor="policy-search"><Input id="policy-search" value={search} placeholder="Tên hoặc nội dung chính sách..." onChange={(e) => setSearch(e.target.value)} /></FormField><FormField label="Loại chính sách" htmlFor="policy-filter"><FormSelect id="policy-filter" className={control} value={policyFilter} onChange={(e) => setPolicyFilter(e.target.value)}><option value="all">Tất cả chính sách</option>{POLICY_KEYS.map((key) => <option key={key} value={key}>{labels[key]}</option>)}</FormSelect></FormField><Button variant="ghost" onClick={() => { setSearch(''); setPolicyFilter('all'); }}>Đặt lại</Button></div>
+    <div className={`${toolbar} sm:grid-cols-[2fr_1fr_auto]`}><FormField label="Tìm chính sách" htmlFor="policy-search"><Input id="policy-search" value={search} placeholder="Tên hoặc nội dung chính sách..." onChange={(e) => setSearch(e.target.value)} /></FormField><FormField label="Loại chính sách" htmlFor="policy-filter"><FormSelect id="policy-filter" className={control} value={policyFilter} onChange={(e) => setPolicyFilter(e.target.value)}><option value="all">Tất cả chính sách</option>{POLICY_KEYS.map((key) => <option key={key} value={key}>{labels[key]}</option>)}</FormSelect></FormField><Button variant="outline" onClick={() => { setSearch(''); setPolicyFilter('all'); }}>Đặt lại</Button></div>
     {!visibleKeys.length && <p className={`${panel} text-center text-sm text-slate-500`}>Không có chính sách phù hợp.</p>}
-    <div className="grid gap-4 md:grid-cols-2">{visibleKeys.map((key) => {
-      const p = query.currentData?.find((item) => item.key === key);
-      return p ? <section className={panel} key={key}><div className="flex items-start justify-between gap-3"><div><h2 className="font-bold">{labels[key]}</h2><p className="mt-1 text-xs text-slate-500">Cập nhật: {timestamp(p.updatedAt)}</p></div><div className="flex shrink-0 items-center gap-1"><Button variant="outline" size="sm" aria-label={`Sửa ${labels[key].toLowerCase()}`} title={`Sửa ${labels[key].toLowerCase()}`} disabled={isLoading || query.isFetching} onClick={() => { setError(null); setSuccess(null); setEditing(p); }} className="flex items-center gap-1.5"><Edit3 size={15} /><span>Sửa</span></Button><Button variant="ghost" size="sm" aria-label="Lịch sử / khôi phục" title="Lịch sử / khôi phục" onClick={() => setHistory(p)} className="flex items-center gap-1.5"><History size={15} /><span>Lịch sử</span></Button></div></div><h3 className="mt-4 font-semibold">{p.title}</h3><p className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap break-words text-sm text-slate-700">{p.content || 'Chưa có nội dung.'}</p><dl className="my-4 space-y-2">{Object.entries(p.params).map(([name, value]) => <div key={name} className="text-sm"><dt className="font-medium text-slate-600">{paramLabels[name] ?? 'Cách áp dụng'}</dt><dd className="mt-0.5 text-slate-900">{displayParam(name, value)}</dd></div>)}</dl></section> : <section key={key} className={panel}><h2>{labels[key]}</h2><p role="alert">Không tải được chính sách này. Hãy thử tải lại.</p></section>;
-    })}</div>
+    <section className={panel}>
+      <div className="mb-3">
+        <h2 className="text-sm font-bold text-slate-900">Danh sách chính sách</h2>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[820px] text-left text-sm">
+          <colgroup>
+            <col className="w-[28%]" />
+            <col className="w-[14%]" />
+            <col className="w-[40%]" />
+            <col className="w-[18%]" />
+          </colgroup>
+          <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wide text-slate-400">
+            <tr>
+              <th className="px-5 py-3 font-medium">Chính sách</th>
+              <th className="px-4 py-3 font-medium">Cập nhật</th>
+              <th className="px-4 py-3 font-medium">Cách áp dụng</th>
+              <th className="px-5 py-3 text-right font-medium">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">{visibleKeys.map((key) => {
+            const p = query.currentData?.find((item) => item.key === key);
+            if (!p) return <tr key={key} className="transition hover:bg-slate-50/60"><td colSpan={4} className="px-5 py-3.5"><p role="alert">Không tải được chính sách này. Hãy thử tải lại.</p></td></tr>;
+            return <tr key={key} className="transition hover:bg-slate-50/60">
+              <td className="px-5 py-3.5 align-middle"><div className="min-w-0 py-0.5"><h3 className="truncate font-semibold leading-5 text-slate-900">{labels[key]}</h3><p className="mt-0.5 truncate text-xs leading-5 text-slate-600">{p.title || 'Chưa có tiêu đề.'}</p></div></td>
+              <td className="whitespace-nowrap px-4 py-3.5 align-middle text-xs font-medium text-slate-600">{timestamp(p.updatedAt)}</td>
+              <td className="px-4 py-3.5 align-middle">{Object.entries(p.params).length ? <div className="space-y-1">{Object.entries(p.params).map(([name, value]) => <p key={name} className="text-xs leading-5"><span className="font-medium text-slate-600">{paramLabels[name] ?? 'Cách áp dụng'}:</span> <span className="text-slate-900">{displayParam(name, value)}</span></p>)}</div> : <span className="text-xs text-slate-400">Chưa thiết lập tham số.</span>}</td>
+              <td className="px-5 py-3.5 align-middle"><div className="flex min-h-11 flex-nowrap items-center justify-end gap-1.5 whitespace-nowrap"><Button variant="outline" size="sm" aria-label={`Sửa ${labels[key].toLowerCase()}`} title={`Sửa ${labels[key].toLowerCase()}`} disabled={isLoading || query.isFetching} onClick={() => { setError(null); setSuccess(null); setEditing(p); }} className="flex items-center gap-1.5"><Edit3 size={15} /><span>Sửa</span></Button><Button variant="ghost" size="sm" aria-label="Lịch sử / khôi phục" title="Lịch sử / khôi phục" onClick={() => setHistory(p)} className="flex items-center gap-1.5"><History size={15} /><span>Lịch sử</span></Button></div></td>
+            </tr>;
+          })}</tbody>
+        </table>
+      </div>
+    </section>
     {history && <PolicyHistory policy={history} onClose={() => setHistory(null)} />}
     {editing && <PolicyForm policy={editing} busy={isLoading} serverError={error} onReload={() => { setEditing(null); setError(null); void query.refetch(); }} onSave={(body) => void submit(body)} onClose={() => { if (!isLoading) setEditing(null); }} />}
   </AdminFrame>;

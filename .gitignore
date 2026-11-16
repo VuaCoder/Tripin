@@ -93,3 +93,6 @@ tripin-pr61-resolve/
 
 # LibreOffice lock files
 .~lock.*#
+
+# Curl session cookies (contains refresh_token)
+tripri_cookie.txt

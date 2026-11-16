@@ -9,11 +9,19 @@ function respond(data: unknown, meta?: unknown, status = 200) {
 }
 afterEach(() => vi.unstubAllGlobals());
 describe('chatApi', () => {
-  it('preserves inbox metadata and page parameters', async () => {
-    const fetch = respond([{ id: 'c1' }], { page: 2, totalPages: 3 }); const store = makeStore();
-    const result = await store.dispatch(chatApi.endpoints.conversations.initiate({ page: 2 }));
-    expect(result.data?.meta.totalPages).toBe(3);
-    expect(fetch.mock.calls[0][0].url).toContain('page=2&limit=20'); store.dispatch(chatApi.util.resetApiState());
+  it('loads every conversation across pages and merges them into one list', async () => {
+    const page = (ids: number[], metaTotal: number) => ({ success: true, data: ids.map((n) => ({ id: `c${n}` })), meta: { page: 1, totalPages: metaTotal } });
+    const json = (body: object) => ({ status: 200, headers: { 'Content-Type': 'application/json' } });
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(page(Array.from({ length: 100 }, (_, i) => i), 2)), json({})))
+      .mockResolvedValueOnce(new Response(JSON.stringify(page([100], 2)), json({})));
+    vi.stubGlobal('fetch', fetch);
+    const store = makeStore();
+    const result = await store.dispatch(chatApi.endpoints.conversations.initiate({ page: 1 }));
+    expect(result.data?.data.map((c) => c.id)).toEqual([...Array.from({ length: 100 }, (_, i) => `c${i}`), 'c100']);
+    expect(fetch.mock.calls[0][0].url).toContain('page=1&limit=100');
+    expect(fetch.mock.calls[1][0].url).toContain('page=2&limit=100');
+    store.dispatch(chatApi.util.resetApiState());
   });
   it('loads conversation detail and passes the history cursor', async () => {
     respond({ id: 'c1' }); const store = makeStore();
