@@ -29,8 +29,8 @@ vi.mock('@/store/hooks', () => ({
 
 const notificationsMock = { count: 0, connected: true, latest: '' };
 
-vi.mock('@/features/agency/notifications', () => ({
-  useAgencyNotifications: () => notificationsMock,
+vi.mock('@/features/notifications/api/notificationsApi', () => ({
+  useGetUnreadCountQuery: () => ({ data: notificationsMock.count }),
 }));
 
 vi.mock('@/features/auth', () => ({
