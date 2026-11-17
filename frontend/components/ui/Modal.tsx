@@ -11,6 +11,7 @@ export interface ModalProps {
   title: string;
   children: ReactNode;
   footer?: ReactNode;
+  footerScrollable?: boolean;
   className?: string;
   contentClassName?: string;
   closeOnBackdrop?: boolean;
@@ -22,6 +23,7 @@ export function Modal({
   title,
   children,
   footer,
+  footerScrollable = false,
   className,
   contentClassName,
   closeOnBackdrop = true,
@@ -132,10 +134,11 @@ export function Modal({
         {/* Scrollable Content Body with Custom Sleek Scrollbar */}
         <div className={cn('flex-1 overflow-y-auto ant-scrollbar p-5 sm:p-6', contentClassName)}>
           {children}
+          {footerScrollable && footer && <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-3.5 sm:px-6">{footer}</div>}
         </div>
 
         {/* Optional Pinned Footer */}
-        {footer && (
+        {footer && !footerScrollable && (
           <div className="shrink-0 border-t border-slate-100 bg-slate-50/70 px-5 py-3.5 sm:px-6">
             {footer}
           </div>
