@@ -19,7 +19,7 @@ export const registerBody = z.object({
   email,
   password: passwordSchema,
   fullName: z.string().trim().min(2).max(120),
-  phone: z.string().trim().max(30).optional(),
+  phone: phone.optional(),
   role: z.enum(customerRegistrationRoles).default(ROLES.TRAVELER),
 });
 

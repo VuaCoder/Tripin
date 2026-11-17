@@ -23,7 +23,7 @@ export const BOOKING_POLICY = {
 const S = BOOKING_STATUS;
 /**
  *  PENDING   -> CONFIRMED (verified payment) | CANCELLED (traveler, or payment window expired)
- *  CONFIRMED -> COMPLETED (after the tour ends, by the maintenance job) | CANCELLED (traveler, inside the cancellation window)
+ *  CONFIRMED -> COMPLETED (Agency report submission after the tour ends) | CANCELLED (traveler, inside the cancellation window)
  * Refund money movement is out of scope (DECISIONS D-15): a paid booking that gets cancelled is flagged `refundRequired`.
  */
 export const BOOKING_TRANSITIONS: TransitionMap<BookingStatus> = {

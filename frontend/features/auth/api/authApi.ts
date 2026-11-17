@@ -56,8 +56,9 @@ export const authApi = baseApi.injectEndpoints({
       invalidatesTags: ['Auth'],
     }),
     logout: build.mutation<void, void>({
-      query: () => ({ url: '/auth/logout', method: 'POST' }),
-      invalidatesTags: ['Auth', 'User'],
+      // Logout clears identity/cache explicitly. Invalidating here refetches
+      // protected subscriptions while the old screen is still mounted.
+      query: () => ({ url: '/auth/logout', method: 'POST', timeout: 5000 }),
     }),
   }),
 });

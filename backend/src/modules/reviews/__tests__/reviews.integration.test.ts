@@ -5,7 +5,9 @@ vi.mock('../../../integrations/cloudinary', async importOriginal => ({
   verifyImageUpload: vi.fn(async (_purpose, _owner, publicId) => ({ publicId, secureUrl: 'https://res.cloudinary.com/test/image/upload/trip.jpg' })),
 }));
 import { createApp } from '../../../app';
-import { bookingsService } from '../../bookings';
+import { bookingEvents } from '../../bookings/bookings.events';
+import { bookingsRepository } from '../../bookings/bookings.repository';
+import { toBookingFacts } from '../../bookings/bookings.mapper';
 import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase, loadTour } from '../../../test/integration';
 import { prisma } from '../../../config/database';
 import { reviewContentVersion } from '../reviews.revision';
@@ -27,10 +29,21 @@ async function bookTrip(traveler: { token: string }, tourId: string, departureId
   return res.body.data.id as string;
 }
 
-/** Pretends the traveler paid and the trip is over, then lets the real completion job run. */
+/** Completed fixtures for review/earnings. Agency close-out has its own integration suite. */
 async function completeTrips(bookingIds: string[]) {
-  await prisma.booking.updateMany({ where: { id: { in: bookingIds } }, data: { status: 'CONFIRMED', isPaid: true, confirmedAt: new Date(), endDate: new Date(Date.now() - 3_600_000), paymentExpiresAt: null } });
-  return bookingsService.completeFinishedBookings();
+  await prisma.$transaction(async tx => {
+    const bookings=await tx.booking.findMany({where:{id:{in:bookingIds}}});
+    const now=new Date(),endDate=new Date(now.getTime()-3_600_000);
+    for(const departureId of new Set(bookings.map(b=>b.departureId))){
+      const group=bookings.filter(b=>b.departureId===departureId),b=group[0]!;
+      // Completed review/earning fixtures must also satisfy the real database
+      // report guard. Keep close-out UI behaviour in its own integration suite.
+      const completion=await tx.tourCompletion.upsert({where:{departureId},create:{agencyId:b.agencyId,tourId:b.tourId,departureId,scheduledEndAt:endDate,snapshot:{},completedAt:now,revision:1},update:{completedAt:now,revision:{increment:1}}});
+      await tx.tourCompletionReport.create({data:{completionId:completion.id,revision:completion.revision,actorId:b.agencyId,submitted:true,payload:{summary:'Completed trip fixture for reviews and guide earnings.',attendance:group.map(row=>({bookingId:row.id,attendedCount:row.participants}))}}});
+    }
+    await tx.booking.updateMany({ where: { id: { in: bookingIds } }, data: { status: 'COMPLETED', isPaid: true, confirmedAt: now, completedAt:now, endDate, paymentExpiresAt: null } });
+  });
+  for (const id of bookingIds) await bookingEvents.emitCompleted(toBookingFacts((await bookingsRepository.findById(id))!));
 }
 
 async function setup() {
@@ -42,6 +55,24 @@ async function setup() {
 }
 
 describe('reviews (integration)', () => {
+  it('stores star-only and short-comment reviews and includes both in rating statistics', async () => {
+    const { agency, traveler, tourId, departureId } = await setup();
+    for (const comment of [undefined, 'Hay lắm']) {
+      const booking = await prisma.booking.create({ data: {
+        bookingCode: `STARS-${crypto.randomUUID()}`, travelerId: traveler.id, agencyId: agency.id, tourId, departureId,
+        participants: 1, attendedParticipants: 1, tourTitle: 'Tour test', departureDate: new Date(Date.now() - 3 * 86400000), endDate: new Date(Date.now() - 86400000),
+        contactName: 'Traveler', contactPhone: '0901234567', unitPrice: 100000, subtotal: 100000, totalAmount: 100000,
+        commissionBps: 1000, commissionAmount: 10000, agencyAmount: 90000, status: 'COMPLETED', isPaid: true, completedAt: new Date(),
+      } });
+      const result = await request(app).post('/api/v1/reviews').set(bearer(traveler.token)).send({ bookingId: booking.id, rating: 5, ...(comment === undefined ? {} : { comment }) });
+      expect(result.status).toBe(201);
+      expect(result.body.data.comment).toBe(comment ?? '');
+      expect((await prisma.review.findUniqueOrThrow({ where: { bookingId: booking.id } })).comment).toBe(comment ?? '');
+    }
+    const tour = await prisma.tour.findUniqueOrThrow({ where: { id: tourId } });
+    expect(tour.ratingCount).toBe(2);
+    expect(Number(tour.ratingAvg)).toBe(5);
+  });
   it('lets guests read profiles and visible reviews scoped to the guide who led the completed booking', async () => {
     const { agency, traveler, moderator, tourId, departureId } = await setup();
     const guide = await createUser('TOUR_GUIDE', 'public-guide@example.com');
@@ -118,7 +149,7 @@ describe('reviews (integration)', () => {
     await completeTrips([bookingId]);
     expect((await review(stranger.token, bookingId)).status).toBe(404);
     expect((await review(traveler.token, bookingId, 6)).status).toBe(400);
-    expect((await review(traveler.token, bookingId, 5, 'short')).status).toBe(400);
+    expect((await review(traveler.token, bookingId, 5, 'a'.repeat(2001))).status).toBe(400);
 
     const results = await Promise.all(Array.from({ length: 5 }, () => review(traveler.token, bookingId, 4)));
     expect(results.filter((r) => r.status === 201)).toHaveLength(1);
@@ -186,14 +217,14 @@ describe('earnings (integration)', () => {
     return { ...base, guide };
   }
 
-  it('completing a booking pays the accepted guide exactly once, however often or concurrently the job runs', async () => {
+  it('completing a booking pays the accepted guide exactly once, however often or concurrently completion is delivered', async () => {
     const { traveler, guide, tourId, departureId } = await guideSetup('ACCEPTED');
     const bookingId = await bookTrip(traveler, tourId, departureId);
     await prisma.booking.updateMany({ where: { id: bookingId }, data: { status: 'CONFIRMED', isPaid: true, endDate: new Date(Date.now() - 3_600_000), paymentExpiresAt: null } });
 
-    const runs = await Promise.all([1, 2, 3, 4].map(() => bookingsService.completeFinishedBookings()));
-    expect(runs.reduce((a, b) => a + b, 0)).toBe(1);
-    expect(await bookingsService.completeFinishedBookings()).toBe(0);
+    await completeTrips([bookingId]);
+    const facts = toBookingFacts((await bookingsRepository.findById(bookingId))!);
+    await Promise.all([1, 2, 3, 4].map(() => bookingEvents.emitCompleted(facts)));
 
     expect(await prisma.earning.count({ where: { bookingId } })).toBe(1);
     const mine = await request(app).get('/api/v1/earnings/me').set(bearer(guide.token));

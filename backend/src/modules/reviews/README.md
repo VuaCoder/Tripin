@@ -22,7 +22,7 @@ reviews; moderators can hide abusive ones. The average rating shown on tours is 
 | `index.ts` | Public API |
 
 ## API (base `/api/v1`)
-* `POST /reviews` (`review:create`) body `{ bookingId, rating 1..5, comment 10..2000 }` → 201 `MyReviewDto`. Tour and agency are taken from the booking.
+* `POST /reviews` (`review:create`) body `{ bookingId, rating 1..5, comment? }` → 201 `MyReviewDto`. Written feedback is optional, trimmed and limited to 2000 characters with no minimum. Missing feedback is stored as an empty string. Tour and agency are taken from the booking.
 * `GET /reviews/me?page&limit` (`review:create`) → my reviews, including hidden ones with `hiddenReason`.
 * `GET /reviews?tourId|agencyId&sort=newest|rating_desc|rating_asc&page&limit` (public) → `{ id, rating, comment, tourId, author{name,avatarUrl}, createdAt }`; exactly one of `tourId` / `agencyId` is required.
 * Errors: 404 unknown/foreign booking, 409 `BOOKING_NOT_COMPLETED`, `REVIEW_EXISTS`.

@@ -1,6 +1,5 @@
 import {
   REVIEW_COMMENT_MAX,
-  REVIEW_COMMENT_MIN,
   REVIEW_RATING_MAX,
   REVIEW_RATING_MIN,
   type ReviewableBooking,
@@ -21,7 +20,7 @@ export interface ReviewFormErrors {
 
 /**
  * Mirrors `createReviewBody` from the backend (`reviews.validation.ts`): a whole rating from 1 to 5 and a
- * trimmed comment of 10..2000 characters. The backend validates again — this only avoids a round trip.
+ * optional trimmed comment of up to 2000 characters. The backend validates again.
  */
 export function validateReviewForm(
   values: ReviewFormValues,
@@ -40,9 +39,7 @@ export function validateReviewForm(
   }
 
   const comment = values.comment.trim();
-  if (comment.length < REVIEW_COMMENT_MIN) {
-    errors.comment = `Vui lòng viết ít nhất ${REVIEW_COMMENT_MIN} ký tự.`;
-  } else if (comment.length > REVIEW_COMMENT_MAX) {
+  if (comment.length > REVIEW_COMMENT_MAX) {
     errors.comment = `Nội dung tối đa ${REVIEW_COMMENT_MAX} ký tự.`;
   }
 

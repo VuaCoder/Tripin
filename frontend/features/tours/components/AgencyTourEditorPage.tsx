@@ -332,7 +332,9 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
           : payload;
         await updateTour({ id, body }).unwrap();
         if (sendForReview && canSaveAndReview) { await finishReview(id); return true; }
-        agencyNotice.success('Đã lưu nội dung tour.');
+        agencyNotice.success(tour?.status === 'APPROVED'
+          ? 'Đã lưu và gửi thay đổi để kiểm duyệt lại. Tour tạm ẩn đến khi được duyệt.'
+          : 'Đã lưu nội dung tour.');
         router.push(destinationUrl || defaultExitUrl);
         return true;
       }
@@ -520,7 +522,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
           >
             <CheckCircle2 size={18} />
             <span>
-              {busy ? 'Đang lưu...' : mode === 'edit' ? (!isDirty ? 'Chưa có thay đổi' : 'Lưu thay đổi') : 'Lưu bản nháp'}
+              {busy ? 'Đang lưu...' : mode === 'edit' ? (!isDirty ? 'Chưa có thay đổi' : tour?.status === 'APPROVED' ? 'Lưu và gửi duyệt lại' : 'Lưu thay đổi') : 'Lưu bản nháp'}
             </span>
           </button>
         </div>
@@ -1185,7 +1187,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                 >
                   <CheckCircle2 size={18} />
                   <span>
-                    {busy ? 'Đang lưu...' : mode === 'edit' ? (!isDirty ? 'Chưa có thay đổi' : 'Lưu thay đổi') : 'Lưu bản nháp'}
+                    {busy ? 'Đang lưu...' : mode === 'edit' ? (!isDirty ? 'Chưa có thay đổi' : tour?.status === 'APPROVED' ? 'Lưu và gửi duyệt lại' : 'Lưu thay đổi') : 'Lưu bản nháp'}
                   </span>
                 </button>
                 {canSaveAndReview && <button type="button" onClick={() => handleOpenCompleteModal(true)} disabled={busy || categoriesLoading || locked || !!categoriesError}
@@ -1286,7 +1288,9 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
               <p className="text-sm text-slate-600">
                 {reviewOnSave ? 'Nội dung và lịch trình tour sẽ được lưu và gửi kiểm duyệt. Lịch khởi hành được xếp sau trong Calendar.' : mode === 'create'
                   ? 'Thông tin tour được lưu thành bản nháp. Bạn có thể gửi kiểm duyệt và xếp lịch khởi hành sau.'
-                  : 'Toàn bộ nội dung và thông tin vừa cập nhật sẽ được lưu vào hệ thống.'}
+                  : tour?.status === 'APPROVED'
+                    ? 'Khi lưu, tour sẽ được gửi kiểm duyệt lại và tạm ẩn khỏi trang công khai đến khi được duyệt.'
+                    : 'Toàn bộ nội dung và thông tin vừa cập nhật sẽ được lưu vào hệ thống.'}
               </p>
 
               <div className="flex items-center justify-end gap-3 pt-2">
@@ -1305,7 +1309,7 @@ export function AgencyTourEditorPage({ mode }: { mode: 'create' | 'edit' }) {
                   disabled={busy}
                   className="rounded-xl bg-[#087e8b] px-6 py-2.5 text-sm font-bold text-white hover:bg-[#00636e] transition-colors shadow-sm cursor-pointer disabled:opacity-50"
                 >
-                  {busy ? 'Đang lưu...' : reviewOnSave ? 'Xác nhận gửi duyệt' : mode === 'create' ? 'Xác nhận lưu bản nháp' : 'Xác nhận lưu'}
+                  {busy ? 'Đang lưu...' : reviewOnSave ? 'Xác nhận gửi duyệt' : mode === 'create' ? 'Xác nhận lưu bản nháp' : tour?.status === 'APPROVED' ? 'Xác nhận gửi duyệt lại' : 'Xác nhận lưu'}
                 </button>
               </div>
             </div>

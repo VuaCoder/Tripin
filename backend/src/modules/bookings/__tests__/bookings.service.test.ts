@@ -345,35 +345,14 @@ describe('cancelMine', () => {
 });
 
 describe('completeMine', () => {
-  it('marks a CONFIRMED booking as COMPLETED, notifies the traveler, and emits completed event', async () => {
-    const handler = vi.fn();
-    bookingEvents.onCompleted(handler);
-    const { service, db, notifications } = make([booking({ status: 'CONFIRMED', isPaid: true, endDate: new Date(Date.now() - DAY) })]);
-
-    const result = await service.completeMine('u1', 'b1');
-
-    expect(result.status).toBe('COMPLETED');
-    expect(db[0]?.status).toBe('COMPLETED');
-    expect(db[0]?.completedAt).toBeInstanceOf(Date);
-    expect(notifications.notify).toHaveBeenCalledWith('u1', expect.objectContaining({ type: 'BOOKING_COMPLETED' }));
-    expect(handler).toHaveBeenCalledWith(expect.objectContaining({ id: 'b1', status: 'COMPLETED' }));
-  });
-
-  it('refuses to complete a PENDING or CANCELLED booking', async () => {
-    const { service } = make([booking({ status: 'PENDING' })]);
-    await expect(service.completeMine('u1', 'b1')).rejects.toMatchObject({ code: 'INVALID_STATE_TRANSITION' });
-  });
-
-  it('does not complete or notify for a trip that has not ended', async () => {
-    const { service, repo, notifications } = make([booking({ status: 'CONFIRMED', isPaid: true })]);
-    await expect(service.completeMine('u1', 'b1')).rejects.toMatchObject({ code: 'TRIP_NOT_ENDED', statusCode: 409 });
+  it('requires Agency completion even for an ended booking', async () => {
+    const { service, repo, notifications } = make([booking({ status: 'CONFIRMED', endDate: new Date(Date.now() - DAY) })]);
+    await expect(service.completeMine('u1', 'b1')).rejects.toMatchObject({ code: 'AGENCY_COMPLETION_REQUIRED' });
     expect(repo.transition).not.toHaveBeenCalled();
     expect(notifications.notify).not.toHaveBeenCalled();
   });
-
-  it('refuses to complete another traveler booking', async () => {
-    const { service } = make([booking({ travelerId: 'other', status: 'CONFIRMED' })]);
-    await expect(service.completeMine('u1', 'b1')).rejects.toMatchObject({ statusCode: 404 });
+  it('does not expose another traveler booking', async () => {
+    await expect(make([booking({ travelerId: 'other' })]).service.completeMine('u1', 'b1')).rejects.toMatchObject({ statusCode: 404 });
   });
 });
 
@@ -438,23 +417,10 @@ describe('maintenance', () => {
     expect(tours.releaseSeats).not.toHaveBeenCalled();
   });
 
-  it('completes finished trips and emits the completed event once per booking', async () => {
-    const handler = vi.fn();
-    bookingEvents.onCompleted(handler);
-    const { service, db } = make([booking({ status: 'CONFIRMED', endDate: new Date(Date.now() - DAY) }), booking({ id: 'b2', status: 'CONFIRMED' })]);
-    expect(await service.completeFinishedBookings()).toBe(1);
-    expect(db[0]!.status).toBe('COMPLETED');
-    expect(db[1]!.status).toBe('CONFIRMED');
-    expect(handler).toHaveBeenCalledTimes(1);
+  it('does not automatically complete ended bookings without an Agency report', async () => {
+    const { service, db, repo } = make([booking({ status: 'CONFIRMED', endDate: new Date(Date.now() - DAY) })]);
     expect(await service.completeFinishedBookings()).toBe(0);
-  });
-
-  it('a failing event handler never blocks completion', async () => {
-    bookingEvents.onCompleted(() => {
-      throw new Error('handler bug');
-    });
-    const { service, db } = make([booking({ status: 'CONFIRMED', endDate: new Date(Date.now() - DAY) })]);
-    await expect(service.completeFinishedBookings()).resolves.toBe(1);
-    expect(db[0]!.status).toBe('COMPLETED');
+    expect(db[0]!.status).toBe('CONFIRMED');
+    expect(repo.transition).not.toHaveBeenCalled();
   });
 });

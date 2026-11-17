@@ -8,7 +8,6 @@ import { useCreateReviewMutation, useCreateReviewImageSignatureMutation } from '
 import { uploadImageToCloudinary } from '@/features/traveler-account/api/avatarUpload';
 import {
   REVIEW_COMMENT_MAX,
-  REVIEW_COMMENT_MIN,
   type CreateReviewInput,
   type MyReview,
   type ReviewableBooking,
@@ -201,9 +200,7 @@ export function WriteReviewDialog({
         <FormField
           label="Cảm nhận của bạn"
           htmlFor="review-comment"
-          required
           error={errors.comment}
-          hint={`Ít nhất ${REVIEW_COMMENT_MIN} ký tự, tối đa ${REVIEW_COMMENT_MAX}.`}
         >
           <textarea
             id="review-comment"

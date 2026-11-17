@@ -44,6 +44,7 @@ export default function AgencyLayout({ children }: { children: ReactNode }) {
   }, [pathname, membershipsReady, activeAgency, landingRoute, router]);
 
   if (isAuthRoute) return <>{children}</>;
+  if (status === 'unauthenticated') return null;
   if (status !== 'authenticated') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f7f8f5]">

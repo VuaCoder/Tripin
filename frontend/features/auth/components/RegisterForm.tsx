@@ -183,6 +183,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
             id="user-phone"
             name="phone"
             type="tel"
+            inputMode="numeric"
+            autoComplete="tel"
+            maxLength={11}
             required
             aria-invalid={Boolean(errors.phone)}
             aria-describedby={errors.phone ? "user-phone-error" : undefined}

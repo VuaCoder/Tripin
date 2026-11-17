@@ -32,6 +32,11 @@ export function AgencyTourWorkspacePage() {
   const [deleteTour, deleteState] = useDeleteAgencyTourMutation();
   const [restoreTour, restoreState] = useRestoreAgencyTourMutation();
   const [errorText, setErrorText] = useState('');
+  const completionDeparture = searchParams?.get('departureId');
+  const completionTab = searchParams?.get('tab') === 'completion';
+  useEffect(() => {
+    if (completionTab && completionDeparture) router.replace(`/agency/completions?tourId=${encodeURIComponent(id)}&departureId=${encodeURIComponent(completionDeparture)}`);
+  }, [completionTab, completionDeparture, id, router]);
   useEffect(() => {
     if (!tour || tour.status === 'ARCHIVED') return;
     if (requestedEdit === 'availability' && canManageAvailability) router.replace('/agency/calendar');
@@ -168,7 +173,7 @@ export function AgencyTourWorkspacePage() {
               <span>Sửa nội dung tour</span>
             </Link>}
 
-            {canManageLifecycle && tour.status !== 'APPROVED' && (
+            {canManageLifecycle && ['DRAFT', 'REJECTED', 'SUSPENDED'].includes(tour.status) && (
               <button
                 type="button"
                 onClick={submit}
@@ -194,6 +199,7 @@ export function AgencyTourWorkspacePage() {
         )}
       </div>
     </header>
+    {tour.status === 'APPROVED' && <p className="mb-5 text-sm text-slate-600">Khi lưu thay đổi nội dung hoặc lịch trình, tour sẽ được gửi kiểm duyệt lại và tạm ẩn đến khi được duyệt.</p>}
     {isPendingReview && <p className="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Tour đang chờ xét duyệt. Thông tin và lịch trình tạm khóa chỉnh sửa. Lịch khởi hành được quản lý riêng trong Calendar.</p>}
     {searchParams?.get('review') === 'failed' && (tour.status === 'DRAFT' || tour.status === 'REJECTED') && <p role="alert" className="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Nội dung tour đã được lưu nhưng chưa gửi duyệt thành công. Bấm “Gửi duyệt tour” để thử lại; không cần tạo tour mới.</p>}
     {isArchived && <p className="mb-5 rounded-xl bg-slate-100 p-4 text-sm text-slate-700 border border-slate-200">Tour này đã được lưu trữ (ngừng hoạt động). Bấm nút <strong>Khôi phục tour</strong> ở trên để chuyển về Bản nháp và tiếp tục chỉnh sửa.</p>}

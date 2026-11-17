@@ -344,7 +344,7 @@ export function Header({ role }: { role?: AppRole }) {
                           </Link>
                         ))
                       )}
-                      {effectiveRole === 'TOUR_GUIDE' && <Link href="/premium" onClick={() => setAccountMenuOpen(false)} className="flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm text-amber-800 hover:bg-amber-50"><span className="material-symbols-outlined text-[19px]" aria-hidden="true">workspace_premium</span>{premium.premium?.active ? <PremiumStatusText status={premium.premium} /> : <span className="font-bold">Premium</span>}</Link>}
+                      {effectiveRole === 'TOUR_GUIDE' && <Link href="/premium" onClick={() => setAccountMenuOpen(false)} className="flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm text-amber-800 hover:bg-amber-50"><span className="material-symbols-outlined text-[19px]" aria-hidden="true">workspace_premium</span><span className="font-bold whitespace-nowrap">Premium</span></Link>}
                       {premium.isError && ['TRAVELER','TOUR_GUIDE'].includes(effectiveRole) && <div className="p-2"><PremiumStatusText error onRetry={() => void premium.refetch()} /></div>}
                     </div>
                   </div>
@@ -439,7 +439,7 @@ export function Header({ role }: { role?: AppRole }) {
                             >
                               workspace_premium
                             </span>
-                            <span className="flex-1">{premium.premium?.active ? <PremiumStatusText status={premium.premium} /> : <span className="font-bold">Premium</span>}</span>
+                            <span className="flex-1 font-bold whitespace-nowrap">Premium</span>
                             <span className="material-symbols-outlined text-[14px] text-amber-500">auto_awesome</span>
                           </button>
                         </>

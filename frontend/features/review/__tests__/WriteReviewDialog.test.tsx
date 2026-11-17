@@ -128,19 +128,24 @@ describe('WriteReviewDialog', () => {
     expect(screen.queryByLabelText(/Đặt chỗ bạn muốn đánh giá/)).toBeNull();
   });
 
-  it('refuses to submit without a rating or a long enough comment', () => {
+  it('requires a rating and allows a short comment', async () => {
     renderDialog();
 
     submit();
     expect(createReview).not.toHaveBeenCalled();
     expect(screen.getByText('Vui lòng chọn từ 1 đến 5 sao.')).toBeTruthy();
-    expect(screen.getByText('Vui lòng viết ít nhất 10 ký tự.')).toBeTruthy();
 
     chooseRating(4);
-    typeComment('quá ngắn');
+    typeComment('Hay lắm');
     submit();
-    expect(createReview).not.toHaveBeenCalled();
-    expect(screen.getByText('Vui lòng viết ít nhất 10 ký tự.')).toBeTruthy();
+    await waitFor(() => expect(createReview).toHaveBeenCalledWith({ bookingId: 'b1', rating: 4, comment: 'Hay lắm' }));
+  });
+
+  it('submits a star-only review without requiring written feedback', async () => {
+    renderDialog();
+    chooseRating(5);
+    submit();
+    await waitFor(() => expect(createReview).toHaveBeenCalledWith({ bookingId: 'b1', rating: 5, comment: '' }));
   });
 
   it('posts the trimmed comment with the chosen rating and reports the created review', async () => {

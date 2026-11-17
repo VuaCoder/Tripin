@@ -129,6 +129,7 @@ export function AdminSidebar({ initialExpanded = true }: AdminSidebarProps) {
       label: 'Theo dõi',
       items: [
         { href: '/super-admin', label: 'Tổng quan', icon: LayoutDashboard },
+        { href: '/super-admin/finance', label: 'Kế toán & tài chính', icon: BadgePercent },
         { href: '/super-admin/audit-logs', label: 'Lịch sử hoạt động', icon: History },
         { href: '/super-admin/agency-chat', label: 'Nhắn tin', icon: MessageSquare },
       ],

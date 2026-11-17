@@ -11,7 +11,6 @@ import type { BookingDto } from '../types';
 export interface BookingHistoryCardProps {
   booking: BookingDto;
   onOpenCancel: (booking: BookingDto) => void;
-  onOpenComplete?: (booking: BookingDto) => void;
   onOpenReview?: (booking: BookingDto) => void;
   hasReviewed?: boolean;
 }
@@ -32,7 +31,6 @@ function tripDateRange(start: string, end: string) {
 export function BookingHistoryCard({
   booking,
   onOpenCancel,
-  onOpenComplete,
   onOpenReview,
   hasReviewed = false,
 }: BookingHistoryCardProps) {
@@ -101,6 +99,8 @@ export function BookingHistoryCard({
               isPaid={booking.isPaid}
               refundRequired={booking.refundRequired}
             />
+            {isConfirmed && new Date(booking.endDate).getTime() <= Date.now() && <span className="text-xs font-semibold text-amber-800">Chờ Agency hoàn tất</span>}
+            {booking.attendedParticipants === 0 && <span className="text-xs font-semibold text-slate-600">Không tham gia chuyến đi</span>}
           </div>
 
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-600">
@@ -160,18 +160,8 @@ export function BookingHistoryCard({
         <div className="ml-auto text-right sm:hidden">{price}</div>
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {isConfirmed && onOpenComplete && (
-            <button
-              type="button"
-              onClick={() => onOpenComplete(booking)}
-              className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm shadow-emerald-600/20 transition-all hover:bg-emerald-700"
-            >
-              <span className="material-symbols-outlined text-[15px]" aria-hidden="true">task_alt</span>
-              <span>Hoàn thành tour</span>
-            </button>
-          )}
 
-          {booking.status === 'COMPLETED' && !hasReviewed && onOpenReview && (
+          {booking.status === 'COMPLETED' && booking.attendedParticipants !== 0 && !hasReviewed && onOpenReview && (
             <button
               type="button"
               onClick={() => onOpenReview(booking)}

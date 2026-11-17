@@ -81,6 +81,12 @@ describe('createReview', () => {
     await expect(make().service.createReview('u1', { ...input, imagePublicIds: Array.from({ length: 7 }, (_, i) => String(i)) })).rejects.toMatchObject({ statusCode: 400 });
   });
 
+  it('does not allow reviews or upload signatures for an entirely absent group', async () => {
+    const { service, repo } = make({ booking: facts({ attendedParticipants: 0 }) });
+    await expect(service.createReview('u1', input)).rejects.toMatchObject({ code: 'BOOKING_NOT_ATTENDED' });
+    await expect(service.createImageSignature('u1', 'b1')).rejects.toMatchObject({ code: 'BOOKING_NOT_ATTENDED' });
+    expect(repo.create).not.toHaveBeenCalled();
+  });
   it('only issues image signatures for an owned, completed, unreviewed booking', async () => {
     await make().service.createImageSignature('u1', 'b1');
     expect(createImageUploadSignature).toHaveBeenCalledWith('reviewImage', expect.stringMatching(/^u1\/b1\//));

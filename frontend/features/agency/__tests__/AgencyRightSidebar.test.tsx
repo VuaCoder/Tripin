@@ -15,7 +15,7 @@ const mockMemberRole = vi.hoisted(() => ({ current: 'OWNER' }));
 
 vi.mock('../notifications', () => ({
   useAgencyNotifications: () => ({ count: 3, connected: true, latest: '' }),
-  useAgencyNotificationsQuery: () => ({ currentData: { data: [{ id: 'n1', title: 'Tour đã được duyệt', body: 'Thông báo từ backend', isRead: false, createdAt: '2026-10-16T00:00:00Z' }], meta: { page: 1, totalPages: 1, total: 1 } }, refetch: vi.fn() }),
+  useAgencyNotificationsQuery: () => ({ currentData: { data: [{ id: 'n1', type: 'TOUR_APPROVED', title: 'Tour đã được duyệt', body: 'Thông báo từ backend', isRead: false, createdAt: '2026-10-16T00:00:00Z' }], meta: { page: 1, totalPages: 1, total: 1 } }, refetch: vi.fn() }),
   useReadAgencyNotificationMutation: () => [vi.fn(), {}],
   useReadAllAgencyNotificationsMutation: () => [vi.fn(), {}],
   useDeleteAgencyNotificationMutation: () => [vi.fn(), {}],

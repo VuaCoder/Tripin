@@ -11,7 +11,7 @@ export const mounts: { prefix: string; router: Router }[] = [];
 export function mount(prefix: string, router: Router): void {
   mounts.push({ prefix, router });
   if (prefix.startsWith('/agency/')) {
-    const integrated = ['/agency/tours', '/agency/calendar', '/agency/bookings', '/agency/dashboard', '/agency/guides', '/agency/complaint-tickets', '/agency/promotions', '/agency/review-disputes', '/agency/premium', '/agency/commission', '/agency/chat'].includes(prefix);
+    const integrated = ['/agency/finance', '/agency/tours', '/agency/completions', '/agency/calendar', '/agency/bookings', '/agency/dashboard', '/agency/guides', '/agency/complaint-tickets', '/agency/promotions', '/agency/review-disputes', '/agency/premium', '/agency/commission', '/agency/chat'].includes(prefix);
     apiRouter.use(prefix, resolveAgencyContext, requireVerifiedAgency,
       ...(integrated ? [] : [requireLegacyOwnerIntegration]), router);
   } else apiRouter.use(prefix, router);

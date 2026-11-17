@@ -26,7 +26,7 @@ const permissionGroupLabels: Record<string, string> = { agency: 'Doanh nghiệp'
 function permissionGroup(permission: string) {
   if (permission.startsWith('agency:team-') || permission === 'agency:permissions-manage') return 'team';
   if (permission.includes('booking') || permission === 'agency:export-customers') return 'bookings';
-  if (permission === 'agency:finance-view') return 'finance';
+  if (permission.startsWith('agency:finance-')) return 'finance';
   if (permission.startsWith('tour:') || permission.startsWith('agency:tour-')) return 'tour';
   return permission.split(':')[0];
 }

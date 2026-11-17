@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import {
   Ticket,
   Copy,
@@ -10,7 +9,6 @@ import {
   ChevronDown,
   ChevronUp,
   Flame,
-  ArrowRight,
   Calendar,
 } from 'lucide-react';
 import type { PromotionDto, UserVoucherItem } from '../api/voucherWalletApi';
@@ -26,7 +24,6 @@ export function VoucherCard({ voucher }: VoucherCardProps) {
     <VoucherTicketCard
       promo={voucher.promotion}
       isUsed={voucher.isUsed}
-      useHref="/tours"
     />
   );
 }
@@ -47,11 +44,6 @@ export function PremiumVoucherCard({ voucher }: { voucher: PremiumVoucher }) {
       isUsed={!!voucher.bookingId}
       isHeld={!!voucher.heldAt}
       usedLabel="Đã dùng / đang giữ cho đơn"
-      useHref={
-        voucher.terms.tourIds[0]
-          ? `/tours/${voucher.terms.tourIds[0]}`
-          : undefined
-      }
     />
   );
 }
@@ -79,13 +71,11 @@ function VoucherTicketCard({
   isUsed,
   isHeld = false,
   usedLabel = 'Đã sử dụng',
-  useHref,
 }: {
   promo: VoucherDisplay;
   isUsed: boolean;
   isHeld?: boolean;
   usedLabel?: string;
-  useHref?: string;
 }) {
   const [copied, setCopied] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
@@ -140,7 +130,7 @@ function VoucherTicketCard({
         isUsed || isExpired
           ? 'border-slate-200/80 bg-slate-50/70 opacity-75'
           : isPremium
-            ? 'border-amber-300 bg-amber-50/30 shadow-xs hover:border-amber-400 hover:shadow-md'
+            ? 'border-amber-300 bg-amber-50 shadow-xs hover:border-amber-400 hover:shadow-md'
             : isUrgent
               ? 'border-amber-300 bg-white shadow-xs hover:border-amber-400 hover:shadow-md'
               : isExpiringSoon
@@ -243,7 +233,7 @@ function VoucherTicketCard({
           {promo.code && (
             <div className="flex items-center gap-2 mb-3">
               <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200/90 bg-slate-50 px-3 py-1.5 text-xs font-mono font-bold tracking-wider text-slate-800">
-                <Ticket className="size-3.5 text-brand-teal" />
+                <Ticket className={`size-3.5 ${isPremium ? 'text-amber-800' : 'text-brand-teal'}`} />
                 <span>{promo.code}</span>
               </div>
               <button
@@ -269,7 +259,7 @@ function VoucherTicketCard({
           )}
         </div>
 
-        {/* Thanh chân voucher: Hạn dùng, xem điều kiện, nút dùng ngay */}
+        {/* Thanh chân voucher: Hạn dùng và xem điều kiện */}
         <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-3 text-slate-500">
             <span className="flex items-center gap-1">
@@ -286,15 +276,6 @@ function VoucherTicketCard({
             </button>
           </div>
 
-          {canUse && useHref && (
-            <Link
-              href={useHref}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold shadow-2xs transition-all hover:shadow-xs cursor-pointer ${isPremium ? 'bg-amber-400 text-amber-950 hover:bg-amber-500' : 'bg-primary-container text-white hover:bg-primary'}`}
-            >
-              <span>Dùng ngay</span>
-              <ArrowRight className="size-3.5" />
-            </Link>
-          )}
         </div>
 
         {/* Chi tiết điều kiện mở rộng */}

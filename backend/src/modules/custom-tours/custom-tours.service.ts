@@ -441,13 +441,19 @@ export class CustomToursService {
 
   /** Same clientRequestId is a retry only when the payload matches; otherwise the key was reused by mistake. */
   private async replay(record: CustomTourRecord, input: CreateCustomTourInput): Promise<CustomTourRequestDto> {
+    const storedGuests = record.guestCounts as unknown as GuestCounts | null;
+    const requestedGuests = input.guestCounts ?? null;
+    // PostgreSQL jsonb can reorder object keys; compare the actual counts, not JSON text.
+    const sameGuests = storedGuests === null && requestedGuests === null || Boolean(
+      storedGuests && requestedGuests && storedGuests.adults === requestedGuests.adults &&
+      storedGuests.children === requestedGuests.children && storedGuests.infants === requestedGuests.infants,
+    );
     const same =
       record.sourceTourId === input.sourceTourId &&
       record.participants === input.participants &&
       (record.notes ?? null) === (input.notes ?? null) &&
       (record.startDate?.getTime() ?? null) === (input.startDate?.getTime() ?? null) &&
-      // Guest counts key order is fixed by the schema, so the serialised forms are comparable.
-      JSON.stringify(record.guestCounts ?? null) === JSON.stringify(input.guestCounts ?? null);
+      sameGuests;
     if (!same) throw AppError.conflict('clientRequestId was already used for a different request', 'IDEMPOTENCY_KEY_REUSED');
     return this.describe(record);
   }

@@ -44,6 +44,7 @@ export function toBookingDto(booking: BookingRecord): BookingDto {
     paymentExpiresAt: iso(booking.paymentExpiresAt),
     confirmedAt: iso(booking.confirmedAt),
     completedAt: iso(booking.completedAt),
+    attendedParticipants: booking.attendedParticipants,
     cancelledAt: iso(booking.cancelledAt),
     cancelReason: (booking.cancelReason as BookingCancelReason | undefined) ?? undefined,
     customTourRequestId: booking.customTourRequestId ?? undefined,
@@ -83,6 +84,7 @@ export function toAgencyBookingDto(booking: BookingRecord): AgencyBookingDto {
 
 export function toBookingFacts(booking: BookingRecord): BookingFacts {
   return {
+    attendedParticipants: booking.attendedParticipants,
     services: (booking.serviceSnapshot ?? []) as unknown as import('@travel-platform/constants').BookedExtra[],
     meetingPoint: booking.meetingPointSnapshot ?? undefined,
     id: booking.id,

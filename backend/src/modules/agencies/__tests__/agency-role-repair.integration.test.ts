@@ -9,13 +9,17 @@ import { AGENCY_ROLE_PERMISSIONS, effectiveAgencyPermissions } from '../agency.p
 beforeAll(startDatabase, 120_000);
 afterAll(stopDatabase);
 
+// This historical migration predates the wallet permissions. Reproduce its
+// untouched templates rather than applying today's defaults to a 14 Nov test.
+const legacyDefaults = (kind: 'OWNER' | 'STAFF') => AGENCY_ROLE_PERMISSIONS[kind].filter(p => !p.startsWith('agency:finance-') || ['agency:finance-view','agency:finance-manage'].includes(p));
+
 it('repairs untouched legacy templates once, preserving customized roles and explicit denials', async () => {
   const owner = await createUser('AGENCY', 'role-repair@example.com');
   const staff = await createUser('TRAVELER', 'role-repair-staff@example.com');
   const roles = await prisma.agencyRole.findMany({ where: { agencyId: owner.id } });
   for (const role of roles.filter(r => r.systemRole !== 'ACCOUNTANT')) {
     await prisma.agencyRole.update({ where: { id: role.id }, data: {
-      permissions: role.systemRole === 'MANAGER' ? ['agency:context-view'] : role.permissions.filter(p => !p.startsWith('custom-tour:')),
+      permissions: role.systemRole === 'MANAGER' ? ['agency:context-view'] : legacyDefaults(role.systemRole as 'OWNER' | 'STAFF').filter(p => !p.startsWith('custom-tour:')),
       // Simulate untouched rows inserted by the old database seed function.
       updatedAt: role.systemRole === 'MANAGER' ? new Date(role.createdAt.getTime() + 1) : role.createdAt,
     } });
@@ -38,7 +42,7 @@ it('repairs untouched legacy templates once, preserving customized roles and exp
   } finally { await client.end(); }
   const repaired = await prisma.agencyRole.findMany({ where: { agencyId: owner.id } });
   for (const kind of ['OWNER', 'STAFF'] as const)
-    expect(repaired.find(r => r.systemRole === kind)!.permissions.sort()).toEqual([...AGENCY_ROLE_PERMISSIONS[kind]].sort());
+    expect(repaired.find(r => r.systemRole === kind)!.permissions.sort()).toEqual([...legacyDefaults(kind)].sort());
   expect(repaired.find(r => r.systemRole === 'MANAGER')!.permissions).toEqual(['agency:context-view']);
   expect(repaired.find(r => r.id === custom.id)!.permissions).toEqual(['agency:context-view']);
   expect((await prisma.agencyRole.findUniqueOrThrow({ where: { id: editedRole.id } })).permissions).toEqual(deliberatelyRestricted);

@@ -165,31 +165,12 @@ describe('BookingDetailPage', () => {
     });
   });
 
-  it('renders "Hoàn thành chuyến đi" button when CONFIRMED and allows completing trip', async () => {
-    mockCompleteBooking.mockReturnValue({
-      unwrap: () => Promise.resolve({ ...mockBooking, status: 'COMPLETED' }),
-    });
-
-    mockUseGetBookingByIdQuery.mockReturnValue({
-      isLoading: false,
-      data: { ...mockBooking, status: 'CONFIRMED', isPaid: true },
-    });
-
+  it('leaves completion to the Agency for an ended confirmed booking', () => {
+    mockUseGetBookingByIdQuery.mockReturnValue({ isLoading: false, data: { ...mockBooking, status: 'CONFIRMED', isPaid: true, endDate: new Date(Date.now() - 1000).toISOString() } });
     render(<BookingDetailPage bookingId="b-1" />);
-
-    const completeButtons = screen.getAllByRole('button', { name: /Hoàn thành chuyến đi/i });
-    expect(completeButtons.length).toBeGreaterThan(0);
-    fireEvent.click(completeButtons[0]);
-
-    // Complete modal opens
-    const dialog = screen.getByRole('dialog', { name: 'Xác nhận hoàn thành chuyến đi' });
-    expect(dialog).toBeTruthy();
-    const confirmButton = within(dialog).getByRole('button', { name: /Xác nhận hoàn thành/i });
-    fireEvent.click(confirmButton);
-
-    await waitFor(() => {
-      expect(mockCompleteBooking).toHaveBeenCalledWith('b-1');
-    });
+    expect(screen.queryByRole('button', { name: /Hoàn thành chuyến đi/i })).toBeNull();
+    expect(screen.getByText('Chờ Agency gửi báo cáo và hoàn tất chuyến đi.')).toBeTruthy();
+    expect(mockCompleteBooking).not.toHaveBeenCalled();
   });
 
   it('lists the named members of a group booking, with their papers', () => {

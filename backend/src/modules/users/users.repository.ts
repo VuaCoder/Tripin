@@ -1,6 +1,6 @@
 import type { AuditEntry } from '../audit/audit.types';
 import type { AgencyVerificationStatus, PersistedRole, UserStatus } from '@travel-platform/constants';
-import { nullIfNotFound, prisma, type Prisma } from '../../config/database';
+import { nullIfNotFound, prisma, type Prisma, type DbExecutor } from '../../config/database';
 import type { AgencyProfile, GuideProfile, GuidePayoutAccount, User } from '../../generated/prisma/client';
 import { toSkip, type PageRequest } from '../../utils/pagination';
 import { containsText } from '../../utils/search';
@@ -60,6 +60,27 @@ function toData(patch: UserPatch): Prisma.UserUncheckedUpdateInput {
 
 /** All database access of the users domain. Services never touch Prisma directly. */
 export class UsersRepository {
+  /** Registration and profile edits share a lock so simultaneous claims cannot reuse a phone. */
+  private async assertPhoneAvailable(tx: DbExecutor, phone: string, userId?: string): Promise<void> {
+    const canonical = (value: string) => value.replace(/[^0-9]/g, '').replace(/^84([35789][0-9]{8})$/, '0$1');
+    const normalized = canonical(phone);
+    if (!normalized) return;
+    await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${`user-phone:${normalized}`}, 0))`;
+    if (userId) {
+      const current = await tx.user.findUnique({ where: { id: userId }, select: { phone: true } });
+      // Existing accounts may share old fixture data; an unchanged phone is not a new claim.
+      if (current?.phone && canonical(current.phone) === normalized) return;
+    }
+    const duplicates = await tx.$queryRaw<{ id: string }[]>`
+      SELECT id FROM "User"
+      WHERE "phone" IS NOT NULL
+        AND regexp_replace(regexp_replace("phone", '[^0-9]', '', 'g'), '^84([35789][0-9]{8})$', '0' || chr(92) || '1') = ${normalized}
+        AND id <> ${userId ?? '00000000-0000-0000-0000-000000000000'}::uuid
+      LIMIT 1
+    `;
+    if (duplicates.length) throw AppError.conflict('This phone number is already registered', 'PHONE_ALREADY_REGISTERED');
+  }
+
   async deleteAdminUser(actor: { userId: string; role: PersistedRole }, targetId: string): Promise<void> {
     try {
       await prisma.$transaction(async (tx) => {
@@ -185,7 +206,7 @@ export class UsersRepository {
 
   create(data: NewUser): Promise<UserRecord> {
     const { agencyProfile, guideProfile, ...scalars } = data;
-    return prisma.user.create({
+    const create = (tx: DbExecutor) => tx.user.create({
       data: {
         ...scalars,
         email: data.email.toLowerCase(),
@@ -195,11 +216,17 @@ export class UsersRepository {
       include,
       omit: omitPassword,
     }) as unknown as Promise<UserRecord>;
+    if (!data.phone) return create(prisma);
+    return prisma.$transaction(async tx => {
+      await this.assertPhoneAvailable(tx, data.phone!);
+      return create(tx);
+    });
   }
 
   updateById(id: string, patch: UserPatch): Promise<UserRecord | null> {
     if (patch.preferences && typeof patch.preferences === 'object' && !Array.isArray(patch.preferences) && 'bankAccount' in patch.preferences) {
       return prisma.$transaction(async (tx) => {
+        if (patch.phone) await this.assertPhoneAvailable(tx, patch.phone, id);
         // A preferences request started before backfill must not reintroduce plaintext after migration.
         await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${id}::uuid FOR UPDATE`;
         const migrated = await tx.guidePayoutAccount.findUnique({ where: { guideId: id }, select: { guideId: true } });
@@ -209,6 +236,12 @@ export class UsersRepository {
           safePatch = { ...patch, preferences };
         }
         return tx.user.update({ where: { id }, data: toData(safePatch), include, omit: omitPassword });
+      }).catch(nullIfNotFound);
+    }
+    if (patch.phone) {
+      return prisma.$transaction(async tx => {
+        await this.assertPhoneAvailable(tx, patch.phone!, id);
+        return tx.user.update({ where: { id }, data: toData(patch), include, omit: omitPassword });
       }).catch(nullIfNotFound);
     }
     return prisma.user.update({ where: { id }, data: toData(patch), include, omit: omitPassword }).catch(nullIfNotFound);

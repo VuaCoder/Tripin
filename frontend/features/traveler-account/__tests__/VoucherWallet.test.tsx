@@ -4,6 +4,9 @@ import { PremiumVoucherCard, VoucherCard } from '../components/VoucherCard';
 import { TravelerAccountNav } from '../components/TravelerAccountNav';
 vi.mock('next/navigation', () => ({ usePathname: () => '/settings/vouchers' }));
 vi.mock('@/features/premium/PremiumWalletSection',() => ({PremiumWalletSection:() => null}));
+vi.mock('@/features/tours/components/HotVouchersSection', () => ({
+  HotVouchersSection: () => <h2>Mã ưu đãi đang áp dụng</h2>,
+}));
 import type { UserVoucherItem } from '../api/voucherWalletApi';
 import type { PremiumVoucher } from '@/features/premium/api';
 
@@ -69,7 +72,7 @@ describe('VoucherCard', () => {
     expect(screen.getByText('Khuyến mãi mùa hè 2026')).toBeDefined();
     expect(screen.getByText('DISCOUNT20')).toBeDefined();
     expect(screen.getByText(/Đơn tối thiểu 1.000.000 ₫/)).toBeDefined();
-    expect(screen.getByText('Dùng ngay')).toBeDefined();
+    expect(screen.queryByText('Dùng ngay')).toBeNull();
   });
 
   it('displays urgent warning when voucher expires within 3 hours', () => {
@@ -115,7 +118,7 @@ const samplePremiumVoucher = (overrides: Partial<PremiumVoucher> = {}): PremiumV
 });
 
 describe('PremiumVoucherCard', () => {
-  it('uses the same ticket layout as normal vouchers, with a gold theme and correct tour link', () => {
+  it('uses the same ticket layout as normal vouchers, with a gold background and no use button', () => {
     const { container } = render(<PremiumVoucherCard voucher={samplePremiumVoucher()} />);
     expect(screen.getByText('10%')).toBeDefined();
     expect(screen.getByText('Premium')).toBeDefined();
@@ -124,7 +127,8 @@ describe('PremiumVoucherCard', () => {
     expect(screen.getByText(/HSD:/)).toBeDefined();
     expect(container.firstElementChild?.className).toContain('sm:flex-row');
     expect(container.firstElementChild?.className).toContain('border-amber-300');
-    expect(screen.getByRole('link', { name: 'Dùng ngay' }).getAttribute('href')).toBe('/tours/tour-1');
+    expect(container.firstElementChild?.className).toContain('bg-amber-50');
+    expect(screen.queryByRole('link', { name: 'Dùng ngay' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Sao chép/ })).toBeNull();
     const details = screen.getByRole('button', { name: 'Điều kiện' });
     expect(details.getAttribute('aria-expanded')).toBe('false');
@@ -180,6 +184,7 @@ describe('VoucherWalletPage', () => {
     render(<VoucherWalletPage />);
 
     expect(screen.getByRole('heading', { name: 'Ví voucher' })).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Mã ưu đãi đang áp dụng' })).toBeDefined();
     expect(screen.queryByText('Ví voucher & Ưu đãi')).toBeNull();
     expect(screen.getByText('Khả dụng')).toBeDefined();
     expect(screen.getByText('Đã sử dụng')).toBeDefined();

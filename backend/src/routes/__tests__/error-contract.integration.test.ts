@@ -44,6 +44,11 @@ function expectError(res: Response, code: string): void {
 
 // Codes covered by focused service/provider tests or requiring a specific concurrent failure.
 const COVERED_ELSEWHERE: Record<string, string> = {
+  FINANCE_REFUNDS_NOT_IMPLEMENTED: 'finance.integration.test.ts exercises the three deferred refund HTTP endpoints and verifies the 501 code',
+  PHONE_ALREADY_REGISTERED: 'phone-registration.integration.test.ts verifies duplicate phone registration and updates',
+  AGENCY_COMPLETION_REQUIRED: 'completion.integration.test.ts rejects the legacy traveler completion endpoint',
+  BOOKING_NOT_ATTENDED: 'reviews.service.test.ts rejects reviews and signatures for absent groups',
+  TRIP_NOT_STARTED: 'completion.integration.test.ts rejects reports for departures that have not started',
   AGENCY_PORTAL_REQUIRED: 'auth.service.test.ts verifies the legacy customer-registration portal guard; HTTP validation rejects AGENCY earlier',
   PAYOUT_NOT_CONFIGURED: 'payout-account.crypto.test.ts verifies missing encryption keys fail closed',
   PAYOUT_ACCOUNT_UNAVAILABLE: 'payout-account.crypto.test.ts verifies tampered and wrong-owner envelopes fail closed',
@@ -342,7 +347,13 @@ describe('error contract over HTTP', () => {
 
     // Reviews.
     expectError(await request(app).post('/api/v1/reviews').set(bearer(paid.token)).send({ bookingId: paid.id, rating: 5, comment: 'Wonderful trip indeed' }), 'BOOKING_NOT_COMPLETED');
-    await prisma.booking.updateMany({ where: { id: paid.id }, data: { status: 'COMPLETED', endDate: new Date(Date.now() - day) } });
+    // Respect the shared-database guard: a completed review fixture needs an Agency report.
+    const reviewBooking = await prisma.booking.findUniqueOrThrow({ where: { id: paid.id } });
+    await prisma.$transaction(async tx => {
+      const completion = await tx.tourCompletion.create({ data: { departureId: reviewBooking.departureId, tourId: reviewBooking.tourId, agencyId: reviewBooking.agencyId, scheduledEndAt: new Date(Date.now() - day), completedAt: new Date(), revision: 1, snapshot: {} } });
+      await tx.tourCompletionReport.create({ data: { completionId: completion.id, actorId: reviewBooking.agencyId, revision: 1, submitted: true, payload: { attendance: [{ bookingId: paid.id, attendedCount: reviewBooking.participants }] } } });
+      await tx.booking.update({ where: { id: paid.id }, data: { status: 'COMPLETED', endDate: new Date(Date.now() - day) } });
+    });
     expect((await request(app).post('/api/v1/reviews').set(bearer(paid.token)).send({ bookingId: paid.id, rating: 5, comment: 'Wonderful trip indeed' })).status).toBe(201);
     expectError(await request(app).post('/api/v1/reviews').set(bearer(paid.token)).send({ bookingId: paid.id, rating: 4, comment: 'Wonderful trip indeed' }), 'REVIEW_EXISTS');
 

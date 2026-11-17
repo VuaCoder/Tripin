@@ -13,6 +13,7 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 
 | Code | HTTP | Meaning |
 |---|---|---|
+| `FINANCE_REFUNDS_NOT_IMPLEMENTED` | 501 | Accounting refund intake and review are not released; booking cancellation obligations remain unchanged |
 | `ITINERARY_INCOMPLETE` | 400 | Complete the day-by-day tour program before submitting for review; departures are not required |
 | `VALIDATION_ERROR` | 400 | Body, query or path failed validation; `details[]` lists `location`, `path`, `message`. Also used for malformed JSON and `413` payload too large |
 | `UNAUTHENTICATED` | 401 | No or unusable credentials where a login is required |
@@ -23,6 +24,9 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `CONFLICT` | 409 | Duplicate (unique index) or generic state conflict |
 | `INVALID_STATE_TRANSITION` | 409 | The record is in a state from which the requested change is not allowed |
 | `CONCURRENT_UPDATE` | 409 | Somebody changed the record between read and write; reload and retry |
+| `AGENCY_COMPLETION_REQUIRED` | 409 | Traveler/guide completion is retired; Agency must submit the departure report |
+| `BOOKING_NOT_ATTENDED` | 409 | An entirely absent group cannot review; contact the Agency to dispute attendance |
+| `TRIP_NOT_STARTED` | 409 | Departure reports open only after departure; a future departure has no completion snapshot yet |
 | `RATE_LIMITED` | 429 | Too many requests from this client |
 | `SERVICE_UNAVAILABLE` | 503 | A required provider (payment, mail, AI, Google) is not configured or not reachable |
 | `PAYOUT_NOT_CONFIGURED` | 503 | The server payout encryption keyring or required key version is unavailable |
@@ -38,6 +42,7 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 | `ACCOUNT_NOT_VERIFIED` | 403 | The email has not been verified yet (a new code is sent) |
 | `ACCOUNT_NOT_FOUND` | 401 | The authenticated account no longer exists or is banned |
 | `EMAIL_ALREADY_REGISTERED` | 409 | The email belongs to an active account |
+| `PHONE_ALREADY_REGISTERED` | 409 | The phone number belongs to another account, including equivalent Vietnamese local/international formats |
 | `AGENCY_PORTAL_REQUIRED` | 403 | Agency accounts must use the dedicated Agency authentication portal |
 | `AGENCY_ONBOARDING_REQUIRED` | 403 | Agency account is missing the required onboarding profile |
 | `OTP_INVALID` | 400 | Wrong, used, or unknown one-time code |

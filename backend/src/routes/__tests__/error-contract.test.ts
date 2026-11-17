@@ -28,19 +28,44 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** code -> HTTP statuses it is thrown with, found in `AppError.<helper>(...)` statements. */
+/** Read only actual code arguments, never status strings inside messages or nearby statements. */
+function scanErrors(text: string, add: (code: string, status: number) => void) {
+  for (const match of text.matchAll(/AppError\.(\w+)\(|new AppError\(/g)) {
+    const args: string[] = [];
+    let from = match.index! + match[0].length, depth = 0, quote = '';
+    for (let i = from; i < text.length; i++) {
+      const ch = text[i]!;
+      if (quote) {
+        if (ch === '\\') { i++; continue; }
+        if (ch === quote) quote = '';
+        continue;
+      }
+      if (ch === '"' || ch === "'" || ch === '`') { quote = ch; continue; }
+      if (ch === '/' && text[i+1] === '/') { i = text.indexOf('\n', i); if (i < 0) break; continue; }
+      if (ch === '/' && text[i+1] === '*') { i = text.indexOf('*/', i+2); if (i < 0) break; i++; continue; }
+      if (ch === ')' && depth === 0) { args.push(text.slice(from,i).trim()); break; }
+      if ('([{'.includes(ch)) depth++;
+      else if (')]}'.includes(ch)) depth--;
+      else if (ch === ',' && depth === 0) { args.push(text.slice(from,i).trim()); from = i+1; }
+    }
+    const helper = match[1];
+    const status = helper ? STATUS_OF_HELPER[helper] : Number(args[0]);
+    if (!status) continue;
+    // Some legacy badRequest callers expose their diagnostic identifier as
+    // a literal details string. Keep these documented alongside true codes.
+    const codeArg = helper === 'badRequest' ? args[2] || (/^['"][A-Z][A-Z0-9_]+['"]$/.test(args[1] ?? '') ? args[1] : undefined) : args[1];
+    if (!codeArg) continue;
+    for (const code of codeArg.matchAll(/['"]([A-Z][A-Z0-9_]+)['"]|ERROR_CODES\.([A-Z_]+)/g)) add(code[1] ?? code[2]!,status);
+  }
+}
+
+/** code -> HTTP statuses it is thrown with, found in AppError calls and constructors. */
 function codesInSource(): Map<string, Set<number>> {
   const found = new Map<string, Set<number>>();
   const add = (code: string, status: number) => found.set(code, (found.get(code) ?? new Set<number>()).add(status));
   for (const file of walk(srcRoot)) {
     const text = readFileSync(file, 'utf-8');
-    for (const match of text.matchAll(/AppError\.(\w+)\(/g)) {
-      const status = STATUS_OF_HELPER[match[1]!];
-      if (!status) continue;
-      // The arguments of this call: up to the matching end of the statement (bounded, good enough for these call shapes).
-      const statement = text.slice(match.index, match.index! + 500).split(/;\s*\n|\n\s*\n/)[0]!;
-      for (const code of statement.matchAll(/'([A-Z][A-Z0-9_]{3,})'|ERROR_CODES\.([A-Z_]+)/g)) add(code[1] ?? code[2]!, status);
-    }
+    if (text.includes('AppError')) scanErrors(text, add);
   }
   for (const code of Object.values(ERROR_CODES)) if (!found.has(code)) found.set(code, new Set());
   return found;
@@ -54,6 +79,11 @@ function documented(): Map<string, number> {
 }
 
 describe('error code contract (docs/api/ERRORS.md)', () => {
+  it('distinguishes explicit error codes from business statuses and nested message expressions', () => {
+    const found: [string, number][] = [];
+    scanErrors("AppError.conflict(reasons.map(r => r === 'TEST_SOURCE' ? 'VERIFIED' : r).join('; ')); if (status === 'PROCESSING') work(); AppError.badRequest('bad', {status:'PENDING'}, 'SPECIFIC_ERROR'); new AppError(501, 'NOT_IMPLEMENTED', 'unsupported'); AppError.forbidden('no', ERROR_CODES.FORBIDDEN);", (code,status)=>found.push([code,status]));
+    expect(found).toEqual([['SPECIFIC_ERROR',400],['NOT_IMPLEMENTED',501],['FORBIDDEN',403]]);
+  });
   const inSource = codesInSource();
   const inDocs = documented();
 

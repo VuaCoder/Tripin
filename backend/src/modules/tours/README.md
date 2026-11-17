@@ -58,7 +58,7 @@ Common errors: 400 validation, 401/403 permission, 404 unknown/not owned, 409 `T
 ## Business rules
 1. Money is integer VND; a departure's price is `priceOverride ?? basePrice`.
 2. Ownership: every agency route loads the tour and answers **404** if it is not the caller's.
-3. Content edits are allowed in DRAFT / REJECTED / APPROVED / SUSPENDED; **locked** while PENDING_REVIEW. Editing (or changing the itinerary of) an APPROVED tour sends it back to PENDING_REVIEW. Availability and guide assignment do not trigger review.
+3. Content edits are allowed in DRAFT / REJECTED / APPROVED / SUSPENDED; **locked** while PENDING_REVIEW. Saving edits to an APPROVED tour (including itinerary, price and policy) atomically moves it to PENDING_REVIEW, refreshes submittedAt, clears the previous decision fields and notifies moderators. The tour is hidden from public detail/search and cannot receive new bookings until approved again. Existing booking snapshots remain unchanged. New tours require submission and moderator approval; editing a draft, rejected or suspended tour does not publish it. Availability and guide assignment do not trigger review.
 4. Submit requires a **VERIFIED** agency (D-27), ≥1 category and a valid itinerary covering all tour days (D-28). Partial programs can be saved as drafts. Departures are not required for review; booking still requires an open future departure with sufficient seats.
 5. Delete = archive; refused while a future departure has sold seats (`remaining < capacity`).
 6. Availability: matched by departure id; capacity cannot go below sold seats; a departure with sold seats cannot be moved or removed (close it); new/moved dates must be future. The write is guarded by the document version, so it can never overwrite seats sold at the same moment.
@@ -73,7 +73,7 @@ Common errors: 400 validation, 401/403 permission, 404 unknown/not owned, 409 `T
 |---|---|
 | DRAFT | PENDING_REVIEW, ARCHIVED |
 | PENDING_REVIEW | APPROVED, REJECTED (moderator) |
-| APPROVED | SUSPENDED (moderator), PENDING_REVIEW (material edit), ARCHIVED |
+| APPROVED | PENDING_REVIEW (content edit), SUSPENDED (moderator), ARCHIVED |
 | REJECTED | PENDING_REVIEW, ARCHIVED |
 | SUSPENDED | PENDING_REVIEW, ARCHIVED |
 | ARCHIVED | — |
@@ -100,8 +100,8 @@ Guide assignment: `PENDING → ACCEPTED | DECLINED`. Status changes use compare-
 Audit: `tour.validated`, `tour.suspended`. In-app notifications: moderation decision and suspension (to the agency), guide assignment (to the guide).
 
 ## Testing
-`__tests__/tours.integration.test.ts` – real PostgreSQL over HTTP: draft -> submit -> moderator decision -> public, locked/re-review edits, one winner among parallel decisions, suspended tours cannot be booked, ownership 404s, availability vs sold seats, seat accounting while bookings and availability edits race, delete guard, guide assignment answered once. `__tests__/tour-document-extraction.service.test.ts` covers in-memory PDF/DOCX upload validation, disabled provider, extraction prompt, draft schema validation and malformed provider output.
-`__tests__/tours.service.test.ts` (ownership, locking, re-review, delete guard, availability invariants, submit rules, moderation, guide, inventory) and
+`__tests__/tours.integration.test.ts` – real PostgreSQL over HTTP: draft -> submit -> moderator decision -> public, approved edits hidden pending re-review then republished after approval (including cache invalidation), locked pending edits, one winner among parallel decisions, suspended tours cannot be booked, ownership 404s, availability vs sold seats, seat accounting while bookings and availability edits race, delete guard, guide assignment answered once. `__tests__/tour-document-extraction.service.test.ts` covers in-memory PDF/DOCX upload validation, disabled provider, extraction prompt, draft schema validation and malformed provider output.
+`__tests__/tours.service.test.ts` (ownership, locking, content/itinerary re-review, delete guard, availability invariants, submit rules, moderation, guide, inventory) and
 `__tests__/tours-discovery.service.test.ts` (visibility matrix by status/actor).
 
 ## Not implemented / follow-ups

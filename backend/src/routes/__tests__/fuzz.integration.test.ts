@@ -74,7 +74,10 @@ describe('route fuzzing (real stack)', () => {
       requests += 1;
       // 503 SERVICE_UNAVAILABLE is the documented answer when a provider (PayOS, Google, AI) is not configured: not a crash.
       const providerMissing = res.status === 503 && res.body?.error?.code === 'SERVICE_UNAVAILABLE';
-      if (res.status >= 500 && !providerMissing) failures.push(`${res.status} ${method} ${url} as ${actor.name} body=${JSON.stringify(body)?.slice(0, 80)} -> ${JSON.stringify(res.body).slice(0, 120)}`);
+      // Refund accounting is explicitly deferred; only this documented 501 is
+      // expected. Unknown server errors on these routes still fail the test.
+      const deferredRefund = res.status === 501 && res.body?.error?.code === 'FINANCE_REFUNDS_NOT_IMPLEMENTED' && /^\/api\/v1\/(?:admin|agency)\/finance\/refunds(?:[/?]|$)/.test(url);
+      if (res.status >= 500 && !providerMissing && !deferredRefund) failures.push(`${res.status} ${method} ${url} as ${actor.name} body=${JSON.stringify(body)?.slice(0, 80)} -> ${JSON.stringify(res.body).slice(0, 120)}`);
       else if (res.status >= 400 && res.headers['content-type']?.includes('json')) {
         if (res.body?.success !== false || typeof res.body?.error?.code !== 'string') failures.push(`bad envelope ${res.status} ${method} ${url}: ${JSON.stringify(res.body).slice(0, 120)}`);
       }

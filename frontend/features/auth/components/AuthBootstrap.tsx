@@ -2,8 +2,8 @@
 
 import { useEffect } from 'react';
 import { useAppDispatch } from '@/store/hooks';
-import { baseApi, refreshSessionChecked } from '@/store/api/baseApi';
-import { clearCredentials, restoreCredentials, setCredentials } from '../store/authSlice';
+import { baseApi, refreshSessionChecked, verifyStoredSessionChecked } from '@/store/api/baseApi';
+import { beginSessionRestore, sessionRestoreUnavailable, clearCredentials, restoreCredentials, setCredentials } from '../store/authSlice';
 import { store } from '@/store';
 
 const STORAGE_KEY = 'tripri_auth_session';
@@ -41,19 +41,26 @@ export const AuthBootstrap = () => {
       } catch {}
     }
 
-    const synchronize = async () => {
+    const synchronize = async (verifyStored = false, blocking = true) => {
+      // A known signed-out session must not be bootstrapped back into checking
+      // state by a remount or a queued retry/focus event during logout.
+      if (store.getState().auth.status === 'unauthenticated') return;
       const identityAtStart = store.getState().auth.user?.id;
       const tokenAtStart = store.getState().auth.accessToken;
+      const expectedStatus = blocking ? 'idle' : store.getState().auth.status;
+      if (blocking) dispatch(beginSessionRestore());
       let session;
       try {
-        session = await refreshSessionChecked();
+        session = verifyStored && tokenAtStart && !isTokenExpiringSoon(tokenAtStart, 120)
+          ? await verifyStoredSessionChecked(tokenAtStart) : await refreshSessionChecked();
       } catch {
         // A temporary outage must not destroy the persisted session.
-        if (active && !identityAtStart && !store.getState().auth.user) dispatch(clearCredentials());
+        if (blocking && active && store.getState().auth.status === expectedStatus && store.getState().auth.user?.id === identityAtStart && store.getState().auth.accessToken === tokenAtStart) dispatch(sessionRestoreUnavailable());
         return;
       }
       if (!active) return;
       const currentId = store.getState().auth.user?.id;
+      if (store.getState().auth.status !== expectedStatus) return;
       if (currentId !== identityAtStart || store.getState().auth.accessToken !== tokenAtStart) return;
       if (session) {
         dispatch(setCredentials(session));
@@ -63,25 +70,21 @@ export const AuthBootstrap = () => {
       }
     };
 
-    // Only refresh on mount if token is absent or expiring soon (prevents concurrent refresh race across tabs/reloads)
-    const currentToken = store.getState().auth.accessToken;
-    if (!currentToken || isTokenExpiringSoon(currentToken, 120)) {
-      void synchronize();
-    }
+    // Fresh tokens are verified through /users/me; only expired/missing tokens rotate the refresh cookie.
+    void synchronize(true);
 
-    const refreshStaff = () => {
+    const refreshCurrentSession = () => {
       const state = store.getState().auth;
-      const role = state.user?.role;
-      if (role !== 'MODERATOR' && role !== 'SUPER_ADMIN') return;
+      if (!state.user) return;
 
       // If token has more than 120s left, do NOT refresh on focus/timer
-      if (!isTokenExpiringSoon(state.accessToken, 120)) {
+      if (!state.bootstrapError && !isTokenExpiringSoon(state.accessToken, 120)) {
         return;
       }
-      void synchronize();
+      void synchronize(true, state.status !== 'authenticated');
     };
 
-    // Keep tabs in sync: when another tab rotates the token, update this tab immediately without re-refreshing
+    // Revalidate storage updates before trusting cached identity or permissions.
     const handleStorage = (e: StorageEvent) => {
       if (e.storageArea === localStorage && e.key === STORAGE_KEY && !e.newValue && !sessionStorage.getItem(STORAGE_KEY)) {
         dispatch(clearCredentials());
@@ -93,19 +96,23 @@ export const AuthBootstrap = () => {
           const parsed = JSON.parse(e.newValue);
           if (parsed && typeof parsed === 'object' && parsed.accessToken && parsed.user) {
             dispatch(restoreCredentials(parsed));
+            void synchronize(true);
           }
         } catch {}
       }
     };
 
     window.addEventListener('storage', handleStorage);
-    window.addEventListener('focus', refreshStaff);
-    const timer = window.setInterval(refreshStaff, 60_000);
+    const retry = () => { void synchronize(true); };
+    window.addEventListener('tripri:retry-session', retry);
+    window.addEventListener('focus', refreshCurrentSession);
+    const timer = window.setInterval(refreshCurrentSession, 60_000);
 
     return () => {
       active = false;
       window.removeEventListener('storage', handleStorage);
-      window.removeEventListener('focus', refreshStaff);
+      window.removeEventListener('tripri:retry-session', retry);
+      window.removeEventListener('focus', refreshCurrentSession);
       window.clearInterval(timer);
     };
   }, [dispatch]);

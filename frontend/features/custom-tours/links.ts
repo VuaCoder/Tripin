@@ -44,6 +44,12 @@ export function notificationHref(
   notification: CustomTourNotification,
   role?: CustomTourRole,
 ): string | undefined {
+  if (notification.type === 'BOOKING_COMPLETED' && notification.data?.bookingId) {
+    return `/settings/history/${encodeURIComponent(notification.data.bookingId)}`;
+  }
+  if ((notification.type === 'TOUR_COMPLETION_DUE' || notification.type === 'TOUR_COMPLETION_OVERDUE') && notification.data?.tourId && notification.data?.departureId) {
+    return `/agency/completions?tourId=${encodeURIComponent(notification.data.tourId)}&departureId=${encodeURIComponent(notification.data.departureId)}`;
+  }
   if (!notification.type.startsWith('CUSTOM_TOUR')) return undefined;
 
   const { conversationId, requestId } = notification.data ?? {};

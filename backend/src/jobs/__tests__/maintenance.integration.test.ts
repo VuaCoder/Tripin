@@ -116,7 +116,9 @@ describe('maintenance jobs (integration)', () => {
     const tasks = defaultTasks();
     expect(tasks.map((t) => t.name).sort()).toEqual([
       'auth.purgeExpired',
-      'bookings.completeFinished',
+      'finance.process',
+      'tourCompletion.remindDue',
+      'tourCompletion.deliver',
       'bookings.expirePending',
       'complaints.autoCloseResolved',
       'eTickets.retryFulfillment',

@@ -76,7 +76,7 @@ function setup(tour: AnyTour | null) {
     manageMany: vi.fn(async (ts: AnyTour[]) => ts),
     guideItems: vi.fn(async (ts: AnyTour[]) => ts),
   };
-  const notifications = { notify: vi.fn(async () => undefined), notifyAgency: vi.fn(async () => undefined) };
+  const notifications = { notify: vi.fn(async () => undefined), notifyAgency: vi.fn(async () => undefined), notifyAdmins: vi.fn(async () => undefined) };
   const service = new ToursService(repo as never, users as never, categories as never, audit, views as never, notifications);
   return { service, repo, users, categories, audit, notifications, db };
 }
@@ -192,10 +192,17 @@ describe('edit rules', () => {
     await expect(service.updateTour('a1', 't1', { title: 'New title here' })).rejects.toMatchObject({ code: 'TOUR_LOCKED' });
   });
 
-  it('keeps an APPROVED tour APPROVED when its content changes', async () => {
-    const { service, db } = setup(makeTour({ status: TOUR_STATUS.APPROVED }));
+  it('submits approved content edits for another review and notifies moderators', async () => {
+    const { service, db, notifications } = setup(makeTour({ status: TOUR_STATUS.APPROVED, reviewedAt: new Date(), reviewedById: 'mod' }));
     await service.updateTour('a1', 't1', { title: 'Better title here' });
-    expect(db!.status).toBe(TOUR_STATUS.APPROVED);
+    expect(db).toMatchObject({ title: 'Better title here', status: TOUR_STATUS.PENDING_REVIEW, reviewedAt: null, reviewedById: null, submittedAt: expect.any(Date) });
+    expect(notifications.notifyAdmins).toHaveBeenCalledWith(expect.objectContaining({ data: { tourId: 't1' } }));
+  });
+
+  it('also requires re-review through the separate itinerary endpoint', async () => {
+    const { service, db } = setup(makeTour({ status: TOUR_STATUS.APPROVED }));
+    await service.setItinerary('a1', 't1', [{ day: 1, toDay: 3, title: 'New itinerary' }]);
+    expect(db!.status).toBe(TOUR_STATUS.PENDING_REVIEW);
   });
 
   it('keeps a DRAFT a DRAFT', async () => {

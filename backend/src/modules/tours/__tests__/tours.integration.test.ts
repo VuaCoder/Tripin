@@ -79,7 +79,7 @@ describe('tours (integration)', () => {
     expect((await request(app).delete(`/api/v1/agency/tours/${tourId}`).set(staff)).status).toBe(403);
   });
 
-  it('walks the whole lifecycle: draft is private, approval publishes, an edit sends it back to review', async () => {
+  it('requires approval for creation and edits, hides pending changes, then republishes after approval', async () => {
     const a = await actors();
     const tourId = await draftTour(a.agency.token, a.categoryId);
 
@@ -113,10 +113,30 @@ describe('tours (integration)', () => {
     const search = await request(app).get('/api/v1/tours').query({ q: 'ha long' });
     expect(search.body.data.map((t: { id: string }) => t.id)).toContain(tourId);
 
-    // Edit of an APPROVED tour: preserves APPROVED status and remains publicly accessible.
-    expect((await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(a.agency.token)).send({ title: 'Ha Long Bay 3D2N' })).status).toBe(200);
+    // Cached public detail and search must disappear immediately after an approved edit.
+    const revisedItinerary = [{ day: 1, toDay: 2, title: 'Updated bay itinerary', activities: ['New activity'] }];
+    const itineraryEdit = await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(a.agency.token)).send({
+      title: 'Ha Long Bay updated', itinerary: revisedItinerary, basePrice: 1_200_000, cancellationPolicy: 'Updated cancellation policy',
+    });
+    expect(itineraryEdit.status).toBe(200);
+    const edited = await loadTour(tourId);
+    expect(edited).toMatchObject({
+      status: 'PENDING_REVIEW', basePrice: 1_200_000n, cancellationPolicy: 'Updated cancellation policy',
+      reviewedAt: null, reviewedById: null, submittedAt: expect.any(Date),
+    });
+    expect((await request(app).get(`/api/v1/tours/${tourId}`)).status).toBe(404);
+    const hidden = await request(app).get('/api/v1/tours').query({ q: 'ha long' });
+    expect(hidden.body.data.map((t: { id: string }) => t.id)).not.toContain(tourId);
+    const newBuyer = await createUser('TRAVELER', 'new-buyer@example.com');
+    expect((await book(newBuyer.token, tourId, departureId)).status).toBe(404);
+    expect((await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(a.agency.token)).send({ title: 'Another edit' })).status).toBe(409);
+    expect((await request(app).post(`/api/v1/moderation/tours/${tourId}/validate`).set(bearer(a.moderator.token)).send({ approve: true })).status).toBe(200);
     expect((await loadTour(tourId))!.status).toBe('APPROVED');
-    expect((await request(app).get(`/api/v1/tours/${tourId}`)).status).toBe(200);
+    const publicTour = await request(app).get(`/api/v1/tours/${tourId}`);
+    expect(publicTour.status).toBe(200);
+    expect(publicTour.body.data.itinerary).toMatchObject(revisedItinerary);
+    const republished = await request(app).get('/api/v1/tours').query({ q: 'ha long' });
+    expect(republished.body.data.map((t: { id: string }) => t.id)).toContain(tourId);
   });
 
   it('list items are light cards: no description, itinerary, departures or internal fields; pages are capped', async () => {

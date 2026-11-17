@@ -57,12 +57,21 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
+    beginSessionRestore(state) {
+      state.status = 'idle';
+      state.bootstrapError = null;
+    },
+    sessionRestoreUnavailable(state) {
+      state.status = 'idle';
+      state.bootstrapError = 'Không thể kiểm tra phiên đăng nhập. Kiểm tra kết nối rồi thử lại.';
+    },
     setCredentials(state, action: PayloadAction<SessionData & { rememberMe?: boolean }>) {
       const sameUser = state.user?.id === action.payload.user.id;
       if (!sameUser) { state.activeAgencyId = null; state.agencies = []; state.agencyEpoch++; }
       state.user = action.payload.user;
       state.accessToken = action.payload.accessToken;
       state.status = 'authenticated';
+      state.bootstrapError = null;
       if (Array.isArray(action.payload.agencies)) replaceMemberships(state, action.payload.agencies);
       else {
         // Legacy personal sessions omit memberships. Rotating their token must
@@ -104,6 +113,7 @@ const authSlice = createSlice({
       state.user = null;
       state.accessToken = null;
       state.status = 'unauthenticated';
+      state.bootstrapError = null;
       state.agencies = [];
       state.activeAgencyId = null;
       state.membershipsReady = false;
@@ -118,7 +128,7 @@ const authSlice = createSlice({
   },
 });
 
-export const { setCredentials, restoreCredentials, setAgencyMemberships, selectAgency, setUser, clearCredentials } = authSlice.actions;
+export const { beginSessionRestore, sessionRestoreUnavailable, setCredentials, restoreCredentials, setAgencyMemberships, selectAgency, setUser, clearCredentials } = authSlice.actions;
 
 export const selectUser = (state: RootState) => state.auth.user;
 export const selectRole = (state: RootState) => state.auth.user?.role ?? null;

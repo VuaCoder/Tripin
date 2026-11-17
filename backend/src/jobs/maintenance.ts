@@ -1,6 +1,8 @@
 import { flushMailOutbox } from '../modules/notifications/mail-outbox';
+import { processFinanceJobs } from '../modules/agency-finance/finance.service';
 import { retryTicketFulfillment } from '../modules/e-tickets/e-tickets.fulfillment';
 import { logger } from '../utils/logger';
+import { remindDueCompletions, deliverPendingCompletions } from '../modules/tour-completion/completion.jobs';
 import { premiumRepository } from '../modules/premium/premium.repository';
 import { authService } from '../modules/auth';
 import { bookingsService } from '../modules/bookings';
@@ -25,13 +27,15 @@ const NOTIFICATION_RETENTION_DAYS = 180;
 /** Every time-driven rule of the platform, in one place. */
 export function defaultTasks(): MaintenanceTask[] {
   return [
+    { name: 'finance.process', intervalMs: MINUTE, run: processFinanceJobs },
     { name: 'mail.deliverOutbox', intervalMs: MINUTE, run: flushMailOutbox },
     { name: 'eTickets.retryFulfillment', intervalMs: MINUTE, run: retryTicketFulfillment },
     { name: 'premium.grantDue', intervalMs: MINUTE, run: () => premiumRepository.grantDue() },
     { name: 'premium.releaseExpiredHolds', intervalMs: MINUTE, run: () => premiumRepository.releaseExpiredHolds() },
-    // Unpaid bookings free their seats / promotions; finished trips become COMPLETED (reviews, earnings, e-ticket USED).
+    // Unpaid bookings expire; ended departures wait for an Agency report and get reminders.
     { name: 'bookings.expirePending', intervalMs: MINUTE, run: () => bookingsService.expirePendingBookings() },
-    { name: 'bookings.completeFinished', intervalMs: 5 * MINUTE, run: () => bookingsService.completeFinishedBookings() },
+    { name: 'tourCompletion.remindDue', intervalMs: 5 * MINUTE, run: () => remindDueCompletions() },
+    { name: 'tourCompletion.deliver', intervalMs: MINUTE, run: () => deliverPendingCompletions() },
     // Payment links past their expiry are closed (after asking the gateway); PAID-but-unfulfilled payments are retried.
     { name: 'payments.expireStale', intervalMs: MINUTE, run: () => paymentsService.expireStalePayments() },
     { name: 'payments.retryUnfulfilled', intervalMs: MINUTE, run: () => paymentsService.retryUnfulfilled() },

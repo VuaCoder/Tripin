@@ -54,6 +54,7 @@ export class ReviewsService {
     if (booking.status !== BOOKING_STATUS.COMPLETED) {
       throw AppError.conflict('You can review a trip after it is completed', 'BOOKING_NOT_COMPLETED');
     }
+    if (booking.attendedParticipants === 0) throw AppError.conflict('Booking được ghi nhận không tham gia chuyến đi. Liên hệ Agency nếu thông tin chưa đúng.', 'BOOKING_NOT_ATTENDED');
     if (!booking.endDate || booking.endDate.getTime() > Date.now()) {
       throw AppError.conflict('Chuyến đi chưa kết thúc', 'TRIP_NOT_ENDED');
     }

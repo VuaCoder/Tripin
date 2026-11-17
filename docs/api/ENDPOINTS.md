@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 302 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 361 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -38,6 +38,39 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 |---|---|---|
 | GET | `/api/v1/admin/export/audit-logs` | role: `SUPER_ADMIN` + `audit:view` |
 | GET | `/api/v1/admin/export/moderation` | role: `SUPER_ADMIN` + `audit:view` |
+
+## `/admin/finance`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/admin/finance/agencies` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/agencies/:agencyId` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/agencies/:agencyId/bank-details` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/agencies/:agencyId/bank-verify` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/agencies/:agencyId/documents` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/agencies/:agencyId/payouts` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/dashboard` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/directory` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/directory/:agencyId` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/documents/:id` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/jobs/retry` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/payouts/:id/:action` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/policy` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| PUT | `/api/v1/admin/finance/policy` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/policy/history` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/receipts` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/reconcile/:agencyId` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/refunds/:id/review` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/reports/export.pdf` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/reports/export.xlsx` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/settlement-source/:id` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/settlements/:agencyId` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/settlements/:agencyId/release-all` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/settlements/:id/hold` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/settlements/:id/release` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/wallet/:agencyId` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/withdrawals` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/withdrawals/:id/:action` | role: `SUPER_ADMIN` + `admin:dashboard` |
 
 ## `/admin/policies`
 
@@ -211,11 +244,44 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | GET | `/api/v1/agency/complaints/:id` | `complaint:respond` |
 | POST | `/api/v1/agency/complaints/:id/respond` | `complaint:respond` |
 
+## `/agency/completions`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/agency/completions` | `tour:update-own` |
+
 ## `/agency/dashboard`
 
 | Method | Path | Access |
 |---|---|---|
 | GET | `/api/v1/agency/dashboard` | `agency:dashboard` |
+
+## `/agency/finance`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/agency/finance/balances` | `agency:finance-view` |
+| GET | `/api/v1/agency/finance/bank-account` | `agency:finance-view` |
+| PUT | `/api/v1/agency/finance/bank-account` | `agency:finance-view`, `agency:finance-bank-manage` |
+| GET | `/api/v1/agency/finance/cashflow` | `agency:finance-view` |
+| POST | `/api/v1/agency/finance/documents` | `agency:finance-view`, `agency:finance-refund-record` |
+| GET | `/api/v1/agency/finance/documents/:id` | `agency:finance-view` |
+| GET | `/api/v1/agency/finance/overview` | `agency:finance-view` |
+| GET | `/api/v1/agency/finance/payouts` | `agency:finance-view` |
+| GET | `/api/v1/agency/finance/payouts/:id` | `agency:finance-view` |
+| GET | `/api/v1/agency/finance/receipts` | `agency:finance-view` |
+| POST | `/api/v1/agency/finance/reconcile` | `agency:finance-view`, `agency:finance-reconcile` |
+| GET | `/api/v1/agency/finance/reconcile/runs` | `agency:finance-view` |
+| GET | `/api/v1/agency/finance/refunds` | `agency:finance-view` |
+| POST | `/api/v1/agency/finance/refunds/:bookingId/manual-payments` | `agency:finance-view`, `agency:finance-refund-record` |
+| GET | `/api/v1/agency/finance/reports/export.pdf` | `agency:finance-view`, `agency:finance-export` |
+| GET | `/api/v1/agency/finance/reports/export.xlsx` | `agency:finance-view`, `agency:finance-export` |
+| GET | `/api/v1/agency/finance/settlements` | `agency:finance-view` |
+| GET | `/api/v1/agency/finance/transactions` | `agency:finance-view` |
+| GET | `/api/v1/agency/finance/transactions/:id` | `agency:finance-view` |
+| GET | `/api/v1/agency/finance/withdrawals` | `agency:finance-view` |
+| POST | `/api/v1/agency/finance/withdrawals` | `agency:finance-view`, `agency:finance-withdraw` |
+| POST | `/api/v1/agency/finance/withdrawals/:id/cancel` | `agency:finance-view`, `agency:finance-withdraw` |
 
 ## `/agency/guides`
 
@@ -268,6 +334,9 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/agency/tours/:tourId/departures` | `tour:set-availability` |
 | DELETE | `/api/v1/agency/tours/:tourId/departures/:departureId` | `tour:set-availability` |
 | PATCH | `/api/v1/agency/tours/:tourId/departures/:departureId` | `tour:set-availability` |
+| GET | `/api/v1/agency/tours/:tourId/departures/:departureId/completion` | `tour:update-own` |
+| POST | `/api/v1/agency/tours/:tourId/departures/:departureId/completion/draft` | `tour:update-own` |
+| POST | `/api/v1/agency/tours/:tourId/departures/:departureId/completion/submit` | `tour:update-own` |
 | GET | `/api/v1/agency/tours/:tourId/departures/:departureId/customers.pdf` | `agency:export-customers` |
 | POST | `/api/v1/agency/tours/categories` | `tour:create` |
 | POST | `/api/v1/agency/tours/extract-document` | `tour:import` |
@@ -473,6 +542,16 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | Method | Path | Access |
 |---|---|---|
 | GET | `/api/v1/moderation/sla` | `dispute:resolve` |
+
+## `/moderation/tour-completions`
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/moderation/tour-completions` | `tour-completion:view` |
+| GET | `/api/v1/moderation/tour-completions/:id` | `tour-completion:view` |
+| GET | `/api/v1/moderation/tour-completions/agencies` | `tour-completion:view` |
+| GET | `/api/v1/moderation/tour-completions/agencies/:id` | `tour-completion:view` |
+| GET | `/api/v1/moderation/tour-completions/by-booking/:id` | `tour-completion:view` |
 
 ## `/notifications`
 

@@ -65,7 +65,7 @@ export function useRegisterForm({ role = 'TRAVELER', onSuccess, onError }: UseRe
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: name === 'phone' ? value.replace(/\D/g, '').slice(0, 11) : value,
     }));
 
     // Clear validation error when user types
@@ -122,6 +122,13 @@ export function useRegisterForm({ role = 'TRAVELER', onSuccess, onError }: UseRe
       if (code === 'EMAIL_ALREADY_REGISTERED') {
         setErrors((prev) => ({ ...prev, email: EMAIL_ALREADY_REGISTERED_MESSAGE }));
         onError?.(EMAIL_ALREADY_REGISTERED_MESSAGE);
+        return;
+      }
+
+      if (code === 'PHONE_ALREADY_REGISTERED') {
+        const message = 'Số điện thoại này đã được đăng ký. Vui lòng sử dụng số khác.';
+        setErrors((prev) => ({ ...prev, phone: message }));
+        onError?.(message);
         return;
       }
 

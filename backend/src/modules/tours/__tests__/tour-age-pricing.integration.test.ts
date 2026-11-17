@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { createApp } from '../../../app';
+import { prisma } from '../../../config/database';
 import { bearer, createApprovedTour, createUser, resetDatabase, startDatabase, stopDatabase } from '../../../test/integration';
 const app = createApp();
 beforeAll(startDatabase, 120000); afterAll(stopDatabase); beforeEach(resetDatabase);
@@ -12,13 +13,18 @@ describe('Tour policies and age pricing', () => {
     const fixed = { childMinAge: 2, adultMinAge: 13, childPercent: 100, infantPercent: 100, childPrice: null, infantPrice: 0 };
     const saved = await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(agency.token)).send({ agePricing: fixed });
     expect(saved.status).toBe(200);
+    // Editing published content correctly returns it to review. These pricing
+    // fixtures republish the saved configuration before exercising public APIs.
+    await prisma.tour.update({where:{id:tourId},data:{status:'APPROVED'}});
     const search = async (query: string) => (await request(app).get(`/api/v1/tours?${query}`)).body.data.map((tour: { id: string }) => tour.id);
     expect(await search('adults=1&infants=1')).toContain(tourId);
     expect(await search('adults=1&children=1')).not.toContain(tourId);
     expect(await search('adults=6')).not.toContain(tourId);
     await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(agency.token)).send({ agePricing: { ...fixed, childPrice: 200000 } });
+    await prisma.tour.update({where:{id:tourId},data:{status:'APPROVED'}});
     expect(await search('adults=1&children=1')).toContain(tourId);
     await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(agency.token)).send({ agePricing: pricing });
+    await prisma.tour.update({where:{id:tourId},data:{status:'APPROVED'}});
     expect(await search('adults=1&children=1')).toContain(tourId);
   });
   it('persists agency policies and uses the same age prices for cart and booking snapshots', async () => {
@@ -28,6 +34,7 @@ describe('Tour policies and age pricing', () => {
     const policies = { agePricing: pricing, childPricingPolicy: 'Trẻ em 2–11 tuổi: 50%, ngủ chung với bố mẹ.', cancellationPolicy: 'Điều kiện hủy được xác nhận trước khi đặt.', requiredDocuments: 'Mang giấy tờ tùy thân theo yêu cầu của đơn vị tổ chức.', travelNotes: 'Có mặt trước giờ khởi hành 30 phút.' };
     const edited = await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(agency.token)).send(policies);
     expect(edited.status).toBe(200);
+    await prisma.tour.update({where:{id:tourId},data:{status:'APPROVED'}});
     expect((await request(app).get(`/api/v1/tours/${tourId}`)).body.data).toMatchObject(policies);
     const guests = { adults: 2, children: 1, infants: 1 };
     const added = await request(app).post('/api/v1/cart/items').set(bearer(traveler.token)).send({ tourId, departureId, participants: 4, guestCounts: guests });
@@ -48,6 +55,7 @@ describe('Tour policies and age pricing', () => {
     const body = { tourId, departureId, participants: 2, guestCounts: { adults: 1, children: 1, infants: 0 }, contact: { fullName: 'Test User', phone: '0901234567' } };
     expect((await request(app).post('/api/v1/bookings').set(bearer(traveler.token)).send(body)).status).toBe(400);
     await request(app).patch(`/api/v1/agency/tours/${tourId}`).set(bearer(agency.token)).send({ agePricing: pricing });
+    await prisma.tour.update({where:{id:tourId},data:{status:'APPROVED'}});
     expect((await request(app).post('/api/v1/bookings').set(bearer(traveler.token)).send({ ...body, participants: 3 })).status).toBe(400);
     const detail = await request(app).get(`/api/v1/tours/${tourId}`);
     expect(detail.body.data.departures[0].remaining).toBe(20);

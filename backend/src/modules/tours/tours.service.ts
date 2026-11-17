@@ -25,6 +25,7 @@ import {
   type UpdateTourInput,
 } from './tours.types';
 import { tourViewBuilder, type TourViewBuilder } from './tours.view';
+import { toursDiscoveryService, type ToursDiscoveryService } from './tours-discovery.service';
 
 type Actor = { userId: string; role: PersistedRole };
 type Repo = Pick<
@@ -47,6 +48,7 @@ export class ToursService {
     _audit: Pick<AuditService, 'record'> = auditService,
     private readonly views: Pick<TourViewBuilder, 'manage' | 'manageMany' | 'guideItems'> = tourViewBuilder,
     private readonly notifications: Pick<NotificationsService, 'notify' | 'notifyAgency'> & Partial<Pick<NotificationsService, 'notifyAdmins'>> = notificationsService,
+    private readonly discovery: Pick<ToursDiscoveryService, 'invalidateCache'> = toursDiscoveryService,
   ) {}
 
   // ================================================================ Agency
@@ -95,8 +97,8 @@ export class ToursService {
   }
 
   /**
-   * Use case "Edit tour". Locked while PENDING_REVIEW. Editing an APPROVED tour preserves its APPROVED status
-   * so agencies can update content without resubmitting — existing bookings keep their price snapshot.
+   * Use case "Edit tour". Locked while PENDING_REVIEW. Editing an APPROVED tour submits it for review
+   * and hides it from public discovery; existing bookings keep their price snapshot.
    */
   async updateTour(agencyId: string, id: string, input: UpdateTourInput, memberRole?: import('../agencies/agency.policy').AgencyContext['memberRole']): Promise<TourManageDto> {
     if (memberRole === 'STAFF' && Object.keys(input).some((key) => !['title', 'description', 'images', 'highlights', 'itinerary', 'inclusions', 'exclusions'].includes(key))) {
@@ -207,7 +209,7 @@ export class ToursService {
     return this.views.manage(updated);
   }
 
-  /** Use case "Config itinerary". Optional content configuration; approved tours retain their status. */
+  /** Use case "Config itinerary". Editing approved content requires another review. */
   async setItinerary(agencyId: string, id: string, days: ItineraryDayInput[]): Promise<TourManageDto> {
     const tour = await this.requireOwned(agencyId, id);
     this.assertNotPrivateManaged(tour);
@@ -352,7 +354,7 @@ export class ToursService {
     });
     if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
 
-
+    this.discovery.invalidateCache(id);
     await this.notifications.notifyAgency(
       tour.agencyId,
       {
@@ -553,11 +555,20 @@ export class ToursService {
     }
   }
 
-  /** Applies a content update; APPROVED tours retain APPROVED status without requiring re-review. */
+  /** Save content and re-enter moderation atomically, so unreviewed changes are never public. */
   private async applyContentChange(tour: TourRecord, change: TourPatch): Promise<TourManageDto> {
     const current = tour.status as TourStatus;
-    const updated = await this.tours.updateIfStatus(tour.id, [current], change);
+    const requiresReview = current === TOUR_STATUS.APPROVED;
+    if (requiresReview) assertTransition(TOUR_TRANSITIONS, current, TOUR_STATUS.PENDING_REVIEW, ENTITY);
+    const updated = await this.tours.updateIfStatus(tour.id, [current], {
+      ...change,
+      ...(requiresReview ? { status: TOUR_STATUS.PENDING_REVIEW, submittedAt: new Date(),
+        reviewedAt: null, reviewedById: null, statusReason: null } : {}),
+    });
     if (!updated) throw AppError.conflict('The tour was modified, please retry', 'CONCURRENT_UPDATE');
+    this.discovery.invalidateCache(tour.id);
+    if (requiresReview) await this.notifications.notifyAdmins?.({ type: NOTIFICATION_TYPE.ADMIN_REQUEST_RECEIVED,
+      title: 'Tour cập nhật chờ duyệt', body: `Tour "${updated.title}" đã được chỉnh sửa và cần kiểm duyệt lại.`, data: { tourId: tour.id } });
     return this.views.manage(updated);
   }
 }

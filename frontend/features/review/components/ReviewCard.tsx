@@ -58,7 +58,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
       </div>
 
       {/* Comment body with "Hiển thị thêm" */}
-      <div className="mt-2">
+      {review.comment && <div className="mt-2">
         <p
           className={`whitespace-pre-line text-[14px] leading-relaxed text-slate-800 font-normal ${
             !expanded && isLong ? 'line-clamp-3' : ''
@@ -75,7 +75,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
             Hiển thị thêm
           </button>
         )}
-      </div>
+      </div>}
 
       {review.images && review.images.length > 0 && (
         <div className="mt-3">

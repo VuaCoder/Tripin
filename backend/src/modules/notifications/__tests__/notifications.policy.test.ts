@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { canReceiveAgencyNotification as allows } from '../notifications.policy';
 
 describe('agency notification recipient policy', () => {
+  it('sends completion reminders only to members holding tour management permission', () => {
+    expect(allows('OWNER', 'TOUR_COMPLETION_DUE')).toBe(true);
+    expect(allows('MANAGER', 'TOUR_COMPLETION_OVERDUE')).toBe(true);
+    expect(allows('STAFF', 'TOUR_COMPLETION_DUE')).toBe(false);
+    expect(allows('ACCOUNTANT', 'TOUR_COMPLETION_DUE')).toBe(false);
+  });
   it('does not send financial or personal notifications to tour-only members', () => {
     expect(allows('STAFF', 'PAYMENT_SUCCEEDED')).toBe(false);
     expect(allows('STAFF', 'EARNING_RECORDED')).toBe(false);

@@ -1,5 +1,7 @@
 'use client';
 import { agencyNotice } from '../agencyNotice';
+import Link from 'next/link';
+import { notificationHref } from '@/features/custom-tours/links';
 import { useEffect, useMemo, useState } from 'react';
 import { Bell, CheckCheck, Trash2, RefreshCw, X } from 'lucide-react';
 import {
@@ -314,6 +316,7 @@ export function AgencyNotificationInbox({ compact = false, onClose, closeRef }: 
                       <p className="mt-2 whitespace-pre-wrap break-words text-xs leading-relaxed text-slate-600">
                         {localizedBody}
                       </p>
+                      {notificationHref(item, 'AGENCY') && <Link href={notificationHref(item, 'AGENCY')!} onClick={onClose} className="mt-2 inline-block text-sm font-semibold text-teal-800 underline">Xem chi tiết</Link>}
 
                       <div className="mt-3 flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
                         <time dateTime={item.createdAt} className="text-[11px] text-slate-400 font-medium">

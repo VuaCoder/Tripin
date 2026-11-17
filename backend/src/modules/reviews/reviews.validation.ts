@@ -10,9 +10,9 @@ export const createReviewBody = z
     comment: z
       .string()
       .trim()
-      .min(10, 'Please write at least 10 characters')
       .max(2000)
-      .refine((val) => !containsProfanity(val), PROFANITY_ERROR_MESSAGE),
+      .refine((val) => !containsProfanity(val), PROFANITY_ERROR_MESSAGE)
+      .default(''),
     imagePublicIds: z.array(z.string().min(1).max(300)).max(6).refine(ids => new Set(ids).size === ids.length, 'Duplicate images are not allowed').optional(),
   })
   .strict();

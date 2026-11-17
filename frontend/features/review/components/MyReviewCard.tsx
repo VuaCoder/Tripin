@@ -22,7 +22,7 @@ export function MyReviewCard({ review }: MyReviewCardProps) {
         <RatingStars value={review.rating} size="sm" />
         <span className="text-xs text-slate-500">{formatDate(review.createdAt)}</span>
       </div>
-      <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700">{review.comment}</p>
+      {review.comment && <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700">{review.comment}</p>}
       <ReviewPhotos images={review.images} author="bạn" />
       {hidden && (
         <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">

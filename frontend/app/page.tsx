@@ -2,10 +2,8 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useRef, useLayoutEffect, useState } from 'react';
-import { useAppSelector } from '@/store/hooks';
-import { selectRole } from '@/features/auth/store/authSlice';
+import { SessionEntryGate } from '@/features/auth/components/SessionEntryGate';
 import { ArrowDown, ArrowUpRight } from 'lucide-react';
 import { JourneyHero, canRunJourney } from '@/features/landing-hero';
 import { STORY_CHAPTERS as chapters } from '@/features/landing-hero/story-content';
@@ -320,8 +318,10 @@ function StorySection() {
 }
 
 export default function LandingPage() {
-  const router = useRouter();
-  const role = useAppSelector(selectRole);
+  return <SessionEntryGate><LandingContent /></SessionEntryGate>;
+}
+
+function LandingContent() {
   const [scene3d, setScene3d] = useState(true);
   const disable3d = useCallback(() => setScene3d(false), []);
 
@@ -329,11 +329,6 @@ export default function LandingPage() {
     if (!canRunJourney()) setScene3d(false);
   }, []);
 
-  useEffect(() => {
-    if (role === 'AGENCY') {
-      router.replace('/agency');
-    }
-  }, [role, router]);
 
   useIsomorphicLayoutEffect(() => {
     let ctx = gsap.context(() => {

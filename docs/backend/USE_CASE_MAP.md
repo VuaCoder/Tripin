@@ -195,7 +195,48 @@ Admin dashboard accepts paired `from`/`to` (max 366 days), returns previous-peri
 
 Legacy Guide subscription endpoints remain available. Premium authorization is derived server-side from current-role, non-revoked, time-effective periods; paid future periods do not grant early access. See `backend/src/modules/premium/README.md` for inventory, late-payment and refund rules.
 
-## Staff and moderation workflow extensions
+## Trip completion reports
+
+| Use case | Actor | Endpoint | Status |
+|---|---|---|---|
+| List departures awaiting reports or completed trips | Agency completion permission | `GET /agency/completions` | done |
+| Read report and revision history | Agency completion permission | `GET /agency/tours/:tourId/departures/:departureId/completion` | done |
+| Save a draft or submit the completion report | Agency completion permission | `POST /agency/tours/:tourId/departures/:departureId/completion/draft`, `POST /agency/tours/:tourId/departures/:departureId/completion/submit` | done |
+| Browse agencies and submitted reports | Moderator completion permission | `GET /moderation/tour-completions/agencies`, `GET /moderation/tour-completions/agencies/:id`, `GET /moderation/tour-completions`, `GET /moderation/tour-completions/:id`, `GET /moderation/tour-completions/by-booking/:id` | done |
+
+## Agency accounting and wallet
+
+Amounts are journal-backed. Settlement releases earnings to an internal available balance; bank transfers remain external. Refund accounting is deferred: its compatibility endpoints return 501. Settlement policy is fixed and its former edit endpoint returns 409.
+
+| Use case | Actor | Endpoint | Status |
+|---|---|---|---|
+| Financial overview and cash flow | Agency finance view | `GET /agency/finance/overview`, `GET /agency/finance/cashflow` | done |
+| Read journals and individual entries | Agency finance view | `GET /agency/finance/transactions`, `GET /agency/finance/transactions/:id` | done |
+| Inspect receipts and reconciliation runs | Agency finance view | `GET /agency/finance/receipts`, `GET /agency/finance/reconcile/runs` | done |
+| Request reconciliation | Agency finance reconcile | `POST /agency/finance/reconcile` | done |
+| Read balances, settlements and withdrawals | Agency finance view | `GET /agency/finance/balances`, `GET /agency/finance/settlements`, `GET /agency/finance/withdrawals` | done |
+| Request or cancel own withdrawal | Agency withdrawal permission | `POST /agency/finance/withdrawals`, `POST /agency/finance/withdrawals/:id/cancel` | done |
+| Read or update receiving account | Agency view; bank management for writes | `GET /agency/finance/bank-account`, `PUT /agency/finance/bank-account` | done |
+| Upload or read private documents | Agency finance permission and ownership | `POST /agency/finance/documents`, `GET /agency/finance/documents/:id` | done |
+| Read historical payout periods | Agency finance view | `GET /agency/finance/payouts`, `GET /agency/finance/payouts/:id` | done |
+| Export finance reports | Agency finance export | `GET /agency/finance/reports/export.xlsx`, `GET /agency/finance/reports/export.pdf` | done |
+| Deferred refund compatibility | Agency finance permission | `GET /agency/finance/refunds`, `POST /agency/finance/refunds/:bookingId/manual-payments` | deferred; 501 |
+| Global dashboard and searchable Agency directory | Super Admin + admin:dashboard | `GET /admin/finance/dashboard`, `GET /admin/finance/directory`, `GET /admin/finance/directory/:agencyId` | done |
+| Read Agency finance and legacy directory | Super Admin + admin:dashboard | `GET /admin/finance/agencies`, `GET /admin/finance/agencies/:agencyId` | done |
+| Read Agency balances and settlement sources | Super Admin + admin:dashboard | `GET /admin/finance/wallet/:agencyId`, `GET /admin/finance/settlements/:agencyId`, `GET /admin/finance/settlement-source/:id` | done |
+| Hold or release earnings; settle entire Agency early | Super Admin + admin:dashboard | `POST /admin/finance/settlements/:id/hold`, `POST /admin/finance/settlements/:id/release`, `POST /admin/finance/settlements/:agencyId/release-all` | done |
+| Read and process withdrawal requests | Super Admin + admin:dashboard | `GET /admin/finance/withdrawals`, `POST /admin/finance/withdrawals/:id/:action` | done |
+| Inspect and verify receiving bank details | Super Admin + admin:dashboard | `GET /admin/finance/agencies/:agencyId/bank-details`, `POST /admin/finance/agencies/:agencyId/bank-verify` | done |
+| Inspect receipts and request reconciliation | Super Admin + admin:dashboard | `GET /admin/finance/receipts`, `POST /admin/finance/reconcile/:agencyId` | done |
+| Retry normal settlement checks | Super Admin + admin:dashboard | `POST /admin/finance/jobs/retry` | done |
+| Read fixed policy and historical changes | Super Admin + admin:dashboard | `GET /admin/finance/policy`, `GET /admin/finance/policy/history` | done |
+| Disabled policy editor compatibility | Super Admin + admin:dashboard | `PUT /admin/finance/policy` | fixed policy; 409 |
+| Read or upload private finance documents | Super Admin + admin:dashboard | `POST /admin/finance/agencies/:agencyId/documents`, `GET /admin/finance/documents/:id` | done |
+| Legacy payout compatibility | Super Admin + admin:dashboard | `POST /admin/finance/agencies/:agencyId/payouts`, `POST /admin/finance/payouts/:id/:action` | quarantined |
+| Deferred refund review compatibility | Super Admin + admin:dashboard | `POST /admin/finance/refunds/:id/review` | deferred; 501 |
+| Export global or Agency reports | Super Admin + admin:dashboard | `GET /admin/finance/reports/export.xlsx`, `GET /admin/finance/reports/export.pdf` | done |
+
+## Staff and moderation workflow endpoint map
 
 | Endpoint | Responsibility |
 |---|---|

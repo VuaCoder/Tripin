@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -288,6 +289,7 @@ export function ComplaintConversationView({
               {' · '}
               {getCategoryLabel(ticket.category)} ➔ {getSubCategoryLabel(ticket.category, ticket.subCategory)}
             </p>
+            {(userRole === 'MODERATOR' || userRole === 'SUPER_ADMIN') && ticket.bookingId && <Link href={`/moderator/tour-completions/${ticket.bookingId}?byBooking=true`} className="inline-block pt-2 text-sm font-semibold text-teal-800 underline">Xem báo cáo chuyến đi</Link>}
           </div>
 
           <div className="flex items-center gap-2">

@@ -210,7 +210,8 @@ describe('audit coverage (integration)', () => {
 
   it('every action declared in AUDIT_ACTIONS is exercised by this file or the agency audit suite', () => {
     const fs = require('node:fs') as typeof import('node:fs');
-    const source = fs.readFileSync(__filename, 'utf-8') + fs.readFileSync(require('node:path').resolve(__dirname, '../../agencies/__tests__/agency-audit.integration.test.ts'), 'utf-8');
+    const source = [__filename, '../../agencies/__tests__/agency-audit.integration.test.ts', '../../tour-completion/__tests__/completion.integration.test.ts']
+      .map(file => fs.readFileSync(require('node:path').resolve(__dirname,file), 'utf-8')).join('\n');
     // Premium and guide payout transfer coverage live in their domain integration suites.
     const unused = Object.keys(AUDIT_ACTIONS).filter((key) => !['PREMIUM_CHANGED', 'GUIDE_PAYOUT_TRANSFERRED'].includes(key)).filter((key) => !source.includes(`AUDIT_ACTIONS.${key}`));
     expect(unused).toEqual([]);
