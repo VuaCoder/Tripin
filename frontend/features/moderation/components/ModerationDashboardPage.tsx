@@ -361,7 +361,6 @@ export function ModerationDashboardPage() {
                       </span>
                       <div>
                         <h2 className="text-base font-bold text-slate-900 tracking-tight">Phân bổ trạng thái tour</h2>
-                        <p className="text-xs text-slate-400">Tỷ lệ tour theo trạng thái kiểm duyệt trên sàn</p>
                       </div>
                     </div>
                     <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-xl">
@@ -522,7 +521,6 @@ export function ModerationDashboardPage() {
                     </span>
                     <div>
                       <h2 className="text-base font-bold text-slate-900 tracking-tight">Hàng đợi chờ xử lý</h2>
-                      <p className="text-xs text-slate-400">Tải công việc cần giải quyết</p>
                     </div>
                   </div>
                 </div>

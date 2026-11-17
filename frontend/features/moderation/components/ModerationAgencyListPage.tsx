@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowUpRight, Building2, CalendarDays, FileCheck2, FileText, LayoutGrid, List, MapPin, RefreshCw, UserRound } from 'lucide-react';
+import { ArrowUpRight, Building2, CalendarDays, FileCheck2, FileText, MapPin, RefreshCw, Search, UserRound } from 'lucide-react';
+import { GridListToggle } from '@/components/ui/GridListToggle';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
 import { Pagination, AntSelect, type AntSelectOption } from '@/components/ui';
 import { useGetModerationAgenciesQuery, useVerifyAgencyMutation } from '../api/moderationApi';
@@ -17,7 +18,7 @@ export function ModerationAgencyListPage() {
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<AgencyVerificationStatus | 'ALL'>('PENDING');
   const [view, setView] = useState<'list' | 'grid'>('list');
-  const { data, currentData, isLoading, isFetching, isError, refetch } = useGetModerationAgenciesQuery(
+  const { data, isLoading, isFetching, isError, refetch } = useGetModerationAgenciesQuery(
     { page, limit: PAGE_SIZE, ...(filter === 'ALL' ? {} : { status: filter }) },
     { skip: !canVerify, refetchOnMountOrArgChange: 60 },
   );
@@ -50,16 +51,16 @@ export function ModerationAgencyListPage() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 py-2 text-slate-900 selection:bg-teal-100">
       <header className="flex flex-wrap items-start justify-between gap-5">
-        <div><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Xác minh hồ sơ agency</h1><p className="mt-2 max-w-2xl text-base leading-7 text-slate-600">Kiểm tra thông tin doanh nghiệp và giấy tờ trước khi xác minh đối tác.</p></div>
-        <button type="button" disabled={isFetching} onClick={() => void refetch()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal disabled:opacity-50"><RefreshCw aria-hidden="true" className={`size-4 ${isFetching ? 'animate-spin' : ''}`} />Làm mới</button>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Xác minh hồ sơ agency</h1>
+        <button type="button" disabled={isFetching} onClick={() => void refetch()} aria-label="Làm mới" title="Làm mới" className="flex size-10 items-center justify-center rounded-2xl border border-slate-200/90 bg-white text-slate-600 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"><RefreshCw aria-hidden="true" className={`size-4 ${isFetching ? 'animate-spin' : ''}`} /></button>
       </header>
 
       <FeedbackBanner feedback={feedback} onClose={() => setFeedback(null)} />
 
       <section aria-label="Danh sách hồ sơ" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
-          <div className="flex items-center gap-3"><FileCheck2 className="size-5 text-teal-800" aria-hidden="true" /><h2 className="text-lg font-semibold">Hồ sơ doanh nghiệp</h2>{!isError && !isLoading && (!isFetching || currentData) && data && <span className="rounded-lg bg-slate-200/60 px-2.5 py-1 text-sm font-semibold tabular-nums">{data.meta.total}</span>}</div>
-          <div className="flex flex-wrap items-center gap-3"><span className="text-sm text-slate-600">Trạng thái</span><AntSelect<AgencyVerificationStatus | 'ALL'> aria-label="Lọc theo trạng thái" value={filter} onChange={(value) => { setFilter(value); setPage(1); close(); }} options={options} size="middle" className="min-w-[160px]" /><div className="inline-flex rounded-xl border border-slate-200 bg-white p-1" role="group" aria-label="Kiểu hiển thị"><button type="button" aria-label="Hiển thị danh sách" aria-pressed={view === 'list'} onClick={() => setView('list')} className={`flex size-9 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal ${view === 'list' ? 'bg-teal-50 text-teal-800' : 'text-slate-500 hover:bg-slate-50'}`}><List className="size-4" /></button><button type="button" aria-label="Hiển thị lưới" aria-pressed={view === 'grid'} onClick={() => setView('grid')} className={`flex size-9 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal ${view === 'grid' ? 'bg-teal-50 text-teal-800' : 'text-slate-500 hover:bg-slate-50'}`}><LayoutGrid className="size-4" /></button></div></div>
+          <div className="flex items-center gap-3"><FileCheck2 className="size-5 text-teal-800" aria-hidden="true" /><h2 className="text-lg font-semibold">Hồ sơ doanh nghiệp</h2></div>
+          <div className="flex flex-wrap items-center gap-3"><Search className="size-4 text-slate-500" aria-hidden="true" /><AntSelect<AgencyVerificationStatus | 'ALL'> aria-label="Lọc theo trạng thái" value={filter} onChange={(value) => { setFilter(value); setPage(1); close(); }} options={options} size="middle" className="min-w-[160px]" /><GridListToggle value={view} onChange={setView} /></div>
         </div>
 
         {isLoading || (isFetching && !data) ? <LoadingState label="Đang tải danh sách agency..." /> : isError ? <ErrorState title="Không thể tải danh sách agency" message="Đã có lỗi xảy ra khi kết nối máy chủ. Vui lòng thử lại." onAction={() => void refetch()} /> : !data || data.items.length === 0 ? (
@@ -84,7 +85,7 @@ export function ModerationAgencyListPage() {
               </li>;
             })}
           </ul>
-          <Pagination currentPage={data.meta.page} totalPages={data.meta.totalPages} totalItems={data.meta.total} pageSize={PAGE_SIZE} onPageChange={(value) => { setPage(value); close(); }} disabled={isFetching} showInfo itemLabel="hồ sơ" />
+          <Pagination currentPage={data.meta.page} totalPages={data.meta.totalPages} totalItems={data.meta.total} pageSize={PAGE_SIZE} onPageChange={(value) => { setPage(value); close(); }} disabled={isFetching} />
         </>}
       </section>
       {selected && <AgencyVerificationDialog key={selected.id} agency={selected} isSubmitting={isVerifying} serverError={serverError} onClose={close} onDecide={decide} />}
