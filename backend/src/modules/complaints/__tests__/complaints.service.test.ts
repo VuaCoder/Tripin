@@ -134,7 +134,9 @@ function createMockService(initialTickets: ComplaintTicketWithRelations[] = []) 
           _count: { id: 2 },
         },
       ],
+      selfResolved: [{ agencyId: 'u_agency', _count: { id: 3 } }],
     })),
+    listAgencyQualityIdentities: vi.fn(async () => [{ id: 'u_agency', companyName: 'Vietraveler Corp', user: { fullName: 'Agency', avatarUrl: null }, members: [] }]),
   };
 
   const tours: any = {
@@ -319,6 +321,17 @@ describe('ComplaintsService', () => {
     expect(dashboard[0]!.avgRating).toBe(4.5);
     expect(dashboard[0]!.totalComplaints).toBe(4);
     expect(dashboard[0]!.resolutionRatePercent).toBe(75);
+  });
+
+  it('includes agencies with no complaints and uses their saved avatar', async () => {
+    const { service, repo } = createMockService();
+    repo.listAgencyQualityIdentities.mockResolvedValueOnce([
+      { id: 'u_agency', companyName: 'Vietraveler Corp', user: { fullName: 'Agency', avatarUrl: null }, members: [] },
+      { id: 'agency-2', companyName: 'New Agency', user: null, members: [{ user: { avatarUrl: 'https://example.com/avatar.jpg' } }] },
+    ]);
+    const dashboard = await service.getAgencyQualityDashboard();
+    expect(dashboard).toHaveLength(2);
+    expect(dashboard[1]).toMatchObject({ agencyName: 'New Agency', avatarUrl: 'https://example.com/avatar.jpg', totalComplaints: 0, resolutionRatePercent: 0 });
   });
 
   it('tạo upload signature cho hình ảnh bằng chứng khiếu nại', () => {

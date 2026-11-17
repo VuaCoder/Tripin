@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
-import { AntSelect } from '@/components/ui';
+import { AntSelect, Pagination } from '@/components/ui';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth';
 import { useGetAgencyQualityDashboardQuery, useGetModeratorComplaintsQuery } from '../api/complaintsApi';
@@ -32,7 +32,11 @@ export function ModeratorQualityDashboardPage() {
   const [activeTab, setActiveTab] = useState<'ESCALATED' | 'QUALITY'>('ESCALATED');
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [agencySearch, setAgencySearch] = useState('');
+  const [isAgencySearchExpanded, setIsAgencySearchExpanded] = useState(false);
+  const agencySearchRef = useRef<HTMLInputElement>(null);
+  const [complaintSearch, setComplaintSearch] = useState('');
   const [sortBy, setSortBy] = useState<'RATING' | 'COMPLAINTS' | 'RESOLUTION'>('RATING');
+  const [agencyPage, setAgencyPage] = useState(1);
 
   const {
     data: escalatedData,
@@ -40,7 +44,7 @@ export function ModeratorQualityDashboardPage() {
     isError: isErrorEscalated,
     refetch: refetchEscalated,
     isFetching: isFetchingEscalated,
-  } = useGetModeratorComplaintsQuery({ status: 'ESCALATED', limit: 20 }, { refetchOnMountOrArgChange: 60 });
+  } = useGetModeratorComplaintsQuery({ status: 'ESCALATED', limit: 20, ...(complaintSearch.trim() ? { search: complaintSearch.trim() } : {}) }, { refetchOnMountOrArgChange: 60 });
 
   const {
     data: qualityData,
@@ -59,7 +63,7 @@ export function ModeratorQualityDashboardPage() {
 
   // Overview stats calculation
   const overviewStats = useMemo(() => {
-    const escalatedCount = escalatedData?.items?.length || 0;
+    const escalatedCount = escalatedData?.meta?.total || 0;
     const totalAgencies = qualityData?.length || 0;
     const totalFeedbacks = qualityData?.reduce((acc, a) => acc + (a.totalFeedbacks || 0), 0) || 0;
     const totalComplaints = qualityData?.reduce((acc, a) => acc + (a.totalComplaints || 0), 0) || 0;
@@ -70,10 +74,9 @@ export function ModeratorQualityDashboardPage() {
       avgRatingScore = Number((sumWeighted / totalFeedbacks).toFixed(1));
     }
 
-    const avgResolutionRate =
-      totalAgencies > 0 && qualityData
-        ? Math.round(qualityData.reduce((acc, a) => acc + a.resolutionRatePercent, 0) / totalAgencies)
-        : 100;
+    const avgResolutionRate = totalComplaints > 0 && qualityData
+      ? Math.round(qualityData.reduce((acc, a) => acc + a.resolutionRatePercent * a.totalComplaints, 0) / totalComplaints)
+      : 0;
 
     return {
       escalatedCount,
@@ -207,7 +210,7 @@ export function ModeratorQualityDashboardPage() {
           </div>
           <div className="mt-1.5 flex items-baseline gap-1.5">
             <span className="text-2xl font-black text-slate-900">
-              {overviewStats.avgRatingScore > 0 ? `${overviewStats.avgRatingScore}/5` : '5.0/5'}
+              {overviewStats.avgRatingScore > 0 ? `${overviewStats.avgRatingScore}/5` : '—'}
             </span>
             <span className="text-xs text-slate-400 font-medium">
               {overviewStats.totalFeedbacks > 0 ? `(${overviewStats.totalFeedbacks} đánh giá)` : ''}
@@ -224,8 +227,8 @@ export function ModeratorQualityDashboardPage() {
             </div>
           </div>
           <div className="mt-1.5 flex items-baseline gap-1.5">
-            <span className="text-2xl font-black text-slate-900">{overviewStats.avgResolutionRate}%</span>
-            <span className="text-xs text-slate-400 font-medium">thành công</span>
+            <span className="text-2xl font-black text-slate-900">{overviewStats.totalComplaints > 0 ? `${overviewStats.avgResolutionRate}%` : '—'}</span>
+            {overviewStats.totalComplaints > 0 && <span className="text-xs text-slate-400 font-medium">thành công</span>}
           </div>
         </div>
       </div>
@@ -275,32 +278,45 @@ export function ModeratorQualityDashboardPage() {
         </div>
 
         {/* Tab Filter Controls */}
+        {activeTab === 'ESCALATED' && (
+          <label className="relative block w-full sm:w-64">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+            <input type="search" aria-label="Tìm khiếu nại" placeholder="Tìm khiếu nại..." value={complaintSearch} onChange={(event) => setComplaintSearch(event.target.value)} className="h-10 w-full rounded-2xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15" />
+          </label>
+        )}
         {activeTab === 'QUALITY' && (
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <div className="relative flex-1 sm:w-60">
-              <Search className="size-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <div className={`relative h-10 transition-all duration-300 ${isAgencySearchExpanded || agencySearch ? 'w-56 sm:w-72' : 'w-10'}`}>
+              {(isAgencySearchExpanded || agencySearch) && <Search className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-slate-400" />}
               <input
+                ref={agencySearchRef}
                 type="text"
+                aria-label="Tìm đối tác"
                 placeholder="Tìm đối tác..."
                 value={agencySearch}
-                onChange={(e) => setAgencySearch(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white pl-8 pr-7 py-1.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition focus:border-brand-teal focus:ring-1 focus:ring-brand-teal/20"
+                onFocus={() => setIsAgencySearchExpanded(true)}
+                onKeyDown={(event) => { if (event.key === 'Escape') { setAgencySearch(''); setIsAgencySearchExpanded(false); agencySearchRef.current?.blur(); } }}
+                onChange={(e) => { setAgencySearch(e.target.value); setAgencyPage(1); }}
+                className={`h-10 w-full rounded-2xl border border-slate-200 bg-white pl-9 pr-8 text-sm text-slate-800 outline-none focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15 ${isAgencySearchExpanded || agencySearch ? '' : 'pointer-events-none opacity-0'}`}
               />
-              {agencySearch && (
+              {isAgencySearchExpanded || agencySearch ? (
                 <button
                   type="button"
-                  onClick={() => setAgencySearch('')}
+                  aria-label="Đóng tìm kiếm"
+                  onClick={() => { setAgencySearch(''); setIsAgencySearchExpanded(false); setAgencyPage(1); }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
                   <X className="size-3" />
                 </button>
+              ) : (
+                <button type="button" aria-label="Tìm đối tác" onClick={() => { setIsAgencySearchExpanded(true); setTimeout(() => agencySearchRef.current?.focus(), 50); }} className="absolute inset-0 flex size-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-2xs hover:bg-slate-50"><Search className="size-4" /></button>
               )}
             </div>
 
             <AntSelect<'RATING' | 'RESOLUTION' | 'COMPLAINTS'>
               aria-label="Sắp xếp danh sách"
               value={sortBy}
-              onChange={(val) => setSortBy(val)}
+              onChange={(val) => { setSortBy(val); setAgencyPage(1); }}
               options={[
                 { value: 'RATING', label: 'Điểm đánh giá' },
                 { value: 'RESOLUTION', label: 'Tỷ lệ tự hòa giải' },
@@ -499,7 +515,7 @@ export function ModeratorQualityDashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
-                    {agencies.map((item, index) => {
+                    {agencies.slice((agencyPage - 1) * 5, agencyPage * 5).map((item) => {
                       const isLowCsat = item.avgRating > 0 && item.avgRating < 3.5;
                       const hasHighEscalation = item.escalatedCount >= 2;
                       const initial = item.agencyName.slice(0, 2).toUpperCase();
@@ -509,12 +525,7 @@ export function ModeratorQualityDashboardPage() {
                           {/* Rank & Agency */}
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
-                              <span className="flex size-6 items-center justify-center rounded-full bg-slate-100 font-mono text-xs font-bold text-slate-600">
-                                #{index + 1}
-                              </span>
-                              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-brand-teal font-bold text-xs">
-                                {initial}
-                              </div>
+                              {item.avatarUrl ? <img src={item.avatarUrl} alt="" className="size-9 shrink-0 rounded-xl object-cover" /> : <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-brand-teal font-bold text-xs">{initial}</div>}
                               <div>
                                 <h4 className="font-semibold text-slate-900 text-sm">{item.agencyName}</h4>
                               </div>
@@ -570,7 +581,7 @@ export function ModeratorQualityDashboardPage() {
 
                           {/* Status */}
                           <td className="px-5 py-4">
-                            {isLowCsat || hasHighEscalation ? (
+                            {item.totalComplaints === 0 && item.totalFeedbacks === 0 ? <span className="text-slate-500">Chưa có dữ liệu</span> : isLowCsat || hasHighEscalation ? (
                               <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/60 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
                                 <AlertTriangle className="size-3 text-amber-600" />
                                 <span>Cần lưu ý</span>
@@ -588,6 +599,7 @@ export function ModeratorQualityDashboardPage() {
                   </tbody>
                 </table>
               </div>
+              <Pagination currentPage={agencyPage} totalPages={Math.ceil(agencies.length / 5)} totalItems={agencies.length} pageSize={5} onPageChange={setAgencyPage} />
             </div>
           )}
         </div>

@@ -547,19 +547,25 @@ export class ComplaintsService {
 
   // ---------------------------------------------------- Dashboard & Analytics
   async getAgencyQualityDashboard(): Promise<AgencyQualityStatsDto[]> {
-    const { stats, feedbacks } = await this.repo.getAgencyQualityAggregates();
+    const [{ stats, feedbacks, selfResolved }, identities] = await Promise.all([
+      this.repo.getAgencyQualityAggregates(),
+      this.repo.listAgencyQualityIdentities(),
+    ]);
 
     // Collect all agency IDs
     const agencyIds = Array.from(
-      new Set([...stats.map((s) => s.agencyId), ...feedbacks.map((f) => f.agencyId)]),
+      new Set([...identities.map((agency) => agency.id), ...stats.map((s) => s.agencyId), ...feedbacks.map((f) => f.agencyId)]),
     );
     const people = await this.users.getSummaries(agencyIds);
 
     const feedbackMap = new Map(feedbacks.map((f) => [f.agencyId, f]));
+    const selfResolvedMap = new Map(selfResolved.map((row) => [row.agencyId, row._count.id]));
+    const identityMap = new Map(identities.map((agency) => [agency.id, agency]));
 
     return agencyIds.map((agencyId) => {
       const person = people.get(agencyId);
-      const agencyName = person ? (person.companyName ?? person.fullName) : 'Đại lý';
+      const identity = identityMap.get(agencyId);
+      const agencyName = identity?.companyName ?? person?.companyName ?? identity?.user?.fullName ?? person?.fullName ?? 'Đại lý';
 
       const agencyStats = stats.filter((s) => s.agencyId === agencyId);
       const totalComplaints = agencyStats.reduce((sum, s) => sum + s._count.id, 0);
@@ -575,11 +581,12 @@ export class ComplaintsService {
       const totalFeedbacks = fb?._count.id ?? 0;
 
       const resolutionRatePercent =
-        totalComplaints > 0 ? Math.round(((closedCount + resolvedCount) / totalComplaints) * 100) : 100;
+        totalComplaints > 0 ? Math.round(((selfResolvedMap.get(agencyId) ?? 0) / totalComplaints) * 100) : 0;
 
       return {
         agencyId,
         agencyName,
+        avatarUrl: identity?.user?.avatarUrl ?? identity?.members?.[0]?.user.avatarUrl ?? person?.avatarUrl ?? undefined,
         totalComplaints,
         resolvedCount,
         closedCount,
