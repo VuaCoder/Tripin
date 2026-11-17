@@ -234,9 +234,7 @@ describe('ADMIN-01 screen behavior', () => {
     await screen.findByRole('dialog');
     expect(mocks.detail).toHaveBeenCalledWith('promo', false);
     fireEvent.change(screen.getByLabelText(/Tên voucher/), { target: { value: 'Updated promo' } });
-    fireEvent.click(screen.getByRole('button', { name: /Tiếp theo/i }));
     expect((screen.getByLabelText(/Mức giảm \(%\)/) as HTMLInputElement).disabled).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: /Tiếp theo/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     await screen.findByText('Server rejected');
     expect(mocks.updatePromotion).toHaveBeenCalledWith({ id: 'promo', patch: { title: 'Updated promo' } });

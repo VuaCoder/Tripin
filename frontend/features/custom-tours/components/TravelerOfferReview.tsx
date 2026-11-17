@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ageUnitPrice, guestTotal } from '@travel-platform/constants';
+import { ageUnitPrice, calculateGuestPrice, guestTotal, type AgePricing, type GuestCounts } from '@travel-platform/constants';
 import { Button } from '@/components/ui';
 import { getApiErrorCode, getApiErrorMessage } from '@/features/auth/utils/apiError';
 import { formatVnd } from '@/features/review';
+import { useGetTourQuery } from '@/features/tours/api/toursApi';
 import { useAcceptCustomTourOfferMutation } from '../api';
 import { STATUS_LABELS, guestSummary } from '../labels';
 import { customTourHref } from '../links';
@@ -60,9 +61,55 @@ function OfferDetails({ content }: { content: CustomTourOfferContent }) {
   );
 }
 
+/** Per-group prices of one request: the sent snapshot, or the public price list while the agency prepares one. */
+function PriceTable({ unitPrice, agePricing, guestCounts, total }: { unitPrice: number; agePricing?: AgePricing | null; guestCounts: GuestCounts; total: number | null }) {
+  const rows = [
+    { key: 'adults', label: 'Người lớn', count: guestCounts.adults, price: unitPrice },
+    { key: 'children', label: 'Trẻ em', count: guestCounts.children, price: ageUnitPrice(unitPrice, agePricing, 'child') },
+    { key: 'infants', label: 'Em bé', count: guestCounts.infants, price: ageUnitPrice(unitPrice, agePricing, 'infant') },
+  ].filter((row) => row.count > 0);
+  return (
+    <table className="w-full text-left text-sm">
+      <caption className="sr-only">Bảng giá thỏa thuận</caption>
+      <thead>
+        <tr className="text-xs text-slate-500">
+          <th scope="col" className="pb-1 font-medium">Nhóm</th>
+          <th scope="col" className="pb-1 text-right font-medium">Giá/người</th>
+          <th scope="col" className="pb-1 text-right font-medium">Thành tiền</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.key} className="border-t border-slate-100">
+            <td className="py-1.5">{row.label} × {row.count}</td>
+            <td className="py-1.5 text-right">{priceLabel(row.price)}</td>
+            <td className="py-1.5 text-right">{row.price === null ? '—' : formatVnd(row.price * row.count)}</td>
+          </tr>
+        ))}
+      </tbody>
+      <tfoot>
+        <tr className="border-t border-slate-200 font-semibold text-slate-900">
+          <th scope="row" className="py-2 text-left">Tổng cộng</th>
+          <td />
+          <td className="py-2 text-right">{total === null ? '—' : formatVnd(total)}</td>
+        </tr>
+      </tfoot>
+    </table>
+  );
+}
+
+/** The public list price of the same request; children cannot be priced without the tour's age pricing. */
+function priceAtListPrice(unitPrice: number, participants: number, guests: GuestCounts, agePricing?: AgePricing | null) {
+  try {
+    return calculateGuestPrice(unitPrice, participants, guests, agePricing).subtotal;
+  } catch {
+    return null;
+  }
+}
+
 /** Traveler side of the chat panel: the frozen offer, then one explicit confirmation that posts its revision. */
-// shortcut: the traveler sees the frozen snapshot only, never the agency's unsent edits; add a traveler read of the
-// private tour if live negotiation has to be followed here.
+// shortcut: before an offer exists the traveler reads the public tour, never the agency's unsent edits; add a traveler
+// read of the private tour if live negotiation has to be followed here.
 export function TravelerOfferReview({ request, onRefetch }: { request: CustomTourRequestDto; onRefetch: () => void }) {
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState('');
@@ -70,14 +117,9 @@ export function TravelerOfferReview({ request, onRefetch }: { request: CustomTou
   const offer = request.offer;
   const href = customTourHref(request, 'TRAVELER');
   const date = requestDate(request);
-
-  const rows = offer
-    ? [
-        { key: 'adults', label: 'Người lớn', count: offer.guestCounts.adults, price: offer.unitPrice },
-        { key: 'children', label: 'Trẻ em', count: offer.guestCounts.children, price: ageUnitPrice(offer.unitPrice, offer.agePricing, 'child') },
-        { key: 'infants', label: 'Em bé', count: offer.guestCounts.infants, price: ageUnitPrice(offer.unitPrice, offer.agePricing, 'infant') },
-      ].filter((row) => row.count > 0)
-    : [];
+  const guests: GuestCounts = request.guestCounts ?? { adults: request.participants, children: 0, infants: 0 };
+  // The agreed terms win; until the agency sends them, the traveler still reads what they booked.
+  const { data: listedTour } = useGetTourQuery(request.sourceTour?.id ?? '', { skip: Boolean(offer) || !request.sourceTour?.id });
 
   const submit = async () => {
     setError('');
@@ -105,32 +147,20 @@ export function TravelerOfferReview({ request, onRefetch }: { request: CustomTou
       {offer?.content && <OfferDetails content={offer.content} />}
 
       {offer ? (
-        <table className="w-full text-left text-sm">
-          <caption className="sr-only">Bảng giá thỏa thuận</caption>
-          <thead>
-            <tr className="text-xs text-slate-500">
-              <th scope="col" className="pb-1 font-medium">Nhóm</th>
-              <th scope="col" className="pb-1 text-right font-medium">Giá/người</th>
-              <th scope="col" className="pb-1 text-right font-medium">Thành tiền</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.key} className="border-t border-slate-100">
-                <td className="py-1.5">{row.label} × {row.count}</td>
-                <td className="py-1.5 text-right">{priceLabel(row.price)}</td>
-                <td className="py-1.5 text-right">{row.price === null ? '—' : formatVnd(row.price * row.count)}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t border-slate-200 font-semibold text-slate-900">
-              <th scope="row" className="py-2 text-left">Tổng cộng</th>
-              <td />
-              <td className="py-2 text-right">{formatVnd(offer.subtotal)}</td>
-            </tr>
-          </tfoot>
-        </table>
+        <PriceTable unitPrice={offer.unitPrice} agePricing={offer.agePricing} guestCounts={offer.guestCounts} total={offer.subtotal} />
+      ) : listedTour ? (
+        <>
+          <OfferDetails content={listedTour} />
+          <PriceTable
+            unitPrice={listedTour.basePrice}
+            agePricing={listedTour.agePricing}
+            guestCounts={guests}
+            total={priceAtListPrice(listedTour.basePrice, request.participants, guests, listedTour.agePricing)}
+          />
+          <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            Giá niêm yết của tour, để bạn đối chiếu. Đại lý đang chuẩn bị thỏa thuận — báo giá và lịch trình chốt sẽ thay thế khi được gửi.
+          </p>
+        </>
       ) : (
         <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
           Đại lý đang chuẩn bị thỏa thuận. Báo giá và lịch trình chốt sẽ hiện ở đây khi được gửi.
