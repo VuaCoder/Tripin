@@ -1,5 +1,9 @@
 # Kế hoạch bổ sung kế toán Agency
 
+Cập nhật phạm vi 17/11/2026: luồng hoàn tiền trong kế toán được hoãn theo yêu cầu người dùng; đã bỏ giao diện và khóa API thao tác. Giữ dữ liệu cũ và điều kiện chặn quyết toán các nghĩa vụ chưa xử lý. Cấu hình quyết toán do Super Admin quản lý, có kiểm tra phiên bản và lịch sử thay đổi; Agency chỉ xem điều kiện. Các đoạn mô tả hoàn tiền phía dưới là kế hoạch lịch sử, chưa phát hành.
+
+Triển khai hiện tại và hướng dẫn vận hành: [Agency accounting](../../backend/src/modules/agency-finance/README.md). Các ghi chú “chưa triển khai” bên dưới mô tả thời điểm lập kế hoạch, không phải trạng thái sau khi phát triển.
+
 Ngày nghiên cứu: 17/11/2026, Asia/Ho_Chi_Minh. Căn cứ code trong working tree của branch `feature/agency-accounting`, gồm các thay đổi chưa commit. Đây là kế hoạch; chưa triển khai model/API, chạy migration hay phát sinh giao dịch tiền.
 
 ## 1. Phạm vi đã chốt với người dùng

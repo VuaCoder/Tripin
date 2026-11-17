@@ -198,7 +198,7 @@ export function WriteReviewDialog({
         </div>
 
         <FormField
-          label="Cảm nhận của bạn (không bắt buộc)"
+          label="Cảm nhận của bạn"
           htmlFor="review-comment"
           error={errors.comment}
         >

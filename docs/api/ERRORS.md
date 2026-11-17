@@ -13,6 +13,7 @@ Unknown or foreign records answer **404** (never 403) so ids of other people's d
 
 | Code | HTTP | Meaning |
 |---|---|---|
+| `FINANCE_REFUNDS_NOT_IMPLEMENTED` | 501 | Accounting refund intake and review are not released; booking cancellation obligations remain unchanged |
 | `ITINERARY_INCOMPLETE` | 400 | Complete the day-by-day tour program before submitting for review; departures are not required |
 | `VALIDATION_ERROR` | 400 | Body, query or path failed validation; `details[]` lists `location`, `path`, `message`. Also used for malformed JSON and `413` payload too large |
 | `UNAUTHENTICATED` | 401 | No or unusable credentials where a login is required |

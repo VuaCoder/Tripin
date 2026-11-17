@@ -1,4 +1,5 @@
 import { flushMailOutbox } from '../modules/notifications/mail-outbox';
+import { processFinanceJobs } from '../modules/agency-finance/finance.service';
 import { retryTicketFulfillment } from '../modules/e-tickets/e-tickets.fulfillment';
 import { logger } from '../utils/logger';
 import { remindDueCompletions, deliverPendingCompletions } from '../modules/tour-completion/completion.jobs';
@@ -26,6 +27,7 @@ const NOTIFICATION_RETENTION_DAYS = 180;
 /** Every time-driven rule of the platform, in one place. */
 export function defaultTasks(): MaintenanceTask[] {
   return [
+    { name: 'finance.process', intervalMs: MINUTE, run: processFinanceJobs },
     { name: 'mail.deliverOutbox', intervalMs: MINUTE, run: flushMailOutbox },
     { name: 'eTickets.retryFulfillment', intervalMs: MINUTE, run: retryTicketFulfillment },
     { name: 'premium.grantDue', intervalMs: MINUTE, run: () => premiumRepository.grantDue() },

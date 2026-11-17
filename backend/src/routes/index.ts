@@ -42,6 +42,7 @@ import { adminAgencyCommissionRequestsRouter, agencyCommissionRouter } from '../
 export { apiRouter } from './registry';
 import { apiRouter } from './registry';
 import { agencyFoundationRouter, agencyIdentityRouter, agencyInvitationAcceptanceRouter } from '../modules/agencies/agency.routes';
+import { agencyFinanceRouter, adminFinanceRouter } from '../modules/agency-finance/finance.routes';
 import { workplaceCreationRouter, joinRequestRouter, personalWorkplaceRouter, workplaceTeamRouter } from '../modules/agencies/workplaces.routes';
 
 mount('/users', agencyIdentityRouter);
@@ -51,6 +52,8 @@ mount('/agency-join-requests', joinRequestRouter);
 mount('/agency', workplaceTeamRouter);
 mount('/agency-invitations', agencyInvitationAcceptanceRouter);
 mount('/agency', agencyFoundationRouter);
+mount('/agency/finance', agencyFinanceRouter);
+mount('/admin/finance', adminFinanceRouter);
 mount('/agency/chat', agencyChatRouter);
 mount('/agency/commission', agencyCommissionRouter);
 mount('/admin/settings/agency-commission-requests', adminAgencyCommissionRequestsRouter);

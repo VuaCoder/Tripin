@@ -142,7 +142,7 @@ export const baseQueryWithReauth: BaseQueryFn<FetchArgs | string, unknown, Fetch
   let result = await rawBaseQuery(scopedArgs(), api, extraOptions);
   if (identityChanged()) return superseded;
 
-  if (result.error?.status === 401 && !hasRetried(args) && !isAuthExempt(cleanArgs)) {
+  if (result.error?.status === 401 && (api.getState() as RootState).auth.status !== 'unauthenticated' && !hasRetried(args) && !isAuthExempt(cleanArgs)) {
     const errorCode = (result.error.data as { error?: { code?: string } } | undefined)?.error?.code;
     const sessionExpired = errorCode === 'TOKEN_INVALID' || errorCode === 'UNAUTHENTICATED';
 

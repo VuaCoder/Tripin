@@ -1,4 +1,9 @@
 export const permissionLabels: Record<string, string> = {
+  'agency:finance-withdraw': 'Yêu cầu và hủy rút tiền',
+  'agency:finance-export': 'Xuất báo cáo tài chính',
+  'agency:finance-reconcile': 'Chạy đối soát thanh toán',
+  'agency:finance-refund-record': 'Ghi nhận hoàn tiền thủ công',
+  'agency:finance-bank-manage': 'Quản lý tài khoản nhận tiền',
   'agency:tour-content-update': 'Sửa tiêu đề / mô tả của tour và trường được giao',
   'agency:booking-monitor': 'Theo dõi booking và liên hệ khách hàng tối thiểu',
   'agency:context-view': 'Truy cập doanh nghiệp', 'agency:tour-view': 'Xem tour và lịch chỗ',

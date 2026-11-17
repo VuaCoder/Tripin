@@ -1,0 +1,14 @@
+'use client';
+import { useState } from 'react';
+import { AntSelect } from '@/components/ui/AntSelect';
+import { useAccountingReceiptsQuery,useWalletActionMutation } from './walletApi';
+import { Badge,EmptyState,FinanceError,Pager,date,money,errorText } from './FinanceUi';
+import s from './Finance.module.css';
+export default function AdminReceiptPanel({agencyId}:{agencyId?:string}){
+  const [page,setPage]=useState(1),[search,setSearch]=useState(''),[status,setStatus]=useState(''),[origin,setOrigin]=useState('REAL'),[notice,setNotice]=useState(''),[error,setError]=useState('');
+  const q=useAccountingReceiptsQuery({agencyId,page,search,status,origin},{pollingInterval:15000}),[run,state]=useWalletActionMutation();
+  return <><div className={s.toolbar}><label>Mã booking<input value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="TRP-…"/></label><label>Đối soát<AntSelect size="large" value={status} onChange={v=>{setStatus(v);setPage(1);}} options={[{value:'',label:'Tất cả'},{value:'UNRECONCILED',label:'Chưa đối soát'},{value:'DISCREPANCY',label:'Chênh lệch'},{value:'MATCHED',label:'Khớp'}]}/></label><label>Nguồn khoản thu<AntSelect size="large" value={origin} onChange={v=>{setOrigin(v);setPage(1);}} options={[{value:'REAL',label:'Khoản thu PayOS'},{value:'LIVE',label:'Đã xác minh nguồn'},{value:'UNKNOWN',label:'Chưa xác minh nguồn'},{value:'TEST',label:'Mô phỏng'}]}/></label></div>
+    {notice&&<p role="status" className={s.notice}>{notice}</p>}{error&&<p role="alert" className={s.error}>{error}</p>}
+    {q.isError?<FinanceError title="Không tải được đối soát." onRetry={()=>void q.refetch()}/>:<><div className={s.tableWrap}><table className={s.table}><thead><tr><th>Booking / khoản thu</th><th className={s.money}>Cần thu</th><th className={s.money}>Thực thu kiểm tra</th><th>Đối soát</th><th>Thao tác</th></tr></thead><tbody>{q.currentData?.items.map(r=><tr key={r.paymentId}><td><strong>{r.booking.bookingCode}</strong><p className={s.muted}>{r.booking.tourTitle}</p><p className={s.muted}>{r.payment.provider} · {r.payment.providerOrderCode}</p></td><td className={s.money}>{money(r.amount)}</td><td className={s.money}>{r.checkedAt?money(r.actualAmount):'Chưa kiểm tra'}</td><td><Badge value={r.reconciliationStatus}/>{r.checkedAt&&<p className={s.muted}>{date(r.checkedAt)}</p>}</td><td><button disabled={state.isLoading||r.payment.provider!=='payos'} onClick={async()=>{setError('');try{await run({url:`/admin/finance/reconcile/${r.agencyId}`}).unwrap();setNotice('Đã xếp lịch kiểm tra với PayOS. Kết quả sẽ cập nhật sau lượt xử lý.');}catch(e){setError(errorText(e));}}}>Kiểm tra lại</button></td></tr>)}</tbody></table>{!q.currentData?.items.length&&<EmptyState title={q.isFetching?'Đang tải khoản thu…':'Chưa có khoản thu phù hợp'}/>}</div><Pager page={page} total={q.currentData?.total??0} onPage={setPage}/></>}
+  </>;
+}

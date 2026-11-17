@@ -12,6 +12,7 @@ import {
   BadgePercent, 
   Bell, 
   Settings,
+  Landmark,
   LogOut, 
   PanelLeftOpen, 
   PanelLeftClose, 
@@ -88,6 +89,7 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
   const groups = [
     { label: 'Vận hành', items: [
       { href: '/agency', label: 'Tổng quan', icon: LayoutDashboard, permission: 'agency:dashboard' },
+      { href: '/agency/finance', label: 'Kế toán & tài chính', icon: ArrowLeftRight, permission: 'agency:finance-view' },
       { href: '/agency/bookings', label: 'Đơn đặt chỗ', icon: CalendarCheck, permission: 'agency:bookings-view' },
       ...(['OWNER', 'MANAGER'].includes(agency?.memberRole ?? '') ? [{ href: '/agency/completions', label: 'Hoàn tất chuyến đi', icon: CalendarCheck, permission: 'tour:update-own' }] : []),
       { href: '/agency/work/bookings', label: 'Theo dõi booking', icon: CalendarCheck, permission: 'agency:booking-monitor' },
@@ -108,6 +110,7 @@ export function AgencyRightSidebar({ initialExpanded = true }: { initialExpanded
     { label: 'Đối tác', items: [
       { href: '/agency/team', label: 'Thành viên & phân quyền', icon: Users, permission: 'agency:team-view' },
       { href: '/agency/settings/commission', label: 'Chiết khấu hoa hồng', icon: BadgePercent, permission: '' },
+      { href: '/agency/settings/bank-account', label: 'Tài khoản nhận tiền', icon: Landmark, permission: 'agency:finance-view' },
       { href: '/agency/notifications', label: 'Thông báo', icon: Bell, permission: '' },
     ] },
   ];

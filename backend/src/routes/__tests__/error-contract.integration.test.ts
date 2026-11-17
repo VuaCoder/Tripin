@@ -346,7 +346,13 @@ describe('error contract over HTTP', () => {
 
     // Reviews.
     expectError(await request(app).post('/api/v1/reviews').set(bearer(paid.token)).send({ bookingId: paid.id, rating: 5, comment: 'Wonderful trip indeed' }), 'BOOKING_NOT_COMPLETED');
-    await prisma.booking.updateMany({ where: { id: paid.id }, data: { status: 'COMPLETED', endDate: new Date(Date.now() - day) } });
+    // Respect the shared-database guard: a completed review fixture needs an Agency report.
+    const reviewBooking = await prisma.booking.findUniqueOrThrow({ where: { id: paid.id } });
+    await prisma.$transaction(async tx => {
+      const completion = await tx.tourCompletion.create({ data: { departureId: reviewBooking.departureId, tourId: reviewBooking.tourId, agencyId: reviewBooking.agencyId, scheduledEndAt: new Date(Date.now() - day), completedAt: new Date(), revision: 1, snapshot: {} } });
+      await tx.tourCompletionReport.create({ data: { completionId: completion.id, actorId: reviewBooking.agencyId, revision: 1, submitted: true, payload: { attendance: [{ bookingId: paid.id, attendedCount: reviewBooking.participants }] } } });
+      await tx.booking.update({ where: { id: paid.id }, data: { status: 'COMPLETED', endDate: new Date(Date.now() - day) } });
+    });
     expect((await request(app).post('/api/v1/reviews').set(bearer(paid.token)).send({ bookingId: paid.id, rating: 5, comment: 'Wonderful trip indeed' })).status).toBe(201);
     expectError(await request(app).post('/api/v1/reviews').set(bearer(paid.token)).send({ bookingId: paid.id, rating: 4, comment: 'Wonderful trip indeed' }), 'REVIEW_EXISTS');
 

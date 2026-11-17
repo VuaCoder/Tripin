@@ -26,7 +26,7 @@ export function useLoginForm({ onSuccess, onError, continuation, initialEmail = 
   const [formData, setFormData] = useState<LoginFormValues>({
     credential: initialEmail,
     password: "",
-    rememberMe: false,
+    rememberMe: true,
   });
 
   const [showPassword, setShowPassword] = useState(false);

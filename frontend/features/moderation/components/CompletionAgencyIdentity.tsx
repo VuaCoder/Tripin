@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Check, MapPin } from 'lucide-react';
 import type { CompletionAgency } from '../api/completionReaderApi';
 
-export function CompletionAgencyIdentity({ agency, prominent = false }: { agency: CompletionAgency; prominent?: boolean }) {
+export function CompletionAgencyIdentity({ agency, prominent = false }: { agency: Pick<CompletionAgency, 'id' | 'name' | 'avatarUrl' | 'address' | 'verified'>; prominent?: boolean }) {
   const [failedAvatar, setFailedAvatar] = useState<string | null>(null);
   const initials = agency.name.trim().split(/\s+/).slice(0, 2).map(word => word[0]).join('').toLocaleUpperCase('vi');
   const Heading = prominent ? 'h1' : 'h2';

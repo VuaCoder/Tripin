@@ -382,7 +382,7 @@ model Booking {
   fulfillmentAttempts Int              @default(0)
   fulfillmentNextAttemptAt DateTime?
   /// Snapshot of the refund amount when a refund is recorded (VND).
-  refundAmount     Int?
+  refundAmount     BigInt?
   paymentExpiresAt DateTime?
   confirmedAt      DateTime?
   completedAt      DateTime?
@@ -431,6 +431,7 @@ model BookingPassenger {
 }
 
 model Payment {
+  financeSource AgencyFinanceSource?
   financeReceipt AgencyFinanceReceipt?
   financeOutbox FinanceOutbox?
   id                    String         @id @default(uuid()) @db.Uuid
@@ -468,7 +469,7 @@ model RefundLedger {
   paymentId         String?   @db.Uuid
   complaintTicketId String?   @db.Uuid
   userId            String    @db.Uuid
-  amount            Int
+  amount            BigInt
   currency          String    @default("VND")
   reason            String
   destinationHint   String?
@@ -1207,6 +1208,9 @@ enum ETicketStatus {
 }
 
 enum NotificationType {
+  FINANCE_SETTLED
+  FINANCE_WITHDRAWAL_UPDATED
+  FINANCE_WITHDRAWAL_REQUESTED
   TOUR_COMPLETION_DUE
   TOUR_COMPLETION_OVERDUE
   ADMIN_REQUEST_RECEIVED
@@ -1713,14 +1717,87 @@ model AgencyFinanceDocument {
 model AgencyFinancePolicy {
   id String @id @default("default")
   holdDays Int
+  autoSettlement Boolean @default(false)
+  minWithdrawal BigInt @default(100000)
+  maxWithdrawal BigInt @default(500000000)
+  dailyWithdrawalLimit BigInt @default(1000000000)
+  processingHours Int @default(48)
   refundCommissionPolicy String
-  updatedBy String @db.Uuid
+  updatedBy String? @db.Uuid
   updatedAt DateTime @updatedAt
+}
+
+model AgencySettlementPolicyVersion {
+  id String @id @default(uuid()) @db.Uuid
+  effectiveAt DateTime
+  snapshot Json
+  actorId String? @db.Uuid
+  reason String
+  createdAt DateTime @default(now())
+  @@index([effectiveAt, createdAt])
+}
+model AgencyFinanceSource {
+  paymentId String @id @db.Uuid
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  origin String @default("UNKNOWN")
+  verifiedAt DateTime?
+  createdAt DateTime @default(now())
+}
+model AgencySettlement {
+  id String @id @default(uuid()) @db.Uuid
+  bookingId String @unique @db.Uuid
+  agencyId String @db.Uuid
+  origin String @default("UNKNOWN")
+  policyVersionId String? @db.Uuid
+  policySnapshot Json
+  eligibleAt DateTime?
+  releasedAt DateTime?
+  amount BigInt @default(0)
+  reasons Json @default("[]")
+  checkedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([agencyId, createdAt])
+  @@index([releasedAt, checkedAt])
+}
+model AgencyWithdrawal {
+  id String @id @default(uuid()) @db.Uuid
+  agencyId String @db.Uuid
+  amount BigInt
+  status String @default("PENDING")
+  requestKey String
+  requestedBy String @db.Uuid
+  approvedBy String? @db.Uuid
+  processedBy String? @db.Uuid
+  bankSnapshot Json
+  bankRef String? @unique
+  proofId String? @db.Uuid
+  note String?
+  transferredAt DateTime?
+  completedAt DateTime?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  @@unique([agencyId, requestKey])
+  @@index([agencyId, status, createdAt])
+}
+model AgencyWithdrawalAllocation {
+  id String @id @default(uuid()) @db.Uuid
+  withdrawalId String @db.Uuid
+  bookingId String @db.Uuid
+  amount BigInt
+  @@unique([withdrawalId, bookingId])
+  @@index([bookingId])
+}
+model AgencyFinanceWorker {
+  id String @id @default("settlement")
+  lastStartedAt DateTime?
+  lastSucceededAt DateTime?
+  lastError String?
+  processed Int @default(0)
 }
 model AgencyFinanceAudit {
   id String @id @default(uuid()) @db.Uuid
-  agencyId String @db.Uuid
-  actorId String @db.Uuid
+  agencyId String? @db.Uuid
+  actorId String? @db.Uuid
   action String
   entityId String
   details Json

@@ -24,6 +24,17 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('AuthBootstrap refresh lifecycle', () => {
+  it('does not check a known signed-out session on remount, focus or retry', async () => {
+    harness.dispatch(clearCredentials());
+    render(<AuthBootstrap />);
+    fireEvent(window, new Event('focus'));
+    fireEvent(window, new Event('tripri:retry-session'));
+    await new Promise(done => setTimeout(done, 0));
+    expect(harness.auth.status).toBe('unauthenticated');
+    expect(harness.refresh).not.toHaveBeenCalled();
+    expect(harness.verify).not.toHaveBeenCalled();
+    expect(harness.dispatch).not.toHaveBeenCalledWith(expect.objectContaining({type:'auth/beginSessionRestore'}));
+  });
   it('clears restored expired credentials on definitive refresh rejection', async () => {
     harness.auth = { ...harness.auth, user: { id: 'old' }, accessToken: 'expired' };
     harness.refresh.mockResolvedValue(null);

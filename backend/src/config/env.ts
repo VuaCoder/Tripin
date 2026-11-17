@@ -15,6 +15,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3001),
   CLIENT_URL: z.string().default('http://localhost:3000'),
+  /** Development-only Agency UUID allowlist for isolated TEST finance fixtures. Ignored in production. */
+  FINANCE_SANDBOX_AGENCY_IDS: z.string().default(''),
 
   /** Set JOBS_ENABLED=false on nodes that must not run the periodic sweeps (e.g. when a dedicated worker does). */
   JOBS_ENABLED: z

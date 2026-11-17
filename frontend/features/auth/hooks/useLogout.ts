@@ -13,13 +13,13 @@ export function useLogout(customRedirect?: string) {
   const [logoutMutation] = useLogoutMutation();
 
   return useCallback(async (redirectOverride?: string) => {
-    try {
-      await logoutMutation().unwrap();
-    } catch {}
-
     dispatch(clearCredentials());
     dispatch(baseApi.util.resetApiState());
+    const request = logoutMutation();
     const target = redirectOverride ?? customRedirect ?? '/login';
-    router.push(target);
+    router.replace(target);
+    try {
+      await request.unwrap();
+    } catch {}
   }, [dispatch, router, logoutMutation, customRedirect]);
 }

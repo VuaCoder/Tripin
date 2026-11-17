@@ -42,6 +42,9 @@ export const AuthBootstrap = () => {
     }
 
     const synchronize = async (verifyStored = false, blocking = true) => {
+      // A known signed-out session must not be bootstrapped back into checking
+      // state by a remount or a queued retry/focus event during logout.
+      if (store.getState().auth.status === 'unauthenticated') return;
       const identityAtStart = store.getState().auth.user?.id;
       const tokenAtStart = store.getState().auth.accessToken;
       const expectedStatus = blocking ? 'idle' : store.getState().auth.status;
