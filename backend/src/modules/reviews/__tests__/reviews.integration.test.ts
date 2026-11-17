@@ -31,7 +31,18 @@ async function bookTrip(traveler: { token: string }, tourId: string, departureId
 
 /** Completed fixtures for review/earnings. Agency close-out has its own integration suite. */
 async function completeTrips(bookingIds: string[]) {
-  await prisma.booking.updateMany({ where: { id: { in: bookingIds } }, data: { status: 'COMPLETED', isPaid: true, confirmedAt: new Date(), endDate: new Date(Date.now() - 3_600_000), paymentExpiresAt: null } });
+  await prisma.$transaction(async tx => {
+    const bookings=await tx.booking.findMany({where:{id:{in:bookingIds}}});
+    const now=new Date(),endDate=new Date(now.getTime()-3_600_000);
+    for(const departureId of new Set(bookings.map(b=>b.departureId))){
+      const group=bookings.filter(b=>b.departureId===departureId),b=group[0]!;
+      // Completed review/earning fixtures must also satisfy the real database
+      // report guard. Keep close-out UI behaviour in its own integration suite.
+      const completion=await tx.tourCompletion.upsert({where:{departureId},create:{agencyId:b.agencyId,tourId:b.tourId,departureId,scheduledEndAt:endDate,snapshot:{},completedAt:now,revision:1},update:{completedAt:now,revision:{increment:1}}});
+      await tx.tourCompletionReport.create({data:{completionId:completion.id,revision:completion.revision,actorId:b.agencyId,submitted:true,payload:{summary:'Completed trip fixture for reviews and guide earnings.',attendance:group.map(row=>({bookingId:row.id,attendedCount:row.participants}))}}});
+    }
+    await tx.booking.updateMany({ where: { id: { in: bookingIds } }, data: { status: 'COMPLETED', isPaid: true, confirmedAt: now, completedAt:now, endDate, paymentExpiresAt: null } });
+  });
   for (const id of bookingIds) await bookingEvents.emitCompleted(toBookingFacts((await bookingsRepository.findById(id))!));
 }
 

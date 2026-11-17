@@ -1,3 +1,4 @@
+import { AUDIT_ACTIONS } from '../../audit/audit.types';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
@@ -87,6 +88,7 @@ describe('Agency departure completion', () => {
     }
     expect(await prisma.tourCompletionReport.count()).toBe(0);
     expect((await request(app).post(`${f.endpoint}/draft`).set(bearer(f.owner.token)).send(report)).status).toBe(200);
+    expect(await prisma.auditLog.count({ where: { action: AUDIT_ACTIONS.TOUR_COMPLETION_DRAFTED } })).toBe(1);
   });
 
   it('closes 50 bookings once, leaves other departures/cancellations intact and delivers retryable fanout', async () => {
@@ -105,7 +107,7 @@ describe('Agency departure completion', () => {
     await Promise.all([deliverPendingCompletions(), deliverPendingCompletions()]);
     expect(await prisma.notification.count({ where: { type: 'BOOKING_COMPLETED' } })).toBe(50);
     expect(await deliverPendingCompletions()).toBe(0);
-    expect(await prisma.auditLog.count({ where: { action: 'tour.completion_submitted' } })).toBe(1);
+    expect(await prisma.auditLog.count({ where: { action: AUDIT_ACTIONS.TOUR_COMPLETION_SUBMITTED } })).toBe(1);
   });
 
   it('persists drafts without completing, versions amendments, freezes the snapshot and refuses stale writes', async () => {
@@ -294,7 +296,7 @@ describe('Agency departure completion', () => {
     expect(await prisma.tourCompletionDelivery.count()).toBe(2);
     expect(await deliverPendingCompletions()).toBe(0);
     expect(await prisma.notification.count({ where: { type: 'BOOKING_COMPLETED' } })).toBe(notificationsBefore);
-    const auditRow = await prisma.auditLog.findFirstOrThrow({ where: { action: 'tour.completion_amended' } });
+    const auditRow = await prisma.auditLog.findFirstOrThrow({ where: { action: AUDIT_ACTIONS.TOUR_COMPLETION_AMENDED } });
     expect(auditRow.metadata).toMatchObject({ attendanceBefore: { total: 0 }, attendanceAfter: { total: 1 }, reason: correctedReport.amendmentReason });
     await expect(completionService.save(f.actor, f.tour.tourId, f.tour.departureId, { ...correctedReport, expectedRevision: 2, amendmentReason: '' }, true)).rejects.toMatchObject({ statusCode: 400 });
     await expect(completionService.save(f.actor, f.tour.tourId, f.tour.departureId, correctedReport, true)).rejects.toMatchObject({ code: 'CONCURRENT_UPDATE' });

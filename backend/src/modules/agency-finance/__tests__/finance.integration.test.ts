@@ -34,6 +34,13 @@ async function fixture() {
     return { owner, traveler, admin, approver, tour, b, p, proof, provider, reconcile, start, finish };
 }
 describe('Agency finance, real PostgreSQL', () => {
+    it('returns 404 when Admin exports a report for a missing Agency',async()=>{
+        const admin=await createUser('SUPER_ADMIN',`export-admin-${randomUUID()}@test.dev`);
+        for(const format of ['xlsx','pdf']){
+            const result=await request(app).get(`/api/v1/admin/finance/reports/export.${format}`).query({agencyId:randomUUID()}).set(bearer(admin.token));
+            expect(result.status).toBe(404);expect(result.body.error.code).toBe('NOT_FOUND');
+        }
+    });
     it('isolates allowlisted development settlement fixtures from LIVE totals and disables the exception in production',async()=>{
         const f=await fixture();await f.reconcile();
         await prisma.payment.update({where:{id:f.p.id},data:{provider:'TEST-FINANCE'}});
@@ -205,7 +212,8 @@ describe('Agency finance, real PostgreSQL', () => {
     });
     it('defers accounting refunds and rejects editing the fixed settlement policy', async () => {
         const f = await fixture();
-        expect((await request(app).get('/api/v1/agency/finance/refunds').set(bearer(f.owner.token))).status).toBe(501);
+        const deferred=await request(app).get('/api/v1/agency/finance/refunds').set(bearer(f.owner.token));
+        expect(deferred.status).toBe(501);expect(deferred.body.error.code).toBe('FINANCE_REFUNDS_NOT_IMPLEMENTED');
         expect((await request(app).post(`/api/v1/agency/finance/refunds/${f.b.id}/manual-payments`).set(bearer(f.owner.token)).send({})).status).toBe(501);
         expect((await request(app).post(`/api/v1/admin/finance/refunds/${f.b.id}/review`).set(bearer(f.admin.token)).send({})).status).toBe(501);
         const before = await request(app).get('/api/v1/admin/finance/policy').set(bearer(f.admin.token));

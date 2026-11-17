@@ -199,6 +199,9 @@ export class BookingsRepository {
 
   /** Serialize the pending-booking check for this traveler/departure without a schema change. */
   async lockPendingDeparture(travelerId: string, departureId: string, db: DbExecutor): Promise<void> {
+    // Financial writers use Agency -> Booking. Lock the Agency before voucher
+    // locks too, so concurrent creation/cancellation cannot invert that order.
+    await db.$queryRaw`SELECT a.id FROM "AgencyProfile" a JOIN "Tour" t ON t."agencyId"=a.id JOIN "TourDeparture" d ON d."tourId"=t.id WHERE d.id=${departureId}::uuid FOR UPDATE OF a`;
     await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('booking-pending'), hashtext(${`${travelerId}:${departureId}`}))`;
   }
 
@@ -214,6 +217,7 @@ export class BookingsRepository {
   async transition(id: string, expected: readonly BookingStatus[], patch: BookingPatch, db: DbExecutor = prisma): Promise<BookingRecord | null> {
     // Reuse the caller's transaction for voucher/refund changes; standalone calls need the same atomic boundary.
     if (db === prisma) return prisma.$transaction(tx => this.transition(id, expected, patch, tx));
+    await db.$queryRaw`SELECT a.id FROM "AgencyProfile" a JOIN "Booking" b ON b."agencyId"=a.id WHERE b.id=${id}::uuid FOR UPDATE OF a`;
     const row = await (async () => {
       const updated = await db.booking.update({
         where: { id, status: { in: [...expected] }, ...(patch.status === BOOKING_STATUS.COMPLETED ? { endDate: { lte: new Date() } } : {}) },
@@ -272,7 +276,10 @@ export class BookingsRepository {
   }
 
   async updateById(id: string, patch: BookingPatch): Promise<BookingRecord | null> {
-    const row = await prisma.booking.update({ where: { id }, data: patch }).catch(nullIfNotFound);
+    const row = await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT a.id FROM "AgencyProfile" a JOIN "Booking" b ON b."agencyId"=a.id WHERE b.id=${id}::uuid FOR UPDATE OF a`;
+      return tx.booking.update({ where: { id }, data: patch }).catch(nullIfNotFound);
+    });
     return row ? toRecord(row) : null;
   }
 

@@ -8,7 +8,8 @@ const fmt = (v: bigint) => new Intl.NumberFormat('vi-VN').format(v) + ' đ';
 export function excelAmount(value: bigint): number | string { return value.toString().replace('-', '').length <= 15 ? Number(value) : value.toString(); }
 export async function exportFinance(agencyId: string, start: Date, end: Date, format: 'xlsx' | 'pdf', origin?: 'LIVE'|'TEST'|'UNKNOWN') {
     const snapshot = await prisma.$transaction(async (tx) => {
-        const agency = await tx.agencyProfile.findUniqueOrThrow({ where: { id: agencyId }, select: { companyName: true } });
+        const agency = await tx.agencyProfile.findUnique({ where: { id: agencyId }, select: { companyName: true } });
+        if (!agency) throw AppError.notFound();
         const where = { agencyId, effectiveAt: { gte: start, lt: end }, ...(origin?{booking:{financeReceipts:{some:{payment:{financeSource:{origin}}}}}}:{}) };
         const count = await tx.agencyTransaction.count({ where });
         if (count > 10000)

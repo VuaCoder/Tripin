@@ -27,6 +27,8 @@ A release records the Admin, reason, original eligibility date and early-release
 
 ## Money flow
 
+Booking, payment and e-ticket writers acquire the Agency row lock before booking/payment rows or promotion locks, matching settlement writers. Database source triggers remain enabled. This prevents lock-order inversions during concurrent payment, cancellation and ticket issuance. Migration `20261117000700_finance_role_defaults` aligns new OWNER/ACCOUNTANT finance grants with application defaults and repairs untouched existing templates while preserving deliberately edited roles.
+
 1. A paid booking produces a transactional outbox event and balanced PAYMENT journal. Receipt ingestion alone does not prove independent payment. Existing or unverified sources remain UNKNOWN; explicit demo sources remain TEST.
 2. Reconciliation compares booking/order/link/reference/currency and independently retrieved PayOS transaction amounts. Only verified genuine sources may become LIVE. A TEST source is never promoted to LIVE by reconciliation.
 3. The minute maintenance job checks at most 100 least-recently-checked settlement records per pass. A booking needs a completed trip, submitted Agency report, elapsed hold period, verified Agency, matching receipt, and no unresolved complaint, financial obligation, manual hold or historical payout reservation. A single bad record does not stop the remaining records. Heartbeat and errors are visible to Admin.

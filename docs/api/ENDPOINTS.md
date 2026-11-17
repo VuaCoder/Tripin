@@ -3,7 +3,7 @@
 > **Generated** from the Express routers by `pnpm --filter backend docs:routes` — do not edit by hand.
 > A test (`routes.docs.test.ts`) fails when this file is out of date.
 
-Base URL: `/api/v1` · 340 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
+Base URL: `/api/v1` · 361 endpoints · behaviour, request/response shapes and rules are documented in each module README (`backend/src/modules/<name>/README.md`).
 
 **Access**: `public` = no login needed (GUEST) · `login` = any logged-in user (ownership checked in the service) · `` `permission` `` = the listed permission(s) are required (see `packages/constants/src/permissions.ts`).
 
@@ -43,20 +43,34 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 
 | Method | Path | Access |
 |---|---|---|
-| GET | `/api/v1/admin/finance/agencies` | role: `SUPER_ADMIN` + login |
-| GET | `/api/v1/admin/finance/agencies/:agencyId` | role: `SUPER_ADMIN` + login |
-| GET | `/api/v1/admin/finance/agencies/:agencyId/bank-details` | role: `SUPER_ADMIN` + login |
-| POST | `/api/v1/admin/finance/agencies/:agencyId/bank-verify` | role: `SUPER_ADMIN` + login |
-| POST | `/api/v1/admin/finance/agencies/:agencyId/documents` | role: `SUPER_ADMIN` + login |
-| POST | `/api/v1/admin/finance/agencies/:agencyId/payouts` | role: `SUPER_ADMIN` + login |
-| GET | `/api/v1/admin/finance/documents/:id` | role: `SUPER_ADMIN` + login |
-| POST | `/api/v1/admin/finance/payouts/:id/:action` | role: `SUPER_ADMIN` + login |
-| GET | `/api/v1/admin/finance/policy` | role: `SUPER_ADMIN` + login |
-| PUT | `/api/v1/admin/finance/policy` | role: `SUPER_ADMIN` + login |
-| GET | `/api/v1/admin/finance/policy/history` | role: `SUPER_ADMIN` + login |
-| POST | `/api/v1/admin/finance/settlements/:id/release` | role: `SUPER_ADMIN` + login; quyết toán sớm, body `{ "note": "lý do" }` |
-| POST | `/api/v1/admin/finance/settlements/:agencyId/release-all` | role: `SUPER_ADMIN` + login; quyết toán toàn bộ khoản đủ điều kiện của Agency, body `{ "note": "lý do" }` |
-| POST | `/api/v1/admin/finance/refunds/:id/review` | role: `SUPER_ADMIN` + login |
+| GET | `/api/v1/admin/finance/agencies` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/agencies/:agencyId` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/agencies/:agencyId/bank-details` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/agencies/:agencyId/bank-verify` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/agencies/:agencyId/documents` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/agencies/:agencyId/payouts` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/dashboard` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/directory` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/directory/:agencyId` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/documents/:id` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/jobs/retry` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/payouts/:id/:action` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/policy` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| PUT | `/api/v1/admin/finance/policy` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/policy/history` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/receipts` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/reconcile/:agencyId` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/refunds/:id/review` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/reports/export.pdf` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/reports/export.xlsx` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/settlement-source/:id` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/settlements/:agencyId` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/settlements/:agencyId/release-all` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/settlements/:id/hold` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/settlements/:id/release` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/wallet/:agencyId` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| GET | `/api/v1/admin/finance/withdrawals` | role: `SUPER_ADMIN` + `admin:dashboard` |
+| POST | `/api/v1/admin/finance/withdrawals/:id/:action` | role: `SUPER_ADMIN` + `admin:dashboard` |
 
 ## `/admin/policies`
 
@@ -246,6 +260,7 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 
 | Method | Path | Access |
 |---|---|---|
+| GET | `/api/v1/agency/finance/balances` | `agency:finance-view` |
 | GET | `/api/v1/agency/finance/bank-account` | `agency:finance-view` |
 | PUT | `/api/v1/agency/finance/bank-account` | `agency:finance-view`, `agency:finance-bank-manage` |
 | GET | `/api/v1/agency/finance/cashflow` | `agency:finance-view` |
@@ -261,8 +276,12 @@ Responses use one envelope: `{ "success": true, "data": …, "meta"?: { page, li
 | POST | `/api/v1/agency/finance/refunds/:bookingId/manual-payments` | `agency:finance-view`, `agency:finance-refund-record` |
 | GET | `/api/v1/agency/finance/reports/export.pdf` | `agency:finance-view`, `agency:finance-export` |
 | GET | `/api/v1/agency/finance/reports/export.xlsx` | `agency:finance-view`, `agency:finance-export` |
+| GET | `/api/v1/agency/finance/settlements` | `agency:finance-view` |
 | GET | `/api/v1/agency/finance/transactions` | `agency:finance-view` |
 | GET | `/api/v1/agency/finance/transactions/:id` | `agency:finance-view` |
+| GET | `/api/v1/agency/finance/withdrawals` | `agency:finance-view` |
+| POST | `/api/v1/agency/finance/withdrawals` | `agency:finance-view`, `agency:finance-withdraw` |
+| POST | `/api/v1/agency/finance/withdrawals/:id/cancel` | `agency:finance-view`, `agency:finance-withdraw` |
 
 ## `/agency/guides`
 

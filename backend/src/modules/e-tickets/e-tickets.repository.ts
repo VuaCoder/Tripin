@@ -44,6 +44,7 @@ export interface BookingRosterFacts {
 export class ETicketsRepository {
   create(data: NewETicket, repairCompleted = false): Promise<ETicketRecord> {
     return prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT a.id FROM "AgencyProfile" a JOIN "Booking" b ON b."agencyId"=a.id WHERE b.id=${data.bookingId}::uuid FOR UPDATE OF a`;
       // Cancellation updates this same row, so it cannot pass between the guard and insert.
       const rows = await tx.$queryRaw<{ status: string; isPaid: boolean }[]>`
         SELECT "status", "isPaid" FROM "Booking" WHERE "id" = ${data.bookingId}::uuid FOR UPDATE`;

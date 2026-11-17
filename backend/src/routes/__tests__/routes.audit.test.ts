@@ -77,6 +77,15 @@ const LOGIN_ONLY_ROUTES = [
 
 /** Mutating routes that carry no JSON body by design (pure actions on the caller's own resource / signed callbacks). */
 const BODYLESS_MUTATIONS = [
+  // Multipart uploads validate their file in storeDocument; other entries are
+  // parameter-only actions. Policy editing is a disabled compatibility route.
+  'POST /admin/finance/agencies/:agencyId/documents',
+  'POST /admin/finance/reconcile/:agencyId',
+  'POST /admin/finance/jobs/retry',
+  'PUT /admin/finance/policy',
+  'POST /agency/finance/documents',
+  'POST /agency/finance/reconcile',
+  'POST /agency/finance/withdrawals/:id/cancel',
   'POST /agency/invitations/:id/revoke',
   'POST /premium/guide/images/signature',
   'POST /agency/premium/contributions/:id/stop',
@@ -106,6 +115,15 @@ const BODYLESS_MUTATIONS = [
 ].sort();
 
 describe('route audit: who can call what', () => {
+  it('includes nested finance routes once with inherited role and permission guards', () => {
+    for (const path of ['/admin/finance/dashboard','/admin/finance/settlements/:agencyId/release-all','/admin/finance/withdrawals/:id/:action']) {
+      const matches=routes.filter(r=>r.path===`/api/v1${path}`);
+      expect(matches).toHaveLength(1);
+      expect(matches[0]!.roles).toEqual(['SUPER_ADMIN']);
+      expect(matches[0]!.access).toContain(PERMISSIONS.ADMIN_DASHBOARD_VIEW);
+    }
+    expect(routes.find(r=>r.path==='/api/v1/agency/finance/withdrawals')?.access).toContain('agency:finance-view');
+  });
   it('requires the Super Admin role as well as permissions on every admin endpoint', () => {
     const adminRoutes = routes.filter((r) => r.path.startsWith('/api/v1/admin/'));
     expect(adminRoutes.length).toBeGreaterThan(10);

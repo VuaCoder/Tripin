@@ -24,12 +24,15 @@ export async function retryTicketFulfillment(now = new Date()): Promise<number> 
       repaired += 1;
     } catch (error) {
       // Never record provider payloads or traveler information in persisted retry metadata.
-      await prisma.$executeRaw`
+      await prisma.$transaction(async tx => {
+        await tx.$queryRaw`SELECT a.id FROM "AgencyProfile" a JOIN "Booking" b ON b."agencyId"=a.id WHERE b.id=${id}::uuid FOR UPDATE OF a`;
+        await tx.$executeRaw`
         UPDATE "Booking" SET "fulfillmentStatus" = 'FAILED',
           "fulfillmentAttempts" = "fulfillmentAttempts" + 1,
           "fulfillmentNextAttemptAt" = ${new Date(now.getTime() + 3 * 60_000)}
         WHERE "id" = ${id}::uuid AND "status" IN ('CONFIRMED', 'COMPLETED')
           AND NOT EXISTS (SELECT 1 FROM "ETicket" t WHERE t."bookingId" = ${id}::uuid)`;
+      });
       logger.warn('Ticket fulfillment will be retried', { bookingId: id, code: error instanceof Error ? error.name : 'UNKNOWN' });
     }
   }

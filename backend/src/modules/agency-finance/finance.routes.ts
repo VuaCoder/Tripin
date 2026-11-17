@@ -1,11 +1,12 @@
 import { FIXED_SETTLEMENT_POLICY } from './finance.policy';
 import { agencyWalletRouter, adminWalletRouter } from './finance.wallet.routes';
 import { Router } from 'express';
+import { PERMISSIONS } from '@travel-platform/constants';
 import multer from 'multer';
 import { z } from 'zod';
 import { prisma } from '../../config/database';
 import { agencyContext, requireAgencyPermission } from '../../middlewares/agency-context';
-import { requireAuth, requireSuperAdmin, userActor } from '../../middlewares/authorize';
+import { requireAuth, requireSuperAdmin, requirePermission, userActor } from '../../middlewares/authorize';
 import { validate, validated } from '../../middlewares/validate';
 import { sendOk } from '../../utils/api-response';
 import { AppError } from '../../utils/app-error';
@@ -152,7 +153,7 @@ for (const format of ['xlsx', 'pdf'] as const)
         res.set({ 'Content-Type': format === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/pdf', 'Content-Disposition': `attachment; filename="agency-finance.${format}"`, 'Cache-Control': 'private, no-store' }).send(result);
     });
 export const adminFinanceRouter = Router();
-adminFinanceRouter.use(requireAuth, requireSuperAdmin);
+adminFinanceRouter.use(requireAuth, requireSuperAdmin, requirePermission(PERMISSIONS.ADMIN_DASHBOARD_VIEW));
 adminFinanceRouter.use(adminWalletRouter);
 adminFinanceRouter.use('/refunds', () => { throw new AppError(501, 'FINANCE_REFUNDS_NOT_IMPLEMENTED', 'Luồng hoàn tiền trong kế toán chưa được triển khai.'); });
 adminFinanceRouter.get('/agencies', async (_req, res) => ok(res, await prisma.agencyProfile.findMany({ select: { id: true, companyName: true, verificationStatus: true }, orderBy: { companyName: 'asc' }, take: 1000 })));

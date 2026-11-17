@@ -1,6 +1,6 @@
 import type { DateRange } from '../../utils/date-range';
 import { PAYMENT_STATUS, type PaymentPurpose, type PaymentStatus } from '@travel-platform/constants';
-import { nullIfNotFound, prisma } from '../../config/database';
+import { nullIfNotFound, prisma, type DbExecutor } from '../../config/database';
 import type { Payment as StoredPayment } from '../../generated/prisma/client';
 import { numericRecord, type NumericRecord } from '../../utils/money';
 import { safeVndNumber } from '@travel-platform/constants';
@@ -24,8 +24,17 @@ function toRecord(row: StoredPayment): PaymentRecord {
 const toRecords = (rows: StoredPayment[]) => rows.map(toRecord);
 
 export class PaymentsRepository {
+  /** Acquire the financial source lock before a payment row, matching booking
+   * and settlement writers. Row triggers alone acquire these in reverse order. */
+  private write<T>(paymentId: string | null, bookingId: string | null, work: (tx: DbExecutor) => Promise<T>): Promise<T> {
+    return prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT a.id FROM "AgencyProfile" a JOIN "Booking" b ON b."agencyId"=a.id
+        WHERE b.id=COALESCE(${bookingId}::uuid,(SELECT "referenceId" FROM "Payment" WHERE id=${paymentId}::uuid AND purpose='BOOKING')) FOR UPDATE OF a`;
+      return work(tx);
+    });
+  }
   async create(data: NewPayment): Promise<PaymentRecord> {
-    return toRecord(await prisma.payment.create({ data: { ...data, providerOrderCode: BigInt(data.providerOrderCode) } }));
+    return this.write(null, data.purpose === 'BOOKING' ? data.referenceId : null, async tx => toRecord(await tx.payment.create({ data: { ...data, providerOrderCode: BigInt(data.providerOrderCode) } })));
   }
 
   async findById(id: string): Promise<PaymentRecord | null> {
@@ -51,19 +60,19 @@ export class PaymentsRepository {
   }
 
   async updateById(id: string, patch: PaymentPatch): Promise<PaymentRecord | null> {
-    const row = await prisma.payment.update({ where: { id }, data: patch }).catch(nullIfNotFound);
+    const row = await this.write(id, null, tx => tx.payment.update({ where: { id }, data: patch }).catch(nullIfNotFound));
     return row ? toRecord(row) : null;
   }
 
   /** Compare-and-set on status; null when the payment already left the expected status (e.g. a concurrent webhook won). */
   async transition(id: string, expected: readonly PaymentStatus[], patch: PaymentPatch): Promise<PaymentRecord | null> {
-    const row = await prisma.payment.update({ where: { id, status: { in: [...expected] } }, data: patch }).catch(nullIfNotFound);
+    const row = await this.write(id, null, tx => tx.payment.update({ where: { id, status: { in: [...expected] } }, data: patch }).catch(nullIfNotFound));
     return row ? toRecord(row) : null;
   }
 
   /** Marks the business effect as applied, once. Returns null if it was already marked. */
   async markFulfilled(id: string): Promise<PaymentRecord | null> {
-    const row = await prisma.payment.update({ where: { id, status: PAYMENT_STATUS.PAID, fulfilledAt: null }, data: { fulfilledAt: new Date() } }).catch(nullIfNotFound);
+    const row = await this.write(id, null, tx => tx.payment.update({ where: { id, status: PAYMENT_STATUS.PAID, fulfilledAt: null }, data: { fulfilledAt: new Date() } }).catch(nullIfNotFound));
     return row ? toRecord(row) : null;
   }
 

@@ -110,6 +110,7 @@ describe('ticket lifecycle invariants (BOOK-003, BOOK-012)', () => {
 
   it('repairs a completed trip as USED without weakening normal issuance guards', async () => {
     const { booking, ticket } = await fixture();
+    await prisma.tourCompletion.create({data:{agencyId:booking.agencyId,tourId:booking.tourId,departureId:booking.departureId,scheduledEndAt:new Date(Date.now()-1),snapshot:{},completedAt:new Date(),revision:1,reports:{create:{revision:1,actorId:booking.agencyId,submitted:true,payload:{attendance:[{bookingId:booking.id,attendedCount:booking.participants}]}}}}});
     await prisma.booking.update({ where: { id: booking.id }, data: { status: 'COMPLETED', endDate: new Date(Date.now() - 1), confirmedAt: new Date(Date.now() - 4 * 60_000) } });
     await expect(eTicketsRepository.create(ticket)).rejects.toMatchObject({ code: 'BOOKING_NOT_CONFIRMED' });
     expect(await retryTicketFulfillment()).toBe(1);

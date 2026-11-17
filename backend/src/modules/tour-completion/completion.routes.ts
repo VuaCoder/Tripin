@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import { PERMISSIONS } from '@travel-platform/constants';
 import { requirePermission, userActor } from '../../middlewares/authorize';
 import { agencyContext } from '../../middlewares/agency-context';
@@ -11,9 +11,11 @@ import { prisma } from '../../config/database';
 import { z } from 'zod';
 
 export const completionRouter = Router();
-completionRouter.use(requirePermission(PERMISSIONS.TOUR_UPDATE_OWN));
-completionRouter.use((req, _res, next) => agencyContext(req).memberRole === 'OWNER' || agencyContext(req).memberRole === 'MANAGER'
-  ? next() : next(AppError.forbidden('Chỉ chủ sở hữu hoặc quản lý được chốt báo cáo chuyến đi.')));
+// This router shares /agency/tours with exports and availability endpoints.
+// Apply completion guards only after a completion route actually matches.
+const completionRole: RequestHandler = (req, _res, next) => agencyContext(req).memberRole === 'OWNER' || agencyContext(req).memberRole === 'MANAGER'
+  ? next() : next(AppError.forbidden('Chỉ chủ sở hữu hoặc quản lý được chốt báo cáo chuyến đi.'));
+const completionGuards = [requirePermission(PERMISSIONS.TOUR_UPDATE_OWN), completionRole];
 type Params = { tourId: string; departureId: string };
 export const completionQueueRouter = Router();
 const queueQuery = z.object({ page: z.coerce.number().int().min(1).max(100000).default(1), status: z.enum(['pending', 'completed']).default('pending') });
@@ -43,12 +45,12 @@ completionQueueRouter.get('/', requirePermission(PERMISSIONS.TOUR_UPDATE_OWN), v
     ORDER BY MAX(b."endDate"), b."departureId" LIMIT 21 OFFSET ${(query.page - 1) * 20}`;
   sendOk(res, { items: rows.slice(0, 20), hasNext: rows.length > 20, page: query.page });
 });
-completionRouter.get('/:tourId/departures/:departureId/completion', validate({ params: completionParams }), async (req, res) => {
+completionRouter.get('/:tourId/departures/:departureId/completion', ...completionGuards, validate({ params: completionParams }), async (req, res) => {
   const { params } = validated<unknown, unknown, Params>(req);
   sendOk(res, await completionService.get(agencyContext(req).agencyId, params.tourId, params.departureId));
 });
 for (const action of ['draft', 'submit'] as const) {
-  completionRouter.post(`/:tourId/departures/:departureId/completion/${action}`, validate({ params: completionParams, body: reportBody }), async (req, res) => {
+  completionRouter.post(`/:tourId/departures/:departureId/completion/${action}`, ...completionGuards, validate({ params: completionParams, body: reportBody }), async (req, res) => {
     const { params, body } = validated<CompletionReportInput, unknown, Params>(req);
     const actor = userActor(req);
     sendOk(res, await completionService.save({ agencyId: agencyContext(req).agencyId, userId: actor.userId, role: actor.role }, params.tourId, params.departureId, body, action === 'submit'));

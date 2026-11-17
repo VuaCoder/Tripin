@@ -44,6 +44,7 @@ function expectError(res: Response, code: string): void {
 
 // Codes covered by focused service/provider tests or requiring a specific concurrent failure.
 const COVERED_ELSEWHERE: Record<string, string> = {
+  FINANCE_REFUNDS_NOT_IMPLEMENTED: 'finance.integration.test.ts exercises the three deferred refund HTTP endpoints and verifies the 501 code',
   PHONE_ALREADY_REGISTERED: 'phone-registration.integration.test.ts verifies duplicate phone registration and updates',
   AGENCY_COMPLETION_REQUIRED: 'completion.integration.test.ts rejects the legacy traveler completion endpoint',
   BOOKING_NOT_ATTENDED: 'reviews.service.test.ts rejects reviews and signatures for absent groups',

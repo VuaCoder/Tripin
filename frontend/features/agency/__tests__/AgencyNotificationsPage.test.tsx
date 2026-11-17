@@ -35,7 +35,7 @@ describe('Agency inbox', () => {
     expect(fixture.refetch).toHaveBeenCalledOnce();
   });
   it('preserves unread items when marking fails', async () => {
-    fixture.query.currentData.data = [{ id: 'notification-1', title: 'Tour được duyệt', body: 'Nội dung', isRead: false, createdAt: '2026-10-16T00:00:00Z' }];
+    fixture.query.currentData.data = [{ id: 'notification-1', type: 'TOUR_APPROVED', title: 'Tour được duyệt', body: 'Nội dung', isRead: false, createdAt: '2026-10-16T00:00:00Z' }];
     fixture.mark.mockReturnValue({ unwrap: () => Promise.reject(new Error('Network')) });
     render(<AgencyNotificationsPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Đánh dấu đã đọc' }));
@@ -44,7 +44,7 @@ describe('Agency inbox', () => {
     expect(fixture.mark).toHaveBeenCalledWith('notification-1');
   });
   it('keeps a notification visible when deletion fails and asks before removing it', async () => {
-    fixture.query.currentData.data = [{ id: 'notification-1', title: 'Tour được duyệt', body: 'Nội dung', isRead: true, createdAt: '2026-10-16T00:00:00Z' }];
+    fixture.query.currentData.data = [{ id: 'notification-1', type: 'TOUR_APPROVED', title: 'Tour được duyệt', body: 'Nội dung', isRead: true, createdAt: '2026-10-16T00:00:00Z' }];
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
     fixture.remove.mockReturnValue({ unwrap: () => Promise.reject(new Error('Network')) });
     render(<AgencyNotificationsPage />);
