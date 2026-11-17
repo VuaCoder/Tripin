@@ -152,6 +152,7 @@ export interface ComplaintTicketDetailDto extends ComplaintTicketSummaryDto {
 export interface AgencyQualityStatsDto {
   agencyId: string;
   agencyName: string;
+  avatarUrl?: string;
   totalComplaints: number;
   resolvedCount: number;
   closedCount: number;

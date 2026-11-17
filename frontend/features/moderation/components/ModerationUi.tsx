@@ -1,12 +1,10 @@
 'use client';
 
-import { useContext, useEffect, useRef } from 'react';
-import { ReactReduxContext } from 'react-redux';
+import { useEffect } from 'react';
 import { AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/features/auth';
 import { getApiErrorCode, getApiErrorMessage } from '@/features/auth/utils/apiError';
-import { pushNotification } from '@/features/agency/notifications';
 import { MODERATION_ERROR_MESSAGES } from '../labels';
 
 /** True when the logged-in user holds `permission` (the backend re-checks it on every request). */
@@ -25,27 +23,6 @@ export function ModerationDenied() {
 export type Feedback = { message: string; type: 'success' | 'error' };
 
 export function FeedbackBanner({ feedback, onClose }: { feedback: Feedback | null; onClose: () => void }) {
-  const reduxContext = useContext(ReactReduxContext);
-  const dispatch = reduxContext?.store?.dispatch;
-  const lastPushed = useRef<string | null>(null);
-
-  // When an update happens, push it to the notification center so bell badge increments
-  useEffect(() => {
-    if (feedback && feedback.type === 'success' && feedback.message !== lastPushed.current) {
-      lastPushed.current = feedback.message;
-      if (dispatch) {
-        try {
-          pushNotification(dispatch, {
-            title: 'Cập nhật kiểm duyệt',
-            body: feedback.message,
-          });
-        } catch {
-          // ignore in tests without active store
-        }
-      }
-    }
-  }, [feedback, dispatch]);
-
   // Ant Design style auto-dismiss after 4.5 seconds
   useEffect(() => {
     if (!feedback) return;

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Search, RefreshCw, X, LayoutGrid, List, Compass, MapPin, Clock, Eye, AlertOctagon } from 'lucide-react';
+import { Search, RefreshCw, X, Compass, MapPin, Clock, Eye, AlertOctagon } from 'lucide-react';
+import { GridListToggle } from '@/components/ui/GridListToggle';
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared';
 import { Pagination, AntSelect, Modal, type AntSelectOption } from '@/components/ui';
 import { useGetModerationTourQuery, useGetModerationToursQuery, useSuspendTourMutation, useValidateTourMutation } from '../api/moderationApi';
@@ -260,35 +261,7 @@ export function ModerationTourListPage({ initialStatus = 'PENDING_REVIEW' }: Pro
             triggerClassName={filter !== 'ALL' ? 'border-brand-teal/60 bg-teal-50/20 text-teal-900 font-semibold' : ''}
           />
 
-          {/* View Switcher: List vs Grid */}
-          <div className="flex items-center rounded-2xl border border-slate-200/90 bg-white p-1 shadow-2xs">
-            <button
-              type="button"
-              onClick={() => setViewMode('grid')}
-              aria-label="Xem dạng lưới"
-              title="Xem dạng lưới"
-              className={`flex size-8 items-center justify-center rounded-xl transition cursor-pointer ${
-                viewMode === 'grid'
-                  ? 'bg-brand-teal text-white shadow-xs font-bold'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-              }`}
-            >
-              <LayoutGrid className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              aria-label="Xem dạng danh sách"
-              title="Xem dạng danh sách"
-              className={`flex size-8 items-center justify-center rounded-xl transition cursor-pointer ${
-                viewMode === 'list'
-                  ? 'bg-brand-teal text-white shadow-xs font-bold'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-              }`}
-            >
-              <List className="size-4" />
-            </button>
-          </div>
+          <GridListToggle value={viewMode} onChange={setViewMode} />
 
           {/* Refresh Button */}
           <button

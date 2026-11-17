@@ -123,6 +123,7 @@ export function ModeratorTourDetailModal({
       title="Chi tiết kiểm duyệt tour"
       className="max-w-6xl w-[96vw]"
       contentClassName="!p-0"
+      footerScrollable
       footer={
         <div className="w-full space-y-3.5">
           {/* Previous Rejection or Suspension Reason */}
@@ -234,8 +235,7 @@ export function ModeratorTourDetailModal({
         </div>
       }
     >
-      {/* Pinned Top Banner & Tab Navigation: Sticky with zero nested scrollbars */}
-      <div className="sticky top-0 z-20 border-b border-slate-200 bg-white shadow-2xs">
+      <div className="border-b border-slate-200 bg-white">
         {/* Compact Header Banner */}
         <div className="bg-gradient-to-b from-slate-50/95 to-white px-5 py-3 sm:px-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">

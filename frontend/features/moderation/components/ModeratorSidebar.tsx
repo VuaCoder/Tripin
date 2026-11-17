@@ -23,8 +23,8 @@ import {
 } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser, useLogout } from '@/features/auth';
-import { useAgencyNotifications } from '@/features/agency/notifications';
-import { AgencyNotificationPopover } from '@/features/agency/components/AgencyNotificationPopover';
+import { useGetUnreadCountQuery } from '@/features/notifications/api/notificationsApi';
+import { AdminNotificationPopover } from '@/features/admin/components/AdminNotificationPopover';
 import styles from '@/features/agency/components/AgencySidebar.module.css';
 
 interface ModeratorSidebarProps {
@@ -43,7 +43,8 @@ export function ModeratorSidebar({ initialExpanded = true }: ModeratorSidebarPro
   const focusSearch = useRef(false);
   const shortcut = '⌘K';
   const user = useAppSelector(selectUser);
-  const { count } = useAgencyNotifications();
+  const { data: unreadCount } = useGetUnreadCountQuery(undefined, { skip: !user?.id, pollingInterval: 30000 });
+  const count = unreadCount ?? 0;
   const logout = useLogout();
   const pathname = usePathname();
   const router = useRouter();
@@ -364,7 +365,7 @@ export function ModeratorSidebar({ initialExpanded = true }: ModeratorSidebarPro
       </aside>
 
       {showNotificationModal && (
-        <AgencyNotificationPopover expanded={expanded} onClose={() => setShowNotificationModal(false)} />
+        <AdminNotificationPopover expanded={expanded} onClose={() => setShowNotificationModal(false)} />
       )}
     </>
   );

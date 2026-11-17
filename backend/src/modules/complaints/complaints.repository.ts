@@ -304,7 +304,24 @@ export class ComplaintsRepository {
       },
       _count: { id: true },
     });
-    return { stats, feedbacks };
+    const selfResolved = await prisma.complaintTicket.groupBy({
+      by: ['agencyId'],
+      where: { status: { in: ['RESOLVED', 'CLOSED'] }, solutionSummary: { not: null }, moderatorDecision: null },
+      _count: { id: true },
+    });
+    return { stats, feedbacks, selfResolved };
+  }
+
+  async listAgencyQualityIdentities() {
+    return prisma.agencyProfile.findMany({
+      select: {
+        id: true,
+        companyName: true,
+        user: { select: { fullName: true, avatarUrl: true } },
+        members: { where: { role: 'OWNER', status: 'ACTIVE' }, take: 1, select: { user: { select: { avatarUrl: true } } } },
+      },
+      orderBy: [{ companyName: 'asc' }, { id: 'asc' }],
+    });
   }
 }
 

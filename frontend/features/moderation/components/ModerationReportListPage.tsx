@@ -211,9 +211,6 @@ export function ModerationReportListPage() {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
             Báo cáo vi phạm
           </h1>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Theo dõi, phân loại và xử lý các tố cáo hành vi vi phạm từ người dùng và đối tác
-          </p>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
@@ -222,11 +219,10 @@ export function ModerationReportListPage() {
             disabled={isFetching}
             onClick={() => void refetch()}
             aria-label="Làm mới"
-            title="Làm mới dữ liệu"
-            className="flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+            title="Làm mới"
+            className="flex size-10 items-center justify-center rounded-2xl border border-slate-200/90 bg-white text-slate-600 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
           >
-            <RefreshCw className={`size-3.5 ${isFetching ? 'animate-spin' : ''}`} />
-            <span>Làm mới</span>
+            <RefreshCw className={`size-4 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>

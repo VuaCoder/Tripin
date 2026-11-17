@@ -136,6 +136,7 @@ export interface ComplaintListResult {
 export interface AgencyQualityStats {
   agencyId: string;
   agencyName: string;
+  avatarUrl?: string;
   totalComplaints: number;
   resolvedCount: number;
   closedCount: number;
