@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   PieChart,
   BarChart3,
-  ArrowRight,
   RefreshCw,
   Sparkles,
   ShieldCheck,
@@ -24,12 +23,32 @@ import { ErrorState, LoadingState } from '@/components/shared';
 import { useGetModeratorComplaintsQuery } from '@/features/complaints/api/complaintsApi';
 import { useGetModerationDashboardQuery } from '../api/moderationApi';
 import { PERMISSION } from '../labels';
-import { dateTime, ModerationDenied, useModerationPermission } from './ModerationUi';
+import { ModerationDenied, useModerationPermission } from './ModerationUi';
+
+const updatedDate = new Intl.DateTimeFormat('vi-VN', {
+  timeZone: 'Asia/Ho_Chi_Minh',
+  day: '2-digit',
+  month: '2-digit',
+});
+const updatedYear = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric' });
+const updatedTime = new Intl.DateTimeFormat('vi-VN', {
+  timeZone: 'Asia/Ho_Chi_Minh',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+function formatUpdatedAt(value: string): string {
+  const date = new Date(value);
+  const year = updatedYear.format(date);
+  const currentYear = updatedYear.format(new Date());
+  const yearSuffix = year === currentYear ? '' : `/${year.slice(-2)}`;
+  return `${updatedTime.format(date)} ${updatedDate.format(date)}${yearSuffix}`;
+}
 
 interface MetricTileConfig {
   label: string;
   value: number | string;
-  hint: string;
   href?: string;
   allowed: boolean;
   icon: React.ElementType;
@@ -91,7 +110,6 @@ export function ModerationDashboardPage() {
         {
           label: 'Tour chờ duyệt',
           value: data.queues.toursPendingReview ?? 0,
-          hint: 'Cần quyết định duyệt / từ chối',
           href: '/moderator/tours?status=PENDING_REVIEW',
           allowed: canTours,
           icon: Compass,
@@ -110,7 +128,6 @@ export function ModerationDashboardPage() {
         {
           label: 'Agency chờ xác minh',
           value: data.queues.agenciesPendingVerification ?? 0,
-          hint: 'Hồ sơ pháp lý đối tác mới',
           href: '/moderator/agencies',
           allowed: canAgencies,
           icon: Building2,
@@ -129,7 +146,6 @@ export function ModerationDashboardPage() {
         {
           label: 'Tranh chấp khiếu nại',
           value: complaintError ? 'Lỗi tải dữ liệu' : complaintLoading ? 'Đang tải…' : complaintData?.meta.total ?? '—',
-          hint: `${complaintError ? 'Lỗi tải dữ liệu' : complaintData?.meta.total ?? '…'} ca khiếu nại tour leo thang`,
           href: '/moderator/complaints',
           allowed: canReports,
           icon: Scale,
@@ -148,7 +164,6 @@ export function ModerationDashboardPage() {
         {
           label: 'Báo cáo đang mở',
           value: (data.queues.reportsOpen ?? 0) + (data.queues.reportsAwaitingDecision ?? 0),
-          hint: `${data.queues.reportsAwaitingDecision ?? 0} ca chờ quyết định cuối`,
           href: '/moderator/reports',
           allowed: canReports,
           icon: ShieldAlert,
@@ -167,7 +182,6 @@ export function ModerationDashboardPage() {
         {
           label: 'Khiếu nại hỗ trợ',
           value: (data.queues.supportTicketsOpen ?? 0) + (data.queues.supportTicketsInProgress ?? 0),
-          hint: `${data.queues.supportTicketsInProgress ?? 0} phiếu đang hỗ trợ`,
           href: '/moderator/support-tickets',
           allowed: canTickets,
           icon: Headphones,
@@ -302,7 +316,7 @@ export function ModerationDashboardPage() {
               .map((t) => {
                 const IconComponent = t.icon;
                 const cardContent = (
-                  <div className="flex h-full flex-col justify-between">
+                  <div>
                     <div>
                       <div className="flex items-center justify-between gap-2">
                         <span className={`inline-flex items-center justify-center size-8 rounded-xl ${t.theme.iconBg}`}>
@@ -321,10 +335,6 @@ export function ModerationDashboardPage() {
                           {t.value}
                         </div>
                       </div>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-500">
-                      <span className="truncate">{t.hint}</span>
-                      <ArrowRight className="size-3 text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0 ml-1" />
                     </div>
                   </div>
                 );
@@ -504,7 +514,7 @@ export function ModerationDashboardPage() {
                 </div>
 
                 <div className="mt-6 border-t border-slate-100 pt-3 text-[11px] text-slate-400 flex items-center justify-between">
-                  <span>Cập nhật lúc {dateTime.format(new Date(data.generatedAt))}</span>
+                  <span>Cập nhật lúc {formatUpdatedAt(data.generatedAt)}</span>
                   {isFetching && <span className="text-brand-teal font-medium">Đang làm mới...</span>}
                 </div>
               </section>
