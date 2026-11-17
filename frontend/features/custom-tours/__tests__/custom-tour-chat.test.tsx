@@ -10,6 +10,18 @@ const mocks = vi.hoisted(() => ({
   accept: vi.fn(),
   decide: vi.fn(),
   tourRefetch: vi.fn(),
+  listedTour: {
+    id: 'st1',
+    title: 'Tour đoàn Đà Nẵng 3N2Đ',
+    destination: 'Đà Nẵng',
+    durationDays: 3,
+    basePrice: 1_000_000,
+    agePricing: null,
+    summary: 'Ba ngày riêng cho đoàn.',
+    description: 'Ngày 1: đón đoàn tại sân bay.',
+    inclusions: ['Xe đưa đón riêng'],
+    exclusions: ['Chi phí cá nhân'],
+  },
   tour: {
     id: 'pt1',
     title: 'Tour đoàn Đà Nẵng 3N2Đ',
@@ -35,6 +47,7 @@ vi.mock('../api', () => ({
 }));
 vi.mock('@/features/tours/api/toursApi', () => ({
   useGetAgencyTourQuery: () => ({ data: mocks.tour, isLoading: false, isError: false, refetch: mocks.tourRefetch }),
+  useGetTourQuery: () => ({ data: mocks.listedTour, isLoading: false, isError: false }),
   useGetTourCategoriesQuery: () => ({ data: [{ id: 'cat1', name: 'Biển' }], isLoading: false }),
 }));
 vi.mock('@/features/tours/components/TourContentFields', () => ({
@@ -217,6 +230,29 @@ describe('CustomTourChatSection', () => {
 });
 
 describe('TravelerOfferReview', () => {
+  it('shows the booked tour and its list price while the agency is still preparing the offer', () => {
+    mocks.list.data = {
+      items: [
+        negotiable({
+          sourceTour: { id: 'st1', title: 'Tour đoàn Đà Nẵng 3N2Đ', images: [] },
+          participants: 2,
+          guestCounts: { adults: 2, children: 0, infants: 0 },
+        }),
+      ],
+    };
+    render(<CustomTourChatSection conversationId="c1" isAgency={false} />);
+    open();
+
+    const panel = screen.getByRole('dialog', { name: 'Thỏa thuận booking đoàn' });
+    expect(within(panel).getByText('Đà Nẵng · 3 ngày')).toBeTruthy();
+    expect(within(panel).getByText('Ngày 1: đón đoàn tại sân bay.')).toBeTruthy();
+    const table = within(panel).getByRole('table');
+    expect(within(table).getByText('Người lớn × 2')).toBeTruthy();
+    expect(within(table).getAllByText('2.000.000 ₫')).toHaveLength(2);
+    expect(within(panel).getByText(/Giá niêm yết của tour/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Chấp nhận thỏa thuận' })).toBeNull();
+  });
+
   it('shows the tour details the agency sent, next to the per-group prices', () => {
     mocks.list.data = { items: [request({ id: 'r1', status: 'OFFERED', nextStep: 'REVIEW_OFFER', offer, guestCounts: offer.guestCounts })] };
     render(<CustomTourChatSection conversationId="c1" isAgency={false} />);
