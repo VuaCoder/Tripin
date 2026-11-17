@@ -19,6 +19,7 @@
     "fixture:tour-ux:create": "tsx src/scripts/dev-tour-management-fixture.ts create",
     "fixture:tour-ux:clean": "tsx src/scripts/dev-tour-management-fixture.ts clean",
     "fixture:moderator:create": "tsx src/scripts/dev-moderator-fixture.ts",
+    "seed:moderator-demo": "tsx src/scripts/seed-moderator-demo.ts",
     "docs:routes": "tsx src/scripts/print-routes.ts",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
